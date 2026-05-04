@@ -13,6 +13,7 @@ const DEFAULT_USER_MOCK: IUser = {
   global_role: "admin",
   api_only: false,
   teams: [],
+  fleets: [],
 };
 
 const createMockUser = (overrides?: Partial<IUser>): IUser => {

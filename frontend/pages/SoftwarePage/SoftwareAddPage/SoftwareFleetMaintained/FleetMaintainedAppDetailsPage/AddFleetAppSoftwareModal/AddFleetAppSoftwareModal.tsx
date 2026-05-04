@@ -15,13 +15,11 @@ const AddFleetAppSoftwareModal = () => {
       onExit={noop}
       disableClosingModal
     >
-      <>
-        <Spinner centered={false} className={`${baseClass}__spinner`} />
-        <p>
-          Uploading software so that it&apos;s available for install. This may
-          take a few minutes.
-        </p>
-      </>
+      <Spinner centered={false} className={`${baseClass}__spinner`} />
+      <p>
+        Uploading software so that it&apos;s available for install. This may
+        take a few minutes.
+      </p>
     </Modal>
   );
 };

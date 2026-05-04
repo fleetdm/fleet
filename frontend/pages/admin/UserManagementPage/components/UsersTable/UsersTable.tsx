@@ -2,16 +2,14 @@ import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
-import paths from "router/paths";
-import { IApiError } from "interfaces/errors";
-import { IInvite, IEditInviteFormData } from "interfaces/invite";
-import { IUser, IUserFormErrors } from "interfaces/user";
-import { ITeam } from "interfaces/team";
-import { clearToken } from "utilities/local";
+import PATHS from "router/paths";
+import { IInvite } from "interfaces/invite";
+import { IUser } from "interfaces/user";
+import { IDropdownOption } from "interfaces/dropdownOption";
+import authToken from "utilities/auth_token";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import usersAPI from "services/entities/users";
 import invitesAPI from "services/entities/invites";
 
@@ -19,17 +17,32 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
-import { generateTableHeaders, combineDataSets } from "./UsersTableConfig";
+import ActionsDropdown from "components/ActionsDropdown";
+import EmptyState from "components/EmptyState";
+import {
+  generateTableHeaders,
+  combineDataSets,
+  IUserTableData,
+} from "./UsersTableConfig";
 import DeleteUserModal from "../DeleteUserModal";
 import ResetPasswordModal from "../ResetPasswordModal";
 import ResetSessionsModal from "../ResetSessionsModal";
-import { NewUserType, IUserFormData } from "../UserForm/UserForm";
-import AddUserModal from "../AddUserModal";
-import EditUserModal from "../EditUserModal";
+
+const ADD_USER_OPTIONS: IDropdownOption[] = [
+  {
+    label: "Regular user",
+    value: "human",
+    helpText: "A human with access to Fleet",
+  },
+  {
+    label: "API-only user",
+    value: "api",
+    helpText: "For GitOps or Fleet API automations",
+  },
+];
 
 const EmptyUsersTable = () => (
-  <EmptyTable
+  <EmptyState
     header="No users match the current criteria"
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
@@ -39,35 +52,18 @@ interface IUsersTableProps {
   router: InjectedRouter; // v3
 }
 const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
-  const { config, currentUser, isPremiumTier } = useContext(AppContext);
+  const { currentUser, isPremiumTier } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   // STATES
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [showResetSessionsModal, setShowResetSessionsModal] = useState(false);
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
-  const [userEditing, setUserEditing] = useState<any>(null);
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
+  const [userEditing, setUserEditing] = useState<IUserTableData | null>(null);
   const [querySearchText, setQuerySearchText] = useState("");
 
   // API CALLS
-  const {
-    data: teams,
-    isFetching: isFetchingTeams,
-    error: loadingTeamsError,
-  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
-    ["teams"],
-    () => teamsAPI.loadAll(),
-    {
-      enabled: !!isPremiumTier,
-      select: (data: ILoadTeamsResponse) => data.teams,
-    }
-  );
-
   const {
     data: users,
     isFetching: isFetchingUsers,
@@ -96,67 +92,44 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     }
   );
 
-  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
-  // `setShowAddUserModal((prevState) => !prevState)`, instead of including state
-  // variables as dependencies for toggles, etc.
-
   // TOGGLE MODALS
 
-  const toggleAddUserModal = useCallback(() => {
-    setShowAddUserModal(!showAddUserModal);
-
-    // clear errors on close
-    if (!showAddUserModal) {
-      setAddUserErrors({});
-    }
-  }, [showAddUserModal, setShowAddUserModal]);
-
   const toggleDeleteUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUserTableData) => {
       setShowDeleteUserModal(!showDeleteUserModal);
-      setUserEditing(!showDeleteUserModal ? user : null);
+      setUserEditing(!showDeleteUserModal ? user ?? null : null);
     },
     [showDeleteUserModal, setShowDeleteUserModal, setUserEditing]
   );
 
-  const toggleEditUserModal = useCallback(
-    (user?: IUser | IInvite) => {
-      setShowEditUserModal(!showEditUserModal);
-      setUserEditing(!showEditUserModal ? user : null);
-      setEditUserErrors({});
-    },
-    [showEditUserModal, setShowEditUserModal, setUserEditing]
-  );
-
   const toggleResetPasswordUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUserTableData) => {
       setShowResetPasswordModal(!showResetPasswordModal);
-      setUserEditing(!showResetPasswordModal ? user : null);
+      setUserEditing(!showResetPasswordModal ? user ?? null : null);
     },
     [showResetPasswordModal, setShowResetPasswordModal, setUserEditing]
   );
 
   const toggleResetSessionsUserModal = useCallback(
-    (user?: IUser | IInvite) => {
+    (user?: IUserTableData) => {
       setShowResetSessionsModal(!showResetSessionsModal);
-      setUserEditing(!showResetSessionsModal ? user : null);
+      setUserEditing(!showResetSessionsModal ? user ?? null : null);
     },
     [showResetSessionsModal, setShowResetSessionsModal, setUserEditing]
   );
 
   // FUNCTIONS
 
-  const goToAccountPage = useCallback(() => {
-    const { ACCOUNT } = paths;
-    router.push(ACCOUNT);
-  }, [router]);
-
   const onActionSelect = useCallback(
-    (value: string, user: IUser | IInvite) => {
+    (value: string, user: IUserTableData) => {
       switch (value) {
-        case "edit":
-          toggleEditUserModal(user);
+        case "edit": {
+          const editPath = PATHS.ADMIN_USERS_EDIT(user.apiId);
+          router.push(
+            user.type === "invite" ? `${editPath}?type=invite` : editPath
+          );
           break;
+        }
         case "delete":
           toggleDeleteUserModal(user);
           break;
@@ -167,7 +140,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           toggleResetSessionsUserModal(user);
           break;
         case "editMyAccount":
-          goToAccountPage();
+          router.push(PATHS.ACCOUNT);
           break;
         default:
           return null;
@@ -175,11 +148,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       return null;
     },
     [
-      toggleEditUserModal,
+      router,
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
-      goToAccountPage,
     ]
   );
 
@@ -195,185 +167,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     [refetchUsers, refetchInvites]
   );
 
-  const getUser = (type: string, id: number) => {
-    let userData;
-    if (type === "user") {
-      userData = users?.find((user) => user.id === id);
-    } else {
-      userData = invites?.find((invite) => invite.id === id);
-    }
-    return userData;
-  };
-
-  const onAddUserSubmit = (formData: IUserFormData) => {
-    setIsUpdatingUsers(true);
-
-    if (formData.newUserType === NewUserType.AdminInvited) {
-      // Do some data formatting adding `invited_by` for the request to be correct and deleteing uncessary fields
-      const requestData = {
-        ...formData,
-        invited_by: formData.currentUserId,
-      };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
-      delete requestData.password; // this field is not needed for the request
-      invitesAPI
-        .create(requestData)
-        .then(() => {
-          renderFlash("success", `${formData.name} has been invited!`);
-          toggleAddUserModal();
-          refetchInvites();
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setAddUserErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
-          } else {
-            renderFlash("error", "Could not create user. Please try again.");
-          }
-        })
-        .finally(() => {
-          setIsUpdatingUsers(false);
-        });
-    } else {
-      // Do some data formatting deleting unnecessary fields
-      const requestData = {
-        ...formData,
-      };
-      delete requestData.currentUserId; // this field is not needed for the request
-      delete requestData.newUserType; // this field is not needed for the request
-      usersAPI
-        .createUserWithoutInvitation(requestData)
-        .then(() => {
-          renderFlash("success", `${requestData.name} has been created!`);
-          toggleAddUserModal();
-          refetchUsers();
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("Duplicate")) {
-            setAddUserErrors({
-              email: "A user with this email address already exists",
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setAddUserErrors({
-              password: "Password must meet the criteria below",
-            });
-          } else if (
-            userErrors.data.errors?.[0].reason.includes("password too long")
-          ) {
-            setAddUserErrors({
-              password: "Password is over the character limit.",
-            });
-          } else {
-            renderFlash("error", "Could not create user. Please try again.");
-          }
-        })
-        .finally(() => {
-          setIsUpdatingUsers(false);
-        });
-    }
-  };
-
-  const onEditUser = (formData: IUserFormData) => {
-    const userData = getUser(userEditing.type, userEditing.id);
-
-    let userUpdatedFlashMessage = `Successfully edited ${formData.name}`;
-    if (userData?.email !== formData.email) {
-      userUpdatedFlashMessage += `. A confirmation email was sent to ${formData.email}.`;
-    }
-    const userUpdatedEmailError =
-      "A user with this email address already exists";
-    const userUpdatedPasswordError = "Password must meet the criteria below";
-    const userUpdatedError = `Could not edit ${userEditing?.name}. Please try again.`;
-
-    // Do not update password to empty string
-    const requestData = formData;
-    if (requestData.new_password === "") {
-      requestData.new_password = null;
-    }
-
-    setIsUpdatingUsers(true);
-    if (userEditing.type === "invite") {
-      return (
-        userData &&
-        invitesAPI
-          .update(userData.id, requestData as IEditInviteFormData)
-          .then(() => {
-            renderFlash("success", userUpdatedFlashMessage);
-            toggleEditUserModal();
-            refetchInvites();
-          })
-          .catch((userErrors: { data: IApiError }) => {
-            if (userErrors.data.errors[0].reason.includes("already exists")) {
-              setEditUserErrors({
-                email: userUpdatedEmailError,
-              });
-            } else if (
-              userErrors.data.errors[0].reason.includes("required criteria")
-            ) {
-              setEditUserErrors({
-                password: userUpdatedPasswordError,
-              });
-            } else {
-              renderFlash("error", userUpdatedError);
-            }
-          })
-          .finally(() => {
-            setIsUpdatingUsers(false);
-          })
-      );
-    }
-
-    return (
-      userData &&
-      usersAPI
-        .update(userData.id, requestData)
-        .then(() => {
-          renderFlash("success", userUpdatedFlashMessage);
-          toggleEditUserModal();
-          refetchUsers();
-        })
-        .catch((userErrors: { data: IApiError }) => {
-          if (userErrors.data.errors[0].reason.includes("already exists")) {
-            setEditUserErrors({
-              email: userUpdatedEmailError,
-            });
-          } else if (
-            userErrors.data.errors[0].reason.includes("required criteria")
-          ) {
-            setEditUserErrors({
-              password: userUpdatedPasswordError,
-            });
-          } else {
-            renderFlash("error", userUpdatedError);
-          }
-        })
-        .finally(() => {
-          setIsUpdatingUsers(false);
-        })
-    );
-  };
-
   const onDeleteUser = () => {
+    if (!userEditing) return;
     setIsUpdatingUsers(true);
     if (userEditing.type === "invite") {
       invitesAPI
-        .destroy(userEditing.id)
+        .destroy(userEditing.apiId)
         .then(() => {
           renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
@@ -390,7 +189,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         });
     } else {
       usersAPI
-        .destroy(userEditing.id)
+        .destroy(userEditing.apiId)
         .then(() => {
           renderFlash("success", `Successfully deleted ${userEditing?.name}.`);
         })
@@ -409,13 +208,15 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   };
 
   const onResetSessions = () => {
-    const isResettingCurrentUser = currentUser?.id === userEditing.id;
+    if (!userEditing) return;
+    const isResettingCurrentUser =
+      userEditing.type === "user" && currentUser?.id === userEditing.apiId;
 
     usersAPI
-      .deleteSessions(userEditing.id)
+      .deleteSessions(userEditing.apiId)
       .then(() => {
         if (isResettingCurrentUser) {
-          clearToken();
+          authToken.remove();
           setTimeout(() => {
             window.location.href = "/";
           }, 500);
@@ -431,9 +232,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       });
   };
 
-  const resetPassword = (user: IUser) => {
-    return usersAPI
-      .requirePasswordReset(user.id, { require: true })
+  const resetPassword = () => {
+    if (!userEditing) return;
+    usersAPI
+      .requirePasswordReset(userEditing.apiId, { require: true })
       .then(() => {
         renderFlash("success", "Successfully required a password reset.");
       })
@@ -448,53 +250,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       });
   };
 
-  const renderEditUserModal = () => {
-    const userData = getUser(userEditing.type, userEditing.id);
-
-    return (
-      <EditUserModal
-        defaultEmail={userData?.email}
-        defaultName={userData?.name}
-        defaultGlobalRole={userData?.global_role}
-        defaultTeams={userData?.teams}
-        onCancel={toggleEditUserModal}
-        onSubmit={onEditUser}
-        availableTeams={teams || []}
-        isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings?.configured || false}
-        sesConfigured={config?.email?.backend === "ses" || false}
-        canUseSso={config?.sso_settings?.enable_sso || false}
-        isSsoEnabled={userData?.sso_enabled}
-        isMfaEnabled={userData?.mfa_enabled}
-        isApiOnly={userData?.api_only || false}
-        isModifiedByGlobalAdmin
-        isInvitePending={userEditing.type === "invite"}
-        editUserErrors={editUserErrors}
-        isUpdatingUsers={isUpdatingUsers}
-      />
-    );
-  };
-
-  const renderAddUserModal = () => {
-    return (
-      <AddUserModal
-        addUserErrors={addUserErrors}
-        onCancel={toggleAddUserModal}
-        onSubmit={onAddUserSubmit}
-        availableTeams={teams || []}
-        defaultGlobalRole="observer"
-        defaultTeams={[]}
-        isPremiumTier={isPremiumTier || false}
-        smtpConfigured={config?.smtp_settings?.configured || false}
-        sesConfigured={config?.email?.backend === "ses" || false}
-        canUseSso={config?.sso_settings?.enable_sso || false}
-        isUpdatingUsers={isUpdatingUsers}
-        isModifiedByGlobalAdmin
-      />
-    );
-  };
-
   const renderDeleteUserModal = () => {
+    if (!userEditing) return null;
     return (
       <DeleteUserModal
         name={userEditing.name}
@@ -508,7 +265,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderResetPasswordModal = () => {
     return (
       <ResetPasswordModal
-        user={userEditing}
         onResetConfirm={resetPassword}
         onResetCancel={toggleResetPasswordUserModal}
       />
@@ -518,7 +274,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   const renderResetSessionsModal = () => {
     return (
       <ResetSessionsModal
-        user={userEditing}
         onResetConfirm={onResetSessions}
         onResetCancel={toggleResetSessionsUserModal}
       />
@@ -530,10 +285,8 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     [onActionSelect, isPremiumTier]
   );
 
-  const loadingTableData =
-    isFetchingUsers || isFetchingInvites || isFetchingTeams;
-  const tableDataError =
-    loadingUsersError || loadingInvitesError || loadingTeamsError;
+  const loadingTableData = isFetchingUsers || isFetchingInvites;
+  const tableDataError = loadingUsersError || loadingInvitesError;
 
   const tableData = useMemo(
     () =>
@@ -548,8 +301,34 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
   );
 
   const renderUsersCount = useCallback(() => {
-    return <TableCount name="users" count={users?.length} />;
-  }, [users?.length]);
+    return <TableCount name="users" count={tableData?.length} />;
+  }, [tableData?.length]);
+
+  const onAddUserSelect = useCallback(
+    (value: string) => {
+      if (value === "human") {
+        router.push(PATHS.ADMIN_USERS_NEW_HUMAN);
+      } else if (value === "api") {
+        router.push(PATHS.ADMIN_USERS_NEW_API);
+      }
+    },
+    [router]
+  );
+
+  const renderAddUserControl = useCallback(
+    () => (
+      <ActionsDropdown
+        options={ADD_USER_OPTIONS}
+        onChange={onAddUserSelect}
+        placeholder="Add user"
+        variant="brand-button"
+        buttonLabel="Add user"
+        className="add-user-dropdown"
+        menuAlign="left"
+      />
+    ),
+    [onAddUserSelect]
+  );
 
   return (
     <>
@@ -563,11 +342,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           defaultSortHeader="name"
           defaultSortDirection="asc"
           inputPlaceHolder="Search by name or email"
-          actionButton={{
-            name: "add user",
-            buttonText: "Add user",
-            onClick: toggleAddUserModal,
-          }}
+          customControl={renderAddUserControl}
           onQueryChange={onTableQueryChange}
           resultsTitle="users"
           emptyComponent={EmptyUsersTable}
@@ -578,8 +353,6 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           renderCount={renderUsersCount}
         />
       )}
-      {showAddUserModal && renderAddUserModal()}
-      {showEditUserModal && renderEditUserModal()}
       {showDeleteUserModal && renderDeleteUserModal()}
       {showResetSessionsModal && renderResetSessionsModal()}
       {showResetPasswordModal && renderResetPasswordModal()}

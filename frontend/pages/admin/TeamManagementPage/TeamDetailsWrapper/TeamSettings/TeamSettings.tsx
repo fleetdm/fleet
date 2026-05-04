@@ -29,7 +29,6 @@ import validURL from "components/forms/validators/valid_url";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -133,6 +132,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -265,7 +265,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         .catch((errorResponse: { data: IApiError }) => {
           renderFlash(
             "error",
-            `Could not update team settings. ${errorResponse.data.errors[0].reason}`
+            `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
           );
         })
         .finally(() => {
@@ -296,7 +296,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           onChange={onInputChange}
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
-          helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
+          helpText={`This will trigger webhooks specific to this fleet, separate from the global host status webhook.`}
           labelTooltipContent="Send an alert if a portion of your hosts go offline."
           disabled={gitopsModeEnabled}
         >
@@ -396,7 +396,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           />
         )}
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

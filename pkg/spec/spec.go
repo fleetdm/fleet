@@ -9,16 +9,52 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
 )
 
 var yamlSeparator = regexp.MustCompile(`(?m:^---[\t ]*)`)
+
+var (
+	envOverridesMu sync.RWMutex
+	envOverrides   map[string]string
+)
+
+// SetEnvOverrides sets environment variable overrides that take precedence over
+// os.LookupEnv during env expansion in GitOps file parsing. Pass nil to clear.
+func SetEnvOverrides(overrides map[string]string) {
+	envOverridesMu.Lock()
+	defer envOverridesMu.Unlock()
+	if overrides == nil {
+		envOverrides = nil
+		return
+	}
+	envOverrides = make(map[string]string, len(overrides))
+	maps.Copy(envOverrides, overrides)
+}
+
+// lookupEnv checks env overrides first, then falls back to os.LookupEnv.
+func lookupEnv(key string) (string, bool) {
+	envOverridesMu.RLock()
+	if envOverrides != nil {
+		if v, ok := envOverrides[key]; ok {
+			envOverridesMu.RUnlock()
+			return v, true
+		}
+	}
+	envOverridesMu.RUnlock()
+	return os.LookupEnv(key)
+}
 
 // Group holds a set of "specs" that can be applied to a Fleet server.
 type Group struct {
@@ -44,8 +80,33 @@ type Metadata struct {
 	Spec    json.RawMessage `json:"spec"`
 }
 
+// rewriteNewToOldKeys uses RewriteDeprecatedKeys to rewrite new (renameto)
+// key names back to old (json tag) names so that structs can be unmarshaled
+// correctly when input uses the new key names.
+func rewriteNewToOldKeys(raw json.RawMessage, target any) (json.RawMessage, map[string]string, error) {
+	rules := endpointer.ExtractAliasRules(target)
+	if len(rules) == 0 {
+		return raw, nil, nil
+	}
+	result, deprecatedKeysMap, err := endpointer.RewriteDeprecatedKeys(raw, rules)
+	if err != nil {
+		return nil, nil, err // fall back to original on error
+	}
+	return result, deprecatedKeysMap, nil
+}
+
+type GroupFromBytesOpts struct {
+	LogFn func(format string, args ...any)
+}
+
 // GroupFromBytes parses a Group from concatenated YAML specs.
-func GroupFromBytes(b []byte) (*Group, error) {
+func GroupFromBytes(b []byte, options ...GroupFromBytesOpts) (*Group, error) {
+	// Get optional logger.
+	var logFn func(format string, args ...any)
+	if len(options) > 0 {
+		logFn = options[0].LogFn
+	}
+
 	specs := &Group{}
 	for _, specItem := range SplitYaml(string(b)) {
 		var s Metadata
@@ -62,8 +123,17 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			return nil, fmt.Errorf(`Missing required fields ("spec") on provided %q configuration.`, s.Kind)
 		}
 
+		var deprecatedKeysMap map[string]string
 		switch kind {
-		case fleet.QueryKind:
+		case fleet.QueryKind, fleet.ReportKind:
+			if logFn != nil && kind == fleet.QueryKind {
+				logFn("[!] `kind: query` is deprecated, please use `kind: report` instead.\n")
+			}
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.QuerySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var querySpec *fleet.QuerySpec
 			if err := yaml.Unmarshal(s.Spec, &querySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -71,6 +141,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Queries = append(specs.Queries, querySpec)
 
 		case fleet.PackKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PackSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var packSpec *fleet.PackSpec
 			if err := yaml.Unmarshal(s.Spec, &packSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -78,13 +153,31 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Packs = append(specs.Packs, packSpec)
 
 		case fleet.LabelKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.LabelSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var labelSpec *fleet.LabelSpec
 			if err := yaml.Unmarshal(s.Spec, &labelSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
+			// Distinguish between hosts key omitted (nil, preserve membership)
+			// and hosts key present with null value (clear all hosts). Both
+			// unmarshal to nil, so check the raw YAML for key presence.
+			if labelSpec.Hosts == nil {
+				if hostsKeyPresent(s.Spec) {
+					labelSpec.Hosts = []string{}
+				}
+			}
 			specs.Labels = append(specs.Labels, labelSpec)
 
 		case fleet.PolicyKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.PolicySpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var policySpec *fleet.PolicySpec
 			if err := yaml.Unmarshal(s.Spec, &policySpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
@@ -92,6 +185,11 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.Policies = append(specs.Policies, policySpec)
 
 		case fleet.AppConfigKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.AppConfig{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			if specs.AppConfig != nil {
 				return nil, errors.New("config defined twice in the same file")
 			}
@@ -114,13 +212,21 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			specs.EnrollSecret = enrollSecretSpec
 
 		case fleet.UserRolesKind:
+			var err error
+			s.Spec, deprecatedKeysMap, err = rewriteNewToOldKeys(s.Spec, fleet.UsersRoleSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
 			var userRoleSpec *fleet.UsersRoleSpec
 			if err := yaml.Unmarshal(s.Spec, &userRoleSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
 			specs.UsersRoles = userRoleSpec
 
-		case fleet.TeamKind:
+		case fleet.TeamKind, fleet.FleetKind:
+			if logFn != nil && kind == fleet.TeamKind {
+				logFn("[!] `kind: team` is deprecated, please use `kind: fleet` instead.\n")
+			}
 			// unmarshal to a raw map as we don't want to strip away unknown/invalid
 			// fields at this point - that validation is done in the apply spec/teams
 			// endpoint so that it is enforced for both the API and the CLI.
@@ -128,10 +234,27 @@ func GroupFromBytes(b []byte) (*Group, error) {
 			if err := yaml.Unmarshal(s.Spec, &rawTeam); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}
-			specs.Teams = append(specs.Teams, rawTeam["team"])
+			teamRaw := rawTeam["team"]
+			var err error
+			teamRaw, deprecatedKeysMap, err = rewriteNewToOldKeys(teamRaw, fleet.TeamSpec{})
+			if err != nil {
+				return nil, fmt.Errorf("in %s spec: %w", kind, err)
+			}
+			specs.Teams = append(specs.Teams, teamRaw)
 
 		default:
 			return nil, fmt.Errorf("unknown kind %q", s.Kind)
+		}
+
+		if logFn != nil && len(deprecatedKeysMap) > 0 && logging.TopicEnabled(logging.DeprecatedFieldTopic) {
+			oldKeys := make([]string, 0, len(deprecatedKeysMap))
+			for oldKey := range deprecatedKeysMap {
+				oldKeys = append(oldKeys, oldKey)
+			}
+			sort.Strings(oldKeys)
+			for _, oldKey := range oldKeys {
+				logFn(fmt.Sprintf("[!] In %s: `%s` is deprecated, please use `%s` instead.\n", kind, oldKey, deprecatedKeysMap[oldKey]))
+			}
 		}
 	}
 	return specs, nil
@@ -192,17 +315,25 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	s = escapeString(s, preventEscapingPrefix)
 	exclusionZones := getExclusionZones(s)
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	trimmed := strings.TrimSpace(s)
+	documentIsXML := strings.HasPrefix(trimmed, "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
-	escapeXMLValues := func(value string, env string) (string, error) {
-		// Escape XML special characters
-		var b strings.Builder
-		xmlErr := xml.EscapeText(&b, []byte(value))
-		if xmlErr != nil {
-			return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+	escapeValue := func(value string, env string) (string, error) {
+		switch {
+		case documentIsJSON:
+			// Escape JSON special characters so the value is safe to embed inside
+			// a JSON string literal (Apple DDM declarations, Android profiles).
+			return jsonEscapeString(value), nil
+		case documentIsXML:
+			var b strings.Builder
+			if xmlErr := xml.EscapeText(&b, []byte(value)); xmlErr != nil {
+				return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+			}
+			return b.String(), nil
+		default:
+			return value, nil
 		}
-		value = b.String()
-		return value, nil
 	}
 
 	var err *multierror.Error
@@ -217,18 +348,14 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			switch secretMode {
 			case secretsExpand:
 				// Expand secrets for client-side validation
-				v, ok := os.LookupEnv(env)
+				v, ok := lookupEnv(env)
 				if ok {
-					if !documentIsXML {
-						return v, true
-					}
-
-					v, xmlErr := escapeXMLValues(v, env)
-					if xmlErr != nil {
-						err = multierror.Append(err, xmlErr)
+					escaped, escErr := escapeValue(v, env)
+					if escErr != nil {
+						err = multierror.Append(err, escErr)
 						return "", false
 					}
-					return v, true
+					return escaped, true
 				}
 				// If secret not found, leave as-is for server to handle
 				return "", false
@@ -250,21 +377,17 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			}
 		}
 
-		v, ok := os.LookupEnv(env)
+		v, ok := lookupEnv(env)
 		if !ok {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 			return "", false
 		}
-		if !documentIsXML {
-			return v, true
-		}
-
-		v, xmlErr := escapeXMLValues(v, env)
-		if xmlErr != nil {
-			err = multierror.Append(err, xmlErr)
+		escaped, escErr := escapeValue(v, env)
+		if escErr != nil {
+			err = multierror.Append(err, escErr)
 			return "", false
 		}
-		return v, true
+		return escaped, true
 	})
 	if err != nil {
 		return "", err
@@ -300,35 +423,24 @@ func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
 	return []byte(s), nil
 }
 
-// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables. Escaping is limited to XML files.
-// This is used for finding secrets in scripts only. The original string is not modified.
-// A map of secret names to values is updated.
+// LookupEnvSecrets only looks up FLEET_SECRET_XXX environment variables.
+// This is used for finding secrets in profiles and scripts. The original string is not modified.
+// A map of secret names to raw (unescaped) values is updated.
+// XML escaping is intentionally NOT done here — it is handled server-side during
+// secret expansion (see expandEmbeddedSecrets in secret_variables.go).
 func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 	if secretsMap == nil {
 		return errors.New("secretsMap cannot be nil")
 	}
 
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
-
 	var err *multierror.Error
 	_ = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
 		if strings.HasPrefix(env, fleet.ServerSecretPrefix) {
 			// lookup the secret and save it, but don't replace
-			v, ok := os.LookupEnv(env)
+			v, ok := lookupEnv(env)
 			if !ok {
 				err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 				return "", false
-			}
-
-			if documentIsXML {
-				// Escape XML special characters
-				var b strings.Builder
-				xmlErr := xml.EscapeText(&b, []byte(v))
-				if xmlErr != nil {
-					err = multierror.Append(xmlErr, fmt.Errorf("failed to XML escape fleet secret %s", env))
-					return "", false
-				}
-				v = b.String()
 			}
 
 			secretsMap[env] = v
@@ -339,6 +451,18 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 		return err
 	}
 	return nil
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	return string(b[1 : len(b)-1])
 }
 
 var escapePattern = regexp.MustCompile(`(\\+\$)`)
@@ -378,4 +502,21 @@ func getExclusionZones(s string) [][2]int {
 		}
 	}
 	return zones
+}
+
+// hostsKeyPresent checks if the "hosts" key is present in raw spec bytes.
+// The input may be YAML or JSON; YAML is converted to JSON before inspection.
+// Used to distinguish between an omitted hosts key (nil, no-op) and an
+// explicit hosts key with null value (should clear hosts).
+func hostsKeyPresent(rawBytes []byte) bool {
+	jsonBytes, err := yaml.YAMLToJSON(rawBytes)
+	if err != nil {
+		return false
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(jsonBytes, &raw); err != nil {
+		return false
+	}
+	_, ok := raw["hosts"]
+	return ok
 }

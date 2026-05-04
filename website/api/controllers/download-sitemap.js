@@ -66,12 +66,12 @@ module.exports = {
       '/orchestration',
       '/device-management',
       '/software-management',
-      '/fleet-gitops',
+      '/infrastructure-as-code',
       // Other stuff:
       // > Note: /handbook overview page is already included amongst the markdown pages
       // > Note: Same for /docs
       '/transparency',// « default transparency link, pointed at by Fleet Desktop
-      '/queries',// « overview page (all subpages are dynamic)
+      '/reports',// « overview page (all subpages are dynamic)
       '/policies',// « overview page (all subpages are dynamic)
       '/tables',// « overview page (all subpages are dynamic)
       '/software-catalog',// « overview page (all subpages are dynamic)
@@ -97,7 +97,7 @@ module.exports = {
     let queries = _.where(sails.config.builtStaticContent.queries, {kind: 'query'});
     let policies = _.where(sails.config.builtStaticContent.policies, {kind: 'policy'});
     for (let query of queries) {
-      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/queries/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/reports/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     for (let query of vitals) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/vitals/${query.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit

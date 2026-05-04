@@ -2,7 +2,6 @@ import React, { useState } from "react";
 
 import { IHostEndUser } from "interfaces/host";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
@@ -49,8 +48,9 @@ const UpdateEndUserModal = ({
             label="Username (IdP)"
             name="username_idp"
             value={idpUsername}
+            placeholder="user@example.com"
             onChange={(val: string) => setIdpUsername(val)}
-            helpText="This will be used to populate additional user data, e.g. full name and department."
+            helpText="This is often an email and is used to populate additional user data, e.g. full name and department."
             autofocus
           />
 

@@ -3,10 +3,10 @@ import { AppContext } from "context/app";
 
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import { generateTableHeaders, generateDataSet } from "./PoliciesTableConfig";
 import {
   DEFAULT_SORT_COLUMN,
@@ -37,6 +37,8 @@ interface IPoliciesTableProps {
   sortDirection?: "asc" | "desc";
   page: number;
   count: number;
+  customControl?: () => JSX.Element | null;
+  isFiltered?: boolean;
 }
 
 const PoliciesTable = ({
@@ -55,11 +57,12 @@ const PoliciesTable = ({
   sortDirection,
   page,
   count,
+  customControl,
+  isFiltered,
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const emptyState: IEmptyTableProps = {
-    graphicName: "empty-policies",
+  const emptyState: IEmptyStateProps = {
     header: "You don't have any policies",
     info:
       "Add policies to detect device health issues and trigger automations.",
@@ -70,9 +73,9 @@ const PoliciesTable = ({
       currentTeam?.id === null ||
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
     ) {
-      emptyState.header += " that apply to all teams";
+      emptyState.header += ` that apply to all fleets`;
     } else {
-      emptyState.header += " that apply to this team";
+      emptyState.header += ` that apply to this fleet`;
     }
   }
 
@@ -80,17 +83,33 @@ const PoliciesTable = ({
     emptyState.info = "";
   }
 
-  if (searchQuery) {
-    delete emptyState.graphicName;
+  if (searchQuery || isFiltered) {
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(policiesList?.length === 0 && searchQuery === "");
+  const searchable = !(
+    policiesList?.length === 0 &&
+    searchQuery === "" &&
+    !isFiltered
+  );
+
+  const isPrimoMode = config?.partnerships?.enable_primo || false;
+  const viewingTeamPolicies =
+    currentTeam?.id !== undefined &&
+    currentTeam?.id !== null &&
+    currentTeam?.id !== APP_CONTEXT_ALL_TEAMS_ID;
+
+  // Hide the selection column if the current page has no selectable rows
+  // (e.g., all rows are inherited policies that can't be selected)
+  const pageHasSelectableRows =
+    !viewingTeamPolicies ||
+    isPrimoMode ||
+    policiesList.some((p) => p.team_id !== null);
 
   const hasPermissionAndPoliciesToDelete =
-    canAddOrDeletePolicies && hasPoliciesToDelete;
+    canAddOrDeletePolicies && hasPoliciesToDelete && pageHasSelectableRows;
 
   return (
     <div className={baseClass}>
@@ -124,19 +143,19 @@ const PoliciesTable = ({
           variant: "inverse",
           onClick: onDeletePoliciesClick,
         }}
-        emptyComponent={() =>
-          EmptyTable({
-            graphicName: emptyState.graphicName,
-            header: emptyState.header,
-            info: emptyState.info,
-            additionalInfo: emptyState.additionalInfo,
-            primaryButton: emptyState.primaryButton,
-          })
-        }
+        emptyComponent={() => (
+          <EmptyState
+            header={emptyState.header}
+            info={emptyState.info}
+            additionalInfo={emptyState.additionalInfo}
+            primaryButton={emptyState.primaryButton}
+          />
+        )}
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
+        customControl={customControl}
       />
     </div>
   );

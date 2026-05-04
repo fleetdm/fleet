@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "22.0.4.406",
+      "version": "22.0.5",
       "queries": {
-        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12';"
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.filemaker.client.pro12' AND version_compare(bundle_short_version, '22.0.5') < 0);"
       },
-      "installer_url": "https://downloads.claris.com/esd/fmp_22.0.4.406.dmg",
+      "installer_url": "https://downloads.claris.com/esd/fmp_22.0.5.500.dmg",
       "install_script_ref": "72d274ec",
       "uninstall_script_ref": "f4f1edf6",
-      "sha256": "6ab11d3331ac8ffe203280c509a1aa7ce68f251dc2bf01d2f4910af78bd691d2",
+      "sha256": "414d11c60cc46f1a1b1fd3700340b01840d23aad019265e67f9d1cf5eeb1e102",
       "default_categories": [
         "Developer tools"
       ]

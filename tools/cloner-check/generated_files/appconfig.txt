@@ -33,6 +33,7 @@ github.com/fleetdm/fleet/v4/server/fleet/HostExpirySettings	HostExpiryWindow	int
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ActivityExpirySettings	fleet.ActivityExpirySettings
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	ActivityExpiryWindow	int
+github.com/fleetdm/fleet/v4/server/fleet/ActivityExpirySettings	PreserveHostActivitiesOnReenrollment	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
@@ -135,6 +136,7 @@ github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	GracePeriodDays	optjson.
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSettings	fleet.MacOSSettings
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Paths	string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	LabelsIncludeAny	[]string
@@ -143,6 +145,7 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncry
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	LockEndUserInfo	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	Script	optjson.String
@@ -154,6 +157,9 @@ github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	AppStoreID	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetupSoftware	PackagePath	string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	ManualAgentInstall	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftware	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	RequireAllSoftwareWindows	bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableManagedLocalAccount	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EndUserLocalAccountType	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSMigration	fleet.MacOSMigration
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Enable	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSMigration	Mode	fleet.MacOSMigrationMode	string
@@ -162,8 +168,14 @@ github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsMigrationEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableTurnOnWindowsMDMManually	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EndUserAuthentication	fleet.MDMEndUserAuthentication
 github.com/fleetdm/fleet/v4/server/fleet/MDMEndUserAuthentication	SSOProviderSettings	fleet.SSOProviderSettings
+github.com/fleetdm/fleet/v4/server/fleet/MDM	AppleRequireHardwareAttestation	bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEntraTenantIDs	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsEnabledAndConfigured	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableDiskEncryption	optjson.Bool
+github.com/fleetdm/fleet/v4/server/fleet/MDM	EnableRecoveryLockPassword	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	RequireBitLockerPIN	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
@@ -186,13 +198,14 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
-github.com/fleetdm/fleet/v4/server/fleet/AppConfig	UIGitOpsMode	fleet.UIGitOpsModeConfig
-github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	GitopsModeEnabled	bool
-github.com/fleetdm/fleet/v4/server/fleet/UIGitOpsModeConfig	RepositoryURL	string
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	GitOpsConfig	fleet.GitOpsConfig
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	GitopsModeEnabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	RepositoryURL	string
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsConfig	Exceptions	fleet.GitOpsExceptions
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Labels	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Software	bool
+github.com/fleetdm/fleet/v4/server/fleet/GitOpsExceptions	Secrets	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
-github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	YaraRules	[]fleet.YaraRule
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/YaraRule	Contents	string

@@ -27,11 +27,8 @@ jobs:
             const issue = context.payload.issue;
             const labels = issue.labels.map(label => label.name);
 
-            const hasReleasedLabel = labels.some(label =>
-              label.includes('~released bug') || label.includes('~unreleased bug')
-            );
-
-            if (hasReleasedLabel) {
+            const noopLabels = ['~released bug', '~unreleased bug', '#g-website', 'flaky-ci-tests'];
+            if (labels.some(label => noopLabels.includes(label))) {
               return;
             }
 
@@ -57,69 +54,153 @@ jobs:
 
             // Parse Fleet version from issue body
             const body = issue.body || '';
-            const versionMatch = body.match(/\*\*Fleet version\*\*:\s*(.+)/);
+            const versionMatch = body.match(/\*\*Fleet versions?\*\*:\s*(.+)/i);
+
+            // Also check for Orbit/Fleetd version (case insensitive)
+            const orbitMatch = body.match(/\*\*(?:Orbit|Fleetd) versions?\*\*:\s*(.+)/i);
 
             if (!versionMatch || !versionMatch[1]) {
               console.log('No Fleet version found in issue body');
-              await tagAsUnreleased();
-              return;
+
+              // If no Fleet version but has Orbit/Fleetd version, check that instead
+              if (orbitMatch && orbitMatch[1]) {
+                console.log('Found Orbit/Fleetd version, will check that instead');
+              } else {
+                await tagAsUnreleased();
+                return;
+              }
             }
 
             // Extract version, removing any HTML comments
-            let reportedVersion = versionMatch[1].trim();
+            let reportedVersion = versionMatch ? versionMatch[1].trim() : '';
+            let orbitVersion = orbitMatch ? orbitMatch[1].trim() : '';
+
             // Remove HTML comment if present (e.g., "4.62.0 <!-- comment -->")
             reportedVersion = reportedVersion.replace(/\s*<!--.*?-->\s*/g, '').trim();
+            orbitVersion = orbitVersion.replace(/\s*<!--.*?-->\s*/g, '').trim();
 
             console.log(`Found reported version: ${reportedVersion}`);
+            if (orbitVersion) {
+              console.log(`Found Orbit/Fleetd version: ${orbitVersion}`);
+            }
 
             // Treat as unreleased if reported version is RC/main/unknown/todo
-            if (!reportedVersion ||
-                reportedVersion.trim() === '' ||
-                reportedVersion.toLowerCase().includes('todo') ||
-                reportedVersion.toLowerCase().includes('unknown') ||
-                reportedVersion.toLowerCase().includes('main') ||
-                reportedVersion.toLowerCase().includes('rc')) {
+            // Check both Fleet version and Orbit/Fleetd version if present
+            const versionsToCheck = [];
+
+            if (reportedVersion &&
+                reportedVersion.trim() !== '' &&
+                !reportedVersion.toLowerCase().includes('todo') &&
+                !reportedVersion.toLowerCase().includes('unknown') &&
+                !reportedVersion.toLowerCase().includes('main') &&
+                !reportedVersion.toLowerCase().includes('rc') &&
+                reportedVersion !== '4.x') {
+              versionsToCheck.push({ version: reportedVersion, type: 'fleet' });
+            }
+
+            if (orbitVersion &&
+                orbitVersion.trim() !== '' &&
+                !orbitVersion.toLowerCase().includes('todo') &&
+                !orbitVersion.toLowerCase().includes('unknown') &&
+                !orbitVersion.toLowerCase().includes('main') &&
+                !orbitVersion.toLowerCase().includes('rc')) {
+              versionsToCheck.push({ version: orbitVersion, type: 'orbit' });
+            }
+
+            // Special case: "4.x" means all 4.x versions, which is released
+            if (reportedVersion === '4.x') {
+              return;
+            }
+
+            // If no valid versions to check, tag as unreleased
+            if (versionsToCheck.length === 0) {
               await tagAsUnreleased();
               return;
             }
-            
-            if (reportedVersion === '4.x') {
-              return; // this is "all 4.x versions" so it's released
+
+            // Determine what we need to fetch based on versions present
+            const needsFleetReleases = versionsToCheck.some(v => v.type === 'fleet');
+            const needsOrbitTags = versionsToCheck.some(v => v.type === 'orbit');
+
+            // Fetch Fleet releases only if we have a Fleet version to check
+            let releasedFleetVersions = [];
+            if (needsFleetReleases) {
+              const allReleases = await github.paginate(github.rest.repos.listReleases, {
+                owner: "fleetdm",
+                repo: "fleet",
+                per_page: 100
+              });
+
+              // Extract version numbers from Fleet releases
+              // Fleet releases are tagged as "fleet-v4.X.X" or similar
+              releasedFleetVersions = allReleases
+                .map(release => {
+                  // Try to extract from name
+                  const nameMatch = release.name?.match(/(\d+\.\d+\.\d+)/);
+                  if (nameMatch) return nameMatch[1];
+
+                  return null;
+                })
+                .filter(v => v !== null);
             }
 
-            // Fetch most recent 100 releases from the repo; that's realistically enough to match
-            // any newly created bug
-            const { data: allReleases } = await github.rest.repos.listReleases({
-              owner: "fleetdm",
-              repo: "fleet",
-              per_page: 100,
-              page: 1
-            });
+            // Fetch tags only if we have an orbit/fleetd version to check
+            let releasedOrbitVersions = [];
+            if (needsOrbitTags) {
+              const allTags = await github.paginate(github.rest.repos.listTags, {
+                owner: "fleetdm",
+                repo: "fleet",
+                per_page: 100
+              });
 
-            // Extract version numbers from releases
-            // Fleet releases are tagged as "fleet-v4.X.X" or similar
-            const releasedVersions = allReleases
-              .map(release => {
-                // Try to extract from name
-                const nameMatch = release.name?.match(/(\d+\.\d+\.\d+)/);
-                if (nameMatch) return nameMatch[1];
-
-                return null;
-              })
-              .filter(v => v !== null);
+              // Extract orbit/fleetd versions from tags
+              // Orbit tags are like "orbit-v1.X.X"
+              releasedOrbitVersions = allTags
+                .filter(tag => tag.name.match(/^orbit-v\d+\.\d+\.\d+$/))
+                .map(tag => {
+                  const match = tag.name.match(/^orbit-v(\d+\.\d+\.\d+)$/);
+                  return match ? match[1] : null;
+                })
+                .filter(v => v !== null);
+            }
 
             // Normalize version for comparison
             // Remove common prefixes/suffixes and extract core version number
             const normalizeVersion = (version) => {
-              // Extract version number pattern (e.g., "4.62.0" from "v4.62.0" or "4.62.0-123-abc")
-              const match = version.match(/v?(\d+\.\d+\.\d+)/);
-              return match ? match[1] : version;
+              // First try to extract x.y.z pattern
+              let match = version.match(/v?(\d+\.\d+\.\d+)/);
+              if (match) return match[1];
+
+              // If no patch version, try x.y pattern and add .0
+              match = version.match(/v?(\d+\.\d+)(?!\.\d)/);
+              if (match) return match[1] + '.0';
+
+              return version;
             };
 
-            const normalizedReportedVersion = normalizeVersion(reportedVersion);
+            // Check if ANY of the reported versions is released
+            let isReleased = false;
+            for (const versionInfo of versionsToCheck) {
+              const { version, type } = versionInfo;
 
-            // Check if the reported version matches any released version
-            const isReleased = releasedVersions.some(releasedVer => releasedVer === normalizedReportedVersion);
+              // Split version string on "&" to handle multiple versions (e.g., "4.60 & 4.61")
+              const versions = version.split('&').map(v => v.trim());
+
+              for (const v of versions) {
+                const normalizedVersion = normalizeVersion(v);
+
+                // Check against the appropriate list based on type
+                const releasedVersions = type === 'orbit' ? releasedOrbitVersions : releasedFleetVersions;
+
+                if (releasedVersions.some(releasedVer => releasedVer === normalizedVersion)) {
+                  console.log(`Found released ${type} version: ${normalizedVersion}`);
+                  isReleased = true;
+                  break;
+                }
+              }
+
+              if (isReleased) break;
+            }
 
             if (isReleased) {
               console.log(`Bug is released; leaving as-is`);

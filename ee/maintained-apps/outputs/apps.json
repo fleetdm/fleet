@@ -41,7 +41,7 @@
       "slug": "8x8-work/darwin",
       "platform": "darwin",
       "unique_identifier": "com.electron.8x8---virtual-office",
-      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing."
+      "description": "8x8 Work is a communications application with voice, video, chat, and web conferencing.<br/><br/>Note: After installation, the app may show an auto-update error on each login if file ownership is set to root; changing ownership of 8x8 Work.app to the logged-in user resolves this, or auto-updates can be disabled via the Profile Policies setting in the 8x8 Admin Console."
     },
     {
       "name": "8x8 Work",
@@ -83,7 +83,7 @@
       "slug": "adobe-creative-cloud/darwin",
       "platform": "darwin",
       "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
-      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe's suite of tools like Photoshop, Illustrator, and Premiere Pro."
     },
     {
       "name": "Adobe Digital Editions",
@@ -118,20 +118,20 @@
       "slug": "airtame/darwin",
       "platform": "darwin",
       "unique_identifier": "com.airtame.airtame-application",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Airtame",
       "slug": "airtame/windows",
       "platform": "windows",
       "unique_identifier": "Airtame 4.15.0",
-      "description": "Airtame is an app that makes shared screens easy to use — for screen sharing, conferencing, digital signage, and alerts."
+      "description": "Airtame is an app that makes shared screens easy to use - for screen sharing, conferencing, digital signage, and alerts."
     },
     {
       "name": "Amazon Chime",
       "slug": "amazon-chime/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.runningwithcrayons.Alfred",
+      "unique_identifier": "com.amazon.Amazon-Chime",
       "description": "Amazon Chime is a communications service that lets you meet, chat, and place business calls inside and outside your organization."
     },
     {
@@ -145,7 +145,7 @@
       "name": "Anka",
       "slug": "anka-virtualization/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.veertu.ankaview",
+      "unique_identifier": "com.veertu.anka",
       "description": "Anka is a tool for managing and creating virtual machines."
     },
     {
@@ -184,6 +184,13 @@
       "description": "Archaeology is a tool for digging into binary files."
     },
     {
+      "name": "Arduino IDE",
+      "slug": "arduino-ide/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cc.arduino.IDE2",
+      "description": "Arduino IDE is the official development environment for programming Arduino microcontrollers."
+    },
+    {
       "name": "Asana",
       "slug": "asana/darwin",
       "platform": "darwin",
@@ -219,6 +226,13 @@
       "description": "AWS Client VPN is a managed client-based VPN service to securely access AWS resources."
     },
     {
+      "name": "Backblaze",
+      "slug": "backblaze/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.backblaze.bzbmenu",
+      "description": "Backblaze is a data backup and storage service."
+    },
+    {
       "name": "balenaEtcher",
       "slug": "balenaetcher/darwin",
       "platform": "darwin",
@@ -233,10 +247,17 @@
       "description": "BBEdit is a text, code, and markup editor."
     },
     {
+      "name": "BetterDisplay",
+      "slug": "betterdisplay/darwin",
+      "platform": "darwin",
+      "unique_identifier": "pro.betterdisplay.BetterDisplay",
+      "description": "BetterDisplay is a display management tool."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
-      "unique_identifier": "com.scootersoftware.BeyondCompare",
+      "unique_identifier": "com.ScooterSoftware.BeyondCompare",
       "description": "Beyond Compare is an app used to compare files and folders."
     },
     {
@@ -324,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Charles",
+      "slug": "charles/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.xk72.Charles",
+      "description": "Charles is an HTTP proxy and monitor that lets developers view all HTTP and HTTPS traffic between their machine and the internet."
+    },
+    {
       "name": "ChatGPT Atlas",
       "slug": "chatgpt-atlas/darwin",
       "platform": "darwin",
@@ -363,6 +391,13 @@
       "slug": "claude/darwin",
       "platform": "darwin",
       "unique_identifier": "com.anthropic.claudefordesktop",
+      "description": "Claude is Anthropic's official Claude AI desktop app."
+    },
+    {
+      "name": "Claude",
+      "slug": "claude/windows",
+      "platform": "windows",
+      "unique_identifier": "Claude",
       "description": "Claude is Anthropic's official Claude AI desktop app."
     },
     {
@@ -454,14 +489,14 @@
       "slug": "cursor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.todesktop.230313mzl4w4u92",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cursor",
       "slug": "cursor/windows",
       "platform": "windows",
       "unique_identifier": "Cursor",
-      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors — all inside your editor."
+      "description": "Cursor AI boosts your coding productivity by giving smart, context-aware code suggestions, quick explanations, and easy refactors - all inside your editor."
     },
     {
       "name": "Cyberduck",
@@ -597,6 +632,20 @@
       "description": "Dropbox is a client for the Dropbox cloud storage service."
     },
     {
+      "name": "Druva inSync",
+      "slug": "druva-insync/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.druva.inSyncClient",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
+      "name": "Druva inSync",
+      "slug": "druva-insync/windows",
+      "platform": "windows",
+      "unique_identifier": "Druva inSync",
+      "description": "Druva inSync is a cloud-based product that protects endpoint data."
+    },
+    {
       "name": "Eclipse IDE",
       "slug": "eclipse-ide/darwin",
       "platform": "darwin",
@@ -615,14 +664,14 @@
       "slug": "elgato-control-center/darwin",
       "platform": "darwin",
       "unique_identifier": "com.corsair.ControlCenter",
-      "description": "Elgate Control Center is an app to control your Elgato key lights."
+      "description": "Elgato Control Center is an app to control your Elgato key lights."
     },
     {
       "name": "Elgato Stream Deck",
       "slug": "elgato-stream-deck/darwin",
       "platform": "darwin",
       "unique_identifier": "com.elgato.StreamDeck",
-      "description": "Elgateo Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
+      "description": "Elgato Stream Deck is an app to assign keys, and then decorate and label them, on a Stream Deck."
     },
     {
       "name": "Evernote",
@@ -674,6 +723,27 @@
       "description": "Firefox is a powerful, open-source web browser built for speed, privacy, and customization."
     },
     {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.mozilla.firefox",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Mozilla Firefox ESR",
+      "slug": "firefox@esr/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Firefox 140.7.1 ESR (x64 en-US)",
+      "description": "Mozilla Firefox ESR is the Extended Support Release version of the popular web browser Firefox."
+    },
+    {
+      "name": "Fleet Desktop",
+      "slug": "fleet-desktop/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.fleetdm.fleet-desktop",
+      "description": "Fleet Desktop is a native macOS application that provides end users with a self-service portal for Fleet."
+    },
+    {
       "name": "Fork",
       "slug": "fork/darwin",
       "platform": "darwin",
@@ -699,6 +769,13 @@
       "slug": "gimp/darwin",
       "platform": "darwin",
       "unique_identifier": "org.gimp.gimp-3.0",
+      "description": "GIMP is a free and open-source image editor."
+    },
+    {
+      "name": "GIMP",
+      "slug": "gimp/windows",
+      "platform": "windows",
+      "unique_identifier": "GIMP 3.0.8-2",
       "description": "GIMP is a free and open-source image editor."
     },
     {
@@ -744,6 +821,13 @@
       "description": "Google Chrome is a fast, reliable web browser built for performance and compatibility across platforms."
     },
     {
+      "name": "Google Credential Provider for Windows",
+      "slug": "google-credential-provider-for-windows/windows",
+      "platform": "windows",
+      "unique_identifier": "Google Credential Provider for Windows",
+      "description": "Google Credential Provider for Windows is an app that allows users to sign in to Windows devices using their Google Workspace or Cloud Identity accounts."
+    },
+    {
       "name": "Google Drive",
       "slug": "google-drive/darwin",
       "platform": "darwin",
@@ -758,10 +842,17 @@
       "description": "Google Drive is a cloud storage service that allows you to store, sync, and share files across devices with seamless access to your Google Workspace content."
     },
     {
+      "name": "Gemini",
+      "slug": "google-gemini/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.google.GeminiMacOS",
+      "description": "Gemini is a native desktop AI assistant from Google."
+    },
+    {
       "name": "GPG Suite",
       "slug": "gpg-suite/darwin",
       "platform": "darwin",
-      "unique_identifier": "org.gpgtools.gpgkeychain",
+      "unique_identifier": "org.gpgtools.updater",
       "description": "GPG Suite is a collection of tools to protect your emails and files."
     },
     {
@@ -779,6 +870,13 @@
       "description": "Granola is an AI-powered notepad for meetings."
     },
     {
+      "name": "Granola",
+      "slug": "granola/windows",
+      "platform": "windows",
+      "unique_identifier": "Granola",
+      "description": "Granola is an AI-powered notepad for meetings."
+    },
+    {
       "name": "Hyper",
       "slug": "hyper/darwin",
       "platform": "darwin",
@@ -786,11 +884,25 @@
       "description": "Hyper is a terminal built on web technologies."
     },
     {
+      "name": "IINA",
+      "slug": "iina/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.colliderli.iina",
+      "description": "IINA is a modern, free and open-source media player for macOS."
+    },
+    {
       "name": "iMazing Profile Editor",
       "slug": "imazing-profile-editor/darwin",
       "platform": "darwin",
       "unique_identifier": "com.DigiDNA.iMazingProfileEditorMac",
       "description": "iMazing Profile Editor is an app for creating and editing Apple configuration profiles."
+    },
+    {
+      "name": "iMazing",
+      "slug": "imazing/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.DigiDNA.iMazing3Mac",
+      "description": "iMazing is an iPhone management application."
     },
     {
       "name": "Inkscape",
@@ -884,6 +996,34 @@
       "description": "Keka is a file archiver."
     },
     {
+      "name": "kitty",
+      "slug": "kitty/darwin",
+      "platform": "darwin",
+      "unique_identifier": "net.kovidgoyal.kitty",
+      "description": "kitty is a fast, feature-rich, GPU-based terminal emulator."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.kde.krita",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "Krita",
+      "slug": "krita/windows",
+      "platform": "windows",
+      "unique_identifier": "Krita_x64",
+      "description": "Krita is a free and open-source digital painting application."
+    },
+    {
+      "name": "LastPass",
+      "slug": "lastpass/windows",
+      "platform": "windows",
+      "unique_identifier": "LastPass",
+      "description": "LastPass is a password manager."
+    },
+    {
       "name": "Lens",
       "slug": "lens/darwin",
       "platform": "darwin",
@@ -899,9 +1039,16 @@
     },
     {
       "name": "Linear",
-      "slug": "linear-linear/darwin",
+      "slug": "linear/darwin",
       "platform": "darwin",
       "unique_identifier": "com.linear",
+      "description": "Linear is an app to manage software development and track bugs."
+    },
+    {
+      "name": "Linear",
+      "slug": "linear/windows",
+      "platform": "windows",
+      "unique_identifier": "Linear",
       "description": "Linear is an app to manage software development and track bugs."
     },
     {
@@ -938,6 +1085,13 @@
       "platform": "darwin",
       "unique_identifier": "org.p0deje.Maccy",
       "description": "Maccy is a clipboard manager."
+    },
+    {
+      "name": "Marvel",
+      "slug": "marvel/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.marvelprototyping.marvelmacos",
+      "description": "Marvel is a design and prototyping platform for creating interactive app and web mockups."
     },
     {
       "name": "Mattermost",
@@ -1129,6 +1283,20 @@
       "description": "Okta Verify is a multi-factor authentication app that provides secure identity verification and passwordless sign-in for users accessing Okta-protected applications."
     },
     {
+      "name": "Ollama",
+      "slug": "ollama/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.electron.ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
+      "name": "Ollama",
+      "slug": "ollama/windows",
+      "platform": "windows",
+      "unique_identifier": "Ollama",
+      "description": "Ollama is a tool to get up and running with large language models locally."
+    },
+    {
       "name": "OmniGraffle",
       "slug": "omnigraffle/darwin",
       "platform": "darwin",
@@ -1248,6 +1416,20 @@
       "description": "Proxifier is an app that allows network applications that do not support working through proxy servers to operate through a SOCKS or HTTPS proxy and chains."
     },
     {
+      "name": "Proxyman",
+      "slug": "proxyman/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.proxyman.NSProxy",
+      "description": "Proxyman is a high-performance macOS app that enables developers to view HTTP/HTTPS requests and responses."
+    },
+    {
+      "name": "PuTTY",
+      "slug": "putty/windows",
+      "platform": "windows",
+      "unique_identifier": "PuTTY release 0.83 (x64)",
+      "description": "PuTTY is a free, open-source SSH and Telnet client for Windows."
+    },
+    {
       "name": "PyCharm Community Edition",
       "slug": "pycharm-ce/darwin",
       "platform": "darwin",
@@ -1330,6 +1512,13 @@
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
       "description": "Santa is a binary authorization system for macOS."
+    },
+    {
+      "name": "Sequel Ace",
+      "slug": "sequel-ace/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.sequelace.SequelAce",
+      "description": "Sequel Ace is a MySQL and MariaDB database manager for macOS."
     },
     {
       "name": "Shottr",
@@ -1472,6 +1661,13 @@
       "description": "Suspicious Package is an application for inspecting installer packages."
     },
     {
+      "name": "swiftDialog",
+      "slug": "swiftdialog/darwin",
+      "platform": "darwin",
+      "unique_identifier": "au.csiro.dialog",
+      "description": "swiftDialog is a modern macOS dialog utility for administrators that displays beautiful, customizable dialogs from the command line."
+    },
+    {
       "name": "Tableau Desktop",
       "slug": "tableau/darwin",
       "platform": "darwin",
@@ -1549,10 +1745,24 @@
       "description": "TextExpander is an application that let's you create and insert pre-made snippets of text anywhere."
     },
     {
+      "name": "The Unarchiver",
+      "slug": "the-unarchiver/darwin",
+      "platform": "darwin",
+      "unique_identifier": "cx.c3.theunarchiver",
+      "description": "The Unarchiver is an archive extraction utility that supports many formats including ZIP, RAR, and 7z."
+    },
+    {
       "name": "Thunderbird",
       "slug": "thunderbird/darwin",
       "platform": "darwin",
       "unique_identifier": "org.mozilla.thunderbird",
+      "description": "Thunderbird is a free and open-source e-mail client."
+    },
+    {
+      "name": "Thunderbird",
+      "slug": "thunderbird/windows",
+      "platform": "windows",
+      "unique_identifier": "Mozilla Thunderbird (x64 en-US)",
       "description": "Thunderbird is a free and open-source e-mail client."
     },
     {
@@ -1561,6 +1771,13 @@
       "platform": "darwin",
       "unique_identifier": "com.todoist.mac.Todoist",
       "description": "Todoist is a to do list and a planning center for individuals and teams."
+    },
+    {
+      "name": "Tor Browser",
+      "slug": "tor-browser/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.torproject.torbrowser",
+      "description": "Tor Browser is a privacy-focused web browser that protects against tracking, surveillance, and censorship by routing traffic through the Tor network."
     },
     {
       "name": "Tower",
@@ -1661,6 +1878,13 @@
       "description": "Wacom Tablet is a collection of resources for configuring Wacom tablets."
     },
     {
+      "name": "Warp",
+      "slug": "warp/darwin",
+      "platform": "darwin",
+      "unique_identifier": "dev.warp.Warp-Stable",
+      "description": "Warp is a modern, AI-powered terminal built for speed and productivity with features like command search, intelligent completions, and collaborative workflows."
+    },
+    {
       "name": "Webex",
       "slug": "webex/darwin",
       "platform": "darwin",
@@ -1752,11 +1976,25 @@
       "description": "Zed is a multiplayer code editor."
     },
     {
+      "name": "Zen Browser",
+      "slug": "zen/darwin",
+      "platform": "darwin",
+      "unique_identifier": "app.zen-browser.zen",
+      "description": "Zen Browser is a Gecko based web browser."
+    },
+    {
       "name": "Zeplin",
       "slug": "zeplin/darwin",
       "platform": "darwin",
       "unique_identifier": "io.zeplin.osx",
       "description": "Zeplin is an app to share, organize, and collaborate on designs."
+    },
+    {
+      "name": "Zoom Rooms",
+      "slug": "zoom-rooms/darwin",
+      "platform": "darwin",
+      "unique_identifier": "us.zoom.ZoomPresence",
+      "description": "Zoom Rooms is conference room software for Zoom meetings."
     },
     {
       "name": "Zoom",
@@ -1771,6 +2009,20 @@
       "platform": "windows",
       "unique_identifier": "Zoom Workplace (X64)",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.zotero.zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
+    },
+    {
+      "name": "Zotero",
+      "slug": "zotero/windows",
+      "platform": "windows",
+      "unique_identifier": "Zotero",
+      "description": "Zotero is a free tool for collecting, organizing, citing, and sharing research."
     }
   ]
 }

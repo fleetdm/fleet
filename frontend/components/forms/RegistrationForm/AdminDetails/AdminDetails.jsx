@@ -80,8 +80,13 @@ class AdminDetails extends Component {
           tabIndex={tabIndex}
           label="Confirm password"
         />
-        <div className="button-wrap">
-          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+        <div className="button-wrap--center">
+          <Button
+            type="submit"
+            tabIndex={tabIndex}
+            disabled={!currentPage}
+            size="wide"
+          >
             Next
           </Button>
         </div>

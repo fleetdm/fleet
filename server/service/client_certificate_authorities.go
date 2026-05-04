@@ -15,11 +15,15 @@ func (c *Client) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Grou
 }
 
 // ApplyCertificateAuthoritiesSpec applies the certificate authorities.
-func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.ApplySpecOptions) error {
-	req := batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: groupedCAs, DryRun: opts.DryRun}
+func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertificateAuthorities, specOpts fleet.ApplySpecOptions, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {
+	req := batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: groupedCAs,
+		DryRun:                 specOpts.DryRun,
+		SkipDeletes:            opts.SkipDeletes,
+	}
 	verb, path := "POST", "/api/latest/fleet/spec/certificate_authorities"
 	var responseBody batchApplyCertificateAuthoritiesResponse
-	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, opts.RawQuery())
+	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, specOpts.RawQuery())
 }
 
 // GetCertificateAuthorities fetches the list of certificate authorities

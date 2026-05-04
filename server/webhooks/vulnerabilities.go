@@ -2,21 +2,20 @@ package webhooks
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // TriggerVulnerabilitiesWebhook performs the webhook requests for vulnerabilities.
 func TriggerVulnerabilitiesWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	args VulnArgs,
 	mapper VulnMapper,
 ) error {
@@ -26,7 +25,7 @@ func TriggerVulnerabilitiesWebhook(
 		return nil
 	}
 
-	level.Debug(logger).Log("enabled", "true", "recentVulns", len(args.Vulnerablities))
+	logger.DebugContext(ctx, "vulnerability webhook triggered", "recent_vulns", len(args.Vulnerablities))
 
 	serverURL, err := url.Parse(args.AppConfig.ServerSettings.ServerURL)
 	if err != nil {
@@ -53,7 +52,7 @@ func TriggerVulnerabilitiesWebhook(
 				limit = batchSize
 			}
 			payload := mapper.GetPayload(serverURL, hosts[:limit], cve, args.Meta[cve])
-			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time); err != nil {
+			if err := sendVulnerabilityHostBatch(ctx, targetURL, payload, args.Time, logger); err != nil {
 				return ctxerr.Wrap(ctx, err, "send vulnerability host batch")
 			}
 			hosts = hosts[limit:]
@@ -63,13 +62,13 @@ func TriggerVulnerabilitiesWebhook(
 	return nil
 }
 
-func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time) error {
+func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time, logger *slog.Logger) error {
 	payload := map[string]interface{}{
 		"timestamp":     now,
 		"vulnerability": vuln,
 	}
 
-	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, targetURL, &payload, logger); err != nil {
 		return ctxerr.Wrapf(ctx, err, "posting to %s", targetURL)
 	}
 	return nil

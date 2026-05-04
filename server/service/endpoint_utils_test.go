@@ -3,7 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
+	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -12,6 +15,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -21,7 +25,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/go-kit/kit/endpoint"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -263,6 +266,7 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	}
 	decoder := makeDecoder(universalStruct{}, platform_http.MaxRequestBodySize)
 
+	// Body larger than the limit should return PayloadTooLargeError.
 	largeBody := `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)+1) + `"}`
 	req := httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
 	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
@@ -270,6 +274,19 @@ func TestUniversalDecoderSizeLimit(t *testing.T) {
 	_, err := decoder(context.Background(), req)
 	require.Error(t, err)
 	require.IsType(t, platform_http.PayloadTooLargeError{}, err)
+
+	// Body within the limit but with broken JSON
+	incompleteBody := `{"key": "` + strings.Repeat("A", 100) // missing closing "}
+	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(incompleteBody))
+	req = mux.SetURLVars(req, map[string]string{"some-id": "123"})
+
+	_, err = decoder(context.Background(), req)
+	require.Error(t, err)
+	require.True(t, errors.Is(err, io.ErrUnexpectedEOF), "expected io.ErrUnexpectedEOF, got %T: %v", err, err)
+	_, isPayloadTooLarge := err.(platform_http.PayloadTooLargeError)
+	require.False(t, isPayloadTooLarge, "incomplete body within size limit must not produce PayloadTooLargeError, got %T: %v", err, err)
+
+	// Body within the limit and complete ... OK
 
 	largeBody = `{"key": "` + strings.Repeat("A", int(platform_http.MaxRequestBodySize)-11) + `"}` // -11 to account for the wrapping JSON
 	req = httptest.NewRequest("POST", "/target?per_page=77&page=4", strings.NewReader(largeBody))
@@ -314,11 +331,11 @@ func TestEndpointer(t *testing.T) {
 			kithttp.PopulateRequestContext, // populate the request context with common fields
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -434,11 +451,11 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 			kithttp.PopulateRequestContext,
 			auth.SetRequestsContexts(svc),
 		),
-		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: kitlog.NewNopLogger()}),
+		kithttp.ServerErrorHandler(&endpointer.ErrorHandler{Logger: slog.New(slog.DiscardHandler)}),
 		kithttp.ServerErrorEncoder(fleetErrorEncoder),
 		kithttp.ServerAfter(
 			kithttp.SetContentType("application/json; charset=utf-8"),
-			log.LogRequestEnd(kitlog.NewNopLogger()),
+			log.LogRequestEnd(slog.New(slog.DiscardHandler)),
 			checkLicenseExpiration(svc),
 		),
 	}
@@ -493,9 +510,10 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 	require.Equal(t, "ABCH2", buf.String())
 }
 
-func TestWriteBrowserSecurityHeaders(t *testing.T) {
+func TestWriteBrowserSecurityHeadersNoCSP(t *testing.T) {
 	w := httptest.NewRecorder()
-	endpointer.WriteBrowserSecurityHeaders(w)
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, false, false)
+	require.NoError(t, err)
 	headers := w.Header()
 	require.Equal(
 		t,
@@ -507,4 +525,117 @@ func TestWriteBrowserSecurityHeaders(t *testing.T) {
 		},
 		headers,
 	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPNoNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	_, err := endpointer.WriteBrowserSecurityHeaders(w, true, false)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'; font-src 'self'; script-src 'self'"},
+		},
+		headers,
+	)
+}
+
+func TestWriteBrowserSecurityHeadersCSPAndNonce(t *testing.T) {
+	w := httptest.NewRecorder()
+	nonce, err := endpointer.WriteBrowserSecurityHeaders(w, true, true)
+	require.NoError(t, err)
+	headers := w.Header()
+	require.Equal(
+		t,
+		http.Header{
+			"X-Content-Type-Options":    {"nosniff"},
+			"X-Frame-Options":           {"SAMEORIGIN"},
+			"Strict-Transport-Security": {"max-age=31536000; includeSubDomains;"},
+			"Referrer-Policy":           {"strict-origin-when-cross-origin"},
+			"Content-Security-Policy":   {"default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self' 'nonce-" + nonce + "'; font-src 'self'; script-src 'self' 'nonce-" + nonce + "'"},
+		},
+		headers,
+	)
+}
+
+// newMultipartRequest creates an *http.Request with multipart/form-data body
+// containing the given field key/value pairs.
+func newMultipartRequest(t *testing.T, fields map[string]string) *http.Request {
+	t.Helper()
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	for k, v := range fields {
+		require.NoError(t, w.WriteField(k, v))
+	}
+	require.NoError(t, w.Close())
+	req := httptest.NewRequest("POST", "/target", &buf)
+	req.Header.Set("Content-Type", w.FormDataContentType())
+	return req
+}
+
+func TestParseMultipartForm(t *testing.T) {
+	t.Run("passes through fleet_id unchanged", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"fleet_id": "42"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"42"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("rewrites team_id to fleet_id and logs deprecation", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"team_id": "7"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		// team_id should be removed, fleet_id should be set
+		assert.Equal(t, []string{"7"}, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+
+		// r.Form should also be updated
+		assert.Equal(t, "7", req.Form.Get("fleet_id"))
+		assert.Empty(t, req.Form.Get("team_id"))
+
+		// deprecation should be logged
+		require.NotNil(t, logCtx.ForceLevel)
+		assert.Equal(t, slog.LevelWarn, *logCtx.ForceLevel)
+		assert.Contains(t, logCtx.Extras, "deprecated_param")
+		assert.Contains(t, logCtx.Extras, "team_id")
+	})
+
+	t.Run("no team_id or fleet_id", func(t *testing.T) {
+		req := newMultipartRequest(t, map[string]string{"other_field": "hello"})
+		logCtx := &logging.LoggingContext{}
+		ctx := logging.NewContext(context.Background(), logCtx)
+
+		err := parseMultipartForm(ctx, req, platform_http.MaxMultipartFormSize)
+		require.NoError(t, err)
+
+		assert.Empty(t, req.MultipartForm.Value["fleet_id"])
+		assert.Empty(t, req.MultipartForm.Value["team_id"])
+		assert.Equal(t, []string{"hello"}, req.MultipartForm.Value["other_field"])
+		assert.Nil(t, logCtx.ForceLevel)
+		assert.Empty(t, logCtx.Extras)
+	})
+
+	t.Run("invalid body returns error", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/target", strings.NewReader("not multipart"))
+		req.Header.Set("Content-Type", "multipart/form-data; boundary=bogus")
+
+		err := parseMultipartForm(context.Background(), req, platform_http.MaxMultipartFormSize)
+		require.Error(t, err)
+	})
 }

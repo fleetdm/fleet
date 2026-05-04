@@ -127,7 +127,7 @@ const generatePolicyTableHeaders = (currentTeamId?: number): IDataColumn[] => {
                     cellProps.row.original.response === "pass"
                       ? PolicyResponse.PASSING
                       : PolicyResponse.FAILING,
-                  team_id: currentTeamId,
+                  fleet_id: currentTeamId,
                 }}
                 rowHover
               />

@@ -50,6 +50,10 @@ parasails.registerPage('articles', {
         this.articleCategory = 'Reports';
         this.categoryDescription = '';
         break;
+      case 'whitepapers':
+        this.articleCategory = 'Whitepapers';
+        this.categoryDescription = 'Browse our whitepapers to learn how modern teams manage and secure their devices.';
+        break;
       case 'articles':
         this.articleCategory = 'Blog';
         this.categoryDescription = 'Read the latest articles from the Fleet team and community.';
@@ -58,7 +62,7 @@ parasails.registerPage('articles', {
   },
 
   mounted: async function() {
-    if(['Articles', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
+    if(['Blog', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
       if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
         docsearch({
           appId: 'NZXAYZXDGH',

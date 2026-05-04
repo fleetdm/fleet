@@ -12,12 +12,17 @@ This directory contains guides for common development tasks in Fleet.
 - [Enroll hosts with plain osquery](enroll-hosts-with-plain-osquery.md) - Guide for enrolling hosts with plain osquery
 - [Upcoming activities](upcoming-activities.md) - Guide for managing upcoming host activities
 - [mTLS reverse proxy setup](mtls-reverse-proxy-setup.md) - Guide for setting up an mTLS reverse proxy for testing
+- [Okta conditional access testing](okta-conditional-access-testing.md) - Guide for testing Okta conditional access end-to-end in a dev environment
 
 ## UI development
 
 - [Fleet UI Testing](ui/fleet-ui-testing.md) - Guide for testing the Fleet UI
 - [Generating UI Component Boilerplate](ui/generating-ui-component-boilerplate.md) - Guide for generating UI component boilerplate
 - [Design QA Considerations](ui/design-qa-considerations.md) - Guide for design QA considerations
+
+## Observability
+
+- [Telemetry attribute naming](telemetry-attribute-naming.md) - Naming conventions for log, trace, and metric attributes
 
 ## API development
 

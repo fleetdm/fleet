@@ -113,7 +113,7 @@ export const getOptions = (
   pendingTeamIds: string[]
 ) => {
   const allTeamsOption = {
-    label: "All teams",
+    label: "All fleets",
     value: APP_CONTEXT_ALL_TEAMS_ID,
   };
 
@@ -241,68 +241,66 @@ const EditTeamsVppModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit teams"
+      title="Edit fleets"
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
-      <>
-        <p>
-          Edit teams for <b>{currentToken.org_name}</b>.
-        </p>
-        <p>
-          If you delete a team, App Store apps will be deleted from that team.
-          Installed apps won&apos;t be uninstalled from hosts.
-        </p>
-        <form onSubmit={onSave} className={baseClass} autoComplete="off">
-          <TooltipWrapper
-            position="top"
-            underline={false}
-            showArrow
-            tipContent={
-              <div className={`${baseClass}__tooltip--all-teams`}>
-                You can&apos;t choose teams because you already have a VPP token
-                assigned to all teams. First, edit teams for that VPP token to
-                choose teams here.
-              </div>
+      <p>
+        Edit fleets for <b>{currentToken.org_name}</b>.
+      </p>
+      <p>
+        If you delete a fleet, App Store apps will be deleted from that fleet.
+        Installed apps won&apos;t be uninstalled from hosts.
+      </p>
+      <form onSubmit={onSave} className={baseClass} autoComplete="off">
+        <TooltipWrapper
+          position="top"
+          underline={false}
+          showArrow
+          tipContent={
+            <div className={`${baseClass}__tooltip--all-teams`}>
+              You can&apos;t choose fleets because you already have a VPP token
+              assigned to all fleets. First, edit fleets for that VPP token to
+              choose fleets here.
+            </div>
+          }
+          disableTooltip={!isDropdownDisabled}
+        >
+          <Dropdown
+            options={options}
+            multi
+            onChange={onChange}
+            placeholder="Search fleets"
+            value={selectedValue}
+            label="Fleets"
+            className={`${baseClass}__vpp-dropdown`}
+            wrapperClassName={`${baseClass}__form-field--vpp-teams ${
+              isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
+            }`}
+            tooltip={
+              isDropdownDisabled ? undefined : (
+                <>
+                  Each fleet can have only one VPP token. Fleets that already
+                  have a VPP token won&apos;t show up here.
+                </>
+              )
             }
-            disableTooltip={!isDropdownDisabled}
+            helpText="App Store apps in this VPP token's Apple Business (AB) will only be available to install on hosts in these fleets."
+            disabled={isDropdownDisabled}
+          />
+        </TooltipWrapper>
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            className="save-vpp-teams-loading"
+            isLoading={isSaving}
+            disabled={isDropdownDisabled}
           >
-            <Dropdown
-              options={options}
-              multi
-              onChange={onChange}
-              placeholder="Search teams"
-              value={selectedValue}
-              label="Teams"
-              className={`${baseClass}__vpp-dropdown`}
-              wrapperClassName={`${baseClass}__form-field--vpp-teams ${
-                isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
-              }`}
-              tooltip={
-                isDropdownDisabled ? undefined : (
-                  <>
-                    Each team can have only one VPP token. Teams that already
-                    have a VPP token won&apos;t show up here.
-                  </>
-                )
-              }
-              helpText="App Store apps in this VPP token’s Apple Business Manager (ABM) will only be available to install on hosts in these teams."
-              disabled={isDropdownDisabled}
-            />
-          </TooltipWrapper>
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              className="save-vpp-teams-loading"
-              isLoading={isSaving}
-              disabled={isDropdownDisabled}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </>
+            Save
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

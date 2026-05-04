@@ -235,6 +235,12 @@ type HostListOptions struct {
 	BatchScriptExecutionStatusFilter BatchScriptExecutionStatus
 	// BatchScriptExecutionIDFilter filters hosts by the ID of a batch script execution.
 	BatchScriptExecutionIDFilter *string
+
+	DEPProfileErrorFilter *bool
+
+	// DEPAssignProfileResponseFilter filters hosts by their exact DEP profile
+	// assignment response value (SUCCESS, FAILED, THROTTLED, NOT_ACCESSIBLE).
+	DEPAssignProfileResponseFilter *DEPAssignProfileResponseStatus
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -265,7 +271,9 @@ func (h HostListOptions) Empty() bool {
 		h.OSSettingsFilter == "" &&
 		h.OSSettingsDiskEncryptionFilter == "" &&
 		h.ProfileUUIDFilter == nil &&
-		h.ProfileStatusFilter == nil
+		h.ProfileStatusFilter == nil &&
+		h.DEPProfileErrorFilter == nil &&
+		h.DEPAssignProfileResponseFilter == nil
 }
 
 type HostUser struct {
@@ -330,12 +338,12 @@ type Host struct {
 	DistributedInterval       uint                `json:"distributed_interval" db:"distributed_interval" csv:"distributed_interval"`
 	ConfigTLSRefresh          uint                `json:"config_tls_refresh" db:"config_tls_refresh" csv:"config_tls_refresh"`
 	LoggerTLSPeriod           uint                `json:"logger_tls_period" db:"logger_tls_period" csv:"logger_tls_period"`
-	TeamID                    *uint               `json:"team_id" db:"team_id" csv:"team_id"`
+	TeamID                    *uint               `json:"team_id" renameto:"fleet_id" db:"team_id" csv:"team_id"`
 
 	// Loaded via JOIN in DB
 	PackStats []PackStats `json:"pack_stats" csv:"-"`
 	// TeamName is the name of the team, loaded by JOIN to the teams table.
-	TeamName *string `json:"team_name" db:"team_name" csv:"team_name"`
+	TeamName *string `json:"team_name" renameto:"fleet_name" db:"team_name" csv:"team_name"`
 	// Additional is the additional information from the host
 	// additional_queries. This should be stored in a separate DB table.
 	Additional *json.RawMessage `json:"additional,omitempty" db:"additional" csv:"-"`
@@ -389,7 +397,7 @@ type Host struct {
 	// so we don't need this.
 	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"`
 
-	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business Manager.
+	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business.
 	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
 	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
 	// responses.
@@ -497,8 +505,8 @@ type HostHealth struct {
 	FailingCriticalPoliciesCount *int                           `json:"failing_critical_policies_count,omitempty"` // Fleet Premium Only
 	VulnerableSoftware           []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies              []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
-	Platform                     string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
-	TeamID                       *uint                          `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
+	Platform                     string                         `json:"-" db:"platform"`                                    // Needed to fetch failing policies. Not returned in HTTP responses.
+	TeamID                       *uint                          `json:"team_id,omitempty" renameto:"fleet_id" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
 
 type HostHealthVulnerableSoftware struct {
@@ -571,13 +579,13 @@ type MDMHostData struct {
 	// complete the disk encryption process.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" db:"-" csv:"-"`
+	MacOSSettings *MDMHostMacOSSettings `json:"macos_settings,omitempty" renameto:"apple_settings" db:"-" csv:"-"`
 
 	// MacOSSetup indicates macOS-specific MDM setup for the host, such
 	// as the status of the bootstrap package.
 	//
 	// It is not filled in by all host-returning datastore methods.
-	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" renameto:"setup_experience" db:"-" csv:"-"`
 
 	// The DeviceStatus and PendingAction fields are not stored in the database
 	// directly, they are read from the GetHostLockWipeStatus datastore method
@@ -593,12 +601,68 @@ type MDMHostData struct {
 }
 
 type HostMDMOSSettings struct {
-	DiskEncryption HostMDMDiskEncryption `json:"disk_encryption" db:"-" csv:"-"`
+	DiskEncryption       HostMDMDiskEncryption       `json:"disk_encryption" db:"-" csv:"-"`
+	RecoveryLockPassword HostMDMRecoveryLockPassword `json:"recovery_lock_password" db:"-" csv:"-"`
+	ManagedLocalAccount  HostMDMManagedLocalAccount  `json:"managed_local_account" db:"-" csv:"-"`
 }
 
 type HostMDMDiskEncryption struct {
 	Status *DiskEncryptionStatus `json:"status" db:"-" csv:"-"`
 	Detail string                `json:"detail" db:"-" csv:"-"`
+}
+
+type HostMDMRecoveryLockPassword struct {
+	Status            *RecoveryLockStatus `json:"status" db:"-" csv:"-"`
+	Detail            string              `json:"detail" db:"-" csv:"-"`
+	PasswordAvailable bool                `json:"password_available" db:"-" csv:"-"`
+	// rawStatus and operationType are used internally to determine the status translation, not serialized.
+	rawStatus     *MDMDeliveryStatus `json:"-" db:"-" csv:"-"`
+	operationType MDMOperationType   `json:"-" db:"-" csv:"-"`
+}
+
+// RecoveryLockStatus represents the status of recovery lock password enforcement.
+type RecoveryLockStatus string
+
+const (
+	RecoveryLockStatusVerified            RecoveryLockStatus = "verified"
+	RecoveryLockStatusPending             RecoveryLockStatus = "pending"
+	RecoveryLockStatusFailed              RecoveryLockStatus = "failed"
+	RecoveryLockStatusRemovingEnforcement RecoveryLockStatus = "removing_enforcement"
+)
+
+func (s RecoveryLockStatus) addrOf() *RecoveryLockStatus {
+	return &s
+}
+
+// PopulateStatus converts the raw MDMDeliveryStatus based on operation type to RecoveryLockStatus.
+func (r *HostMDMRecoveryLockPassword) PopulateStatus() {
+	if r == nil || r.rawStatus == nil {
+		return
+	}
+	switch r.operationType {
+	case MDMOperationTypeRemove:
+		switch {
+		case *r.rawStatus == MDMDeliveryFailed:
+			r.Status = RecoveryLockStatusFailed.addrOf()
+		default:
+			r.Status = RecoveryLockStatusRemovingEnforcement.addrOf()
+		}
+	default:
+		switch *r.rawStatus {
+		case MDMDeliveryFailed:
+			r.Status = RecoveryLockStatusFailed.addrOf()
+		case MDMDeliveryVerified:
+			r.Status = RecoveryLockStatusVerified.addrOf()
+		case MDMDeliveryVerifying, MDMDeliveryPending:
+			r.Status = RecoveryLockStatusPending.addrOf()
+		}
+	}
+}
+
+// SetRawStatus sets the raw status and operation type for later translation.
+func (r *HostMDMRecoveryLockPassword) SetRawStatus(status *MDMDeliveryStatus, opType MDMOperationType) {
+	r.rawStatus = status
+	r.operationType = opType
 }
 
 type DiskEncryptionStatus string
@@ -610,6 +674,25 @@ const (
 	DiskEncryptionEnforcing           DiskEncryptionStatus = "enforcing"
 	DiskEncryptionFailed              DiskEncryptionStatus = "failed"
 	DiskEncryptionRemovingEnforcement DiskEncryptionStatus = "removing_enforcement"
+)
+
+// BitLocker conversion status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getconversionstatus-win32-encryptablevolume
+//
+// Only FullyEncrypted (1) is used by the server ingestion logic; all other
+// values (0=decrypted, 2=encrypting, 3=decrypting, 4=encryption paused,
+// 5=decryption paused) are treated as "not yet encrypted."
+const (
+	BitLockerConversionStatusFullyDecrypted = 0
+	BitLockerConversionStatusFullyEncrypted = 1
+)
+
+// BitLocker protection status values from the Win32_EncryptableVolume WMI class.
+// https://learn.microsoft.com/en-us/windows/win32/secprov/getprotectionstatus-win32-encryptablevolume
+const (
+	BitLockerProtectionStatusOff     = 0
+	BitLockerProtectionStatusOn      = 1
+	BitLockerProtectionStatusUnknown = 2
 )
 
 func (s DiskEncryptionStatus) addrOf() *DiskEncryptionStatus {
@@ -830,6 +913,11 @@ func (h *Host) IsLUKSSupported() bool {
 		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro" || h.Platform == "manjaro-arm"
 }
 
+// IsAppleSilicon returns true if the host is a macOS device with an ARM CPU (Apple Silicon).
+func (h *Host) IsAppleSilicon() bool {
+	return h.Platform == "darwin" && h.CPUType != "" && strings.HasPrefix(strings.ToLower(h.CPUType), "arm")
+}
+
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
 // unenrolled from Fleet's Windows MDM (if it MDM was disabled).
 func (h *Host) IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM bool) bool {
@@ -856,6 +944,10 @@ func HostDisplayName(computerName string, hostname string, hardwareModel string,
 }
 
 func (h *Host) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+}
+
+func (h *HostLite) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
@@ -890,6 +982,8 @@ type HostDetail struct {
 	LastMDMEnrolledAt  *time.Time `json:"last_mdm_enrolled_at"`
 	LastMDMCheckedInAt *time.Time `json:"last_mdm_checked_in_at"`
 
+	MDMEnrollmentHardwareAttested bool `json:"mdm_enrollment_hardware_attested"`
+
 	ConditionalAccessBypassed bool `json:"conditional_access_bypassed"`
 }
 
@@ -919,17 +1013,18 @@ const (
 // set of hosts in the database. This structure is returned by the HostService
 // method GetHostSummary
 type HostSummary struct {
-	TeamID             *uint                  `json:"team_id,omitempty" db:"-"`
-	TotalsHostsCount   uint                   `json:"totals_hosts_count" db:"total"`
-	OnlineCount        uint                   `json:"online_count" db:"online"`
-	OfflineCount       uint                   `json:"offline_count" db:"offline"`
-	MIACount           uint                   `json:"mia_count" db:"mia"`
-	Missing30DaysCount uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
-	NewCount           uint                   `json:"new_count" db:"new"`
-	AllLinuxCount      uint                   `json:"all_linux_count" db:"-"`
-	LowDiskSpaceCount  *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
-	BuiltinLabels      []*LabelSummary        `json:"builtin_labels" db:"-"`
-	Platforms          []*HostSummaryPlatform `json:"platforms" db:"-"`
+	TeamID              *uint                  `json:"team_id,omitempty" renameto:"fleet_id" db:"-"`
+	TotalsHostsCount    uint                   `json:"totals_hosts_count" db:"total"`
+	OnlineCount         uint                   `json:"online_count" db:"online"`
+	OfflineCount        uint                   `json:"offline_count" db:"offline"`
+	MIACount            uint                   `json:"mia_count" db:"mia"`
+	Missing30DaysCount  uint                   `json:"missing_30_days_count" db:"missing_30_days_count"`
+	NewCount            uint                   `json:"new_count" db:"new"`
+	AllLinuxCount       uint                   `json:"all_linux_count" db:"-"`
+	LowDiskSpaceCount   *uint                  `json:"low_disk_space_count,omitempty" db:"low_disk_space"`
+	BuiltinLabels       []*LabelSummary        `json:"builtin_labels" db:"-"`
+	Platforms           []*HostSummaryPlatform `json:"platforms" db:"-"`
+	DEPAssignErrorCount uint                   `json:"dep_assign_error_count" db:"dep_assign_error_count"`
 }
 
 // HostSummaryPlatform represents the hosts statistics for a given platform,
@@ -1020,6 +1115,8 @@ var HostLinuxOSs = []string{
 	"tuxedo",
 	"neon",
 	"archarm",
+	"flatcar",
+	"coreos",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
@@ -1032,6 +1129,8 @@ var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"endeavouros": {},
 	"manjaro":     {},
 	"manjaro-arm": {},
+	"flatcar":     {},
+	"coreos":      {},
 }
 
 // HostDebPackageOSs are the list of known Linux platforms that support DEB packages
@@ -1431,7 +1530,7 @@ type HostMDMCheckinInfo struct {
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
+	TeamID             uint   `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
@@ -1495,10 +1594,12 @@ type HostMacOSProfile struct {
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
+	ComputerName        string    `db:"computer_name"`
 	Hostname            string    `db:"hostname"`
 	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
+	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
@@ -1668,4 +1769,17 @@ type DeletedHostDetails struct {
 	DisplayName      string
 	Serial           string
 	HostExpiryWindow int
+}
+
+// HostMDMManagedLocalAccount represents the managed local account status for a host.
+type HostMDMManagedLocalAccount struct {
+	Status            *string `json:"status" db:"-" csv:"-"`             // nil (no record), "pending", "verified", "failed"
+	PasswordAvailable bool    `json:"password_available" db:"-" csv:"-"` // true only when status is "verified"
+}
+
+// HostManagedLocalAccountPassword is the API response for the managed local account password.
+type HostManagedLocalAccountPassword struct {
+	Username  string    `json:"username"`
+	Password  string    `json:"password"`
+	UpdatedAt time.Time `json:"updated_at"`
 }

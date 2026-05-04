@@ -28,6 +28,7 @@ resource "aws_ecr_repository" "fleet" {
 
 resource "docker_image" "dockerhub" {
   name = "fleetdm/fleet:${var.tag}"
+  pull_triggers = [data.docker_registry_image.dockerhub.sha256_digest]
 }
 
 data "docker_registry_image" "dockerhub" {

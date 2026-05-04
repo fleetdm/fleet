@@ -39,6 +39,10 @@ type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string
 
 type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, appPolicies []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
+type EnterprisesPoliciesRemovePolicyApplicationsFunc func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error)
+
+type EnterprisesWebAppsCreateFunc func(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error)
+
 type Client struct {
 	SignupURLsCreateFunc        SignupURLsCreateFunc
 	SignupURLsCreateFuncInvoked bool
@@ -78,6 +82,12 @@ type Client struct {
 
 	EnterprisesPoliciesModifyPolicyApplicationsFunc        EnterprisesPoliciesModifyPolicyApplicationsFunc
 	EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked bool
+
+	EnterprisesPoliciesRemovePolicyApplicationsFunc        EnterprisesPoliciesRemovePolicyApplicationsFunc
+	EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked bool
+
+	EnterprisesWebAppsCreateFunc        EnterprisesWebAppsCreateFunc
+	EnterprisesWebAppsCreateFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -171,4 +181,18 @@ func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context
 	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, appPolicies)
+}
+
+func (p *Client) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesRemovePolicyApplicationsFunc(ctx, policyName, packageNames)
+}
+
+func (p *Client) EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	p.mu.Lock()
+	p.EnterprisesWebAppsCreateFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesWebAppsCreateFunc(ctx, enterpriseName, webApp)
 }

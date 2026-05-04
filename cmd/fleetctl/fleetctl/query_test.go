@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"sync"
 	"testing"
@@ -12,8 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,8 +21,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := kitlog.NewJSONLogger(os.Stdout)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		Rs:     rs,
@@ -61,11 +59,11 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
 		if opt.MatchQuery == queryName {
-			return []*fleet.Query{&query}, 1, nil, nil
+			return []*fleet.Query{&query}, 1, 0, nil, nil
 		}
-		return []*fleet.Query{}, 0, nil, nil
+		return []*fleet.Query{}, 0, 0, nil, nil
 	}
 	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 		camp.ID = 321
@@ -158,7 +156,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	}()
 
 	// errors before requesting live query
-	_, err = RunAppNoChecks([]string{"query", "--hosts", "", "--query-name", queryName})
+	_, err = RunAppNoChecks([]string{"report", "--hosts", "", "--report-name", queryName})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "No hosts or labels targeted")
 
@@ -166,7 +164,7 @@ func TestSavedLiveQuery(t *testing.T) {
 `
 	// Note: runAppForTest never closes the WebSocket connection and does not exit,
 	// so we are unable to see the activity data that is written after WebSocket disconnects.
-	assert.Equal(t, expected, RunAppForTest(t, []string{"query", "--hosts", "1234", "--query-name", queryName}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"report", "--hosts", "1234", "--report-name", queryName}))
 
 	// We need to use waitGroups to detect whether Database functions were called because this is an asynchronous test which will flag data races otherwise.
 	c := make(chan struct{})
@@ -187,7 +185,7 @@ func TestSavedLiveQuery(t *testing.T) {
 
 	// Test targeting no hosts (e.g. host does exist)
 	noHostsTargeted = true
-	_, err = RunAppNoChecks([]string{"query", "--hosts", "foobar", "--query-name", queryName})
+	_, err = RunAppNoChecks([]string{"report", "--hosts", "foobar", "--report-name", queryName})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "No hosts targeted")
 }
@@ -196,8 +194,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	rs := pubsub.NewInmemQueryResults()
 	lq := live_query_mock.New(t)
 
-	logger := kitlog.NewJSONLogger(os.Stdout)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	_, ds := testing_utils.RunServerWithMockedDS(
 		t, &service.TestServerOpts{
@@ -302,15 +299,15 @@ func TestAdHocLiveQuery(t *testing.T) {
 	}()
 
 	// test label not found
-	_, err = RunAppNoChecks([]string{"query", "--hosts", "1234", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
+	_, err = RunAppNoChecks([]string{"report", "--hosts", "1234", "--labels", "iamnotalabel", "--query", "select 42, * from time"})
 	assert.ErrorContains(t, err, "Invalid label name(s): iamnotalabel.")
 
 	// test if some labels were not found
-	_, err = RunAppNoChecks([]string{"query", "--labels", "label1, mac, windows", "--hosts", "1234", "--query",
+	_, err = RunAppNoChecks([]string{"report", "--labels", "label1, mac, windows", "--hosts", "1234", "--query",
 		"select 42, * from time"})
 	assert.ErrorContains(t, err, "Invalid label name(s): mac, windows.")
 
 	expected := `{"host":"somehostname","rows":[{"bing":"fds","host_display_name":"somehostname","host_hostname":"somehostname"}]}
 `
-	assert.Equal(t, expected, RunAppForTest(t, []string{"query", "--hosts", "1234", "--query", "select 42, * from time"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"report", "--hosts", "1234", "--query", "select 42, * from time"}))
 }

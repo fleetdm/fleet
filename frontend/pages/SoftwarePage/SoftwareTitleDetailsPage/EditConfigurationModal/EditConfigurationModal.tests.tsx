@@ -2,7 +2,6 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { createMockAppStoreAppAndroid } from "__mocks__/softwareMock";
-import softwareAPI from "services/entities/software";
 import EditConfigurationModal from "./EditConfigurationModal";
 
 const softwareInstaller = createMockAppStoreAppAndroid();
@@ -77,7 +76,7 @@ describe("EditConfigurationModal", () => {
     const { user } = render(<EditConfigurationModal {...MOCK_PROPS} />);
 
     const configInput = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "",
+      name: /Cursor at row/,
     });
     const saveButton = screen.getByRole("button", { name: "Save" });
 
@@ -100,7 +99,7 @@ describe("EditConfigurationModal", () => {
     const { user } = render(<EditConfigurationModal {...MOCK_PROPS} />);
 
     const configInput = screen.getByRole<HTMLTextAreaElement>("textbox", {
-      name: "",
+      name: /Cursor at row/,
     });
     const saveButton = screen.getByRole("button", { name: "Save" });
 

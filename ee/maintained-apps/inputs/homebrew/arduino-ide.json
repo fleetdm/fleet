@@ -1,0 +1,8 @@
+{
+  "name": "Arduino IDE",
+  "slug": "arduino-ide/darwin",
+  "unique_identifier": "cc.arduino.IDE2",
+  "token": "arduino-ide",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+}

@@ -13,13 +13,23 @@ interactions specific to the Software Installation functionality.
 ### Software types
 
 Fleet supports 3 different types of installable software: custom packages, Fleet-maintained apps,
-and VPP apps.
+and app store apps.
 
 #### Custom packages
 
 Custom packages are software packages whose installer is uploaded directly to Fleet by an admin.
 
-Fleet supports `.pkg`, `.msi`, `.exe`, `.deb.`, and `.rpm` installers for custom packages.
+Fleet supports the following installer files as custom packages
+
+| Installer file extension      | Supported platform(s) |
+| ----------- | ----------- |
+| .pkg   | macOS                  |
+| .ipa   | iOS, iPadOS            |
+| .msi   | Windows                |
+| .exe   | Windows                |
+| .deb   | Debian-based Linux     |
+| .rpm   | RHEL-based Linux       |
+
 
 #### Fleet-maintained apps
 
@@ -27,21 +37,23 @@ Fleet-maintained apps are software that Fleet curates. Fleet sources installers 
 install and uninstall scripts for Fleet-maintained apps, so that admins can add them to their
 software library with just a few clicks.
 
-#### VPP apps
+#### App store apps
 
-VPP apps are apps that can be added using Apple's Volume Purchasing Program functionality. These
-apps are only for Apple devices (macOS, iOS, and iPadOS) and are managed using the Apple MDM protocol.
+App store apps are software that is installed directly from an external app store. Fleet currently supports
+the Apple App Store (via [VPP](https://developer.apple.com/documentation/devicemanagement/managing-apps-and-books-through-web-services-legacy) apps (for macOS, iOS, and iPadOS hosts)) 
+and the Google Play Store (for Android hosts).
 
-## Architecture overview
+## Architecture diagrams
 
-## Key components
+## Installation flows
 
-## Architecture diagram
+### VPP app install and verification
 
-### VPP app install verification
+VPP apps are installed using the Apple MDM protocol. When an install is triggered, Fleet sends an `InstallApplication` command
+to the host.
 
-Fleet verifies VPP app installs by sending a series of `InstalledApplicationList` MDM commands after
-the acknowledgment of the `InstallApplication` command. It attempts to verify until either
+To verify that the install was successful, Fleet sends a series of `InstalledApplicationList` MDM commands after
+the acknowledgment of the `InstallApplication` command. Fleet attempts to verify until either
 - the app shows up in the `InstalledApplicationList` response as installed, or
 - the verification timeout (defaults to 10m, configurable via the `FLEET_SERVER_VPP_VERIFY_TIMEOUT`
   env var).
@@ -50,24 +62,25 @@ the acknowledgment of the `InstallApplication` command. It attempts to verify un
 ```mermaid
 sequenceDiagram
     autonumber
-    Fleet->>+Host: InstallApplicationCommand
-    Host-->>-Fleet: Acknowledged
+        Note over Fleet,Host: Installation
+        Fleet->>+Host: InstallApplicationCommand
+        Host-->>-Fleet: Acknowledged
 
-    Fleet->>+Fleet: Start timeout
-
-    loop Verification loop
-        Fleet->>+Host: InstalledApplicationListCommand
-        Host-->>-Fleet: Acknowledged<br/>[list of apps]
-        critical Check app status
-        option app in list, installed, exit:
-            Fleet->>+Fleet: Move status to "Installed"
-        option app not in list, timeout:
-            Fleet->>+Fleet: Move status to "Failed"
+        Note over Fleet,Host: Verification
+    
+        Fleet->>+Fleet: Start timeout
+    
+        loop Verification loop
+            Fleet->>+Host: InstalledApplicationListCommand
+            Host-->>-Fleet: Acknowledged<br/>[list of apps]
+            critical Check app status
+            option app in list, installed, exit:
+                Fleet->>+Fleet: Move status to "Installed"
+            option app not in list, timeout:
+                Fleet->>+Fleet: Move status to "Failed"
         end
     end
 ```
-
-## Installation flow
 
 ### Orbit implementation of installer-based (custom packages, FMA) software install
 
@@ -106,19 +119,52 @@ graph TD
     end
 ```
 
-## Platform-specific implementations
+### In-house (.ipa) app install and verification
 
-### macOS
+In-house apps are installed using the Apple MDM protocol similar to VPP apps. 
+- Fleet first sends an `InstallApplication` command with a `ManifestURL` key, which contains the Fleet `:title_id/in_house_app/manifest` endpoint, instead of an `iTunesStoreID` key.
+- The host sends a request to that endpoint to get the manifest, which contains metadata and a download URL which is the `:title_id/in_house_app` endpoint.
+- Fleet optionally cloudfront signs the download URL.
+- The in-house app gets verified the same way as VPP installs, using `InstalledApplicationList`.
 
-### Windows
+```mermaid
+sequenceDiagram
+    autonumber
+        Note over Fleet,Host: Installation
+        Fleet->>+Host: InstallApplication Command
+        Host->>+Fleet: Get manifest
+        Fleet-->>-Host: App manifest
+        Host->>+Fleet: Get .ipa file
+        Fleet-->>-Host: Send .ipa file
+        Host->>-Host: Install app
 
-### Linux
+        Note over Fleet,Host: Verification
 
-### iOS/iPadOS 
+        Fleet->>Fleet: Start timeout
 
-### Android
+        loop Verification loop
+            Fleet->>+Host: InstalledApplicationListCommand
+            Host-->>-Fleet: Acknowledged<br/>[list of apps]
+            critical Check app status
+            option app in list, installed, exit:
+                Fleet->>+Fleet: Move status to "Installed"
+            option app not in list, timeout:
+                Fleet->>+Fleet: Move status to "Failed"
+        end
+    end
+```
+
+### Android app install
+
+Android app installation works a bit differently than on other platforms. Fleet uses the Google Android Management API (AMAPI) which
+sends one declarative "policy" to devices. When an Android app is added to a fleet, a job gets triggered to add this app to the policy
+on relevant hosts with the InstallType set to "[AVAILABLE](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)". 
+For each host, this job will send a request to [enterprises.policies.modifyPolicyApplications](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/modifyPolicyApplications) which will make the app available for download in the Play Store for that host, and record its result in the database.
+
+Setup experience: currently, setup experience will add all relevant apps to a host's policy, 
+but with InstallType set to "[PREINSTALLED](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#InstallType)"
+which will automatically install the app on the device.
 
 ## Related resources
 
 - [Software product group documentation](../../product-groups/software/) - Documentation for the Software product group
-- [Software development guides](../../guides/software/) - Guides for Software development

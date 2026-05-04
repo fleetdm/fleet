@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "126.1.2",
+      "version": "126.3.12",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Figma' AND publisher = 'Figma, Inc.' AND version_compare(version, '126.3.12') < 0);"
       },
-      "installer_url": "https://desktop.figma.com/win/build/Figma-126.1.2.exe",
+      "installer_url": "https://desktop.figma.com/win/build/Figma-126.3.12.exe",
       "install_script_ref": "442d71b3",
       "uninstall_script_ref": "e33afd6b",
-      "sha256": "16e9326925f70d00551b1f7a1ef57ffacaa15c987a5ca1a84c1ee1523aabe4b2",
+      "sha256": "171f090862ce8cc97316fa8341850df1a3ef05e0145f3364ec7af98447533f97",
       "default_categories": [
         "Productivity"
       ]

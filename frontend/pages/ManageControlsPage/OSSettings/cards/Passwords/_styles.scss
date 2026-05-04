@@ -1,0 +1,23 @@
+.passwords {
+  @include vertical-card-layout;
+
+  a {
+    color: inherit;
+  }
+
+  .premium-feature-message-container {
+    justify-content: initial;
+    align-items: initial;
+  }
+
+  .passwords-content {
+    gap: px-to-rem(18);
+    animation: fade-in 250ms ease-out;
+  }
+
+  &__recovery-lock-header {
+    font-size: $small;
+    font-weight: 600;
+    color: $core-fleet-black;
+  }
+}

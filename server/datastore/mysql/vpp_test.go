@@ -498,7 +498,8 @@ func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, a
 
 func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
+	activitySvc := NewTestActivityService(t, ds)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -514,10 +515,10 @@ func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cm
 
 	// inserting the activity is what marks the upcoming activity as completed
 	// (and activates the next one).
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		CommandUUID: cmdUUID,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 }
 
@@ -574,6 +575,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 2)
 		require.Len(t, meta.LabelsExcludeAny, 0)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 
 		// insert a VPP app with exclude_any labels
 		labeledApp = &fleet.VPPApp{
@@ -598,6 +600,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 0)
 		require.Len(t, meta.LabelsExcludeAny, 2)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 	})
 
 	// create a host with some non-VPP software
@@ -1764,7 +1767,7 @@ func testDeleteVPPAssignedToPolicy(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
 	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
 
 	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{p1.ID})
 	require.NoError(t, err)
@@ -1938,6 +1941,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 2)
 	require.Len(t, app1Meta.LabelsExcludeAny, 0)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsIncludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1945,6 +1949,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 2)
 	require.Len(t, app2Meta.LabelsIncludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsExcludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1997,6 +2002,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 0)
 	require.Len(t, app1Meta.LabelsExcludeAny, 2)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsExcludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -2004,6 +2010,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 0)
 	require.Len(t, app2Meta.LabelsIncludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsIncludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -2771,7 +2778,7 @@ func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
 		require.Len(t, adamIDs, 1)
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID, true)
 		require.NoError(t, err)
 
 		// Should get adam_vpp_1 as pending installation.
@@ -2966,7 +2973,7 @@ func testMapAdamIDsRecentInstalls(t *testing.T, ds *Datastore) {
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
 		// Cancel the installation.
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID, true)
 		require.NoError(t, err)
 
 		// Should not get the install request (more than 1 second has passed since the install request).

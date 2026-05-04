@@ -12,12 +12,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
-	"github.com/go-kit/log"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/osquery/osquery-go/plugin/logger"
@@ -26,7 +26,7 @@ import (
 // launcherWrapper wraps the TLS interface.
 type launcherWrapper struct {
 	tls            fleet.OsqueryService
-	logger         log.Logger
+	logger         *slog.Logger
 	healthCheckers map[string]health.Checker
 }
 

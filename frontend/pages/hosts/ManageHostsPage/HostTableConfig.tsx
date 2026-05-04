@@ -3,7 +3,6 @@
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
 import { CellProps, Column } from "react-table";
-import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
 import {
@@ -34,7 +33,6 @@ import {
   hostTeamName,
   tooltipTextWithLineBreaks,
 } from "utilities/helpers";
-import { COLORS } from "styles/var/colors";
 import {
   IHeaderProps,
   IStringCellProps,
@@ -42,7 +40,7 @@ import {
 } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import getHostStatusTooltipText from "../helpers";
+import { getHostStatusTooltipText } from "../helpers";
 
 type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
@@ -87,7 +85,7 @@ const lastSeenTime = (status: string, seenTime: string): string => {
   return "Online";
 };
 
-const allHostTableHeaders: IHostTableColumnConfig[] = [
+const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
   // We are using React Table useRowSelect functionality for the selection header.
   // More information on its API can be found here
   // https://react-table.tanstack.com/docs/api/useRowSelect
@@ -119,46 +117,10 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "display_name",
     id: "display_name",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        // if the host is pending, we want to disable the link to host details
-        cellProps.row.original.mdm.enrollment_status === "Pending" &&
-        // pending status is only supported for Apple devices
-        (cellProps.row.original.platform === "darwin" ||
-          cellProps.row.original.platform === "ios" ||
-          cellProps.row.original.platform === "ipados") &&
-        // osquery version is populated along with the rest of host details so use it
-        // here to check if we already have host details and don't need to disable the link
-        !cellProps.row.original.osquery_version
-      ) {
-        return (
-          <>
-            <span
-              className="text-cell"
-              data-tip
-              data-for={`host__${cellProps.row.original.id}`}
-            >
-              {cellProps.cell.value}
-            </span>
-            <ReactTooltip
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id={`host__${cellProps.row.original.id}`}
-              data-html
-            >
-              <span className={`tooltip__tooltip-text`}>
-                This host was ordered using <br />
-                Apple Business Manager <br />
-                (ABM). You will see host <br />
-                vitals when it is enrolled in Fleet <br />
-              </span>
-            </ReactTooltip>
-          </>
-        );
-      }
       return (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+          path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(
             cellProps.row.original.status,
             cellProps.row.original.seen_time
@@ -168,38 +130,11 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
     disableHidden: true,
   },
+  // Fleet
   {
-    title: "Hostname",
+    title: "Fleet",
     Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Hostname"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "hostname",
-    id: "hostname",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TooltipTruncatedTextCell value={cellProps.cell.value} />
-    ),
-  },
-  {
-    title: "Computer name",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Computer name"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "computer_name",
-    id: "computer_name",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
-  },
-  {
-    title: "Team",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
+      <HeaderCell value="Fleet" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
     accessor: "team_name",
     id: "team_name",
@@ -207,108 +142,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       <TextCell value={cellProps.cell.value} formatter={hostTeamName} />
     ),
   },
-  {
-    title: "Status",
-    Header: (cellProps: IHostTableHeaderProps) => {
-      const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={
-            <>
-              Online hosts will respond to a live query. Offline hosts
-              won&apos;t respond to a live query because they may be shut down,
-              asleep, or not connected to the internet.
-            </>
-          }
-          className="status-header"
-        >
-          Status
-        </TooltipWrapper>
-      );
-      return (
-        <HeaderCell
-          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
-          disableSortBy
-        />
-      );
-    },
-    disableSortBy: true,
-    accessor: "status",
-    id: "status",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-
-      // Show "---" for ABM devices with Pending enrollment status
-      if (
-        cellProps.row.original.mdm?.enrollment_status === "Pending" &&
-        isAppleDevice(cellProps.row.original.platform)
-      ) {
-        const tooltip = {
-          tooltipText: getHostStatusTooltipText("---"),
-        };
-        return <StatusIndicator value="---" tooltip={tooltip} />;
-      }
-
-      const value = cellProps.cell.value;
-      const tooltip = {
-        tooltipText: getHostStatusTooltipText(value),
-      };
-      return <StatusIndicator value={value} tooltip={tooltip} />;
-    },
-  },
-  {
-    title: "Issues",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
-    ),
-    accessor: "issues",
-    id: "issues",
-    sortDescFirst: true,
-    Cell: (cellProps: IIssuesCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-      return (
-        <IssueCell
-          issues={cellProps.row.original.issues}
-          rowId={cellProps.row.original.id}
-        />
-      );
-    },
-  },
-  {
-    title: "Disk space available",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Disk space available"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "gigs_disk_space_available",
-    id: "gigs_disk_space_available",
-    Cell: (cellProps: IHostTableNumberCellProps) => {
-      const {
-        platform,
-        percent_disk_space_available,
-        gigs_disk_space_available,
-        gigs_total_disk_space,
-        gigs_all_disk_space,
-      } = cellProps.row.original;
-      if (platform === "chrome") {
-        return NotSupported;
-      }
-      return (
-        <DiskSpaceIndicator
-          gigsDiskSpaceAvailable={gigs_disk_space_available}
-          percentDiskSpaceAvailable={percent_disk_space_available}
-          gigsTotalDiskSpace={gigs_total_disk_space}
-          gigsAllDiskSpace={gigs_all_disk_space}
-          platform={platform}
-        />
-      );
-    },
-  },
+  // Operating system (OS)
   {
     title: "Operating system",
     Header: (cellProps: IHostTableHeaderProps) => (
@@ -336,26 +170,25 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       return <TooltipTruncatedTextCell value={versionForRender} />;
     },
   },
+  // Hardware model
   {
-    title: "Osquery",
+    title: "Hardware model",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
-        value="Osquery"
+        value="Hardware model"
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "osquery_version",
-    id: "osquery_version",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-      return <TextCell value={cellProps.cell.value} />;
-    },
+    accessor: "hardware_model",
+    id: "hardware_model",
+    Cell: (cellProps: IHostTableStringCellProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
   },
+  // User email
   {
-    title: "Used by",
-    Header: "Used by",
+    title: "User email",
+    Header: "User email",
     disableSortBy: true,
     accessor: "device_mapping",
     id: "device_mapping",
@@ -382,100 +215,42 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       return <TextCell />;
     },
   },
+  // UUID
   {
-    title: "Private IP address",
+    title: "UUID",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="UUID" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
+    accessor: "uuid",
+    id: "uuid",
+    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
+      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
+  },
+  // Serial number
+  {
+    title: "Serial number",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
-        value="Private IP address"
+        value="Serial number"
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
-    accessor: "primary_ip",
-    id: "primary_ip",
+    accessor: "hardware_serial",
+    id: "hardware_serial",
     Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
+      // TODO(android): is iOS/iPadOS supported?
+      if (
+        isAndroid(cellProps.row.original.platform) ||
+        isBYODAccountDrivenUserEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
+      ) {
         return NotSupported;
       }
       return <TextCell value={cellProps.cell.value} />;
     },
   },
-  {
-    title: "MDM status",
-    Header: () => {
-      const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={
-            <>
-              Settings can be updated remotely on hosts with MDM turned
-              <br />
-              on. To filter by MDM status, head to the Dashboard page.
-            </>
-          }
-        >
-          MDM status
-        </TooltipWrapper>
-      );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
-    },
-    disableSortBy: true,
-    accessor: (originalRow) => originalRow.mdm.enrollment_status,
-    id: "mdm.enrollment_status",
-    Cell: HostMdmStatusCell,
-  },
-  {
-    title: "MDM server URL",
-    Header: () => {
-      const titleWithToolTip = (
-        <TooltipWrapper
-          tipContent={
-            <>
-              The MDM server that updates settings on the host. To
-              <br />
-              filter by MDM server URL, head to the Dashboard page.
-            </>
-          }
-        >
-          MDM server URL
-        </TooltipWrapper>
-      );
-      return <HeaderCell value={titleWithToolTip} disableSortBy />;
-    },
-    disableSortBy: true,
-    accessor: (originalRow) => originalRow.mdm.server_url,
-    id: "mdm.server_url",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      if (cellProps.row.original.platform === "chrome") {
-        return NotSupported;
-      }
-      if (cellProps.cell.value) {
-        return <TooltipTruncatedTextCell value={cellProps.cell.value} />;
-      }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
-    },
-  },
-  {
-    title: "Public IP address",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value={
-          <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
-            Public IP address
-          </TooltipWrapper>
-        }
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "public_ip",
-    id: "public_ip",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      if (isMobilePlatform(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-      return (
-        <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
-      );
-    },
-  },
+  // Last fetched
   {
     title: "Last fetched",
     Header: (cellProps: IHostTableHeaderProps) => {
@@ -508,6 +283,315 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       />
     ),
   },
+  // Disk space available
+  {
+    title: "Disk space available",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Disk space available"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "gigs_disk_space_available",
+    id: "gigs_disk_space_available",
+    Cell: (cellProps: IHostTableNumberCellProps) => {
+      const {
+        platform,
+        percent_disk_space_available,
+        gigs_disk_space_available,
+        gigs_total_disk_space,
+        gigs_all_disk_space,
+      } = cellProps.row.original;
+      if (platform === "chrome") {
+        return NotSupported;
+      }
+      return (
+        <DiskSpaceIndicator
+          gigsDiskSpaceAvailable={gigs_disk_space_available}
+          percentDiskSpaceAvailable={percent_disk_space_available}
+          gigsTotalDiskSpace={gigs_total_disk_space}
+          gigsAllDiskSpace={gigs_all_disk_space}
+          platform={platform}
+        />
+      );
+    },
+  },
+  // CPU
+  {
+    title: "CPU",
+    Header: "CPU",
+    disableSortBy: true,
+    accessor: "cpu_type",
+    id: "cpu_type",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
+  },
+  // RAM
+  {
+    title: "RAM",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="RAM" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
+    accessor: "memory",
+    id: "memory",
+    Cell: (cellProps: IHostTableNumberCellProps) => {
+      if (
+        cellProps.row.original.platform === "ios" ||
+        cellProps.row.original.platform === "ipados"
+      ) {
+        return NotSupported;
+      }
+      return (
+        <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
+      );
+    },
+  },
+  // MAC address
+  {
+    title: "MAC address",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="MAC address"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "primary_mac",
+    id: "primary_mac",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      // TODO(android): is iOS/iPadOS supported?
+      if (isAndroid(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
+  },
+  // Status
+  {
+    title: "Status",
+    Header: (cellProps: IHostTableHeaderProps) => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Online hosts will respond to a live report. Currently only
+              supported for macOS, Windows, and Linux.
+            </>
+          }
+          className="status-header"
+        >
+          Status
+        </TooltipWrapper>
+      );
+      return (
+        <HeaderCell
+          value={cellProps.rows.length === 1 ? "Status" : titleWithToolTip}
+          disableSortBy
+        />
+      );
+    },
+    disableSortBy: true,
+    accessor: "status",
+    id: "status",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+
+      // Show "---" for ABM devices with Pending enrollment status
+      if (
+        cellProps.row.original.mdm?.enrollment_status === "Pending" &&
+        isAppleDevice(cellProps.row.original.platform)
+      ) {
+        const tooltip = {
+          tooltipText: getHostStatusTooltipText(DEFAULT_EMPTY_CELL_VALUE),
+        };
+        return (
+          <StatusIndicator value={DEFAULT_EMPTY_CELL_VALUE} tooltip={tooltip} />
+        );
+      }
+
+      const value = cellProps.cell.value;
+      const tooltip = {
+        tooltipText: getHostStatusTooltipText(value),
+      };
+      return <StatusIndicator value={value} tooltip={tooltip} />;
+    },
+  },
+  // Issues
+  {
+    title: "Issues",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell value="Issues" isSortedDesc={cellProps.column.isSortedDesc} />
+    ),
+    accessor: "issues",
+    id: "issues",
+    sortDescFirst: true,
+    Cell: (cellProps: IIssuesCellProps) => {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return (
+        <IssueCell
+          issues={cellProps.row.original.issues}
+          rowId={cellProps.row.original.id}
+        />
+      );
+    },
+  },
+  // MDM status
+  {
+    title: "MDM status",
+    Header: () => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Settings can be updated remotely on hosts with MDM turned
+              <br />
+              on. To filter by MDM status, head to the Dashboard page.
+            </>
+          }
+        >
+          MDM status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
+    accessor: (originalRow) => originalRow.mdm.enrollment_status,
+    id: "mdm.enrollment_status",
+    Cell: HostMdmStatusCell,
+  },
+  // MDM server URL
+  {
+    title: "MDM server URL",
+    Header: () => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              The MDM server that updates settings on the host. To
+              <br />
+              filter by MDM server URL, head to the Dashboard page.
+            </>
+          }
+        >
+          MDM server URL
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
+    disableSortBy: true,
+    accessor: (originalRow) => originalRow.mdm.server_url,
+    id: "mdm.server_url",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (cellProps.row.original.platform === "chrome") {
+        return NotSupported;
+      }
+      if (cellProps.cell.value) {
+        return <TooltipTruncatedTextCell value={cellProps.cell.value} />;
+      }
+      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
+    },
+  },
+  // Hostname
+  {
+    title: "Hostname",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Hostname"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "hostname",
+    id: "hostname",
+    Cell: (cellProps: IHostTableStringCellProps) => (
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
+    ),
+  },
+  // Computer name
+  {
+    title: "Computer name",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Computer name"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "computer_name",
+    id: "computer_name",
+    Cell: (cellProps: IHostTableStringCellProps) => (
+      <TextCell value={cellProps.cell.value} />
+    ),
+  },
+  // Private IP address
+  {
+    title: "Private IP address",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Private IP address"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "primary_ip",
+    id: "primary_ip",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
+  },
+  // Public IP address
+  {
+    title: "Public IP address",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value={
+          <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
+            Public IP address
+          </TooltipWrapper>
+        }
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "public_ip",
+    id: "public_ip",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return (
+        <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
+      );
+    },
+  },
+  // Osquery
+  {
+    title: "Osquery",
+    Header: (cellProps: IHostTableHeaderProps) => (
+      <HeaderCell
+        value="Osquery"
+        isSortedDesc={cellProps.column.isSortedDesc}
+      />
+    ),
+    accessor: "osquery_version",
+    id: "osquery_version",
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      if (isMobilePlatform(cellProps.row.original.platform)) {
+        return NotSupported;
+      }
+      return <TextCell value={cellProps.cell.value} />;
+    },
+  },
+  // Last seen
   {
     title: "Last seen",
     Header: (cellProps: IHostTableHeaderProps) => {
@@ -544,16 +628,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       );
     },
   },
-  {
-    title: "UUID",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="UUID" isSortedDesc={cellProps.column.isSortedDesc} />
-    ),
-    accessor: "uuid",
-    id: "uuid",
-    Cell: ({ cell: { value } }: IHostTableStringCellProps) =>
-      value ? <TooltipTruncatedTextCell value={value} /> : <TextCell />,
-  },
+  // Last restarted
   {
     title: "Last restarted",
     Header: (cellProps: IHostTableHeaderProps) => (
@@ -579,96 +654,6 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         />
       );
     },
-  },
-  {
-    title: "CPU",
-    Header: "CPU",
-    disableSortBy: true,
-    accessor: "cpu_type",
-    id: "cpu_type",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
-        return NotSupported;
-      }
-      return <TextCell value={cellProps.cell.value} />;
-    },
-  },
-  {
-    title: "RAM",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell value="RAM" isSortedDesc={cellProps.column.isSortedDesc} />
-    ),
-    accessor: "memory",
-    id: "memory",
-    Cell: (cellProps: IHostTableNumberCellProps) => {
-      if (
-        cellProps.row.original.platform === "ios" ||
-        cellProps.row.original.platform === "ipados"
-      ) {
-        return NotSupported;
-      }
-      return (
-        <TextCell value={cellProps.cell.value} formatter={humanHostMemory} />
-      );
-    },
-  },
-  {
-    title: "MAC address",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="MAC address"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "primary_mac",
-    id: "primary_mac",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
-      if (isAndroid(cellProps.row.original.platform)) {
-        return NotSupported;
-      }
-      return <TextCell value={cellProps.cell.value} />;
-    },
-  },
-  {
-    title: "Serial number",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Serial number"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "hardware_serial",
-    id: "hardware_serial",
-    Cell: (cellProps: IHostTableStringCellProps) => {
-      // TODO(android): is iOS/iPadOS supported?
-      if (
-        isAndroid(cellProps.row.original.platform) ||
-        isBYODAccountDrivenUserEnrollment(
-          cellProps.row.original.mdm.enrollment_status
-        )
-      ) {
-        return NotSupported;
-      }
-      return <TextCell value={cellProps.cell.value} />;
-    },
-  },
-  {
-    title: "Hardware model",
-    Header: (cellProps: IHostTableHeaderProps) => (
-      <HeaderCell
-        value="Hardware model"
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
-    accessor: "hardware_model",
-    id: "hardware_model",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
   },
 ];
 
@@ -697,11 +682,13 @@ const defaultHiddenColumns = [
 const generateAvailableTableHeaders = ({
   isFreeTier = true,
   isOnlyObserver = true,
+  teamId,
 }: {
   isFreeTier: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  teamId?: number;
 }): IHostTableColumnConfig[] => {
-  return allHostTableHeaders.reduce(
+  return allHostTableHeaders(teamId).reduce(
     (columns: Column<IHost>[], currentColumn: Column<IHost>) => {
       // skip over column headers that are not shown in free observer tier
       if (isFreeTier) {
@@ -738,17 +725,21 @@ const generateVisibleTableColumns = ({
   hiddenColumns,
   isFreeTier = true,
   isOnlyObserver = true,
+  teamId,
 }: {
   hiddenColumns: string[];
   isFreeTier: boolean | undefined;
   isOnlyObserver: boolean | undefined;
+  teamId?: number;
 }): IHostTableColumnConfig[] => {
   // remove columns set as hidden by the user.
-  return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
-    (column) => {
-      return !hiddenColumns.includes(column.id as string);
-    }
-  );
+  return generateAvailableTableHeaders({
+    isFreeTier,
+    isOnlyObserver,
+    teamId,
+  }).filter((column) => {
+    return !hiddenColumns.includes(column.id as string);
+  });
 };
 
 export {

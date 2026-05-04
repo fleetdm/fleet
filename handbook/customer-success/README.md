@@ -7,15 +7,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                                  | Contributor(s)           |
 |:--------------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Chief Customer Officer                   | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | SVP of Customer Success                | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | VP of Security Solutions              | [Dhruv Majumdar](https://www.linkedin.com/in/neondhruv/) _([@karmine05](https://github.com/karmine05))_
 | Infrastructure Engineer               | [Robert Fairburn](https://www.linkedin.com/in/robert-fairburn/) _([@rfairburn](https://github.com/rfairburn))_ <br> [Jorge Falcon](https://www.linkedin.com/in/falcon-jorge/) _([@BCTBB](https://github.com/bctbb))_
 | Technical Evangelist                  | [Zach Wasserman](https://www.linkedin.com/in/zacharywasserman/) _([@zwass](https://github.com/zwass))_
 | Manager of Customer Support and Solutions Architecture | [Dale Ribeiro](https://www.linkedin.com/in/daleribeiro/) _([@ddribeiro](https://github.com/ddribeiro))_
-| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
-| Customer Success Manager (CSM)        | <sup><sub> _See [🦄 Go-To-Market groups](https://fleetdm.com/handbook/company/current-gtm-motions#current-gtm-groups)
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_
+| Customer Solutions Architect (CSA)    | [Jake Stenger](https://www.linkedin.com/in/jakestenger) _([@jakestenger](https://github.com/jakestenger))_ <br> [Adam Baali](https://uk.linkedin.com/in/adambaali) _([@AdamBaali](https://github.com/AdamBaali))_ <br> [Kitzy](https://linkedin.com/in/kitzy) _([@kitzy](https://github.com/kitzy))_ 
+| Customer Success Manager (CSM)        | [Josh Roskos](https://www.linkedin.com/in/jroskos/) <br> [Mike Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) <br> [Andreas Najjar](https://www.linkedin.com/in/andreasnajjar/) <br> [Sean Hannon](www.linkedin.com/in/sean-hannon-73b603105)
+| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> [Gray Williams](https://linkedin.com/in/gwilliamsuk) _([@grayw](https://github.com/grayw))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
 
 ## Contact us
 
@@ -27,6 +26,14 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 
 The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+
+### Responsibilities when out of office
+
+When a CS team member is unable to attend a scheduled customer call, they should find backup coverage for their respective function or request a reschedule with the customer.
+
+If a CSM is having another team member cover their call, the CSM is responsible for preparing the customer agenda doc and debriefing their co-worker in advance of the meeting. If a CSA is having another technical resource cover their call, the CSA is responsible for debriefing that team member on the current status of the customer deployment.
+
+If you are working on issues that need follow-up while you're out, assign them to the Manager of Customer Support and Solutions Architecture in Unthread before you leave. Also create a thread in [#help-customers](https://fleetdm.slack.com/archives/C062D0THVV1) with an overview of the current status and next steps for these.
 
 
 ### Respond to a "Contact us" job application submission
@@ -110,7 +117,7 @@ Sometimes there is a change in the champion within the customer's organization.
 Fast-track is Fleet's service delivery package for new MDM customers. Check with your team to learn about the options available and the differences between them (virtual vs on site, migration vs no migration). If your customer has a Fast-track engagement, it will be included in their contract. Follow the directions below to get a Fast-track set up and collect the training pre-requisites.
 
 1. When a deal including Fast-track closes, add a TODO on the final page of the partnership kickoff presentation, to confirm the details around their services purchase and to coordinate scheduling. Be sure to make the customer aware that delays in confirming service delivery date can cause the date to move out further.
-2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA to collect the following information:
+2. Prior to the Fast-track kickoff, schedule a Pre-requisite planning meeting with the customer and the assigned CSA. The CSM is responsible for scheduling this call, but the CSA is the DRI for running this call and collecting the following:
 - What is the target migration date and when does the previous MDM contract end?
 - Which critical workflows will Fleet be used for?
   - Onboarding workflow?
@@ -118,6 +125,7 @@ Fast-track is Fleet's service delivery package for new MDM customers. Check with
   - Automated device enrollment (ADE)? Autopilot?
   - Setup experience?
   - Self-service software?
+  - Have you started planning for what a migration will look like? 
 - Which integrations will be required for migration? Which integrations will be required post-migration (no hard timeline)?
   - IAM?
   - Log shipping to SIEM?
@@ -211,6 +219,50 @@ During the window of time available to investigate an issue, use the resources a
 
 Note: For non-CSA engaged customer requests, CSE's are responsible for escalations to a CSA as needed. 
 
+### Troubleshooting a managed cloud or self-hosted customer suspected infrastructure issue
+
+##### For managed cloud customers, CSE is responsible for doing an initial check on logs. Timebox 10 minutes to do the following: 
+
+1. First, in all instances, [review the athena logs](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md) for:
+  - IP ingress patterns from problematic hosts
+  - ELB errors and response times
+  - For customers with WAF enabled, check for any traffic being blocked
+  - 408 or 502 errors
+  - Total number of requests by status code type
+
+2. Next, check Fleet server logs via [Cloudwatch Log Insights](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/cse-troubleshooting.md#aws-cloudwatch-logs-insights---check-fleet-server-logs). Follow the steps below:
+  - Search for related endpoints via endpoint URL's
+  - Check for errors during cron jobs using the query in the infra runbook
+  - Use the Patterns tab to look for patterns in the logs which may provide more information
+  - In #help-customers or #help-engineering, ask other CSE's or the developer on-call engineer what else they might search for in the logs
+
+3. Finally, if you're not able to determine if this is a Fleet app issue or an infrastructure issue, tag in the infrastructure on-call via a new thread in the #help-infrastructure channel with a synopsis of your findings. The infrastructure engineer is the DRI for determining if an issue is infrastructure related. If they rule out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance. If the issue is a suspected P0, follow the [incident response process](https://fleetdm.com/handbook/engineering#incident-response-process). 
+
+##### For self-hosted customers, CSE is responsible for requesting customer logs and doing an initial review. Timebox 10 minutes to do the following:  
+
+1. Verify that the information we have stored about their Fleet architecture is correct
+2. Ask the following questions
+  - Are your hosts checking in and is your Fleet server online? 
+  - When did the issue begin?
+  - Have you made any changes to Fleet around the time of the issue beginning?
+  - Request Fleet server logs
+  - Request uptime data for Fleet, Redis, and MySQL
+  - Request the average memory and CPU for Fleet, Redis, and MySQL
+  - For customers hosting on AWS, request Aurora and RDS Performance insights
+3. Request the output of `fleetctl debug errors`
+  - Review the output and search for any patterns
+  - The next steps in your process will be determined by what you find
+  - Contact a Sr CSE to determine if this should be escalated to the infrastructure on-call engineer
+  - If the infrastructure on-call engineer rules out infrastructure as the cause of the problem, begin a stub bug report and tag in the developer on-call engineer for assistance.
+
+### Report an incident
+
+Review the [criteria](https://fleetdm.com/handbook/product-groups#high-priority-user-stories-and-bugs) to determine the priority level of the issue.
+
+If it qualifies as a P0, follow the response instructions to initiate our incident response process by creating an [incident response issue](https://github.com/fleetdm/confidential/issues/new?template=incident-response.md). Creating the issue triggers incident.io to notify the incident on-call engineer 24/7/365.
+
+For P1 and lower issues, contact the on-call engineer via `@oncall` in `#help-engineering`. Responses to on-call will be addressed during business hours.
+
 ### Contact the developer on-call
 
 The acting developer on-call rotation is reflected in the [📈KPIs spreadsheet (confidential Google sheet)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0&range=F2 ). The developer on-call is responsible for responses to technical Slack comments, Slack threads, and GitHub issues raised by customers and the community, which the CSE team cannot address.
@@ -259,7 +311,19 @@ The acting infrastructure engineer on-call rotation is reflected in the [📈KPI
 2. Legacy method: [create an opportunity issue](https://github.com/fleetdm/confidential/issues/new/choose) for the customer and follow the instructions in the issue for generating a trial license key.
 
 
-### Respond to messages and alerts 
+### Reset a customer trial
+
+When a customer or prospect requests an extension beyond the standard 30-day trial period, CS is responsible for resetting their trial using the super admin page.
+
+1. Receive the trial reset request (typically via Slack from the customer or an internal team member).
+2. Navigate to the [super admin trial reset page](https://fleetdm.com/admin/reset-trial) (super admin access required).
+3. Enter the customer's information and reset their trial.
+4. Notify the customer or the requestor in Slack that the trial has been reset.
+
+> **Note:** The trial reset page at https://fleetdm.com/admin/reset-trial is only accessible to super admins.
+
+
+### Respond to messages and alerts
 
 Customer Support Engineers (CSEs) are responsible for the first response to Slack messages in the [#fleet channel](https://osquery.slack.com/archives/C01DXJL16D8) of osquery Slack, MacAdmins Slack and dedicated customer Slack channels. 
 - The 24/7 infrastructure on-call engineer is responsible for alarms related to fleetdm.com and Fleet Managed Cloud, as well as delivering 24/7 support for Fleet Premium customers when tagged in for assistance. Use [on-call runbooks](https://github.com/fleetdm/confidential/tree/main/infrastructure/runbooks#readme) to guide your response. Runbooks provide detailed, step-by-step instructions to quickly and effectively respond to and resolve most 24/7 on-call alerts.
@@ -279,11 +343,11 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ### Communicate feedback on prioritized customer requests
 
-When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) files a user story that's brought through [drafting](https://fleetdm.com/handbook/product-design#drafting).
+When Fleet [prioritizes](https://fleetdm.com/handbook/company/product-groups#feature-fest) a new customer request, the Product Designer (PD) brings one or more user stories through [drafting](https://fleetdm.com/handbook/product-design#drafting).
 
-After the user story is released, the PD will ask the appropriate Customer Success Manager (CSM) to bring the released improvements to the customer for feedback. When this happens, PD assigns the CSM and adds the `:help-customers` label.
+After the user stories are released and the relevant Customer Solutions Architect (CSA) confirms that the request is fulfilled during [confirm and celebrate](https://fleetdm.com/handbook/product-design#confirm-and-celebrate), it's up to the Customer Success Manager (CSM) to inform the customer and close the issue.
 
-If the improvements meet the customer's needs, the request issue is closed with a comment that @ mentions the PD. If the improvements are missing something in order to meet the customer's needs, the CSM adds feedback as comment (Gong snippet, Slack thread, or meetings notes), @ mention the PD, and unsassign themselves from the request issue.
+If we learn the improvements are missing something in order to meet the customer's needs, the CSM re-opens the issue, adds feedback in a comment (Gong snippet, Slack thread, or meetings notes), and @ mentions the HPD.
 
 ### Manage DNS records
 
@@ -321,7 +385,7 @@ When a user requests that we delete all data we have stored about them, their da
 
 ### Create a task for a CSA
 
-If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
+If assistance is needed for research or solutioning by a CSA, create an issue using the [CSA task template](https://github.com/fleetdm/fleet/issues/new?template=csa-task.md) for tracking.
 
 **Ensure all private data is scrubbed and customer code names are used.**
 

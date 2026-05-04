@@ -49,13 +49,13 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Login to Docker Hub
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: "go.mod"
 
@@ -69,6 +69,26 @@ jobs:
       - name: Install Dependencies
         run: make deps
 
+      - name: Sanitize branch name for Docker tag
+        id: sanitize_branch
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          SANITIZED="${BRANCH//\//-}"
+          echo "DOCKER_IMAGE_TAG=$SANITIZED" >> $GITHUB_OUTPUT
+
+      - name: Compute version from branch
+        id: compute_version
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          VERSION=$(tools/version-from-branch.sh "$BRANCH" 2>/dev/null)
+          if [ -z "$VERSION" ]; then
+            # Fall back to default snapshot version
+            VERSION="0.0.0-SNAPSHOT-$(git rev-parse --short HEAD)"
+          fi
+          echo "FLEET_VERSION=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@90a3faa9d0182683851fbfa97ca1a2cb983bfca3 # v6.2.1
         with:
@@ -77,14 +97,8 @@ jobs:
           args: release --snapshot --clean -f .goreleaser-snapshot.yml
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
-
-      - name: Tag image with branch name
-        run: docker tag fleetdm/fleet:$(git rev-parse --short HEAD) fleetdm/fleet:$(git rev-parse --abbrev-ref HEAD)
-
-      - name: Generate tag
-        id: generate_tag
-        run: |
-          echo "FLEET_IMAGE_TAG=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+          FLEET_VERSION: ${{ steps.compute_version.outputs.FLEET_VERSION }}
+          DOCKER_IMAGE_TAG: ${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}
 
       - name: List VEX files
         id: generate_vex_files
@@ -112,7 +126,7 @@ jobs:
             --pkg-types=os,library \
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
-            fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
+            fleetdm/fleet:${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}
 
       - name: Check high/critical vulnerabilities before publishing (docker scout)
         # Only run this when tagging RCs.
@@ -120,41 +134,36 @@ jobs:
         uses: docker/scout-action@381b657c498a4d287752e7f2cfb2b41823f566d9 # v1.17.1
         with:
           command: cves
-          image: fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
+          image: fleetdm/fleet:${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}
           only-severities: critical,high
           only-fixed: true
           only-vex-affected: true
           write-comment: false
           vex-location: ./security/vex/fleet
           exit-code: true
-            
+
       # Explicitly push the docker images as GoReleaser will not do so in snapshot mode
       - name: Publish Docker images
         run: docker push fleetdm/fleet --all-tags
 
-      - name: Get tags
-        run: |
-          echo "TAG=$(git rev-parse --abbrev-ref HEAD) $(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-        id: docker
-
       - name: List tags for push
         run: |
-          echo "The following TAGs are to be pushed: ${{ steps.docker.outputs.TAG }}"
+          echo "The following tag will be pushed: ${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}"
 
       - name: Login to quay.io
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
           registry: quay.io
           username: fleetdm+fleetreleaser
           password: ${{ secrets.QUAY_REGISTRY_PASSWORD }}
 
       - name: Tag and push to quay.io
+        env:
+          TAG: ${{ steps.sanitize_branch.outputs.DOCKER_IMAGE_TAG }}
         run: |
-          for TAG in ${{ steps.docker.outputs.TAG }}; do
-            docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
-            for i in {1..5}; do
-              docker push quay.io/fleetdm/fleet:${TAG} && break || sleep 10
-            done
+          docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
+          for i in {1..5}; do
+            docker push quay.io/fleetdm/fleet:${TAG} && break || sleep 10
           done
 
       - name: Slack notification

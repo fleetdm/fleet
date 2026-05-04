@@ -26,7 +26,7 @@ type QueryPayload struct {
 	ObserverCanRun *bool `json:"observer_can_run"`
 	// TeamID is only used when creating a query. When modifying a query
 	// TeamID is ignored.
-	TeamID *uint `json:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id"`
 	// Interval is the interval to set on the query. If not set when creating
 	// a query, then the default value 0 is set on the query.
 	Interval *uint `json:"interval"`
@@ -43,9 +43,10 @@ type QueryPayload struct {
 	//
 	// If not set during creation of a query, then the default value is false.
 	DiscardData *bool `json:"discard_data"`
-	// LabelsIncludeAny is a list of labels that will be used to
-	// target a query
+	// LabelsIncludeAny scopes the query to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []string `json:"labels_include_any"`
+	// LabelsIncludeAll scopes the query to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string `json:"labels_include_all"`
 }
 
 // Query represents a osquery query to run on devices.
@@ -64,7 +65,7 @@ type Query struct {
 	// team_id and their name, but since team_id can be null (and (NULL == NULL) != true), we need
 	// to use something else to guarantee uniqueness, hence the use of team_id_char. team_id_char
 	// will be computed as string(team_id), if team_id IS NULL then team_char_id will be ''.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// Interval frequency of execution (in seconds), if 0 then, this query will never run.
 	Interval uint `json:"interval" db:"schedule_interval"`
 	// Platform if set, specifies the platform(s) this query will target.
@@ -104,9 +105,10 @@ type Query struct {
 	// DiscardData indicates if the scheduled query results should be discarded (true)
 	// or kept (false) in a query report.
 	DiscardData bool `json:"discard_data" db:"discard_data"`
-	// LabelsIncludeAny is a list of labels that will be used to
-	// target a query
+	// LabelsIncludeAny scopes the query to hosts that are members of ANY of the listed labels.
 	LabelsIncludeAny []LabelIdent `json:"labels_include_any"`
+	// LabelsIncludeAll scopes the query to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []LabelIdent `json:"labels_include_all"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -160,6 +162,10 @@ func (q *Query) Copy() *Query {
 	if q.LabelsIncludeAny != nil {
 		clone.LabelsIncludeAny = make([]LabelIdent, len(q.LabelsIncludeAny))
 		copy(clone.LabelsIncludeAny, q.LabelsIncludeAny)
+	}
+	if q.LabelsIncludeAll != nil {
+		clone.LabelsIncludeAll = make([]LabelIdent, len(q.LabelsIncludeAll))
+		copy(clone.LabelsIncludeAll, q.LabelsIncludeAll)
 	}
 	return &clone
 }
@@ -247,11 +253,16 @@ func (q *QueryPayload) Verify() error {
 			return err
 		}
 	}
-	return nil
+	return verifyQueryLabelScopeMutualExclusion(q.LabelsIncludeAny, q.LabelsIncludeAll)
 }
 
 // Verify verifies the query fields are valid.
-// Called when creating queries by spec
+// Called when creating queries by spec.
+//
+// At the struct level we treat empty (zero-length) slices as "no scope set"
+// — the request-level validator on QueryPayload is what rejects "user
+// explicitly sent an empty array AND another scope" because it distinguishes
+// nil from empty.
 func (q *Query) Verify() error {
 	if err := verifyQueryName(q.Name); err != nil {
 		return err
@@ -264,6 +275,9 @@ func (q *Query) Verify() error {
 	}
 	if err := verifyQueryPlatforms(q.Platform); err != nil {
 		return err
+	}
+	if len(q.LabelsIncludeAny) > 0 && len(q.LabelsIncludeAll) > 0 {
+		return ErrQueryConflictingLabels
 	}
 	return nil
 }
@@ -289,11 +303,20 @@ func (tq *TargetedQuery) AuthzType() string {
 }
 
 var (
-	errQueryEmptyName       = errors.New("query name cannot be empty")
-	errQueryEmptyQuery      = errors.New("query's SQL query cannot be empty")
-	ErrQueryInvalidPlatform = errors.New("query's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
-	errInvalidLogging       = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	errQueryEmptyName         = errors.New("report name cannot be empty")
+	errQueryEmptyQuery        = errors.New("report's SQL query cannot be empty")
+	ErrQueryInvalidPlatform   = errors.New("report's platform must be a comma-separated list of 'darwin', 'linux', 'windows', and/or 'chrome' in a single string")
+	errInvalidLogging         = fmt.Errorf("invalid logging value, must be one of '%s', '%s', '%s'", LoggingSnapshot, LoggingDifferential, LoggingDifferentialIgnoreRemovals)
+	ErrQueryConflictingLabels = errors.New("report can include at most one of labels_include_any or labels_include_all")
 )
+
+// verifyQueryLabelScopeMutualExclusion enforces that at most one scope rule is set.
+func verifyQueryLabelScopeMutualExclusion(includeAny, includeAll []string) error {
+	if len(includeAny) > 0 && len(includeAll) > 0 {
+		return ErrQueryConflictingLabels
+	}
+	return nil
+}
 
 func verifyQueryName(name string) error {
 	if emptyString(name) {
@@ -334,7 +357,8 @@ func verifyQueryPlatforms(platforms string) error {
 }
 
 const (
-	QueryKind = "query"
+	QueryKind  = "query"
+	ReportKind = "report"
 )
 
 type QueryObject struct {
@@ -355,7 +379,7 @@ type QuerySpec struct {
 	// TeamName is the team's name, the default "" means the query will be
 	// created globally. This field is only used when creating a query,
 	// when editing a query this field is ignored.
-	TeamName string `json:"team"`
+	TeamName string `json:"team" renameto:"fleet"`
 	// Interval is set to 0 if not set.
 	Interval uint `json:"interval"`
 	// ObserverCanRun is set to false if not set.
@@ -407,7 +431,7 @@ func WriteQueriesToYaml(queries []*Query) (string, error) {
 		qYaml := QueryObject{
 			ObjectMetadata: ObjectMetadata{
 				ApiVersion: ApiVersion,
-				Kind:       QueryKind,
+				Kind:       ReportKind,
 			},
 			Spec: QuerySpec{
 				Name:        q.Name,
@@ -429,7 +453,7 @@ type QueryStats struct {
 	ID          uint   `json:"id" db:"id"`
 	Name        string `json:"name" db:"name"`
 	Description string `json:"description,omitempty" db:"description"`
-	TeamID      *uint  `json:"team_id" db:"team_id"`
+	TeamID      *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"`
 
 	// From osquery directly
 	AverageMemory uint64 `json:"average_memory" db:"average_memory"`
@@ -487,6 +511,31 @@ type HostQueryReportResult struct {
 	// Columns contains the key-value pairs of a result row.
 	// The map key is the name of the column, and the map value is the value.
 	Columns map[string]string `json:"columns"`
+}
+
+// HostReport represents a query/report entry as returned by the list-reports-for-host endpoint.
+type HostReport struct {
+	// ReportID is the unique identifier of the query backing this report.
+	ReportID uint `json:"report_id"`
+	// Name is the name of the query.
+	Name string `json:"name"`
+	// Description is the description of the query.
+	Description string `json:"description"`
+	// LastFetched is the time the most recent result was received from the host.
+	// It is nil if no results have been received.
+	LastFetched *time.Time `json:"last_fetched"`
+	// FirstResult contains the column key-value pairs of the most recent result row
+	// for this host and query. It is nil if no results have been received.
+	FirstResult map[string]string `json:"first_result"`
+	// NHostResults is the number of non-null result rows stored for this host
+	// and query.
+	NHostResults int `json:"n_host_results"`
+	// ReportClipped indicates whether this query has hit the report cap and
+	// paused saving new results across all hosts.
+	ReportClipped bool `json:"report_clipped"`
+	// StoreResults indicates that the query is configured to store results.
+	// It is true only when discard_data=0 AND logging_type='snapshot'.
+	StoreResults bool `json:"store_results"`
 }
 
 // ScheduledQueryResult holds results of a scheduled query received from a osquery agent.

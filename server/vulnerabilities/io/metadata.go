@@ -9,6 +9,7 @@ import (
 
 const (
 	mSRCFilePrefix              = "fleet_msrc_"
+	winOfficePrefix             = "fleet_winoffice_"
 	macOfficeReleaseNotesPrefix = "fleet_macoffice_release_notes_"
 	fileExt                     = "json"
 	dateLayout                  = "2006_01_02"
@@ -33,6 +34,15 @@ func NewMSRCMetadata(filename string) (MetadataFileName, error) {
 
 func NewMacOfficeRelNotesMetadata(filename string) (MetadataFileName, error) {
 	mfn := MetadataFileName{prefix: macOfficeReleaseNotesPrefix, filename: filename}
+
+	// Check that the filename contains a valid timestamp
+	_, err := mfn.date()
+
+	return mfn, err
+}
+
+func NewWinOfficeMetadata(filename string) (MetadataFileName, error) {
+	mfn := MetadataFileName{prefix: winOfficePrefix, filename: filename}
 
 	// Check that the filename contains a valid timestamp
 	_, err := mfn.date()
@@ -92,4 +102,8 @@ func MSRCFileName(productName string, date time.Time) string {
 
 func MacOfficeRelNotesFileName(date time.Time) string {
 	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", macOfficeReleaseNotesPrefix, "macoffice", date.Year(), date.Month(), date.Day(), fileExt)
+}
+
+func WinOfficeFileName(date time.Time) string {
+	return fmt.Sprintf("%s%s-%d_%02d_%02d.%s", winOfficePrefix, "bulletin", date.Year(), date.Month(), date.Day(), fileExt)
 }

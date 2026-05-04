@@ -8,10 +8,11 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/google/uuid"
 )
 
@@ -499,7 +500,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		wipeType := fleet.MDMWindowsWipeTypeDoWipeProtected
 		if metadata != nil && metadata.Windows != nil {
 			wipeType = metadata.Windows.WipeType
-			level.Debug(svc.logger).Log("msg", "Windows host wipe request", "wipe_type", wipeType.String())
+			svc.logger.DebugContext(ctx, "Windows host wipe request", "wipe_type", wipeType.String())
 		}
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{
@@ -540,6 +541,144 @@ func (svc *Service) enqueueWipeHostRequest(
 	return nil
 }
 
+func (svc *Service) RotateRecoveryLockPassword(ctx context.Context, hostID uint) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.Host(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access requirement.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// Validate: must be Apple Silicon Mac (macOS with ARM CPU)
+	if !host.IsAppleSilicon() {
+		return &fleet.BadRequestError{
+			Message: "Recovery lock password rotation is only supported on Apple Silicon Macs.",
+		}
+	}
+
+	// Validate: must be MDM enrolled in Fleet
+	connected, err := svc.ds.IsHostConnectedToFleetMDM(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if host is connected to Fleet MDM")
+	}
+	if !connected {
+		return &fleet.BadRequestError{
+			Message: "Host must be enrolled in Fleet MDM to rotate the recovery lock password.",
+		}
+	}
+
+	// Check if recovery lock password is enabled for this team/no-team
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get app config")
+	}
+
+	recoveryLockEnabled := false
+	if host.TeamID != nil {
+		team, err := svc.ds.TeamLite(ctx, *host.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team")
+		}
+		recoveryLockEnabled = team.Config.MDM.EnableRecoveryLockPassword
+	} else {
+		recoveryLockEnabled = appCfg.MDM.EnableRecoveryLockPassword.Value
+	}
+
+	if !recoveryLockEnabled {
+		return &fleet.BadRequestError{
+			Message: "Recovery lock password is not enabled for this host's team.",
+		}
+	}
+
+	// Get the current rotation status
+	rotationStatus, err := svc.ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return &fleet.BadRequestError{
+				Message: "Host does not have a recovery lock password to rotate.",
+			}
+		}
+		return ctxerr.Wrap(ctx, err, "get recovery lock rotation status")
+	}
+
+	// Validate: must have an existing password
+	if !rotationStatus.HasPassword {
+		return &fleet.BadRequestError{
+			Message: "Host does not have a recovery lock password to rotate.",
+		}
+	}
+
+	// Validate: not already rotating
+	if rotationStatus.HasPendingRotation {
+		return &fleet.ConflictError{
+			Message: "Recovery lock password rotation is already in progress for this host.",
+		}
+	}
+
+	// Validate: must be in install operation (not remove)
+	if rotationStatus.OperationType == string(fleet.MDMOperationTypeRemove) {
+		return &fleet.BadRequestError{
+			Message: "Cannot rotate recovery lock password while a clear operation is in progress.",
+		}
+	}
+
+	// Validate: must have status verified or failed (not pending or NULL)
+	status := ""
+	if rotationStatus.Status != nil {
+		status = *rotationStatus.Status
+	}
+	if status != string(fleet.MDMDeliveryVerified) && status != string(fleet.MDMDeliveryFailed) {
+		return &fleet.BadRequestError{
+			Message: "Cannot rotate recovery lock password while an operation is pending.",
+		}
+	}
+
+	// Generate new password
+	newPassword := apple_mdm.GenerateRecoveryLockPassword()
+
+	// Store pending rotation
+	if err := svc.ds.InitiateRecoveryLockRotation(ctx, host.UUID, newPassword); err != nil {
+		return ctxerr.Wrap(ctx, err, "initiate recovery lock rotation")
+	}
+
+	// Enqueue MDM command
+	cmdUUID := uuid.NewString()
+	if err := svc.mdmAppleCommander.RotateRecoveryLock(ctx, host.UUID, cmdUUID); err != nil {
+		// Only clear the pending rotation if the enqueue itself failed.
+		// If it's an APNS delivery error, the command was successfully enqueued
+		// and will be delivered when the device checks in.
+		var apnsErr *apple_mdm.APNSDeliveryError
+		if !errors.As(err, &apnsErr) {
+			_ = svc.ds.ClearRecoveryLockRotation(ctx, host.UUID)
+		}
+		return ctxerr.Wrap(ctx, err, "enqueue recovery lock rotation command")
+	}
+
+	// Log activity
+	vc, ok := viewer.FromContext(ctx)
+	if ok {
+		if err := svc.NewActivity(
+			ctx,
+			vc.User,
+			fleet.ActivityTypeRotatedHostRecoveryLockPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for rotate recovery lock password")
+		}
+	}
+
+	return nil
+}
+
 var (
 	//go:embed embedded_scripts/windows_lock.ps1
 	windowsLockScript []byte
@@ -567,3 +706,52 @@ var (
 			</Item>
 		</Exec>`
 )
+
+func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	if !fleet.IsMacOSPlatform(host.Platform) {
+		return nil, &fleet.BadRequestError{
+			Message: "Host is not a macOS device.",
+		}
+	}
+
+	acct, err := svc.ds.GetHostManagedLocalAccountStatus(ctx, host.UUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, &fleet.BadRequestError{
+				Message: "Host does not have a managed account.",
+			}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host managed account status")
+	}
+	if acct.Status == nil || *acct.Status != string(fleet.MDMDeliveryVerified) {
+		return nil, &fleet.BadRequestError{
+			Message: "Host's managed account password is not yet verified.",
+		}
+	}
+
+	pwd, err := svc.ds.GetHostManagedLocalAccountPassword(ctx, host.UUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
+	return pwd, nil
+}

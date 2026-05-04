@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/disk_space"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
@@ -31,18 +32,21 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
 	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
-	"github.com/rs/zerolog/log"
-
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
+	"github.com/macadmins/osquery-extension/tables/localnetworkpermissions"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
+	"github.com/macadmins/osquery-extension/tables/networkquality"
+	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
+	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
-
+	"github.com/macadmins/osquery-extension/tables/wifi_network"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
@@ -67,6 +71,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
 		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
+		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
@@ -95,6 +100,15 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
 			},
 		),
+		table.NewPlugin("local_network_permissions", localnetworkpermissions.LocalNetworkPermissionsColumns(), localnetworkpermissions.LocalNetworkPermissionsGenerate),
+		table.NewPlugin("macadmins_wifi_network", wifi_network.WifiNetworkColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return wifi_network.WifiNetworkGenerate(ctx, queryContext, opts.Socket)
+			},
+		),
+		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
+		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
+		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"

@@ -67,7 +67,7 @@ interface IDataTableProps {
   searchQuery?: string;
   searchQueryColumn?: string;
   selectedDropdownFilter?: string;
-  /** Set to true to persist the row selections across table data filters */
+  /** Set to true to persist row selection across client-side filters and pagination */
   persistSelectedRows?: boolean;
   /** Set to `true` to not display the footer section of the table */
   hideFooter?: boolean;
@@ -81,6 +81,10 @@ interface IDataTableProps {
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
   suppressHeaderActions?: boolean;
+  /** Optional override for react-table's row ID derivation.
+   *  Note: avoid index-only row IDs in server-side paginated or selectable tables,
+   *  as IDs would collide across pages. */
+  getRowId?: (row: any, index: number) => string;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -128,6 +132,7 @@ const DataTable = ({
   setExportRows,
   onClearSelection = noop,
   suppressHeaderActions,
+  getRowId: getRowIdProp,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -180,6 +185,11 @@ const DataTable = ({
     {
       columns,
       data,
+      // Use a stable row ID when available (row.id), otherwise fall back to the index-based ID (default of react-table)
+      getRowId:
+        getRowIdProp ??
+        ((row: any, index: number) =>
+          row && row.id != null ? String(row.id) : String(index)),
       initialState: {
         sortBy: initialSortBy,
         pageIndex: defaultPageIndex,
@@ -197,8 +207,8 @@ const DataTable = ({
       disableSortRemove: true,
       manualSortBy,
       autoResetPage,
-      // Resets row selection on (server-side) pagination
-      autoResetSelectedRows: true,
+      // Resets row selection on pagination
+      autoResetSelectedRows: !persistSelectedRows,
       // Expands the enumerated `filterTypes` for react-table
       // (see https://github.com/TanStack/react-table/blob/alpha/packages/react-table/src/filterTypes.ts)
       // with custom `filterTypes` defined for this `useTable` instance
@@ -571,9 +581,9 @@ const DataTable = ({
     // table is client-side paginated with more than 1 page of rows
     ((isClientSidePagination && (canNextPage || canPreviousPage)) ||
       // table's pagination is externally controlled
-      renderPagination ||
+      renderPagination?.() != null ||
       // there is help text and at least 1 row of data
-      (renderTableHelpText && !!rows?.length));
+      (renderTableHelpText?.() != null && !!rows?.length));
 
   return (
     <div className={baseClass}>
@@ -695,13 +705,13 @@ const DataTable = ({
               disablePrev={!canPreviousPage}
               disableNext={!canNextPage}
               onPrevPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex - 1)
                   : previousPage();
               }}
               onNextPage={() => {
-                toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
+                !persistSelectedRows && toggleAllRowsSelected(false); // Resets row selection on pagination (client-side)
                 onClientSidePaginationChange
                   ? onClientSidePaginationChange(pageIndex + 1)
                   : nextPage();

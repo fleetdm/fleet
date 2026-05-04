@@ -112,14 +112,31 @@ export interface IHostAndroidCert {
   detail: string;
 }
 
+export type RecoveryLockPasswordStatus =
+  | "verified"
+  | "verifying"
+  | "pending"
+  | "failed";
+
+// Prefer this over IMdmMacOsSettings, introduced MDM has expanded to non-mac platforms
 export interface IOSSettings {
   disk_encryption: {
     status: DiskEncryptionStatus | null;
     detail: string;
   };
+  recovery_lock_password?: {
+    status: RecoveryLockPasswordStatus;
+    detail: string;
+    password_available: boolean;
+  };
+  managed_local_account?: {
+    status: string | null;
+    password_available: boolean;
+  };
   certificates: IHostAndroidCert[];
 }
 
+// Legacy Mac mdm settings. Prefer IOSSettings
 interface IMdmMacOsSettings {
   disk_encryption: DiskEncryptionStatus | null;
   action_required: MacDiskEncryptionActionRequired | null;
@@ -149,8 +166,8 @@ export interface IHostMdmData {
   server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
-  macos_settings?: IMdmMacOsSettings;
-  macos_setup?: IMdmMacOsSetup;
+  apple_settings?: IMdmMacOsSettings;
+  setup_experience?: IMdmMacOsSetup;
   device_status: HostMdmDeviceStatus;
   pending_action: HostMdmPendingAction;
   connected_to_fleet?: boolean;
@@ -215,7 +232,8 @@ export interface IHostResponse {
   host: IHost;
 }
 
-export interface IDeviceUserResponse {
+// Device User Page
+export interface IDUPDetails {
   host: IHostDevice;
   license: ILicense;
   org_logo_url: string;
@@ -232,6 +250,24 @@ export interface IHostEncrpytionKeyResponse {
   encryption_key: {
     updated_at: string;
     key: string;
+  };
+}
+
+export interface IHostRecoveryLockPasswordResponse {
+  host_id: number;
+  recovery_lock_password: {
+    updated_at: string;
+    password: string;
+    auto_rotate_at?: string;
+  };
+}
+
+export interface IHostManagedAccountPasswordResponse {
+  host_id: number;
+  managed_account_password: {
+    username: string;
+    password: string;
+    updated_at: string;
   };
 }
 
@@ -263,6 +299,7 @@ export interface IHost {
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;
+  last_mdm_enrolled_at: string;
   seen_time: string;
   refetch_requested: boolean;
   refetch_critical_queries_until: string | null;
@@ -327,6 +364,7 @@ export interface IHost {
   /** There will be at most 1 end user */
   end_users?: IHostEndUser[];
   conditional_access_bypassed: boolean;
+  mdm_enrollment_hardware_attested?: boolean;
 }
 
 /*

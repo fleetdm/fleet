@@ -54,13 +54,13 @@ See the [Android MDM documentation](./android-mdm.md)
 
 For Windows, Apple and Android MDM, Fleet defines "profiles" as groups of settings that can be SyncML (Windows), XML (Apple), or JSON (Apple/Android).
 
-Settings are defined per team and can be further targeted to hosts using labels.
+Settings are defined per fleet and can be further targeted to hosts using labels.
 
 Profiles and declarations can be uploaded via the UI/CLI by the IT admin. Additionally, Fleet automatically sends profiles to hosts as part of high-level UI actions. For instance, enabling disk encryption in macOS sends the relevant configuration to the host.
 
 To determine the subset of profiles/declarations that should be applied to a specific host, we use the following approach:
 
-1. **Ideal State:** The "ideal state" of a host is calculated by combining team profiles with any label-based inclusions/exclusions using the `mdm_*_configuration_profiles` and `mdm_apple_declarations` tables.
+1. **Ideal State:** The "ideal state" of a host is calculated by combining fleet profiles with any label-based inclusions/exclusions using the `mdm_*_configuration_profiles` and `mdm_apple_declarations` tables.
 2. **Current State:** The "current state" of a host is tracked using the `host_mdm_*_configuration_profiles` and `host_mdm_apple_declarations` tables, which are updated based on MDM protocol responses and kept in sync via osquery (commonly referred to as "profile verification" or "double-check").
 3. **Diff Calculation:** We use set algebra to compute the difference between the ideal and current states—determining the profiles that need to be installed ("to install") and those that should be removed ("to remove").
 
@@ -160,9 +160,9 @@ If we're not able to decrypt the key for a host, the key needs to be rotated. Ro
 
 Disk encryption in Windows is performed entirely by orbit.
 
-When disk encryption is enabled, the server sends a notification to orbit, who calls the [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume) to encrypt/decrypt the disk and generate an encryption key.
+When disk encryption is enabled, the server sends a notification to orbit, which calls the [Win32_EncryptableVolume class](https://learn.microsoft.com/en-us/windows/win32/secprov/getencryptionmethod-win32-encryptablevolume) to encrypt the disk and generate an encryption key. If the disk is already encrypted, orbit rotates the recovery key (adds a new Fleet-managed protector, removes old ones) without decrypting.
 
-After the disk is encrypted, orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
+After the disk is encrypted (or the key is rotated), orbit sends the key back to the server using an orbit-authenticated endpoint (`POST /api/fleet/orbit/disk_encryption_key`)
 
 ### Load testing
 
@@ -186,7 +186,7 @@ We keep a record of all devices ingested via the ADE sync in the `host_dep_assig
 On every run, we pull the list of added/modified/deleted devices and:
 
 1. If the host was added/modified, we:
-    1. Create/match a row in the `hosts` table for the new host. This allows IT admin to move the host between teams before it turns on MDM or has `fleetd` installed.
+    1. Create/match a row in the `hosts` table for the new host. This allows IT admin to move the host between fleets before it turns on MDM or has `fleetd` installed.
     1. Assign the corresponding JSON profile to each host using ABM's APIs.
 2. If the host was deleted, we soft delete the `host_dep_assignments` entry 
 

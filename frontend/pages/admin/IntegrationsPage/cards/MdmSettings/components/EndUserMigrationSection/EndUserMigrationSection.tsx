@@ -15,14 +15,13 @@ import configAPI from "services/entities/config";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
 import SectionHeader from "components/SectionHeader";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
-import EmptyTable from "components/EmptyTable/EmptyTable";
+import EmptyState from "components/EmptyState";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import ExampleWebhookUrlPayloadModal from "../ExampleWebhookUrlPayloadModal/ExampleWebhookUrlPayloadModal";
@@ -116,7 +115,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           },
         },
       });
-      renderFlash("success", "Successfully updated end user migration!");
+      renderFlash("success", "Successfully updated end user migration.");
       setConfig(updatedConfig);
     } catch (err) {
       if (
@@ -150,10 +149,11 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     return (
       <div className={baseClass}>
         <SectionHeader title="End user migration workflow" />
-        <EmptyTable
+        <EmptyState
+          variant="list"
           className={`${baseClass}__abm-connect-message`}
           header="Migration workflow for macOS hosts"
-          info="Connect to Apple Business Manager to get started."
+          info="Connect to Apple Business to get started."
           primaryButton={<Button onClick={onClickConnect}>Connect</Button>}
         />
       </div>
@@ -220,7 +220,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             label="Webhook URL"
             value={formData.webhookUrl}
             onChange={onChangeWebhookUrl}
-            error={!isValidWebhookUrl && "Must be a valid URL."}
+            error={!isValidWebhookUrl ? "Must be a valid URL." : undefined}
             helpText={
               <>
                 When the end users clicks <b>Start</b>, a JSON payload is sent

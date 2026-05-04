@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "4.6.3",
+      "version": "4.6.5",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Wireshark' AND publisher = 'The Wireshark developer community, https://www.wireshark.org' AND version_compare(version, '4.6.5') < 0);"
       },
-      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.3-x64.msi",
+      "installer_url": "https://2.na.dl.wireshark.org/win64/all-versions/Wireshark-4.6.5-x64.msi",
       "install_script_ref": "8959087b",
-      "uninstall_script_ref": "eb44b865",
-      "sha256": "59b5ac08efc1bd595064b942d33c0ae63e4343db063fd388ce69bdd42285f542",
+      "uninstall_script_ref": "e23b6565",
+      "sha256": "4e10774e14132a8507163d43fad98a61aa52d8eada00fa85ae717b3494623cbe",
       "default_categories": [
         "Developer tools"
       ],
@@ -17,6 +18,6 @@
   ],
   "refs": {
     "8959087b": "$logFile = \"${env:TEMP}/fleet-install-software.log\"\n\ntry {\n\n$installProcess = Start-Process msiexec.exe `\n  -ArgumentList \"/quiet /norestart /lv ${logFile} /i `\"${env:INSTALLER_PATH}`\"\" `\n  -PassThru -Verb RunAs -Wait\n\nGet-Content $logFile -Tail 500\n\nExit $installProcess.ExitCode\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
-    "eb44b865": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts(\"{0D67AACE-269A-4264-81A3-DA8055C1C79C}\")) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
+    "e23b6565": "# Fleet uninstalls app by finding all related product codes for the specified upgrade code\n$inst = New-Object -ComObject \"WindowsInstaller.Installer\"\n$timeoutSeconds = 300  # 5 minute timeout per product\n\nforeach ($product_code in $inst.RelatedProducts('{0D67AACE-269A-4264-81A3-DA8055C1C79C}')) {\n    $process = Start-Process msiexec -ArgumentList @(\"/quiet\", \"/x\", $product_code, \"/norestart\") -PassThru\n    \n    # Wait for process with timeout\n    $completed = $process.WaitForExit($timeoutSeconds * 1000)\n    \n    if (-not $completed) {\n        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue\n        Exit 1603  # ERROR_UNINSTALL_FAILURE\n    }\n    \n    # If the uninstall failed, bail\n    if ($process.ExitCode -ne 0) {\n        Write-Output \"Uninstall for $($product_code) exited $($process.ExitCode)\"\n        Exit $process.ExitCode\n    }\n}\n\n# All uninstalls succeeded; exit success\nExit 0\n"
   }
 }

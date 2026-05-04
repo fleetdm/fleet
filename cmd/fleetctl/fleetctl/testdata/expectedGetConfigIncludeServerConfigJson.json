@@ -11,8 +11,11 @@
     "server_settings": {
       "server_url": "",
       "live_query_disabled": false,
+      "live_reporting_disabled": false,
       "query_report_cap": 0,
       "query_reports_disabled": false,
+      "report_cap": 0,
+      "discard_reports_data": false,
       "enable_analytics": false,
       "deferred_save_host": false,
       "scripts_disabled": false,
@@ -39,7 +42,8 @@
     },
     "activity_expiry_settings": {
       "activity_expiry_enabled": false,
-      "activity_expiry_window": 0
+      "activity_expiry_window": 0,
+      "preserve_host_activities_on_reenrollment": false
     },
     "conditional_access": {
       "microsoft_entra_tenant_id": "",
@@ -64,7 +68,9 @@
       "enabled_and_configured": false,
       "windows_enabled_and_configured": false,
       "enable_disk_encryption": false,
+      "enable_recovery_lock_password": false,
       "windows_require_bitlocker_pin": null,
+      "windows_entra_tenant_ids": null,
       "macos_updates": {
         "minimum_version": null,
         "deadline": null,
@@ -86,10 +92,14 @@
       },
       "windows_migration_enabled": false,
       "enable_turn_on_windows_mdm_manually": false,
+      "apple_require_hardware_attestation": false,
       "macos_migration": {
         "enable": false,
         "mode": "",
         "webhook_url": ""
+      },
+      "apple_settings": {
+        "configuration_profiles": null
       },
       "macos_settings": {
         "custom_settings": null
@@ -97,19 +107,39 @@
       "macos_setup": {
         "bootstrap_package": null,
         "enable_end_user_authentication": false,
-        "macos_setup_assistant": null,
+        "enable_managed_local_account": false,
         "enable_release_device_manually": false,
-        "script": null,
-        "software": null,
+        "end_user_local_account_type": "admin",
+        "lock_end_user_info": false,
+        "macos_setup_assistant": null,
         "manual_agent_install": null,
-        "require_all_software_macos": false
+        "require_all_software_macos": false,
+        "require_all_software_windows": false,
+        "script": null,
+        "software": null
+      },
+      "setup_experience": {
+        "apple_enable_release_device_manually": false,
+        "apple_setup_assistant": null,
+        "enable_create_local_admin_account": false,
+        "enable_end_user_authentication": false,
+        "end_user_local_account_type": "admin",
+        "lock_end_user_info": false,
+        "macos_bootstrap_package": null,
+        "macos_manual_agent_install": null,
+        "macos_script": null,
+        "require_all_software_macos": false,
+        "require_all_software_windows": false,
+        "software": null
       },
       "windows_settings": {
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "android_settings": {
         "certificates": null,
-        "custom_settings": null
+        "custom_settings": null,
+        "configuration_profiles": null
       },
       "end_user_authentication": {
         "entity_id": "",
@@ -183,7 +213,8 @@
       "current_instance_checks": "",
       "disable_data_sync": false,
       "recent_vulnerability_max_age": "0s",
-      "disable_win_os_vulnerabilities": false
+      "disable_win_os_vulnerabilities": false,
+      "osv_for_vulnerabilities": true
     },
     "license": {
       "tier": "free",
@@ -235,7 +266,12 @@
     },
     "gitops": {
       "gitops_mode_enabled": false,
-      "repository_url": ""
+      "repository_url": "",
+      "exceptions": {
+        "labels": false,
+        "software": false,
+        "secrets": false
+      }
     }
   }
 }

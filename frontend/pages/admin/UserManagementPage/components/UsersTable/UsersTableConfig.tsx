@@ -5,13 +5,17 @@ import StatusIndicator from "components/StatusIndicator";
 import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import PillBadge from "components/PillBadge";
 import { IInvite } from "interfaces/invite";
 import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { renderApiUserIndicator } from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPageTableConfig";
 import ActionsDropdown from "../../../../../components/ActionsDropdown";
+
+const renderApiUserIndicator = () => {
+  return <PillBadge tipContent="This user only has API access.">API</PillBadge>;
+};
 
 interface IHeaderProps {
   column: {
@@ -22,7 +26,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: IUser | IInvite;
+    original: IUserTableData;
   };
 }
 
@@ -56,7 +60,10 @@ export interface IUserTableData {
   teams: string;
   role: UserRole;
   actions: IDropdownOption[];
-  id: number;
+  /** Prefixed ID used as a unique react-table row key (e.g. "user-3", "invite-1") */
+  id: string;
+  /** Numeric ID used for API calls */
+  apiId: number;
   type: string;
   api_only: boolean;
 }
@@ -64,7 +71,7 @@ export interface IUserTableData {
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, user: IUser | IInvite) => void,
+  actionSelectHandler: (value: string, user: IUserTableData) => void,
   isPremiumTier: boolean | undefined
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
@@ -98,11 +105,9 @@ const generateTableHeaders = (
             <TooltipWrapper
               tipContent={
                 <>
-                  The GitOps role is only available on the command-line
+                  The GitOps role is only available for API-only
                   <br />
-                  when creating an API-only user. This user has no
-                  <br />
-                  access to the UI.
+                  users. This user has no access to the UI.
                 </>
               }
             >
@@ -119,7 +124,7 @@ const generateTableHeaders = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live query against all hosts.
+                  ability to run any live report against all hosts.
                 </>
               }
             >
@@ -155,9 +160,20 @@ const generateTableHeaders = (
       Header: "Email",
       disableSortBy: true,
       accessor: "email",
-      Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
-      ),
+      Cell: (cellProps: ICellProps) => {
+        const isApiOnly = cellProps.row.original.api_only;
+        if (isApiOnly) {
+          return (
+            <TooltipWrapper
+              tipContent="API-only users do not receive emails or log into the UI."
+              underline={false}
+            >
+              ---
+            </TooltipWrapper>
+          );
+        }
+        return <TextCell value={cellProps.cell.value} />;
+      },
     },
     {
       title: "Actions",
@@ -181,8 +197,8 @@ const generateTableHeaders = (
   // Add Teams column for premium tier
   if (isPremiumTier) {
     tableHeaders.splice(2, 0, {
-      title: "Teams",
-      Header: "Teams",
+      title: "Fleets",
+      Header: "Fleets",
       accessor: "teams",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => (
@@ -206,7 +222,8 @@ const generateStatus = (type: string, data: IUser | IInvite): string => {
 const generateActionDropdownOptions = (
   isCurrentUser: boolean,
   isInvitePending: boolean,
-  isSsoEnabled: boolean
+  isSsoEnabled: boolean,
+  isApiOnly: boolean
 ): IDropdownOption[] => {
   const disableDelete = isCurrentUser;
 
@@ -251,7 +268,7 @@ const generateActionDropdownOptions = (
     );
   }
 
-  if (isSsoEnabled) {
+  if (isSsoEnabled || isApiOnly) {
     // remove "Require password reset" from dropdownOptions
     dropdownOptions = dropdownOptions.filter(
       (option) => option.label !== "Require password reset"
@@ -274,9 +291,11 @@ const enhanceUserData = (
       actions: generateActionDropdownOptions(
         user.id === currentUserId,
         false,
-        user.sso_enabled
+        user.sso_enabled,
+        user.api_only
       ),
-      id: user.id,
+      id: `user-${user.id}`,
+      apiId: user.id,
       type: "user",
       api_only: user.api_only,
     };
@@ -291,8 +310,14 @@ const enhanceInviteData = (invites: IInvite[]): IUserTableData[] => {
       email: invite.email,
       teams: generateTeam(invite.teams, invite.global_role),
       role: generateRole(invite.teams, invite.global_role),
-      actions: generateActionDropdownOptions(false, true, invite.sso_enabled),
-      id: invite.id,
+      actions: generateActionDropdownOptions(
+        false,
+        true,
+        invite.sso_enabled,
+        false
+      ),
+      id: `invite-${invite.id}`,
+      apiId: invite.id,
       type: "invite",
       api_only: false, // api only users are created through fleetctl and not invites
     };

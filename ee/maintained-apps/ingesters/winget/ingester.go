@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,16 +16,15 @@ import (
 	external_refs "github.com/fleetdm/fleet/v4/ee/maintained-apps/ingesters/winget/external_refs"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/patch_policy"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/go-github/v37/github"
 	"gopkg.in/yaml.v2"
 )
 
-func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
-	level.Info(logger).Log("msg", "starting winget app data ingestion")
+func IngestApps(ctx context.Context, logger *slog.Logger, inputsPath string, slugFilter string) ([]*maintained_apps.FMAManifestApp, error) {
+	logger.InfoContext(ctx, "starting winget app data ingestion")
 	// Read from our list of apps we should be ingesting
 	files, err := os.ReadDir(inputsPath)
 	if err != nil {
@@ -85,7 +85,7 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 			continue
 		}
 
-		level.Info(logger).Log("msg", "ingesting winget app", "name", input.Name)
+		logger.InfoContext(ctx, "ingesting winget app", "name", input.Name)
 
 		outApp, err := i.ingestOne(ctx, input)
 		if err != nil {
@@ -101,7 +101,28 @@ func IngestApps(ctx context.Context, logger kitlog.Logger, inputsPath string, sl
 type wingetIngester struct {
 	githubClient *github.Client
 	ghClientOpts *github.RepositoryContentGetOptions
-	logger       kitlog.Logger
+	logger       *slog.Logger
+}
+
+// wingetVersionManifestDirs keeps only subdirectory entries whose names look like winget
+// package version folders (semver-style). The upstream repo may add other top-level
+// folders (e.g. "Portable") that sort after numeric versions but are not manifest roots.
+func wingetVersionManifestDirs(contents []*github.RepositoryContent) []*github.RepositoryContent {
+	var out []*github.RepositoryContent
+	for _, c := range contents {
+		if c.GetType() != "dir" {
+			continue
+		}
+		name := c.GetName()
+		if len(name) == 0 {
+			continue
+		}
+		if name[0] < '0' || name[0] > '9' {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*maintained_apps.FMAManifestApp, error) {
@@ -122,11 +143,18 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		return nil, fmt.Errorf("get data from winget repo: %w", err)
 	}
 
+	versionDirs := wingetVersionManifestDirs(repoContents)
+	if len(versionDirs) == 0 {
+		return nil, ctxerr.NewWithData(ctx, "no version manifest directories found under package path", map[string]any{
+			"path": dirPath,
+		})
+	}
+
 	// sort the list of directories in descending order
-	slices.SortFunc(repoContents, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
+	slices.SortFunc(versionDirs, func(a, b *github.RepositoryContent) int { return feednvd.SmartVerCmp(b.GetName(), a.GetName()) })
 
 	// this directory has the latest version data in it
-	latestVersionDir := repoContents[0]
+	latestVersionDir := versionDirs[0]
 	if latestVersionDir.GetName() == "" {
 		return nil, ctxerr.New(ctx, "latest version for app not found")
 	}
@@ -204,7 +232,7 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	for _, installer := range m.Installers {
-		level.Debug(i.logger).Log("msg", "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
+		i.logger.DebugContext(ctx, "checking installer", "arch", installer.Architecture, "type", installer.InstallerType, "locale", installer.InstallerLocale, "scope", installer.Scope)
 		installerType := m.InstallerType
 		if installerType == "" || isVendorType(installerType) {
 			installerType = installer.InstallerType
@@ -218,6 +246,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		// Normalize wix (WiX Toolset) to msi since wix installers are MSI files
 		if installerType == installerTypeWix {
 			installerType = installerTypeMSI
+		}
+
+		// Normalize burn (WiX Burn bootstrapper) to exe since burn produces EXE bundles
+		if installerType == installerTypeBurn {
+			installerType = installerTypeExe
 		}
 
 		scope := m.Scope
@@ -294,7 +327,11 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 			}
 		}
 		if uninstallScript == "" && upgradeCode != "" {
-			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			var err error
+			uninstallScript, err = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building upgrade code based uninstall script")
+			}
 		}
 
 		if uninstallScript == "" {
@@ -313,7 +350,12 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-	productCode = strings.Split(productCode, ".")[0]
+	if input.InstallerType == installerTypeMSIX && productCode == "" {
+		productCode = selectedInstaller.PackageFamilyName
+	}
+	if input.InstallerType == installerTypeMSI && productCode != "" {
+		productCode = strings.Split(productCode, ".")[0]
+	}
 
 	if upgradeCode != "" {
 		out.UpgradeCode = upgradeCode
@@ -338,32 +380,60 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 		name = input.UniqueIdentifier
 	}
 
-	// TODO - consider UpgradeCode here?
-	existsTemplate := "SELECT 1 FROM programs WHERE name = '%s' AND publisher = '%s';"
-	if input.FuzzyMatchName {
-		existsTemplate = "SELECT 1 FROM programs WHERE name LIKE '%s %%' AND publisher = '%s';"
-	}
-	out.Queries = maintained_apps.FMAQueries{
-		Exists: fmt.Sprintf(existsTemplate, name, publisher),
-	}
+	out.Queries = setUpExistsQuery(input.FuzzyMatchName, name, publisher)
 	out.InstallScript = installScript
-	out.UninstallScript = preProcessUninstallScript(uninstallScript, productCode)
+	processedUninstallScript, err := preProcessUninstallScript(uninstallScript, productCode)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "pre-processing uninstall script")
+	}
+	out.UninstallScript = processedUninstallScript
 	out.InstallScriptRef = maintained_apps.GetScriptRef(out.InstallScript)
 	out.UninstallScriptRef = maintained_apps.GetScriptRef(out.UninstallScript)
 	out.Frozen = input.Frozen
 
 	external_refs.EnrichManifest(&out)
 
+	// create patch policy
+	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+		Platform:    "windows",
+		Version:     out.Version,
+		ExistsQuery: out.Queries.Exists,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	}
+
 	return &out, nil
 }
 
-func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
-	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+func escapeSQLParam(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
 }
 
-func preProcessUninstallScript(uninstallScript, productCode string) string {
-	code := fmt.Sprintf("\"%s\"", productCode)
-	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+func setUpExistsQuery(fuzzy fuzzyMatch, name string, publisher string) maintained_apps.FMAQueries {
+	// TODO - consider UpgradeCode here?
+	return maintained_apps.FMAQueries{
+		Exists: fmt.Sprintf("SELECT 1 FROM programs WHERE %s AND publisher = '%s';",
+			fuzzy.nameCondition(name), escapeSQLParam(publisher)),
+	}
+}
+
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) (string, error) {
+	if err := file.ValidatePackageIdentifiers(nil, upgradeCode); err != nil {
+		return "", err
+	}
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("'%s'${suffix}", upgradeCode)), nil
+}
+
+func preProcessUninstallScript(uninstallScript, productCode string) (string, error) {
+	if productCode == "" {
+		return uninstallScript, nil
+	}
+	if err := file.ValidatePackageIdentifiers([]string{productCode}, ""); err != nil {
+		return "", err
+	}
+	code := fmt.Sprintf("'%s'", productCode)
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code)), nil
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type
@@ -391,6 +461,43 @@ func isFileType(installerType string) bool {
 	return ok
 }
 
+// fuzzyMatch supports three JSON representations:
+//   - false (or omitted): exact match on programs.name
+//   - true: automatic LIKE pattern  "name LIKE '<unique_identifier> %'"
+//   - "<pattern>": a custom LIKE pattern used verbatim, e.g. "Mozilla Firefox % ESR %"
+type fuzzyMatch struct {
+	Enabled bool   // true when the JSON value is the boolean `true`
+	Custom  string // non-empty when the JSON value is a string pattern
+}
+
+func (f *fuzzyMatch) UnmarshalJSON(data []byte) error {
+	// Try boolean first (handles true, false, and omitted-via-zero-value).
+	var b bool
+	if err := json.Unmarshal(data, &b); err == nil {
+		f.Enabled = b
+		f.Custom = ""
+		return nil
+	}
+	// Try string.
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		f.Custom = s
+		f.Enabled = s != ""
+		return nil
+	}
+	return fmt.Errorf("fuzzy_match_name must be a boolean or a string, got %s", string(data))
+}
+
+func (f *fuzzyMatch) nameCondition(name string) string {
+	if f.Custom != "" {
+		return fmt.Sprintf("name LIKE '%s'", escapeSQLParam(f.Custom))
+	}
+	if f.Enabled {
+		return fmt.Sprintf("name LIKE '%s %%'", escapeSQLParam(name))
+	}
+	return fmt.Sprintf("name = '%s'", escapeSQLParam(name))
+}
+
 type inputApp struct {
 	Name string `json:"name"`
 	Slug string `json:"slug"`
@@ -398,20 +505,21 @@ type inputApp struct {
 	// AgileBits) and an app part (e.g. 1Password), joined by a "."
 	PackageIdentifier string `json:"package_identifier"`
 	// The value matching programs.name for the primary app package in osquery
-	UniqueIdentifier    string `json:"unique_identifier"`
-	InstallScriptPath   string `json:"install_script_path"`
-	UninstallScriptPath string `json:"uninstall_script_path"`
-	InstallerArch       string `json:"installer_arch"`
-	InstallerType       string `json:"installer_type"`
-	InstallerScope      string `json:"installer_scope"`
-	InstallerLocale     string `json:"installer_locale"`
-	ProgramPublisher    string `json:"program_publisher"`
-	UninstallType       string `json:"uninstall_type"`
-	FuzzyMatchName      bool   `json:"fuzzy_match_name"`
+	UniqueIdentifier    string     `json:"unique_identifier"`
+	InstallScriptPath   string     `json:"install_script_path"`
+	UninstallScriptPath string     `json:"uninstall_script_path"`
+	InstallerArch       string     `json:"installer_arch"`
+	InstallerType       string     `json:"installer_type"`
+	InstallerScope      string     `json:"installer_scope"`
+	InstallerLocale     string     `json:"installer_locale"`
+	ProgramPublisher    string     `json:"program_publisher"`
+	UninstallType       string     `json:"uninstall_type"`
+	FuzzyMatchName      fuzzyMatch `json:"fuzzy_match_name"`
 	// Whether to use "no_check" instead of the app's hash (e.g. for non-pinned download URLs)
 	IgnoreHash        bool     `json:"ignore_hash"`
 	DefaultCategories []string `json:"default_categories"`
 	Frozen            bool     `json:"frozen"`
+	PatchPolicyPath   string   `json:"patch_policy_path"`
 }
 
 type installerManifest struct {
@@ -434,6 +542,7 @@ type installer struct {
 	InstallModes           []string                 `yaml:"InstallModes,omitempty"`
 	InstallerSwitches      installerSwitches        `yaml:"InstallerSwitches,omitempty"`
 	ProductCode            string                   `yaml:"ProductCode"`
+	PackageFamilyName      string                   `yaml:"PackageFamilyName"`
 	AppsAndFeaturesEntries []appsAndFeaturesEntries `yaml:"AppsAndFeaturesEntries,omitempty"`
 	InstallerLocale        string                   `yaml:"InstallerLocale"`
 }
@@ -480,6 +589,7 @@ const (
 	installerTypeWix      = "wix"
 	installerTypeNullSoft = "nullsoft"
 	installerTypeInno     = "inno"
+	installerTypeBurn     = "burn"
 	arch64Bit             = "x64"
 	arch32Bit             = "x86"
 )

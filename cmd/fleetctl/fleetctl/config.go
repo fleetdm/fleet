@@ -300,8 +300,7 @@ func configSetCommand() *cli.Command {
 				if err := setConfigValue(configPath, context, "token", flToken); err != nil {
 					return fmt.Errorf("error setting token: %w", err)
 				}
-				// Redact the token from the output as this may be run in contexts where it is logged.
-				fmt.Printf("[+] Set the token config key to \"<redacted>\" in the %q context\n", c.String("context"))
+				fmt.Printf("[+] Set the token in the %q context\n", c.String("context"))
 			}
 
 			if flTLSSkipVerify {

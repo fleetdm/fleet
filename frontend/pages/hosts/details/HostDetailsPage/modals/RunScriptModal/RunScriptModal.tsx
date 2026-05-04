@@ -8,7 +8,7 @@ import { IHostScriptsResponse } from "services/entities/scripts";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner/Spinner";
 
@@ -112,43 +112,41 @@ const RunScriptModal = ({
       isLoading={isFetchingHostScripts || isLoadingHostScripts}
       isHidden={isHidden}
     >
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          {isLoadingHostScripts && <Spinner />}
-          {!isLoadingHostScripts && isError && <DataError />}
-          {!isLoadingHostScripts &&
-            !isError &&
-            (!tableData || tableData.length === 0) && (
-              <EmptyTable
-                header="No scripts available for this host"
-                info="Expecting to see scripts? Close this modal and try again."
-              />
-            )}
-          {!isLoadingHostScripts &&
-            !isError &&
-            tableData &&
-            tableData.length > 0 && (
-              <TableContainer
-                resultsTitle=""
-                emptyComponent={EmptyComponent}
-                showMarkAllPages={false}
-                isAllPagesSelected={false}
-                columnConfigs={scriptColumnConfigs}
-                data={tableData}
-                isLoading={isRunningScript || isFetchingHostScripts}
-                onQueryChange={onQueryChange}
-                disableNextPage={!hostScriptResponse?.meta.has_next_results}
-                pageIndex={page}
-                pageSize={10}
-                disableCount
-                disableTableHeader
-              />
-            )}
-        </div>
-        <div className="modal-cta-wrap">
-          <Button onClick={onClose}>Done</Button>
-        </div>
-      </>
+      <div className={`${baseClass}__modal-content`}>
+        {isLoadingHostScripts && <Spinner />}
+        {!isLoadingHostScripts && isError && <DataError />}
+        {!isLoadingHostScripts &&
+          !isError &&
+          (!tableData || tableData.length === 0) && (
+            <EmptyState
+              header="No scripts available for this host"
+              info="Expecting to see scripts? Close this modal and try again."
+            />
+          )}
+        {!isLoadingHostScripts &&
+          !isError &&
+          tableData &&
+          tableData.length > 0 && (
+            <TableContainer
+              resultsTitle=""
+              emptyComponent={EmptyComponent}
+              showMarkAllPages={false}
+              isAllPagesSelected={false}
+              columnConfigs={scriptColumnConfigs}
+              data={tableData}
+              isLoading={isRunningScript || isFetchingHostScripts}
+              onQueryChange={onQueryChange}
+              disableNextPage={!hostScriptResponse?.meta.has_next_results}
+              pageIndex={page}
+              pageSize={10}
+              disableCount
+              disableTableHeader
+            />
+          )}
+      </div>
+      <div className="modal-cta-wrap">
+        <Button onClick={onClose}>Close</Button>
+      </div>
     </Modal>
   );
 };

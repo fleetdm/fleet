@@ -10,8 +10,11 @@ type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 
 export interface IModalProps {
   title: string | JSX.Element;
-  children: JSX.Element;
+  children: React.ReactNode;
   onExit: () => void;
+  /** Called when the user presses Enter. Avoid using this on modals that
+   * contain forms, reveal/copy controls, or other elements where Enter has
+   * its own meaning — it will conflict with keyboard navigation. */
   onEnter?: () => void;
   /**     medium 650px, large 800px, xlarge 850px, auto auto-width
    * @default "medium"
@@ -84,6 +87,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeOrSaveWithEnterKey);
       };
     }
+    return undefined;
   }, [onEnter]);
 
   const backgroundClasses = classnames(`${baseClass}__background`, {

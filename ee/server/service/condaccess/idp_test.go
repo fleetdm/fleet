@@ -2,8 +2,8 @@ package condaccess
 
 import (
 	"context"
-	"database/sql"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,10 +15,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
+	"github.com/throttled/throttled/v2/store/memstore"
 )
 
 // Test certificates used across multiple tests
@@ -74,16 +75,23 @@ b1ctZeF7HaWwFdTC8GqWI6zzRFn+YA3f/yYibhowuEypPQeSjlI=
 
 // Helper functions for test setup
 
+func newTestLimitStore(t *testing.T) *memstore.MemStore {
+	t.Helper()
+	store, err := memstore.New(0)
+	require.NoError(t, err)
+	return store
+}
+
 func newTestService() (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
-	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex}, ds
+	logger := slog.New(slog.DiscardHandler)
+	return &idpService{ds: ds, logger: logger, certSerialFormat: config.CertSerialFormatHex, mdCache: &metadataCache{}}, ds
 }
 
 func newTestServiceWithCertFormat(certFormat string) (*idpService, *mock.Store) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
-	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat}, ds
+	logger := slog.New(slog.DiscardHandler)
+	return &idpService{ds: ds, logger: logger, certSerialFormat: certFormat, mdCache: &metadataCache{}}, ds
 }
 
 func mockAppConfigFunc(serverURL string) func(context.Context) (*fleet.AppConfig, error) {
@@ -117,19 +125,20 @@ func mockCertAssetsFunc(includeCerts bool) func(context.Context, []fleet.MDMAsse
 
 func TestRegisterIdP(t *testing.T) {
 	ds := new(mock.Store)
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	cfg := &config.FleetConfig{}
+	store := newTestLimitStore(t)
 
 	ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
 	ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false)
 
 	mux := http.NewServeMux()
 	// Try with nil config
-	err := RegisterIdP(mux, ds, logger, nil)
+	err := RegisterIdP(mux, ds, logger, nil, store)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "fleet config is nil")
 
-	err = RegisterIdP(mux, ds, logger, cfg)
+	err = RegisterIdP(mux, ds, logger, cfg, store)
 	require.NoError(t, err)
 
 	t.Run("metadata endpoint registered", func(t *testing.T) {
@@ -215,6 +224,140 @@ func TestServeMetadata(t *testing.T) {
 		// This is a configuration error, not an infrastructure error
 		require.Equal(t, http.StatusNotFound, w.Code)
 		require.Contains(t, w.Body.String(), "Server URL not configured")
+	})
+
+	t.Run("caches metadata response", func(t *testing.T) {
+		svc, ds := newTestService()
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		// First request should hit the datastore
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		w := httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, "application/samlmetadata+xml", w.Header().Get("Content-Type"))
+		firstBody := w.Body.String()
+		require.Contains(t, firstBody, "EntityDescriptor")
+		require.True(t, ds.AppConfigFuncInvoked)
+
+		// Reset invocation tracking
+		ds.AppConfigFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFuncInvoked = false
+
+		// Second request should be served from cache without hitting the datastore
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		w = httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Equal(t, "application/samlmetadata+xml", w.Header().Get("Content-Type"))
+		require.Equal(t, firstBody, w.Body.String())
+		require.False(t, ds.AppConfigFuncInvoked)
+		require.False(t, ds.GetAllMDMConfigAssetsByNameFuncInvoked)
+	})
+
+	t.Run("does not cache error responses", func(t *testing.T) {
+		svc, ds := newTestService()
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(false) // Will return 404
+
+		// First request returns 404
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		w := httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusNotFound, w.Code)
+
+		// Reset and configure for success
+		ds.AppConfigFuncInvoked = false
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		// Second request should hit the datastore (not cached)
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		w = httptest.NewRecorder()
+		svc.serveMetadata(w, req)
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.Contains(t, w.Body.String(), "EntityDescriptor")
+	})
+}
+
+func TestIDPRateLimiting(t *testing.T) {
+	t.Run("rate limits by remote addr", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := slog.New(slog.DiscardHandler)
+		cfg := &config.FleetConfig{}
+
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		mux := http.NewServeMux()
+		err := RegisterIdP(mux, ds, logger, cfg, newTestLimitStore(t))
+		require.NoError(t, err)
+
+		// Send requests up to the burst limit (maxBurst + 1 = 10 allowed)
+		for i := range ratelimit.DefaultHTTPRateQuota().MaxBurst + 1 {
+			req := httptest.NewRequest("GET", idpMetadataPath, nil)
+			req.RemoteAddr = "192.0.2.1:12345"
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
+		}
+
+		// Next request from the same IP should be rate limited
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "192.0.2.1:12345"
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+
+		// Request from a different IP should not be rate limited
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "198.51.100.1:12345"
+		w = httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusTooManyRequests, w.Code)
+	})
+
+	t.Run("rate limits by X-Forwarded-For when trusted proxies configured", func(t *testing.T) {
+		ds := new(mock.Store)
+		logger := slog.New(slog.DiscardHandler)
+		cfg := &config.FleetConfig{}
+		cfg.Server.TrustedProxies = "10.0.0.0/8"
+
+		ds.AppConfigFunc = mockAppConfigFunc("https://fleet.example.com")
+		ds.GetAllMDMConfigAssetsByNameFunc = mockCertAssetsFunc(true)
+
+		mux := http.NewServeMux()
+		err := RegisterIdP(mux, ds, logger, cfg, newTestLimitStore(t))
+		require.NoError(t, err)
+
+		// Send requests from a proxy IP but different real client IPs via X-Forwarded-For.
+		// All come from the same RemoteAddr (the proxy), but different real client IPs.
+		// With trusted_proxies configured, rate limiting should be per real client IP.
+		for i := range ratelimit.DefaultHTTPRateQuota().MaxBurst + 1 {
+			req := httptest.NewRequest("GET", idpMetadataPath, nil)
+			req.RemoteAddr = "10.0.0.1:12345"
+			req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, req)
+			require.NotEqual(t, http.StatusTooManyRequests, w.Code, "request %d should not be rate limited", i)
+		}
+
+		// Next request from the same real client IP should be rate limited
+		req := httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "10.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.0.0.1")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.Equal(t, http.StatusTooManyRequests, w.Code)
+
+		// Request from the same proxy but different real client IP should NOT be rate limited
+		req = httptest.NewRequest("GET", idpMetadataPath, nil)
+		req.RemoteAddr = "10.0.0.1:12345"
+		req.Header.Set("X-Forwarded-For", "203.0.113.20, 10.0.0.1")
+		w = httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		require.NotEqual(t, http.StatusTooManyRequests, w.Code)
 	})
 }
 
@@ -354,7 +497,6 @@ func TestParseSerialNumber(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, 10, result)
 	})
-
 }
 
 func TestServeSSO(t *testing.T) {
@@ -526,7 +668,7 @@ func TestParseCertAndKeyBytes(t *testing.T) {
 }
 
 func TestDeviceHealthSessionProvider(t *testing.T) {
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	now := time.Now()
 
 	tests := []struct {
@@ -540,8 +682,11 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 		caPolicyIDs  []uint
 		hostPolicies []*fleet.HostPolicy
 
-		deviceToken    string
-		deviceTokenErr error
+		deviceToken        string
+		deviceTokenErr     error
+		deviceTokenExpired bool  // if true, LoadHostByDeviceAuthToken returns not found
+		loadDeviceTokenErr error // if set, LoadHostByDeviceAuthToken returns this error
+		setDeviceTokenErr  error
 
 		appConfig *fleet.AppConfig // nil = use default with ServerURL
 
@@ -608,7 +753,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "redirects to remediate when no auth token",
+			name:        "creates token and redirects to device policy page when no auth token",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
@@ -617,9 +762,51 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
 				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
 			},
-			deviceTokenErr: sql.ErrNoRows,
+			deviceTokenErr: &notFoundError{msg: "HostDeviceAuth not found"},
 			wantStatusCode: http.StatusSeeOther,
-			wantLocation:   remediateURL,
+			// The redirect will be to /device/<generated-uuid>/policies, verified below
+		},
+		{
+			name:        "redirects to remediate when no auth token and create fails",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "fail"}, // Not conditional access
+			},
+			deviceTokenErr:    &notFoundError{msg: "HostDeviceAuth not found"},
+			setDeviceTokenErr: errors.New("database error"),
+			wantStatusCode:    http.StatusSeeOther,
+			wantLocation:      remediateURL,
+		},
+		{
+			name:        "creates token and redirects when existing token is expired",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "pass"},
+			},
+			deviceToken:        "expired-token",
+			deviceTokenExpired: true,
+			wantStatusCode:     http.StatusSeeOther,
+			// Redirect will be to /device/<generated-uuid>/policies, verified by assertion below
+		},
+		{
+			name:        "redirects to remediate when token validation fails with DB error",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+			},
+			deviceToken:        "some-token",
+			loadDeviceTokenErr: errors.New("database connection error"),
+			wantStatusCode:     http.StatusSeeOther,
+			wantLocation:       remediateURL,
 		},
 		{
 			name:           "returns 500 when HostLite fails",
@@ -628,7 +815,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusInternalServerError,
 		},
 		{
-			name:        "allows device with bypass through",
+			name:        "allows device with bypass when no failing policies are critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
@@ -643,7 +830,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 		},
 		{
-			name:        "redirects device without bypass",
+			name:        "redirects device without bypass when no failing policies are critical but no bypass available",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
@@ -656,7 +843,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			wantLocation:   "https://example.com/device/abc123/policies",
 		},
 		{
-			name:        "redirects when bypass check fails",
+			name:        "redirects when bypass check fails and no failing policies are critical",
 			hostID:      456,
 			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
 			caPolicyIDs: []uint{10, 20},
@@ -668,6 +855,67 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			bypassErr:      errors.New("database error"),
 			wantStatusCode: http.StatusSeeOther,
 			wantLocation:   "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "skips bypass check when any failing policy is critical",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, Critical: true}, Response: "fail"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "skips bypass check when failing policy is critical",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10, Critical: true}, Response: "fail"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
+		},
+		{
+			name:        "allows bypass when multiple failing policies are not critical",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20, 30},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
+			},
+			deviceToken:    "abc123",
+			bypassTime:     &now,
+			wantSession:    true,
+			wantNameID:     "host-456",
+			wantStatusCode: http.StatusOK,
+		},
+		{
+			name:        "skips bypass when one of multiple failing policies is critical",
+			hostID:      456,
+			host:        &fleet.Host{ID: 456, TeamID: ptr.Uint(1)},
+			caPolicyIDs: []uint{10, 20, 30},
+			hostPolicies: []*fleet.HostPolicy{
+				{PolicyData: fleet.PolicyData{ID: 10}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 20, Critical: true}, Response: "fail"},
+				{PolicyData: fleet.PolicyData{ID: 30}, Response: "pass"},
+			},
+			deviceToken:           "abc123",
+			bypassTime:            &now,
+			bypassMustNotBeCalled: true,
+			wantStatusCode:        http.StatusSeeOther,
+			wantLocation:          "https://example.com/device/abc123/policies",
 		},
 		{
 			name:        "bypass_disabled redirects without checking bypass",
@@ -700,7 +948,7 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 				return tt.host, tt.hostErr
 			}
 
-			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint) ([]uint, error) {
+			ds.GetPoliciesForConditionalAccessFunc = func(ctx context.Context, teamID uint, platform string) ([]uint, error) {
 				return tt.caPolicyIDs, nil
 			}
 
@@ -710,6 +958,20 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 
 			ds.GetDeviceAuthTokenFunc = func(ctx context.Context, hostID uint) (string, error) {
 				return tt.deviceToken, tt.deviceTokenErr
+			}
+
+			ds.SetOrUpdateDeviceAuthTokenFunc = func(ctx context.Context, hostID uint, authToken string) error {
+				return tt.setDeviceTokenErr
+			}
+
+			ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, ttl time.Duration) (*fleet.Host, error) {
+				if tt.loadDeviceTokenErr != nil {
+					return nil, tt.loadDeviceTokenErr
+				}
+				if tt.deviceTokenExpired {
+					return nil, &notFoundError{msg: "host not found"}
+				}
+				return tt.host, nil
 			}
 
 			if tt.appConfig != nil {
@@ -753,6 +1015,15 @@ func TestDeviceHealthSessionProvider(t *testing.T) {
 			require.Equal(t, tt.wantStatusCode, w.Code)
 			if tt.wantLocation != "" {
 				require.Equal(t, tt.wantLocation, w.Header().Get("Location"))
+			}
+			// When a new token is created (missing or expired) and SetOrUpdateDeviceAuthToken succeeds,
+			// the redirect should use a server-generated token.
+			needsNewToken := tt.deviceTokenErr != nil || tt.deviceTokenExpired
+			if needsNewToken && tt.setDeviceTokenErr == nil && w.Code == http.StatusSeeOther {
+				loc := w.Header().Get("Location")
+				require.Contains(t, loc, "https://example.com/device/")
+				require.Contains(t, loc, "/policies")
+				require.NotEqual(t, remediateURL, loc)
 			}
 			if tt.bypassMustNotBeCalled {
 				require.False(t, ds.ConditionalAccessConsumeBypassFuncInvoked)

@@ -132,29 +132,20 @@ func Analyze(
 		return nil, err
 	}
 
-	var inserted []fleet.SoftwareVulnerability
-	if collectVulns {
-		inserted = make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	allVulns := make([]fleet.SoftwareVulnerability, 0, len(toInsertSet))
+	for _, v := range toInsertSet {
+		allVulns = append(allVulns, v)
 	}
 
-	err = utils.BatchProcess(toInsertSet, func(vulns []fleet.SoftwareVulnerability) error {
-		for _, v := range vulns {
-			ok, err := ds.InsertSoftwareVulnerability(ctx, v, source)
-			if err != nil {
-				return err
-			}
-
-			if collectVulns && ok {
-				inserted = append(inserted, v)
-			}
-		}
-		return nil
-	}, vulnBatchSize)
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, allVulns, source)
 	if err != nil {
 		return nil, err
 	}
+	if !collectVulns {
+		return nil, nil
+	}
 
-	return inserted, nil
+	return newVulns, nil
 }
 
 // loadDef returns the latest oval Definition for the given platform.

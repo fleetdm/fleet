@@ -7,19 +7,23 @@ _Photo by [MariuszBlach](https://www.istockphoto.com/photo/lake-tahoe-gm48064107
 With Apple's releases of macOS Tahoe 26, iOS 26, and iPadOS 26, Fleet provides same-day support for IT teams to upgrade immediately so devices will remain secure and fully managed. This means that all existing Fleet features are tested and bugs are fixed. 
 
 Also, Fleet will support these new features:
-- MDM migration with Apple Business Manager (ABM)
+- MDM migration with Apple Business (AB)
 - Declarative device management (DDM) OS updates and profiles
 - Platform Single Sign-on during new Mac setup (coming soon)
 
 All new features go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized). Excited about a new feature in macOS Tahoe? You can file a [feature request](https://github.com/fleetdm/fleet/issues/new?template=feature-request.md).
 
-## MDM migration with Apple Business Manager (ABM)
+## MDM migration with Apple Business (AB)
 
-With MacOS Tahoe 26, iOS 26, and iPadOS 26, Apple introduces Device Management Migration: an improved workflow for migrating devices from one management service (MDM) to another. 
+With macOS Tahoe 26, iOS 26, and iPadOS 26, Apple introduces Device Management Migration: an improved workflow for migrating devices from one management service (MDM) to another. Learn more about configuring and the end user experience in the [Apple docs](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web).
 
-In Apple Business Manager (ABM), admins can assign devices to a new MDM server and set a migration deadline. Users receive clear notifications that enrollment into a new management service is required. If users do not act before the migration deadline, enrollment into the new MDM is enforced automatically, eliminating the need for device wipes, scripts, or manual workarounds that previously made MDM migrations more difficult, complex and time-consuming.
+If you're planning a macOS migration with the Tahoe workflow:
 
-Fleet is ready to support this migration workflow, making it easier for organizations to migrate devices with minimal disruption. Learn more about configuring migration in the [Apple docs](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web).
+- Migrate devices in batches of around 100.
+- Alternate batches between Mondays and Wednesdays.
+- Set a 1–2 week deadline for each batch.
+- Before the first batch, export a device list with each end user's name.
+- Group devices into batches in a spreadsheet so stakeholders can plan around travel or other conflicts.
 
 ## Declarative device management (DDM) OS updates and profiles
 

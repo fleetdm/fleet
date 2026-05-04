@@ -29,8 +29,15 @@ fleet_maintained_apps:
     pre_install_query:
       path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
     self_service: true
+  - slug: fma2/windows
+    labels_include_all:
+      - Label A
+      - Label B
+    self_service: true
+  - slug: fma3/windows
+    self_service: true
 app_store_apps:
-  - app_store_id: com.example.team-software
+  - app_store_id: "1234567890"
     labels_exclude_any:
       - Label C
       - Label D
@@ -39,11 +46,17 @@ app_store_apps:
       - Utilities
     self_service: true
     platform: darwin
-  - app_store_id: com.example.setup-experience-software
+  - app_store_id: "55566677778"
+    labels_include_all:
+      - Label C
+      - Label D
     platform: android
     self_service: true
     setup_experience: true
-  - app_store_id: com.example.ios-auto-update
+  - app_store_id: "9999888877"
+    labels_include_all:
+      - Label C
+      - Label D
     auto_update_enabled: true
     auto_update_window_start: "01:00"
     auto_update_window_end: "03:00"

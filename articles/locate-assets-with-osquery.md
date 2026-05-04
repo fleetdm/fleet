@@ -1,6 +1,6 @@
 # Locate device assets in the event of an emergency.
 
-## A simple query for IP-Geolocation
+## A simple report for IP-Geolocation
 
 ![Locate device assets in the event of an emergency](../website/assets/images/articles/locate-assets-with-osquery-cover-700x393@2x.jpeg)
 

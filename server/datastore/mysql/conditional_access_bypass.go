@@ -7,11 +7,25 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
 
 func (ds *Datastore) ConditionalAccessBypassDevice(ctx context.Context, hostID uint) error {
-	const stmt = `
+	const checkStmt = `
+	SELECT
+		COUNT(*)
+	FROM
+		policy_membership pm
+	INNER JOIN
+		policies p ON pm.policy_id = p.id
+	WHERE
+		pm.host_id = ?
+		AND p.conditional_access_enabled = 1
+		AND p.critical = 1
+		AND pm.passes = 0
+	`
+	const insertStmt = `
 	INSERT INTO
 		host_conditional_access (host_id, bypassed_at)
 	VALUES
@@ -19,7 +33,17 @@ func (ds *Datastore) ConditionalAccessBypassDevice(ctx context.Context, hostID u
 	ON DUPLICATE KEY UPDATE
 		bypassed_at = NOW(6)`
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID); err != nil {
+	var blockCount uint
+
+	if err := sqlx.GetContext(ctx, ds.writer(ctx), &blockCount, checkStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "checking failing policy count")
+	}
+
+	if blockCount != 0 {
+		return &fleet.BadRequestError{Message: "host has failing critical policies"}
+	}
+
+	if _, err := ds.writer(ctx).ExecContext(ctx, insertStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting host conditional bypass")
 	}
 

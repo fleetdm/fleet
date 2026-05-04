@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "1.5354.0",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Claude' AND publisher = 'Anthropic, PBC' AND version_compare(version, '1.5354.0') < 0);"
+      },
+      "installer_url": "https://downloads.claude.ai/releases/win32/x64/1.5354.0/Claude-9a9e3d5a4a368f0f49a80dc303b0ed1a18bfedad.msix",
+      "install_script_ref": "31a0b698",
+      "uninstall_script_ref": "03f72055",
+      "sha256": "4d38cdb4f097e9e562621f993d77f00286c498ee2b389eeb44d2f49a9f72d404",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "03f72055": "$timeoutSeconds = 300  # 5 minute timeout\n\nfunction ShouldRemoveClaudePackage {\n  param([Parameter(Mandatory=$true)]$pkg)\n  try {\n    $name = [string]$pkg.Name\n    $family = [string]$pkg.PackageFamilyName\n    $publisher = [string]$pkg.Publisher\n\n    if ($name -and ($name -like \"*Claude*\" -or $name -like \"*Anthropic*\")) { return $true }\n    if ($family -and ($family -like \"*Claude*\" -or $family -like \"*Anthropic*\")) { return $true }\n    if ($publisher -and ($publisher -like \"*Anthropic*\")) { return $true }\n  } catch {}\n  return $false\n}\n\ntry {\n\n  $start = Get-Date\n\n  # Best-effort: close app if running (name may vary)\n  Stop-Process -Name \"Claude\" -Force -ErrorAction SilentlyContinue\n\n  $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction Stop | Where-Object {\n    ($_.PackageFamilyName -and (($_.PackageFamilyName -like \"*Claude*\") -or ($_.PackageFamilyName -like \"*Anthropic*\"))) -or\n    ($_.DisplayName -and (($_.DisplayName -like \"*Claude*\") -or ($_.DisplayName -like \"*Anthropic*\"))) -or\n    ($_.PackageName -and (($_.PackageName -like \"*Claude*\") -or ($_.PackageName -like \"*Anthropic*\")))\n  }\n\n  foreach ($pkg in $provisioned) {\n    Write-Host \"Removing provisioned package: $($pkg.PackageName)\"\n    Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -AllUsers -ErrorAction Stop | Out-String | Write-Host\n    $elapsed = (New-TimeSpan -Start $start).TotalSeconds\n    if ($elapsed -gt $timeoutSeconds) { Exit 1603 }\n  }\n\n  $installed = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue | Where-Object {\n    ShouldRemoveClaudePackage $_\n  }\n\n  foreach ($app in $installed) {\n    Write-Host \"Removing installed package: $($app.PackageFullName)\"\n    Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction Stop | Out-String | Write-Host\n    $elapsed = (New-TimeSpan -Start $start).TotalSeconds\n    if ($elapsed -gt $timeoutSeconds) { Exit 1603 }\n  }\n\n  Exit 0\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1603\n}\n",
+    "31a0b698": "# MSIX: provision machine-wide, then register for the current user when possible so inventory\n# (osquery programs) and FMA validation are more likely to see the app immediately.\n\ntry {\n\n  $msixPath = $env:INSTALLER_PATH\n  if (-not $msixPath) {\n    throw \"INSTALLER_PATH is not set\"\n  }\n\n  Write-Host \"Provisioning MSIX for all users...\"\n  $result = Add-AppxProvisionedPackage -Online -PackagePath $msixPath -SkipLicense -Regions \"all\" -ErrorAction Stop\n  $result | Out-String | Write-Host\n\n  # Per-user registration helps ARP/programs visibility on hosts where validation runs with a user session.\n  try {\n    Write-Host \"Registering MSIX for current user (best-effort)...\"\n    Add-AppxPackage -Path $msixPath -ErrorAction Stop | Out-String | Write-Host\n  } catch {\n    Write-Host \"Add-AppxPackage skipped or failed (provisioned install may still be valid): $($_.Exception.Message)\"\n  }\n\n  Start-Sleep -Seconds 5\n  Exit 0\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n"
+  }
+}

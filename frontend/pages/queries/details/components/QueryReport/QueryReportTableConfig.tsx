@@ -50,6 +50,10 @@ const generateReportColumnConfigsFromResults = (
     string,
     boolean
   >;
+
+  // We are only using the host_id column for the hostname link, so we can remove it from the table.
+  colsAreNumTypes.delete("host_id");
+
   const columnConfigs = Array.from(colsAreNumTypes.keys()).map<
     Column<IWebSocketData>
   >((colName) => {
@@ -76,7 +80,7 @@ const generateReportColumnConfigsFromResults = (
           return (
             <LinkCell
               value={cellProps.cell.value}
-              path={PATHS.HOST_QUERY_REPORT(hostID, queryId)}
+              path={PATHS.HOST_REPORT_RESULTS(hostID, queryId)}
             />
           );
         }

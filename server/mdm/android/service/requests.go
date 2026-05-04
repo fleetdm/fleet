@@ -49,6 +49,22 @@ func newAndroidPolicyApplicationsRequest(policyID, policyName string, apps []*an
 	}, nil
 }
 
+func newAndroidPolicyRemoveApplicationsRequest(policyID, policyName string, packageNames []string) (*android.MDMAndroidPolicyRequest, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal remove policy applications to json: %w", err)
+	}
+	return &android.MDMAndroidPolicyRequest{
+		RequestName: policyName,
+		PolicyID:    policyID,
+		Payload:     b,
+	}, nil
+}
+
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*android.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
 	m := fleet.AndroidPolicyRequestPayload{

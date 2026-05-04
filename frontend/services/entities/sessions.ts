@@ -1,4 +1,6 @@
 import { ISSOSettings } from "interfaces/ssoSettings";
+import { IUser } from "interfaces/user";
+import { ITeamSummary } from "interfaces/team";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import helpers from "utilities/helpers";
@@ -16,8 +18,16 @@ export interface ISSOSettingsResponse {
   settings: ISSOSettings;
 }
 
+export interface ILoginResponse {
+  user: IUser;
+  available_teams: ITeamSummary[];
+  available_fleets: ITeamSummary[];
+  token: string;
+  token_expires_at?: string;
+}
+
 export default {
-  login: ({ email, password }: ILoginProps) => {
+  login: ({ email, password }: ILoginProps): Promise<ILoginResponse> => {
     const { LOGIN } = endpoints;
 
     return sendRequest(
@@ -38,13 +48,12 @@ export default {
         throw rawResponse;
       }
       const response = rawResponse.data;
-      const { user, available_teams } = response;
+      const { user } = response;
       const userWithGravatarUrl = helpers.addGravatarUrlToResource(user);
 
       return {
         ...response,
         user: userWithGravatarUrl,
-        available_teams,
       };
     });
   },

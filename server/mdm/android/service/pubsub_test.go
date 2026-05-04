@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,13 +14,12 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -31,10 +31,9 @@ const testBrandTestSerialHashed = "9c311e05af14f958bd65188796e41fcc8a7b0ff913bfe
 func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	androidAPIClient := android_mock.Client{}
 	androidAPIClient.InitCommonMocks()
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mockDS := InitCommonDSMocks()
-	activityModule := activities.NewActivityModule(mockDS, logger)
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, activityModule, config.AndroidAgentConfig{})
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, "test-private-key", &mockDS.DataStore, noopNewActivity, config.AndroidAgentConfig{})
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -1700,4 +1699,66 @@ func TestStatusReportAppInstallVerification(t *testing.T) {
 		require.True(t, mockDS.BulkSetVPPInstallsAsFailedFuncInvoked)
 		require.True(t, mockDS.GetPastActivityDataForAndroidVPPAppInstallFuncInvoked)
 	})
+}
+
+// Status report arrives for an Android host that was deleted from Fleet: the
+// handler must re-enroll the host and then read it back from primary (issue #42494).
+func TestPubSubStatusReportHostDeletedFromFleet(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{MDM: fleet.MDM{AndroidEnabledAndConfigured: true}}, nil
+	}
+
+	// AndroidHostLite returns not-found initially (host was deleted from Fleet) and
+	// returns the created host only after enrollHost has run.
+	var createdHost *fleet.AndroidHost
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+		if createdHost != nil && ctxdb.IsPrimaryRequired(ctx) {
+			return createdHost, nil
+		}
+		return nil, common_mysql.NotFound("android host lite mock")
+	}
+	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: "global"}, nil
+	}
+	mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, companyOwned bool) (*fleet.AndroidHost, error) {
+		createdHost = host
+		return host, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll, companyOwned bool) error {
+		return nil
+	}
+
+	// Minimal device: no AppliedPolicyName / ApplicationReports, so the status report
+	// handler stays on the simple path (skips policy + software verification).
+	// EnrollmentTokenData is present because production AMAPI payloads include it;
+	// without it, enrollHost would fail to unmarshal and never exercise the fix.
+	device := androidmanagement.Device{
+		Name:                createAndroidDeviceId("deleted-from-fleet"),
+		EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+			SerialNumber:         "test-serial",
+			Hardware:             "test-hardware",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{AndroidBuildNumber: "test-build", AndroidVersion: "1"},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam:             int64(8 * 1024 * 1024 * 1024),
+			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024),
+		},
+	}
+	data, err := json.Marshal(device)
+	require.NoError(t, err)
+	statusReport := &android.PubSubMessage{
+		Attributes: map[string]string{"notificationType": string(android.PubSubStatusReport)},
+		Data:       base64.StdEncoding.EncodeToString(data),
+	}
+
+	err = svc.ProcessPubSubPush(context.Background(), "value", statusReport)
+	require.NoError(t, err)
+	require.True(t, mockDS.NewAndroidHostFuncInvoked, "re-enrollment should create the host")
+	require.True(t, mockDS.UpdateAndroidHostFuncInvoked, "status report update should run against the re-enrolled host")
 }

@@ -5,8 +5,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
-	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -64,10 +64,6 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
-	}
-
 	t.Run("Invalid CA type", func(t *testing.T) {
 		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
 		require.Error(t, err)
@@ -191,10 +187,6 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 			ID:   id,
 			Name: "Test Team",
 		}, nil
-	}
-
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		return nil
 	}
 
 	// Set up certificate authority mocks
@@ -386,5 +378,117 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template subject name is required")
 		require.Contains(t, err.Error(), "Template 2")
+	})
+}
+
+func TestResendHostCertificateTemplate(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	const (
+		hostID       = uint(1)
+		templateID   = uint(42)
+		teamID       = uint(10)
+		templateName = "My Cert"
+	)
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == hostID {
+			tid := teamID
+			return &fleet.Host{ID: id, TeamID: &tid}, nil
+		}
+		return nil, errors.New("host not found")
+	}
+
+	ds.GetCertificateTemplateByIdFunc = func(ctx context.Context, id uint) (*fleet.CertificateTemplateResponse, error) {
+		return &fleet.CertificateTemplateResponse{
+			CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+				ID:   id,
+				Name: templateName,
+			},
+		}, nil
+	}
+
+	ds.GetCertificateTemplateByIdForHostFunc = func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+		return &fleet.CertificateTemplateResponseForHost{
+			CertificateTemplateResponse: fleet.CertificateTemplateResponse{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:   id,
+					Name: templateName,
+				},
+			},
+			Status: fleet.CertificateTemplateDelivered,
+		}, nil
+	}
+
+	t.Run("succeeds and creates activity", func(t *testing.T) {
+		ds.ResendHostCertificateTemplateFunc = func(ctx context.Context, hID uint, tID uint) error {
+			require.Equal(t, hostID, hID)
+			require.Equal(t, templateID, tID)
+			return nil
+		}
+
+		var capturedActivity fleet.ActivityTypeResentCertificate
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+			act, ok := activity.(fleet.ActivityTypeResentCertificate)
+			require.True(t, ok, "expected ActivityTypeResentCertificate, got %T", activity)
+			capturedActivity = act
+			return nil
+		}
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.NoError(t, err)
+		require.True(t, ds.ResendHostCertificateTemplateFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+		require.Equal(t, hostID, capturedActivity.HostID)
+		require.Equal(t, templateID, capturedActivity.CertificateTemplateID)
+		require.Equal(t, templateName, capturedActivity.CertificateName)
+
+		ds.ResendHostCertificateTemplateFuncInvoked = false
+		opts.ActivityMock.NewActivityFuncInvoked = false
+	})
+
+	t.Run("returns error when host not found", func(t *testing.T) {
+		err := svc.ResendHostCertificateTemplate(ctx, 99999, templateID)
+		require.Error(t, err)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("returns error when datastore fails", func(t *testing.T) {
+		ds.ResendHostCertificateTemplateFunc = func(ctx context.Context, hID uint, tID uint) error {
+			return errors.New("db error")
+		}
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "db error")
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("returns 400 when template is pending for host", func(t *testing.T) {
+		ds.GetCertificateTemplateByIdForHostFunc = func(ctx context.Context, id uint, hostUUID string) (*fleet.CertificateTemplateResponseForHost, error) {
+			return &fleet.CertificateTemplateResponseForHost{
+				CertificateTemplateResponse: fleet.CertificateTemplateResponse{
+					CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+						ID:   id,
+						Name: templateName,
+					},
+				},
+				Status: fleet.CertificateTemplatePending,
+			}, nil
+		}
+		ds.ResendHostCertificateTemplateFuncInvoked = false
+
+		err := svc.ResendHostCertificateTemplate(ctx, hostID, templateID)
+		require.Error(t, err)
+
+		var umErr interface{ StatusCode() int }
+		require.ErrorAs(t, err, &umErr)
+		require.Equal(t, 400, umErr.StatusCode())
+		require.False(t, ds.ResendHostCertificateTemplateFuncInvoked)
+		require.False(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 }

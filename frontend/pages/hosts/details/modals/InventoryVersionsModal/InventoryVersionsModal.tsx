@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import { IHostSoftware } from "interfaces/software";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -49,7 +50,7 @@ const InventoryVersionsModal = ({
       isTopScrolling={isTopScrolling}
       primaryButtons={
         <Button type="submit" onClick={onExit}>
-          Done
+          Close
         </Button>
       }
     />
@@ -57,15 +58,16 @@ const InventoryVersionsModal = ({
 
   return (
     <Modal
-      title={hostSoftware.name}
+      title={getDisplayedSoftwareName(
+        hostSoftware.name,
+        hostSoftware.display_name
+      )}
       className={baseClass}
       onExit={onExit}
       width="large"
     >
-      <>
-        {renderScrollableContent()}
-        {renderFooter()}
-      </>
+      {renderScrollableContent()}
+      {renderFooter()}
     </Modal>
   );
 };

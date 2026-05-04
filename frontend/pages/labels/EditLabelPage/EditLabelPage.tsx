@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -39,6 +39,7 @@ type IEditLabelPageProps = RouteComponentProps<
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const { currentUser } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
 
@@ -78,7 +79,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     isLoading: isLoadingHosts,
     isError: isErrorHosts,
   } = useQuery<IGetHostsInLabelResponse, AxiosError, IHost[]>(
-    ["hosts"],
+    ["hosts", labelId],
     () => {
       return labelsAPI.getHostsInLabel(labelId);
     },
@@ -99,6 +100,9 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     try {
       await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
+      queryClient.invalidateQueries(["label", labelId, currentUser]);
+      queryClient.invalidateQueries(["hosts", labelId]);
+      queryClient.invalidateQueries(["labels"]);
     } catch (error) {
       const status = (error as { status: number }).status;
       let errorMessage = "Couldn't edit label. Please try again.";
@@ -148,7 +152,10 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
       />
     ) : (
       <ManualLabelForm
-        key={targetedHosts?.toString()}
+        key={`${labelId}-${(targetedHosts || [])
+          .map((h) => h.id)
+          .sort((a, b) => a - b)
+          .join(",")}`}
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}

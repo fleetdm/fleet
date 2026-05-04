@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -64,11 +64,6 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 		return &fleet.Team{ID: 1}, nil
 	}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
-		return nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
 		return nil
 	}
 	ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, shouldDeleteAll bool, removePolicyStats bool) error {
@@ -266,11 +261,6 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 		return nil
 	}
@@ -319,4 +309,53 @@ func TestApplyPolicySpecsLabelsValidation(t *testing.T) {
 	})
 
 	require.Error(t, err)
+}
+
+func TestApplyPolicySpecsDefaultType(t *testing.T) {
+	ds := new(mock.Store)
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	var capturedSpecs []*fleet.PolicySpec
+	ds.ApplyPolicySpecsFunc = func(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
+		capturedSpecs = specs
+		return nil
+	}
+
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, _ activity_api.ActivityDetails) error {
+		return nil
+	}
+
+	testAdmin := fleet.User{
+		ID:         1,
+		Teams:      []fleet.UserTeam{},
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &testAdmin})
+
+	// Test that an omitted type defaults to "dynamic".
+	err := svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{
+		{
+			Name:  "no-type-policy",
+			Query: "SELECT 1;",
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, capturedSpecs, 1)
+	require.Equal(t, fleet.PolicyTypeDynamic, capturedSpecs[0].Type)
+
+	// Test that an explicit type is not overridden.
+	err = svc.ApplyPolicySpecs(viewerCtx, []*fleet.PolicySpec{
+		{
+			Name:  "explicit-dynamic-policy",
+			Query: "SELECT 1;",
+			Type:  fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, capturedSpecs, 1)
+	require.Equal(t, fleet.PolicyTypeDynamic, capturedSpecs[0].Type)
 }

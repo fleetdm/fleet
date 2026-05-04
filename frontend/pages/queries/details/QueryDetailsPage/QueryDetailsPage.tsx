@@ -2,8 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -52,7 +50,7 @@ interface IQueryDetailsPageProps {
   location: {
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       order_key?: string;
       order_direction?: string;
       host_id?: string;
@@ -70,7 +68,7 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   if (isNaN(queryId)) {
-    router.push(PATHS.MANAGE_QUERIES);
+    router.push(PATHS.MANAGE_REPORTS);
   }
   const queryParams = location.query;
 
@@ -109,6 +107,8 @@ const QueryDetailsPage = ({
     availableTeams,
     setCurrentTeam,
     isOnGlobalTeam,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -178,11 +178,11 @@ const QueryDetailsPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.team_id)
+    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
       getPathWithQueryParams(location.pathname, {
-        team_id: storedQuery?.team_id?.toString(),
+        fleet_id: storedQuery?.team_id?.toString(),
       })
     );
   }
@@ -214,15 +214,15 @@ const QueryDetailsPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
-      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
@@ -247,16 +247,21 @@ const QueryDetailsPage = ({
       isObserverPlus ||
       isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin;
+      isTeamMaintainerOrTeamAdmin ||
+      isGlobalTechnician ||
+      isTeamTechnician;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (filteredQueriesPath) return filteredQueriesPath;
 
-      if (hostId) return getPathWithQueryParams(PATHS.HOST_DETAILS(hostId));
+      if (hostId)
+        return getPathWithQueryParams(
+          PATHS.HOST_DETAILS(hostId, currentTeamId)
+        );
 
-      return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
-        team_id: currentTeamId,
+      return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
+        fleet_id: currentTeamId,
       });
     };
 
@@ -264,7 +269,7 @@ const QueryDetailsPage = ({
       <>
         <div className={`${baseClass}__header-links`}>
           <BackButton
-            text={hostId ? "Back to host details" : "Back to queries"}
+            text={hostId ? "Back to host details" : "Back to reports"}
             path={backPath()}
           />
         </div>
@@ -288,42 +293,35 @@ const QueryDetailsPage = ({
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <div
-                      data-tip
-                      data-for="live-query-button"
-                      // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!isLiveQueryDisabled}
+                    <TooltipWrapper
+                      tipContent="Live reports are disabled in organization settings."
+                      position="top"
+                      disableTooltip={!isLiveQueryDisabled}
+                      underline={false}
+                      showArrow
                     >
-                      <Button
-                        className={`${baseClass}__run`}
-                        variant="inverse"
-                        onClick={() => {
-                          queryId &&
-                            router.push(
-                              getPathWithQueryParams(
-                                PATHS.LIVE_QUERY(queryId),
-                                {
-                                  host_id: hostId,
-                                  team_id: currentTeamId,
-                                }
-                              )
-                            );
-                        }}
-                        disabled={isLiveQueryDisabled}
-                      >
-                        Live query <Icon name="run" />
-                      </Button>
-                    </div>
-                    <ReactTooltip
-                      className="live-query-button-tooltip"
-                      place="top"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="live-query-button"
-                      data-html
-                    >
-                      Live queries are disabled in organization settings
-                    </ReactTooltip>
+                      <div>
+                        <Button
+                          className={`${baseClass}__run`}
+                          variant="inverse"
+                          onClick={() => {
+                            queryId &&
+                              router.push(
+                                getPathWithQueryParams(
+                                  PATHS.LIVE_REPORT(queryId),
+                                  {
+                                    host_id: hostId,
+                                    fleet_id: currentTeamId,
+                                  }
+                                )
+                              );
+                          }}
+                          disabled={isLiveQueryDisabled}
+                        >
+                          Live report <Icon name="run" />
+                        </Button>
+                      </div>
+                    </TooltipWrapper>
                   </div>
                 )}
                 {canEditQuery && (
@@ -331,15 +329,15 @@ const QueryDetailsPage = ({
                     onClick={() => {
                       queryId &&
                         router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            team_id: currentTeamId,
+                          getPathWithQueryParams(PATHS.EDIT_REPORT(queryId), {
+                            fleet_id: currentTeamId,
                             host_id: hostId,
                           })
                         );
                     }}
                     className={`${baseClass}__manage-automations button`}
                   >
-                    Edit query
+                    Edit report
                   </Button>
                 )}
               </div>
@@ -353,11 +351,11 @@ const QueryDetailsPage = ({
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Query automations let you send data to your log <br />
+                      Report automations let you send data to your log <br />
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s interval.
+                      data is sent according to a report&apos;s interval.
                     </>
                   }
                 >
@@ -391,15 +389,15 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below.
+        <b>Report clipped.</b> A sample of this report&apos;s results is
+        included below.
         {
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
             isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
-            " You can still use query automations to complete this report in your log destination."
+            " You can still use automations to complete this report in your log destination."
         }
       </div>
     </InfoBanner>

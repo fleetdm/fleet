@@ -25,7 +25,7 @@ const ScriptBatchHostCountCell = ({
   const hostPath = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
     script_batch_execution_status: status,
     script_batch_execution_id: batchExecutionId,
-    team_id: teamId,
+    fleet_id: teamId,
   })}`;
 
   const renderCancelButton = () => {

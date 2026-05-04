@@ -47,7 +47,7 @@ const AddUsersModal = ({
       <form className={`${baseClass}__form`}>
         <div className="form-field">
           <label className="form-field__label" htmlFor="user-autocomplete">
-            Grant users access to this team
+            Grant users access to this fleet
           </label>
           <AutocompleteDropdown
             team={team}
@@ -62,14 +62,8 @@ const AddUsersModal = ({
         </div>
         <p>
           User not here?&nbsp;
-          <Button
-            onClick={onCreateNewTeamUser}
-            variant="text-link"
-            className="light-text"
-          >
-            <>
-              <strong>Create a user</strong>
-            </>
+          <Button onClick={onCreateNewTeamUser} variant="link">
+            Create a user
           </Button>
         </p>
         <div className="modal-cta-wrap">

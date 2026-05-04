@@ -111,7 +111,7 @@ An alphanumeric secret for the Simple Certificate Enrollment Protocol (SCEP). De
 
 ### mdm.apple_bm_server_token_bytes
 
-This is the content of the Apple Business Manager encrypted server token downloaded from Apple Business Manager.
+This is the content of the Apple Business encrypted server token downloaded from Apple Business.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_SERVER_TOKEN_BYTES`
@@ -126,7 +126,7 @@ This is the content of the Apple Business Manager encrypted server token downloa
 
 ### mdm.apple_bm_cert_bytes
 
-This is the content of the Apple Business Manager certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the Apple Business certificate. The certificate is a PEM-encoded X.509 certificate that's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_CERT_BYTES`
@@ -141,7 +141,7 @@ This is the content of the Apple Business Manager certificate. The certificate i
 
 ### mdm.apple_bm_key_bytes
 
-This is the content of the PEM-encoded private key for the Apple Business Manager. It's typically generated via `fleetctl generate mdm-apple-bm`.
+This is the content of the PEM-encoded private key for the Apple Business. It's typically generated via `fleetctl generate mdm-apple-bm`.
 
 - Default value: ""
 - Environment variable: `FLEET_MDM_APPLE_BM_KEY_BYTES`
@@ -196,19 +196,7 @@ Key that allows the Fleet server to communicate to the Microsoft compliance part
 
 ### mdm.enable_custom_os_updates_and_filevault
 
-> Experimental feature. This feature will be removed when Fleet adds the ability to add custom OS update and FileVault profiles via Fleet's UI, API, and YAML.
-
-This configuration option is not production ready. It hasn't been tested by Fleet. There will be conflicts between custom OS updates / FileVault configuration profiles and the profiles Fleet uses for these features under-the-hood.
-
-If set to `true`, Fleet allows users to add the [SoftwareUpdateEnforcementSpecific declaration (DDM)](https://developer.apple.com/documentation/devicemanagement/softwareupdateenforcementspecific) profile, [FDEFileVault](https://developer.apple.com/documentation/devicemanagement/fdefilevault), [FDEFileVaultOptions](https://developer.apple.com/documentation/devicemanagement/fdefilevaultoptions), [FDERecoveryKeyEscrow](https://developer.apple.com/documentation/devicemanagement/fderecoverykeyescrow), and [/Vendor/MSFT/Policy/Config/Update/](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-update) configuration profiles.
-
-- Default value: `false`
-- Environment variable: `FLEET_MDM_ENABLE_CUSTOM_OS_UPDATES_AND_FILEVAULT`
-- Config file format:
-  ```yaml
-  mdm:
-    enable_custom_os_updates_and_filevault: true
-  ```
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-enable_custom_os_updates_and_filevault) reference.
 
 ### logging.tracing_enabled
 
@@ -229,6 +217,8 @@ By default, OpenTelemetry is used. Set `tracing_type` to `elasticapm` only if yo
 
 Enables exporting logs to an OpenTelemetry collector in addition to stderr output. When enabled, logs are sent to the OTLP endpoint configured via the standard `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable. Logs are automatically correlated with traces via `trace_id` and `span_id` attributes.
 
+> **Note:** All log levels, including debug, are always sent to the OpenTelemetry collector regardless of the `logging.debug` setting. The `logging.debug` flag only controls what appears in stderr output.
+
 > **Note:** This option requires `logging.tracing_enabled` to be set to `true`. Fleet will fail to start if `otel_logs_enabled` is `true` but `tracing_enabled` is `false`.
 
 - Default value: `false`
@@ -239,6 +229,10 @@ Enables exporting logs to an OpenTelemetry collector in addition to stderr outpu
     tracing_enabled: true
     otel_logs_enabled: true
   ```
+
+### mdm.allow_all_declarations
+
+Documentation for setting has moved to the [Fleet server configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-allow-all-declarations) reference.
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS
 

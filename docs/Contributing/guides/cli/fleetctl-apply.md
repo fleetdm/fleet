@@ -15,30 +15,30 @@ The following example file includes several queries:
 ```yaml
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   name: osquery_info
   description: A heartbeat counter that reports general performance (CPU, memory) and version.
   query: select i.*, p.resident_size, p.user_time, p.system_time, time.minutes as counter from osquery_info i, processes p, time where p.pid = i.pid;
-  team: ""
+  fleet: ""
   interval: 3600 # 1 hour
   observer_can_run: true
   automations_enabled: true
   discard_data: false
 ---
 apiVersion: v1 
-kind: query 
+kind: report 
 spec: 
   name: Get serial number of a laptop 
   description: Returns the serial number of a laptop, which can be useful for asset tracking.
   query: SELECT hardware_serial FROM system_info; 
-  team: Workstations
+  fleet: Workstations
   interval: 0
   observer_can_run: true
   discard_data: false
 --- 
 apiVersion: v1 
-kind: query 
+kind: report 
 spec: 
   name: Get recently added or removed USB drives 
   description: Report event publisher health and track event counters. 
@@ -48,7 +48,7 @@ spec:
     LEFT JOIN mounts 
       ON mounts.device = disk_events.device
     ;
-  team: Workstations (Canary)
+  fleet: Workstations (Canary)
   interval: 86400 # 24 hours
   observer_can_run: false
   min_osquery_version: 5.4.0
@@ -60,7 +60,7 @@ spec:
 
 Continued edits and applications to this file will update the queries.
 
-If you want to change the name of a query, you must first create a new query with the new name and then delete the query with the old name via the UI or API.
+If you want to change the name of a report, you must first create a new report with the new name and then delete the report with the old name via the UI or API.
 
 ## Labels
 
@@ -119,7 +119,7 @@ Deploying a new enroll secret cannot be done centrally from Fleet.
 ### Multiple enroll secrets
 
 Fleet allows the abiility to maintain multiple enroll secrets. Some organizations have internal goals  around rotating secrets. Having multiple secrets allows some of them to work at the same time the rotation is happening.
-Another reason you might want to use multiple enroll secrets is to use a certain [team enroll secret](#team-enroll-secrets) to auto-enroll hosts into a specific [team](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
+Another reason you might want to use multiple enroll secrets is to use a certain [fleet enroll secret](#fleet-enroll-secrets) to auto-enroll hosts into a specific [fleet](https://fleetdm.com/docs/using-fleet/teams) (Fleet Premium).
 
 ### Rotating enroll secrets
 
@@ -127,114 +127,210 @@ Another reason you might want to use multiple enroll secrets is to use a certain
 2. Create a fleetd agent with the new enroll secret and install it on hosts.
 3. Delete the old enroll secret.
 
-## Teams
+## Fleets
 
 **Applies only to Fleet Premium**.
 
-The `team` YAML file controls a team in Fleet.
+The `fleet` YAML file controls a fleet of hosts.
 
-You can define one or more teams in the same file with `---`.
+You can define one or more fleet in the same file with `---`.
 
-The following example file includes one team:
+The following example file includes one fleet:
 
 ```yaml
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
-    name: Client Platform Engineering
-    features:
-      enable_host_users: false
-      enable_software_inventory: true
-      additional_queries:
-        time: SELECT * FROM time
-        macs: SELECT mac FROM interface_details
+  fleet:
+    name: "💻 Workstations"
     agent_options:
       config:
         decorators:
           load:
-            - SELECT uuid AS host_uuid FROM system_info;
-            - SELECT hostname AS hostname FROM system_info;
+          - SELECT uuid AS host_uuid FROM system_info;
+          - SELECT hostname AS hostname FROM system_info;
         options:
           disable_distributed: false
           distributed_interval: 10
           distributed_plugin: tls
           distributed_tls_max_attempts: 3
-          logger_tls_endpoint: /api/v1/osquery/log
+          logger_tls_endpoint: /api/osquery/log
           logger_tls_period: 10
           pack_delimiter: /
-      overrides: {}
-      command_line_flags: {}
+      update_channels:
+        desktop: edge
+        orbit: edge
+        osqueryd: edge
+    features:
+      enable_host_users: true
+      enable_software_inventory: true
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
+    integrations:
+      conditional_access_enabled: null
+      google_calendar:
+        enable_calendar_events: false
+        webhook_url: ""
+    mdm:
+      android_settings:
+        certificates: null
+        configuration_profiles: null
+      enable_disk_encryption: true
+      ios_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      apple_settings:
+        configuration_profiles: []
+      setup_experience:
+        macos_bootstrap_package: ""
+        enable_end_user_authentication: true
+        enable_release_device_manually: false
+        apple_setup_assistant: ""
+        manual_agent_install: false
+        require_all_software_macos: false
+        script: ""
+        software: []
+      macos_updates:
+        deadline: ""
+        minimum_version: ""
+        update_new_hosts: null
+      windows_require_bitlocker_pin: null
+      windows_settings:
+        configuration_profiles: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    scripts:
+    - /home/runner/work/fleet/fleet/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
+    - /home/runner/work/fleet/fleet/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - /home/runner/work/fleet/fleet/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh
+    - /home/runner/work/fleet/fleet/it-and-security/lib/linux/scripts/install-fleet-desktop-required-extension.sh
     secrets:
-      - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
-      - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    - created_at: "2026-02-08T05:25:21Z"
+      secret: tTavYeEwmUYzdnRlPICwVcFtPszkIvkf
+      fleet_id: 310
+    software:
+      app_store_apps: null
+      fleet_maintained_apps:
+      - categories: null
+        icon:
+          path: ""
+        install_script:
+          path: ""
+        labels_exclude_any: null
+        labels_include_any: null
+        post_install_script:
+          path: ""
+        pre_install_query:
+          path: ""
+        self_service: true
+        setup_experience: null
+        slug: santa/darwin
+        uninstall_script:
+          path: ""
+      - categories: null
+        icon:
+          path: ""
+        install_script:
+          path: ""
+        labels_exclude_any: null
+        labels_include_any: null
+        post_install_script:
+          path: ""
+        pre_install_query:
+          path: ""
+        self_service: true
+        setup_experience: null
+        slug: vnc-viewer/darwin
+        uninstall_script:
+          path: ""
+      - categories: null
+        icon:
+          path: ""
+        install_script:
+          path: ""
+        labels_exclude_any: null
+        labels_include_any: null
+        post_install_script:
+          path: ""
+        pre_install_query:
+          path: ""
+        self_service: true
+        setup_experience: null
+        slug: beyond-compare/darwin
+        uninstall_script:
+          path: ""
+      - categories: null
+        icon:
+          path: ""
+        install_script:
+          path: ""
+        labels_exclude_any: null
+        labels_include_any: null
+        post_install_script:
+          path: ""
+        pre_install_query:
+          path: ""
+        self_service: true
+        setup_experience: null
+        slug: iterm2/darwin
+        uninstall_script:
+          path: ""
+      packages: null
     webhook_settings:
+      failing_policies_webhook: null
       host_status_webhook:
         days_count: 0
         destination_url: ""
         enable_host_status_webhook: false
         host_percentage: 0
-    host_expiry_settings: 
-      host_expiry_enabled: true 
-      host_expiry_window: 14
-    mdm:
-      macos_updates:
-        minimum_version: "12.3.1"
-        deadline: "2022-01-04"
-      macos_settings:
-        custom_settings:
-          - path: '/path/to/profile1.mobileconfig'
-          - path: '/path/to/profile2.mobileconfig'
-          - path: '/path/to/profile3.mobileconfig'
-        enable_disk_encryption: true
-      windows_settings:
-        custom_settings:
-          - path: '/path/to/profile4.xml'
-          - path: '/path/to/profile5.xml'
-    scripts:
-        - path/to/script1.sh
-        - path/to/script2.sh
 ```
 
-### Team agent options
+### Fleet-level agent options
 
-The team agent options specify options that only apply to this team. When team-specific agent options have been specified, the agent options specified at the organization level are ignored for this team.
+The fleet-level agent options specify options that only apply to this fleet. When fleet-specific agent options have been specified, the agent options specified at the organization level are ignored for this fleet.
 
-The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: team` key and the location of the `agent_options` key under `team` must have a `name` key to identify the team to configure.)
+The documentation for this section is identical to the [Agent options](#agent-options) documentation for the organization settings, except that the YAML section where it is set must be as follows. (Note the `kind: fleet` key and the location of the `agent_options` key under `fleet` must have a `name` key to identify the fleet to configure.)
 
 ```yaml
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: Client Platform Engineering
     agent_options:
-      # the team-specific options go here
+      # the fleet-specific options go here
 ```
 
-### Team secrets
+### Fleet-level secrets
 
-The `secrets` section provides the list of enroll secrets that will be valid for this team. When a new team is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this team.
+The `secrets` section provides the list of enroll secrets that will be valid for this fleet. When a new fleet is created via `fleetctl apply`, an enroll secret is automatically generated for it. If the section is missing, the existing secrets are left unmodified. Otherwise, they are replaced with this list of secrets for this fleet.
 
 - Optional setting (array of dictionaries)
 - Default value: none (empty)
 - Config file format:
   ```yaml
-  team:
+  fleet:
     name: Client Platform Engineering
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
   ```
 
-### Modify an existing team
+### Modify an existing fleet
 
-You can modify an existing team by applying a new team configuration file with the same `name` as an existing team. The new team configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
+You can modify an existing fleet by applying a new fleet configuration file with the same `name` as an existing fleet. The new fleet configuration will completely replace the previous configuration. In order to avoid overriding existing settings, we recommend retrieving the existing configuration and modifying it.
 
-Retrieve the team configuration and output to a YAML file:
+Retrieve the fleet configuration and output to a YAML file:
 
 ```sh
-% fleetctl get teams --name Workstations --yaml > workstation_config.yml
+% fleetctl get fleets --name Workstations --yaml > workstation_config.yml
 ```
 After updating the generated YAML, apply the changes:
 
@@ -242,7 +338,7 @@ After updating the generated YAML, apply the changes:
 % fleetctl apply -f workstation_config.yml
 ```
 
-Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new team configuration:
+Depending on your Fleet version, you may see `unsupported key` errors for the following keys when applying the new fleet configuration:
 
 ```text
 id
@@ -261,34 +357,36 @@ webhook_settings
 
 You can bypass these errors by removing the key from your YAML or adding the `--force` flag. This flag will apply the changes without validation and should be used with caution.
 
-### Mobile device management (MDM) settings for teams
+`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts`  only include the settings applied using `fleetctl apply`. To list settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
 
-The `mdm` section of this configuration YAML lets you control MDM settings for each team in Fleet.
+### Mobile device management (MDM) settings for fleets
 
-To specify Team MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: team` field, as well as the  `name` and `mdm` fields under `team`.
+The `mdm` section of this configuration YAML lets you control MDM settings for each fleet.
+
+To specify fleet MDM configuration, as opposed to [Organization-wide MDM configuration](#mobile-device-management-mdm-settings), follow the below YAML format. Note the `kind: fleet` field, as well as the  `fleet` and `mdm` fields under `fleet`.
 
 ```yaml
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: Client Platform Engineering
     mdm:
-      # the team-specific mdm options go here
+      # the fleet-specific mdm options go here
 ```
 
-### Team scripts
+### Fleet-level scripts
 
-List of saved scripts that can be run on hosts that are part of the team.
+List of saved scripts that can be run on hosts that are part of the fleet.
 
 - Default value: none
 - Config file format:
 
 ```yaml
 apiVersion: v1
-kind: team
+kind: fleet
 spec:
-  team:
+  fleet:
     name: Client Platform Engineering
     scripts:
       - path/to/script1.sh
@@ -297,7 +395,7 @@ spec:
 
 ## Organization settings
 
-The `config` YAML file controls Fleet's organization settings and MDM features for hosts assigned to "No team."
+The `config` YAML file controls Fleet's organization settings and MDM features for hosts that are "Unassigned."
 
 The following example file shows the default organization settings:
 
@@ -340,9 +438,9 @@ spec:
   server_settings:
     deferred_save_host: false
     enable_analytics: true
-    live_query_disabled: false
-    query_reports_disabled: false
-    scripts_disabled: false
+    live_reports_disabled: false
+    reports_disabled: false
+    stored_results_disabled: false
     server_url: ""
   smtp_settings:
     authentication_method: authmethod_plain
@@ -394,19 +492,19 @@ spec:
       enable_vulnerabilities_webhook: false
       host_batch_size: 0
   mdm:
-    apple_bm_default_team: ""
+    apple_bm_default_fleet: ""
     windows_enabled_and_configured: false
     macos_updates:
       minimum_version: ""
       deadline: ""
-    macos_settings:
-      custom_settings:
+    apple_settings:
+      configuration_profiles:
         - path: '/path/to/profile1.mobileconfig'
         - path: '/path/to/profile2.mobileconfig'
         - path: '/path/to/profile3.mobileconfig'
       enable_disk_encryption: true
     windows_settings:
-      custom_settings:
+      configuration_profiles:
         - path: '/path/to/profile4.xml'
         - path: '/path/to/profile5.xml'
 ```

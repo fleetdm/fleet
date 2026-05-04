@@ -2,14 +2,14 @@ package fleet
 
 type CertificateRequestSpec struct {
 	Name                   string `json:"name"`
-	Team                   string `json:"team,omitempty"`
+	Team                   string `json:"team,omitempty" renameto:"fleet"`
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
 
 type CertificateTemplate struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id"`
+	TeamID                 uint   `json:"team_id" renameto:"fleet_id"`
 	CertificateAuthorityID uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
@@ -53,6 +53,14 @@ var (
 	CertificateTemplateDelivered  CertificateTemplateStatus = "delivered"
 	CertificateTemplateFailed     CertificateTemplateStatus = "failed"
 	CertificateTemplateVerified   CertificateTemplateStatus = "verified"
+)
+
+// CertificateActivityStatus represents the status of a certificate install activity.
+type CertificateActivityStatus string
+
+const (
+	CertificateActivityInstalled     CertificateActivityStatus = "installed"
+	CertificateActivityFailedInstall CertificateActivityStatus = "failed_install"
 )
 
 // CertificateTemplateStatusToMDMDeliveryStatus converts a CertificateTemplateStatus to MDMDeliveryStatus.

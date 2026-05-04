@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -17,6 +18,7 @@ const (
 	RoleObserver     = "observer"
 	RoleObserverPlus = "observer_plus"
 	RoleGitOps       = "gitops"
+	RoleTechnician   = "technician"
 	TeamNameNoTeam   = "No team"
 	TeamNameAllTeams = "All teams"
 )
@@ -26,10 +28,19 @@ const (
 	ReservedNameNoTeam   = "No team"
 )
 
-// IsReservedTeamName checks if the name provided is a reserved team name
+// Display names used in user-facing error messages.
+const (
+	DisplayNameNoTeam   = "Unassigned"
+	DisplayNameAllTeams = "All fleets"
+)
+
+// IsReservedTeamName checks if the name provided is a reserved fleet name (case-insensitive).
+// Both old names ("No team", "All teams") and new display names ("Unassigned", "All fleets")
+// are reserved to prevent creating teams with any of these names.
 func IsReservedTeamName(name string) bool {
-	normalizedName := norm.NFC.String(name)
-	return normalizedName == ReservedNameAllTeams || normalizedName == ReservedNameNoTeam
+	normalizedName := strings.ToLower(norm.NFC.String(name))
+	return normalizedName == "no team" || normalizedName == "all teams" ||
+		normalizedName == "unassigned" || normalizedName == "all fleets"
 }
 
 type TeamPayload struct {
@@ -47,7 +58,8 @@ type TeamPayload struct {
 // need to be able which part of the MDM config was provided in the request,
 // so the fields are pointers to structs.
 type TeamPayloadMDM struct {
-	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -172,6 +184,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
+	if !x.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		x.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(x.MDM.MacOSSetup.EnableEndUserAuthentication)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -259,6 +274,7 @@ type TeamSpecAppStoreApp struct {
 	SelfService      bool     `json:"self_service"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	LabelsIncludeAll []string `json:"labels_include_all"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
 	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
@@ -283,14 +299,15 @@ func (spec TeamSpecAppStoreApp) ResolvePaths(baseDir string) TeamSpecAppStoreApp
 }
 
 type TeamMDM struct {
-	EnableDiskEncryption bool                  `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  bool                  `json:"windows_require_bitlocker_pin"`
-	MacOSUpdates         AppleOSUpdateSettings `json:"macos_updates"`
-	IOSUpdates           AppleOSUpdateSettings `json:"ios_updates"`
-	IPadOSUpdates        AppleOSUpdateSettings `json:"ipados_updates"`
-	WindowsUpdates       WindowsUpdates        `json:"windows_updates"`
-	MacOSSettings        MacOSSettings         `json:"macos_settings"`
-	MacOSSetup           MacOSSetup            `json:"macos_setup"`
+	EnableDiskEncryption       bool                  `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword bool                  `json:"enable_recovery_lock_password"`
+	RequireBitLockerPIN        bool                  `json:"windows_require_bitlocker_pin"`
+	MacOSUpdates               AppleOSUpdateSettings `json:"macos_updates"`
+	IOSUpdates                 AppleOSUpdateSettings `json:"ios_updates"`
+	IPadOSUpdates              AppleOSUpdateSettings `json:"ipados_updates"`
+	WindowsUpdates             WindowsUpdates        `json:"windows_updates"`
+	MacOSSettings              MacOSSettings         `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup                 MacOSSetup            `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -316,7 +333,7 @@ func (t *TeamMDM) Copy() *TeamMDM {
 
 	clone := *t
 
-	// EnableDiskEncryption, MacOSUpdates and MacOSSetup don't have fields that
+	// EnableDiskEncryption, MacOS/IOS/IPadOS/WindowsUpdates don't have fields that
 	// require cloning (all fields are basic value types, no
 	// pointers/slices/maps).
 
@@ -355,7 +372,8 @@ func (t *TeamMDM) Copy() *TeamMDM {
 }
 
 type TeamSpecMDM struct {
-	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
+	EnableDiskEncryption       optjson.Bool `json:"enable_disk_encryption"`
+	EnableRecoveryLockPassword optjson.Bool `json:"enable_recovery_lock_password"`
 	// RequireBitLockerPIN indicates whether BitLocker PIN is required for Windows devices
 	// in order for Fleet to consider them compliant.
 	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
@@ -374,8 +392,8 @@ type TeamSpecMDM struct {
 	// custom_settings key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+	MacOSSettings map[string]any `json:"macos_settings" renameto:"apple_settings"`
+	MacOSSetup    MacOSSetup     `json:"macos_setup" renameto:"setup_experience"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -403,6 +421,15 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	// force-save as the default `false` value if not set
 	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
 		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		t.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		t.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !t.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		t.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 	return json.Marshal(t)
 }
@@ -475,11 +502,13 @@ var teamRoles = map[string]struct{}{
 	RoleAdmin:        {},
 	RoleObserver:     {},
 	RoleMaintainer:   {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumTeamRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
@@ -494,11 +523,13 @@ var globalRoles = map[string]struct{}{
 	RoleObserver:     {},
 	RoleMaintainer:   {},
 	RoleAdmin:        {},
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
 
 var premiumGlobalRoles = map[string]struct{}{
+	RoleTechnician:   {},
 	RoleObserverPlus: {},
 	RoleGitOps:       {},
 }
@@ -514,18 +545,18 @@ func ValidGlobalRole(role string) bool {
 func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	if globalRole == nil || *globalRole == "" {
 		if len(teamUsers) == 0 {
-			return NewError(ErrNoRoleNeeded, "either global role or team role needs to be defined")
+			return NewError(ErrNoRoleNeeded, "either global role or fleet role needs to be defined")
 		}
 		for _, t := range teamUsers {
 			if !ValidTeamRole(t.Role) {
-				return NewErrorf(ErrNoRoleNeeded, "invalid team role: %s", t.Role)
+				return NewErrorf(ErrNoRoleNeeded, "invalid fleet role: %s", t.Role)
 			}
 		}
 		return nil
 	}
 
 	if len(teamUsers) > 0 {
-		return NewError(ErrNoRoleNeeded, "Cannot specify both Global Role and Team Roles")
+		return NewError(ErrNoRoleNeeded, "Cannot specify both global and fleet-scoped roles")
 	}
 
 	if !ValidGlobalRole(*globalRole) {
@@ -533,6 +564,22 @@ func ValidateRole(globalRole *string, teamUsers []UserTeam) error {
 	}
 
 	return nil
+}
+
+// PremiumRolesPresent returns true if the provided globalRole or any
+// role in teamRoles is a premium role.
+func PremiumRolesPresent(globalRole *string, teamRoles []UserTeam) bool {
+	if globalRole != nil {
+		if _, ok := premiumGlobalRoles[*globalRole]; ok {
+			return true
+		}
+	}
+	for _, teamRole := range teamRoles {
+		if _, ok := premiumTeamRoles[teamRole.Role]; ok {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidateUserRoles verifies the roles to be applied to a new or existing user.
@@ -589,6 +636,11 @@ type TeamFilter struct {
 	// specified, they must met too (e.g. if a User is provided, that team ID
 	// must be part of their teams).
 	TeamID *uint
+	// ObserverTeamID, when set, restricts observer-role access to only this team.
+	// Used for live queries where observer_can_run is scoped to the query's own team,
+	// so that a user who is observer on multiple teams only sees hosts from the query's team.
+	// Non-observer roles (admin, maintainer, etc.) are not affected.
+	ObserverTeamID *uint
 }
 
 func (f TeamFilter) UserCanAccessSelectedTeam() bool {
@@ -600,7 +652,8 @@ func (f TeamFilter) UserCanAccessSelectedTeam() bool {
 }
 
 const (
-	TeamKind = "team"
+	TeamKind  = "team"
+	FleetKind = "fleet"
 )
 
 type TeamSpec struct {
@@ -672,6 +725,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	delete(mdmSpec.MacOSSettings, "enable_disk_encryption")
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
+	mdmSpec.EnableRecoveryLockPassword = optjson.SetBool(t.Config.MDM.EnableRecoveryLockPassword)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 

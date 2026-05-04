@@ -6,6 +6,7 @@ import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
 import local from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";
 import { INotification } from "interfaces/notification";
@@ -61,7 +62,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setIsLoading(true);
     try {
       const { token } = await usersAPI.setup(formData);
-      local.setItem("auth_token", token);
+      authToken.save(token);
 
       const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);

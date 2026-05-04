@@ -119,20 +119,25 @@ const TeamManagementPage = (): JSX.Element => {
           refetchTeams();
         })
         .catch((createError: { data: IApiError }) => {
-          if (createError.data.errors[0].reason.includes("Duplicate")) {
+          const rawReason = createError.data.errors[0].reason;
+          const errMsg = rawReason.toLowerCase();
+          if (errMsg.includes("must differ")) {
+            setBackendValidators({ name: rawReason });
+          } else if (errMsg.includes("duplicate")) {
             setBackendValidators({
-              name: "A team with this name already exists",
+              name: "A fleet with this name already exists",
             });
-          } else if (createError.data.errors[0].reason.includes("All teams")) {
+          } else if (
+            errMsg.includes("all teams") ||
+            errMsg.includes("all fleets") ||
+            errMsg.includes("no team") ||
+            errMsg.includes("unassigned")
+          ) {
             setBackendValidators({
-              name: `"All teams" is a reserved team name. Please try another name.`,
-            });
-          } else if (createError.data.errors[0].reason.includes("No team")) {
-            setBackendValidators({
-              name: `"No team" is a reserved team name. Please try another name.`,
+              name: `"${formData.name}" is a reserved fleet name. Please try another name.`,
             });
           } else {
-            renderFlash("error", "Could not create team. Please try again.");
+            renderFlash("error", "Could not create fleet. Please try again.");
             toggleCreateTeamModal();
           }
         })
@@ -188,7 +193,7 @@ const TeamManagementPage = (): JSX.Element => {
           .then(() => {
             renderFlash(
               "success",
-              `Successfully updated team name to ${formData.name}.`
+              `Successfully updated fleet name to ${formData.name}.`
             );
             setBackendValidators({});
             toggleRenameTeamModal();
@@ -196,19 +201,27 @@ const TeamManagementPage = (): JSX.Element => {
           })
           .catch((updateError: { data: IApiError }) => {
             console.error(updateError);
-            if (updateError.data.errors[0].reason.includes("Duplicate")) {
+            const rawReason = updateError.data.errors[0].reason;
+            const errMsg = rawReason.toLowerCase();
+            if (errMsg.includes("must differ")) {
+              setBackendValidators({ name: rawReason });
+            } else if (errMsg.includes("duplicate")) {
               setBackendValidators({
-                name: "A team with this name already exists",
+                name: "A fleet with this name already exists",
               });
             } else if (
-              updateError.data.errors[0].reason.includes("all teams")
+              errMsg.includes("all teams") ||
+              errMsg.includes("all fleets")
             ) {
               setBackendValidators({
-                name: `"All teams" is a reserved team name.`,
+                name: `"All fleets" is a reserved fleet name.`,
               });
-            } else if (updateError.data.errors[0].reason.includes("no team")) {
+            } else if (
+              errMsg.includes("no team") ||
+              errMsg.includes("unassigned")
+            ) {
               setBackendValidators({
-                name: `"No team" is a reserved team name. Please try another name.`,
+                name: `"Unassigned" is a reserved fleet name. Please try another name.`,
               });
             } else {
               renderFlash(
@@ -252,7 +265,7 @@ const TeamManagementPage = (): JSX.Element => {
       return <></>;
     }
 
-    return <TableCount name="teams" count={teams?.length} />;
+    return <TableCount name="fleets" count={teams?.length} />;
   }, [teams]);
 
   const disabledPrimaryActionTooltip = (() => {
@@ -288,13 +301,13 @@ const TeamManagementPage = (): JSX.Element => {
             defaultSortDirection="asc"
             actionButton={{
               name: "create team",
-              buttonText: "Create team",
+              buttonText: "Create fleet",
               variant: "default",
               onClick: toggleCreateTeamModal,
               hideButton: teams && teams.length === 0,
               disabledTooltipContent: disabledPrimaryActionTooltip,
             }}
-            resultsTitle="teams"
+            resultsTitle="fleets"
             emptyComponent={() => (
               <EmptyTeamsTable
                 className={noTeamsClass}

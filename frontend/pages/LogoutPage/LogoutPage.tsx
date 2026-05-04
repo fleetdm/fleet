@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import sessionsAPI from "services/entities/sessions";
-import { clearToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 interface ILogoutPageProps {
   router: InjectedRouter;
@@ -18,7 +18,7 @@ const LogoutPage = ({ router }: ILogoutPageProps) => {
     const logoutUser = async () => {
       try {
         await sessionsAPI.destroy();
-        clearToken();
+        authToken.remove();
         setTimeout(() => {
           window.location.href = isSandboxMode
             ? "https://www.fleetdm.com/logout"

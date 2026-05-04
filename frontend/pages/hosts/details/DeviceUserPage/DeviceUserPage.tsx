@@ -16,11 +16,7 @@ import deviceUserAPI, {
   IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
-import {
-  IMacadminsResponse,
-  IDeviceUserResponse,
-  IHostDevice,
-} from "interfaces/host";
+import { IMacadminsResponse, IDUPDetails, IHostDevice } from "interfaces/host";
 import { IListSort } from "interfaces/list_options";
 import { IHostPolicy } from "interfaces/policy";
 import { IDeviceGlobalConfig } from "interfaces/config";
@@ -29,7 +25,6 @@ import {
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
 import {
-  isAndroid,
   isMacOS,
   isAppleDevice,
   isLinuxLike,
@@ -47,7 +42,6 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import FlashMessage from "components/FlashMessage";
-import DataError from "components/DataError";
 import CustomLink from "components/CustomLink";
 
 import { normalizeEmptyValues } from "utilities/helpers";
@@ -87,10 +81,6 @@ import DeviceUserBanners from "./components/DeviceUserBanners";
 import CertificateDetailsModal from "../modals/CertificateDetailsModal";
 import CertificatesCard from "../cards/Certificates";
 import UserCard from "../cards/User";
-import {
-  generateChromeProfilesValues,
-  generateOtherEmailsValues,
-} from "../cards/User/helpers";
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
@@ -101,7 +91,6 @@ import BypassModal from "./BypassModal";
 
 const baseClass = "device-user";
 
-const defaultCardClass = `${baseClass}__card`;
 const fullWidthCardClass = `${baseClass}__card--full-width`;
 
 const PREMIUM_TAB_PATHS = [
@@ -234,9 +223,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const refetchExtensions = () => {
+  const refetchExtensions = useCallback(() => {
     deviceCertificates && refetchDeviceCertificates();
-  };
+  }, [deviceCertificates, refetchDeviceCertificates]);
 
   /**
    * Hides refetch spinner and resets refetch timer,
@@ -263,11 +252,11 @@ const DeviceUserPage = ({
   };
 
   const {
-    data: dupResponse,
-    isLoading: isLoadingHost,
-    error: isDeviceUserError,
-    refetch: refetchHostDetails,
-  } = useQuery<IDeviceUserResponse, AxiosError>(
+    data: dupDetails,
+    isLoading: isLoadingDupDetails,
+    error: isDupDetailsError,
+    refetch: refetchDupDetails,
+  } = useQuery<IDUPDetails, AxiosError>(
     ["host", deviceAuthToken],
     () =>
       deviceUserAPI.loadHostDetails({
@@ -300,7 +289,7 @@ const DeviceUserPage = ({
             if (responseHost.status === "online" || isIOSOrIPadOS) {
               setRefetchStartTime(Date.now());
               setTimeout(() => {
-                refetchHostDetails();
+                refetchDupDetails();
                 refetchExtensions();
               }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
             } else {
@@ -318,7 +307,7 @@ const DeviceUserPage = ({
                 responseHost.platform === "ipados";
               if (responseHost.status === "online" || isIOSOrIPadOS) {
                 setTimeout(() => {
-                  refetchHostDetails();
+                  refetchDupDetails();
                   refetchExtensions();
                 }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
               } else {
@@ -351,7 +340,7 @@ const DeviceUserPage = ({
   );
 
   const isAuthenticationError =
-    isDeviceUserError && isDeviceUserError.status === 401;
+    isDupDetailsError && isDupDetailsError.status === 401;
 
   const {
     host,
@@ -360,7 +349,7 @@ const DeviceUserPage = ({
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,
-  } = dupResponse || {};
+  } = dupDetails || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isIOSIPadOS = host?.platform === "ios" || host?.platform === "ipados";
@@ -402,12 +391,12 @@ const DeviceUserPage = ({
       refetchIntervalInBackground: true,
       select: (response) => {
         // Marshal the response to include a `type` property so we can differentiate
-        // between software, payload-free software, and script setup steps in the UI.
+        // between software, script-only software, and script setup steps in the UI.
         return [
           ...(response.setup_experience_results.software ?? []).map((s) => ({
             ...s,
             type: isSoftwareScriptSetup(s)
-              ? "software_script_run" // used for payload-free software
+              ? "software_script_run" // used for script-only software
               : "software_install",
           })),
           ...(response.setup_experience_results.scripts ?? []).map((s) => ({
@@ -477,9 +466,9 @@ const DeviceUserPage = ({
   );
 
   const bootstrapPackageData = {
-    status: host?.mdm.macos_setup?.bootstrap_package_status,
-    details: host?.mdm.macos_setup?.details,
-    name: host?.mdm.macos_setup?.bootstrap_package_name,
+    status: host?.mdm.setup_experience?.bootstrap_package_status,
+    details: host?.mdm.setup_experience?.details,
+    name: host?.mdm.setup_experience?.bootstrap_package_name,
   };
 
   const toggleOSSettingsModal = useCallback(() => {
@@ -499,7 +488,7 @@ const DeviceUserPage = ({
       await deviceUserAPI.refetch(deviceAuthToken);
       setRefetchStartTime(Date.now());
       setTimeout(() => {
-        refetchHostDetails();
+        refetchDupDetails();
         refetchExtensions();
       }, REFETCH_HOST_DETAILS_POLLING_INTERVAL);
     } catch (error) {
@@ -509,7 +498,7 @@ const DeviceUserPage = ({
   }, [
     host,
     deviceAuthToken,
-    refetchHostDetails,
+    refetchDupDetails,
     refetchExtensions,
     renderFlash,
   ]);
@@ -604,7 +593,11 @@ const DeviceUserPage = ({
       ).idx;
     };
 
-    if (!isLoadingHost && host && findSelectedTab(location.pathname) === -1) {
+    if (
+      !isLoadingDupDetails &&
+      host &&
+      findSelectedTab(location.pathname) === -1
+    ) {
       router.push(tabPaths[0]);
     }
 
@@ -613,22 +606,24 @@ const DeviceUserPage = ({
     const isSoftwareEnabled = !!globalConfig?.features
       ?.enable_software_inventory;
 
-    const showUsersCard =
-      isMacOS(host?.platform || "") ||
-      isAndroid(host?.platform || "") ||
-      generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
-      generateOtherEmailsValues(host?.end_users ?? []).length > 0;
-
     if (
       !host ||
-      isLoadingHost ||
+      isLoadingDupDetails ||
       isLoadingDeviceCertificates ||
       isLoadingSetupSteps
     ) {
       return <Spinner {...(isMobileView && { variant: "mobile" })} />;
     }
     if (isErrorSetupSteps) {
-      return <DataError description="Could not get software setup status." />;
+      return (
+        <div className={`${baseClass} main-content`}>
+          <DeviceUserError
+            isMobileView={isMobileView}
+            isMobileDevice={isMobileDevice}
+            isErrorSetupSteps={isErrorSetupSteps}
+          />
+        </div>
+      );
     }
     if (
       checkForSetupExperienceSoftware &&
@@ -679,11 +674,16 @@ const DeviceUserPage = ({
               hostSoftwareUpdatedAt={host.software_updated_at}
               hostDisplayName={host?.hostname || ""}
               isMobileView={shouldShowMobileUI}
+              mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
             />
           </div>
         </div>
       );
     }
+
+    const hasAnyCriticalFailingCAPolicy = host?.policies?.some(
+      (p) => p.response === "fail" && p.conditional_access_enabled && p.critical
+    );
 
     return (
       <>
@@ -695,10 +695,10 @@ const DeviceUserPage = ({
             mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
             connectedToFleetMdm={!!host.mdm.connected_to_fleet}
             macDiskEncryptionStatus={
-              host.mdm.macos_settings?.disk_encryption ?? null
+              host.mdm.apple_settings?.disk_encryption ?? null
             }
             diskEncryptionActionRequired={
-              host.mdm.macos_settings?.action_required ?? null
+              host.mdm.apple_settings?.action_required ?? null
             }
             onClickCreatePIN={() => setShowBitLockerPINModal(true)}
             onClickTurnOnMdm={onClickTurnOnMdm}
@@ -707,6 +707,7 @@ const DeviceUserPage = ({
             diskIsEncrypted={host.disk_encryption_enabled}
             diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
             mdmManualEnrolmentUrl={mdmManualEnrollUrl}
+            lastMdmEnrolledAt={host.last_mdm_enrolled_at}
           />
           <HostHeader
             summaryData={summaryData}
@@ -755,6 +756,7 @@ const DeviceUserPage = ({
                     isHostDetailsPolling={showRefetchSpinner}
                     hostSoftwareUpdatedAt={host.software_updated_at}
                     hostDisplayName={host?.hostname || ""}
+                    mdmEnrollmentStatus={host.mdm.enrollment_status || "Off"}
                   />
                 </TabPanel>
               )}
@@ -820,11 +822,10 @@ const DeviceUserPage = ({
                 <TabPanel>
                   <PoliciesCard
                     policies={host?.policies || []}
-                    isLoading={isLoadingHost}
+                    isLoading={isLoadingDupDetails}
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
-                    router={router}
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
                     }
@@ -849,9 +850,11 @@ const DeviceUserPage = ({
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
             policy={selectedPolicy}
+            isDeviceUser
             onResolveLater={
               globalConfig?.features?.enable_conditional_access &&
-              globalConfig.features?.enable_conditional_access_bypass
+              globalConfig.features?.enable_conditional_access_bypass &&
+              !hasAnyCriticalFailingCAPolicy
                 ? () => {
                     onCancelPolicyDetailsModal();
                     setShowBypassModal(true);
@@ -862,13 +865,11 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={
-              isMacOS(host.platform) || isWindows(host.platform)
-            }
+            canResendProfiles={isAppleHost || isWindows(host.platform)}
             platform={host.platform}
             hostMDMData={host.mdm}
             resendRequest={resendProfile}
-            onProfileResent={refetchHostDetails}
+            onProfileResent={refetchDupDetails}
             onClose={toggleOSSettingsModal}
           />
         )}
@@ -930,7 +931,7 @@ const DeviceUserPage = ({
             <li className="site-nav-item dup-org-logo" key="dup-org-logo">
               <div className="site-nav-item__logo-wrapper">
                 <div className="site-nav-item__logo">
-                  {isLoadingHost ? (
+                  {isLoadingDupDetails ? (
                     <Spinner includeContainer={false} centered={false} />
                   ) : (
                     <OrgLogoIcon className="logo" src={orgLogoURL} />
@@ -942,7 +943,7 @@ const DeviceUserPage = ({
           {isMobileView && (
             <div className="site-nav-better-link">
               <CustomLink
-                url="https://www.fleetdm.com/better"
+                url={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
                 text="About Fleet"
                 newTab
               />
@@ -950,17 +951,21 @@ const DeviceUserPage = ({
           )}
         </div>
       </nav>
-      {isDeviceUserError || enrollUrlError ? (
+      {isDupDetailsError || enrollUrlError ? (
         <DeviceUserError
           isMobileView={isMobileView}
           isMobileDevice={isMobileDevice}
           isAuthenticationError={!!isAuthenticationError}
-          platform={host?.platform}
         />
       ) : (
         <div className={coreWrapperClassnames}>{renderDeviceUserPage()}</div>
       )}
-      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
+      {showInfoModal && (
+        <InfoModal
+          onCancel={toggleInfoModal}
+          transparencyURL={PATHS.DEVICE_TRANSPARENCY(deviceAuthToken)}
+        />
+      )}
       {showBypassModal && (
         <BypassModal
           onCancel={toggleShowBypassModal}
@@ -972,7 +977,7 @@ const DeviceUserPage = ({
                 "success",
                 "Access has been temporarily restored. You may now attempt to sign in again."
               );
-              refetchHostDetails();
+              refetchDupDetails();
             } catch {
               renderFlash(
                 "error",

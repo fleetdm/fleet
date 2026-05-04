@@ -1,4 +1,10 @@
-import React, { createContext, useReducer, useMemo, ReactNode } from "react";
+import React, {
+  createContext,
+  useReducer,
+  useMemo,
+  useCallback,
+  ReactNode,
+} from "react";
 
 import { IConfig, IUserSettings } from "interfaces/config";
 import { IEnrollSecret } from "interfaces/enroll_secret";
@@ -164,6 +170,9 @@ type InitialStateType = {
   isTeamMaintainerOrTeamAdmin?: boolean;
   isAnyTeamAdmin?: boolean;
   isTeamAdmin?: boolean;
+  isTeamTechnician?: boolean;
+  isAnyTeamTechnician?: boolean;
+  isGlobalTechnician?: boolean;
   isOnlyObserver?: boolean;
   isObserverPlus?: boolean;
   isNoAccess?: boolean;
@@ -235,6 +244,9 @@ export const initialState = {
   isTeamMaintainerOrTeamAdmin: undefined,
   isAnyTeamAdmin: undefined,
   isTeamAdmin: undefined,
+  isTeamTechnician: undefined,
+  isAnyTeamTechnician: undefined,
+  isGlobalTechnician: undefined,
   isOnlyObserver: undefined,
   isObserverPlus: undefined,
   isNoAccess: undefined,
@@ -304,6 +316,7 @@ const setPermissions = (
     isGlobalAdmin: permissions.isGlobalAdmin(user),
     isGlobalMaintainer: permissions.isGlobalMaintainer(user),
     isGlobalObserver: permissions.isGlobalObserver(user),
+    isGlobalTechnician: permissions.isGlobalTechnician(user),
     isOnGlobalTeam: permissions.isOnGlobalTeam(user),
     isAnyTeamObserverPlus: permissions.isAnyTeamObserverPlus(user),
     isAnyTeamMaintainer: permissions.isAnyTeamMaintainer(user),
@@ -314,6 +327,8 @@ const setPermissions = (
     isTeamObserver: permissions.isTeamObserver(user, teamId),
     isTeamMaintainer: permissions.isTeamMaintainer(user, teamId),
     isTeamAdmin: permissions.isTeamAdmin(user, teamId),
+    isTeamTechnician: permissions.isTeamTechnician(user, teamId),
+    isAnyTeamTechnician: permissions.isAnyTeamTechnician(user),
     isTeamMaintainerOrTeamAdmin: permissions.isTeamMaintainerOrTeamAdmin(
       user,
       teamId
@@ -322,6 +337,24 @@ const setPermissions = (
     isObserverPlus: permissions.isObserverPlus(user, teamId),
     isNoAccess: permissions.isNoAccess(user),
   };
+};
+
+export const sortAvailableTeams = (
+  availableFleets: ITeamSummary[],
+  user: IUser | null
+): ITeamSummary[] => {
+  const sortedFleets = [...availableFleets]
+    .sort((a, b) => sort.caseInsensitiveAsc(a.name, b.name))
+    .filter(
+      (t) =>
+        t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
+        t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
+    );
+  if (user && permissions.isOnGlobalTeam(user)) {
+    sortedFleets.unshift(APP_CONTEXT_ALL_TEAMS_SUMMARY);
+    sortedFleets.push(APP_CONTEXT_NO_TEAM_SUMMARY);
+  }
+  return sortedFleets;
 };
 
 const reducer = (state: InitialStateType, action: IAction) => {
@@ -334,27 +367,9 @@ const reducer = (state: InitialStateType, action: IAction) => {
       };
     }
     case ACTIONS.SET_AVAILABLE_TEAMS: {
-      const { user, availableTeams } = action;
-
-      let sortedTeams = availableTeams.sort(
-        (a: ITeamSummary, b: ITeamSummary) =>
-          sort.caseInsensitiveAsc(a.name, b.name)
-      );
-      sortedTeams = sortedTeams.filter(
-        (t) =>
-          t.name !== APP_CONTEXT_ALL_TEAMS_SUMMARY.name &&
-          t.name !== APP_CONTEXT_NO_TEAM_SUMMARY.name
-      );
-      if (user && permissions.isOnGlobalTeam(user)) {
-        sortedTeams.unshift(
-          APP_CONTEXT_ALL_TEAMS_SUMMARY,
-          APP_CONTEXT_NO_TEAM_SUMMARY
-        );
-      }
-
       return {
         ...state,
-        availableTeams: sortedTeams,
+        availableTeams: sortAvailableTeams(action.availableTeams, action.user),
       };
     }
     case ACTIONS.SET_CURRENT_USER: {
@@ -477,6 +492,89 @@ export const AppContext = createContext<InitialStateType>(initialState);
 const AppProvider = ({ children }: Props): JSX.Element => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
+  // Stable setter functions - dispatch is stable, so these won't change
+  const setAvailableTeams = useCallback(
+    (user: IUser | null, availableTeams: ITeamSummary[]) => {
+      dispatch({ type: ACTIONS.SET_AVAILABLE_TEAMS, user, availableTeams });
+    },
+    []
+  );
+
+  const setUserSettings = useCallback((userSettings: IUserSettings) => {
+    dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
+  }, []);
+
+  const setCurrentUser = useCallback((currentUser: IUser) => {
+    dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
+  }, []);
+
+  const setCurrentTeam = useCallback(
+    (currentTeam: ITeamSummary | undefined) => {
+      dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
+    },
+    []
+  );
+
+  const setConfig = useCallback((config: IConfig) => {
+    dispatch({ type: ACTIONS.SET_CONFIG, config });
+  }, []);
+
+  const setEnrollSecret = useCallback((enrollSecret: IEnrollSecret[]) => {
+    dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
+  }, []);
+
+  const setAndroidEnterpriseDeleted = useCallback((isDeleted: boolean) => {
+    dispatch({ type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED, isDeleted });
+  }, []);
+
+  const setABMExpiry = useCallback((abmExpiry: IAbmExpiry) => {
+    dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
+  }, []);
+
+  const setAPNsExpiry = useCallback((apnsExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
+  }, []);
+
+  const setVppExpiry = useCallback((vppExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_VPP_EXPIRY, vppExpiry });
+  }, []);
+
+  const setSandboxExpiry = useCallback((sandboxExpiry: string) => {
+    dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
+  }, []);
+
+  const setNoSandboxHosts = useCallback((noSandboxHosts: boolean) => {
+    dispatch({ type: ACTIONS.SET_NO_SANDBOX_HOSTS, noSandboxHosts });
+  }, []);
+
+  const setFilteredHostsPath = useCallback((filteredHostsPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
+  }, []);
+
+  const setFilteredSoftwarePath = useCallback(
+    (filteredSoftwarePath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
+        filteredSoftwarePath,
+      });
+    },
+    []
+  );
+
+  const setFilteredQueriesPath = useCallback((filteredQueriesPath: string) => {
+    dispatch({ type: ACTIONS.SET_FILTERED_QUERIES_PATH, filteredQueriesPath });
+  }, []);
+
+  const setFilteredPoliciesPath = useCallback(
+    (filteredPoliciesPath: string) => {
+      dispatch({
+        type: ACTIONS.SET_FILTERED_POLICIES_PATH,
+        filteredPoliciesPath,
+      });
+    },
+    []
+  );
+
   const value = useMemo(
     () => ({
       availableTeams: state.availableTeams,
@@ -519,6 +617,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       isTeamObserver: state.isTeamObserver,
       isTeamMaintainer: state.isTeamMaintainer,
       isTeamAdmin: state.isTeamAdmin,
+      isTeamTechnician: state.isTeamTechnician,
+      isAnyTeamTechnician: state.isAnyTeamTechnician,
+      isGlobalTechnician: state.isGlobalTechnician,
       isTeamMaintainerOrTeamAdmin: state.isTeamMaintainerOrTeamAdmin,
       isAnyTeamAdmin: state.isAnyTeamAdmin,
       isOnlyObserver: state.isOnlyObserver,
@@ -531,79 +632,22 @@ const AppProvider = ({ children }: Props): JSX.Element => {
         state.isAnyTeamMaintainer ||
         state.isObserverPlus ||
         state.isAnyTeamObserverPlus,
-      setAvailableTeams: (
-        user: IUser | null,
-        availableTeams: ITeamSummary[]
-      ) => {
-        dispatch({
-          type: ACTIONS.SET_AVAILABLE_TEAMS,
-          user,
-          availableTeams,
-        });
-      },
-      setUserSettings: (userSettings: IUserSettings) => {
-        dispatch({ type: ACTIONS.SET_USER_SETTINGS, userSettings });
-      },
-      setCurrentUser: (currentUser: IUser) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_USER, currentUser });
-      },
-      setCurrentTeam: (currentTeam: ITeamSummary | undefined) => {
-        dispatch({ type: ACTIONS.SET_CURRENT_TEAM, currentTeam });
-      },
-      setConfig: (config: IConfig) => {
-        dispatch({ type: ACTIONS.SET_CONFIG, config });
-      },
-      setEnrollSecret: (enrollSecret: IEnrollSecret[]) => {
-        dispatch({ type: ACTIONS.SET_ENROLL_SECRET, enrollSecret });
-      },
-      setAndroidEnterpriseDeleted: (isDeleted: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_ANDROID_ENTERPRISE_DELETED,
-          isDeleted,
-        });
-      },
-      setABMExpiry: (abmExpiry: IAbmExpiry) => {
-        dispatch({ type: ACTIONS.SET_ABM_EXPIRY, abmExpiry });
-      },
-      setAPNsExpiry: (apnsExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_APNS_EXPIRY, apnsExpiry });
-      },
-      setVppExpiry: (vppExpiry: string) => {
-        dispatch({
-          type: ACTIONS.SET_VPP_EXPIRY,
-          vppExpiry,
-        });
-      },
-      setSandboxExpiry: (sandboxExpiry: string) => {
-        dispatch({ type: ACTIONS.SET_SANDBOX_EXPIRY, sandboxExpiry });
-      },
-      setNoSandboxHosts: (noSandboxHosts: boolean) => {
-        dispatch({
-          type: ACTIONS.SET_NO_SANDBOX_HOSTS,
-          noSandboxHosts,
-        });
-      },
-      setFilteredHostsPath: (filteredHostsPath: string) => {
-        dispatch({ type: ACTIONS.SET_FILTERED_HOSTS_PATH, filteredHostsPath });
-      },
-      setFilteredSoftwarePath: (filteredSoftwarePath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_SOFTWARE_PATH,
-          filteredSoftwarePath,
-        });
-      },
-      setFilteredQueriesPath: (filteredQueriesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_QUERIES_PATH,
-          filteredQueriesPath,
-        });
-      },
-      setFilteredPoliciesPath: (filteredPoliciesPath: string) => {
-        dispatch({
-          type: ACTIONS.SET_FILTERED_POLICIES_PATH,
-          filteredPoliciesPath,
-        });
-      },
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     }),
     [
       state.abmExpiry,
@@ -637,6 +681,9 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.isPremiumTier,
       state.isSandboxMode,
       state.isTeamAdmin,
+      state.isTeamTechnician,
+      state.isAnyTeamTechnician,
+      state.isGlobalTechnician,
       state.isTeamMaintainer,
       state.isTeamMaintainerOrTeamAdmin,
       state.isTeamObserver,
@@ -650,6 +697,23 @@ const AppProvider = ({ children }: Props): JSX.Element => {
       state.willAppleBmExpire,
       state.willApplePnsExpire,
       state.willVppExpire,
+      // Stable setters (useCallback with empty deps)
+      setAvailableTeams,
+      setUserSettings,
+      setCurrentUser,
+      setCurrentTeam,
+      setConfig,
+      setEnrollSecret,
+      setAndroidEnterpriseDeleted,
+      setABMExpiry,
+      setAPNsExpiry,
+      setVppExpiry,
+      setSandboxExpiry,
+      setNoSandboxHosts,
+      setFilteredHostsPath,
+      setFilteredSoftwarePath,
+      setFilteredQueriesPath,
+      setFilteredPoliciesPath,
     ]
   );
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

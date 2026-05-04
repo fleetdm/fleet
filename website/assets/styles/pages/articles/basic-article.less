@@ -1,3 +1,4 @@
+// lesshint-disable spaceAroundComma
 #basic-article {
   h1 {
     font-size: 36px;
@@ -53,6 +54,7 @@
     font-size: 14px;
     [purpose='breadcrumbs'] {
       margin-right: 24px;
+      max-width: 690px;
     }
     [purpose='search'] {
       // Note: We're using classes here to override the default Docsearch styles;
@@ -145,9 +147,9 @@
 
     [purpose='breadcrumbs-category'] {
       color: #8B8FA2;
-      text-transform: capitalize;
       margin-right: 8px;
       text-decoration: none;
+      white-space: nowrap;
       &:hover {
         color: #192147;
         text-decoration: none;
@@ -503,7 +505,7 @@
       padding-bottom: 16px;
     }
     li::marker {
-      color: @core-vibrant-blue;
+      color: @core-vibrant-green;
     }
     .markdown-heading {
       scroll-margin-top: 140px;
@@ -517,7 +519,7 @@
         align-self: center;
       }
       input:checked, input:active {
-        accent-color: @core-vibrant-blue;
+        accent-color: @core-vibrant-green;
       }
       [purpose='task'] {
         margin-left: 16px;
@@ -612,6 +614,40 @@
         line-height: 16px;
         color: @core-fleet-black;
       }
+
+      .hljs-keyword,
+      .hljs-selector-tag,
+      .hljs-name {
+        color: #515774;
+      }
+      .hljs-built_in {
+        color: #4271ae;
+      }
+      .hljs-variable {
+        color: #c82829;
+      }
+      .hljs-symbol,
+      .hljs-attribute,
+      .hljs-function-keyword,
+      .hljs-attr,
+      .hljs-class,
+      .hljs-title,
+      .hljs-string,
+      .hljs-type,
+      .hljs-builtin-name,
+      .hljs-selector-id,
+      .hljs-selector-attr,
+      .hljs-selector-pseudo,
+      .hljs-addition,
+      .hljs-template-variable {
+        color: #4fd061;
+      }
+      .hljs-comment,
+      .hljs-deletion,
+      .hljs-meta {
+        color: @core-fleet-black-50;
+      }
+
       padding: 24px;
       border: 1px solid #E2E4EA;
       border-radius: 6px;
@@ -712,62 +748,10 @@
       height: 17px;
     }
     [purpose='checklist'] {
-      margin-bottom: 32px;
-      p {
-        font-size: 16px;
-        line-height: 150%;
-        font-style: normal;
-        font-weight: 400;
-        padding-left: 40px;
-        text-indent: -40px;
-        margin-bottom: 16px;
-        padding-top: 12px;
-        padding-bottom: 12px;
-        &:last-of-type {
-          margin-bottom: 0px;
-        }
-      }
-      p::before {
-        content: ' ';
-        background-image: url('/images/icon-checkbox-checked-24x24@2x.png');
-        background-size: 24px 24px;
-        display: inline-block;
-        position: relative;
-        top: 7px;
-        margin-right: 16px;
-        width: 24px;
-        height: 24px;
-      }
+      .article-checklist();
     }
     [purpose='tip'] {
-      margin: 16px 0 32px;
-      background: #F7F7FC;
-      border: 1px solid @core-vibrant-blue-50;
-      padding: 16px;
-      border-radius: 8px;
-      display: flex;
-      img {
-        display: flex;
-        margin: 4px 12px 0 0;
-        height: 16px;
-        width: 16px;
-        padding: 0px;
-      }
-      p {
-        display: block;
-        margin-bottom: 16px;
-        line-height: 24px;
-        font-size: 16px;
-      }
-      p:only-child, p:last-child {
-        margin-bottom: 0px;
-      }
-      ul:last-child {
-        margin-bottom: 0px;
-      }
-      li:last-child {
-        padding-bottom: 0px;
-      }
+      .tip-block();
     }
     [purpose='embedded-content'] {
       position: relative;

@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 import { isEmpty, omit } from "lodash";
 
 import useDeepEffect from "hooks/useDeepEffect";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import PATHS from "router/paths";
 
@@ -33,7 +34,6 @@ import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import CustomLink from "components/CustomLink";
 import validUrl from "components/forms/validators/valid_url";
@@ -133,8 +133,10 @@ const ManageAutomationsModal = ({
     setSelectedIntegration,
   ] = useState<IIntegration>();
 
-  const { config: globalConfigFromContext } = useContext(AppContext);
-  const gitOpsModeEnabled = globalConfigFromContext?.gitops.gitops_mode_enabled;
+  const { config: globalConfigFromContext, isFreeTier } = useContext(
+    AppContext
+  );
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const maxAgeInNanoseconds = isGlobalSWConfig(softwareConfig)
     ? softwareConfig.vulnerabilities.recent_vulnerability_max_age
@@ -376,11 +378,20 @@ const ManageAutomationsModal = ({
     return (
       <>
         <div className={`${baseClass}__software-automation-description`}>
-          A ticket will be created in your <b>Integration</b> if a detected
-          vulnerability (CVE) was published in the last{" "}
-          {recentVulnerabilityMaxAge ||
-            CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
-          days.
+          {isFreeTier ? (
+            <>
+              A ticket will be created in your <b>Integration</b> for each
+              detected vulnerability (CVE).
+            </>
+          ) : (
+            <>
+              A ticket will be created in your <b>Integration</b> if a detected
+              vulnerability (CVE) was published in the last{" "}
+              {recentVulnerabilityMaxAge ||
+                CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
+              days.
+            </>
+          )}
         </div>
         {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||
         (zendeskIntegrationsIndexed &&
@@ -427,9 +438,18 @@ const ManageAutomationsModal = ({
       <>
         <div className={`${baseClass}__software-automation-description`}>
           <p>
-            A request will be sent to your configured <b>Destination URL</b> if
-            a detected vulnerability (CVE) was published in the last{" "}
-            {recentVulnerabilityMaxAge || "30"} days.
+            {isFreeTier ? (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                for each detected vulnerability (CVE).
+              </>
+            ) : (
+              <>
+                A request will be sent to your configured <b>Destination URL</b>{" "}
+                if a detected vulnerability (CVE) was published in the last{" "}
+                {recentVulnerabilityMaxAge || "30"} days.
+              </>
+            )}
           </p>
         </div>
         <InputField
@@ -513,6 +533,7 @@ const ManageAutomationsModal = ({
     );
     return (
       <GitOpsModeTooltipWrapper
+        entityType="software"
         renderChildren={renderRawButton}
         tipOffset={6}
       />

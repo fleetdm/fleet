@@ -1,3 +1,5 @@
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
 import Card from "components/Card";
 import { ISetupStep } from "interfaces/setup";
 import Icon from "components/Icon";
@@ -40,7 +42,14 @@ const SettingUpYourDevice = ({
       <>
         <p>
           Your organization requires that critical software be installed before
-          you use your device. <b>{failedSoftware.name}</b> failed to install.
+          you use your device.{" "}
+          <b>
+            {getDisplayedSoftwareName(
+              failedSoftware.name,
+              failedSoftware.display_name
+            )}
+          </b>{" "}
+          failed to install.
         </p>
         <p>
           <Icon name="error-outline" color="status-error" size="small" />{" "}

@@ -95,7 +95,11 @@ const SingleFlashMessage = ({
       <div className={`${baseClass}__content`}>
         <Icon
           name={alertType === "success" ? "success" : "error"}
-          color="core-fleet-white"
+          // Static (un-themed) so icon stays light on the colored toast
+          // surface in both light and dark mode.
+          color={
+            alertType === "warning-filled" ? "static-black" : "static-white"
+          }
         />
         <span>{message}</span>
       </div>
@@ -108,9 +112,7 @@ const SingleFlashMessage = ({
             <Icon
               name="close"
               color={
-                alertType === "warning-filled"
-                  ? "core-fleet-black"
-                  : "core-fleet-white"
+                alertType === "warning-filled" ? "static-black" : "static-white"
               }
             />
           </button>

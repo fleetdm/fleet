@@ -17,11 +17,6 @@ config:
     distributed_tls_max_attempts: 3
     logger_tls_endpoint: /api/osquery/log
     logger_tls_period: 10
-  command_line_flags: # requires Fleet's agent (fleetd)
-    verbose: true
-    disable_watchdog: false
-    disable_tables: chrome_extensions
-    logger_path: /path/to/logger
   decorators:
     load:
       - "SELECT version FROM osquery_info"
@@ -43,6 +38,11 @@ config:
       - /Users/wxs/sigs/bar.sig
       sig_group_2:
       - /Users/wxs/sigs/baz.sig
+command_line_flags:
+  verbose: true
+  disable_watchdog: false
+  disable_tables: chrome_extensions
+  logger_path: /path/to/logger
 ```
 
 ### options and command_line_flags
@@ -56,7 +56,7 @@ To see a description for all available settings, first [enroll your host](https:
 osquery > SELECT name, default_value, value, description FROM osquery_flags; 
 ```
 
-Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in agent options. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the query as a live query in Fleet.
+Running the interactive osquery shell loads a standalone instance of osquery, with a default configuration rather than the one set in agent options. If you'd like to verify that your hosts are running with the latest settings set in `options`, run the report as a live report in Fleet.
 
 > If you revoke an old enroll secret, the `command_line_flags` won't update for hosts that enrolled to Fleet using this old enroll secret. This is because fleetd uses the enroll secret to receive new flags from Fleet. For these hosts, all existing features will work as expected.
 
@@ -73,7 +73,7 @@ fleetctl apply --force -f config.yaml
 In the `decorators` key, you can specify queries to include additional information in your osquery results logs.
 
 - `load` are queries you want to update values when the configuration loads.
-- `always` are queries to update every time a scheduled query is run.
+- `always` are queries to update every time a scheduled report is run.
 - `interval` are queries you want to update on a schedule.
 
 ### yara
@@ -84,7 +84,7 @@ You can use Fleet to configure the `yara` and `yara_events` osquery tables, used
 
 > This feature requires a custom TUF [auto-update server](https://fleetdm.com/guides/fleetd-updates) (available in Fleet Premium).
 
-The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
+The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a specific fleet specific or global across all fleets.
 
 #### Example
 
@@ -201,6 +201,10 @@ _Available in Fleet Premium_
 
 Users can configure fleetd component TUF [auto-update channels](https://fleetdm.com/docs/using-fleet/enroll-hosts#specifying-update-channels) from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
 
+New agents default to the latest versions unless specific versions are set in the `fleetctl package` command. If `update_channels` specifies versions, agents will use those instead, even if it means downgrading (e.g., generating at 1.53.1 but enrolling with `update_channels.orbit` set to 1.50.0).
+
+> Because Fleet moved the update server from tuf.fleetctl.com to updates.fleetdm.com, Orbit versions below 1.38.1 can’t upgrade directly to newer versions. You’ll see this error in Orbit logs: `update failed error="lookup failed: lookup orbit: tuf: file not found`. To upgrade from a version below 1.38.1 (e.g., 1.29.1) to a newer version (e.g., 1.50.2), first upgrade to 1.38.1, wait for agents to update, then upgrade to the newer version.
+
 #### Examples
 
 ```yaml
@@ -293,7 +297,7 @@ You can use Fleet to query local SQLite databases as tables. For more informatio
 
 ## script_execution_timeout
 
-The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `3600`).
+The `script_execution_timeout` allows you to change the default script execution timeout (default: `300` seconds, maximum: `18000`).
 
 #### Example
 

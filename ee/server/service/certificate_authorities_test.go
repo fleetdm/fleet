@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/est"
+	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -20,7 +22,6 @@ import (
 	scep_mock "github.com/fleetdm/fleet/v4/server/mock/scep"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -200,7 +201,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          log.NewLogfmtLogger(os.Stdout),
+			logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
@@ -877,7 +878,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESInvalidError("some error")
+				return scep.NewNDESInvalidError("some error")
 			},
 		}
 
@@ -902,7 +903,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESPasswordCacheFullError("mock error")
+				return scep.NewNDESPasswordCacheFullError("mock error")
 			},
 		}
 
@@ -927,7 +928,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		svc.scepConfigService = &scep_mock.SCEPConfigService{
 			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
 			ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-				return NewNDESInsufficientPermissionsError("mock error")
+				return scep.NewNDESInsufficientPermissionsError("mock error")
 			},
 		}
 
@@ -1195,7 +1196,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		require.NoError(t, err)
 
 		svc := &Service{
-			logger:          log.NewLogfmtLogger(os.Stdout),
+			logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 			ds:              ds,
 			authz:           authorizer,
 			digiCertService: digicert.NewService(),
@@ -1710,7 +1711,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESInvalidError("some error")
+					return scep.NewNDESInvalidError("some error")
 				},
 			}
 
@@ -1730,7 +1731,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESPasswordCacheFullError("some error")
+					return scep.NewNDESPasswordCacheFullError("some error")
 				},
 			}
 
@@ -1750,7 +1751,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 			svc.scepConfigService = &scep_mock.SCEPConfigService{
 				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
-					return NewNDESInsufficientPermissionsError("some error")
+					return scep.NewNDESInsufficientPermissionsError("some error")
 				},
 			}
 

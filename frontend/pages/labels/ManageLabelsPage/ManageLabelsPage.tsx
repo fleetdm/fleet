@@ -6,8 +6,10 @@ import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+import getDeleteLabelErrorMessages from "pages/labels/helpers";
 
 import { ILabel } from "interfaces/label";
 
@@ -33,7 +35,13 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
   } = useContext(AppContext);
+
+  const { gitOpsModeEnabled: labelsGitOpsManaged, repoURL } = useGitOpsMode(
+    "labels"
+  );
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -58,11 +66,8 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         await labelsAPI.destroy(labelToDelete);
         renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
         refetch();
-      } catch {
-        renderFlash(
-          "error",
-          `Could not delete ${labelToDelete.name}. Please try again.`
-        );
+      } catch (err) {
+        renderFlash("error", getDeleteLabelErrorMessages(err));
       } finally {
         setLabelToDelete(null);
         setIsUpdating(false);
@@ -89,7 +94,11 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
   );
 
   const canAddLabel =
-    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isAnyTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
+    isAnyTeamTechnician;
 
   const renderTable = useCallback(() => {
     if (isLoading || !currentUser || !labels) {
@@ -103,6 +112,8 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
         currentUser={currentUser}
         labels={labels}
         onClickAction={onClickAction}
+        labelsGitOpsManaged={labelsGitOpsManaged}
+        repoURL={repoURL}
       />
     );
   }, [currentUser, error, isLoading, labels, onClickAction]);

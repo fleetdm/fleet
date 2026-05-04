@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import teamInterface, { ITeam } from "./team";
 import { IUserSettings } from "./config";
+import { IApiEndpointRef } from "./api_endpoint";
 
 export default PropTypes.shape({
   created_at: PropTypes.string,
@@ -23,6 +24,7 @@ export const USERS_ROLES = [
   "maintainer",
   "observer",
   "observer_plus",
+  "technician",
 ] as const;
 export type IUserRole = typeof USERS_ROLES[number];
 export type UserRole =
@@ -30,11 +32,13 @@ export type UserRole =
   | "maintainer"
   | "observer"
   | "observer_plus"
+  | "technician"
   | "gitops"
   | "Admin"
   | "Maintainer"
   | "Observer"
   | "Observer+"
+  | "Technician"
   | "GitOps"
   | "Unassigned"
   | ""
@@ -46,7 +50,7 @@ export interface IUser {
   id: number;
   name: string;
   email: string;
-  role: UserRole;
+  role?: UserRole;
   force_password_reset: boolean;
   gravatar_url?: string;
   gravatar_url_dark?: string;
@@ -55,6 +59,8 @@ export interface IUser {
   global_role: UserRole | null;
   api_only: boolean;
   teams: ITeam[];
+  fleets: ITeam[]; // This will eventually replace `teams`, but for now we need both to avoid breaking changes.
+  api_endpoints?: IApiEndpointRef[];
 }
 
 /**
@@ -76,6 +82,8 @@ export interface IUserFormErrors {
   name?: string | null;
   password?: string | null;
   sso_enabled?: boolean | null;
+  api_endpoints?: string | null;
+  teams?: string | null;
 }
 export interface IResetPasswordFormErrors {
   new_password?: string | null;
@@ -93,7 +101,7 @@ export interface ILoginUserData {
 }
 
 export interface ICreateUserFormData {
-  email: string;
+  email?: string;
   global_role: UserRole | null;
   name: string;
   password?: string | null;

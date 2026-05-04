@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"strconv"
 	"strings"
@@ -15,8 +16,6 @@ import (
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/ast"
 	"github.com/expr-lang/expr/vm"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 	"github.com/nats-io/nats.go"
@@ -68,7 +67,7 @@ var compressionOk = map[string]bool{
 }
 
 // NewNatsLogWriter creates a new NATS log writer.
-func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile, compression string, jetstream bool, timeout time.Duration, logger log.Logger) (*natsLogWriter, error) {
+func NewNatsLogWriter(ctx context.Context, server, subject, credFile, nkeyFile, tlsClientCrtFile, tlsClientKeyFile, tlsCACrtFile, compression string, jetstream bool, timeout time.Duration, logger *slog.Logger) (*natsLogWriter, error) {
 	// Ensure the NATS server is set.
 	if server == "" {
 		return nil, errors.New("nats server missing")
@@ -94,8 +93,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	// Is a credentials file set?
 	if credFile != "" {
-		level.Debug(logger).Log(
-			"msg", "using credentials file",
+		logger.DebugContext(ctx, "using credentials file",
 			"file", credFile,
 		)
 
@@ -104,8 +102,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	// Is a NKey seed file set?
 	if nkeyFile != "" {
-		level.Debug(logger).Log(
-			"msg", "using NKey file",
+		logger.DebugContext(ctx, "using NKey file",
 			"file", nkeyFile,
 		)
 
@@ -119,8 +116,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	// Is a TLS client certificate and key set?
 	if tlsClientCrtFile != "" && tlsClientKeyFile != "" {
-		level.Debug(logger).Log(
-			"msg", "using TLS client certificate and key files",
+		logger.DebugContext(ctx, "using TLS client certificate and key files",
 			"crt", tlsClientCrtFile,
 			"key", tlsClientKeyFile,
 		)
@@ -130,16 +126,14 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 
 	// Is a CA certificate set?
 	if tlsCACrtFile != "" {
-		level.Debug(logger).Log(
-			"msg", "using CA certificate file",
+		logger.DebugContext(ctx, "using CA certificate file",
 			"file", tlsCACrtFile,
 		)
 
 		opts = append(opts, nats.RootCAs(tlsCACrtFile))
 	}
 
-	level.Debug(logger).Log(
-		"msg", "connecting to NATS server",
+	logger.DebugContext(ctx, "connecting to NATS server",
 		"server", server,
 	)
 
@@ -149,8 +143,7 @@ func NewNatsLogWriter(server, subject, credFile, nkeyFile, tlsClientCrtFile, tls
 		return nil, fmt.Errorf("failed to connect to nats server: %w", err)
 	}
 
-	level.Debug(logger).Log(
-		"msg", "connected to NATS server",
+	logger.DebugContext(ctx, "connected to NATS server",
 		"server", server,
 	)
 

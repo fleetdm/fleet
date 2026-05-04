@@ -1,4 +1,8 @@
 .welcome-host {
+  &__view-all-policies {
+    height: 20px;
+  }
+
   p {
     font-size: $x-small;
   }

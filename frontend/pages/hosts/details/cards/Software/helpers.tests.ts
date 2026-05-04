@@ -110,6 +110,26 @@ describe("compareVersions", () => {
     expect(compareVersions("1.2.3 (Build 5)", "1.2.3")).toBe(0);
     expect(compareVersions("1.2.3 (build foo-bar)", "1.2.3")).toBe(0);
   });
+
+  // https://github.com/fleetdm/fleet/issues/42673
+  it('strips leading "Build " prefix (Sublime Text/Merge)', () => {
+    expect(compareVersions("Build 4200", "4200")).toBe(0);
+    expect(compareVersions("Build 2123", "2123")).toBe(0);
+    expect(compareVersions("Build 4200", "4199")).toBe(1);
+    expect(compareVersions("Build 4200", "4201")).toBe(-1);
+  });
+
+  it('strips trailing ".CE" edition suffix (MySQL Workbench)', () => {
+    expect(compareVersions("8.0.46.CE", "8.0.46")).toBe(0);
+    expect(compareVersions("8.0.46", "8.0.46.CE")).toBe(0);
+    expect(compareVersions("8.0.46.CE", "8.0.45")).toBe(1);
+  });
+
+  it('strips trailing "-latest" channel tag (Lens)', () => {
+    expect(compareVersions("2026.3.251250-latest", "2026.3.251250")).toBe(0);
+    expect(compareVersions("2026.3.251250", "2026.3.251250-latest")).toBe(0);
+    expect(compareVersions("2026.3.251250-latest", "2026.3.251249")).toBe(1);
+  });
 });
 
 describe("getUiStatus", () => {
@@ -284,6 +304,54 @@ describe("getUiStatus", () => {
     expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe(
       "recently_uninstalled"
     );
+  });
+
+  it("does not return 'recently_installed' for tgz_packages even when lastInstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastInstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: "installed",
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_install: {
+          install_uuid: "abc",
+          installed_at: lastInstallDate,
+        },
+      }),
+      installed_versions: [], // inventory wouldn't show this anyway for tarballs
+    });
+
+    // Even though lastInstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_installed' and immediately show 'installed' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("installed");
+  });
+
+  it("does not return 'recently_uninstalled' for tgz_packages even when lastUninstallDate is newer than hostSoftwareUpdatedAt", () => {
+    const now = new Date();
+    const lastUninstallDate = new Date(now.getTime() + 60 * 1000).toISOString();
+    const hostSoftwareUpdatedAt = now.toISOString();
+
+    const sw = createMockHostSoftware({
+      status: null,
+      source: "tgz_packages",
+      // Tarballs never return a version in software_package, and don't participate in inventory-based checks
+      software_package: createMockHostSoftwarePackage({
+        version: undefined,
+        last_uninstall: {
+          script_execution_id: "def",
+          uninstalled_at: lastUninstallDate,
+        },
+      }),
+      installed_versions: [],
+    });
+
+    // Even though lastUninstallDate is newer than hostSoftwareUpdatedAt,
+    // tarballs should not show 'recently_uninstalled' and immediately show 'uninstalled' since they don't participate in inventory-based update checks.
+    expect(getUiStatus(sw, true, hostSoftwareUpdatedAt)).toBe("uninstalled");
   });
 
   // Extra verification: recently_uninstalled takes precedence over update_available

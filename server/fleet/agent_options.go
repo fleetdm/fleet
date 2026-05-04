@@ -13,7 +13,7 @@ import (
 
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
 
-const maxAgentScriptExecutionTimeout = 3600
+const maxAgentScriptExecutionTimeout = 18000
 
 type AgentOptions struct {
 	// ScriptExecutionTimeout is the maximum time in seconds that a script can run.
@@ -179,7 +179,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist, or cannot be used on this team", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this fleet", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}

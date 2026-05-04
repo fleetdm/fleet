@@ -1,3 +1,73 @@
+## Orbit 1.54.0 (Apr 07, 2026)
+
+* Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
+
+* Improved initial loading state of macOS setup experience when displaying web view UI.
+
+* Fixed an issue where the automatic migration preview would show when the device was not MDM-enrolled and not enrolled via DEP.
+
+* Fixed a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
+
+* Added `registration_completed` and `login_type` columns to `app_sso_platform` table.
+
+* Updated script validation to support python interpreters on macOS and Linux.
+
+* Added a new `disk_space` fleetd table for macOS that reports accurate available disk space including purgeable storage.
+
+* Added `macos_thermal_pressure`, `macos_soc_power`, `macadmins_wifi_network`, and `local_network_permissions` tables from https://github.com/macadmins/osquery-extension.
+
+* Fixed BitLocker encryption failing with `E_INVALIDARG` after migrating Windows devices from another MDM. Fleet now reads the `OSEncryptionType` registry policy to use the correct encryption mode and cleans up stale key protectors from previous failed attempts.
+
+* Fixed a bug where the fleetd `executable_hashes` table failed to compute hashes for app bundles with emoji characters in their names.
+
+* Updated go to 1.26.1.
+
+* Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.
+
+## Orbit 1.53.1 (Mar 18, 2026)
+
+* Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.
+
+## Orbit 1.53.0 (Mar 03, 2026)
+
+* Improved GUI user detection in orbit to use the correct active GUI session when starting Fleet Desktop.
+
+* Fixed a COM deadlock on Windows that could cause orbit to become unresponsive during BitLocker encryption enforcement. BitLocker operations now run on a dedicated COM thread instead of sharing the global comshim singleton with other subsystems.
+
+* Fixed the "app_sso_platform" table to return empty result set if Kerberos status is not available.
+
+* Fixed icon size on KDE environments.
+
+* Fixed old escrow method on macOS to use environment variables on the TCL script.
+
+* Improved detection of `DISPLAY` variable in X11 sessions.
+
+* Added a system tray title to Fleet Desktop to make sure that the system tray ID is static, not dynamic.
+
+## Orbit 1.52.1 (Feb 20, 2026)
+
+* Fixed panic in `orbit` when auto-updates are disabled.
+
+## Orbit 1.52.0 (Feb 16, 2026)
+
+* Updated `macadmins/osquery-extensions` to v1.3.2.
+
+* Updated `Migrate to Fleet` webhook to always send when device is seen as unmanaged.
+
+* Harden `app_sso_platform` table command execution to prevent command injection.
+
+* Added 'AlternativeBrowserHost' to Desktop Summary payload and updated Fleet Desktop to use it over the alternative browser host set via the env.
+
+* Updated fleetd to ignore the `gdm-greeter` user in GNOME 49 sessions when starting Fleet Desktop.
+
+* Added `musl-tools` to fleet-desktop build process to fix GLIBC incompatibility that caused orbit agent to fail when updating fleet-desktop on Ubuntu 20.04.
+
+* Added `containerd_mounts` table on Linux to query container mount information from containerd.
+
+* Added dummy implementation of `orbit_info` table to the orbit shell.
+
+* Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration `FLEET_SERVER_GZIP_RESPONSES=true` is coming in v4.81.0).
+
 ## Orbit 1.51.1 (Jan 28, 2026)
 
 * Improved "Fleet Desktop" description in Windows' system tray.

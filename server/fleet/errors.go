@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/rs/zerolog"
 )
@@ -24,15 +25,18 @@ var (
 	AndroidMDMNotConfiguredMessage               = "Android MDM isn't turned on. For more information about setting up MDM, please visit https://fleetdm.com/learn-more-about/how-to-connect-android-enterprise"
 	AppleMDMNotConfiguredMessage                 = "macOS MDM isn't turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM."
 	AppleABMDefaultTeamDeprecatedMessage         = "mdm.apple_bm_default_team has been deprecated. Please use the new mdm.apple_business_manager key documented here: https://fleetdm.com/learn-more-about/apple-business-manager-gitops"
+	AppleOSVersionUnsupportedMessage             = "The minimum version isn't supported by Apple."
+	AppleOSVersionDeadlineInvalidMessage         = "The deadline isn't a valid date."
 	CantTurnOffMDMForWindowsHostsMessage         = "Can't turn off MDM for Windows hosts."
 	CantTurnOffMDMForPersonalHostsMessage        = "Couldn't turn off MDM. This command isn't available for personal hosts."
 	CantWipePersonalHostsMessage                 = "Couldn't wipe. This command isn't available for personal hosts."
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
+	CantClearPasscodePersonalHostsMessage        = "Unlock token is not available for this device. Unable to issue ClearPasscode command."
 	CantLockManualIOSIpadOSHostsMessage          = "Couldn't lock. This command isn't available for manually enrolled iOS/iPadOS hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
 	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
-	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s team."
+	CantAddSoftwareConflictMessage               = "Couldn't add software. %s already has an installer available for the %s fleet."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -51,15 +55,15 @@ type ErrWithLogFields = platform_http.ErrWithLogFields
 // ErrWithRetryAfter is an alias for platform_http.ErrWithRetryAfter.
 type ErrWithRetryAfter = platform_http.ErrWithRetryAfter
 
-// ErrWithIsClientError is an alias for platform_http.ErrWithIsClientError.
-type ErrWithIsClientError = platform_http.ErrWithIsClientError
+// ErrWithIsClientError is an alias for platform_errors.ErrWithIsClientError.
+type ErrWithIsClientError = platform_errors.ErrWithIsClientError
 
 type invalidArgWithStatusError struct {
-	InvalidArgumentError
+	*InvalidArgumentError
 	code int
 }
 
-func (e invalidArgWithStatusError) Status() int {
+func (e *invalidArgWithStatusError) Status() int {
 	if e.code == 0 {
 		// 422 is the default code for invalid args
 		return http.StatusUnprocessableEntity
@@ -95,7 +99,7 @@ func NewInvalidArgumentError(name, reason string) *InvalidArgumentError {
 	return &invalid
 }
 
-func (e InvalidArgumentError) IsClientError() bool {
+func (e *InvalidArgumentError) IsClientError() bool {
 	return true
 }
 
@@ -106,14 +110,18 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 	})
 }
 
+func (e *InvalidArgumentError) AppendInvalidArgument(invalidArg InvalidArgument) {
+	e.Errors = append(e.Errors, invalidArg)
+}
+
 func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
 	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
 
 // WithStatus returns an error that combines the InvalidArgumentError
 // with a custom status code.
-func (e InvalidArgumentError) WithStatus(code int) error {
-	return invalidArgWithStatusError{e, code}
+func (e *InvalidArgumentError) WithStatus(code int) error {
+	return &invalidArgWithStatusError{e, code}
 }
 
 func (e *InvalidArgumentError) HasErrors() bool {
@@ -121,7 +129,7 @@ func (e *InvalidArgumentError) HasErrors() bool {
 }
 
 // Error implements the error interface.
-func (e InvalidArgumentError) Error() string {
+func (e *InvalidArgumentError) Error() string {
 	switch len(e.Errors) {
 	case 0:
 		return "validation failed"
@@ -133,7 +141,7 @@ func (e InvalidArgumentError) Error() string {
 	}
 }
 
-func (e InvalidArgumentError) Invalid() []map[string]string {
+func (e *InvalidArgumentError) Invalid() []map[string]string {
 	var invalid []map[string]string
 	for _, i := range e.Errors {
 		invalid = append(invalid, map[string]string{"name": i.name, "reason": i.reason})
@@ -173,17 +181,17 @@ func NewPermissionError(message string) *PermissionError {
 	return &PermissionError{message: message}
 }
 
-func (e PermissionError) Error() string {
+func (e *PermissionError) Error() string {
 	return e.message
 }
 
-func (e PermissionError) PermissionError() []map[string]string {
+func (e *PermissionError) PermissionError() []map[string]string {
 	var forbidden []map[string]string
 	return forbidden
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e PermissionError) IsClientError() bool {
+func (e *PermissionError) IsClientError() bool {
 	return true
 }
 
@@ -202,15 +210,15 @@ type OTAForbiddenError struct {
 	InternalErr error
 }
 
-func (e OTAForbiddenError) Error() string {
+func (e *OTAForbiddenError) Error() string {
 	return "Couldn't install the profile. Invalid enroll secret. Please contact your IT admin."
 }
 
-func (e OTAForbiddenError) StatusCode() int {
+func (e *OTAForbiddenError) StatusCode() int {
 	return http.StatusForbidden
 }
 
-func (e OTAForbiddenError) Internal() string {
+func (e *OTAForbiddenError) Internal() string {
 	if e.InternalErr == nil {
 		return ""
 	}
@@ -218,7 +226,7 @@ func (e OTAForbiddenError) Internal() string {
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e OTAForbiddenError) IsClientError() bool {
+func (e *OTAForbiddenError) IsClientError() bool {
 	return true
 }
 
@@ -227,16 +235,16 @@ type licenseError struct {
 	ErrorWithUUID
 }
 
-func (e licenseError) Error() string {
+func (e *licenseError) Error() string {
 	return "Requires Fleet Premium license"
 }
 
-func (e licenseError) StatusCode() int {
+func (e *licenseError) StatusCode() int {
 	return http.StatusPaymentRequired
 }
 
 // IsClientError implements ErrWithIsClientError.
-func (e licenseError) IsClientError() bool {
+func (e *licenseError) IsClientError() bool {
 	return true
 }
 
@@ -400,7 +408,7 @@ func GetJSONUnknownField(err error) *string {
 }
 
 // Cause returns the root error in err's chain.
-var Cause = platform_http.Cause
+var Cause = platform_errors.Cause
 
 // FleetdError is an error that can be reported by any of the fleetd
 // components.
@@ -485,7 +493,7 @@ const (
 	TargetedHostsDontExistErrMsg = "One or more targeted hosts don't exist. Make sure you provide a valid hostname, UUID, or serial number. Learn more about host identifiers: https://fleetdm.com/learn-more-about/host-identifiers"
 
 	// Scripts
-	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
+	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Shell), .py (Python), and .ps1 (PowerShell) file types are allowed."
 	RunScriptHostOfflineErrMsg             = "Script can't run on offline host."
 	RunScriptForbiddenErrMsg               = "You don't have the right permissions in Fleet to run the script."
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
@@ -494,7 +502,7 @@ const (
 	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptsOrbitDisabledErrMsg          = "Couldn't run script. To run a script, deploy the fleetd agent with --enable-scripts."
 	RunScriptAsyncScriptEnqueuedMsg        = "Script is running or will run when the host comes online."
-	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
+	RunScriptSavedMaxLenErrMsg             = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
 
@@ -525,6 +533,11 @@ const (
 var (
 	NDESSCEPVariablesMissingErrMsg         = fmt.Sprintf("SCEP profile for NDES certificate authority requires: $FLEET_VAR_%s, $FLEET_VAR_%s, and $FLEET_VAR_%s variables.", FleetVarNDESSCEPChallenge, FleetVarNDESSCEPProxyURL, FleetVarSCEPRenewalID)
 	SCEPRenewalIDWithoutURLChallengeErrMsg = "Variable \"$FLEET_VAR_" + string(FleetVarSCEPRenewalID) + "\" can't be used if variables for SCEP URL and Challenge are not specified."
+)
+
+const (
+	// DeleteCAReferencedByTemplatesErrMsg is the error substring used when a CA cannot be deleted because certificate templates still reference it.
+	DeleteCAReferencedByTemplatesErrMsg = "Certificate templates still reference it"
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

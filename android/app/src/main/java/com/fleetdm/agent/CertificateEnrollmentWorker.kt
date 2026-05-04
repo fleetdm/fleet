@@ -1,5 +1,6 @@
 package com.fleetdm.agent
 
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -18,12 +19,28 @@ import kotlinx.coroutines.sync.Mutex
 class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParameters) : CoroutineWorker(context, workerParams) {
 
     override suspend fun doWork(): Result {
+        // Gate on CERT_INSTALL delegation before acquiring the mutex. After a fresh MDM enrollment, the delegated
+        // scope may not be available immediately. Checking here (before any SCEP work) avoids consuming single-use
+        // SCEP challenges. This is a read-only check that doesn't need mutual exclusion.
+        val attempt = runAttemptCount + 1
+        val dpm = applicationContext.getSystemService(DevicePolicyManager::class.java)
+        val scopes = dpm?.getDelegatedScopes(null, applicationContext.packageName) ?: emptyList()
+        if (!scopes.contains(DevicePolicyManager.DELEGATION_CERT_INSTALL)) {
+            if (attempt >= MAX_DELEGATION_ATTEMPTS) {
+                Log.w(TAG, "CERT_INSTALL delegation unavailable after $attempt attempts, deferring to next scheduled run. Scopes: $scopes")
+                return Result.success()
+            }
+            Log.w(TAG, "CERT_INSTALL delegation not available yet (attempt $attempt/$MAX_DELEGATION_ATTEMPTS), will retry. Scopes: $scopes")
+            return Result.retry()
+        }
+
         // Skip if another enrollment is already running (periodic + one-time work are tracked separately)
         if (!enrollmentMutex.tryLock()) {
             Log.d(TAG, "Skipping enrollment, another run is already in progress")
             return Result.success()
         }
         return try {
+            Log.d(TAG, "Starting certificate enrollment worker (attempt $attempt)")
             doEnrollment()
         } finally {
             enrollmentMutex.unlock()
@@ -32,8 +49,6 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
 
     private suspend fun doEnrollment(): Result {
         return try {
-            Log.d(TAG, "Starting certificate enrollment worker (attempt ${runAttemptCount + 1})")
-
             // Get orchestrator from Application
             val orchestrator = AgentApplication.getCertificateOrchestrator(applicationContext)
 
@@ -63,7 +78,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                     is CleanupResult.AlreadyRemoved ->
                         Log.d(TAG, "Certificate $certId already removed (alias: ${result.alias})")
                     is CleanupResult.Failure ->
-                        Log.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Failed to cleanup certificate $certId: ${result.reason}", result.exception)
                 }
             }
 
@@ -100,7 +115,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                         // Treat as handled - no retry needed
                     }
                     is CertificateEnrollmentHandler.EnrollmentResult.Failure -> {
-                        Log.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
+                        FleetLog.e(TAG, "Certificate $certificateId enrollment failed: ${result.reason}", result.exception)
                         if (result.isRetryable) {
                             hasTransientFailure = true
                         } else {
@@ -140,7 +155,7 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error in certificate enrollment", e)
+            FleetLog.e(TAG, "Unexpected error in certificate enrollment", e)
             Result.failure()
         }
     }
@@ -149,6 +164,10 @@ class CertificateEnrollmentWorker(context: Context, workerParams: WorkerParamete
         const val WORK_NAME = "certificate_enrollment"
         private const val TAG = "fleet-CertificateEnrollmentWorker"
         private const val MAX_RETRY_ATTEMPTS = 5
+
+        // Higher limit for delegation gate since it's a lightweight check and delegation can take minutes to propagate.
+        // With exponential backoff from 10s, 7 attempts covers ~5 minutes before the periodic 15-minute schedule takes over.
+        private const val MAX_DELEGATION_ATTEMPTS = 7
 
         // Mutex to prevent concurrent enrollment runs across all worker instances
         private val enrollmentMutex = Mutex()

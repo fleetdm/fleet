@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
 	"go.opentelemetry.io/otel/attribute"
@@ -202,7 +202,7 @@ func Wrapf(ctx context.Context, cause error, format string, args ...interface{})
 
 // Cause returns the root error in err's chain.
 func Cause(err error) error {
-	return platform_http.Cause(err)
+	return platform_errors.Cause(err)
 }
 
 // FleetCause is similar to Cause, but returns the root-most
@@ -398,11 +398,28 @@ func collectTelemetryContext(ctx context.Context) map[string]any {
 }
 
 // isClientError checks if the error is a client error (4xx).
+// Error types that represent client errors should implement ErrWithIsClientError.
 func isClientError(err error) bool {
-	// Check for explicit client error interface
-	var clientErr platform_http.ErrWithIsClientError
+	if err == nil {
+		return false
+	}
+
+	// Check for explicit client error interface. All 4xx error types
+	// (not found, already exists, conflict, validation, permission,
+	// bad request, foreign key, etc.) should implement this interface.
+	var clientErr platform_errors.ErrWithIsClientError
 	if errors.As(err, &clientErr) {
 		return clientErr.IsClientError()
+	}
+
+	// Check for errors with an explicit HTTP status code in the 4xx range
+	type statusCoder interface{ StatusCode() int }
+	var sc statusCoder
+	if errors.As(err, &sc) {
+		code := sc.StatusCode()
+		if code >= 400 && code < 500 {
+			return true
+		}
 	}
 
 	// Treat context.Canceled as a client error. In HTTP handlers, this typically

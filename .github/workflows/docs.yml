@@ -38,9 +38,9 @@ jobs:
 
     - name: Verify Markdown documentation is free of "here" and "click here" link anchors
       run: |
-        if [[ $(grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .) ]]; then
+        if [[ $(grep -Eir --exclude-dir=node_modules --exclude-dir=third_party --include=\*.md '\[(click )?here\]' .) ]]; then
           echo '❌ fail: links found with "here" or "click here" anchors in Markdown files'
-          grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .
+          grep -Eir --exclude-dir=node_modules --exclude-dir=third_party --include=\*.md '\[(click )?here\]' .
           exit 1
         fi
 

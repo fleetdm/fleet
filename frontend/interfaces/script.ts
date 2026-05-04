@@ -15,7 +15,7 @@ export const addTeamIdCriteria = (
   pred: any,
   teamId: number,
   isFreeTier?: boolean
-) => (isFreeTier ? { ...pred } : { ...pred, team_id: teamId });
+) => (isFreeTier ? { ...pred } : { ...pred, fleet_id: teamId });
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 

@@ -40,6 +40,7 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.InstalledAppStoreApp,
   ActivityType.RanScriptBatch,
   ActivityType.CanceledScriptBatch,
+  ActivityType.FailedEnrollmentProfileRenewal,
 ]);
 
 const getProfilesPlatformDisplayName = (
@@ -68,23 +69,23 @@ const getProfileMessageSuffix = (
   if (isPremiumTier) {
     messageSuffix = teamName ? (
       <>
-        {platformDisplayName} hosts assigned to the <b>{teamName}</b> team
+        {platformDisplayName} hosts assigned to the <b>{teamName}</b> fleet
       </>
     ) : (
-      <>{platformDisplayName} hosts with no team</>
+      <>unassigned {platformDisplayName} hosts</>
     );
   }
   return messageSuffix;
 };
 
-const getDiskEncryptionMessageSuffix = (teamName?: string | null) => {
+const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
   return teamName ? (
     <>
       {" "}
-      assigned to the <b>{teamName}</b> team
+      assigned to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>with no team</>
+    <> that are unassigned</>
   );
 };
 
@@ -96,10 +97,10 @@ const getMacOSSetupAssistantMessage = (
   const suffix = teamName ? (
     <>
       {" "}
-      that automatically enroll to the <b>{teamName}</b> team
+      that automatically enroll to the <b>{teamName}</b> fleet
     </>
   ) : (
-    <>that automatically enroll to no team</>
+    <>that automatically enroll to unassigned</>
   );
 
   return (
@@ -122,10 +123,10 @@ const TAGGED_TEMPLATES = {
 
     const queryNameCopy = queryName ? (
       <>
-        the <b>{queryName}</b> query
+        the <b>{queryName}</b> report
       </>
     ) : (
-      <>a live query</>
+      <>a live report</>
     );
 
     const impactCopy =
@@ -156,8 +157,8 @@ const TAGGED_TEMPLATES = {
   editQueryCtlActivityTemplate: (activity: IActivity) => {
     const count = activity.details?.specs?.length;
     return typeof count === "undefined" || count === 1
-      ? "edited a query using fleetctl."
-      : "edited queries using fleetctl.";
+      ? "edited a report using fleetctl."
+      : "edited reports using fleetctl.";
   },
   editSoftwareCtlActivityTemplate: () => {
     return "edited software using fleetctl.";
@@ -166,10 +167,11 @@ const TAGGED_TEMPLATES = {
     const count = activity.details?.teams?.length;
     return count === 1 && activity.details?.teams ? (
       <>
-        edited the <b>{activity.details?.teams[0].name}</b> team using fleetctl.
+        edited the <b>{activity.details?.teams[0].name}</b> fleet using
+        fleetctl.
       </>
     ) : (
-      "edited multiple teams using fleetctl."
+      `edited multiple fleets using fleetctl.`
     );
   },
   editAgentOptions: (activity: IActivity) => {
@@ -177,7 +179,7 @@ const TAGGED_TEMPLATES = {
       "edited agent options."
     ) : (
       <>
-        edited agent options on <b>{activity.details?.team_name}</b> team.
+        edited agent options on <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -265,15 +267,15 @@ const TAGGED_TEMPLATES = {
       // should only be possible for premium tier, but check anyway
       return (
         <>
-          was assigned the <b>{role}</b> role{isPremiumTier && " for all teams"}
-          .
+          was assigned the <b>{role}</b> role
+          {isPremiumTier && " for all fleets"}.
         </>
       );
     }
     return (
       <>
         changed <b>{user_email}</b> to <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -282,7 +284,7 @@ const TAGGED_TEMPLATES = {
       <>
         removed <b>{activity.details?.user_email}</b> as{" "}
         <b>{activity.details?.role}</b>
-        {isPremiumTier && " for all teams"}.
+        {isPremiumTier && " for all fleets"}.
       </>
     );
   },
@@ -302,7 +304,7 @@ const TAGGED_TEMPLATES = {
       );
     return (
       <>
-        {varText} for the <b>{team_name}</b> team.
+        {varText} for the <b>{team_name}</b> fleet.
       </>
     );
   },
@@ -310,7 +312,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         removed <b>{activity.details?.user_email}</b> from the{" "}
-        <b>{activity.details?.team_name}</b> team.
+        <b>{activity.details?.team_name}</b> fleet.
       </>
     );
   },
@@ -421,10 +423,10 @@ const TAGGED_TEMPLATES = {
 
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> team
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no team</>
+      <>unassigned</>
     );
 
     return (
@@ -441,16 +443,16 @@ const TAGGED_TEMPLATES = {
   ) => {
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> team
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no team</>
+      <>unassigned</>
     );
 
     return (
       <>
         enabled OS updates for all new {applePlatform} hosts on {teamSection}.{" "}
-        {applePlatform} hosts will upgrade to the lastest version when they
+        {applePlatform} hosts will upgrade to the latest version when they
         enroll.
       </>
     );
@@ -462,10 +464,10 @@ const TAGGED_TEMPLATES = {
   ) => {
     const teamSection = activity.details?.team_id ? (
       <>
-        the <b>{activity.details.team_name}</b> team
+        the <b>{activity.details.team_name}</b> fleet
       </>
     ) : (
-      <>no team</>
+      <>unassigned</>
     );
 
     return (
@@ -480,6 +482,81 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         viewed the disk encryption key for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  viewedHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  setHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        set a Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  rotatedHostRecoveryLockPassword: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        triggered rotation of the Recovery Lock password for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  enabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        enabled managed local accounts for{" "}
+        {activity.details?.team_name ? (
+          <>
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "unassigned hosts."
+        )}
+      </>
+    );
+  },
+  disabledManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        disabled managed local accounts for{" "}
+        {activity.details?.team_name ? (
+          <>
+            hosts assigned to the <b>{activity.details.team_name}</b> fleet.
+          </>
+        ) : (
+          "unassigned hosts."
+        )}
+      </>
+    );
+  },
+  viewedManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        viewed the managed local account on{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdManagedLocalAccount: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        created a managed local account for{" "}
         <b>{activity.details?.host_display_name}</b>.
       </>
     );
@@ -618,6 +695,15 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  resentCertificate: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        resent {activity.details?.certificate_name} certificate for host{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
   addedCertificateAuthority: (name = "") => {
     return name ? (
       <>
@@ -709,12 +795,20 @@ const TAGGED_TEMPLATES = {
     );
   },
   enabledDiskEncryption: (activity: IActivity) => {
-    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <> enforced disk encryption for hosts {suffix}.</>;
   },
   disabledEncryption: (activity: IActivity) => {
-    const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
     return <>removed disk encryption enforcement for hosts {suffix}.</>;
+  },
+  enabledRecoveryLockPasswords: (activity: IActivity) => {
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    return <>enforced Recovery Lock passwords for hosts {suffix}.</>;
+  },
+  disabledRecoveryLockPasswords: (activity: IActivity) => {
+    const suffix = getHostTeamAssignmentSuffix(activity.details?.team_name);
+    return <>removed Recovery Lock password enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -735,7 +829,9 @@ const TAGGED_TEMPLATES = {
       key.includes("_name")
     );
 
-    const activityType = lowerCase(activity.type).replace(" saved", "");
+    const activityType = lowerCase(activity.type)
+      .replace(" saved", "")
+      .replace("team", "fleet");
 
     return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
@@ -761,10 +857,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -786,10 +882,10 @@ const TAGGED_TEMPLATES = {
         for macOS hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -799,14 +895,13 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        required end user authentication for macOS, iOS, iPadOS, and Android
-        hosts that automatically enroll to{" "}
+        required end user authentication for hosts that automatically enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -816,14 +911,14 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        removed end user authentication requirement for macOS, iOS, iPadOS, and
-        Android hosts that automatically enroll to{" "}
+        removed end user authentication requirement for hosts that automatically
+        enroll to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -836,16 +931,16 @@ const TAGGED_TEMPLATES = {
       return (
         <>
           {" "}
-          transferred host <b>{hostNames[0]}</b> to {teamName ? "team " : ""}
-          <b>{teamName || "no team"}</b>.
+          transferred host <b>{hostNames[0]}</b> to {teamName ? `fleet ` : ""}
+          <b>{teamName || `unassigned`}</b>.
         </>
       );
     }
     return (
       <>
         {" "}
-        transferred {hostNames.length} hosts to {teamName ? "team " : ""}
-        <b>{teamName || "no team"}</b>.
+        transferred {hostNames.length} hosts to {teamName ? `fleet ` : ""}
+        <b>{teamName || `unassigned`}</b>.
       </>
     );
   },
@@ -864,6 +959,14 @@ const TAGGED_TEMPLATES = {
   },
   enabledGitOpsMode: () => "enabled GitOps mode in the UI.",
   disabledGitOpsMode: () => "disabled GitOps mode in the UI.",
+  enabledGitOpsException: (activity: IActivity) => {
+    const exception = activity.details?.exception ?? "";
+    return `enabled the ${exception} exception for GitOps.`;
+  },
+  disabledGitOpsException: (activity: IActivity) => {
+    const exception = activity.details?.exception ?? "";
+    return `disabled the ${exception} exception for GitOps.`;
+  },
   enabledWindowsMdmMigration: () => {
     return (
       <>
@@ -883,12 +986,14 @@ const TAGGED_TEMPLATES = {
     );
   },
   ranScript: (activity: IActivity) => {
-    const { script_name, host_display_name } = activity.details || {};
+    const { script_name, host_display_name, from_setup_experience } =
+      activity.details || {};
     return (
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        <b>{host_display_name}</b>.
+        <b>{host_display_name}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -948,10 +1053,10 @@ const TAGGED_TEMPLATES = {
         to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -973,10 +1078,10 @@ const TAGGED_TEMPLATES = {
         for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -998,10 +1103,10 @@ const TAGGED_TEMPLATES = {
         from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -1014,33 +1119,44 @@ const TAGGED_TEMPLATES = {
         edited scripts for{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details.team_name}</b> team
+            the <b>{activity.details.team_name}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}{" "}
         via fleetctl.
       </>
     );
   },
   editedWindowsUpdates: (activity: IActivity) => {
+    const deadlineDays = activity.details?.deadline_days;
+    const gracePeriodDays = activity.details?.grace_period_days;
+    const isCleared = deadlineDays === undefined || deadlineDays === null;
+    const teamText = activity.details?.team_name ? (
+      <>
+        the <b>{activity.details.team_name}</b> fleet
+      </>
+    ) : (
+      `unassigned`
+    );
+
+    if (isCleared) {
+      return (
+        <>
+          {" "}
+          removed the Windows OS update options on hosts assigned to {teamText}.
+        </>
+      );
+    }
+
     return (
       <>
         {" "}
         updated the Windows OS update options (
         <b>
-          Deadline: {activity.details?.deadline_days} days / Grace period:{" "}
-          {activity.details?.grace_period_days} days
+          Deadline: {deadlineDays} days / Grace period: {gracePeriodDays} days
         </b>
-        ) on hosts assigned to{" "}
-        {activity.details?.team_name ? (
-          <>
-            the <b>{activity.details.team_name}</b> team
-          </>
-        ) : (
-          "no team"
-        )}
-        .
+        ) on hosts assigned to {teamText}.
       </>
     );
   },
@@ -1052,7 +1168,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1061,7 +1177,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted multiple queries
+        deleted multiple reports
         {teamText}.
       </>
     );
@@ -1096,6 +1212,13 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         wiped <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedWipe: (activity: IActivity) => {
+    return (
+      <>
+        Wipe failed on <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -1175,10 +1298,10 @@ const TAGGED_TEMPLATES = {
         added <b>{activity.details?.software_package}</b> to{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1190,10 +1313,10 @@ const TAGGED_TEMPLATES = {
         edited <b>{activity.details?.software_package}</b> on{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1205,10 +1328,10 @@ const TAGGED_TEMPLATES = {
         deleted <b>{activity.details?.software_package}</b> from{" "}
         {activity.details?.team_name ? (
           <>
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1224,6 +1347,7 @@ const TAGGED_TEMPLATES = {
       software_title: title,
       status,
       source,
+      from_setup_experience,
     } = details;
 
     const showSoftwarePackage =
@@ -1236,7 +1360,8 @@ const TAGGED_TEMPLATES = {
         {getInstallUninstallStatusPredicate(status, isScriptPackageSource)}{" "}
         <b>{title}</b>
         {showSoftwarePackage && ` (${details.software_package})`} on{" "}
-        <b>{hostName}</b>.
+        <b>{hostName}</b>
+        {from_setup_experience ? " during setup experience" : ""}.
       </>
     );
   },
@@ -1308,10 +1433,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1327,10 +1452,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1346,10 +1471,10 @@ const TAGGED_TEMPLATES = {
         {activity.details?.team_name ? (
           <>
             {" "}
-            the <b>{activity.details?.team_name}</b> team.
+            the <b>{activity.details?.team_name}</b> fleet.
           </>
         ) : (
-          "no team."
+          `unassigned.`
         )}
       </>
     );
@@ -1401,10 +1526,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> team
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -1419,10 +1544,10 @@ const TAGGED_TEMPLATES = {
         {teamName ? (
           <>
             {" "}
-            the <b>{teamName}</b> team
+            the <b>{teamName}</b> fleet
           </>
         ) : (
-          "no team"
+          `unassigned`
         )}
         .
       </>
@@ -1440,12 +1565,27 @@ const TAGGED_TEMPLATES = {
     );
   },
   canceledInstallSoftware: (activity: IActivity) => {
+    const {
+      software_title: title,
+      host_display_name: hostName,
+      from_setup_experience: fromSetupExperience,
+    } = activity.details || {};
+    return (
+      <>
+        {" "}
+        canceled <b>{title}</b> install on <b>{hostName}</b>
+        {fromSetupExperience ? " during setup experience" : ""}.
+      </>
+    );
+  },
+  canceledSetupExperience: (activity: IActivity) => {
     const { software_title: title, host_display_name: hostName } =
       activity.details || {};
     return (
       <>
         {" "}
-        canceled <b>{title}</b> install on <b>{hostName}</b>.
+        canceled setup experience on <b>{hostName}</b> because <b>{title}</b>{" "}
+        failed to install.
       </>
     );
   },
@@ -1467,7 +1607,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1476,7 +1616,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        created a query <b>{activity.details?.query_name}</b>
+        created a report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1489,7 +1629,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1498,7 +1638,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        edited the query <b>{activity.details?.query_name}</b>
+        edited the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1511,7 +1651,7 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1520,7 +1660,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        deleted the query <b>{activity.details?.query_name}</b>
+        deleted the report <b>{activity.details?.query_name}</b>
         {teamText}.
       </>
     );
@@ -1533,14 +1673,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1563,14 +1703,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1593,14 +1733,14 @@ const TAGGED_TEMPLATES = {
       teamText = (
         <>
           {" "}
-          for <b>No Team</b>
+          for <b>Unassigned</b>
         </>
       );
     } else if (activity.details?.team_name) {
       teamText = (
         <>
           {" "}
-          on the <b>{activity.details.team_name}</b> team
+          on the <b>{activity.details.team_name}</b> fleet
         </>
       );
     } else {
@@ -1620,6 +1760,57 @@ const TAGGED_TEMPLATES = {
       <>
         escrowed a disk encryption key for{" "}
         <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  createdLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        created a label <b>{activity.details?.label_name}</b>
+        {fleetText}.
+      </>
+    );
+  },
+  editedLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        edited the label <b>{activity.details?.label_name}</b>
+        {fleetText}.
+      </>
+    );
+  },
+  deletedLabel: (activity: IActivity) => {
+    const fleetText = activity.details?.fleet_name ? (
+      <>
+        {" "}
+        on the <b>{activity.details.fleet_name}</b> fleet
+      </>
+    ) : (
+      ""
+    );
+    return (
+      <>
+        {" "}
+        deleted the label <b>{activity.details?.label_name}</b>
+        {fleetText}.
       </>
     );
   },
@@ -1664,10 +1855,10 @@ const TAGGED_TEMPLATES = {
         {" "}
         edited setup experience software for {platformText} hosts that enroll to{" "}
         {team_id === API_NO_TEAM_ID ? (
-          "no team"
+          `unassigned`
         ) : (
           <>
-            the <b>{team_name}</b> team
+            the <b>{team_name}</b> fleet
           </>
         )}
         .
@@ -1698,7 +1889,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         added certificate {name ? <b>{name} </b> : ""}to Android hosts{" "}
-        {teamText} team.
+        {teamText} fleet.
       </>
     );
   },
@@ -1715,7 +1906,7 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         deleted certificate {name ? <b>{name} </b> : ""}from Android hosts{" "}
-        {teamText} team.
+        {teamText} fleet.
       </>
     );
   },
@@ -1733,6 +1924,29 @@ const TAGGED_TEMPLATES = {
       <></>
     );
     return <>edited enroll secret{postFix}.</>;
+  },
+  addedMicrosoftEntraTenant: (activity: IActivity) => {
+    return <> added Microsoft Entra tenant ({activity.details?.tenant_id}).</>;
+  },
+  deletedMicrosoftEntraTenant: (activity: IActivity) => {
+    return (
+      <> deleted Microsoft Entra tenant ({activity.details?.tenant_id}).</>
+    );
+  },
+  clearedPasscode: (activity: IActivity) => {
+    return (
+      <>
+        cleared the passcode on <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  failedEnrollmentRenewalProfile: (activity: IActivity) => {
+    return (
+      <>
+        enrollment profile renewal failed for{" "}
+        <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
   },
 };
 
@@ -1816,6 +2030,27 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.ReadHostDiskEncryptionKey: {
       return TAGGED_TEMPLATES.readHostDiskEncryptionKey(activity);
     }
+    case ActivityType.ViewedHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.viewedHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.SetHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.setHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.RotatedHostRecoveryLockPassword: {
+      return TAGGED_TEMPLATES.rotatedHostRecoveryLockPassword(activity);
+    }
+    case ActivityType.EnabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.enabledManagedLocalAccount(activity);
+    }
+    case ActivityType.DisabledManagedLocalAccount: {
+      return TAGGED_TEMPLATES.disabledManagedLocalAccount(activity);
+    }
+    case ActivityType.ViewedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.viewedManagedLocalAccount(activity);
+    }
+    case ActivityType.CreatedManagedLocalAccount: {
+      return TAGGED_TEMPLATES.createdManagedLocalAccount(activity);
+    }
     case ActivityType.CreatedAppleOSProfile: {
       return TAGGED_TEMPLATES.createdAppleOSProfile(activity, isPremiumTier);
     }
@@ -1836,6 +2071,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAndroidCertificate: {
       return TAGGED_TEMPLATES.editedAndroidCertificate(activity, isPremiumTier);
+    }
+    case ActivityType.ResentCertificate: {
+      return TAGGED_TEMPLATES.resentCertificate(activity);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
@@ -1880,17 +2118,19 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editedWindowsProfile(activity, isPremiumTier);
     }
-    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.EnabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.EnabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
-    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-    case ActivityType.DisabledDiskEncryption:
+    // Note: This activity is generated for all platforms.
     case ActivityType.DisabledMacDiskEncryption: {
       return TAGGED_TEMPLATES.disabledEncryption(activity);
+    }
+    case ActivityType.EnabledRecoveryLockPasswords: {
+      return TAGGED_TEMPLATES.enabledRecoveryLockPasswords(activity);
+    }
+    case ActivityType.DisabledRecoveryLockPasswords: {
+      return TAGGED_TEMPLATES.disabledRecoveryLockPasswords(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -1924,6 +2164,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DisabledGitOpsMode: {
       return TAGGED_TEMPLATES.disabledGitOpsMode();
+    }
+    case ActivityType.EnabledGitOpsException: {
+      return TAGGED_TEMPLATES.enabledGitOpsException(activity);
+    }
+    case ActivityType.DisabledGitOpsException: {
+      return TAGGED_TEMPLATES.disabledGitOpsException(activity);
     }
     case ActivityType.EnabledWindowsMdmMigration: {
       return TAGGED_TEMPLATES.enabledWindowsMdmMigration();
@@ -1969,6 +2215,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
+    }
+    case ActivityType.FailedWipe: {
+      return TAGGED_TEMPLATES.failedWipe(activity);
     }
     case ActivityType.CreatedDeclarationProfile: {
       return TAGGED_TEMPLATES.createdDeclarationProfile(
@@ -2073,6 +2322,9 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.CanceledUninstallSoftware: {
       return TAGGED_TEMPLATES.canceledUninstallSoftware(activity);
     }
+    case ActivityType.CanceledSetupExperience: {
+      return TAGGED_TEMPLATES.canceledSetupExperience(activity);
+    }
     case ActivityType.CreatedSavedQuery: {
       return TAGGED_TEMPLATES.createdSavedQuery(activity);
     }
@@ -2090,6 +2342,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedPolicy: {
       return TAGGED_TEMPLATES.deletedPolicy(activity);
+    }
+    case ActivityType.CreatedLabel: {
+      return TAGGED_TEMPLATES.createdLabel(activity);
+    }
+    case ActivityType.EditedLabel: {
+      return TAGGED_TEMPLATES.editedLabel(activity);
+    }
+    case ActivityType.DeletedLabel: {
+      return TAGGED_TEMPLATES.deletedLabel(activity);
     }
     case ActivityType.EscrowedDiskEncryptionKey: {
       return TAGGED_TEMPLATES.escrowedDiskEncryptionKey(activity);
@@ -2115,6 +2376,18 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedEnrollSecrets: {
       return TAGGED_TEMPLATES.editedEnrollSecrets(activity, isPremiumTier);
     }
+    case ActivityType.AddedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.addedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.DeletedMicrosoftEntraTenant: {
+      return TAGGED_TEMPLATES.deletedMicrosoftEntraTenant(activity);
+    }
+    case ActivityType.ClearedPasscode: {
+      return TAGGED_TEMPLATES.clearedPasscode(activity);
+    }
+    case ActivityType.FailedEnrollmentProfileRenewal: {
+      return TAGGED_TEMPLATES.failedEnrollmentRenewalProfile(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -2126,7 +2399,7 @@ interface IActivityItemProps {
   isPremiumTier: boolean;
 
   /** A handler for handling clicking on the details of an activity. Not all
-   * activites have more details so this is optional. An example of additonal
+   * activites have more details so this is optional. An example of additional
    * details is showing the query for a live query action.
    */
   onDetailsClick?: ShowActivityDetailsHandler;

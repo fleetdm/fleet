@@ -11,6 +11,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { InstallerType } from "interfaces/software";
 
+import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
+
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -53,6 +55,10 @@ const renderInstallerDisplayText = (
     return isFma ? "Fleet-maintained" : "Custom package";
   }
   if (androidPlayStoreId) {
+    if (isAndroidWebApp(androidPlayStoreId)) {
+      return "Web app";
+    }
+
     return "Google Play Store";
   }
   return "App Store (VPP)";
@@ -66,6 +72,7 @@ interface IInstallerDetailsWidgetProps {
   version?: string | null;
   sha256?: string | null;
   isFma: boolean;
+  isLatestFmaVersion?: boolean;
   isScriptPackage: boolean;
   androidPlayStoreId?: string;
   customDetails?: string;
@@ -79,6 +86,7 @@ const InstallerDetailsWidget = ({
   sha256,
   version,
   isFma,
+  isLatestFmaVersion = false,
   isScriptPackage,
   androidPlayStoreId,
   customDetails,
@@ -116,12 +124,29 @@ const InstallerDetailsWidget = ({
     }
 
     const renderVersionInfo = () => {
-      if (isScriptPackage) {
+      // Hide version info from script package and Android Play Store web apps
+      if (isScriptPackage || isAndroidWebApp(androidPlayStoreId)) {
         return null;
       }
 
       let versionInfo = <span>{version}</span>;
 
+      if (isFma) {
+        versionInfo = (
+          <TooltipWrapper
+            tipContent={
+              <span>
+                You can change the version in <strong>Actions &gt; Edit</strong>{" "}
+                software.
+              </span>
+            }
+          >
+            <span>
+              {version} {isLatestFmaVersion ? "(latest)" : ""}
+            </span>
+          </TooltipWrapper>
+        );
+      }
       if (installerType === "app-store") {
         versionInfo = (
           <TooltipWrapper tipContent={<span>Updated every hour.</span>}>

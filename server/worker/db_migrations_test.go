@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/test"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,9 +23,9 @@ func TestDBMigrationsVPPToken(t *testing.T) {
 	// call TruncateTables immediately as a DB migration may have created jobs
 	mysql.TruncateTables(t, ds)
 
-	nopLog := kitlog.NewNopLogger()
+	nopLog := slog.New(slog.DiscardHandler)
 	// use this to debug/verify details of calls
-	// nopLog := kitlog.NewJSONLogger(os.Stdout)
+	// nopLog = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	// create and register the worker
 	processor := &DBMigration{

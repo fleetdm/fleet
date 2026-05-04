@@ -60,14 +60,18 @@ func (e *existsError) Error() string {
 	msg += " already exists"
 	switch {
 	case e.TeamID != nil:
-		msg += fmt.Sprintf(" with TeamID %d.", *e.TeamID)
+		msg += fmt.Sprintf(" with FleetID %d.", *e.TeamID)
 	case e.TeamName != nil:
-		msg += fmt.Sprintf(" with team %q.", *e.TeamName)
+		msg += fmt.Sprintf(" with fleet %q.", *e.TeamName)
 	}
 	return msg
 }
 
 func (e *existsError) IsExists() bool {
+	return true
+}
+
+func (e *existsError) IsClientError() bool {
 	return true
 }
 

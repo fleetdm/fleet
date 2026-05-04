@@ -8,7 +8,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| GTM Systems Architect | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
+| Head of GTM Architecture | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_ 
 
 
 ## Contact us
@@ -29,7 +29,24 @@ The Finance department maintains the documentation of [Fleet's existing trademar
 
 ## Responsibilities
 
-The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commission calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, financial operations including bank accounts and cash flow management, Zapier flows, as well as the internal tooling, automation, and technology behind Fleet's Go-To-Market (GTM) systems. 
+
+### Monthly and quarterly budget-to-actuals review with CEO’s direct reports
+
+Finance will prepare monthly and quarterly budget-to-actuals files for review with the CEO's direct reports: 
+1. Finance to close the prior month's books within the first 10 business days.
+2. Generate the monthly and quarterly budget-to-actuals (“BVA”) report, including variance analysis.
+3. Identify and flag significant variances in the comments section of the file. 
+4. Aggregate the monthly data for quarterly and year-to-date review. 
+5. Save a copy of the BVA file in the shared drive with the department leaders.
+	- [R&D](https://drive.google.com/drive/folders/1BcsTdDWTvljeYW197dTW3GhGyghVzNpB)
+	- [Sales](https://drive.google.com/drive/folders/1WEsk7IArPUPvC2JXMVpZupL6EE8XlgrS)
+	- [CS](https://drive.google.com/drive/folders/114KsxfOTPGdSQSf8psXEYkJHM-OveBs7)
+	- [Marketing](https://drive.google.com/drive/folders/1XX2O5qZ2_V6PAn-UBXthRJar3P2vk7n9)
+	- [Corporate](https://drive.google.com/drive/folders/14mYIcuaFNkjNMxdLEcmPxs90blfFlb0L)
+6. Department leaders review their section of the report, focusing on flagged variances.
+7. Finance reforecasts the remainder of the year using department inputs and updated assumptions
+8. Finance to schedule meetings with department leaders if further review is needed, and vice versa. 
 
 
 ### Prepare for OCV meeting
@@ -168,7 +185,7 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - Ensure the wiring instructions for payment via SVB are listed in the invoice.
    - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice, and update the ["Future invoices to be sent" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/11kQNw6oTkPe_FCuRItZ26zBCGFOyxpF86XCJ335slxU/edit?gid=0#gid=0).
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
@@ -275,7 +292,7 @@ Thanks,
 
 19. Click next to proceed to Step 3: Add buyers.
 
-20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configure legal terms and offer documents.
 
 21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
 
@@ -284,7 +301,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1Gwd71dbo5mI_3CherBiiH9pZ3ANFMkfH/view?usp=sharing).
 
 
 ### Run US commission payroll
@@ -349,7 +366,7 @@ No further action needs to be taken, the amount available for use will increase 
 
 ### Check franchise tax status
 
-No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
+No later than the second month of every quarter, we check [Delaware division of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
@@ -359,7 +376,7 @@ No later than the second month of every quarter, we check [Delaware divison of c
 
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
 1. Check to make sure [bookkeeping quirks](https://docs.google.com/spreadsheets/d/1nuUPMZb1z_lrbaQEcgjnxppnYv_GWOTTo4FMqLOlsWg/edit?usp=sharing) are all accounted for and resolved or in progress toward resolution.
-2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accural" accounting method.
+2. Check balance sheet and profit and loss statements (P&Ls) in QBO against the latest [monthly workbooks](https://drive.google.com/drive/folders/1ben-xJgL5MlMJhIl2OeQpDjbk-pF6eJM) in Google Drive. Ensure reports are in the "accrual" accounting method.
 3. Reach out to Pilot with any differences or quirks, and ask them to resolve/provide clarity.  This often will need to happen over a call to review sycnhronously.
 4. Once quirks are resolved, note the day it was resolved in the spreadsheet.
 
@@ -452,14 +469,14 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 
 Within 1 business day, at a minimum, [Deal Desk](https://fleetdm.com/handbook/finance#team) will review order forms to be sent. 
 
-Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
+Using this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
 1. Navigate to the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) to review any order forms pending approval.
 2. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
 3. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
 4. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
 5. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
 6. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
+7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form calculator as the source of truth, if needed, adjust the values in the table to be correct.
 8. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to [Deal Desk](https://fleetdm.com/handbook/finance#team) with concerns.
 9. `@`-mention the requestor in the thread to request changes or provide approval.
 
@@ -478,16 +495,6 @@ When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#te
 > If the agreement closes a deal, inform the CFO (via Slack) that a subscription agreement is ready for his review/signature. The SLA for CFO review and signature is 48hrs.
 
 2. The CFO will comment in the issue once they've signed the agreement and assign the issue to [Deal Desk](https://fleetdm.com/handbook/finance#team) to confirm a signed copy of the agreement is correctly stored in Google Drive. Then the issue can be closed.  
-
-
-### Monitor compliance tests
-
-1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
-2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
-3. Click on a test, then click on "Tasks".  
-4. Click on "Create task." Then, "Create GitHub issue."
-5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-finance" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
-6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team),Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
 
 ### Check GitHub terms
@@ -516,9 +523,18 @@ Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confid
 7. Verify that the principal record details match exactly what is on LinkedIn.
 
 
+### Send Primo CRO weekly export
+
+Every Friday, the Head of GTM Architecture will send an export/email to Primo's CRO with a list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view).
+
+1. Export the list of [non-ICP contact form visitors](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000004GF2P2AW/view) from the CRM.
+2. Paste the values into the [SHARED EXTERNALLY - Leads for Primo](https://docs.google.com/spreadsheets/d/1bJt7e26gDqPbq5emM1Pn3yUWaFzUtXrqmAhS2p53_ws/edit?gid=0#gid=0) Google sheet.
+3. Email Primo's CRO and cc Zay Hanlon.
+
+
 ### Grant role-specific license to a team member
 
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
+Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from the Head of People](https://fleetdm.com/handbook/people#contact-us) who will make sure there is no license redundancy in that department.
 
 
 ### Add a seat to Salesforce
@@ -537,6 +553,18 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
     - Select "Edit", under "User and Profile Assignments" move the new user's name from "Available" to "Selected", scroll all the way down and click save.
 
 
+### Update Salesforce placards
+
+Quarterly, on the second Wednesday of the last month of the quarter, the Head of GTM Architecture will meet with the CFO to obtain the next quarter's goals for: 
+- Gross new ARR (QTD)
+  - New business (QTD)
+  - Expansion (QTD)
+- Gross new pipeline added (QTD)
+- Churn & contraction (QTD)
+
+The Head of GTM Architecture will update the corresponding placards in Salesforce (including churn & contraction targets from the operating model) and thermometer guidelines. Sam Pfluger and Tina Ong meet live for 30 minutes to complete this update, ensuring all reps, CSMs, and fleeties see accurate data before the new quarter begins.
+
+
 ## Rituals
 
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -545,6 +573,9 @@ The following table lists this department's rituals, frequency, and Directly Res
 
 #### Stubs
 The following stubs are included only to make links backward compatible.
+
+##### Monitor compliance tests
+Please see [handbook/it#monitor-compliance-tests](https://fleetdm.com/handbook/it#monitor-compliance-tests)
 
 ### Run payroll
 Please see [handbook/people#run-payroll](https://fleetdm.com/handbook/people#run-payroll)

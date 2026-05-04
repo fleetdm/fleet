@@ -1,0 +1,13 @@
+- automations_enabled: true
+  logging: stdout
+  min_osquery_version: 1.2.3
+  description: This is a global query
+  interval: 3600
+  labels_include_any:
+  - Label A
+  - Label B
+  name: Global Query
+  observer_can_run: true
+  platform: darwin
+  query: SELECT * FROM os_version;
+  discard_data: false

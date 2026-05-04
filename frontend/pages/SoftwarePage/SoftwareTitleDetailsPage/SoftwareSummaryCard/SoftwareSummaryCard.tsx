@@ -21,6 +21,7 @@ import EditIconModal from "../EditIconModal";
 import EditSoftwareModal from "../EditSoftwareModal";
 import EditConfigurationModal from "../EditConfigurationModal";
 import EditAutoUpdateConfigModal from "../EditAutoUpdateConfigModal";
+import AddPatchPolicyModal from "../AddPatchPolicyModal";
 
 interface ISoftwareSummaryCard {
   softwareTitle: ISoftwareTitleDetails;
@@ -50,6 +51,7 @@ const SoftwareSummaryCard = ({
   const [iconUploadedAt, setIconUploadedAt] = useState("");
   const [showEditIconModal, setShowEditIconModal] = useState(false);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
+  const [showAddPatchPolicyModal, setShowAddPatchPolicyModal] = useState(false);
   const [showEditConfigurationModal, setShowEditConfigurationModal] = useState(
     false
   );
@@ -81,7 +83,7 @@ const SoftwareSummaryCard = ({
             versions={softwareTitle.versions?.length ?? 0}
             hostCount={softwareTitle.hosts_count}
             countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{ software_title_id: softwareId, team_id: teamId }}
+            queryParams={{ software_title_id: softwareId, fleet_id: teamId }}
             name={softwareTitle.name}
             source={softwareTitle.source}
             iconUrl={softwareTitle.icon_url}
@@ -112,12 +114,16 @@ const SoftwareSummaryCard = ({
     isIosOrIpadosApp,
     isFleetMaintainedApp,
     isAndroidPlayStoreApp,
+    isAndroidPlayStoreWebApp,
     canManageSoftware,
   } = meta;
 
   const canEditAppearance = canManageSoftware;
-  const canEditSoftware = canManageSoftware;
-  const canEditConfiguration = canManageSoftware && isAndroidPlayStoreApp;
+  const canEditSoftware = canManageSoftware && !isAndroidPlayStoreApp;
+  /** Permission to manage software + Google Playstore app that's not a web app */
+  const canEditConfiguration =
+    canManageSoftware && isAndroidPlayStoreApp && !isAndroidPlayStoreWebApp;
+  const canPatchSoftware = canManageSoftware && isFleetMaintainedApp;
   /** Installer modals require a specific team; hidden from "All Teams" */
   const hasValidTeamId = typeof teamId === "number" && teamId >= 0;
   const softwareInstallerOnTeam = hasValidTeamId && softwareInstaller;
@@ -127,6 +133,7 @@ const SoftwareSummaryCard = ({
 
   const onClickEditAppearance = () => setShowEditIconModal(true);
   const onClickEditSoftware = () => setShowEditSoftwareModal(true);
+  const onClickAddPatchPolicy = () => setShowAddPatchPolicyModal(true);
   const onClickEditConfiguration = () => setShowEditConfigurationModal(true);
   const onClickEditAutoUpdateConfig = () =>
     setShowEditAutoUpdateConfigModal(true);
@@ -142,7 +149,7 @@ const SoftwareSummaryCard = ({
           countsUpdatedAt={softwareTitle.counts_updated_at}
           queryParams={{
             software_title_id: softwareId,
-            team_id: teamId,
+            fleet_id: teamId,
           }}
           name={softwareTitle.name}
           source={softwareTitle.source}
@@ -155,12 +162,16 @@ const SoftwareSummaryCard = ({
           onClickEditSoftware={
             canEditSoftware ? onClickEditSoftware : undefined
           }
+          onClickAddPatchPolicy={
+            canPatchSoftware ? onClickAddPatchPolicy : undefined
+          }
           onClickEditConfiguration={
             canEditConfiguration ? onClickEditConfiguration : undefined
           }
           onClickEditAutoUpdateConfig={
             canEditAutoUpdateConfig ? onClickEditAutoUpdateConfig : undefined
           }
+          patchPolicyId={softwareTitle.software_package?.patch_policy?.id}
         />
         {showVersionsTable && (
           <TitleVersionsTable
@@ -198,7 +209,6 @@ const SoftwareSummaryCard = ({
       )}
       {showEditSoftwareModal && softwareInstallerOnTeam && (
         <EditSoftwareModal
-          router={router}
           softwareId={softwareId}
           teamId={teamId}
           softwareInstaller={softwareInstaller}
@@ -212,6 +222,14 @@ const SoftwareSummaryCard = ({
           displayName={softwareDisplayName}
           source={softwareTitle.source}
           iconUrl={softwareTitle.icon_url}
+        />
+      )}
+      {showAddPatchPolicyModal && softwareInstallerOnTeam && (
+        <AddPatchPolicyModal
+          softwareId={softwareTitle.id}
+          teamId={teamId}
+          onSuccess={refetchSoftwareTitle}
+          onExit={() => setShowAddPatchPolicyModal(false)}
         />
       )}
       {showEditConfigurationModal && softwareInstallerOnTeam && (

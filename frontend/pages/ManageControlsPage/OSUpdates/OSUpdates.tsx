@@ -13,11 +13,13 @@ import { ApplePlatform } from "interfaces/platform";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import PageDescription from "components/PageDescription";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
-import GenericMsgWithNavButton from "../../../components/GenericMsgWithNavButton/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
 import { parseOSUpdatesCurrentVersionsQueryParams } from "./components/CurrentVersionSection/CurrentVersionSection";
@@ -106,7 +108,7 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     router.replace(
       getPathWithQueryParams(PATHS.CONTROLS_OS_SETTINGS, {
-        team_id: teamIdForApi,
+        fleet_id: teamIdForApi,
       })
     );
   }
@@ -118,12 +120,14 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
     !config?.mdm.windows_enabled_and_configured
   ) {
     return (
-      <GenericMsgWithNavButton
-        header="Manage your hosts"
+      <EmptyState
+        header="Additional configuration required"
         info="MDM must be turned on to change settings on your hosts."
-        path={PATHS.ADMIN_INTEGRATIONS_MDM}
-        buttonText="Turn on"
-        router={router}
+        primaryButton={
+          <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+            Turn on
+          </Button>
+        }
       />
     );
   }
@@ -135,9 +139,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Remotely enforce software updates.
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content="Remotely enforce software updates."
+      />
       <>
         <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection

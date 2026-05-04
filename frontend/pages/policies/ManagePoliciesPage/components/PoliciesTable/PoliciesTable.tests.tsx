@@ -23,7 +23,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         searchQuery=""
         page={0}
         onQueryChange={noop}
@@ -52,7 +52,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
@@ -63,7 +63,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to all teams")
+      screen.getByText("You don't have any policies that apply to all fleets")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
     expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
@@ -95,7 +95,7 @@ describe("Policies table", () => {
     );
 
     expect(
-      screen.getByText("You don't have any policies that apply to this team")
+      screen.getByText("You don't have any policies that apply to this fleet")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
@@ -115,7 +115,7 @@ describe("Policies table", () => {
         policiesList={[]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
         page={0}
@@ -147,7 +147,7 @@ describe("Policies table", () => {
         policiesList={[testCriticalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
@@ -206,7 +206,7 @@ describe("Policies table", () => {
     });
   });
 
-  it("Does not render an inherited badge and tooltip for global policy on the All teams's policies page", () => {
+  it("Does not render an inherited badge and tooltip for global policy on the All fleets's policies page", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -223,7 +223,7 @@ describe("Policies table", () => {
         policiesList={[testGlobalPolicy]}
         isLoading={false}
         onDeletePoliciesClick={noop}
-        currentTeam={{ id: -1, name: "All teams" }}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
@@ -259,7 +259,7 @@ describe("Policies table", () => {
 
     const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
 
-    const { container, user } = render(
+    const { user } = render(
       <PoliciesTable
         policiesList={policiesList}
         isLoading={false}
@@ -289,5 +289,113 @@ describe("Policies table", () => {
     });
 
     expect(checkbox).toBeChecked();
+  });
+
+  it("Renders a Patch badge for a patch policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testPatchPolicy = createMockPolicy({
+      type: "patch",
+      name: "macOS - Zoom up to date",
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[testPatchPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.getByText("Patch")).toBeInTheDocument();
+  });
+
+  it("Does not render a Patch badge for a dynamic policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testDynamicPolicy = createMockPolicy({ type: "dynamic" });
+
+    render(
+      <PoliciesTable
+        policiesList={[testDynamicPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.queryByText("Patch")).not.toBeInTheDocument();
+  });
+
+  it("Renders the Automations column with correct values", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const policyWithAutomations = createMockPolicy({
+      id: 10,
+      name: "Policy with automations",
+      install_software: { name: "Zoom", software_title_id: 1 },
+      calendar_events_enabled: true,
+    });
+
+    const policyWithoutAutomations = createMockPolicy({
+      id: 11,
+      name: "Policy without automations",
+      install_software: undefined,
+      calendar_events_enabled: false,
+      conditional_access_enabled: false,
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[policyWithAutomations, policyWithoutAutomations]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={2}
+      />
+    );
+
+    expect(screen.getByText("Automations")).toBeInTheDocument();
+    expect(screen.getByText("Software, calendar")).toBeInTheDocument();
+    expect(screen.getByText("---")).toBeInTheDocument();
   });
 });

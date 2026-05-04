@@ -16,26 +16,26 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type getTeamScheduleRequest struct {
-	TeamID      uint              `url:"team_id"`
+	TeamID      uint              `url:"fleet_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
 type getTeamScheduleResponse struct {
-	Scheduled []scheduledQueryResponse `json:"scheduled"`
-	Err       error                    `json:"error,omitempty"`
+	Scheduled []fleet.ScheduledQueryResponse `json:"scheduled"`
+	Err       error                          `json:"error,omitempty"`
 }
 
 func (r getTeamScheduleResponse) Error() error { return r.Err }
 
 func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
-	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
+	resp := getTeamScheduleResponse{Scheduled: []fleet.ScheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return getTeamScheduleResponse{Err: err}, nil
 	}
 	for _, q := range queries {
-		resp.Scheduled = append(resp.Scheduled, scheduledQueryResponse{
+		resp.Scheduled = append(resp.Scheduled, fleet.ScheduledQueryResponse{
 			ScheduledQuery: *q,
 		})
 	}
@@ -47,7 +47,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if teamID != 0 {
 		teamID_ = &teamID
 	}
-	queries, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
+	queries, _, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamScheduleQueryRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -135,8 +135,8 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamScheduleRequest struct {
-	TeamID           uint `url:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	TeamID           uint `url:"fleet_id"`
+	ScheduledQueryID uint `url:"report_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -174,8 +174,8 @@ func (svc Service) ModifyTeamScheduledQueries(
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamScheduleRequest struct {
-	TeamID           uint `url:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	TeamID           uint `url:"fleet_id"`
+	ScheduledQueryID uint `url:"report_id"`
 }
 
 type deleteTeamScheduleResponse struct {

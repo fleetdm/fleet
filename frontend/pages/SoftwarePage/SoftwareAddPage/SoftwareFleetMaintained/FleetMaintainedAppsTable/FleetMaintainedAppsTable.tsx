@@ -13,7 +13,7 @@ import {
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import {
   FmaStatusFilter,
@@ -27,8 +27,7 @@ import { generateTableConfig } from "./FleetMaintainedAppsTableConfig";
 const baseClass = "fleet-maintained-apps-table";
 
 const EmptyFleetAppsTable = () => (
-  <EmptyTable
-    graphicName="empty-search-question"
+  <EmptyState
     header="No items match the current search criteria"
     info={
       <>
@@ -81,6 +80,8 @@ interface IFleetMaintainedAppsTableProps {
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
+  platformParam?: FmaPlatformValue;
+  statusParam?: FmaStatusValue;
   currentPage: number;
   router: InjectedRouter;
   data?: ISoftwareFleetMaintainedAppsResponse;
@@ -98,11 +99,15 @@ const FleetMaintainedAppsTable = ({
   query,
   perPage,
   orderDirection,
+  platformParam,
+  statusParam,
   orderKey,
   currentPage,
 }: IFleetMaintainedAppsTableProps) => {
-  const [status, setStatus] = useState<FmaStatusValue>("all");
-  const [platform, setPlatform] = useState<FmaPlatformValue>("all");
+  const [status, setStatus] = useState<FmaStatusValue>(statusParam || "all");
+  const [platform, setPlatform] = useState<FmaPlatformValue>(
+    platformParam || "all"
+  );
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -116,13 +121,17 @@ const FleetMaintainedAppsTable = ({
             return val !== orderKey;
           case "pageIndex":
             return val !== currentPage;
+          case "platform":
+            return val !== platformParam;
+          case "status":
+            return val !== statusParam;
           default:
             return false;
         }
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey, query]
+    [currentPage, orderDirection, orderKey, query, platformParam, statusParam]
   );
 
   const generateNewQueryParams = useCallback(
@@ -134,7 +143,7 @@ const FleetMaintainedAppsTable = ({
     ) => {
       const newQueryParam: Record<string, string | number | undefined> = {
         query: newTableQuery.searchQuery,
-        team_id: teamId,
+        fleet_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,

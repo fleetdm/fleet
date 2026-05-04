@@ -8,7 +8,6 @@ import (
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -109,6 +108,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 	}
 	acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+		// PerPage 1: only acctCmds[0] is read below.
+		ListOptions: fleet.ListOptions{PerPage: 1},
 		Filters: fleet.MDMCommandFilters{
 			HostIdentifier: host.UUID,
 			RequestType:    "AccountConfiguration",
@@ -130,7 +131,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	}
 
 	// get status of software installs and script execution
-	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, ptr.ValOrZero(host.TeamID))
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
@@ -154,23 +155,15 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	// then re-enqueue any cancelled setup experience steps.
 	if hasFailedSoftwareInstall {
 		if resetFailedSetupSteps {
-			teamID := uint(0)
-			if host.TeamID != nil {
-				teamID = *host.TeamID
-			}
 			// If so, call the enqueue function with a flag to retain successful steps.
 			if requireAllSoftware {
-				level.Info(svc.logger).Log("msg", "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
-				platform := host.PlatformLike
-				if platform == "" {
-					platform = host.Platform
-				}
-				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, platform, host.UUID, teamID)
+				svc.logger.InfoContext(ctx, "re-enqueueing cancelled setup experience steps after a previous software install failure", "host_uuid", host.UUID)
+				_, err := svc.ds.ResetSetupExperienceItemsAfterFailure(ctx, host.Platform, host.PlatformLike, host.UUID, ptr.ValOrZero(host.TeamID))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "re-enqueueing cancelled setup experience steps after a previous software install failure")
 				}
 				// Re-fetch the setup experience results after re-enqueuing.
-				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+				res, err = svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID, ptr.ValOrZero(host.TeamID))
 				if err != nil {
 					return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 				}
@@ -178,9 +171,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	if err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, host.UUID, host.DisplayName(), res); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
 	}
 
 	payload := &fleet.SetupExperienceStatusPayload{
@@ -219,9 +211,9 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		// otherwise the device is not released manually, proceed with automatic
 		// release
 		if forceRelease {
-			level.Warn(svc.logger).Log("msg", "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
+			svc.logger.WarnContext(ctx, "force-releasing device, DEP enrollment commands, profiles, software installs and script execution may not have all completed", "host_uuid", host.UUID)
 		} else {
-			level.Info(svc.logger).Log("msg", "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
+			svc.logger.InfoContext(ctx, "releasing device, all DEP enrollment commands, profiles, software installs and script execution have completed", "host_uuid", host.UUID)
 		}
 
 		// Host will be marked as no longer "awaiting configuration" in the command handler
@@ -238,7 +230,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	return payload, nil
 }
 
-func (svc *Service) failCancelledSetupExperienceInstalls(
+func (svc *Service) recordCanceledSetupExperienceSoftwareActivities(
 	ctx context.Context,
 	hostID uint,
 	hostUUID string,
@@ -250,51 +242,34 @@ func (svc *Service) failCancelledSetupExperienceInstalls(
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
+		svc.logger.InfoContext(ctx, "emitting activity for canceled setup experience software", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
+			return ctxerr.Wrap(ctx, err, "marking canceled setup experience software install as failed")
 		}
-		// TODO -- support recording activity for failed VPP apps as well.
-		// https://github.com/fleetdm/fleet/issues/34288
 		if r.IsForSoftwarePackage() {
-			softwarePackage := ""
-			var source *string
-			installerMeta, err := svc.ds.GetSoftwareInstallerMetadataByID(ctx, *r.SoftwareInstallerID)
-			if err != nil && !fleet.IsNotFound(err) {
-				return ctxerr.Wrap(ctx, err, "getting software installer metadata for cancelled setup experience software install")
-			}
-			if installerMeta != nil {
-				softwarePackage = installerMeta.Name
-				// Get the software title to retrieve the source
-				if installerMeta.TitleID != nil {
-					title, err := svc.ds.SoftwareTitleByID(ctx, *installerMeta.TitleID, nil, fleet.TeamFilter{})
-					if err != nil && !fleet.IsNotFound(err) {
-						return ctxerr.Wrap(ctx, err, "getting software title for cancelled setup experience software install")
-					}
-					if title != nil {
-						source = &title.Source
-					}
-				}
-			}
-			activity := fleet.ActivityTypeInstalledSoftware{
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallSoftware{
 				HostID:              hostID,
 				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
-				SoftwarePackage:     softwarePackage,
-				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
-				Status:              "failed",
-				SelfService:         false,
-				Source:              source,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
 				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience software install")
 			}
-			err = svc.NewActivity(ctx, nil, activity)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "creating activity for cancelled setup experience software install")
+		} else if r.IsForVPPApp() {
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledInstallAppStoreApp{
+				HostID:              hostID,
+				HostDisplayName:     hostDisplayName,
+				SoftwareTitle:       r.Name,
+				SoftwareTitleID:     ptr.ValOrZero(r.SoftwareTitleID),
+				FromSetupExperience: true,
+			}); err != nil {
+				return ctxerr.Wrap(ctx, err, "creating activity for canceled setup experience VPP app install")
 			}
 		}
-		continue
 	}
+
 	return nil
 }
 
@@ -303,13 +278,13 @@ func isDeviceReleasedManually(ctx context.Context, ds fleet.Datastore, host *fle
 	if host.TeamID == nil {
 		ac, err := ds.AppConfig(ctx)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get AppConfig to read apple_enable_release_device_manually")
 		}
 		manualRelease = ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	} else {
 		tm, err := ds.TeamLite(ctx, *host.TeamID)
 		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "get Team to read enable_release_device_manually")
+			return false, ctxerr.Wrap(ctx, err, "get Team to read apple_enable_release_device_manually")
 		}
 		manualRelease = tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
 	}
@@ -391,7 +366,7 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
 	}
 
-	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, hostUUID, teamID)
+	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.PlatformLike, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
 	}

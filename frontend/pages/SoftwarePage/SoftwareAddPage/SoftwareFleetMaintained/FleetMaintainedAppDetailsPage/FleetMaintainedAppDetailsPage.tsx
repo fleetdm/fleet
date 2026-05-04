@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import { AxiosResponse } from "axios";
 import { Location } from "history";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -9,27 +9,21 @@ import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import softwareAPI from "services/entities/software";
-import labelsAPI, { getCustomLabels } from "services/entities/labels";
-import { QueryContext } from "context/query";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
-import { ILabelSummary } from "interfaces/label";
-import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import SidePanelPage from "components/SidePanelPage";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Card from "components/Card";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
+import PageDescription from "components/PageDescription";
 
 import FleetAppDetailsForm from "./FleetAppDetailsForm";
 import { IFleetMaintainedAppFormData } from "./FleetAppDetailsForm/FleetAppDetailsForm";
@@ -107,7 +101,7 @@ const FleetAppSummary = ({
 };
 
 export interface IFleetMaintainedAppDetailsQueryParams {
-  team_id?: string;
+  fleet_id?: string;
 }
 
 interface IFleetMaintainedAppDetailsRouteParams {
@@ -131,30 +125,23 @@ const FleetMaintainedAppDetailsPage = ({
   router,
   routeParams,
 }: IFleetMaintainedAppDetailsPageProps) => {
-  const teamId = location.query.team_id;
+  const teamId = location.query.fleet_id;
   const appId = parseInt(routeParams.id, 10);
   if (isNaN(appId)) {
     router.push(PATHS.SOFTWARE_ADD_FLEET_MAINTAINED);
   }
 
   const { renderFlash } = useContext(NotificationContext);
+  const queryClient = useQueryClient();
 
   const handlePageError = useErrorHandler();
   const { isPremiumTier } = useContext(AppContext);
 
-  const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
-    QueryContext
-  );
-  const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(false);
   const [
     showAddFleetAppSoftwareModal,
     setShowAddFleetAppSoftwareModal,
   ] = useState(false);
   const [showAppDetailsModal, setShowAppDetailsModal] = useState(false);
-  const [
-    showPreviewEndUserExperience,
-    setShowPreviewEndUserExperience,
-  ] = useState(false);
 
   const {
     data: fleetApp,
@@ -172,39 +159,13 @@ const FleetMaintainedAppDetailsPage = ({
     }
   );
 
-  const {
-    data: labels,
-    isLoading: isLoadingLabels,
-    isError: isErrorLabels,
-  } = useQuery<ILabelSummary[], Error>(
-    ["custom_labels"],
-    () =>
-      labelsAPI
-        .summary(parseInt(teamId || "0", 10))
-        .then((res) => getCustomLabels(res.labels)),
-
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: isPremiumTier,
-      staleTime: 10000,
-    }
-  );
-
-  const onOsqueryTableSelect = (tableName: string) => {
-    setSelectedOsqueryTable(tableName);
-  };
-
   const onClickShowAppDetails = () => {
     setShowAppDetailsModal(true);
   };
 
-  const onClickPreviewEndUserExperience = () => {
-    setShowPreviewEndUserExperience(!showPreviewEndUserExperience);
-  };
-
   const backToAddSoftwareUrl = getPathWithQueryParams(
     PATHS.SOFTWARE_ADD_FLEET_MAINTAINED,
-    { team_id: teamId }
+    { fleet_id: teamId }
   );
 
   const onCancel = () => {
@@ -225,11 +186,21 @@ const FleetMaintainedAppDetailsPage = ({
         appId,
       });
 
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "fleet-maintained-apps" }],
+      });
+
       router.push(
         getPathWithQueryParams(
           PATHS.SOFTWARE_TITLE_DETAILS(softwareFmaTitleId.toString()),
           {
-            team_id: teamId,
+            fleet_id: teamId,
           }
         )
       );
@@ -254,11 +225,11 @@ const FleetMaintainedAppDetailsPage = ({
       return <PremiumFeatureMessage />;
     }
 
-    if (isLoadingFleetApp || isLoadingLabels) {
+    if (isLoadingFleetApp) {
       return <Spinner />;
     }
 
-    if (isErrorFleetApp || isErrorLabels) {
+    if (isErrorFleetApp) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
@@ -271,6 +242,7 @@ const FleetMaintainedAppDetailsPage = ({
             className={`${baseClass}__back-to-add-software`}
           />
           <h1>{fleetApp.name}</h1>
+          <PageDescription content="Add software to your library. You can add it to self-service later." />
           <div className={`${baseClass}__page-content`}>
             <FleetAppSummary
               name={fleetApp.name}
@@ -279,26 +251,16 @@ const FleetMaintainedAppDetailsPage = ({
               onClickShowAppDetails={onClickShowAppDetails}
             />
             <FleetAppDetailsForm
-              labels={labels || []}
               categories={fleetApp.categories}
-              name={fleetApp.name}
-              showSchemaButton={!isSidePanelOpen}
               defaultInstallScript={fleetApp.install_script}
               defaultPostInstallScript={fleetApp.post_install_script}
               defaultUninstallScript={fleetApp.uninstall_script}
               teamId={teamId}
-              onClickShowSchema={() => setSidePanelOpen(true)}
               onCancel={onCancel}
               onSubmit={onSubmit}
               softwareTitleId={fleetApp.software_title_id}
-              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
             />
           </div>
-          {showPreviewEndUserExperience && (
-            <CategoriesEndUserExperienceModal
-              onCancel={onClickPreviewEndUserExperience}
-            />
-          )}
         </>
       );
     }
@@ -312,16 +274,6 @@ const FleetMaintainedAppDetailsPage = ({
         <MainContent className={baseClass}>
           <>{renderContent()}</>
         </MainContent>
-        {isPremiumTier && fleetApp && isSidePanelOpen && (
-          <SidePanelContent className={`${baseClass}__side-panel`}>
-            <QuerySidePanel
-              key="query-side-panel"
-              onOsqueryTableSelect={onOsqueryTableSelect}
-              selectedOsqueryTable={selectedOsqueryTable}
-              onClose={() => setSidePanelOpen(false)}
-            />
-          </SidePanelContent>
-        )}
         {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
         {showAppDetailsModal && fleetApp && (
           <FleetAppDetailsModal

@@ -9,6 +9,7 @@ import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 import SideNav from "pages/admin/components/SideNav";
 import CustomLink from "components/CustomLink";
+import PageDescription from "components/PageDescription";
 
 import useScriptNavItems from "./ScriptsNavItems";
 
@@ -18,7 +19,7 @@ export interface ScriptsLocation {
   search: string;
   pathname: string;
   query: {
-    team_id?: string;
+    fleet_id?: string;
     status?: string;
     page?: string;
   };
@@ -47,19 +48,34 @@ const Scripts = ({ router, location, params }: IScriptsProps) => {
     SCRIPTS_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SCRIPTS_SECTION;
 
+  // Redirect to the default section if the URL section is not in the filtered list
+  if (
+    section &&
+    currentFormSection === DEFAULT_SCRIPTS_SECTION &&
+    section !== DEFAULT_SCRIPTS_SECTION.urlSection
+  ) {
+    router.replace(DEFAULT_SCRIPTS_SECTION.path);
+    return null;
+  }
+
   const CurrentCard = currentFormSection.Card;
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Change configuration and remediate issues on macOS, Windows, and Linux
-        hosts.{" "}
-        <CustomLink
-          text="Learn more"
-          url={`${FLEET_WEBSITE_URL}/docs/using-fleet/scripts`}
-          newTab
-        />
-      </p>
+      <PageDescription
+        variant="tab-panel"
+        content={
+          <>
+            Change configuration and remediate issues on macOS, Windows, and
+            Linux hosts.{" "}
+            <CustomLink
+              text="Learn more"
+              url={`${FLEET_WEBSITE_URL}/docs/using-fleet/scripts`}
+              newTab
+            />
+          </>
+        }
+      />
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SCRIPTS_NAV_ITEMS}

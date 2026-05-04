@@ -34,6 +34,40 @@ ON DUPLICATE KEY UPDATE
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
+
+		// For darwin apps, update existing software_titles and software entries
+		// to use the FMA canonical name. This ensures consistency when an FMA
+		// is added for software that was previously ingested with osquery-reported names.
+		//
+		// We only run these UPDATEs when the FMA was actually inserted or modified.
+		// MySQL's ON DUPLICATE KEY UPDATE returns RowsAffected:
+		//   0 = duplicate key, no changes (existing FMA with same values)
+		//   1 = new row inserted
+		//   2 = duplicate key, values changed
+		// Skip if RowsAffected == 0 since nothing changed.
+		rowsAffected, _ := res.RowsAffected()
+		if app.Platform == "darwin" && app.UniqueIdentifier != "" && rowsAffected > 0 {
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software_titles
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software_titles names for FMA")
+			}
+
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software names for FMA")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -47,7 +81,7 @@ ON DUPLICATE KEY UPDATE
 const teamFMATitlesJoin = `
 			team_titles.id software_title_id FROM fleet_maintained_apps fma
 			LEFT JOIN (
-				SELECT DISTINCT st.id, st.unique_identifier
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
 				FROM software_titles st
 				LEFT JOIN
 					software_installers si
@@ -63,7 +97,16 @@ const teamFMATitlesJoin = `
 					AND vat.platform = va.platform
 					AND vat.global_or_team_id = ?
 				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
-			) team_titles ON team_titles.unique_identifier = fma.unique_identifier`
+			) team_titles 
+				ON team_titles.unique_identifier = fma.unique_identifier
+				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
+				OR (
+					team_titles.platform = fma.platform 
+					AND fma.platform = 'windows' 
+					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
+					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
+				)
+`
 
 func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
 	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
@@ -169,6 +212,30 @@ func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamI
 	}
 
 	return avail, meta, nil
+}
+
+func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
+	query := `SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query FMA names by identifier")
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var identifier, name string
+		if err := rows.Scan(&identifier, &name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scan FMA name row")
+		}
+		result[identifier] = name
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterate FMA name rows")
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {

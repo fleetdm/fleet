@@ -1,0 +1,2 @@
+* Added user_api_endpoints table to track per-user API endpoint permissions.                         
+* Added startup validation that panics if any route declared in service/api_endpoints.yml is not registered in the router.

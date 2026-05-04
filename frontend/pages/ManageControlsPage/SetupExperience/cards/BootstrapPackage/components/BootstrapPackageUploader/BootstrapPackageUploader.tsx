@@ -5,7 +5,6 @@ import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
-import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
@@ -43,7 +42,7 @@ const BootstrapPackageUploader = ({
 
     try {
       await mdmAPI.uploadBootstrapPackage(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;

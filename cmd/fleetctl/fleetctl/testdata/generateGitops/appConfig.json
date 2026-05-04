@@ -100,7 +100,8 @@
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 30
+    "activity_expiry_window": 30,
+    "preserve_host_activities_on_reenrollment": true
   },
   "features": {
     "enable_host_users": true,
@@ -251,6 +252,11 @@
     },
     "windows_migration_enabled": true,
     "enable_turn_on_windows_mdm_manually": false,
+    "windows_entra_tenant_ids": [
+      "5b84b6dd-d257-415e-b8b4-0240666ba4d4",
+      "9d30f55f-d117-4574-acf0-ff593e3e06e3"
+    ],
+    "apple_require_hardware_attestation": false,
     "end_user_authentication": {
       "entity_id": "some-mdm-entity-id.com",
       "issuer_uri": "https://some-mdm-issuer-uri.com",
@@ -263,17 +269,7 @@
     "windows_settings": {
       "custom_settings": []
     },
-    "volume_purchasing_program": [
-      {
-        "location": "Fleet Device Management Inc.",
-        "teams": [
-          "💻 Workstations",
-          "💻🐣 Workstations (canary)",
-          "📱🏢 Company-owned mobile devices",
-          "📱🔐 Personal mobile devices"
-        ]
-      }
-    ],
+    "volume_purchasing_program": null,
     "android_enabled_and_configured": true,
     "android_settings": {
       "custom_settings": []
@@ -281,7 +277,12 @@
   },
   "gitops": {
     "gitops_mode_enabled": false,
-    "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security"
+    "repository_url": "https://github.com/fleetdm/fleet/tree/main/it-and-security",
+    "exceptions": {
+      "labels": false,
+      "software": false,
+      "secrets": false
+    }
   },
   "scripts": []
 }

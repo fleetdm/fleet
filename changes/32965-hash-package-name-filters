@@ -1,1 +1,0 @@
-- Added `hash_sha256` and `package_name` query parameters to the GET /api/v1/fleet/software/titles endpoint to allow checking if a custom software package already exists before uploading. Both parameters require `team_id` to be specified.

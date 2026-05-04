@@ -1,5 +1,5 @@
-macos_settings:
-  custom_settings:
+apple_settings:
+  configuration_profiles:
     - labels_include_all:
         - Label A
         - Label B
@@ -8,12 +8,12 @@ macos_settings:
         - Label C
       path: ./lib/profiles/global-macos-json-profile.json
 windows_settings:
-  custom_settings:
+  configuration_profiles:
     - labels_include_any:
         - Label D
       path: ./lib/profiles/global-windows-profile.xml
 android_settings:
-  custom_settings:
+  configuration_profiles:
     - path: ./lib/profiles/global-android-profile.json
 macos_updates:
   minimum_version: "15.1"
@@ -31,11 +31,16 @@ windows_updates:
   deadline_days: 5
   grace_period_days: 2
 windows_enabled_and_configured: true
+windows_entra_tenant_ids:
+- 5b84b6dd-d257-415e-b8b4-0240666ba4d4
+- 9d30f55f-d117-4574-acf0-ff593e3e06e3
 windows_migration_enabled: true
 enable_turn_on_windows_mdm_manually: false
 windows_require_bitlocker_pin: false
+apple_require_hardware_attestation: false
 android_enabled_and_configured: true
 enable_disk_encryption: true
+enable_recovery_lock_password: false
 macos_migration: # Available in Fleet Premium
   enable: true
   mode: voluntary

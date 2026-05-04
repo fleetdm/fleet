@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -24,6 +25,10 @@ func TestMaintainedApps(t *testing.T) {
 		{"ListAndGetAvailableApps", testListAndGetAvailableApps},
 		{"SyncAndRemoveApps", testSyncAndRemoveApps},
 		{"GetMaintainedAppBySlug", testGetMaintainedAppBySlug},
+		{"ListAvailableAppsWindows", testListAvailableAppsWindows},
+		{"SoftwareTitleRenamingWindows", testSoftwareTitleRenamingWindows},
+		{"GetFMANamesByIdentifier", testGetFMANamesByIdentifier},
+		{"UpsertMaintainedAppUpdatesSoftware", testUpsertMaintainedAppUpdatesSoftware},
 	}
 
 	for _, c := range cases {
@@ -541,4 +546,344 @@ func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {
 		UniqueIdentifier: "fleet.maintained1",
 		TitleID:          nil,
 	}, gotApp)
+}
+
+func testListAvailableAppsWindows(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	maintained1, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained1",
+		Slug:             "maintained1",
+		Platform:         "windows",
+		UniqueIdentifier: "Maintained1 (MSI)",
+	})
+	require.NoError(t, err)
+	maintained2, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Maintained2",
+		Slug:             "maintained2",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.foo",
+	})
+	require.NoError(t, err)
+
+	expectedApps := []fleet.MaintainedApp{
+		{
+			ID:       maintained1.ID,
+			Name:     maintained1.Name,
+			Platform: maintained1.Platform,
+			Slug:     "maintained1",
+		},
+		{
+			ID:       maintained2.ID,
+			Name:     maintained2.Name,
+			Platform: maintained2.Platform,
+			Slug:     "maintained2",
+		},
+	}
+	apps, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.Nil(t, apps[0].TitleID)
+	require.Nil(t, apps[1].TitleID)
+	require.Equal(t, expectedApps, apps)
+
+	// upload an installer that will create a title with a similar name, but with
+	// an upgrade code so that unique identifier doesn't match
+	_, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Maintained1 (MSI)",
+		UpgradeCode:          "{UPGRADE-CODE}",
+		Source:               "programs",
+		StorageID:            "storageid1",
+		Filename:             "maintained1.msi",
+		Extension:            "msi",
+		Platform:             "windows",
+		Version:              "1.0",
+		UserID:               user.ID,
+		TeamID:               &team1.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: ptr.Uint(maintained1.ID),
+	})
+	require.NoError(t, err)
+	// create a pkg installer that should not match by similar name
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "Maintained2 ",
+		BundleIdentifier: "Maintained2.ShallNotBeMatched",
+		Source:           "apps",
+		StorageID:        "storageid2",
+		Filename:         "maintained2.pkg",
+		Extension:        "pkg",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		TeamID:           &team1.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// the windows app should be found using using name, because the existing software title has an upgrade code
+	apps, _, err = ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, apps, 2)
+	require.NotNil(t, apps[0].TitleID)
+	require.Equal(t, titleID, *apps[0].TitleID)
+	// the darwin app should not be matched by name
+	require.Nil(t, apps[1].TitleID)
+}
+
+func testSoftwareTitleRenamingWindows(t *testing.T, ds *Datastore) {
+
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	software1 := []fleet.Software{
+		{Name: "Goodbye 1.00 (x64)", Version: "1.0", Source: "programs"},
+		{Name: "Hello 1.00 (x64)", Version: "1.0", Source: "programs", UpgradeCode: ptr.String("{123456}")},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	opts := fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{OrderKey: "name"}}
+	sw, _, _, err := ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello 1.00 (x64)", sw[1].Name)
+
+	maintained3, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "goodbye",
+		Slug:             "goodbye/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Goodbye 1.00 (x64)",
+	})
+	require.NoError(t, err)
+	maintained4, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Hello",
+		Slug:             "hello/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Hello 1.00 (x64)",
+	})
+	require.NoError(t, err)
+
+	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello 1.00 (x64)", sw[1].Name)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Goodbye 1.00 (x64)",
+		Source:               "programs",
+		StorageID:            "storageid1",
+		Filename:             "goodbye.msi",
+		Extension:            "msi",
+		Platform:             "windows",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintained3.ID),
+	})
+	require.NoError(t, err)
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:                "Hello",
+		UpgradeCode:          "{123456}",
+		Source:               "programs",
+		StorageID:            "storageid2",
+		Filename:             "hello.msi",
+		Extension:            "msi",
+		Platform:             "windows",
+		Version:              "1.0",
+		UserID:               user.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: new(maintained4.ID),
+	})
+	require.NoError(t, err)
+
+	// After uploading installers, Goodbye 1.00 (x64) has no upgrade code so it
+	// keeps its name, and Hello 1.00 (x64) updates to just Hello as it has one.
+	sw, _, _, err = ds.ListSoftwareTitles(ctx, opts, fleet.TeamFilter{})
+	require.NoError(t, err)
+	require.Len(t, sw, 2)
+	require.Equal(t, "Goodbye 1.00 (x64)", sw[0].Name)
+	require.Equal(t, "Hello", sw[1].Name)
+}
+
+func testUpsertMaintainedAppUpdatesSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a host to associate software with
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:        "test-host",
+		Platform:        "darwin",
+		OsqueryHostID:   ptr.String("osquery-host-id"),
+		NodeKey:         ptr.String("node-key"),
+		DetailUpdatedAt: ds.clock.Now(),
+		LabelUpdatedAt:  ds.clock.Now(),
+		PolicyUpdatedAt: ds.clock.Now(),
+		SeenTime:        ds.clock.Now(),
+	})
+	require.NoError(t, err)
+
+	// Create software entries with osquery-reported name ("Code" instead of "Microsoft Visual Studio Code")
+	software := []fleet.Software{
+		{
+			Name:             "Code",
+			Version:          "1.85.0",
+			Source:           "apps",
+			BundleIdentifier: "com.microsoft.VSCode",
+		},
+		{
+			Name:             "Code",
+			Version:          "1.84.0",
+			Source:           "apps",
+			BundleIdentifier: "com.microsoft.VSCode",
+		},
+	}
+
+	// Insert software using the normal ingestion path
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Verify the software and software_titles were created with the osquery name "Code"
+	var softwareNames []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Code", softwareNames[0])
+	require.Equal(t, "Code", softwareNames[1])
+
+	var titleName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Code", titleName)
+
+	// Now upsert an FMA with the canonical name
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	// Verify software entries were updated to use the FMA canonical name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+
+	// Verify software_titles was also updated
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &titleName,
+			`SELECT name FROM software_titles WHERE bundle_identifier = 'com.microsoft.VSCode'`)
+	})
+	require.Equal(t, "Microsoft Visual Studio Code", titleName)
+
+	// Verify upserting the same FMA again doesn't cause issues (idempotent)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	// Names should still be the FMA canonical name
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &softwareNames,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.microsoft.VSCode' ORDER BY version`)
+	})
+	require.Len(t, softwareNames, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[0])
+	require.Equal(t, "Microsoft Visual Studio Code", softwareNames[1])
+
+	// Verify Windows FMA does NOT update darwin software entries
+	// First create darwin software with a different bundle_id
+	software2 := []fleet.Software{
+		{
+			Name:             "Some App",
+			Version:          "1.0.0",
+			Source:           "apps",
+			BundleIdentifier: "com.example.someapp",
+		},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, append(software, software2...))
+	require.NoError(t, err)
+
+	// Upsert a Windows FMA - should not affect darwin software
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Some App Windows",
+		Slug:             "some-app/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "com.example.someapp", // Same identifier but different platform
+	})
+	require.NoError(t, err)
+
+	// The darwin software should NOT have been renamed
+	var someAppName string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &someAppName,
+			`SELECT name FROM software WHERE bundle_identifier = 'com.example.someapp'`)
+	})
+	require.Equal(t, "Some App", someAppName)
+}
+
+func testGetFMANamesByIdentifier(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Initially empty
+	names, err := ds.GetFMANamesByIdentifier(ctx)
+	require.NoError(t, err)
+	require.Empty(t, names)
+
+	// Add some darwin FMAs
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.microsoft.VSCode",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "1Password",
+		Slug:             "1password/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.1password.1password",
+	})
+	require.NoError(t, err)
+
+	// Add a Windows FMA - should NOT be returned (only darwin)
+	_, err = ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Microsoft Visual Studio Code",
+		Slug:             "visual-studio-code/windows",
+		Platform:         "windows",
+		UniqueIdentifier: "Microsoft Visual Studio Code",
+	})
+	require.NoError(t, err)
+
+	// Get FMA names - should only return darwin apps
+	names, err = ds.GetFMANamesByIdentifier(ctx)
+	require.NoError(t, err)
+	require.Len(t, names, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", names["com.microsoft.VSCode"])
+	require.Equal(t, "1Password", names["com.1password.1password"])
+
+	// Windows identifier should not be present
+	_, ok := names["Microsoft Visual Studio Code"]
+	require.False(t, ok)
 }

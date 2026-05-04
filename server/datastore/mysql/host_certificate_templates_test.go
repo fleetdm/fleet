@@ -41,6 +41,7 @@ func TestHostCertificateTemplates(t *testing.T) {
 		{"GetAndroidCertificateTemplatesForRenewal", testGetAndroidCertificateTemplatesForRenewal},
 		{"SetAndroidCertificateTemplatesForRenewal", testSetAndroidCertificateTemplatesForRenewal},
 		{"GetOrCreateFleetChallengeForCertificateTemplate", testGetOrCreateFleetChallengeForCertificateTemplate},
+		{"RetryHostCertificateTemplate", testRetryHostCertificateTemplate},
 	}
 
 	for _, c := range cases {
@@ -866,6 +867,14 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivering, *r.Status)
 	}
 
+	// GetCertificateTemplateStatusesByNameForHosts should return delivering for both (non-terminal -> withhold ONC profiles)
+	allCertStatuses, err := ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses := allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateDelivering, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivering, certStatuses["Test Cert 2"])
+
 	// Step 4: Transition to delivered (challenges are created on-demand)
 	err = ds.TransitionCertificateTemplatesToDelivered(ctx, "android-host", []uint{setup.template.ID, templateTwo.ID})
 	require.NoError(t, err)
@@ -879,6 +888,14 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 		require.EqualValues(t, fleet.CertificateTemplateDelivered, *r.Status)
 		require.Nil(t, r.FleetChallenge) // Challenge not created yet
 	}
+
+	// GetCertificateTemplateStatusesByNameForHosts should return delivered for both (still non-terminal)
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses = allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses["Test Cert 2"])
 
 	// Step 5: Create challenges on-demand (simulating device fetch)
 	challenge1, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, "android-host", setup.template.ID)
@@ -903,6 +920,27 @@ func testCertificateTemplateFullStateMachine(t *testing.T, ds *Datastore) {
 			require.Equal(t, challenge2, *r.FleetChallenge)
 		}
 	}
+
+	// Step 6: Transition first cert to verified, leave second as delivered.
+	// This tests that GetCertificateTemplateStatusesByNameForHosts returns mixed statuses
+	// and only includes install records.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE host_certificate_templates SET status = ? WHERE host_uuid = ? AND certificate_template_id = ?",
+			fleet.CertificateTemplateVerified, "android-host", setup.template.ID)
+		return err
+	})
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"android-host"})
+	require.NoError(t, err)
+	certStatuses = allCertStatuses["android-host"]
+	require.Len(t, certStatuses, 2)
+	require.Equal(t, fleet.CertificateTemplateVerified, certStatuses[setup.template.Name])
+	require.Equal(t, fleet.CertificateTemplateDelivered, certStatuses["Test Cert 2"])
+
+	// Nonexistent host returns empty map
+	allCertStatuses, err = ds.GetCertificateTemplateStatusesByNameForHosts(ctx, []string{"no-such-host"})
+	require.NoError(t, err)
+	require.Empty(t, allCertStatuses)
 
 	// Test revert scenario: Create new pending records, transition to delivering, then revert
 	createEnrolledAndroidHost(t, ctx, ds, "revert-test-host", &setup.team.ID)
@@ -975,6 +1013,88 @@ func testCreatePendingCertificateTemplatesForNewHost(t *testing.T, ds *Datastore
 		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, team.ID)
 		require.NoError(t, err)
 		require.Equal(t, int64(0), rowsAffected)
+	})
+
+	t.Run("resets verified certs to pending on re-enrollment", func(t *testing.T) {
+		// Reproduces https://github.com/fleetdm/fleet/issues/42600:
+		// When an Android host removes the work profile and re-installs it without Fleet receiving
+		// a DELETED notification, old certificate records with status "verified" remain in the table.
+		// CreatePendingCertificateTemplatesForNewHost must reset them to "pending" so certs are re-delivered.
+		defer TruncateTables(t, ds)
+		setup := createCertTemplateTestSetup(t, ctx, ds, "")
+
+		hostUUID := "re-enroll-android-host"
+		createEnrolledAndroidHost(t, ctx, ds, hostUUID, &setup.team.ID)
+
+		// Simulate initial enrollment: create pending cert records
+		rowsAffected, err := ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(1), rowsAffected)
+
+		// Simulate certs being delivered and verified with stale metadata from the previous lifecycle
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`UPDATE host_certificate_templates
+			SET status = ?, operation_type = ?, fleet_challenge = 'old-challenge',
+				detail = 'old detail', not_valid_before = '2025-01-01', not_valid_after = '2026-01-01',
+				serial = 'ABC123', retry_count = 2
+			WHERE host_uuid = ? AND certificate_template_id = ?`,
+			fleet.CertificateTemplateVerified, fleet.MDMOperationTypeInstall, hostUUID, setup.template.ID,
+		)
+		require.NoError(t, err)
+
+		// Verify the record is "verified" before re-enrollment
+		records, err := ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplateVerified, *records[0].Status)
+
+		// Simulate re-enrollment (work profile removed and re-installed, no DELETED notification received).
+		// The delete is what clears stale rows from a previous team, if any.
+		err = ds.DeleteAllHostCertificateTemplates(ctx, hostUUID)
+		require.NoError(t, err)
+		// ListCertificateTemplatesForHosts joins from certificate_templates and synthesizes a row
+		// for the host's team even when host_certificate_templates has no matching row, so we
+		// must query the raw table directly to confirm the delete worked.
+		var countAfterDelete int
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &countAfterDelete,
+			`SELECT COUNT(*) FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Zero(t, countAfterDelete)
+
+		rowsAffected, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, hostUUID, setup.team.ID)
+		require.NoError(t, err)
+		require.Positive(t, rowsAffected)
+
+		// The record must be reset to "pending" with stale metadata cleared
+		records, err = ds.ListCertificateTemplatesForHosts(ctx, []string{hostUUID})
+		require.NoError(t, err)
+		require.Len(t, records, 1)
+		require.NotNil(t, records[0].Status)
+		require.Equal(t, fleet.CertificateTemplatePending, *records[0].Status)
+		require.NotNil(t, records[0].OperationType)
+		require.Equal(t, fleet.MDMOperationTypeInstall, *records[0].OperationType)
+		require.Nil(t, records[0].FleetChallenge)
+
+		// Verify stale certificate metadata was cleared
+		var staleFields struct {
+			Detail         *string    `db:"detail"`
+			NotValidBefore *time.Time `db:"not_valid_before"`
+			NotValidAfter  *time.Time `db:"not_valid_after"`
+			Serial         *string    `db:"serial"`
+			RetryCount     int        `db:"retry_count"`
+		}
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &staleFields,
+			`SELECT detail, not_valid_before, not_valid_after, serial, retry_count
+			FROM host_certificate_templates WHERE host_uuid = ? AND certificate_template_id = ?`,
+			hostUUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Nil(t, staleFields.Detail)
+		require.Nil(t, staleFields.NotValidBefore)
+		require.Nil(t, staleFields.NotValidAfter)
+		require.Nil(t, staleFields.Serial)
+		require.Zero(t, staleFields.RetryCount)
 	})
 }
 
@@ -1310,10 +1430,9 @@ func testListCertificateTemplatesForHostsIncludesRemovalAfterTeamTransfer(t *tes
 	}})
 	require.NoError(t, err)
 
-	// Simulate team transfer: move host to Team B using UpdateHost
+	// Simulate team transfer: move host to Team B.
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	err = ds.UpdateHost(ctx, host)
-	require.NoError(t, err)
 
 	// Mark Team A template for removal using the datastore method
 	err = ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID)
@@ -1492,8 +1611,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEmpty(t, initialUUID, "initial UUID should not be empty")
 
 	// Transfer to Team B: mark Team A cert for removal, create pending install for Team B
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupB.team.ID, []uint{host.ID})))
 	host.TeamID = &setupB.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupB.team.ID)
 	require.NoError(t, err)
@@ -1512,8 +1631,8 @@ func testCertificateTemplateReinstalledAfterTransferBackToOriginalTeam(t *testin
 	require.NotEqual(t, initialUUID, uuidAfterRemove, "UUID should change when marked for removal")
 
 	// Transfer back to Team A: mark Team B cert for removal, re-create pending install for Team A
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&setupA.team.ID, []uint{host.ID})))
 	host.TeamID = &setupA.team.ID
-	require.NoError(t, ds.UpdateHost(ctx, host))
 	require.NoError(t, ds.SetHostCertificateTemplatesToPendingRemoveForHost(ctx, host.UUID))
 	_, err = ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, setupA.team.ID)
 	require.NoError(t, err)
@@ -1755,7 +1874,7 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 	}
 
 	// Execute the renewal query
-	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	results, err := ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 100)
 	require.NoError(t, err)
 
 	// Build map of actual renewals
@@ -1780,13 +1899,13 @@ func testGetAndroidCertificateTemplatesForRenewal(t *testing.T, ds *Datastore) {
 
 	// Test limit functionality
 	if len(expectedRenewals) > 1 {
-		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 1)
+		results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 1)
 		require.NoError(t, err)
 		require.Len(t, results, 1, "Limit should be respected")
 	}
 
 	// Verify results are ordered by not_valid_after ASC (most urgent first)
-	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, 100)
+	results, err = ds.GetAndroidCertificateTemplatesForRenewal(ctx, now, 100)
 	require.NoError(t, err)
 	for i := 1; i < len(results); i++ {
 		require.True(t, !results[i].NotValidAfter.Before(results[i-1].NotValidAfter),
@@ -2006,4 +2125,71 @@ func testGetOrCreateFleetChallengeForCertificateTemplate(t *testing.T, ds *Datas
 		require.NoError(t, err)
 		require.Equal(t, 1, count)
 	})
+}
+
+func testRetryHostCertificateTemplate(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	setup := createCertTemplateTestSetup(t, ctx, ds, "")
+	challengeVal := "challenge-val"
+	host := test.NewHost(t, ds, "android-host", "10.0.0.1", "key1", "uuid1", time.Now(),
+		test.WithPlatform("android"), test.WithTeamID(setup.team.ID))
+
+	// Insert a host certificate template in "delivered" state (simulating initial delivery)
+	err := ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: setup.template.ID,
+		Status:                fleet.CertificateTemplateDelivered,
+		FleetChallenge:        &challengeVal,
+		OperationType:         fleet.MDMOperationTypeInstall,
+		Name:                  setup.template.Name,
+	}})
+	require.NoError(t, err)
+
+	// Insert a challenge record to verify it gets deleted on retry
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO challenges (challenge) VALUES (?)`, challengeVal)
+		return err
+	})
+
+	// Verify initial state
+	record, err := ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplateDelivered, record.Status)
+	require.Equal(t, uint(0), record.RetryCount)
+
+	// First retry: verify status, retry_count, detail, and cleared fields
+	err = ds.RetryHostCertificateTemplate(ctx, host.UUID, setup.template.ID, "SCEP enrollment failed")
+	require.NoError(t, err)
+
+	record, err = ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+	require.Equal(t, uint(1), record.RetryCount)
+	require.NotNil(t, record.Detail)
+	require.Equal(t, "SCEP enrollment failed", *record.Detail)
+	require.Nil(t, record.NotValidBefore)
+	require.Nil(t, record.NotValidAfter)
+	require.Nil(t, record.Serial)
+
+	// Verify challenge was deleted
+	var challengeCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &challengeCount,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challengeVal)
+	})
+	require.Equal(t, 0, challengeCount)
+
+	// Subsequent retries: verify retry_count increments and detail is updated each time
+	retryDetails := []string{"SCEP server unavailable", "CA unreachable"}
+	for i, detail := range retryDetails {
+		err = ds.RetryHostCertificateTemplate(ctx, host.UUID, setup.template.ID, detail)
+		require.NoError(t, err)
+
+		record, err = ds.GetHostCertificateTemplateRecord(ctx, host.UUID, setup.template.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, record.Status)
+		require.Equal(t, uint(i+2), record.RetryCount)
+		require.Equal(t, detail, *record.Detail)
+	}
 }

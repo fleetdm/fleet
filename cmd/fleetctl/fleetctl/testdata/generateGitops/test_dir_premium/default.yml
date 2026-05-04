@@ -31,6 +31,10 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 30
+    preserve_host_activities_on_reenrollment: true
   certificate_authorities:
     custom_est_proxy:
     - name: some-est-name
@@ -104,9 +108,9 @@ org_settings:
       url: https://some-zendesk-url.com
   mdm:
     apple_business_manager:
-    - ios_team: "📱🏢 Company-owned mobile devices"
-      ipados_team: "📱🏢 Company-owned mobile devices"
-      macos_team: "💻 Workstations"
+    - ios_fleet: "📱🏢 Company-owned mobile devices"
+      ipados_fleet: "📱🏢 Company-owned mobile devices"
+      macos_fleet: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
     apple_server_url: http://some-apple-server-url.com
     end_user_authentication:
@@ -117,12 +121,12 @@ org_settings:
       metadata_url: # TODO: Add your MDM end user auth metadata URL here
     end_user_license_agreement: ./lib/eula/test.pdf
     volume_purchasing_program:
-    - location: Fleet Device Management Inc.
-      teams:
+    - fleets:
       - "💻 Workstations"
       - "💻🐣 Workstations (canary)"
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
+      location: Fleet Device Management Inc.
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: http://some-org-logo-url.com
@@ -136,10 +140,10 @@ org_settings:
     - 1
     - 3
     deferred_save_host: false
+    discard_reports_data: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 1
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    report_cap: 1
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
@@ -160,7 +164,6 @@ org_settings:
       destination_url: https://some-failing-policies-webhook-url.com
       enable_failing_policies_webhook: true
       host_batch_size: 2
-      policy_ids:
     host_status_webhook:
       days_count: 5
       destination_url: https://some-host-status-webhook-url.com
@@ -186,7 +189,9 @@ policies:
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
-queries:
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+reports:
 - automations_enabled: true
   description: This is a global query
   discard_data: false
@@ -199,4 +204,4 @@ queries:
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;

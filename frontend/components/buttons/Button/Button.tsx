@@ -8,8 +8,8 @@ export type ButtonVariant =
   | "default"
   | "alert"
   | "pill"
-  | "text-link" // Underlines on hover
-  | "text-link-dark" // underline on hover, dark text
+  | "grey-pill"
+  | "link" // Looks like CustomLink with animated underline on hover
   | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
@@ -52,8 +52,8 @@ export interface IButtonProps {
     | "dialog";
   ariaExpanded?: boolean;
   ariaLabel?: string;
-  /** Small: 1/2 the padding */
-  size?: "small" | "default";
+  /** Small: 1/2 the padding, Wide: 200px */
+  size?: "small" | "wide" | "default";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -136,16 +136,18 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       className,
       {
         [`${baseClass}--${variant}__small`]: size === "small",
+        [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =
-      variant === "text-link" ||
+      variant === "link" ||
       variant === "inverse" ||
       variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
-      variant === "pill";
+      variant === "pill" ||
+      variant === "grey-pill";
 
     return (
       <button
@@ -164,7 +166,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
         </div>
-        {isLoading && <Spinner small button white={!onWhite} />}
+        {isLoading && <Spinner small button white={!onWhite} delay={0} />}
       </button>
     );
   }

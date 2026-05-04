@@ -39,13 +39,20 @@ locals {
       FLEET_FILESYSTEM_RESULT_LOG_FILE               = "/dev/null"
       FLEET_MYSQL_MAX_OPEN_CONNS                     = "10"
       FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS        = "10"
+      FLEET_MYSQL_CONN_MAX_LIFETIME                  = "14400"
+      FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME     = "14400"
       FLEET_OSQUERY_ASYNC_HOST_REDIS_SCAN_KEYS_COUNT = "10000"
       FLEET_REDIS_MAX_OPEN_CONNS                     = "500"
       FLEET_REDIS_MAX_IDLE_CONNS                     = "500"
+      FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
+      FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
+      FLEET_SERVER_GZIP_RESPONSES                    = "true"
+      
 
       # Load TLS Certificate for RDS Authentication
       FLEET_MYSQL_TLS_CA              = local.cert_path
       FLEET_MYSQL_READ_REPLICA_TLS_CA = local.cert_path
+      FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
     },
     local.otel_environment_variables,
     local.elastic_apm_environment_variables

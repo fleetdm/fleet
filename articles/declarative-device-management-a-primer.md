@@ -123,11 +123,15 @@ After you've deployed DDM, you should measure its impact by comparing the new ap
 
 ## How Fleet supports declarative device management
 
-[Fleet](http://fleetdm.com/) is an open-source device management platform that enables administrators to send DDM payloads directly to macOS, iOS, and iPadOS devices. DDM profiles can live in git repository management solutions like GitHub, GitLab or Bitbucket where teams can peer review changes, track history, or roll back updates through automated GitOps workflows. The osquery capabilities of Fleet add near real-time querying capabilities giving security teams a "double check" on device management state on top of MDM / DDM: reporting of richly-detailed data, on-demand device information for investigations and fast compliance checks.
+[Fleet](http://fleetdm.com/) is an open-source device management platform that enables administrators to send DDM payloads directly to macOS, iOS, and iPadOS devices. DDM profiles can live in git repository management solutions like GitHub, GitLab or Bitbucket where teams can peer review changes, track history, or roll back updates through automated GitOps workflows. The osquery capabilities of Fleet add near real-time reporting capabilities giving security teams a "double check" on device management state on top of MDM / DDM: reporting of richly-detailed data, on-demand device information for investigations and fast compliance checks.
 
 For organizations looking to implement DDM with full transparency and no vendor lock-in, Fleet provides an open alternative. [Schedule a demo](https://fleetdm.com/contact) to see how it works.
 
 ## Frequently asked questions
+
+### Is it possible to deliver DDM configurations from Fleet if the Fleet server is hosted on-premise (on-prem)? 
+
+Yes! Some [device management solutions](https://www.jamf.com/blog/introducing-blueprints/) restrict delivery of DDM configurations to cloud instances only. Many device management solutions no longer offer or never have had an on-prem option. You can [deploy Fleet](https://fleetdm.com/docs/deploy/deploy-fleet) anywhere, or we can [host it for you](https://fleetdm.com/docs/get-started/faq#can-you-host-fleet-for-me). Fleet will support your on-prem installation and Fleet will always fully support Apple's MDM and DDM specifications. 
 
 ### What happens if DDM and legacy MDM profiles conflict?
 

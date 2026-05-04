@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import { ISideNavItem } from "pages/admin/components/SideNav/SideNav";
 
-import EndUserAuthentication from "./cards/EndUserAuthentication/EndUserAuthentication";
+import Users from "./cards/Users/Users";
 import BootstrapPackage from "./cards/BootstrapPackage";
 import SetupAssistant from "./cards/SetupAssistant";
 import InstallSoftware from "./cards/InstallSoftware";
@@ -18,10 +18,10 @@ export interface ISetupExperienceCardProps {
 
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
-    title: "1. End user authentication",
-    urlSection: "end-user-auth",
-    path: PATHS.CONTROLS_END_USER_AUTHENTICATION,
-    Card: EndUserAuthentication,
+    title: "1. Users",
+    urlSection: "users",
+    path: PATHS.CONTROLS_USERS,
+    Card: Users,
   },
   {
     title: "2. Bootstrap package",

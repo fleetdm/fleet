@@ -5,16 +5,24 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -174,7 +182,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 	t.Run("when private key is set", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+		opts := &TestServerOpts{License: license, SkipCreateTestUsers: true}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		host := &fleet.Host{
 			OsqueryHostID: ptr.String("test"),
 			ID:            1,
@@ -189,15 +198,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 			}, nil
 		}
 
-		ds.NewActivityFunc = func(
-			ctx context.Context,
-			user *fleet.User,
-			activity fleet.ActivityDetails,
-			details []byte,
-			createdAt time.Time,
-		) error {
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
 			require.Equal(t, activity.ActivityName(), fleet.ActivityTypeEscrowedDiskEncryptionKey{}.ActivityName())
-			require.NotEmpty(t, details)
 			return nil
 		}
 
@@ -223,7 +225,8 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		passphrase, salt := "foo", ""
 		var keySlot *uint
 		ds.SaveLUKSDataFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Passphrase string,
-			encryptedBase64Salt string, keySlotToPersist uint) (bool, error) {
+			encryptedBase64Salt string, keySlotToPersist uint,
+		) (bool, error) {
 			require.Equal(t, host.ID, incomingHost.ID)
 			key := config.TestConfig().Server.PrivateKey
 
@@ -261,6 +264,7 @@ func TestOrbitLUKSDataSave(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ds.ReportEscrowErrorFuncInvoked)
 		require.True(t, ds.SaveLUKSDataFuncInvoked)
+		require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 	})
 
 	t.Run("fail when no/invalid private key is set", func(t *testing.T) {
@@ -656,6 +660,101 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
+	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		team := fleet.Team{ID: 1}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return teamAgentOpts, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		appCfg := &fleet.AppConfig{AgentOptions: globalAgentOpts}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(team.ID),
+		})
+		return svc, ctx, ds
+	}
+
+	t.Run("team timeout set wins over global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 600}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 600, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout unset falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1200, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout zero falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 0}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 900}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 900, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team and global both unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("nil global agent options, team unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		svc, ctx, _ := setupCtx(team, nil)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+}
+
 func TestGetSoftwareInstallDetails(t *testing.T) {
 	t.Run("hosts can't get each others installers", func(t *testing.T) {
 		ds := new(mock.Store)
@@ -695,4 +794,293 @@ func TestGetSoftwareInstallDetails(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, d2)
 	})
+}
+
+func TestShouldRetrySoftwareInstall(t *testing.T) {
+	svc := &Service{
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+
+	t.Run("nil attempt number returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: nil,
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+
+	t.Run("attempt below max returns true", func(t *testing.T) {
+		for _, attempt := range []int{1, 2} {
+			hsi := &fleet.HostSoftwareInstallerResult{
+				AttemptNumber: ptr.Int(attempt),
+			}
+			shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+			require.NoError(t, err)
+			require.True(t, shouldRetry, "attempt %d should retry", attempt)
+		}
+	})
+
+	t.Run("attempt at max returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts),
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+
+	t.Run("attempt above max returns false", func(t *testing.T) {
+		hsi := &fleet.HostSoftwareInstallerResult{
+			AttemptNumber: ptr.Int(fleet.MaxSoftwareInstallAttempts + 1),
+		}
+		shouldRetry, err := svc.shouldRetrySoftwareInstall(ctx, hsi)
+		require.NoError(t, err)
+		require.False(t, shouldRetry)
+	})
+}
+
+func TestRetrySoftwareInstall(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+
+	installerID := uint(42)
+	userID := uint(7)
+	host := &fleet.Host{ID: 1}
+	hsi := &fleet.HostSoftwareInstallerResult{
+		SoftwareInstallerID: &installerID,
+		SelfService:         true,
+		UserID:              &userID,
+		AttemptNumber:       ptr.Int(1),
+	}
+
+	var capturedOpts fleet.HostSoftwareInstallOptions
+	ds.InsertSoftwareInstallRequestFunc = func(ctx context.Context, hostID uint, softwareInstallerID uint, opts fleet.HostSoftwareInstallOptions) (string, error) {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, installerID, softwareInstallerID)
+		capturedOpts = opts
+		return "new-uuid", nil
+	}
+
+	t.Run("preserves self-service and user ID", func(t *testing.T) {
+		err := svc.retrySoftwareInstall(ctx, host, hsi, false)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.True(t, capturedOpts.SelfService)
+		require.NotNil(t, capturedOpts.UserID)
+		require.Equal(t, userID, *capturedOpts.UserID)
+		require.False(t, capturedOpts.ForSetupExperience)
+		require.True(t, capturedOpts.WithRetries)
+	})
+
+	t.Run("passes setup experience flag", func(t *testing.T) {
+		ds.InsertSoftwareInstallRequestFuncInvoked = false
+		err := svc.retrySoftwareInstall(ctx, host, hsi, true)
+		require.NoError(t, err)
+		require.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
+		require.True(t, capturedOpts.ForSetupExperience)
+	})
+}
+
+func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{
+		ds:     ds,
+		logger: slog.New(slog.DiscardHandler),
+	}
+	ctx := context.Background()
+	host := &fleet.Host{ID: 1}
+
+	t.Run("returns nil when install not found", func(t *testing.T) {
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return nil, newNotFoundError()
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+	})
+
+	t.Run("returns nil when software installer ID is nil", func(t *testing.T) {
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{SoftwareInstallerID: nil}, nil
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+	})
+
+	t.Run("counts policy install attempts", func(t *testing.T) {
+		policyID := uint(10)
+		installerID := uint(20)
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            &policyID,
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFunc = func(ctx context.Context, hostID, siID, polID uint) (int, error) {
+			require.Equal(t, host.ID, hostID)
+			require.Equal(t, installerID, siID)
+			require.Equal(t, policyID, polID)
+			return 2, nil
+		}
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 2, *result)
+		require.True(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
+	})
+
+	t.Run("returns attempt number from install for non-policy retry-eligible install", func(t *testing.T) {
+		installerID := uint(20)
+		attemptNum := 2
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            nil, // non-policy install
+				AttemptNumber:       &attemptNum,
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, 2, *result)
+		require.False(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
+	})
+
+	t.Run("returns nil for non-policy install without retry support", func(t *testing.T) {
+		installerID := uint(20)
+		ds.GetSoftwareInstallResultsFunc = func(ctx context.Context, installUUID string) (*fleet.HostSoftwareInstallerResult, error) {
+			return &fleet.HostSoftwareInstallerResult{
+				SoftwareInstallerID: &installerID,
+				PolicyID:            nil, // non-policy install
+				AttemptNumber:       nil, // not created with WithRetries
+			}, nil
+		}
+		ds.CountHostSoftwareInstallAttemptsFuncInvoked = false
+		result, err := svc.getSoftwareInstallerAttemptNumber(ctx, host, "uuid-1")
+		require.NoError(t, err)
+		require.Nil(t, result)
+		require.False(t, ds.CountHostSoftwareInstallAttemptsFuncInvoked)
+	})
+}
+
+func TestSoftwareInstallReplicaLag(t *testing.T) {
+	// Create datastore with dummy replica to simulate replication lag
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	defer ds.Close()
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Create admin user
+	user, err := ds.NewUser(ctx, &fleet.User{
+		Name:       "Admin",
+		Password:   []byte("p4ssw0rd.123"),
+		Email:      "admin@example.com",
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	})
+	require.NoError(t, err)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	// Create a host
+	host := test.NewHost(t, ds, "host1", "10.0.0.1", "host1Key", "host1UUID", time.Now())
+	opts.RunReplication("hosts")
+
+	// Create a policy
+	policy, err := ds.NewGlobalPolicy(ctx, &user.ID, fleet.PolicyPayload{
+		Name:  "test policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+	opts.RunReplication("policies")
+
+	// Create software installer
+	payload := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo 'installing'",
+		Filename:        "test_installer.pkg",
+		StorageID:       uuid.New().String(),
+		Title:           "Test Software",
+		Version:         "1.0.0",
+		Source:          "apps",
+		Platform:        "darwin",
+		UserID:          user.ID,
+		TeamID:          nil,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	}
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+	require.NoError(t, err)
+	opts.RunReplication("software_installers", "software_titles")
+
+	// Mark policy as failing for the host
+	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{policy.ID: new(false)}, time.Now(), false, nil)
+	require.NoError(t, err)
+	opts.RunReplication("policy_membership")
+
+	// simulate Orbit picking up upcoming_activity and activating
+	installUUID := uuid.New().String()
+	var titleID uint
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &titleID,
+			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (
+				execution_id, host_id, software_installer_id, policy_id,
+				installer_filename, version, software_title_id, software_title_name
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`, installUUID, host.ID, installerID, policy.ID,
+			payload.Filename, payload.Version, titleID, payload.Title)
+		return err
+	})
+
+	var attemptNumberBeforeResult *int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNumberBeforeResult,
+			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
+			installUUID)
+	})
+	require.Nil(t, attemptNumberBeforeResult, "attempt_number should be NULL after activation")
+
+	// Make the activated install available to replica
+	opts.RunReplication("host_software_installs")
+
+	result := &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           installUUID,
+		InstallScriptExitCode: ptr.Int(1), // Failed
+		InstallScriptOutput:   ptr.String("install failed"),
+	}
+	ctx = hostctx.NewContext(ctx, host)
+	err = svc.SaveHostSoftwareInstallResult(ctx, result)
+	require.NoError(t, err, "SaveHostSoftwareInstallResult should use primary DB to avoid replication lag")
+
+	// Verify the attempt_number was set in the primary
+	var attemptNumberInWriter *int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &attemptNumberInWriter,
+			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
+			installUUID)
+	})
+	require.NotNil(t, attemptNumberInWriter, "attempt_number should be set in primary after result is reported")
+	require.Equal(t, 1, *attemptNumberInWriter, "first attempt should be 1")
+
+	// verify retry was scheduled, and that we did not throw an error because of nil attempt_number
+	var retryCount int
+	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &retryCount,
+			`SELECT COUNT(*) FROM upcoming_activities
+			WHERE activity_type = 'software_install'`,
+		)
+	})
+	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }

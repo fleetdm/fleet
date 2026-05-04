@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"strings"
 	"time"
@@ -17,8 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -28,14 +27,14 @@ const maxCommonNameLength = 64
 type ConditionalAccessSCEPDepot struct {
 	db     *sqlx.DB
 	ds     fleet.Datastore
-	logger log.Logger
+	logger *slog.Logger
 	config *config.FleetConfig
 }
 
 var _ depot.Depot = (*ConditionalAccessSCEPDepot)(nil)
 
 // NewConditionalAccessSCEPDepot creates and returns a *ConditionalAccessSCEPDepot.
-func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger log.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
+func NewConditionalAccessSCEPDepot(db *sqlx.DB, ds fleet.Datastore, logger *slog.Logger, cfg *config.FleetConfig) (*ConditionalAccessSCEPDepot, error) {
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
@@ -152,8 +151,7 @@ func (d *ConditionalAccessSCEPDepot) Put(name string, crt *x509.Certificate) err
 		return err
 	}
 
-	level.Info(d.logger).Log(
-		"msg", "stored conditional access certificate",
+	d.logger.InfoContext(context.TODO(), "stored conditional access certificate",
 		"cn", name,
 		"serial", crt.SerialNumber.Int64(),
 		"host_id", host.ID,

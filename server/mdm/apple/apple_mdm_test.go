@@ -3,19 +3,24 @@ package apple_mdm
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"regexp"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
 	"github.com/micromdm/plist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,10 +30,10 @@ func TestDEPService(t *testing.T) {
 	t.Run("EnsureDefaultSetupAssistant", func(t *testing.T) {
 		ds := new(mock.Store)
 		ctx := context.Background()
-		logger := log.NewNopLogger()
+		logger := slog.New(slog.DiscardHandler)
 		depStorage := new(nanodep_mock.Storage)
 		depSvc := NewDEPService(ds, depStorage, logger)
-		defaultProfile := depSvc.getDefaultProfile()
+		defaultProfile := depSvc.GetDefaultProfile()
 		serverURL := "https://example.com/"
 
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -268,8 +273,609 @@ func TestGenerateEnrollmentProfileMobileconfig(t *testing.T) {
 	}
 }
 
+func TestValidateMDMSettingsAppleSupportedOSVersion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		// load the test data from the file
+		b, err := os.ReadFile("./gdmf/testdata/gdmf.json")
+		require.NoError(t, err)
+		_, err = w.Write(b)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+	dev_mode.SetOverride("FLEET_DEV_GDMF_URL", srv.URL, t)
+
+	// selected versions of from testdata/gdmf.json that we'll use in out tests
+	expectSupportedMacOSPublic := []string{"14.6.1", "13.6.9", "12.7.6", "11.7.10"}
+	expectSupportedMacOSNonPublic := []string{"14.5", "14.6", "13.6.8", "13.6.7", "12.7.5"}
+	expectSupportedIOSPublic := "17.6.1"
+	expectSupportedIOSNonPublic := "17.5.1"
+	// lastIPodSupportedVersion     : = "15.8.3"
+
+	// helper function to initialize app config MDM settings with known good versions (tests will modify as needed)
+	mockAppConfigMDM := func() fleet.MDM {
+		return fleet.MDM{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedMacOSPublic[0]),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedIOSPublic),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedIOSPublic),
+			},
+		}
+	}
+	// helper function to initialize team MDM settings with known good versions (tests will modify as needed)
+	mockTeamMDM := func() fleet.TeamMDM {
+		return fleet.TeamMDM{
+			MacOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedMacOSPublic[0]),
+			},
+			IOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedIOSPublic),
+			},
+			IPadOSUpdates: fleet.AppleOSUpdateSettings{
+				MinimumVersion: optjson.SetString(expectSupportedIOSPublic),
+			},
+		}
+	}
+
+	// helper function to check if the error matches expectations for a given platform and log appropriately
+	checkErr := func(platform string, wantErr string, gotErrs map[string]string, msg string) {
+		if wantErr == "" {
+			assert.Empty(t, gotErrs, msg+": expected no error for platform %s but got: %v", platform, gotErrs)
+		} else {
+			assert.Len(t, gotErrs, 1, msg+": expected error for platform %s but got no errors", platform)
+			assert.Contains(t, gotErrs, platform, msg+": expected error for platform %s but key not found in error map: %v", platform, gotErrs)
+			assert.Contains(t, gotErrs[platform], wantErr, msg+": expected error for platform %s but got: %v", platform, gotErrs[platform])
+		}
+	}
+
+	t.Run("macos", func(t *testing.T) {
+		t.Run("app config mdm settings", func(t *testing.T) {
+			ac := mockAppConfigMDM()
+			for _, v := range expectSupportedMacOSPublic {
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(v)
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when excluding non-public asset sets")
+			}
+			for _, v := range expectSupportedMacOSNonPublic {
+				ac.MacOSUpdates.MinimumVersion = optjson.SetString(v)
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect non-public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+				require.NoError(t, err)
+				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public macOS version to return error when excluding non-public asset sets")
+			}
+
+			ac.MacOSUpdates.MinimumVersion = optjson.SetString("11.7.9") // not supported in either asset set, so we expect an error in both cases
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when excluding non-public asset sets")
+		})
+		t.Run("team mdm settings", func(t *testing.T) {
+			tm := mockTeamMDM()
+			for _, v := range expectSupportedMacOSPublic {
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(v)
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect public macOS version to be supported when excluding non-public asset sets")
+			}
+			for _, v := range expectSupportedMacOSNonPublic {
+				tm.MacOSUpdates.MinimumVersion = optjson.SetString(v)
+				got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+				require.NoError(t, err)
+				checkErr("macos", "", got, "expect non-public macOS version to be supported when including non-public asset sets")
+				got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+				require.NoError(t, err)
+				checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public macOS version to return error when excluding non-public asset sets")
+			}
+
+			tm.MacOSUpdates.MinimumVersion = optjson.SetString("11.7.9") // not supported in either asset set, so we expect an error in both cases
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("macos", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported macOS version to return error when excluding non-public asset sets")
+		})
+	})
+
+	t.Run("ios", func(t *testing.T) {
+		t.Run("app config mdm settings", func(t *testing.T) {
+			ac := mockAppConfigMDM()
+			ac.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when excluding non-public asset sets")
+
+			ac.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect non-public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iOS version to return error when excluding non-public asset sets")
+
+			ac.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when excluding non-public asset sets")
+		})
+
+		t.Run("team mdm settings", func(t *testing.T) {
+			tm := mockTeamMDM()
+			tm.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect public iOS version to be supported when excluding non-public asset sets")
+
+			tm.IOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", "", got, "expect non-public iOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iOS version to return error when excluding non-public asset sets")
+
+			tm.IOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ios", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iOS version to return error when excluding non-public asset sets")
+		})
+	})
+
+	t.Run("ipados", func(t *testing.T) {
+		t.Run("app config mdm settings", func(t *testing.T) {
+			ac := mockAppConfigMDM()
+			ac.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when excluding non-public asset sets")
+
+			ac.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect non-public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iPadOS version to return error when excluding non-public asset sets")
+
+			ac.IPadOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(ac, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when excluding non-public asset sets")
+		})
+
+		t.Run("team mdm settings", func(t *testing.T) {
+			tm := mockTeamMDM()
+			tm.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSPublic)
+			got, err := ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect public iPadOS version to be supported when excluding non-public asset sets")
+
+			tm.IPadOSUpdates.MinimumVersion = optjson.SetString(expectSupportedIOSNonPublic)
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", "", got, "expect non-public iPadOS version to be supported when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect non-public iPadOS version to return error when excluding non-public asset sets")
+
+			tm.IPadOSUpdates.MinimumVersion = optjson.SetString("5.3.9") // only supported for Apple Watch, so we expect an error
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when including non-public asset sets")
+			got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, true)
+			require.NoError(t, err)
+			checkErr("ipados", fleet.AppleOSVersionUnsupportedMessage, got, "expect unsupported iPadOS version to return error when excluding non-public asset sets")
+		})
+	})
+
+	// These subtests are placed last so that the dev_mode override cleanup for the error server
+	// doesn't interfere with the earlier subtests that rely on the valid mock server.
+	t.Run("GetAssetMetadata error", func(t *testing.T) {
+		// Use a server that returns invalid JSON so GetAssetMetadata returns an error.
+		errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("not valid json"))
+			require.NoError(t, err)
+		}))
+		t.Cleanup(errSrv.Close)
+		dev_mode.SetOverride("FLEET_DEV_GDMF_URL", errSrv.URL, t)
+
+		ac := mockAppConfigMDM()
+		got, err := ValidateMDMSettingsAppleSupportedOSVersion(ac, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
+
+		tm := mockTeamMDM()
+		got, err = ValidateMDMSettingsAppleSupportedOSVersion(tm, false)
+		require.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
 type notFoundError struct{}
 
 func (e notFoundError) IsNotFound() bool { return true }
 
 func (e notFoundError) Error() string { return "not found" }
+
+func TestGenerateRecoveryLockPassword(t *testing.T) {
+	// Pattern: 6 groups of 4 characters from the allowed charset, separated by dashes
+	pattern := regexp.MustCompile(`^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}(-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}){5}$`)
+
+	t.Run("format", func(t *testing.T) {
+		password := GenerateRecoveryLockPassword()
+		assert.True(t, pattern.MatchString(password), "password %q does not match expected format", password)
+		assert.Len(t, password, 29) // 24 chars + 5 dashes
+	})
+
+	t.Run("excludes confusing characters", func(t *testing.T) {
+		// Generate multiple passwords and check none contain confusing chars
+		confusingChars := regexp.MustCompile(`[01OIl]`)
+		for range 100 {
+			password := GenerateRecoveryLockPassword()
+			assert.False(t, confusingChars.MatchString(password), "password %q contains confusing characters", password)
+		}
+	})
+
+	t.Run("uniqueness", func(t *testing.T) {
+		// Generate multiple passwords and verify they're unique
+		seen := make(map[string]bool)
+		for range 100 {
+			password := GenerateRecoveryLockPassword()
+			assert.False(t, seen[password], "duplicate password generated: %s", password)
+			seen[password] = true
+		}
+	})
+}
+
+// TestSendRecoveryLockCommands tests the cron job that sends SetRecoveryLock commands
+// to hosts that need recovery lock passwords.
+//
+// Note: SetRecoveryLock command results are handled synchronously in the MDM results handler
+// (server/service/apple_mdm.go), which is tested separately in apple_mdm_cmd_results_test.go.
+func TestSendRecoveryLockCommands(t *testing.T) {
+	ctx := context.Background()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	t.Run("no hosts needing recovery lock does not send commands", func(t *testing.T) {
+		ds := new(mock.Store)
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		var commandSent bool
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				commandSent = true
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		require.NoError(t, err)
+		assert.False(t, commandSent, "SetRecoveryLock should not be called when no hosts need it")
+	})
+
+	t.Run("host needing recovery lock gets SetRecoveryLock and password stored with pending status", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		// Track call order to verify correct sequencing
+		var callOrder []string
+		var storedPasswords []fleet.HostRecoveryLockPasswordPayload
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			storedPasswords = passwords
+			return nil
+		}
+
+		var sentCmdUUID string
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				assert.Equal(t, []string{hostUUID}, hostUUIDs)
+				sentCmdUUID = cmdUUID
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		require.NoError(t, err)
+
+		// Verify call order: password must be stored BEFORE command is sent
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock"}, callOrder,
+			"SetHostsRecoveryLockPasswords must be called before SetRecoveryLock")
+
+		// Password should be stored with pending status atomically
+		require.Len(t, storedPasswords, 1, "password should be stored for host")
+		assert.Equal(t, hostUUID, storedPasswords[0].HostUUID)
+		assert.NotEmpty(t, storedPasswords[0].Password)
+		assert.NotEmpty(t, sentCmdUUID, "command UUID should have been sent")
+	})
+
+	t.Run("SetRecoveryLock failure clears pending status to allow retry", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		// Track call order to verify correct sequencing
+		var callOrder []string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			return nil
+		}
+
+		var clearedHostUUIDs []string
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			callOrder = append(callOrder, "ClearRecoveryLockPendingStatus")
+			clearedHostUUIDs = hostUUIDs
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				return errors.New("APNs push failed")
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "APNs push failed")
+
+		// Verify call order: password stored -> command attempt -> clear pending on failure
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock", "ClearRecoveryLockPendingStatus"}, callOrder,
+			"Operations must occur in order: store password, attempt command, clear pending on failure")
+
+		// Status should be cleared to allow retry on next cron run
+		assert.Equal(t, []string{hostUUID}, clearedHostUUIDs, "pending status should be cleared on enqueue failure")
+	})
+
+	t.Run("APNs delivery failure does not clear pending status", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		hostUUID := "host-uuid-1"
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+		// Mock clear flow - no hosts need clearing
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		// Track call order to verify ClearRecoveryLockPendingStatus is NOT called
+		var callOrder []string
+		ds.SetHostsRecoveryLockPasswordsFunc = func(ctx context.Context, passwords []fleet.HostRecoveryLockPasswordPayload) error {
+			callOrder = append(callOrder, "SetHostsRecoveryLockPasswords")
+			return nil
+		}
+
+		ds.ClearRecoveryLockPendingStatusFunc = func(ctx context.Context, hostUUIDs []string) error {
+			callOrder = append(callOrder, "ClearRecoveryLockPendingStatus")
+			return nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			setRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				callOrder = append(callOrder, "SetRecoveryLock")
+				// Return APNs delivery error - command was persisted but push failed
+				return &APNSDeliveryError{errorsByUUID: map[string]error{hostUUID: errors.New("push failed")}}
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		// Should NOT return error - command was persisted, just push failed
+		require.NoError(t, err)
+
+		// Verify ClearRecoveryLockPendingStatus was NOT called (status should stay pending)
+		// Command is queued and will be delivered when device checks in
+		require.Equal(t, []string{"SetHostsRecoveryLockPasswords", "SetRecoveryLock"}, callOrder,
+			"ClearRecoveryLockPendingStatus should NOT be called when APNs push fails (command is already queued)")
+	})
+}
+
+// mockRecoveryLockCommander implements RecoveryLockCommander for testing.
+type mockRecoveryLockCommander struct {
+	setRecoveryLockFn    func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	clearRecoveryLockFn  func(ctx context.Context, hostUUIDs []string, cmdUUID string) error
+	rotateRecoveryLockFn func(ctx context.Context, hostUUID string, cmdUUID string) error
+}
+
+func (m *mockRecoveryLockCommander) SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	if m.setRecoveryLockFn != nil {
+		return m.setRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) ClearRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+	if m.clearRecoveryLockFn != nil {
+		return m.clearRecoveryLockFn(ctx, hostUUIDs, cmdUUID)
+	}
+	return nil
+}
+
+func (m *mockRecoveryLockCommander) RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error {
+	if m.rotateRecoveryLockFn != nil {
+		return m.rotateRecoveryLockFn(ctx, hostUUID, cmdUUID)
+	}
+	return nil
+}
+
+func TestSendClearRecoveryLockCommands(t *testing.T) {
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	t.Run("hosts needing clear get ClearRecoveryLock command", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		hostUUID := "host-uuid-1"
+		// ClaimHostsForRecoveryLockClear queries verified hosts where config is disabled and marks them pending
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return []string{hostUUID}, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		var clearCalled bool
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				clearCalled = true
+				require.Equal(t, []string{hostUUID}, hostUUIDs)
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		require.NoError(t, err)
+		require.True(t, clearCalled, "ClearRecoveryLock should have been called")
+	})
+
+	t.Run("no hosts needing clear does not send commands", func(t *testing.T) {
+		ds := new(mock.Store)
+
+		// Mock restore - no hosts to restore
+		ds.RestoreRecoveryLockForReenabledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		ds.SoftDeleteRecoveryLockPasswordsForUnenrolledHostsFunc = func(ctx context.Context) (int64, error) {
+			return 0, nil
+		}
+		// No hosts need SET
+		ds.GetHostsForRecoveryLockActionFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+
+		ds.ClaimHostsForRecoveryLockClearFunc = func(ctx context.Context) ([]string, error) {
+			return nil, nil
+		}
+		// Mock auto-rotation - no hosts need auto-rotation
+		ds.GetHostsForAutoRotationFunc = func(ctx context.Context) ([]fleet.HostAutoRotationInfo, error) {
+			return nil, nil
+		}
+
+		mockCommander := &mockRecoveryLockCommander{
+			clearRecoveryLockFn: func(ctx context.Context, hostUUIDs []string, cmdUUID string) error {
+				t.Fatal("ClearRecoveryLock should not be called when no hosts need clearing")
+				return nil
+			},
+		}
+
+		err := sendRecoveryLockCommandsWithCommander(ctx, ds, mockCommander, logger, nil)
+		require.NoError(t, err)
+	})
+}

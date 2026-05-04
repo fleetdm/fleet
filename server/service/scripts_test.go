@@ -539,11 +539,6 @@ func TestSavedScripts(t *testing.T) {
 	ds.ListScriptsFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
 		return nil, &fleet.PaginationMetadata{}, nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: 0}, nil
 	}
@@ -891,7 +886,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, nil, nil)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "all hosts must be on the same team as the script")
+		require.ErrorContains(t, err, "all hosts must be on the same fleet as the script")
 	})
 
 	t.Run("error if both host_ids and filters are specified", func(t *testing.T) {
@@ -977,19 +972,19 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		name          string
 		body          io.Reader
 		expectedError string
-		expectation   func(t *testing.T, req *wipeHostRequest)
+		expectation   func(t *testing.T, req *fleet.WipeHostRequest)
 	}{
 		{
 			name: "empty body",
 			body: strings.NewReader(""),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.Nil(t, req.Metadata)
 			},
 		},
 		{
 			name: "doWipe",
 			body: strings.NewReader(`{"windows": {"wipe_type": "doWipe"}}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.NotNil(t, req.Metadata.Windows)
 				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipe, req.Metadata.Windows.WipeType)
@@ -998,7 +993,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "doWipeProtected",
 			body: strings.NewReader(`{"windows": {"wipe_type": "doWipeProtected"}}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.NotNil(t, req.Metadata.Windows)
 				require.Equal(t, fleet.MDMWindowsWipeTypeDoWipeProtected, req.Metadata.Windows.WipeType)
@@ -1012,7 +1007,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "empty payload",
 			body: strings.NewReader(`{}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.Nil(t, req.Metadata.Windows)
 			},
@@ -1020,7 +1015,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		{
 			name: "windows field is null",
 			body: strings.NewReader(`{"windows": null}`),
-			expectation: func(t *testing.T, req *wipeHostRequest) {
+			expectation: func(t *testing.T, req *fleet.WipeHostRequest) {
 				require.NotNil(t, req.Metadata)
 				require.Nil(t, req.Metadata.Windows)
 			},
@@ -1034,7 +1029,7 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			sut := wipeHostRequest{}
+			sut := fleet.WipeHostRequest{}
 			err := sut.DecodeBody(ctx, tc.body, nil, nil)
 
 			if tc.expectedError != "" {

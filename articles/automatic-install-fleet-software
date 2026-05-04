@@ -19,7 +19,7 @@ saving time and effort when deploying new software across your organization. Her
 ## How to Manage Automatic Installations
 
 * **View Policies:** Clicking on the automatic installation indicator on the app details page will
-  take you to the relevant policy's details view. You can also find the policy listed on the **Policies** page under the relevant team.
+  take you to the relevant policy's details view. You can also find the policy listed on the **Policies** page under the relevant fleet.
 * **Monitor Installation Status:** Fleet provides real-time feedback on the installation process.
   You can monitor the installation status on the **Host Details** page under the "Activity" section, which shows queued installations and
   any potential failures.

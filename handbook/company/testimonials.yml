@@ -4,50 +4,49 @@
 #   quoteAuthorJobTitle: required
 #   quoteLinkUrl: required
 #   quoteAuthorProfileImageFilename: required
-#   quoteImageFilename: 
-#   youtubeVideoUrl: 
+#   quoteImageFilename:
+#   youtubeVideoUrl:
 #.  productCategories: [Observability, Software management, Device management]
 #
-# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
--
-  quote: Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful.
+# TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
+- quote: I think it is key that people understand the leverage they have with AI if everything is 'code'. In the AI age, clickops will not prevail!
+  quoteAuthorName: Thomas Lübker
+  quoteAuthorProfileImageFilename: testimonial-author-thomas-luebker-48x48@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/tluebker/?skipRedirect=true
+  quoteAuthorJobTitle: Helping Apple devices take off in the enterprise
+  productCategories: [Device management]
+- quote: Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful.
   quoteAuthorName: Chayce O'Neal
   quoteAuthorProfileImageFilename: testimonial-author-chayce-oneal-100x100@2x.png
-  quoteImageFilename: social-proof-logo-condunctorone-214x32@2x.png 
+  quoteImageFilename: social-proof-logo-condunctorone-214x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/chayceoneal/
   quoteAuthorJobTitle: Head of IT @ ConductorOne
-  productCategories: [Device management] 
--
-  quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
+  productCategories: [Device management]
+- quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
-  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/luismadrigal/
   quoteAuthorJobTitle: Former Engineering Leader, Uber
   productCategories: [Device management, Observability, Software management]
--
-  quote: Yes Sir. Great tools for the everyday open-source geeks 💯
+- quote: Yes Sir. Great tools for the everyday open-source geeks 💯
   quoteAuthorName: Alvaro Gutierrez
   quoteAuthorProfileImageFilename: testimonial-authour-alvaro-gutierrez-100x100@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/aantoniogutierrez/
   quoteAuthorJobTitle: Technology Evangelist
   productCategories: [Observability, Software management]
--
-  quote: Fleet / osquery are some of my favorite open source detection tooling.
+- quote: Fleet / osquery are some of my favorite open source detection tooling.
   quoteAuthorName: Joe Pistone
   quoteAuthorProfileImageFilename: testimonial-author-joe-pistone-100x100@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/josephpistone/
   quoteAuthorJobTitle: Manager, Security Operations
   productCategories: [Observability]
--
-  quote: Fleet's extremely wide and diverse set of data allows us to answer questions that we didn't even know we had.  On top of that, the experience is near instantaneous.  Seconds to sort through billions of data points and return the exact handful that we need, with complete auditing and transparency.  We're able to address reliability and compliance concerns without sacrificing a single point-of-a-percent of performance for our servers.  All of this done consistently and continuously.
+- quote: Fleet's extremely wide and diverse set of data allows us to answer questions that we didn't even know we had.  On top of that, the experience is near instantaneous.  Seconds to sort through billions of data points and return the exact handful that we need, with complete auditing and transparency.  We're able to address reliability and compliance concerns without sacrificing a single point-of-a-percent of performance for our servers.  All of this done consistently and continuously.
   quoteAuthorName: Charles Zaffery
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle Computer Janitor
   productCategories: [Observability]
--
-  quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
+- quote: The visibility down into the assets covered by the agent is phenomenal. Fleet has become the central source for a lot of things.
   quoteAuthorName: Andre Shields
   quoteAuthorProfileImageFilename: testimonial-author-andre-shields-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/andre-shields/
@@ -55,187 +54,160 @@
   quoteAuthorJobTitle: Staff Cybersecurity Engineer, Vulnerability Management
   youtubeVideoUrl: https://www.youtube.com/watch?v=siXy9aanOu4
   productCategories: [Observability, Software management]
--
-  quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. 
+- quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work.
   quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
   quoteAuthorProfileImageFilename: testimonial-author-daniel-grzelak-48x48@2x.png
   quoteAuthorJobTitle: Former Security Chief of Staff
   productCategories: [Observability, Software management, Device management]
--
-  quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
+- quote: We can build it exactly the way we want it. Which is just not possible on other platforms.
   quoteAuthorName: Austin Anderson
   quoteAuthorProfileImageFilename: testimonial-author-austin-anderson-48x48@2x.png
   quoteAuthorJobTitle: Cybersecurity team senior manager
   quoteLinkUrl: https://www.linkedin.com/in/austin-anderson-73172185/
   youtubeVideoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc
   productCategories: [Observability, Software management]
--
-  quote: Exciting. This is a team that listens to feedback.
-  quoteImageFilename: social-proof-logo-uber-71x32@2x.png
+- quote: Exciting. This is a team that listens to feedback.
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
   quoteAuthorJobTitle: Former Staff Client Platform Engineer
   productCategories: [Observability, Device management, Software management]
--
-  quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
+- quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
   quoteAuthorName: Nick Fohs
   quoteAuthorProfileImageFilename: testimonial-author-nick-fohs-24x24@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/nickfohs/
   quoteAuthorJobTitle: Systems and infrastructure manager
   youtubeVideoUrl: https://www.youtube.com/watch?v=fs5ULAR4e4A
   productCategories: [Observability, Device management, Software management]
--
-  quote: Keeping up with the latest issues in endpoint security is a never-ending task, because engineers have to regularly ensure every laptop and server is still sufficiently patched and securely configured. The problem is, software vendors release new versions all the time, and no matter how much you lock it down, end users find ways to change things.
+- quote: Keeping up with the latest issues in endpoint security is a never-ending task, because engineers have to regularly ensure every laptop and server is still sufficiently patched and securely configured. The problem is, software vendors release new versions all the time, and no matter how much you lock it down, end users find ways to change things.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/nwaisman/
   quoteAuthorName: Nico Waisman
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: CISO of Lyft
+  quoteAuthorJobTitle: Former CISO of Lyft
   productCategories: [Observability, Software management]
--
-  quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
+- quote: Having the freedom to take full advantage of the product is one of the reasons why I always support open-source products with a commercially-backed company, like Fleet.
   quoteImageFilename: social-proof-logo-lyft-47x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/nwaisman_movingtofleet-activity-7156319785981509632-bk_W
-  quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
+  quoteAuthorName: nico waisman # Note: this name is lowercased here so we can display only one Nico Waisman quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)
   quoteAuthorProfileImageFilename: testimonial-author-nico-waisman-48x48@2x.png
-  quoteAuthorJobTitle: CISO of Lyft
+  quoteAuthorJobTitle: Former CISO of Lyft
   productCategories: [Device management] # « explanation: https://github.com/fleetdm/fleet/blob/f412b1f02fb6d6f36bdc0776252fff72fc0fc2ea/website/views/pages/device-management.ejs#L32
--
-  quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
+- quote: I had to answer some really complex questions for a compliance audit, and I was able to do it in about 15 minutes by munging some data together via a few queries into a csv. It took me longer to remember how to use `xsv` than to actually put together the report. If you aren't using osquery in your environment, you should be.
   quoteAuthorName: Charles Zaffery
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle Computer Janitor
   productCategories: [Software management]
--
-  quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
+- quote: Fleet has been highly effective for our needs. We appreciate your team for always being so open to hearing our feedback.
   quoteAuthorName: Kenny Botelho
   quoteAuthorProfileImageFilename: testimonial-author-kenny-botelho-48x48@2x.png
   quoteAuthorJobTitle: Client Platform IT Engineer / Leader
   quoteLinkUrl: https://www.linkedin.com/in/kennybotelho/
   productCategories: [Observability, Device management, Software management]
--
-  quote: Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
+- quote: Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
   quoteImageFilename: social-proof-logo-stripe-67x32@2x.png
   quoteAuthorName: Wes Whetstone
   quoteAuthorProfileImageFilename: testimonial-author-wes-whetstone-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/jckwhet/
   quoteAuthorJobTitle: Staff CPE at Stripe
   productCategories: [Observability, Device management, Software management]
--
-  quote: Fleet’s come a long way - to now being the top open-source osquery manager.
+- quote: Fleet’s come a long way - to now being the top open-source osquery manager.
   quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/bshak/
   quoteAuthorName: Brendan Shaklovitz
   quoteAuthorProfileImageFilename: testimonial-author-brendan-shaklovitz-48x48@2x.png
   quoteAuthorJobTitle: Senior SRE
   productCategories: [Observability]
--
-  quote: It’s great to see the new release of Fleet containing some really cool new features that make osquery much more usable in practical environments. I’m really impressed with the work that Zach Wasserman and the crew are doing at Fleet.
+- quote: It’s great to see the new release of Fleet containing some really cool new features that make osquery much more usable in practical environments. I’m really impressed with the work that Zach Wasserman and the crew are doing at Fleet.
   quoteImageFilename: social-proof-logo-osquery-124x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/marpaia/
   quoteAuthorName: Mike Arpaia
   quoteAuthorProfileImageFilename: testimonial-author-mike-arpaia-48x48@2x.png
   quoteAuthorJobTitle: Creator of osquery
   productCategories: [Observability]
--
-  quote: Osquery is one of the best tools out there and Fleet makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it’s really scalable.
+- quote: Osquery is one of the best tools out there and Fleet makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin. I have used it on 15k servers and it’s really scalable.
   quoteImageFilename: social-proof-logo-salesforce-48x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/anelshaer/
   quoteAuthorName: Ahmed Elshaer
   quoteAuthorProfileImageFilename: testimonial-author-ahmed-elshaer-48x48@2x.png
   quoteAuthorJobTitle: DFIR, Blue Teaming, SecOps
   productCategories: [Observability]
--
-  quote: With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.
+- quote: With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.
   quoteImageFilename: social-proof-logo-comcast-91x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/abubakar-yousafzai-b7213659/
-  quoteAuthorName:  Abubakar Yousafzai
+  quoteAuthorName: Abubakar Yousafzai
   quoteAuthorProfileImageFilename: testimonial-author-abubakar-yousafzai-48x48@2x.png
   quoteAuthorJobTitle: Security Software Development & Engineering
   productCategories: [Observability]
--
-  quote: One of the best teams out there to go work for and help shape security platforms.
-  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+- quote: One of the best teams out there to go work for and help shape security platforms.
   quoteLinkUrl: https://www.linkedin.com/in/neondhruv/
   quoteAuthorName: Dhruv Majumdar
   quoteAuthorProfileImageFilename: testimonial-author-dhruv-majumdar-48x48@2x.png
   quoteAuthorJobTitle: Director Of Cyber Risk & Advisory
   productCategories: [Software management, Observability]
--
-  quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
+- quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
   quoteAuthorName: charles zaffery # Note: this name is lowercased here so we can sort the two endpoint-ops-related Charles Zaffery quotes in different spots. (The name will be capitalized via CSS)
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle computer janitor
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
   youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
   productCategories: [Observability]
--
-  quote: I’m a huge fan of Fleet and their approach to GitOps. # https://www.linkedin.com/posts/mathewcarr_gitops-for-device-management-activity-7306101943301455872-4cTx
+- quote: I’m a huge fan of Fleet and their approach to GitOps. # https://www.linkedin.com/posts/mathewcarr_gitops-for-device-management-activity-7306101943301455872-4cTx
   quoteAuthorName: Matt Carr
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
   productCategories: [Observability]
--
-  quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy! 
-  quoteAuthorName: matt carr # Note: this name is lowercased here so we can display only one Matt Carr quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)  
+- quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first. Thanks for making our lives easier. We got a pat on the back for making the migration so easy!
+  quoteAuthorName: matt carr # Note: this name is lowercased here so we can display only one Matt Carr quote on the testimonials page (which does not filter quotes by product category) (The name will be capitalized via CSS)
   quoteAuthorJobTitle: CPE manager
   quoteAuthorProfileImageFilename: testimonial-author-matt-carr-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mathewcarr/
   productCategories: [Device management]
--
-  quote: I wanted an easy way to control osquery configurations, and I wanted to stream data as fast as possible into Snowflake. No other solution jumped out to solve those things except for Fleet.
+- quote: I wanted an easy way to control osquery configurations, and I wanted to stream data as fast as possible into Snowflake. No other solution jumped out to solve those things except for Fleet.
   quoteAuthorName: Tom Larkin
   quoteAuthorJobTitle: IT Engineering Manager
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
   youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
   productCategories: [Observability]
--
-  quote: You can use data from Fleet to predict cost savings initiatives, do data driven hardware refresh, or drill into which devices are performing well versus which aren’t.
+- quote: You can use data from Fleet to predict cost savings initiatives, do data driven hardware refresh, or drill into which devices are performing well versus which aren’t.
   quoteAuthorName: Tom Larkin # https://t-lark.github.io/posts/building_endpoint_performance_metrics/
   quoteAuthorJobTitle: Sr. Manager, Client Engineering & DevOps
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
   productCategories: [Device management]
--
-  quote: I just want to brag again about how awesome Fleet and Snowflake are together. Osquery alone isn't a big data tool, but it's a powerful data collector.
-  quoteAuthorName: tom larkin # Note: this name is lowercased here so we can sort the two observability-related Tom larkin quotes in different spots. (The name will be capitalized via CSS)  
+- quote: I just want to brag again about how awesome Fleet and Snowflake are together. Osquery alone isn't a big data tool, but it's a powerful data collector.
+  quoteAuthorName: tom larkin # Note: this name is lowercased here so we can sort the two observability-related Tom larkin quotes in different spots. (The name will be capitalized via CSS)
   quoteAuthorJobTitle: Sr. Manager, Client Engineering & DevOps
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
   youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
   productCategories: [Observability]
--
-  quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
-  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+- quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
   quoteLinkUrl: https://www.linkedin.com/in/cmajumdar/
   quoteAuthorName: Chandra Majumdar
   quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
   quoteAuthorJobTitle: Partner - Cyber and Strategic Risk
   productCategories: [Software management, Observability, Device management]
--
-  quote: This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
+- quote: This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
   quoteImageFilename: logo-flock-safety-907x132@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/mrerictan/
   quoteAuthorName: Eric Tan
   quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
   quoteAuthorJobTitle: CIO & CSO at Flock Safety
   productCategories: [Device management, Observability, Software management]
--
-  quote: We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
+- quote: We've been using Fleet for a few years at Stripe and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customise it to our needs, and seamlessly integrate it into our existing environment.
   quoteImageFilename: social-proof-logo-stripe-67x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/scottmacvicar_fleet-expands-its-gitops-focused-device-management-activity-7245288577876566017-vAHG?utm_source=share&utm_medium=member_desktop
   quoteAuthorName: Scott MacVicar
   quoteAuthorProfileImageFilename: testimonial-author-scott-macvicar-100x100@2x.png
   quoteAuthorJobTitle: Head of Developer Infrastructure & Corporate Technology
   productCategories: [Device management, Observability]
--
-  quote: Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware.
+- quote: Fleet helped us determine that Norton antivirus (pre-installed on some machines) was interfering with Crowdstrike's ability to detect downloaded malware.
   quoteImageFilename: social-proof-knowbe4-124x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/arsenio-figueroa-81a56198/
   quoteAuthorName: Arsenio Figueroa
@@ -243,72 +215,89 @@
   quoteAuthorJobTitle: Senior Systems Security Engineer
   productCategories: [Observability, Software management]
   # From social media company: “absolutely, will do! this amazing support has been one of the great things that helped make this decision easier and, trust me when I say this, you guys must be doing good if you can take some die-hards away from their ______ (competing product)”
--
-  quote: I recently attended a GitOps workshop hosted by the team at Fleet—and WOW, it was truly inspiring! Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive.  With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer. Super cool.  I’ve been a fan of Fleet, and the GitOps functionality showcased at the workshop added yet another dimension to an already exciting product. If you’re in IT or device management/client platform engineering, I highly recommend checking out one of these sessions.
+- quote: I recently attended a GitOps workshop hosted by the team at Fleet—and WOW, it was truly inspiring! Seeing industry-standard tools like osquery and git combined with MDM and CI/CD to manage endpoints was impressive.  With support for Linux, macOS, Windows, iOS, iPadOS, and Chrome OS, managing everything from a single codebase is a game-changer. Super cool.  I’ve been a fan of Fleet, and the GitOps functionality showcased at the workshop added yet another dimension to an already exciting product. If you’re in IT or device management/client platform engineering, I highly recommend checking out one of these sessions.
   quoteImageFilename: social-proof-logo-benchling-143x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/justinlabo/
   quoteAuthorName: Justin LaBo
   quoteAuthorProfileImageFilename: testimonial-author-justin-labo-48x48@2x.png
   quoteAuthorJobTitle: Head of Core BT Engineering
   productCategories: [Observability, Software management]
--
-  quote: Thanks for a great run Jamf...  Foursquare has officially completed the migration to Fleet as our new device management platform.
+- quote: Thanks for a great run Jamf...  Foursquare has officially completed the migration to Fleet as our new device management platform.
   quoteImageFilename: social-proof-logo-foursquare-170x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/mike-meyer-a5a21910_teamwork-engineering-devicemanagement-activity-7267672056970788866-Yt5Z?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAOYKwIBtKBLvbxqgjD2fs4ScGobCzMbCvg
   quoteAuthorName: Mike Meyer
   quoteAuthorProfileImageFilename: testimonial-author-mike-meyer-48x48@2x.png
-  quoteAuthorJobTitle: Senior Manager, Corporate Engineering
+  quoteAuthorJobTitle: Senior systems engineer & Technical lead
   productCategories: [Device management]
--
-  quote: My users love this. It's increasing security and compliance across our workforce.
+- quote: My users love this. It's increasing security and compliance across our workforce.
   quoteImageFilename: social-proof-logo-swiftdialog-145x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/bart-reardon-00647889/
   quoteAuthorName: Bart Reardon
   quoteAuthorProfileImageFilename: testimonial-author-bart-reardon-48x48@2x.png
   quoteAuthorJobTitle: Creator of swiftDialog
   productCategories: [Device management, Observability]
--
-  quote: If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.
+- quote: If I needed a single pane of glass for all OS endpoints, starting fresh, I'd push for the paid version of FleetDM.
   quoteLinkUrl: https://www.reddit.com/r/Intune/comments/1jkzxyl/comment/mk02c2k/
   quoteAuthorName: u/Heteronymous
   quoteAuthorJobTitle: Redditor
-  quoteAuthorProfileImageFilename: testimonial-author-redditor-48x48@2x.png  
+  quoteAuthorProfileImageFilename: testimonial-author-redditor-48x48@2x.png
   productCategories: [Device management]
--
-  quote: We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.
+- quote: We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.
   quoteImageFilename: logo-nutanix-140x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/roger-cantrell-964580130/
   quoteAuthorName: Roger Cantrell
   quoteAuthorJobTitle: IT Operations Engineer
-  quoteAuthorProfileImageFilename: testimonial-author-roger-cantrell-100x100@2x.png 
+  quoteAuthorProfileImageFilename: testimonial-author-roger-cantrell-100x100@2x.png
   productCategories: [Device management]
--
-  quote: "The customer support and care has been 'world class'. Even on the other side of the world."
-  quoteImageFilename: logo-jumo-96x32@2x.png
+- quote: "The customer support and care has been 'world class'. Even on the other side of the world."
   quoteLinkUrl: https://www.linkedin.com/in/davidbodmer/
   quoteAuthorName: David Bodmer
   quoteAuthorJobTitle: IT Systems Engineer
   quoteAuthorProfileImageFilename: testimonial-author-david-bodmer-48x48@2x.png
   productCategories: [Device management]
--
-  quote: Fleet is the best multi-OS MDM on the market currently and is improving daily. Fleet makes sense for me because of their amazing support, transparent and detailed reporting, app updating functionality, self-service, and macOS DDM support.
+- quote: Fleet is the best multi-OS MDM on the market currently and is improving daily. Fleet makes sense for me because of their amazing support, transparent and detailed reporting, app updating functionality, self-service, and macOS DDM support.
   quoteLinkUrl: https://www.linkedin.com/in/fiona-s-84a20a36/
   quoteAuthorName: Fiona Skelton
   quoteAuthorJobTitle: Senior Technology Specialist
   quoteAuthorProfileImageFilename: testimonial-author-fiona-skelton-100x100@2x.jpeg
   productCategories: [Device management]
--
-  quote: Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems.
+- quote: Fleet enabled us to consolidate our patchwork of endpoint tools with a single platform, eliminating complexity and cutting licensing costs. The shift to GitOps has modernized our operations giving us the agility and change control we needed giving leadership real-time confidence in device health and compliance. The result is a more efficient, secure environment where IT can move faster on strategic projects instead of firefighting or maintaining multiple legacy systems.
   quoteAuthorName: Dan Jackson
   quoteAuthorJobTitle: Sr Manager Systems Engineering
   quoteAuthorProfileImageFilename: testimonial-author-dan-jackson-48x48.png
   quoteLinkUrl: https://www.linkedin.com/in/mrdanieljackson/
   quoteImageFilename: social-proof-logo-fastly-83x32@2x.png
   productCategories: [Device management]
--
-  quote: Fleet made the process of migrating fast, easy, and simple. We're excited to work with a team that's aligned with us on open source, and has fantastic technical support. Compared to Kandji, it's a night and day improvement.
+- quote: Fleet made the process of migrating fast, easy, and simple. We're excited to work with a team that's aligned with us on open source, and has fantastic technical support. Compared to Kandji, it's a night and day improvement.
   quoteAuthorName: John O'Nolan
   quoteAuthorJobTitle: Founder & CEO
   quoteLinkUrl: https://www.linkedin.com/in/johnonolan/
   quoteAuthorProfileImageFilename: testimonial-author-john-o'nolan-100x100@2x.png
   productCategories: [Device management]
+- quote: With Fleet, I just post something in our joint Slack channel and within minutes I will get a reply and we can have a proper conversation. Their support is huge — it's a big selling point for us.
+  quoteImageFilename: thumbtack-logo-197x40@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/ankle/
+  quoteAuthorName: Adam Anklewicz
+  quoteAuthorProfileImageFilename: adam-anklewicz-120x120@2x.png
+  quoteAuthorJobTitle: Manager of IT Endpoint Engineering, Thumbtack
+  productCategories: [Device management]
+# -
+#   quote: Thank you for enabling SCIM for the admin interface! You have solved de-provisioning for us because if an admin leaves their identity gets turned off automatically by Okta. We also can quickly check user roles in Okta without needing to login to FleetDM or monitoring user_role.yaml with GitOps.
+#   quoteAuthorName: Nick Borgers
+#   quoteAuthorJobTitle: Cybersecurity and DevOps
+#   quoteLinkUrl: https://www.linkedin.com/in/nickborgers/
+#   quoteAuthorProfileImageFilename: testimonial-author-nick-borgers-100x100@2x.png
+#   productCategories: [Device management]
+# -
+#   quote: As someone that has worked on Linux using FleetDM for Ubuntu and the rogue Fedora image and can tell you its awesome to have Linux under control.
+#   quoteAuthorName: Oscar Taracena
+#   quoteAuthorJobTitle: Technical Operation Engineer, Anduril Industries
+#   quoteLinkUrl: https://www.linkedin.com/feed/update/urn:li:activity:7267672056970788866/?dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287279546151945519104%2Curn%3Ali%3Aactivity%3A7267672056970788866%29
+#   quoteAuthorProfileImageFilename: oscar-taracena-120x120@2x.png
+#   productCategories: [Device management]
+# -
+#   quote: We started working with Fleet Device Management in early March 2022 because we were looking for a reliable observability platform built on top of osquery. At the time, we needed better visibility across our device fleet, especially for macOS, and Fleet quickly proved to be a great fit. The product was solid, flexible, and aligned with how we wanted to approach endpoint observability. But one of the main reasons we have continued working with Fleet after all these years is the team behind it. From the beginning, the Fleet team has been approachable, transparent, and genuinely open to feedback. They understand the problems that Client Platform Engineering teams face, they listen carefully, and they are always willing to engage in thoughtful conversations about how the platform can evolve. That kind of partnership matters a lot. Good products are important, but working with people who are responsive, honest, and committed to building the right thing makes a huge difference. Although we are not currently using Fleet’s MDM capabilities, we continue to rely on its osquery-based observability features to understand the state of our devices, validate configurations, support security and compliance needs, and make better operational decisions based on real data. Fleet has been robust, reliable, and low-maintenance for us, but the quality of the team and the partnership is what really stands out. That combination of a strong platform and an excellent team is why we continue working with Fleet after all these years. Grateful for the partnership, and looking forward to many more years working together with the Fleet Device Management team.#   quoteAuthorName: Nick Borgers
+#   quoteAuthorName: Joaquín Cabrerizo Egea
+#   quoteAuthorJobTitle: Tech Lead, Client Platform Engineering
+#   quoteLinkUrl: https://www.linkedin.com/posts/joaquincabrerizo_we-started-working-with-fleet-device-management-share-7454585706599047168-0eGW?utm_source=share&utm_medium=member_desktop&rcm=ACoAAFhwsqgBUeTS_Ga-WZM7Ms18ROHnG7TE2oQ
+#   productCategories: [Device management]

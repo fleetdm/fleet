@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,8 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
 )
 
@@ -33,7 +32,7 @@ import (
 // from the store. It is safe to call those methods concurrently.
 type Handler struct {
 	pool    fleet.RedisPool
-	logger  kitlog.Logger
+	logger  *slog.Logger
 	ttl     time.Duration
 	running int32 // accessed atomically
 	errCh   chan error
@@ -47,7 +46,7 @@ type Handler struct {
 // NewHandler creates an error handler using the provided pool and logger,
 // storing unique instances of errors in Redis using the pool. It stops storing
 // errors when ctx is cancelled. Errors are kept for the duration of ttl.
-func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration) *Handler {
+func NewHandler(ctx context.Context, pool fleet.RedisPool, logger *slog.Logger, ttl time.Duration) *Handler {
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
@@ -60,7 +59,7 @@ func NewHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger,
 	return eh
 }
 
-func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger kitlog.Logger, ttl time.Duration, onStart func(), onStore func(error)) *Handler {
+func newTestHandler(ctx context.Context, pool fleet.RedisPool, logger *slog.Logger, ttl time.Duration, onStart func(), onStore func(error)) *Handler {
 	eh := &Handler{
 		pool:   pool,
 		logger: logger,
@@ -202,7 +201,7 @@ func (h *Handler) handleErrors(ctx context.Context) {
 func (h *Handler) storeError(ctx context.Context, err error) {
 	errorHash, errorJson, err := hashAndMarshalError(err)
 	if err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "hashErr failed")
+		h.logger.ErrorContext(ctx, "hashErr failed", "err", err)
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}
@@ -238,7 +237,7 @@ func (h *Handler) storeError(ctx context.Context, err error) {
 	}
 
 	if _, err := conn.Do(""); err != nil {
-		level.Error(h.logger).Log("err", err, "msg", "redis SET failed")
+		h.logger.ErrorContext(ctx, "redis SET failed", "err", err)
 		if h.testOnStore != nil {
 			h.testOnStore(err)
 		}

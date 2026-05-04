@@ -31,6 +31,7 @@ type MockClient struct {
 	IsFree           bool
 	TeamNameOverride string
 	WithoutMDM       bool
+	WithoutVPP       bool
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -98,23 +99,23 @@ func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
 
 func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 	switch query {
-	case "team_id=1":
+	case "fleet_id=1":
 		return []*fleet.Script{{
 			ID:              2,
 			TeamID:          ptr.Uint(1),
 			Name:            "Script B.ps1",
 			ScriptContentID: 2,
 		}}, nil
-	case "team_id=0":
+	case "fleet_id=0":
 		return []*fleet.Script{{
 			ID:              3,
 			TeamID:          ptr.Uint(0),
 			Name:            "Script Z.ps1",
 			ScriptContentID: 3,
 		}}, nil
-	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
+	case "fleet_id=2", "fleet_id=3", "fleet_id=4", "fleet_id=5":
 		return nil, nil
-	case "team_id=6":
+	case "fleet_id=6":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -249,7 +250,7 @@ func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
 
 func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&team_id=1":
+	case "available_for_install=1&fleet_id=1":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         1,
@@ -265,7 +266,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   2,
 				Name: "My App Store App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.team-software",
+					AppStoreID: "1234567890",
 					Platform:   string(fleet.MacOSPlatform),
 				},
 				HashSHA256: ptr.String("app-store-app-hash"),
@@ -274,7 +275,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -284,7 +285,7 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 				ID:   7,
 				Name: "My iOS Auto Update App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID: "com.example.ios-auto-update",
+					AppStoreID: "9999888877",
 					Platform:   string(fleet.IOSPlatform),
 				},
 				HashSHA256: ptr.String("ios-auto-update-hash"),
@@ -300,12 +301,46 @@ func (MockClient) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListRes
 					FleetMaintainedAppID: ptr.Uint(1),
 				},
 			},
+			{
+				ID:         9,
+				Name:       "My Windows FMA",
+				HashSHA256: ptr.String("win-fma-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(2),
+				},
+			},
+			{
+				ID:         10,
+				Name:       "Version Locked Name 0.1",
+				HashSHA256: ptr.String("win-fma-3-package-hash"),
+				SoftwarePackage: &fleet.SoftwarePackageOrApp{
+					Name:                 "my-fma.msi",
+					Platform:             "windows",
+					Version:              "1",
+					FleetMaintainedAppID: ptr.Uint(3),
+				},
+			},
 		}, nil
-	case "available_for_install=1&team_id=0":
+	case "available_for_install=1&fleet_id=0":
 		return []fleet.SoftwareTitleListResult{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
 	}
+}
+
+func (MockClient) GetFleetMaintainedApp(id uint) (*fleet.MaintainedApp, error) {
+	return &fleet.MaintainedApp{Slug: "foo/darwin"}, nil
+}
+
+func (MockClient) ListFleetMaintainedApps(teamID uint) ([]fleet.MaintainedApp, error) {
+	return []fleet.MaintainedApp{
+		{ID: 1, Slug: "fma1/darwin", Name: "My FMA", Platform: "darwin", UniqueIdentifier: "com.my.fma"},
+		{ID: 2, Slug: "fma2/windows", Name: "My Windows FMA", Platform: "windows", UniqueIdentifier: "My Windows FMA"},
+		{ID: 3, Slug: "fma3/windows", Name: "Version Locked Name 2.0", Platform: "windows", UniqueIdentifier: "Version Locked Name 2.0"},
+	}, nil
 }
 
 func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
@@ -325,6 +360,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 						LabelName: "Label B",
 					}},
 					ConditionalAccessEnabled: true,
+					Type:                     fleet.PolicyTypeDynamic,
 				},
 				InstallSoftware: &fleet.PolicySoftwareTitle{
 					SoftwareTitleID: 1,
@@ -332,7 +368,7 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 			},
 		}, nil
 	}
-	return []*fleet.Policy{
+	policies := []*fleet.Policy{
 		{
 			PolicyData: fleet.PolicyData{
 				ID:                       1,
@@ -342,12 +378,77 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 				Description:              "This is a team policy",
 				Platform:                 "linux,windows",
 				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypeDynamic,
 			},
 			RunScript: &fleet.PolicyScript{
 				ID: 1,
 			},
 		},
-	}, nil
+
+		{
+			PolicyData: fleet.PolicyData{
+				ID:                       2,
+				Name:                     "Team patch policy",
+				Query:                    "SELECT * FROM team_policy WHERE id = 1",
+				Resolution:               ptr.String("Do a team thing"),
+				Description:              "This is a team patch policy",
+				Platform:                 "linux,windows",
+				ConditionalAccessEnabled: true,
+				Type:                     fleet.PolicyTypePatch,
+			},
+			PatchSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 8,
+			},
+		},
+		{
+			PolicyData: fleet.PolicyData{
+				ID:          3,
+				Name:        "Team VPP policy",
+				Query:       "SELECT * FROM team_policy WHERE id = 3",
+				Resolution:  ptr.String("Install the app"),
+				Description: "This is a team policy with VPP app automation",
+				Platform:    "darwin",
+				Type:        fleet.PolicyTypeDynamic,
+			},
+			InstallSoftware: &fleet.PolicySoftwareTitle{
+				SoftwareTitleID: 2,
+			},
+		},
+	}
+	// Only add FMA and package install policies for actual teams, not unassigned.
+	if *teamID != 0 {
+		policies = append(policies,
+			&fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:          4,
+					Name:        "Team FMA install policy",
+					Query:       "SELECT 1 FROM filevault_status WHERE status LIKE '%on%';",
+					Resolution:  ptr.String("Install the FMA"),
+					Description: "This is a team policy with FMA install automation",
+					Platform:    "darwin",
+					Type:        fleet.PolicyTypeDynamic,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 8,
+				},
+			},
+			&fleet.Policy{
+				PolicyData: fleet.PolicyData{
+					ID:          5,
+					Name:        "Team package install policy",
+					Query:       "SELECT 1 FROM mounts WHERE path = '/' AND CAST(blocks_available AS REAL) / blocks > 0.10;",
+					Resolution:  ptr.String("Install the package"),
+					Description: "This is a team policy with custom package install automation",
+					Platform:    "linux,windows",
+					Type:        fleet.PolicyTypeDynamic,
+				},
+				InstallSoftware: &fleet.PolicySoftwareTitle{
+					SoftwareTitleID: 1,
+				},
+			},
+		)
+	}
+	return policies, nil
 }
 
 func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) {
@@ -356,7 +457,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 			{
 				ID:                 1,
 				Name:               "Global Query",
-				Query:              "SELECT * FROM global_query WHERE id = 1",
+				Query:              "SELECT * FROM os_version;",
 				Description:        "This is a global query",
 				Platform:           "darwin",
 				Interval:           3600,
@@ -376,7 +477,7 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 		{
 			ID:                 1,
 			Name:               "Team Query",
-			Query:              "SELECT * FROM team_query WHERE id = 1",
+			Query:              "SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';",
 			Description:        "This is a team query",
 			Platform:           "linux,windows",
 			Interval:           1800,
@@ -440,9 +541,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 6,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:         fleet.VPPAppID{AdamID: "com.example.setup-experience-software", Platform: fleet.AndroidPlatform},
-				LabelsExcludeAny: []fleet.SoftwareScopeLabel{},
-				SelfService:      true,
+				VPPAppID: fleet.VPPAppID{AdamID: "55566677778", Platform: fleet.AndroidPlatform},
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
+				SelfService: true,
 			},
 			IconUrl: ptr.String("/api/icon3.png"),
 		}, nil
@@ -453,8 +560,15 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 		return &fleet.SoftwareTitle{
 			ID: 7,
 			AppStoreApp: &fleet.VPPAppStoreApp{
-				VPPAppID:    fleet.VPPAppID{AdamID: "com.example.ios-auto-update", Platform: fleet.IOSPlatform},
+				VPPAppID:    fleet.VPPAppID{AdamID: "9999888877", Platform: fleet.IOSPlatform},
 				SelfService: false,
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					},
+				},
 			},
 			IconUrl: ptr.String("/api/icon4.png"),
 			SoftwareAutoUpdateConfig: fleet.SoftwareAutoUpdateConfig{
@@ -485,6 +599,39 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 			},
 			IconUrl:          ptr.String("/api/icon1.png"),
 			BundleIdentifier: ptr.String("com.my.fma"),
+		}, nil
+	case 9:
+		return &fleet.SoftwareTitle{
+			ID:   9,
+			Name: "My Windows FMA",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				LabelsIncludeAll: []fleet.SoftwareScopeLabel{
+					{
+						LabelName: "Label A",
+					},
+					{
+						LabelName: "Label B",
+					},
+				},
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(2),
+			},
+			IconUrl: ptr.String("/api/icon5.png"),
+		}, nil
+	case 10:
+		return &fleet.SoftwareTitle{
+			ID:   9,
+			Name: "Version Locked Name 0.1",
+			SoftwarePackage: &fleet.SoftwareInstaller{
+				InstallScript:        "install",
+				UninstallScript:      "uninstall",
+				SelfService:          true,
+				Platform:             "windows",
+				FleetMaintainedAppID: ptr.Uint(3),
+			},
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
@@ -557,7 +704,7 @@ func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fl
 				ID:   6,
 				Name: "My Setup Experience App",
 				AppStoreApp: &fleet.SoftwarePackageOrApp{
-					AppStoreID:         "com.example.setup-experience-software",
+					AppStoreID:         "55566677778",
 					Platform:           string(fleet.AndroidPlatform),
 					InstallDuringSetup: ptr.Bool(true),
 				},
@@ -710,6 +857,24 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 	return res, nil
 }
 
+func (c *MockClient) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	if c.WithoutVPP {
+		return nil, nil
+	}
+	return []*fleet.VPPTokenDB{
+		{
+			ID:       1,
+			Location: "Fleet Device Management Inc.",
+			Teams: []fleet.TeamTuple{
+				{ID: 1, Name: "💻 Workstations"},
+				{ID: 2, Name: "💻🐣 Workstations (canary)"},
+				{ID: 3, Name: "📱🏢 Company-owned mobile devices"},
+				{ID: 4, Name: "📱🔐 Personal mobile devices"},
+			},
+		},
+	}, nil
+}
+
 func maskSecret(value string, shouldShowSecret bool) string {
 	if shouldShowSecret {
 		return value
@@ -753,7 +918,7 @@ func compareDirs(t *testing.T, sourceDir, targetDir string) {
 func configureFMAManifestServer(t *testing.T) {
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "apps.json") {
-			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}]}`)
+			data := json.RawMessage(`{"version": 2, "apps": [{"name": "My FMA", "slug": "fma1/darwin", "platform": "darwin", "unique_identifier": "com.my.fma"}, {"name": "My Windows FMA", "slug": "fma2/windows", "platform": "windows", "unique_identifier": "My Windows FMA"}, {"name": "Version Locked Name 2.0", "slug": "fma3/windows", "platform": "windows", "unique_identifier": "Version Locked Name 2.0"}]}`)
 			err := json.NewEncoder(w).Encode(data)
 			require.NoError(t, err)
 			return
@@ -868,6 +1033,39 @@ func TestGenerateGitopsFree(t *testing.T) {
 	})
 }
 
+func TestGenerateGitopsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	// Verifies that fleetctl generate-gitops emits
+	// activity_expiry_settings.preserve_host_activities_on_reenrollment so
+	// existing customers can roundtrip the setting via GitOps.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	// Sanity-check the source config matches what the generated output should
+	// expose.
+	require.True(t, appConfig.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	aes, ok := orgSettings["activity_expiry_settings"].(map[string]any)
+	require.True(t, ok, "activity_expiry_settings should be present in generated org settings")
+	require.Equal(t, true, aes["preserve_host_activities_on_reenrollment"])
+}
+
 func TestGenerateOrgSettings(t *testing.T) {
 	// Get the test app config.
 	fleetClient := &MockClient{}
@@ -890,7 +1088,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -933,7 +1131,7 @@ func TestGenerateOrgSettingsMaskedGoogleCalendarApiKey(t *testing.T) {
 	require.NotNil(t, orgSettingsRaw)
 
 	// Verify the result can be marshaled to YAML without error.
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 
 	// Verify api_key_json was replaced with a comment placeholder (not "********")
@@ -986,7 +1184,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1008,10 +1206,10 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 	cmd.AppConfig = appConfig
 
 	// prepare FilesToWrite entry like Run() would
-	cmd.FilesToWrite["teams/test.yml"] = map[string]any{}
+	cmd.FilesToWrite["fleets/test.yml"] = map[string]any{}
 
 	// generate software for team 1
-	res, err := cmd.generateSoftware("teams/test.yml", 1, "team-a", false)
+	res, err := cmd.generateSoftware("fleets/test.yml", 1, "team-a", false)
 	require.NoError(t, err)
 	require.NotNil(t, res)
 
@@ -1032,7 +1230,7 @@ func TestGenerateSoftwareAutoUpdateSchedule(t *testing.T) {
 
 	var found bool
 	for _, a := range appsList {
-		if a["app_store_id"] == "com.example.ios-auto-update" {
+		if a["app_store_id"] == "9999888877" {
 			found = true
 			// auto update keys should be present
 			val, ok := a["auto_update_enabled"]
@@ -1081,7 +1279,7 @@ func TestGeneratedOrgSettingsOktaConditionalAccessNotIncluded(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]any
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &orgSettings)
 	require.NoError(t, err)
@@ -1125,7 +1323,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
 	var orgSettings map[string]interface{}
-	b, err := yaml.Marshal(orgSettingsRaw)
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &orgSettings)
@@ -1164,7 +1362,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yamlMarshalRenamed(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1205,7 +1403,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
 	var TeamSettings map[string]interface{}
-	b, err := yaml.Marshal(TeamSettingsRaw)
+	b, err := yamlMarshalRenamed(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
 	err = yaml.Unmarshal(b, &TeamSettings)
@@ -1309,9 +1507,9 @@ func TestGenerateControls(t *testing.T) {
 	}
 	controlsRaw, err = cmd.generateControls(ptr.Uint(0), "no_team", &mdmConfig)
 	require.NoError(t, err)
-	// Check that the controls do not contain a macos_setup section
-	_, ok := controlsRaw["macos_setup"]
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	// Check that the controls do not contain a setup_experience section
+	_, ok := controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section for no-team controls")
 
 	// Try that again, but with an MDM config that has "EndUserAuthentication" enabled.
 	mdmConfig = fleet.TeamMDM{
@@ -1362,7 +1560,8 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err = cmd.generateControls(ptr.Uint(2), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
-	require.False(t, ok, "Expected no macos_setup section for no-team controls")
+	_, ok = controlsRaw["setup_experience"]
+	require.False(t, ok, "Expected no setup_experience section")
 
 	// Generate controls for a team with a bootstrap pacakge.
 	controlsRaw, err = cmd.generateControls(ptr.Uint(3), "some_team", nil)
@@ -1567,7 +1766,7 @@ type MockClientWithScriptPackage struct {
 
 func (c *MockClientWithScriptPackage) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error) {
 	switch query {
-	case "available_for_install=1&team_id=2":
+	case "available_for_install=1&fleet_id=2":
 		return []fleet.SoftwareTitleListResult{
 			{
 				ID:         3,
@@ -1685,12 +1884,15 @@ func TestGeneratePolicies(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		SoftwareList: map[uint]Software{
 			1: {
 				Hash:    "team-software-hash",
 				Comment: "__TEAM_SOFTWARE_COMMENT_TOKEN__",
+			},
+			2: {
+				AppStoreId: "1234567890",
 			},
 		},
 		ScriptList: map[uint]string{
@@ -1698,46 +1900,49 @@ func TestGeneratePolicies(t *testing.T) {
 		},
 	}
 
-	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
+	policiesRaw, err := cmd.generatePolicies(nil, "default.yml", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
-	var policies []map[string]interface{}
+	var generatedPolicies []map[string]any
 	b, err := yaml.Marshal(policiesRaw)
 	require.NoError(t, err)
-	fmt.Println("policies raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &policies)
+	fmt.Println("generated global policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &generatedPolicies)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalPolicies.yaml")
 	require.NoError(t, err)
-	var expectedPolicies []map[string]interface{}
+	var expectedPolicies []map[string]any
 	err = yaml.Unmarshal(b, &expectedPolicies)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, policies)
+	require.Equal(t, expectedPolicies, generatedPolicies)
 
 	// Generate policies for a team.
 	// Note that nested keys here may be strings,
 	// so we'll JSON marshal and unmarshal to a map for comparison.
-	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team")
+
+	var expectedTeamPolicies []map[string]any
+	var generatedTeamPolicies []map[string]any
+	policiesRaw, err = cmd.generatePolicies(ptr.Uint(1), "some_team", nil)
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
 	b, err = yaml.Marshal(policiesRaw)
 	require.NoError(t, err)
-	fmt.Println("policies raw:\n", string(b)) // Debugging line
-	err = yaml.Unmarshal(b, &policies)
+	fmt.Println("generated team policies raw:\n", string(b)) // Debugging line
+	err = yaml.Unmarshal(b, &generatedTeamPolicies)
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamPolicies.yaml")
 	require.NoError(t, err)
-	err = yaml.Unmarshal(b, &expectedPolicies)
+	err = yaml.Unmarshal(b, &expectedTeamPolicies)
 	require.NoError(t, err)
 
 	// Compare.
-	require.Equal(t, expectedPolicies, policies)
+	require.Equal(t, expectedPolicies, generatedPolicies)
 }
 
 func TestGenerateQueries(t *testing.T) {
@@ -1766,7 +1971,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalReports.yaml")
 	require.NoError(t, err)
 	var expectedQueries []map[string]interface{}
 	err = yaml.Unmarshal(b, &expectedQueries)
@@ -1788,7 +1993,7 @@ func TestGenerateQueries(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get the expected org settings YAML.
-	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamQueries.yaml")
+	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamReports.yaml")
 	require.NoError(t, err)
 	err = yaml.Unmarshal(b, &expectedQueries)
 	require.NoError(t, err)
@@ -1837,14 +2042,14 @@ func TestGenerateLabels(t *testing.T) {
 }
 
 func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
-	macosSetup, ok := controlsRaw["macos_setup"].(string)
-	require.True(t, ok, "Expected macos_setup section to be a string")
-	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
+	macosSetup, ok := controlsRaw["setup_experience"].(string)
+	require.True(t, ok, "Expected setup_experience section to be a string")
+	require.Equal(t, macosSetup, "TODO: update with your setup_experience configuration")
 }
 
 func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	// Get the test app config.
-	fleetClient := &MockClient{}
+	fleetClient := &MockClient{WithoutVPP: true}
 	appConfig, err := fleetClient.GetAppConfig()
 	require.NoError(t, err)
 	appConfig.MDM.EnabledAndConfigured = false
@@ -1852,7 +2057,6 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	appConfig.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
 	appConfig.MDM.AppleServerURL = ""
 	appConfig.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
-	appConfig.MDM.VolumePurchasingProgram = optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{}
 
 	// Create the command.
 	cmd := &GenerateGitopsCommand{
@@ -1885,6 +2089,144 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		require.Contains(t, mdmRaw, key)
 		require.Empty(t, mdmRaw[key])
 	}
+}
+
+func TestGenerateMDMVPPTokens(t *testing.T) {
+	tests := []struct {
+		name      string
+		vppTokens []*fleet.VPPTokenDB
+		expected  []fleet.MDMAppleVolumePurchasingProgramInfo
+	}{
+		{
+			name:      "no VPP tokens",
+			vppTokens: nil,
+			expected:  nil,
+		},
+		{
+			name: "single token with teams",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams: []fleet.TeamTuple{
+						{ID: 1, Name: "Workstations"},
+						{ID: 2, Name: "Servers"},
+					},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{"Workstations", "Servers"}},
+			},
+		},
+		{
+			name: "multiple tokens with different teams",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams: []fleet.TeamTuple{
+						{ID: 1, Name: "Workstations"},
+					},
+				},
+				{
+					ID:       2,
+					Location: "Widgets LLC",
+					Teams: []fleet.TeamTuple{
+						{ID: 2, Name: "Servers"},
+						{ID: 0, Name: fleet.TeamNameNoTeam},
+					},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{"Workstations"}},
+				{Location: "Widgets LLC", Teams: []string{"Servers", fleet.TeamNameNoTeam}},
+			},
+		},
+		{
+			name: "token assigned to all teams (empty teams slice)",
+			vppTokens: []*fleet.VPPTokenDB{
+				{
+					ID:       1,
+					Location: "Acme Inc.",
+					Teams:    []fleet.TeamTuple{},
+				},
+			},
+			expected: []fleet.MDMAppleVolumePurchasingProgramInfo{
+				{Location: "Acme Inc.", Teams: []string{}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fleetClient := &MockClient{WithoutVPP: true}
+			appConfig, err := fleetClient.GetAppConfig()
+			require.NoError(t, err)
+
+			// Use a wrapper to override the VPP tokens for this test case.
+			wrapper := &vppMockClientWrapper{
+				MockClient: fleetClient,
+				vppTokens:  tt.vppTokens,
+			}
+
+			cmd := &GenerateGitopsCommand{
+				Client:       wrapper,
+				CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+				Messages:     Messages{},
+				FilesToWrite: make(map[string]any),
+				AppConfig:    appConfig,
+				ScriptList:   make(map[uint]string),
+			}
+
+			mdmRaw, err := cmd.generateMDM(&appConfig.MDM)
+			require.NoError(t, err)
+			require.Contains(t, mdmRaw, "volume_purchasing_program")
+
+			vppRaw := mdmRaw["volume_purchasing_program"]
+			if tt.expected == nil {
+				require.Nil(t, vppRaw)
+			} else {
+				vppResult, ok := vppRaw.([]fleet.MDMAppleVolumePurchasingProgramInfo)
+				require.True(t, ok)
+				require.Equal(t, tt.expected, vppResult)
+			}
+		})
+	}
+
+	t.Run("GetVPPTokens error", func(t *testing.T) {
+		fleetClient := &MockClient{WithoutVPP: true}
+		appConfig, err := fleetClient.GetAppConfig()
+		require.NoError(t, err)
+
+		wrapper := &vppMockClientWrapper{
+			MockClient: fleetClient,
+			vppErr:     errors.New("vpp tokens unavailable"),
+		}
+
+		cmd := &GenerateGitopsCommand{
+			Client:       wrapper,
+			CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+			Messages:     Messages{},
+			FilesToWrite: make(map[string]any),
+			AppConfig:    appConfig,
+			ScriptList:   make(map[uint]string),
+		}
+
+		mdmRaw, err := cmd.generateMDM(&appConfig.MDM)
+		require.Error(t, err)
+		require.Nil(t, mdmRaw)
+	})
+}
+
+// vppMockClientWrapper wraps MockClient but overrides GetVPPTokens.
+type vppMockClientWrapper struct {
+	*MockClient
+	vppTokens []*fleet.VPPTokenDB
+	vppErr    error
+}
+
+func (w *vppMockClientWrapper) GetVPPTokens() ([]*fleet.VPPTokenDB, error) {
+	return w.vppTokens, w.vppErr
 }
 
 func TestSillyTeamNames(t *testing.T) {
@@ -1928,9 +2270,135 @@ func TestSillyTeamNames(t *testing.T) {
 			require.NoError(t, err, buf.String())
 
 			// Expect a correctly-named .yaml
-			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			tgtPath := filepath.Join(tempDir, "fleets", expectedFilename)
 			_, err = os.Stat(tgtPath)
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestReplaceAliasKeys(t *testing.T) {
+	rules := map[string]string{
+		"old_key":    "new_key",
+		"nested_old": "nested_new",
+	}
+
+	t.Run("deleteOld=true removes old keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, true)
+		require.Equal(t, "value1", data["new_key"])
+		_, exists := data["old_key"]
+		require.False(t, exists, "old key should be removed when deleteOld=true")
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("deleteOld=false keeps both keys", func(t *testing.T) {
+		data := map[string]any{
+			"old_key":   "value1",
+			"other_key": "value2",
+		}
+		replaceAliasKeys(data, rules, false)
+		require.Equal(t, "value1", data["new_key"])
+		require.Equal(t, "value1", data["old_key"])
+		require.Equal(t, "value2", data["other_key"])
+	})
+
+	t.Run("nested maps and arrays", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		// deleteOld=true: old keys removed recursively
+		replaceAliasKeys(data, rules, true)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		_, exists := outer["nested_old"]
+		require.False(t, exists)
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		_, exists = item["old_key"]
+		require.False(t, exists)
+	})
+
+	t.Run("nested maps and arrays deleteOld=false", func(t *testing.T) {
+		data := map[string]any{
+			"outer": map[string]any{
+				"nested_old": "nested_value",
+			},
+			"list": []any{
+				map[string]any{"old_key": "in_array"},
+			},
+		}
+
+		replaceAliasKeys(data, rules, false)
+		outer := data["outer"].(map[string]any)
+		require.Equal(t, "nested_value", outer["nested_new"])
+		require.Equal(t, "nested_value", outer["nested_old"])
+		item := data["list"].([]any)[0].(map[string]any)
+		require.Equal(t, "in_array", item["new_key"])
+		require.Equal(t, "in_array", item["old_key"])
+	})
+
+	t.Run("container key deleteOld=false: old keeps old children, new gets new children", func(t *testing.T) {
+		rules := map[string]string{
+			"old_container": "new_container",
+			"child_old":     "child_new",
+		}
+		data := map[string]any{
+			"old_container": map[string]any{
+				"child_old": "val",
+				"unchanged": "stays",
+			},
+		}
+		replaceAliasKeys(data, rules, false)
+
+		// Old container keeps original child keys only.
+		oldC := data["old_container"].(map[string]any)
+		require.Equal(t, "val", oldC["child_old"])
+		_, exists := oldC["child_new"]
+		require.False(t, exists, "old container should not gain new child key")
+		require.Equal(t, "stays", oldC["unchanged"])
+
+		// New container has children renamed.
+		newC := data["new_container"].(map[string]any)
+		require.Equal(t, "val", newC["child_new"])
+		_, exists = newC["child_old"]
+		require.False(t, exists, "new container should not have old child key")
+		require.Equal(t, "stays", newC["unchanged"])
+	})
+
+	t.Run("container key deleteOld=true: children renamed, old container removed", func(t *testing.T) {
+		rules := map[string]string{
+			"old_container": "new_container",
+			"child_old":     "child_new",
+		}
+		data := map[string]any{
+			"old_container": map[string]any{
+				"child_old": "val",
+			},
+		}
+		replaceAliasKeys(data, rules, true)
+
+		_, exists := data["old_container"]
+		require.False(t, exists)
+		newC := data["new_container"].(map[string]any)
+		require.Equal(t, "val", newC["child_new"])
+		_, exists = newC["child_old"]
+		require.False(t, exists)
+	})
+
+	t.Run("nil map is safe", func(t *testing.T) {
+		replaceAliasKeys(nil, rules, true)
+		replaceAliasKeys(nil, rules, false)
+		var m map[string]any
+		replaceAliasKeys(m, rules, true)
+	})
 }

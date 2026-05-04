@@ -5,13 +5,11 @@
   var me;
   var isHomepage;
   var currentSection;
-  var showHeaderCTA;
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
-  var hideGetStartedButton;// Hides the 'Get started' button in the website's navigation header.
-  var hideStartCTA;
   var showConfigurationProfileLayout;
+  var disableChatbotAndIndexing;// Disables the chatbot and adds a noindex meta tag. Used on pages linked to from Fleet.
   // Applies personalization for who people come from ads, so that the website makes more sense for them:
   var primaryBuyingSituation;
   var defaultMetaDescription = 'Open-source '+(['it-major-mdm', 'it-gap-filler-mdm', 'it-misc'].includes(primaryBuyingSituation) ? 'IT' : ['security-misc','security-vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(['it-major-mdm', 'it-gap-filler-mdm'].includes(primaryBuyingSituation) ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
@@ -35,6 +33,35 @@
     <meta property="og:title" content="Fleet | <% if (typeof pageTitleForMeta !== 'undefined') { %><%= pageTitleForMeta %><% } else { %><%- partial('../partials/primary-tagline.partial.ejs') %><% } %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% if (sails.config.environment === 'production') { %>
+    <% /* ConsentMode */ %>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+          dataLayer.push(arguments);
+      }
+      gtag("consent", "default", {
+          ad_storage: "denied",
+          ad_user_data: "denied", 
+          ad_personalization: "denied",
+          analytics_storage: "denied",
+          functionality_storage: "denied",
+          personalization_storage: "denied",
+          security_storage: "granted",
+          wait_for_update: 2000,
+      });
+      gtag("set", "ads_data_redaction", true);
+      gtag("set", "url_passthrough", true);
+    </script>
+
+    <% /* GTM */ %>
+    <% /* Global site tag (gtag.js) - Google Analytics */%>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
+    <script>
+      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
+  	// Google Ads configuration (including Enhanced Conversions) 
+  	  gtag('config', 'AW-10788733823', {'allow_enhanced_conversions': true});
+    </script>      
+
     <% /* Cookie consent banner */ %>
     <script id="cookieyes" type="text/javascript" src="https://cdn-cookieyes.com/client_data/71bcdd51b166ceeb18bd0d28/script.js"></script>
     <% } %>
@@ -63,11 +90,7 @@
     </script>
    
     <% /* Google Analytics, Google Tag Manager, Snitcher etc. */ %>
-    <% /* Global site tag (gtag.js) - Google Analytics */%>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-JC3DRNY1GV"></script>
-    <script>
-      window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-JC3DRNY1GV');
-    </script>
+
     <%/* LinkedIn insight tag*/%>
     <script type="text/javascript">
       _linkedin_partner_id = "4365817";
@@ -89,11 +112,15 @@
     <% /* Clay */ %>
       <script src="https://static.claydar.com/init.v1.js?id=cwiBCPLMlD"></script>
     <% /* Qualified */ %>
-    <script>
-      (function(w,q){w['QualifiedObject']=q;w[q]=w[q]||function(){
-      (w[q].q=w[q].q||[]).push(arguments)};})(window,'qualified')
-    </script>
+    <% if(!disableChatbotAndIndexing) {%>
+      <script>
+        (function(w,q){w['QualifiedObject']=q;w[q]=w[q]||function(){
+        (w[q].q=w[q].q||[]).push(arguments)};})(window,'qualified')
+      </script>
       <script async src="https://js.qualified.com/qualified.js?token=kdbyrPDkGjPxVmAd"></script>
+    <% } else {%>
+      <meta name="robots" content="noindex">
+    <% } %>
     <% /* Snitcher */ %>
     <script>
         !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
@@ -216,7 +243,22 @@
                           </div>
                         </div>
                       </a>
-                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Linux device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/infrastructure-as-code">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
                             <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
@@ -227,6 +269,21 @@
                             </p>
                             <p purpose="nav-item-body">
                               See every change, undo any error, repeat every success.
+                            </p>
+                          </div>
+                        </div>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
                             </p>
                           </div>
                         </div>
@@ -252,6 +309,8 @@
                     <a purpose="mobile-dropdown-toggle" href="/customers" class="d-flex align-items-center">Customers</a>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" href="/partners" class="d-flex align-items-center">Partners</a>
                     <hr>
                     <div purpose="mobile-dropdown-toggle" class="d-flex flex-row justify-content-between align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleMore">
                       <div><p>More</p></div>
@@ -297,14 +356,14 @@
                           </div>
                         </div>
                       </a>
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Resources / blog" href="/articles">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Resources / blog">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              News
+                              Resources / blog
                             </p>
                           </div>
                         </div>
@@ -369,33 +428,20 @@
                         <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
                         <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
                         <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/reset-trial">Reset local Fleet Premium trial</a>
                       </div>
                     <%}%>
                   </div>
-                  <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
-
                     <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                    <%if(_.has(me, 'id')) {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+<!--                       <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
                         Try it yourself
                         <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
                           <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
                           <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
-                      </a>
-                    </div>
-                    <% } else {%>
-                      <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                        Try it yourself
-                        <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                          <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                          <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </a>
-                    </div>
-                    <% }%>
-                  <% }%>
+                      </a> -->
+                  </div>
                 </div>
               </div>
               <%/* Desktop Navigation bar */%>
@@ -405,88 +451,123 @@
                   <a purpose="header-nav-btn" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>">
                     Solutions <img purpose="chevron" src="/images/icon-chevron-fleet-black-50-12x12@2x.png" alt="A small chevron">
                   </a>
-                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown">
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+                  <div purpose="header-dropdown" class="dropdown-menu solutions-dropdown flex-row">
 
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="device-management" href="/device-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-device-management-40x40@2x.png" alt="Device management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Device management</p>
+                            <p purpose="nav-item-body">
+                              Remotely manage, and protect laptops and mobile devices.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Device management</p>
-                          <p purpose="nav-item-body">
-                            Remotely manage, and protect laptops and mobile devices.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/infrastructure-as-code">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Infrastructure as code
+                            </p>
+                            <p purpose="nav-item-body">
+                              See every change, undo any error, repeat every success.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="orchestration" href="/orchestration">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-orchestration-40x40@2x.png" alt="Orchestration">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Orchestration
+                            </p>
+                            <p purpose="nav-item-body">
+                              Automate tasks across devices, from app installs to scripts.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Orchestration
-                          </p>
-                          <p purpose="nav-item-body">
-                            Automate tasks across devices, from app installs to scripts.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Deployment" href="/deployment">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-deployment-40x40@2x.png" alt="Deployment">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Deployment
+                            </p>
+                            <p purpose="nav-item-body">
+                              Run Fleet the way that fits your team.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="software-management" href="/software-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-software-40x40@2x.png" alt="Software management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Software management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Inventory, patch, and manage installed software.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Software management
-                          </p>
-                          <p purpose="nav-item-body">
-                            Inventory, patch, and manage installed software.
-                          </p>
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Extend Fleet
+                            </p>
+                            <p purpose="nav-item-body">
+                              Integrate your favorite tools with Fleet.
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="Fleet GitOps" href="/fleet-gitops">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-gitops-40x40@2x.png" alt="GitOps">
+                      </a>
+                      <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="linux-management" href="/linux-management">
+                        <div purpose="dropdown-item-link">
+                          <div purpose="dropdown-item-icon">
+                            <img src="/images/nav-icon-linux-management-40x40@2x.png" alt="Linux management">
+                          </div>
+                          <div purpose="dropdown-item-text">
+                            <p purpose="nav-item-heading">
+                              Linux device management
+                            </p>
+                            <p purpose="nav-item-body">
+                              Manage Linux devices with full visibility and control.
+                            </p>
+                          </div>
                         </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Infrastructure as code
-                          </p>
-                          <p purpose="nav-item-body">
-                            See every change, undo any error, repeat every success.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
-                    <a class="dropdown-item" purpose="dropdown-item" data-dropdown-option="integrations" href="/integrations">
-                      <div purpose="dropdown-item-link">
-                        <div purpose="dropdown-item-icon">
-                          <img src="/images/nav-icon-integrations-40x40@2x.png" alt="Extend Fleet">
-                        </div>
-                        <div purpose="dropdown-item-text">
-                          <p purpose="nav-item-heading">
-                            Extend Fleet
-                          </p>
-                          <p purpose="nav-item-body">
-                            Integrate your favorite tools with Fleet.
-                          </p>
-                        </div>
-                      </div>
-                    </a>
+                      </a>
+
+
+
                   </div>
                 </div>
 
                 <a purpose="header-nav-btn" href="/customers" class="dropdown-toggle align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'customers' ? 'current-section' : '' %>">Customers</a>
 
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="width: 72px; text-decoration: none; line-height: 23px;">Pricing</a>
+
+                <a purpose="header-nav-btn" button-text="Partners" href="/partners" class=" align-items-center <%= typeof currentSection !== 'undefined' && currentSection === 'partners' ? 'current-section' : '' %>" style="width: 85px; text-decoration: none; line-height: 23px;">Partners</a>
 
 
                 <div purpose="dropdown-button" class="btn-group" >
@@ -556,14 +637,14 @@
                       </a>
                     </div>
                     <div purpose="dropdown-column">
-                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="News" href="/announcements">
+                      <a purpose="dropdown-item" class="dropdown-item" data-dropdown-option="Resources / blog" href="/articles">
                         <div purpose="dropdown-item-link">
                           <div purpose="dropdown-item-icon">
-                            <img src="/images/nav-icon-news-40x40@2x.png" alt="News">
+                            <img src="/images/nav-icon-news-40x40@2x.png" alt="Resources / blog">
                           </div>
                           <div purpose="dropdown-item-text">
                             <p purpose="nav-item-heading">
-                              News
+                              Resources / blog
                             </p>
                           </div>
                         </div>
@@ -596,29 +677,17 @@
 
                   </div>
                 </div>
-
+                <!-- <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
+                  Try it yourself
+                  <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                    <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                    <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </a> -->
+                <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
                 <% if(_.has(me, 'id')) {%>
-                  <%if(!hideGetStartedButton){%>
-                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/try" no-underline>
-                      Try it yourself
-                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                    </a>
-                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                  <% }%>
                   <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
-                <% } else if(!hideGetStartedButton) {%>
-                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" data-toggle="modal" data-target="#signupmodal" no-underline>
-                    Try it yourself
-                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
-                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                  </a>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
-                <% }%>
+                <% } %>
               </div>
             </div>
           <% } else {%>
@@ -642,6 +711,7 @@
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/query-generator">Generate queries</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/generate-license">License generator</a>
                 <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/email-preview">HTML Email preview tool</a>
+                <a purpose="admin-link" style="text-decoration: none; line-height: 23px;" href="/admin/reset-trial">Reset Premium trial</a>
               </div>
             </div>
           <%} %>
@@ -668,6 +738,7 @@
               <a href="/software-management">Software management</a>
               <a href="/integrations">Integrations</a>
               <a href="/pricing">Pricing</a>
+              <a href="/partners">Partners</a>
             </div>
             <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
               <strong purpose="footer-nav-header">Documentation</strong>
@@ -689,7 +760,7 @@
 
           <div purpose="footer-bottom">
             <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
-
+              <div class="d-flex flex-column">
               <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start align-items-sm-center flex-sm-row pr-sm-0">
                 <div purpose="license-information" class="d-flex flex-row align-items-center">
                   <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank" no-icon><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2</a>
@@ -700,6 +771,9 @@
                   <span purpose="legal-links">
                     <a href="/legal/privacy">Privacy</a>
                   </span>
+                </div>
+              </div>
+                <div purpose="cky-button-container" class="d-block">
                 </div>
               </div>
 
@@ -768,6 +842,7 @@
           </div>
       <% } %>
       <% } %>
+    </div>
     <% /*
       Client-side JavaScript
       ========================
@@ -805,6 +880,7 @@
     <script src="/js/components/ajax-form.component.js"></script>
     <script src="/js/components/animated-arrow-button.component.js"></script>
     <script src="/js/components/bar-chart.component.js"></script>
+    <script src="/js/components/bubble.component.js"></script>
     <script src="/js/components/call-to-action.component.js"></script>
     <script src="/js/components/cloud-error.component.js"></script>
     <script src="/js/components/docs-nav-and-search.component.js"></script>
@@ -816,8 +892,6 @@
     <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
-    <script src="/js/components/signup-button.component.js"></script>
-    <script src="/js/components/signup-modal.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
     <script src="/js/utilities/open-stripe-checkout.js"></script>
     <script src="/js/pages/account/account-overview.page.js"></script>
@@ -827,21 +901,35 @@
     <script src="/js/pages/admin/email-templates.page.js"></script>
     <script src="/js/pages/admin/generate-license.page.js"></script>
     <script src="/js/pages/admin/query-generator.page.js"></script>
+    <script src="/js/pages/admin/reset-trial.page.js"></script>
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
-    <script src="/js/pages/app-details.page.js"></script>
-    <script src="/js/pages/app-library.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/articles/basic-webinar.page.js"></script>
+    <script src="/js/pages/articles/basic-whitepaper.page.js"></script>
     <script src="/js/pages/articles/case-study.page.js"></script>
-    <script src="/js/pages/command-details.page.js"></script>
     <script src="/js/pages/configuration-builder.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
+    <script src="/js/pages/customers.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/deals.page.js"></script>
     <script src="/js/pages/device-management.page.js"></script>
+    <script src="/js/pages/docs/app-details.page.js"></script>
+    <script src="/js/pages/docs/app-library.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/docs/command-details.page.js"></script>
+    <script src="/js/pages/docs/mdm-commands.page.js"></script>
+    <script src="/js/pages/docs/os-settings.page.js"></script>
+    <script src="/js/pages/docs/osquery-table-details.page.js"></script>
+    <script src="/js/pages/docs/policy-details.page.js"></script>
+    <script src="/js/pages/docs/policy-library.page.js"></script>
+    <script src="/js/pages/docs/report-details.page.js"></script>
+    <script src="/js/pages/docs/report-library.page.js"></script>
+    <script src="/js/pages/docs/script-details.page.js"></script>
+    <script src="/js/pages/docs/script-library.page.js"></script>
+    <script src="/js/pages/docs/vital-details.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
@@ -849,43 +937,36 @@
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
     <script src="/js/pages/fast-track.page.js"></script>
-    <script src="/js/pages/fleet-gitops.page.js"></script>
     <script src="/js/pages/fleet-premium-trial.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
+    <script src="/js/pages/infrastructure-as-code.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
     <script src="/js/pages/landing-pages/basic-comparison.page.js"></script>
+    <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
+    <script src="/js/pages/landing-pages/linux-management.page.js"></script>
+    <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/mdm-commands.page.js"></script>
     <script src="/js/pages/meetups.page.js"></script>
     <script src="/js/pages/microsoft-proxy/remediate.page.js"></script>
     <script src="/js/pages/microsoft-proxy/turn-on-mdm.page.js"></script>
     <script src="/js/pages/observability.page.js"></script>
     <script src="/js/pages/okta-conditional-access-error.page.js"></script>
-    <script src="/js/pages/os-settings.page.js"></script>
-    <script src="/js/pages/osquery-table-details.page.js"></script>
-    <script src="/js/pages/policy-details.page.js"></script>
-    <script src="/js/pages/policy-library.page.js"></script>
+    <script src="/js/pages/partners.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
-    <script src="/js/pages/query-detail.page.js"></script>
-    <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
-    <script src="/js/pages/script-details.page.js"></script>
-    <script src="/js/pages/scripts.page.js"></script>
     <script src="/js/pages/software-management.page.js"></script>
     <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
-    <script src="/js/pages/testimonials.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/vanta-authorization.page.js"></script>
-    <script src="/js/pages/vital-details.page.js"></script>
     <!--SCRIPTS END-->
 
     <% /* Display an overlay if the current browser is not supported.
@@ -992,13 +1073,6 @@
       $(function() {
         $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
       });
-      // Clean up URLs that contain UTM parameters
-      $(function() {
-        if (window.location.search && window.location.search.includes('utm_content')) {
-          let queryParameterLessUrl = window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.hash;
-          window.history.replaceState({}, '', queryParameterLessUrl);// https://caniuse.com/mdn-api_history_replacestate
-        }
-      });
 
       // Adding hover events to header dropdown menus.
       $(function(){
@@ -1012,6 +1086,35 @@
           $(this).children('.dropdown-toggle').attr('aria-expanded', false);
         });
       });
+      // Add an event listener to watch for the cookie banner loading.
+      document.addEventListener("cookieyes_banner_load", function (eventData) {
+        //  Check the value in the JSON eventData and perform the desired action.
+        if(eventData.detail) {
+          if(eventData.detail.activeLaw === 'ccpa'){
+            // If this user sees a cookieyes banner for CCPA, add a "Do not sell or share my personal information" link to the bottom of the website footer.
+            $('div[purpose="cky-button-container"]').append(
+              '<a purpose="cky-button">Do Not Sell or Share My Personal Information</a>'
+            );
+            // Add a click event to the added button to bring up the cookie yes menu.
+            $(function(){
+              $('a[purpose="cky-button"]').click(
+                function() {
+                  revisitCkyConsent()
+                }
+              );
+            });
+          }
+        }
+      });
     </script>
+    <% if (sails.config.environment === 'production') { %>
+    <% /* ActiveCampaign */ %>
+    <script>
+      (function(e,t,o,n,p,r,i){e.visitorGlobalObjectAlias=n;e[e.visitorGlobalObjectAlias]=e[e.visitorGlobalObjectAlias]||function(){(e[e.visitorGlobalObjectAlias].q=e[e.visitorGlobalObjectAlias].q||[]).push(arguments)};e[e.visitorGlobalObjectAlias].l=(new Date).getTime();r=t.createElement("script");r.src=o;r.async=true;i=t.getElementsByTagName("script")[0];i.parentNode.insertBefore(r,i)})(window,document,"https://diffuser-cdn.app-us1.com/diffuser/diffuser.js","vgo");
+      vgo('setAccount', '652899825');
+      vgo('setTrackByDefault', false);
+      vgo('process');
+    </script>      
+   <% } %>
   </body>
 </html>

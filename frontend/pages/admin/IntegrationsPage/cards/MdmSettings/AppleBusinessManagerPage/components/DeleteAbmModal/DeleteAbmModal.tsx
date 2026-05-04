@@ -44,40 +44,38 @@ const DeleteAbmModal = ({
 
   return (
     <Modal
-      title="Delete ABM"
+      title="Delete AB"
       className={baseClass}
       onExit={onCancel}
       isContentDisabled={isDeleting}
     >
-      <>
-        <p>
-          New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
-          automatically enroll to Fleet.{" "}
-        </p>
-        <p>
-          If you want to re-enable automatic enrollment, you&apos;ll have to
-          upload a new ABM token.
-        </p>
+      <p>
+        New hosts purchased in the <b>{tokenOrgName}</b> won&apos;t
+        automatically enroll to Fleet.{" "}
+      </p>
+      <p>
+        If you want to re-enable automatic enrollment, you&apos;ll have to
+        upload a new AB token.
+      </p>
 
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={onDeleteToken}
-            disabled={isDeleting}
-            isLoading={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={onCancel}
-            disabled={isDeleting}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={onDeleteToken}
+          disabled={isDeleting}
+          isLoading={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={onCancel}
+          disabled={isDeleting}
+          variant="inverse-alert"
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

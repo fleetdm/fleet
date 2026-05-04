@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -22,9 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	"github.com/fleetdm/fleet/v4/server/service/modules/activities"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
 )
@@ -38,12 +36,12 @@ const (
 )
 
 type Service struct {
-	logger           kitlog.Logger
+	logger           *slog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
 	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
-	activityModule   activities.ActivityModule
+	newActivity      fleet.NewActivityFunc
 	serverPrivateKey string
 
 	// Android agent configuration
@@ -57,25 +55,25 @@ type Service struct {
 
 func NewService(
 	ctx context.Context,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	ds fleet.AndroidDatastore,
 	licenseKey string,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
-	activityModule activities.ActivityModule,
+	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, activityModule, androidAgentConfig)
+	return NewServiceWithClient(logger, ds, client, serverPrivateKey, fleetDS, newActivity, androidAgentConfig)
 }
 
 func NewServiceWithClient(
-	logger kitlog.Logger,
+	logger *slog.Logger,
 	ds fleet.AndroidDatastore,
 	client androidmgmt.Client,
 	serverPrivateKey string,
 	fleetDS fleet.Datastore,
-	activityModule activities.ActivityModule,
+	newActivity fleet.NewActivityFunc,
 	androidAgentConfig config.AndroidAgentConfig,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
@@ -91,7 +89,7 @@ func NewServiceWithClient(
 		serverPrivateKey:   serverPrivateKey,
 		SignupSSEInterval:  DefaultSignupSSEInterval,
 		fleetDS:            fleetDS,
-		activityModule:     activityModule,
+		newActivity:        newActivity,
 		androidAgentConfig: androidAgentConfig,
 	}
 
@@ -108,7 +106,7 @@ func NewServiceWithClient(
 	return svc, nil
 }
 
-func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+func newAMAPIClient(ctx context.Context, logger *slog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	getEnv := dev_mode.Env
 	if getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(getEnv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
@@ -372,12 +370,12 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	switch {
 	case fleet.IsNotFound(err):
 		// This should never happen.
-		level.Error(svc.logger).Log("msg", "User that created the Android enterprise was not found", "user_id", enterprise.UserID)
+		svc.logger.ErrorContext(ctx, "User that created the Android enterprise was not found", "user_id", enterprise.UserID)
 	case err != nil:
 		return ctxerr.Wrap(ctx, err, "getting user")
 	}
 
-	if err = svc.activityModule.NewActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
+	if err = svc.newActivity(ctx, user, fleet.ActivityTypeEnabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for enabled Android MDM")
 	}
 
@@ -464,7 +462,7 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "marking pending android vpp installs as failed")
 	}
 
-	if err = svc.activityModule.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
+	if err = svc.newActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDisabledAndroidMDM{}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create activity for disabled Android MDM")
 	}
 
@@ -692,7 +690,7 @@ func (svc *Service) EnterpriseSignupSSE(ctx context.Context) (chan string, error
 		for {
 			select {
 			case <-ctx.Done():
-				level.Debug(svc.logger).Log("msg", "Context cancelled during Android signup SSE")
+				svc.logger.DebugContext(ctx, "Context cancelled during Android signup SSE")
 				return
 			case <-time.After(svc.SignupSSEInterval):
 				if svc.signupSSECheck(ctx, done) {
@@ -743,24 +741,24 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 			case http.StatusNotFound:
 				// Special case: 404 from proxy with deletion confirmation
 				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
-					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.logger.InfoContext(ctx, "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
 					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
 					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 				}
 			case http.StatusBadRequest:
 				// Bad request might indicate missing headers or invalid request format
 				// Don't delete the enterprise in this case
-				level.Error(svc.logger).Log("msg", "bad request when verifying enterprise", "error", err)
+				svc.logger.ErrorContext(ctx, "bad request when verifying enterprise", "error", err)
 				return fmt.Errorf("verifying enterprise with Google: %s (check request headers and format)", err.Error())
 			case http.StatusUnauthorized, http.StatusForbidden:
 				// Authentication/authorization issues - don't delete the enterprise
-				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
+				svc.logger.ErrorContext(ctx, "authentication/authorization error when verifying enterprise", "error", err)
 				return fmt.Errorf("verifying enterprise with Google: authentication error: %w", err)
 			}
 		}
 		// LIST failed - this is likely a technical issue, not deletion
 		// Log the error but don't delete the enterprise
-		level.Error(svc.logger).Log("msg", "failed to list enterprises", "error", err)
+		svc.logger.ErrorContext(ctx, "failed to list enterprises", "error", err)
 		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 	}
 
@@ -774,7 +772,7 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 	}
 
 	// Enterprise NOT in list - it's deleted - perform cleanup
-	level.Info(svc.logger).Log("msg", "enterprise confirmed deleted via LIST API", "enterpriseID", enterpriseID)
+	svc.logger.InfoContext(ctx, "enterprise confirmed deleted via LIST API", "enterpriseID", enterpriseID)
 	svc.cleanupDeletedEnterprise(ctx, enterprise, enterpriseID)
 	return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 }
@@ -799,26 +797,26 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	// Clean up proxy database records by calling proxy DELETE endpoint
 	// This ensures the proxy won't return conflicts when creating new signup URLs
 	if deleteErr := svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name()); deleteErr != nil {
-		level.Warn(svc.logger).Log("msg", "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
+		svc.logger.WarnContext(ctx, "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
 	}
 
 	// Delete local enterprise records
 	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
-		level.Error(svc.logger).Log("msg", "failed to delete local enterprise records after deletion", "err", deleteErr)
+		svc.logger.ErrorContext(ctx, "failed to delete local enterprise records after deletion", "err", deleteErr)
 	}
 
 	// Turn off Android MDM
 	if setErr := svc.ds.SetAndroidEnabledAndConfigured(ctx, false); setErr != nil {
-		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
+		svc.logger.ErrorContext(ctx, "failed to turn off Android MDM after enterprise deletion", "err", setErr)
 	}
 
 	// Unenroll Android hosts
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
-		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
+		svc.logger.ErrorContext(ctx, "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
 	}
 
 	if err := svc.ds.MarkAllPendingAndroidVPPInstallsAsFailed(ctx); err != nil {
-		level.Error(svc.logger).Log("msg", "failed to mark pending Android VPP installs as failed after enterprise deletion", "err", err)
+		svc.logger.ErrorContext(ctx, "failed to mark pending Android VPP installs as failed after enterprise deletion", "err", err)
 	}
 }
 
@@ -835,7 +833,7 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}
 
 	if !fleet.IsAndroidPlatform(host.Platform) {
-		level.Debug(svc.logger).Log("msg", "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
+		svc.logger.DebugContext(ctx, "Skipping Android unenrollment for non-Android host", "host_id", host.ID, "platform", host.Platform)
 		return nil // no-op for non-Android hosts
 	}
 
@@ -896,6 +894,30 @@ func (svc *Service) AddAppsToAndroidPolicy(ctx context.Context, enterpriseName s
 
 		if apiErr != nil {
 			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: modify policy applications for host %s", uuid))
+		}
+		hostToPolicyRequest[uuid] = policyRequest
+	}
+
+	return hostToPolicyRequest, errors.Join(errs...)
+}
+
+func (svc *Service) RemoveAppsFromAndroidPolicy(ctx context.Context, enterpriseName string, packageNames []string, hostUUIDs map[string]string) (map[string]*android.MDMAndroidPolicyRequest, error) {
+	var errs []error
+	hostToPolicyRequest := make(map[string]*android.MDMAndroidPolicyRequest, len(hostUUIDs))
+	for uuid, policyID := range hostUUIDs {
+		policyName := fmt.Sprintf("%s/policies/%s", enterpriseName, policyID)
+		policyRequest, err := newAndroidPolicyRemoveApplicationsRequest(policyID, policyName, packageNames)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+		}
+
+		policy, apiErr := svc.androidAPIClient.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, packageNames)
+		if _, err := recordAndroidRequestResult(ctx, svc.fleetDS, policyRequest, policy, nil, apiErr); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "save android policy request for host %s", uuid)
+		}
+
+		if apiErr != nil {
+			errs = append(errs, ctxerr.Wrapf(ctx, apiErr, "google api: remove policy applications for host %s", uuid))
 		}
 		hostToPolicyRequest[uuid] = policyRequest
 	}
@@ -1039,7 +1061,7 @@ func (svc *Service) EnableAppReportsOnDefaultPolicy(ctx context.Context) error {
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			// Then Android MDM isn't setup yet, so no-op
-			level.Info(svc.logger).Log("msg", "skipping android default policy migration, Android MDM is not turned on")
+			svc.logger.InfoContext(ctx, "skipping android default policy migration, Android MDM is not turned on")
 			return nil
 		}
 		return ctxerr.Wrap(ctx, err, "getting android enterprise")
@@ -1288,7 +1310,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		// This prevents concurrent cron runs from processing the same templates
 		certTemplates, err := svc.fleetDS.GetAndTransitionCertificateTemplatesToDelivering(ctx, hostUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to get and transition to delivering", "host_uuid", hostUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to get and transition to delivering", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrapf(ctx, err, "get and transition certificate templates to delivering for host %s", hostUUID)
 		}
 
@@ -1301,12 +1323,12 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 			// There should be no other certificates either, but including them just in case.
 			config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 			if err != nil {
-				level.Error(svc.logger).Log("msg", "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
+				svc.logger.ErrorContext(ctx, "failed to build host config without certs", "host_uuid", hostUUID, "err", err)
 				return ctxerr.Wrapf(ctx, err, "build host config without certs for host %s", hostUUID)
 			}
 			hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 			if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
-				level.Error(svc.logger).Log("msg", "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
+				svc.logger.ErrorContext(ctx, "failed to send AMAPI config without certs", "host_uuid", hostUUID, "err", err)
 				// Not a critical failure. We will retry installing Fleet Agent when certificates are added to the host's team
 			}
 			continue
@@ -1315,16 +1337,16 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 		// Step 2: Build and send config to AMAPI with ALL certificate templates
 		config, err := buildHostConfig(hostUUID, certTemplates.Templates)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "failed to build host config", "host_uuid", hostUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to build host config", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrapf(ctx, err, "build host config for %s", hostUUID)
 		}
 
 		hostConfigs := map[string]android.AgentManagedConfiguration{hostUUID: *config}
 		if err := svc.AddFleetAgentToAndroidPolicy(ctx, enterpriseName, hostConfigs); err != nil {
 			// AMAPI call failed, revert to pending for retry later
-			level.Error(svc.logger).Log("msg", "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to send to AMAPI", "host_uuid", hostUUID, "err", err)
 			if revertErr := svc.fleetDS.RevertHostCertificateTemplatesToPending(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); revertErr != nil {
-				level.Error(svc.logger).Log("msg", "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
+				svc.logger.ErrorContext(ctx, "failed to revert to pending after AMAPI failure", "host_uuid", hostUUID, "err", revertErr)
 				return ctxerr.Wrapf(ctx, revertErr, "revert certificate templates to pending after AMAPI failure for host %s", hostUUID)
 			}
 			continue
@@ -1332,7 +1354,7 @@ func (svc *Service) BuildAndSendFleetAgentConfig(ctx context.Context, enterprise
 
 		// Step 3: Transition delivering → delivered
 		if err := svc.fleetDS.TransitionCertificateTemplatesToDelivered(ctx, hostUUID, certTemplates.DeliveringTemplateIDs); err != nil {
-			level.Error(svc.logger).Log("msg", "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
+			svc.logger.ErrorContext(ctx, "failed to transition to delivered", "host_uuid", hostUUID, "err", err)
 			return ctxerr.Wrap(ctx, err, "transition certificate templates to delivered")
 		}
 	}
@@ -1364,4 +1386,12 @@ func (svc *Service) SetAppsForAndroidPolicy(ctx context.Context, enterpriseName 
 		}
 	}
 	return errors.Join(errs...)
+}
+
+func (svc *Service) CreateAndroidWebApp(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	app, err := svc.androidAPIClient.EnterprisesWebAppsCreate(ctx, enterpriseName, app)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creating Android web app")
+	}
+	return app, nil
 }

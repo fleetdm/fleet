@@ -1,10 +1,10 @@
 import React, { useContext, useRef, useState } from "react";
 
-import {
-  FLEET_WEBSITE_URL,
-  LEARN_MORE_ABOUT_BASE_LINK,
-} from "utilities/constants";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import PATHS from "router/paths";
 
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+import CriticalPolicyBadge from "components/CriticalPolicyBadge";
 import CustomLink from "components/CustomLink";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -65,10 +65,12 @@ const ConditionalAccessModal = ({
   };
 
   const getPolicyDisabled = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin");
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows");
 
   const getPolicyTooltipContent = (policy: IFormPolicy) =>
-    !policy.platform.includes("darwin") ? "Policy does not target macOS" : null;
+    !policy.platform.includes("darwin") && !policy.platform.includes("windows")
+      ? "Policy does not target macOS or Windows"
+      : null;
 
   const learnMoreLink = (
     <CustomLink
@@ -76,6 +78,13 @@ const ConditionalAccessModal = ({
       url={`${LEARN_MORE_ABOUT_BASE_LINK}/conditional-access`}
       newTab
     />
+  );
+
+  const renderItemLabel = (policy: IFormPolicy) => (
+    <>
+      <TooltipTruncatedText value={policy.name} />
+      {policy.critical && <CriticalPolicyBadge />}
+    </>
   );
 
   const renderConfigured = () => {
@@ -90,18 +99,13 @@ const ConditionalAccessModal = ({
               activeText="Enabled"
               disabled={gitOpsModeEnabled || !isAdmin}
             />
-            <CustomLink
-              text="Preview end user experience"
-              newTab
-              multiline={false}
-              url={`${FLEET_WEBSITE_URL}/microsoft-compliance-partner/remediate`}
-            />
           </span>
           <PoliciesPaginatedList
             ref={paginatedListRef}
             isSelected="conditional_access_enabled"
             getPolicyDisabled={getPolicyDisabled}
             getPolicyTooltipContent={getPolicyTooltipContent}
+            renderItemLabel={renderItemLabel}
             onToggleItem={(item: IFormPolicy) => {
               item.conditional_access_enabled = !item.conditional_access_enabled;
               return item;
@@ -123,6 +127,7 @@ const ConditionalAccessModal = ({
             onCancel={onExit}
             teamId={teamId}
             disableList={!formData.enabled}
+            renderPlatform
           />
         </div>
       </>
@@ -135,13 +140,24 @@ const ConditionalAccessModal = ({
       connect Fleet to {providerText}.
       <br />
       <br />
-      This can be configured in <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
-      <b>Conditional access</b>.
+      This can be configured in{" "}
+      {isGlobalAdmin ? (
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_CONDITIONAL_ACCESS}
+          text="Settings > Integrations > Conditional access"
+        />
+      ) : (
+        <>
+          <b>Settings</b> &gt; <b>Integrations</b> &gt;{" "}
+          <b>Conditional access</b>
+        </>
+      )}
+      .
       <br />
       <br />
       {learnMoreLink}
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );

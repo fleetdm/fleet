@@ -20,7 +20,7 @@ You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOp
 
 1. In Fleet, head to the **Controls > OS settings > Disk encryption** page.
 
-2. Choose which team you want to enforce disk encryption on by selecting the desired team in the teams dropdown in the upper left corner.
+2. Choose which fleet you want to enforce disk encryption on by selecting the desired fleet in the fleets dropdown in the upper left corner.
 
 3. Check the box next to **Turn on** and select **Save**.
 
@@ -74,7 +74,7 @@ How to view the disk encryption key:
 
 2. On the **Host details** page, select **Actions > Show disk encryption key**.
 
-> The disk encryption key is deleted if a host is transferred to a team with disk encryption turned off. To re-escrow they key, transfer the host back to a team with disk encryption on.
+> The disk encryption key is deleted if a host is assigned to a fleet with disk encryption turned off. To re-escrow they key, transfer the host back to a fleet with disk encryption on.
 
 ## Use disk encryption key to login
 
@@ -134,7 +134,17 @@ Share [these guided instructions](https://fleetdm.com/guides/mdm-migration#how-t
 
 ## Advanced
 
+### Escrow Buddy
+
 Fleet uses [Escrow Buddy](https://github.com/macadmins/escrow-buddy) to escrow disk encryption keys from macOS hosts. Escrow Buddy is installed only on macOS hosts that are assigned to a team in Fleet with disk encryption enforced. If a host is then transferred to a team that doesn't enforce disk encryption, Escrow Buddy stays installed.
+
+### Encryption key changes
+
+Currently, on macOS and Linux, Fleet detects when the disk encryption key changes and escrows a new key. Fleet doesn't do this on Windows.
+
+On macOS hosts, if an end user with local admin permissions changes the key using the `sudo fdesetup changerecovery -personal` command, Fleet will escrow that new key.
+
+For Linux, Fleet will prompt the end user to escrow a new key. [Learn more](#enforce-disk-encryption-on-linux).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="noahtalerman">

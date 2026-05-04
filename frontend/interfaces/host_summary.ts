@@ -15,5 +15,6 @@ export interface IHostSummary {
   new_count: number;
   missing_30_days_count?: number; // premium feature
   low_disk_space_count?: number; // premium feature
+  dep_assign_error_count?: number; // premium feature
   builtin_labels: ILabelSummary[];
 }

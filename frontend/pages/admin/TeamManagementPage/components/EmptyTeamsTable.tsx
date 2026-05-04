@@ -1,7 +1,7 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -21,7 +21,7 @@ const EmptyTeamsTable = ({
       onClick={onActionButtonClick}
       className={`${className}__create-button`}
     >
-      Create team
+      Create fleet
     </Button>
   );
   const primaryButton = disabledPrimaryActionTooltip ? (
@@ -39,9 +39,8 @@ const EmptyTeamsTable = ({
   );
 
   return (
-    <EmptyTable
-      graphicName="empty-teams"
-      header="Set up team permissions"
+    <EmptyState
+      header="Set up fleet permissions"
       info="Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts."
       additionalInfo={
         <>
@@ -49,7 +48,7 @@ const EmptyTeamsTable = ({
           Want to learn more?&nbsp;
           <CustomLink
             url="https://fleetdm.com/docs/using-fleet/teams"
-            text="Read about teams"
+            text="Read about fleets"
             newTab
           />
         </>

@@ -14,14 +14,14 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Update user permissions
 - API-only user
 
-## Team
+## Fleet
 
-- Create team
-- Remove team
-- No team
-- All teams
-- Transfer host into this team
-- Transfer host out of this team
+- Create fleet
+- Remove fleet
+- Unassigned
+- All fleets
+- Transfer host to this fleet
+- Transfer host from this fleet
 
 ## MDM
 
@@ -51,11 +51,11 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 
 ## Software
 
-- Add software to team
+- Add software to fleet
   - FMA
   - VPP
   - custom package
-- Remove software from team
+- Remove software from a fleet
 - Edit software (scripts / binary)
 - Add script
 - Run script
@@ -76,13 +76,13 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Add install automation
 - Add Calendar automation
 
-## Query
+## Report
 
-- Add query
-- Remove query
-- Edit query
-- Live query
-- Saved query results
+- Add report
+- Remove report
+- Edit report
+- Live report
+- Saved report results
 
 ## Labels
 
@@ -148,7 +148,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Dynamic views (show/hide buttons, dynamic help text, edge case views)
 
 ## Responsiveness and low-width browsers
-- Long database names rendered in the UI e.g. team names, scripts, software titles...
+- Long database names rendered in the UI e.g. fleet names, scripts, software titles...
 - Wide tables with many columns or wide columns (horizontal scroll vs. old, bad pattern of hiding columns)
 - Page load expectations (how long should it take for a page to load with x number of items in the API response)
 - Cron run time expectations (what is an acceptable change in amount of time it takes for a scheduled cron to complete)
@@ -160,7 +160,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 ## User permissions
 - Premium vs. Free. Premium-only API endpoints and parameters return an easy to understand error message if you're using Fleet Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
-- Team level user (Admin, Maintainer, Observer, Observer+, API only)
+- Fleet-level user (Admin, Maintainer, Observer, Observer+, API only)
+
+## Retries
+- Operations with retries have defined limits (time, number of attempts, etc.) to avoid infinite loops and unbounded retrying
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">

@@ -36,6 +36,10 @@
     }
   }
 
+  &__manage-automations-tooltip {
+    text-align: center;
+  }
+
   &__action-button-container {
     display: flex;
     gap: $pad-small;

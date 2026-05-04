@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -10,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	tmock "github.com/stretchr/testify/mock"
 )
@@ -19,7 +19,7 @@ func makeLambdaWriterWithMock(client LambdaAPI, functionName string) *lambdaLogW
 	return &lambdaLogWriter{
 		client:       client,
 		functionName: functionName,
-		logger:       log.NewNopLogger(),
+		logger:       slog.New(slog.DiscardHandler),
 	}
 }
 

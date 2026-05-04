@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -11,11 +12,14 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -36,11 +40,11 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 	// try to unlock the host (which is already its status)
-	var unlockResp unlockHostResponse
+	var unlockResp fleet.UnlockHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
 
 	// lock the host
-	var lockResp lockHostResponse
+	var lockResp fleet.LockHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp, "view_pin", "true")
 	assert.Len(t, lockResp.UnlockPIN, 6)
 	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
@@ -81,7 +85,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 	// unlock the host
-	unlockResp = unlockHostResponse{}
+	unlockResp = fleet.UnlockHostResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusOK, &unlockResp)
 	require.NotNil(t, unlockResp.HostID)
 	require.Equal(t, fleet.PendingActionUnlock, unlockResp.PendingAction)
@@ -100,7 +104,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	assert.Empty(t, *getHostResp.Host.MDM.PendingAction)
 
 	// try unlocking the host again simply returns the PIN again
-	unlockResp = unlockHostResponse{}
+	unlockResp = fleet.UnlockHostResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusOK, &unlockResp)
 	require.Equal(t, unlockPIN, unlockResp.UnlockPIN)
 	require.Equal(t, fleet.PendingActionUnlock, unlockResp.PendingAction)
@@ -109,6 +113,16 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	newUnlockActID := s.lastActivityOfTypeMatches(fleet.ActivityTypeUnlockedHost{}.ActivityName(),
 		fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "host_platform": %q}`, host.ID, host.DisplayName(), host.FleetPlatform()), 0)
 	require.NotEqual(t, unlockActID, newUnlockActID)
+
+	// simulate passage of time: backdate unlock_ref so that CleanAppleMDMLock's
+	// 5-minute guard doesn't block the upcoming Idle from clearing the lock state.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(),
+			fmt.Sprintf(`UPDATE host_mdm_actions hma JOIN hosts h ON hma.host_id = h.id
+			SET hma.unlock_ref = DATE_FORMAT(UTC_TIMESTAMP() - INTERVAL %d MINUTE, '%%Y-%%m-%%d %%H:%%i:%%s')
+			WHERE h.uuid = ?`, mysql.MDMLockCleanupMinutes+1), host.UUID)
+		return err
+	})
 
 	// as soon as the host sends an Idle MDM request, it is marked as unlocked
 	cmd, err = mdmClient.Idle()
@@ -123,7 +137,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 	// wipe the host
-	var wipeResp wipeHostResponse
+	var wipeResp fleet.WipeHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
@@ -183,10 +197,272 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 	// lock the host without requesting the PIN
-	lockResp = lockHostResponse{} // to zero out leftover fields from existing lock response
+	lockResp = fleet.LockHostResponse{} // to zero out leftover fields from existing lock response
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp)
 	require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
 	require.Empty(t, lockResp.UnlockPIN)
+}
+
+func (s *integrationMDMTestSuite) TestWipeMacOSCancelsUpcomingActivities() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// orbit enrollment is required so that /scripts/run is accepted
+	setOrbitEnrollment(t, host, s.ds)
+
+	// enqueue two upcoming script-run activities
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
+		http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo two"},
+		http.StatusAccepted, &runResp)
+
+	// confirm both are in the upcoming activities list
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[1].Type)
+
+	// wipe the host
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+
+	// host is now unlocked, pending wipe
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionWipe), *getHostResp.Host.MDM.PendingAction)
+
+	// simulate a successful MDM result for the wipe command
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// host is now in the terminal "wiped" state
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// upcoming activities for this host should now be empty: a wiped device
+	// will never execute them
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Activities)
+}
+
+func (s *integrationMDMTestSuite) TestWipeMacOSUserChannelErrorKeepsUpcomingActivities() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	host, mdmClient := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, host, s.ds)
+
+	// add a user-channel enrollment so the device can respond on the user channel
+	require.NoError(t, mdmClient.UserEnroll())
+
+	// enqueue two upcoming script-run activities
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
+		http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo two"},
+		http.StatusAccepted, &runResp)
+
+	// confirm both are in the upcoming activities list
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+
+	// wipe the host
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+
+	// pull the queued EraseDevice command
+	cmd, err := mdmClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+
+	// device reports an Error for EraseDevice on the user channel — this
+	// matches what a user-enrolled device does on iOS/iPadOS 18+, where the
+	// command is rejected instead of wiping. The host's upcoming activities
+	// must NOT be cleared because the device wasn't actually wiped.
+	_, err = mdmClient.UserChannelErr(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 1234}})
+	require.NoError(t, err)
+
+	// upcoming activities should still be present
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[1].Type)
+}
+
+func (s *integrationMDMTestSuite) TestWipeWindowsCancelsUpcomingActivities() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	host, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	err := s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// enqueue two upcoming script-run activities
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
+		http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo two"},
+		http.StatusAccepted, &runResp)
+
+	// confirm both are in the upcoming activities list
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
+	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[1].Type)
+
+	// wipe the host
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+
+	// host is unlocked, pending wipe
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionWipe), *getHostResp.Host.MDM.PendingAction)
+
+	// simulate a successful wipe from the Windows device's MDM response
+	status, err := s.ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	cmds, err := winMDMClient.StartManagementSession()
+	require.NoError(t, err)
+	// two status + the wipe command we enqueued
+	require.Len(t, cmds, 3)
+	wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
+	require.NotNil(t, wipeCmd)
+	require.Equal(t, fleet.CmdExec, wipeCmd.Verb)
+	require.Len(t, wipeCmd.Cmd.Items, 1)
+	require.Equal(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+
+	msgID, err := winMDMClient.GetCurrentMsgID()
+	require.NoError(t, err)
+	winMDMClient.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &status.WipeMDMCommand.CommandUUID,
+		Cmd:     ptr.String("Exec"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
+	})
+	cmds, err = winMDMClient.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
+	require.Len(t, cmds, 1)
+
+	// host is now in the terminal "wiped" state
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// upcoming activities for this host should now be empty: a wiped device
+	// will never execute them
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Activities)
+}
+
+func (s *integrationMDMTestSuite) TestWipeLinuxCancelsUpcomingActivities() {
+	t := s.T()
+	ctx := context.Background()
+	s.setSkipWorkerJobs(t)
+
+	host := createOrbitEnrolledHost(t, "linux", "wipe_cancels_upcoming_linux", s.ds)
+
+	// wipe the host first: on Linux the wipe is itself a script in the
+	// unified queue, so we want it activated (no pending activities ahead
+	// of it) and ready to accept its result
+	var wipeResp fleet.WipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+
+	// host is unlocked, pending wipe
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionWipe), *getHostResp.Host.MDM.PendingAction)
+
+	// now enqueue two more upcoming script-run activities behind the
+	// in-flight wipe
+	var runResp fleet.RunScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo one"},
+		http.StatusAccepted, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run",
+		fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo two"},
+		http.StatusAccepted, &runResp)
+
+	// upcoming list contains 3 script activities: the in-flight wipe and
+	// the two pending user scripts queued behind it
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 3)
+	for _, a := range listResp.Activities {
+		require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), a.Type)
+	}
+
+	// simulate a successful wipe via the orbit script result
+	status, err := s.ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	var orbitScriptResp fleet.OrbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, status.WipeScript.ExecutionID)),
+		http.StatusOK, &orbitScriptResp)
+
+	// host is now in the terminal "wiped" state
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// upcoming activities for this host should now be empty: a wiped device
+	// will never execute them
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host.ID),
+		nil, http.StatusOK, &listResp)
+	require.Empty(t, listResp.Activities)
 }
 
 func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
@@ -239,8 +515,27 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 	}))
 	s.setSkipWorkerJobs(t)
 
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", devices[0].SerialNumber)
 	iPadOSHost, iPadOSMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ipados", devices[1].SerialNumber)
+
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	// empty the command queue for both hosts
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = iPadOSMDMClient.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = iPadOSMDMClient.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	// We fake set installed_from_dep to emulate the devices was enrolled with DEP.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(t.Context(), iosHost.ID, false, true, s.server.URL, true, t.Name(), "", false))
@@ -265,11 +560,11 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 			// try to unlock the host (which is already its status)
-			var unlockResp unlockHostResponse
+			var unlockResp fleet.UnlockHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", tc.host.ID), nil, http.StatusConflict, &unlockResp)
 
 			// lock the host
-			var lockResp lockHostResponse
+			var lockResp fleet.LockHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusOK, &lockResp)
 			assert.Empty(t, lockResp.UnlockPIN)
 			require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
@@ -302,7 +597,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// refresh the host's status, it is now locked
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -365,7 +660,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.NoError(t, err)
 
 			// Run device location handler
-			s.runWorker()
+			s.awaitRunAppleMDMWorkerSchedule()
 
 			// Get host data
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", tc.host.ID), nil, http.StatusOK, &getHostResp)
@@ -378,7 +673,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			s.Assert().Equal([]float64{expectedLat, expectedLong}, getHostResp.Host.Geolocation.Geometry.Coordinates)
 
 			// unlock the host
-			unlockResp = unlockHostResponse{}
+			unlockResp = fleet.UnlockHostResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", tc.host.ID), nil, http.StatusOK, &unlockResp)
 			require.NotNil(t, unlockResp.HostID)
 			require.Equal(t, fleet.PendingActionUnlock, unlockResp.PendingAction)
@@ -396,7 +691,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.Equal(t, string(fleet.PendingActionUnlock), *getHostResp.Host.MDM.PendingAction)
 
 			// try unlocking the host again errors
-			unlockResp = unlockHostResponse{}
+			unlockResp = fleet.UnlockHostResponse{}
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", tc.host.ID), nil, http.StatusUnprocessableEntity, &unlockResp)
 
 			// send idle to simulate the host checking in, and see DisableLostMode is sent.
@@ -419,7 +714,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			s.Assert().Nil(getHostResp.Host.Geolocation)
 
 			// wipe the host
-			var wipeResp wipeHostResponse
+			var wipeResp fleet.WipeHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", tc.host.ID), nil, http.StatusOK, &wipeResp)
 			require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 			require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
@@ -479,7 +774,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeIOSIpadOS() {
 			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 			// lock the host without requesting the PIN
-			lockResp = lockHostResponse{} // to zero out leftover fields from existing lock response
+			lockResp = fleet.LockHostResponse{} // to zero out leftover fields from existing lock response
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", tc.host.ID), nil, http.StatusOK, &lockResp)
 			require.Equal(t, fleet.PendingActionLock, lockResp.PendingAction)
 			require.Empty(t, lockResp.UnlockPIN)
@@ -536,11 +831,11 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
 			// try to unlock the host (which is already its status)
-			var unlockResp unlockHostResponse
+			var unlockResp fleet.UnlockHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
 
 			// lock the host
-			var lockHostResp lockHostResponse
+			var lockHostResp fleet.LockHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockHostResp)
 			require.Equal(t, fleet.PendingActionLock, lockHostResp.PendingAction)
 			require.Equal(t, fleet.DeviceStatusUnlocked, lockHostResp.DeviceStatus)
@@ -561,7 +856,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			status, err := s.ds.GetHostLockWipeStatus(ctx, host)
 			require.NoError(t, err)
 
-			var orbitScriptResp orbitPostScriptResultResponse
+			var orbitScriptResp fleet.OrbitPostScriptResultResponse
 			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
 				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, status.LockScript.ExecutionID)),
 				http.StatusOK, &orbitScriptResp)
@@ -628,7 +923,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
 			// wipe the host
-			var wipeResp wipeHostResponse
+			var wipeResp fleet.WipeHostResponse
 			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
 			require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 			require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
@@ -728,4 +1023,44 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 		})
 	}
+}
+
+func (s *integrationMDMTestSuite) TestClearPasscodeCommand() {
+	t := s.T()
+
+	s.enableABM(t.Name())
+
+	// Create iOS host and enroll in MDM
+	iosHost, iosMDMClient := s.createAppleMobileHostThenDEPEnrollMDM("ios", mdmtest.RandSerialNumber())
+
+	// Trigger ClearPasscode endpoint
+	var clearPasscodeResp clearPasscodeResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/clear_passcode", iosHost.ID), nil, http.StatusOK, &clearPasscodeResp)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, clearPasscodeResp.RequestType)
+	require.Equal(t, "ios", clearPasscodeResp.Platform)
+
+	// Check host and global activity
+	s.lastHostActivityMatches(iosHost.ID, fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+	s.lastActivityMatches(fleet.ActivityTypeClearedPasscode{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, iosHost.ID, iosHost.DisplayName()), 0)
+
+	// Check in with the iOS device to receive the ClearPasscode command
+	cmd, err := iosMDMClient.Idle()
+	require.NoError(t, err)
+	require.NotNil(t, cmd)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, cmd.Command.RequestType)
+	b64Encoded := base64.StdEncoding.EncodeToString([]byte("unlocktoken" + iosMDMClient.SerialNumber))
+	require.Contains(t, string(cmd.Raw), b64Encoded)
+
+	// Acknowledge the ClearPasscode command
+	_, err = iosMDMClient.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	// Fetch the command result and check the response is acknowledged (+ Payload has the expected unlock token value)
+	commandResultResp := &getMDMCommandResultsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/commands/results", &getMDMCommandResultsRequest{
+		CommandUUID: clearPasscodeResp.CommandUUID,
+	}, http.StatusOK, commandResultResp)
+	require.Len(t, commandResultResp.Results, 1)
+	require.Equal(t, fleet.AppleMDMCommandTypeClearPasscode, commandResultResp.Results[0].RequestType)
+	require.NotNil(t, commandResultResp.Results[0].Result)
 }

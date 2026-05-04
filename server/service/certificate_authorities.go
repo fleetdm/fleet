@@ -177,6 +177,7 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 type batchApplyCertificateAuthoritiesRequest struct {
 	CertificateAuthorities fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
 	DryRun                 bool                                `json:"dry_run"`
+	SkipDeletes            bool                                `json:"skip_deletes"`
 }
 
 // TODO(hca): do we need to return anything to facilitate logging by the gitops client?
@@ -189,8 +190,11 @@ func (r batchApplyCertificateAuthoritiesResponse) Error() error { return r.Err }
 func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchApplyCertificateAuthoritiesRequest)
 
-	// Call the service method to apply the certificate authorities spec
-	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, req.DryRun, true)
+	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, fleet.BatchApplyCertificateAuthoritiesOpts{
+		DryRun:      req.DryRun,
+		ViaGitOps:   true,
+		SkipDeletes: req.SkipDeletes,
+	})
 	if err != nil {
 		return &batchApplyCertificateAuthoritiesResponse{Err: err}, nil
 	}
@@ -198,7 +202,7 @@ func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request inter
 	return &batchApplyCertificateAuthoritiesResponse{}, nil
 }
 
-func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
+func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -233,7 +237,11 @@ func getCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interfac
 }
 
 func (svc *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionRead); err != nil {
+	action := fleet.ActionRead
+	if includeSecrets {
+		action = fleet.ActionReadSecrets
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, action); err != nil {
 		return nil, err
 	}
 

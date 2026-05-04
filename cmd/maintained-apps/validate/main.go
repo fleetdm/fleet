@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -22,8 +24,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type Config struct {
@@ -31,32 +31,91 @@ type Config struct {
 	env                         []string
 	installationSearchDirectory string
 	operatingSystem             string
-	logger                      kitlog.Logger
+	logger                      *slog.Logger
 	logLevel                    string
 	inputsPath                  string
 	outputsPath                 string
 }
 
+func detachAllDMGs(ctx context.Context, logger *slog.Logger, tmpDir string) {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	output, err := exec.CommandContext(ctx, "hdiutil", "info").CombinedOutput()
+	if err != nil {
+		return
+	}
+	var currentImage string
+	for line := range strings.SplitSeq(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "image-path") {
+			if parts := strings.SplitN(line, ":", 2); len(parts) == 2 {
+				currentImage = strings.TrimSpace(parts[1])
+			}
+		}
+		if strings.HasPrefix(line, "/dev/") {
+			var mountPoint string
+			for part := range strings.SplitSeq(line, "\t") {
+				part = strings.TrimSpace(part)
+				if strings.HasPrefix(part, "/") && !strings.HasPrefix(part, "/dev/") {
+					mountPoint = part
+				}
+			}
+			if mountPoint == "" {
+				continue
+			}
+			if tmpDir == "" || !strings.HasPrefix(currentImage, tmpDir+string(os.PathSeparator)) {
+				continue
+			}
+			logger.InfoContext(ctx, fmt.Sprintf("Force-detaching DMG: %s (image: %s)", mountPoint, currentImage))
+			if out, err := exec.CommandContext(ctx, "hdiutil", "detach", mountPoint, "-force").CombinedOutput(); err != nil {
+				logger.WarnContext(ctx, fmt.Sprintf("Failed to detach %s: %v (%s)", mountPoint, err, strings.TrimSpace(string(out))))
+			}
+		}
+	}
+}
+
 func run(cfg *Config) error {
+	ctx := context.Background()
+	cleanupTmpDir := func() {
+		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
+
+		entries, err := os.ReadDir(cfg.tmpDir)
+		if err != nil {
+			cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to read tmpDir for cleanup: %v", err))
+			return
+		}
+		for _, e := range entries {
+			if err := os.RemoveAll(filepath.Join(cfg.tmpDir, e.Name())); err != nil {
+				cfg.logger.WarnContext(ctx, fmt.Sprintf("failed to remove %s: %v", e.Name(), err))
+			}
+		}
+	}
+
 	apps, err := getListOfApps(cfg.outputsPath)
 	if err != nil {
-		level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error getting list of apps: %v", err))
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error getting list of apps: %v", err))
 		return err
 	}
 
 	cfg.tmpDir, err = os.MkdirTemp("", "fma-validate-")
 	if err != nil {
-		level.Error(cfg.logger).Log("msg", fmt.Sprintf("Error creating temporary directory: %v", err))
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error creating temporary directory: %v", err))
+		return err
+	}
+	origTmpDir := cfg.tmpDir
+	cfg.tmpDir, err = filepath.EvalSymlinks(cfg.tmpDir)
+	if err != nil {
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Error resolving temporary directory path: %v", err))
+		os.RemoveAll(origTmpDir)
 		return err
 	}
 	defer func() {
-		err := os.RemoveAll(cfg.tmpDir)
-		if err != nil {
-			level.Error(cfg.logger).Log("msg", fmt.Sprintf("warning failed to remove temporary directory: %v", err))
+		detachAllDMGs(ctx, cfg.logger, cfg.tmpDir)
+		if err := os.RemoveAll(cfg.tmpDir); err != nil {
+			cfg.logger.ErrorContext(ctx, fmt.Sprintf("warning failed to remove temporary directory: %v", err))
 		}
 	}()
-
-	ctx := context.Background()
 
 	totalApps := 0
 	successfulApps := 0
@@ -70,20 +129,23 @@ func run(cfg *Config) error {
 
 		totalApps++
 
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
-		appLogger := kitlog.With(cfg.logger,
-			"app", app.Name,
-		)
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("Validating app: %s (%s)", app.Name, app.Slug))
+		appLogger := cfg.logger.With("app", app.Name)
 		ac := &AppCommander{cfg: cfg, appLogger: appLogger}
 
 		appJson, err := getAppJson(cfg.outputsPath, app.Slug)
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error getting app json manifest: %v", err))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error getting app json manifest: %v", err))
 			appWithError = append(appWithError, app.Name)
 			continue
 		}
 
-		maintainedApp := appFromJson(appJson)
+		maintainedApp, err := appFromJson(appJson)
+		if err != nil {
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error parsing app manifest: %v", err))
+			appWithError = append(appWithError, app.Name)
+			continue
+		}
 		ac.Name = app.Name
 		ac.Slug = app.Slug
 		ac.UniqueIdentifier = app.UniqueIdentifier
@@ -94,39 +156,50 @@ func run(cfg *Config) error {
 
 		isFrozen, err := ac.isFrozen()
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if app is frozen: %v", err))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app is frozen: %v", err))
 			appWithError = append(appWithError, ac.Name)
 			continue
 		}
 		if isFrozen {
-			level.Info(appLogger).Log("msg", "App is frozen, skipping validation...")
+			appLogger.InfoContext(ctx, "App is frozen, skipping validation...")
 			frozenApps = append(frozenApps, ac.Name)
 			continue
 		}
 
-		installerTFR, err := DownloadMaintainedApp(cfg, maintainedApp)
+		installerTFR, _, err := DownloadMaintainedApp(cfg, maintainedApp)
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error downloading maintained app: %v", err))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error downloading maintained app: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
+		}
+
+		hadWarning := false
+		warnApp := func() {
+			if !hadWarning {
+				appWithWarning = append(appWithWarning, ac.Name)
+				hadWarning = true
+			}
 		}
 
 		err = ac.extractAppVersion(installerTFR)
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
-			appWithError = append(appWithError, ac.Name)
+			appLogger.WarnContext(ctx, fmt.Sprintf("Error extracting installer version: %v. Using '%s'", err, ac.Version))
+			warnApp()
 		}
 
 		hash, err := file.SHA256FromTempFileReader(installerTFR)
 		installerTFR.Close()
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if sha256 hash matches: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 		if hash != maintainedApp.SHA256 && maintainedApp.SHA256 != "no_check" {
-			level.Error(appLogger).Log("msg", "SHA256 hash in manifest does not match installer file hash")
+			appLogger.ErrorContext(ctx, "SHA256 hash in manifest does not match installer file hash")
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 
@@ -135,46 +208,49 @@ func run(cfg *Config) error {
 			ac.uninstallPreInstalled(ctx)
 		}
 
-		appPath, changerError, listError := ac.expectToChangeFileSystem(
+		appPath, changerError, listError := ac.expectToChangeFileSystem(ctx,
 			func() error {
-				level.Info(appLogger).Log("msg", "Executing install script...")
+				appLogger.InfoContext(ctx, "Executing install script...")
 				output, err := executeScript(cfg, ac.InstallScript)
 				if err != nil {
-					level.Error(appLogger).Log("msg", fmt.Sprintf("Error executing install script: %v", err))
-					level.Error(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
+					appLogger.ErrorContext(ctx, fmt.Sprintf("Error executing install script: %v", err))
+					appLogger.ErrorContext(ctx, fmt.Sprintf("Output: %s", output))
 					return err
 				}
-				level.Debug(appLogger).Log("msg", fmt.Sprintf("Output: %s", output))
+				appLogger.DebugContext(ctx, fmt.Sprintf("Output: %s", output))
 				return nil
 			},
 		)
 		if listError != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error listing directory contents: %v", listError))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error listing directory contents: %v", listError))
 		}
 		if changerError != nil {
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 		ac.AppPath = appPath
 		if ac.AppPath == "" {
-			appWithWarning = append(appWithWarning, ac.Name)
+			warnApp()
 		}
 
-		err = postApplicationInstall(appLogger, ac.AppPath)
+		err = postApplicationInstall(ctx, appLogger, ac.AppPath)
 		if err != nil {
-			level.Warn(appLogger).Log("msg", fmt.Sprintf("Error detected in post-installation steps: %v", err))
-			appWithWarning = append(appWithWarning, ac.Name)
+			appLogger.WarnContext(ctx, fmt.Sprintf("Error detected in post-installation steps: %v", err))
+			warnApp()
 		}
 
 		existance, err := appExists(ctx, appLogger, ac.Name, ac.UniqueIdentifier, ac.Version, ac.AppPath)
 		if err != nil {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("Error checking if app exists: %v", err))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("Error checking if app exists: %v", err))
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 		if !existance {
-			level.Error(appLogger).Log("msg", fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
+			appLogger.ErrorContext(ctx, fmt.Sprintf("App version '%s' was not found by osquery", ac.Version))
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 
@@ -182,28 +258,40 @@ func run(cfg *Config) error {
 		uninstalled := ac.uninstallApp(ctx)
 		if !uninstalled {
 			appWithError = append(appWithError, ac.Name)
+			cleanupTmpDir()
 			continue
 		}
 
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
+		cleanupTmpDir()
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("All checks passed for app: %s (%s)", ac.Name, ac.Slug))
 		successfulApps++
 	}
 
 	if len(frozenApps) > 0 {
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("Some apps were skipped: %v", frozenApps))
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("Some apps were skipped: %v", frozenApps))
 	}
-	if len(appWithWarning) > 0 {
-		level.Warn(cfg.logger).Log("msg", fmt.Sprintf("Some apps were validated with warnings: %v", appWithWarning))
+	errorSet := make(map[string]bool, len(appWithError))
+	for _, name := range appWithError {
+		errorSet[name] = true
+	}
+	warningsOnly := appWithWarning[:0]
+	for _, name := range appWithWarning {
+		if !errorSet[name] {
+			warningsOnly = append(warningsOnly, name)
+		}
+	}
+	if len(warningsOnly) > 0 {
+		cfg.logger.WarnContext(ctx, fmt.Sprintf("Some apps were validated with warnings: %v", warningsOnly))
 	}
 
 	if successfulApps == totalApps-len(frozenApps) {
 		// All apps were successfully validated!
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("All %d apps were successfully validated.", totalApps))
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("All %d apps were successfully validated.", totalApps))
 		return nil
 	}
 
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Validated %d out of %d apps successfully.", successfulApps, totalApps))
-	level.Info(cfg.logger).Log("msg", fmt.Sprintf("Apps with errors: %v", appWithError))
+	cfg.logger.InfoContext(ctx, fmt.Sprintf("Validated %d out of %d apps successfully.", successfulApps, totalApps))
+	cfg.logger.InfoContext(ctx, fmt.Sprintf("Apps with errors: %v", appWithError))
 	return errors.New("Some maintained apps failed validation")
 }
 
@@ -211,36 +299,32 @@ func main() {
 	cfg := &Config{}
 
 	// logger
-	cfg.logger = kitlog.NewLogfmtLogger(os.Stderr)
 	cfg.logLevel = os.Getenv("LOG_LEVEL")
 	if cfg.logLevel == "" {
 		cfg.logLevel = "info"
 	}
 
-	var lvl level.Option
+	var slogLevel slog.Level
 	switch strings.ToLower(cfg.logLevel) {
 	case "debug":
-		lvl = level.AllowDebug()
+		slogLevel = slog.LevelDebug
 	case "error":
-		lvl = level.AllowError()
+		slogLevel = slog.LevelError
 	default:
-		lvl = level.AllowInfo()
+		slogLevel = slog.LevelInfo
 	}
+	cfg.logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slogLevel}))
 
-	cfg.logger = level.NewFilter(cfg.logger, lvl)
-	cfg.logger = kitlog.With(cfg.logger,
-		"ts", kitlog.DefaultTimestampUTC,
-		"caller", kitlog.DefaultCaller,
-	)
+	ctx := context.Background()
 
 	// os detection
 	cfg.operatingSystem = strings.ToLower(os.Getenv("GOOS"))
 	if cfg.operatingSystem == "" {
 		cfg.operatingSystem = runtime.GOOS
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("GOOS environment variable is not set. Using system detected: '%s'", cfg.operatingSystem))
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("GOOS environment variable is not set. Using system detected: '%s'", cfg.operatingSystem))
 	}
 	if cfg.operatingSystem != "darwin" && cfg.operatingSystem != "windows" {
-		level.Error(cfg.logger).Log("msg", fmt.Sprintf("Unsupported operating system: %s", cfg.operatingSystem))
+		cfg.logger.ErrorContext(ctx, fmt.Sprintf("Unsupported operating system: %s", cfg.operatingSystem))
 		os.Exit(1)
 	}
 
@@ -253,7 +337,7 @@ func main() {
 		case "windows":
 			cfg.installationSearchDirectory = "C:\\Program Files"
 		}
-		level.Info(cfg.logger).Log("msg", fmt.Sprintf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'", cfg.installationSearchDirectory))
+		cfg.logger.InfoContext(ctx, fmt.Sprintf("INSTALLATION_SEARCH_DIRECTORY environment variable is not set. Using default: '%s'", cfg.installationSearchDirectory))
 	}
 
 	// paths
@@ -299,31 +383,35 @@ func getAppJson(outputPath string, slug string) (*maintained_apps.FMAManifestFil
 	return &manifest, nil
 }
 
-func appFromJson(manifest *maintained_apps.FMAManifestFile) fleet.MaintainedApp {
-	var app fleet.MaintainedApp
-	app.Version = manifest.Versions[0].Version
-	app.Platform = manifest.Versions[0].Platform()
-	app.InstallerURL = manifest.Versions[0].InstallerURL
-	app.SHA256 = manifest.Versions[0].SHA256
-	app.InstallScript = manifest.Refs[manifest.Versions[0].InstallScriptRef]
-	app.UninstallScript = manifest.Refs[manifest.Versions[0].UninstallScriptRef]
-	app.AutomaticInstallQuery = manifest.Versions[0].Queries.Exists
-	app.Categories = manifest.Versions[0].DefaultCategories
+func appFromJson(manifest *maintained_apps.FMAManifestFile) (fleet.MaintainedApp, error) {
+	if len(manifest.Versions) == 0 {
+		return fleet.MaintainedApp{}, errors.New("manifest has no versions")
+	}
 
-	return app
+	v := manifest.Versions[0]
+	app := fleet.MaintainedApp{
+		Version:               v.Version,
+		Platform:              v.Platform(),
+		InstallerURL:          v.InstallerURL,
+		SHA256:                v.SHA256,
+		InstallScript:         manifest.Refs[v.InstallScriptRef],
+		UninstallScript:       manifest.Refs[v.UninstallScriptRef],
+		AutomaticInstallQuery: v.Queries.Exists,
+		Categories:            v.DefaultCategories,
+	}
+	return app, nil
 }
 
-func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, error) {
+func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFileReader, string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	level.Info(cfg.logger).Log("msg", "Downloading...")
+	cfg.logger.InfoContext(ctx, "Downloading...")
 	installerTFR, filename, err := mdm_maintained_apps.DownloadInstaller(ctx, app.InstallerURL, http.DefaultClient)
 	if err != nil {
-		return nil, fmt.Errorf("downloading installer: %w", err)
+		return nil, "", fmt.Errorf("downloading installer: %w", err)
 	}
 
-	// Create a file in tmpDir for the installer
 	cleanFilename := filepath.Base(filename)
 	if cleanFilename == "." || cleanFilename == ".." {
 		cleanFilename = fmt.Sprintf("installer_%d", time.Now().UnixNano())
@@ -331,27 +419,32 @@ func DownloadMaintainedApp(cfg *Config, app fleet.MaintainedApp) (*fleet.TempFil
 	filePath := filepath.Join(cfg.tmpDir, cleanFilename)
 	out, err := os.Create(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("creating file: %w", err)
+		installerTFR.Close()
+		return nil, "", fmt.Errorf("creating file: %w", err)
 	}
 	defer out.Close()
 
-	// Copy from TempFileReader to our file
 	_, err = io.Copy(out, installerTFR)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save file: %w", err)
+		installerTFR.Close()
+		out.Close()
+		os.Remove(filePath)
+		return nil, "", fmt.Errorf("failed to save file: %w", err)
 	}
 
-	// Rewind the TempFileReader for future use
 	err = installerTFR.Rewind()
 	if err != nil {
-		return nil, fmt.Errorf("rewinding temp file: %w", err)
+		installerTFR.Close()
+		out.Close()
+		os.Remove(filePath)
+		return nil, "", fmt.Errorf("rewinding temp file: %w", err)
 	}
 
 	cfg.env = os.Environ()
 	installerPathEnv := fmt.Sprintf("INSTALLER_PATH=%s", filePath)
 	cfg.env = append(cfg.env, installerPathEnv)
 
-	return installerTFR, nil
+	return installerTFR, filePath, nil
 }
 
 func listDirectoryContents(dir string) (map[string]struct{}, error) {

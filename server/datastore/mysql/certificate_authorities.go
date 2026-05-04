@@ -350,6 +350,11 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 
 	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			return &fleet.ConflictError{
+				Message: "Couldn't delete certificate authority. " + fleet.DeleteCAReferencedByTemplatesErrMsg + ". Please remove the certificate templates first.",
+			}
+		}
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
 	}
 
@@ -363,10 +368,10 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops f
 	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
+		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
 		}
-		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
+		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
 		return nil
@@ -394,6 +399,11 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 	stmt = "DELETE FROM certificate_authorities WHERE id = ?"
 	result, err := ds.writer(ctx).ExecContext(ctx, stmt, certificateAuthorityID)
 	if err != nil {
+		if isMySQLForeignKey(err) {
+			return nil, fleet.ConflictError{
+				Message: "Couldn't delete certificate authority. " + fleet.DeleteCAReferencedByTemplatesErrMsg + ". Please remove the certificate templates first.",
+			}
+		}
 		return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("deleting certificate authority with id %d", certificateAuthorityID))
 	}
 

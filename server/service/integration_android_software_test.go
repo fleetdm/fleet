@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -92,7 +94,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. com.valid.app.id isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	s.Contains(extractServerErrorText(r.Body), "Couldn't add software. \"com.valid.app.id\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -106,7 +108,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID \"com.app.id.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	amapiConfig := struct {
 		AppIDsToNames                     map[string]string
@@ -123,7 +125,6 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
-
 		amapiConfig.EnterprisesPoliciesPatchValidator(policyName, policy, opts)
 
 		return &androidmanagement.Policy{}, nil
@@ -136,7 +137,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. com.valid isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. \"com.valid\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
@@ -311,8 +312,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	}))
 
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true}`,
-			team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true}`,
+			team.Name, team.Name, androidAppNewTeam2.Name, addAppResp.TitleID, androidAppNewTeam2.AdamID, fmt.Sprint(team.ID), fmt.Sprint(team.ID), androidAppNewTeam2.Platform), 0)
 
 	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
 	s.runWorkerUntilDone()
@@ -390,8 +391,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
-			fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "platform": "%s", "self_service": true,"configuration": %s}`,
+			fleet.TeamNameNoTeam, fleet.TeamNameNoTeam, androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, androidAppWithConfig.Configuration), 0)
 
 	// Should see it in host software library
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host1.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
@@ -431,8 +432,8 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 
 	// Verify that configuration changed and last activity is correct
 	s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
-			"", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", androidAppWithConfig.Platform, newConfig), 0)
+		fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_icon_url":"https://example.com/1.jpg", "software_title_id": %d, "app_store_id": "%s", "team_id": %s, "fleet_id": %s, "software_display_name":"", "platform": "%s", "self_service": true,"configuration": %s}`,
+			"", "", androidAppWithConfig.Name, appWithConfigResp.TitleID, androidAppWithConfig.AdamID, "null", "null", androidAppWithConfig.Platform, newConfig), 0)
 }
 
 func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
@@ -500,7 +501,7 @@ func (s *integrationMDMTestSuite) TestAndroidSetupExperienceSoftware() {
 
 	// verify that the expected activity got created
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
-		`{"platform": "android", "team_id": 0, "team_name": ""}`, 0)
+		`{"platform": "android", "team_id": 0, "team_name": "", "fleet_id": 0, "fleet_name": ""}`, 0)
 
 	// list the available setup experience software and verify that only app 1 is installed at setup
 	var getResp getSetupExperienceSoftwareResponse
@@ -603,6 +604,10 @@ func (s *integrationMDMTestSuite) enableAndroidMDM(t *testing.T) string {
 		return &androidmanagement.Policy{}, nil
 	}
 
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFunc = func(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
 	s.androidAPIClient.EnterprisesDevicesPatchFunc = func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 		return &androidmanagement.Device{}, nil
 	}
@@ -685,8 +690,8 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		// Verify that activity includes configuration
 		s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
-			fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
-				teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
+			fmt.Sprintf(`{"team_name": "%s", "fleet_name": "%s", "software_title": "%s", "software_title_id": %d, "app_store_id": "%s", "team_id": %d, "fleet_id": %d, "platform": "%s", "self_service": true,"configuration": %s}`,
+				teamName, teamName, "Test App", appWithConfigResp.TitleID, androidAppFoo.AdamID, ptr.ValOrZero(teamID), ptr.ValOrZero(teamID), androidAppFoo.Platform, androidAppFoo.Configuration), 0)
 
 		var listSWTitles listSoftwareTitlesResponse
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
@@ -710,9 +715,20 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
-		s.Assert().Equal("app_1", listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
-		titleApp1 := listSWTitles.SoftwareTitles[0].ID
-		titleApp2 := listSWTitles.SoftwareTitles[1].ID
+		// Look up title IDs by app store ID (ordering within tied hosts_count is by ID, not name).
+		var titleApp1, titleApp2 uint
+		for _, st := range listSWTitles.SoftwareTitles {
+			if st.AppStoreApp != nil {
+				switch st.AppStoreApp.AppStoreID {
+				case "app_1":
+					titleApp1 = st.ID
+				case "app_2":
+					titleApp2 = st.ID
+				}
+			}
+		}
+		require.NotZero(t, titleApp1)
+		require.NotZero(t, titleApp2)
 
 		// Batch app store apps call won't create an activity
 
@@ -802,6 +818,14 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 	})
 	t.Run("android app setup experience", func(t *testing.T) {
+		// Get initial count of edited setup experience activities
+		var initialCount int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
+			require.NoError(t, err)
+			return nil
+		})
+
 		var batchResp batchAssociateAppStoreAppsResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
 			batchAssociateAppStoreAppsRequest{
@@ -860,10 +884,518 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 		var count int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
 		})
-		require.Equal(t, 3, count)
+		require.Equal(t, initialCount+3, count)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	s.setVPPTokenForTeam(0)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	// create a team for the test host that will not be affected
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: "test"}, http.StatusOK, &createTeamResp)
+	teamID := createTeamResp.Team.ID
+
+	s.enableAndroidMDM(t)
+
+	amapiConfig := struct {
+		AppIDsToNames                     map[string]string
+		EnterprisesPoliciesPatchValidator func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts)
+	}{
+		AppIDsToNames:                     map[string]string{},
+		EnterprisesPoliciesPatchValidator: func(policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) {},
+	}
+
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		title := amapiConfig.AppIDsToNames[packageName]
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: title}, nil
+	}
+
+	s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(ctx context.Context, policyName string, policy *androidmanagement.Policy, opts androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+		amapiConfig.EnterprisesPoliciesPatchValidator(policyName, policy, opts)
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// add some Android apps
+	androidApps := make([]*fleet.VPPApp, 5)
+	titleIDs := make([]uint, len(androidApps))
+	for i := range androidApps {
+		androidApps[i] = &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "com.app" + fmt.Sprint(i), Platform: fleet.AndroidPlatform},
+			},
+			Name:             "App" + fmt.Sprint(i),
+			BundleIdentifier: "com.app" + fmt.Sprint(i),
+			IconURL:          "https://example.com/images/" + fmt.Sprint(i),
+		}
+		amapiConfig.AppIDsToNames[androidApps[i].AdamID] = androidApps[i].Name
+
+		var addAppResp addAppStoreAppResponse
+
+		// last app goes on the team, will not affect the test
+		var teamIDPtr *uint
+		if i == len(androidApps)-1 {
+			teamIDPtr = &teamID
+		}
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			AppStoreID: androidApps[i].AdamID,
+			Platform:   fleet.AndroidPlatform,
+			TeamID:     teamIDPtr,
+		}, http.StatusOK, &addAppResp)
+		titleIDs[i] = addAppResp.TitleID
+	}
+
+	// delete app [0], does not affect any host so no removeApplicationsPolicy call
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[0]), nil, http.StatusNoContent, "team_id", "0")
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+
+	// enroll a few Android devices
+	secrets, err := s.ds.GetEnrollSecrets(ctx, nil)
+	require.NoError(t, err)
+	require.Len(t, secrets, 1)
+
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
+	require.NoError(t, err)
+	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
+	require.NotEmpty(t, pubsubToken.Value)
+
+	deviceID1 := createAndroidDeviceID("test-android")
+	deviceID2 := createAndroidDeviceID("test-android-2")
+	deviceID3 := createAndroidDeviceID("test-android-3")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID3 := strings.ToUpper(uuid.New().String())
+	var req android_service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}, {deviceID3, enterpriseSpecificID3}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(t, androidmanagement.Device{
+			Name:                d.id,
+			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+		}, d.esi)
+		req = android_service.PubSubPushRequest{PubSubMessage: *enrollmentMessage}
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	var hosts listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hosts)
+	require.Len(t, hosts.Hosts, 3)
+	host1 := hosts.Hosts[0]
+	host2 := hosts.Hosts[1]
+	host3 := hosts.Hosts[2] // isolated host, not affected by test
+
+	// transfer host3 to the team
+	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer", addHostsToTeamRequest{
+		TeamID:  &teamID,
+		HostIDs: []uint{host3.ID},
+	}, http.StatusOK, &addHostsToTeamResponse{})
+
+	// run the worker, the hosts get the 3 remaining android apps as self-service-available
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = false
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false // from now on (after device enrollment), this gets called only when we expect it to
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 3)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[1].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+		require.Equal(t, androidApps[2].AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[2].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[2].AppStoreApp.AppStoreID)
+	}
+
+	// delete app [1], should trigger remove from both hosts
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleIDs[1]), nil, http.StatusNoContent, "team_id", "0")
+	s.runWorkerUntilDone()
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 2)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[2].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+		require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+	}
+
+	// batch-set to keep only app [3] (effectively deletes app[2]), as per a gitops run
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{
+			{AppStoreID: androidApps[3].AdamID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage("{}")},
+		},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone() // calls policies patch, which sets (replaces) the list of apps
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 1)
+		require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+		require.Equal(t, androidApps[3].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	}
+
+	// batch-set to remove all apps
+	batchResp = batchAssociateAppStoreAppsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone() // calls policies patch, which sets (replaces) the list of apps
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.True(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+	s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked = false
+
+	for _, host := range []fleet.HostResponse{host1, host2} {
+		var getHostSw getHostSoftwareResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host.ID), nil, http.StatusOK, &getHostSw,
+			"available_for_install", "true", "order_key", "name")
+		require.Len(t, getHostSw.Software, 0)
+	}
+
+	// batch-set again without any app is a no-op
+	batchResp = batchAssociateAppStoreAppsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{
+		Apps: []fleet.VPPBatchPayload{},
+	}, http.StatusOK, &batchResp)
+
+	s.runWorkerUntilDone()
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked)
+	require.False(t, s.androidAPIClient.EnterprisesPoliciesPatchFuncInvoked)
+
+	// isolated host was unaffected, still has the same team app
+	var getHostSw getHostSoftwareResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", host3.ID), nil, http.StatusOK, &getHostSw,
+		"available_for_install", "true", "order_key", "name")
+	require.Len(t, getHostSw.Software, 1)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, androidApps[4].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebApps() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	// attempt to create a webapp before android MDM is enabled
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusBadRequest, headers)
+	require.Contains(t, extractServerErrorText(res.Body), "Android MDM isn't turned on.")
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		id := uuid.NewString()
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/%s", enterpriseID, id)}, nil
+	}
+	cases := []struct {
+		desc     string
+		title    string
+		url      string
+		iconFile string // filename in testdata/icons/
+
+		wantStatus int
+		wantErrMsg string
+	}{
+		{
+			desc:       "missing title",
+			title:      "",
+			url:        "http://example.com",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "title multipart field is required",
+		},
+		{
+			desc:       "missing url",
+			title:      "WebApp",
+			url:        "",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "url multipart field is required",
+		},
+		{
+			desc:       "invalid url",
+			title:      "WebApp",
+			url:        "non-absolute-url",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The start URL must be a valid absolute URL.",
+		},
+		{
+			desc:       "valid without icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+		{
+			desc:       "invalid icon not a png",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "not-a-png.txt",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon not square",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "non-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon too small",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "200px-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "valid with icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "512px-square.png",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var filename string
+			var iconData []byte
+			if c.iconFile != "" {
+				filename = c.iconFile
+				b, err := os.ReadFile(filepath.Join("testdata", "icons", c.iconFile))
+				require.NoError(t, err)
+				iconData = b
+			}
+
+			body, headers := generateMultipartRequest(t, "icon", filename, iconData, s.token, map[string][]string{
+				"title": {c.title},
+				"url":   {c.url},
+			})
+			res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), c.wantStatus, headers)
+			if c.wantErrMsg != "" {
+				require.Contains(t, extractServerErrorText(res.Body), c.wantErrMsg)
+			} else {
+				var resp createAndroidWebAppResponse
+				err := json.NewDecoder(res.Body).Decode(&resp)
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.AppStoreID)
+			}
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsCannotSetConfiguration() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "abc" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		ix := strings.LastIndex(packageName, ".") // title is the final segment
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName[ix+1:]}, nil
+	}
+
+	// create a webapp
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	webAppID := resp.AppStoreID
+
+	// add it to Fleet with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// add it without configuration, will work
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform,
+	}, http.StatusOK, &addResp)
+	webAppTitleID := addResp.TitleID
+
+	// update it with configuration, will fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{Configuration: json.RawMessage(`{"key":"value"}`)},
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// update it without configuration, will work
+	var updateResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{DisplayName: ptr.String("MyWebApp")},
+		http.StatusOK, &updateResp)
+	require.Equal(t, webAppID, updateResp.AppStoreApp.AdamID)
+	require.Equal(t, "MyWebApp", updateResp.AppStoreApp.DisplayName)
+	require.Equal(t, "abc1", updateResp.AppStoreApp.Name)
+	require.True(t, updateResp.AppStoreApp.SelfService)
+	require.Nil(t, updateResp.AppStoreApp.Configuration)
+
+	// batch-set with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set with multiple Android apps, with configuration on the webApp, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set without configuration, will work
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusOK, &batchResp)
+	require.Len(t, batchResp.Apps, 2)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "dup" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/icon.jpg", Title: "Duplicate Web App"}, nil
+	}
+
+	// create two web apps with the same title (this is fine — POST /web_apps is just a Google API wrapper)
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp1 createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp1)
+	require.NoError(t, err)
+	webAppID1 := resp1.AppStoreID
+
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://different-url.com"},
+	})
+	var resp2 createAndroidWebAppResponse
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp2)
+	require.NoError(t, err)
+	webAppID2 := resp2.AppStoreID
+
+	// create a team to add the apps to
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// add the first web app to the team
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID1, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusOK, &addResp)
+
+	// add the second web app (same name) to the same team
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add.`)
+	require.Contains(t, errMsg, `"Duplicate Web App"`)
+	require.Contains(t, errMsg, "already exists in this fleet")
+
+	// add the second web app (same name, rejected from team 1) to a different team
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+	var addResp2 addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
+	}, http.StatusOK, &addResp2)
 }

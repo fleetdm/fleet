@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -174,7 +174,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	var triggerCalls []policyAutomation
-	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		hosts, err := failingPolicySet.ListHosts(pol.ID)
@@ -220,7 +220,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	// policy sets should be empty (no host to process).
 	var countHosts int
 	triggerCalls = triggerCalls[:0]
-	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		hosts, err := failingPolicySet.ListHosts(pol.ID)
 		require.NoError(t, err)
 		countHosts += len(hosts)
@@ -243,7 +243,7 @@ func TestTriggerFailingPolicies(t *testing.T) {
 	require.NoError(t, err)
 
 	triggerCalls = triggerCalls[:0]
-	err = TriggerFailingPoliciesAutomation(context.Background(), ds, kitlog.NewNopLogger(), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
+	err = TriggerFailingPoliciesAutomation(context.Background(), ds, slog.New(slog.DiscardHandler), failingPolicySet, func(pol *fleet.Policy, cfg FailingPolicyAutomationConfig) error {
 		triggerCalls = append(triggerCalls, policyAutomation{pol.ID, cfg.AutomationType})
 
 		hosts, err := failingPolicySet.ListHosts(pol.ID)

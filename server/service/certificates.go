@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strings"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/kit/log/level"
 )
 
 // Certificate template name validation constants
@@ -50,7 +50,7 @@ func validateCertificateTemplateName(name string) error {
 
 type createCertificateTemplateRequest struct {
 	Name                   string `json:"name"`
-	TeamID                 uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID                 uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 	CertificateAuthorityId uint   `json:"certificate_authority_id"`
 	SubjectName            string `json:"subject_name"`
 }
@@ -151,7 +151,7 @@ type listCertificateTemplatesRequest struct {
 	fleet.ListOptions
 
 	// If not provided, intentionally defaults to 0 aka "No team"
-	TeamID uint `query:"team_id,optional"`
+	TeamID uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type listCertificateTemplatesResponse struct {
@@ -180,7 +180,7 @@ func (svc *Service) ListCertificateTemplates(ctx context.Context, teamID uint, o
 	opts.After = ""
 
 	// custom ordering is not supported, always by sort by id
-	opts.OrderKey = "certificate_templates.id"
+	opts.OrderKey = "id"
 	opts.OrderDirection = fleet.OrderAscending
 
 	// no matching query support
@@ -524,7 +524,7 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 type deleteCertificateTemplateSpecsRequest struct {
 	IDs    []uint `json:"ids"`
-	TeamID uint   `json:"team_id"` // If not provided, intentionally defaults to 0 aka "No team"
+	TeamID uint   `json:"team_id" renameto:"fleet_id"` // If not provided, intentionally defaults to 0 aka "No team"
 }
 
 type deleteCertificateTemplateSpecsResponse struct {
@@ -678,7 +678,7 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.OperationType != update.OperationType {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for different operation type", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_operation_type", record.OperationType, "new_operation_type", update.OperationType)
 		return nil
 	}
 
@@ -690,11 +690,123 @@ func (svc *Service) UpdateCertificateStatus(ctx context.Context, update *fleet.C
 	}
 
 	if record.Status != fleet.CertificateTemplateDelivered {
-		level.Info(svc.logger).Log("msg", "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
+		svc.logger.InfoContext(ctx, "ignoring certificate status update for non-delivered certificate", "host_uuid", host.UUID, "certificate_template_id", update.CertificateTemplateID, "current_status", record.Status, "new_status", update.Status)
 		return nil
 	}
 
 	// Fill in HostUUID from context
 	update.HostUUID = host.UUID
+
+	// Log activity for install statuses (not removals). Failures are logged on every attempt
+	// (including retries) so IT admins have visibility into retry attempts.
+	if update.OperationType == fleet.MDMOperationTypeInstall {
+		var actStatus fleet.CertificateActivityStatus
+		switch update.Status {
+		case fleet.MDMDeliveryVerified:
+			actStatus = fleet.CertificateActivityInstalled
+		case fleet.MDMDeliveryFailed:
+			actStatus = fleet.CertificateActivityFailedInstall
+		}
+		if actStatus != "" {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeInstalledCertificate{
+				HostID:                host.ID,
+				HostDisplayName:       host.DisplayName(),
+				CertificateTemplateID: update.CertificateTemplateID,
+				CertificateName:       record.Name,
+				Status:                string(actStatus),
+				Detail:                detail,
+			}); err != nil {
+				// Log and continue since we don't want the client to fail on this.
+				svc.logger.ErrorContext(ctx, "failed to create certificate install activity", "host.id", host.ID, "activity.status", actStatus,
+					"err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		}
+	}
+
+	// For failed installs, automatically retry if under the retry limit.
+	if update.OperationType == fleet.MDMOperationTypeInstall && update.Status == fleet.MDMDeliveryFailed {
+		if record.RetryCount < fleet.MaxCertificateInstallRetries {
+			detail := ""
+			if update.Detail != nil {
+				detail = *update.Detail
+			}
+			if err := svc.ds.RetryHostCertificateTemplate(ctx, host.UUID, update.CertificateTemplateID, detail); err != nil {
+				return ctxerr.Wrap(ctx, err, "retrying certificate install")
+			}
+			return nil
+		}
+	}
+
 	return svc.ds.UpsertCertificateStatus(ctx, update)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Resend Host Certificate Template
+////////////////////////////////////////////////////////////////////////////////
+
+type resendHostCertificateTemplateRequest struct {
+	ID         uint `url:"id"`
+	TemplateID uint `url:"template_id"`
+}
+
+type resendHostCertificateTemplateResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendHostCertificateTemplateResponse) Error() error { return r.Err }
+
+func resendHostCertificateTemplateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*resendHostCertificateTemplateRequest)
+	err := svc.ResendHostCertificateTemplate(ctx, req.ID, req.TemplateID)
+	if err != nil {
+		return resendHostCertificateTemplateResponse{Err: err}, nil
+	}
+
+	return resendHostCertificateTemplateResponse{}, nil
+}
+
+func (svc *Service) ResendHostCertificateTemplate(ctx context.Context, hostID uint, templateID uint) error {
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: host.TeamID}, fleet.ActionResend); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	template, err := svc.ds.GetCertificateTemplateByIdForHost(ctx, templateID, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking host certificate template")
+	}
+
+	if template.Status == fleet.CertificateTemplatePending {
+		return fleet.NewUserMessageError(errors.New("Couldn't resend pending certificate template."), http.StatusBadRequest)
+	}
+
+	if err := svc.ds.ResendHostCertificateTemplate(ctx, hostID, templateID); err != nil {
+		return ctxerr.Wrap(ctx, err, "resending certificate template")
+	}
+
+	certificate, err := svc.ds.GetCertificateTemplateById(ctx, templateID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting certificate details")
+	}
+
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeResentCertificate{
+		HostID:                host.ID,
+		HostDisplayName:       host.DisplayName(),
+		CertificateTemplateID: certificate.ID,
+		CertificateName:       certificate.Name,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity")
+	}
+
+	return nil
 }

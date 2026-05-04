@@ -26,6 +26,7 @@ interface ILoadTeamsParams {
  */
 export interface ILoadTeamResponse {
   team: ITeamConfig;
+  fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
@@ -54,8 +55,8 @@ export interface IUpdateTeamFormData {
       deadline: string;
     };
     windows_updates?: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
   host_expiry_settings: {
@@ -115,7 +116,7 @@ export default {
       host_expiry_settings,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
-  ): Promise<ITeamConfig> => {
+  ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }
@@ -210,9 +211,11 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    // The API only expects an array of objects with a "secret" property.
+    const payload = secrets.map((s) => pick(s, "secret"));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets });
+    return sendRequest("PATCH", path, { secrets: payload });
   },
 };

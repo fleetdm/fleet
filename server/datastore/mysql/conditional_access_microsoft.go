@@ -95,7 +95,23 @@ func (ds *Datastore) LoadHostConditionalAccessStatus(ctx context.Context, hostID
 		}
 	}
 	hostConditionalAccessStatus.OSVersion = strings.TrimPrefix(hostConditionalAccessStatus.OSVersion, "macOS ")
+	if strings.HasPrefix(hostConditionalAccessStatus.OSVersion, "Windows") {
+		hostConditionalAccessStatus.OSVersion = extractWindowsBuildVersion(hostConditionalAccessStatus.OSVersion)
+	}
 	return &hostConditionalAccessStatus, nil
+}
+
+// extractWindowsBuildVersion extracts the build version from a Windows' hosts.os_version.
+// For Windows hosts, hosts.os_version is of the form e.g.:
+//   - "Windows Server 2025 Datacenter 24H2 10.0.26100.32230"
+//   - "Windows 10 Pro 22H2 10.0.19045.6456"
+func extractWindowsBuildVersion(osVersion string) string {
+	osVersion = strings.TrimSpace(osVersion)
+	lastSpace := strings.LastIndex(osVersion, " ")
+	if lastSpace == -1 {
+		return osVersion
+	}
+	return osVersion[lastSpace+1:]
 }
 
 func (ds *Datastore) CreateHostConditionalAccessStatus(ctx context.Context, hostID uint, deviceID string, userPrincipalName string) error {

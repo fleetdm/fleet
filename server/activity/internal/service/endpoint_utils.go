@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"reflect"
@@ -21,9 +22,8 @@ const (
 	// defaultPerPage is used when per_page is not specified but page is specified.
 	defaultPerPage = 20
 
-	// unlimitedPerPage is used when neither page nor per_page is specified,
-	// effectively returning all results (legacy behavior for backwards compatibility).
-	unlimitedPerPage = 1000000
+	// maxPerPage is the maximum allowed value for per_page.
+	maxPerPage = 10000
 )
 
 // encodeResponse encodes the response as JSON.
@@ -84,6 +84,11 @@ func listOptionsFromRequest(r *http.Request) (api.ListOptions, error) {
 		if perPage <= 0 {
 			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{Message: "invalid per_page value"})
 		}
+		if perPage > maxPerPage {
+			return api.ListOptions{}, ctxerr.Wrap(r.Context(), &platform_http.BadRequestError{
+				Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less", maxPerPage),
+			})
+		}
 	}
 
 	orderKey := q.Get("order_key")
@@ -139,6 +144,12 @@ func (e *endpointer) Service() any {
 func newUserAuthenticatedEndpointer(svc api.Service, authMiddleware endpoint.Middleware, opts []kithttp.ServerOption, r *mux.Router,
 	versions ...string,
 ) *eu.CommonEndpointer[handlerFunc] {
+	// Append RouteTemplateRequestFunc so the api_only endpoint middleware
+	// can read the matched mux route template from context.
+	//
+	// Full-slice expression prevents aliasing into the caller's backing array
+	// if it happens to have spare capacity.
+	opts = append(opts[:len(opts):len(opts)], kithttp.ServerBefore(eu.RouteTemplateRequestFunc))
 	return &eu.CommonEndpointer[handlerFunc]{
 		EP: &endpointer{
 			svc: svc,

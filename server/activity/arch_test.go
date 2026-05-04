@@ -2,6 +2,7 @@ package activity_test
 
 import (
 	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/archtest"
@@ -28,6 +29,7 @@ var (
 		m + "/server/contexts/logging",
 		m + "/server/contexts/authz",
 		m + "/server/contexts/publicip",
+		m + "/pkg/fleethttp",
 	}
 )
 
@@ -67,19 +69,17 @@ func TestActivityPackageDependencies(t *testing.T) {
 				m + "/server/activity/api",
 				m + "/server/activity/internal/types",
 				m + "/server/activity/internal/testutils",
-				m + "/server/platform/http",
+				m + "/server/platform/errors",
+				m + "/server/platform/logging",
 				m + "/server/platform/mysql",
 				m + "/server/platform/mysql/testing_utils",
 				m + "/server/contexts/ctxerr",
-				m + "/server/ptr",
 			},
 		},
 		{
-			name: "internal/service depends on activity and platform packages",
-			pkg:  m + "/server/activity/internal/service",
-			ignoreDeps: append(append([]string{
-				m + "/server/ptr",
-			}, activityPkgs...), platformPkgs...),
+			name:       "internal/service depends on activity and platform packages",
+			pkg:        m + "/server/activity/internal/service",
+			ignoreDeps: slices.Concat(activityPkgs, platformPkgs),
 		},
 		{
 			name: "bootstrap depends on activity and platform packages",
@@ -93,7 +93,6 @@ func TestActivityPackageDependencies(t *testing.T) {
 			name: "all packages only depend on activity and platform",
 			pkg:  m + "/server/activity/...",
 			ignoreDeps: append(append([]string{
-				m + "/server/ptr",
 				m + "/server/activity/internal/mysql",
 				m + "/server/activity/internal/service",
 				m + "/server/activity/internal/testutils",

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -16,32 +17,30 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 var preInstalled = []string{
 	"firefox/darwin",
 }
 
-func postApplicationInstall(appLogger kitlog.Logger, appPath string) error {
+func postApplicationInstall(ctx context.Context, appLogger *slog.Logger, appPath string) error {
 	if appPath == "" {
 		return nil
 	}
 
-	level.Info(appLogger).Log("msg", fmt.Sprintf("Forcing LaunchServices refresh for: '%s'", appPath))
+	appLogger.InfoContext(ctx, fmt.Sprintf("Forcing LaunchServices refresh for: '%s'", appPath))
 	err := forceLaunchServicesRefresh(appPath)
 	if err != nil {
 		return fmt.Errorf("Error forcing LaunchServices refresh: %v. Attempting to continue", err)
 	}
 
-	level.Info(appLogger).Log("msg", fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
+	appLogger.InfoContext(ctx, fmt.Sprintf("Attempting to remove quarantine for: '%s'", appPath))
 	quarantineResult, err := removeAppQuarantine(appPath)
 
-	level.Info(appLogger).Log("msg", fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
-	level.Info(appLogger).Log("msg", fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
-	level.Info(appLogger).Log("msg", fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
-	level.Info(appLogger).Log("msg", fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
+	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine output error: %v", quarantineResult.QuarantineOutputError))
+	appLogger.InfoContext(ctx, fmt.Sprintf("Quarantine status: %s", quarantineResult.QuarantineStatus))
+	appLogger.InfoContext(ctx, fmt.Sprintf("Spctl output error: %v", quarantineResult.SpctlOutputError))
+	appLogger.InfoContext(ctx, fmt.Sprintf("spctl status: %s", quarantineResult.SpctlStatus))
 	if err != nil {
 		return fmt.Errorf("Error removing app quarantine: %v. Attempting to continue", err)
 	}
@@ -177,7 +176,7 @@ func checkVersionMatch(expectedVersion, foundVersion, foundBundledVersion string
 	return false
 }
 
-func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
+func appExists(ctx context.Context, logger *slog.Logger, appName, uniqueAppIdentifier, appVersion, appPath string) (bool, error) {
 	execTimeout, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
@@ -191,7 +190,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 		return false, fmt.Errorf("Invalid character found in appPath: '%w'. Not executing query...", err)
 	}
 
-	level.Info(logger).Log("msg", fmt.Sprintf("Looking for app: %s, version: %s\n", appName, appVersion))
+	logger.InfoContext(ctx, fmt.Sprintf("Looking for app: %s, version: %s", appName, appVersion))
 	query := `
 		SELECT
 		  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(bundle_executable, ''), TRIM(name, '.app') ) AS name,
@@ -231,17 +230,17 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 				BundleIdentifier: uniqueAppIdentifier,
 				Source:           "apps",
 			}
-			queries.MutateSoftwareOnIngestion(software, logger)
+			queries.MutateSoftwareOnIngestion(ctx, software, logger)
 			result.Version = software.Version
 			result.Name = software.Name
 
-			level.Info(logger).Log("msg", fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
+			logger.InfoContext(ctx, fmt.Sprintf("Found app: '%s' at %s, Version: %s, Bundled Version: %s", result.Name, result.Path, result.Version, result.BundledVersion))
 
 			// OneDrive auto-updates immediately after installation, so the installed version
 			// might be newer than the installer version. For OneDrive, we only verify that
 			// the app exists rather than checking the version.
 			if uniqueAppIdentifier == "com.microsoft.OneDrive" {
-				level.Info(logger).Log("msg", "OneDrive detected - skipping version check due to auto-update behavior")
+				logger.InfoContext(ctx, "OneDrive detected - skipping version check due to auto-update behavior")
 				return true, nil
 			}
 
@@ -249,7 +248,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			// (e.g., "1.12" with bundled version "1800"). We only verify that the app exists
 			// rather than checking the version.
 			if uniqueAppIdentifier == "org.gpgtools.gpgkeychain" {
-				level.Info(logger).Log("msg", "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
+				logger.InfoContext(ctx, "GPG Suite detected - skipping version check due to version mismatch between installer and app bundle")
 				return true, nil
 			}
 
@@ -258,7 +257,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			// Check if the version starts with the expected version to handle this case
 			if uniqueAppIdentifier == "com.adobe.DNGConverter" {
 				if strings.HasPrefix(result.Version, appVersion+" ") || strings.HasPrefix(result.Version, appVersion+"(") {
-					level.Info(logger).Log("msg", "Adobe DNG Converter detected - version matches with build number")
+					logger.InfoContext(ctx, "Adobe DNG Converter detected - version matches with build number")
 					return true, nil
 				}
 			}
@@ -267,7 +266,7 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 			// If version doesn't match but app is installed, fall back to existence-only validation.
 			if uniqueAppIdentifier == "net.whatsapp.WhatsApp" {
 				if !checkVersionMatch(appVersion, result.Version, result.BundledVersion) {
-					level.Info(logger).Log("msg", "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
+					logger.InfoContext(ctx, "WhatsApp detected - version mismatch but app is installed, falling back to existence-only validation")
 					return true, nil
 				}
 			}

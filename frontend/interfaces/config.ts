@@ -48,6 +48,7 @@ export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  enable_recovery_lock_password: boolean;
   windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
@@ -65,27 +66,35 @@ export interface IMdmConfig {
   enable_turn_on_windows_mdm_manually: boolean;
   windows_migration_enabled: boolean;
   android_enabled_and_configured: boolean;
+  apple_require_hardware_attestation: boolean;
   end_user_authentication: IEndUserAuthentication;
   macos_updates: IAppleDeviceUpdates;
   ios_updates: IAppleDeviceUpdates;
   ipados_updates: IAppleDeviceUpdates;
-  macos_settings: {
-    custom_settings: null | ICustomSetting[];
+  apple_settings: {
+    configuration_profiles: null | ICustomSetting[];
     enable_disk_encryption: boolean;
   };
-  macos_setup: {
-    bootstrap_package: string | null;
+  setup_experience: {
+    macos_bootstrap_package: string | null;
     enable_end_user_authentication: boolean;
-    macos_setup_assistant: string | null;
-    enable_release_device_manually: boolean | null;
-    manual_agent_install: boolean | null;
+    apple_setup_assistant: string | null;
+    apple_enable_release_device_manually: boolean | null;
+    macos_manual_agent_install: boolean | null;
     require_all_software_macos: boolean | null;
+    require_all_software_windows: boolean | null;
+    lock_end_user_info: boolean | null;
+    enable_create_local_admin_account?: boolean;
+  };
+  macos_setup?: {
+    enable_managed_local_account?: boolean;
   };
   macos_migration: IMacOsMigrationSettings;
   windows_updates: {
     deadline_days: number | null;
     grace_period_days: number | null;
   };
+  windows_entra_tenant_ids: string[] | null;
 }
 
 // Note: IDeviceGlobalConfig is misnamed on the backend because in some cases it returns team config
@@ -279,9 +288,16 @@ export const CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS = 30;
 export interface IUserSettings {
   hidden_host_columns: string[];
 }
+export interface IGitOpsExceptions {
+  labels: boolean;
+  software: boolean;
+  secrets: boolean;
+}
+
 export interface IGitOpsModeConfig {
   gitops_mode_enabled: boolean;
   repository_url: string;
+  exceptions: IGitOpsExceptions;
 }
 
 /** Check if Okta conditional access is configured (all 4 fields must be present) */

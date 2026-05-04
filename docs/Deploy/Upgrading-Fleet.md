@@ -76,5 +76,16 @@ If you are using Fleet's Terraform modules to manage your Fleet deployment to AW
 
 Run `terraform apply` to apply the changes.
 
+## Compatibility
+
+Fleet follows [Semantic Versioning (SemVer)](https://semver.org/). This means that breaking changes are never introduced in a new minor or patch version, except in these rare cases:
+
++ **Experimental features:** [Experimental features](https://fleetdm.com/handbook/company/product-groups#experimental-features) are tagged as such in the API documentation. These features are being rapidly iterated on and are not for use in automated workflows.
++ **Security:** Fleet reserves the right to make breaking changes for security. When no alternative solution is available, security fixes may introduce backward-incompatible changes.
++ **Changes to default values**: Fleet occasionally changes defaults to improve stability or usability. These changes are made thoughtfully and often come from customer feedback (e.g. default SSO session validity is too short, need to increase the window) or as a bug fix (e.g. default pagination causes a timeout, need to decrease the default per-page). Any changes to defaults are weighed carefully against the possibility of breaking existing workflows.
+
+In each of these cases, breaking changes are clearly communicated in the version notes.
+
+
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to upgrade your Fleet instance to the latest version.">

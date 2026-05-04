@@ -19,7 +19,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import { DROPDOWN_OPTIONS, IHostSWLibraryDropdownFilterVal } from "../helpers";
@@ -41,6 +41,7 @@ interface IHostSoftwareLibraryTableProps {
   page: number;
   pagePath: string;
   selfService: boolean;
+  teamId?: number;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -56,6 +57,7 @@ const HostSoftwareLibraryTable = ({
   selfService,
   page,
   pagePath,
+  teamId,
 }: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -85,6 +87,7 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        fleet_id: teamId,
         ...(selfService && { self_service: "true" }),
       };
 
@@ -125,6 +128,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
+      teamId,
       ...(value === "selfService" && { selfService: true }),
     };
 
@@ -152,15 +156,9 @@ const HostSoftwareLibraryTable = ({
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
   }, [searchQuery]);
 
-  // Determines if a user should be able to filter or search in the table
-  const hasData = data && data.software.length > 0;
-  const hasQuery = searchQuery !== "";
-
-  const showFilterHeaders = hasData || hasQuery;
-
   if (isAndroid(platform)) {
     return (
-      <EmptyTable
+      <EmptyState
         header="Installers are not supported for this host"
         info={
           <>
@@ -208,11 +206,11 @@ const HostSoftwareLibraryTable = ({
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         emptyComponent={memoizedEmptyComponent}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        searchable={showFilterHeaders}
+        searchable
         manualSortBy
       />
     </div>

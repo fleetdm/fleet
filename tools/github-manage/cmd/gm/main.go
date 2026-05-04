@@ -38,6 +38,7 @@ func main() {
 	}
 
 	rootCmd.AddCommand(issuesCmd)
+	rootCmd.AddCommand(issuesWithHistoricalLabelCmd)
 	rootCmd.AddCommand(projectCmd)
 	rootCmd.AddCommand(estimatedCmd)
 	rootCmd.AddCommand(sprintCmd)

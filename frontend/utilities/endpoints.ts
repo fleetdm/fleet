@@ -72,10 +72,15 @@ export default {
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
+  // Chart endpoints
+  CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
+
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
-    `/${API_VERSION}/fleet/hosts/${hostId}/queries/${queryId}`,
+    `/${API_VERSION}/fleet/hosts/${hostId}/reports/${queryId}`,
+  HOST_REPORTS: (hostId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/reports`,
   HOSTS: `/${API_VERSION}/fleet/hosts`,
   HOSTS_COUNT: `/${API_VERSION}/fleet/hosts/count`,
   HOSTS_DELETE: `/${API_VERSION}/fleet/hosts/delete`,
@@ -85,8 +90,12 @@ export default {
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
   HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+  HOST_CLEAR_PASSCODE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/clear_passcode`,
   HOST_RESEND_PROFILE: (hostId: number, profileUUID: string) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/configuration_profiles/${profileUUID}/resend`,
+  HOST_RESEND_CERTIFICATE: (hostId: number, certificateTemplateId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/certificates/${certificateTemplateId}/resend`,
   HOST_SOFTWARE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/software`,
   HOST_SOFTWARE_PACKAGE_INSTALL: (hostId: number, softwareId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/software/${softwareId}/install`,
@@ -98,6 +107,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping`,
   HOST_DEVICE_MAPPING_IDP: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/device_mapping/idp`,
+  HOST_DEP_ASSIGNMENT: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/dep_assignment`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   INVITE_VERIFY: (token: string) => `/${API_VERSION}/fleet/invites/${token}`,
@@ -131,13 +142,13 @@ export default {
   // apple mdm endpoints
   MDM_APPLE: `/${API_VERSION}/fleet/mdm/apple`,
 
-  // Apple Business Manager (ABM) endpoints
+  // Apple Business (AB) endpoints
   MDM_ABM_TOKENS: `/${API_VERSION}/fleet/abm_tokens`,
   MDM_ABM_TOKEN: (id: number) => `/${API_VERSION}/fleet/abm_tokens/${id}`,
   MDM_ABM_TOKEN_RENEW: (id: number) =>
     `/${API_VERSION}/fleet/abm_tokens/${id}/renew`,
   MDM_ABM_TOKEN_TEAMS: (id: number) =>
-    `/${API_VERSION}/fleet/abm_tokens/${id}/teams`,
+    `/${API_VERSION}/fleet/abm_tokens/${id}/fleets`,
   MDM_APPLE_ABM_PUBLIC_KEY: `/${API_VERSION}/fleet/mdm/apple/abm_public_key`,
   MDM_APPLE_APNS_CERTIFICATE: `/${API_VERSION}/fleet/mdm/apple/apns_certificate`,
   MDM_APPLE_PNS: `/${API_VERSION}/fleet/apns`,
@@ -152,7 +163,7 @@ export default {
   MDM_VPP_TOKENS_RENEW: (id: number) =>
     `/${API_VERSION}/fleet/vpp_tokens/${id}/renew`,
   MDM_VPP_TOKEN_TEAMS: (id: number) =>
-    `/${API_VERSION}/fleet/vpp_tokens/${id}/teams`,
+    `/${API_VERSION}/fleet/vpp_tokens/${id}/fleets`,
 
   // MDM profile endpoints
   MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
@@ -173,7 +184,8 @@ export default {
 
     return `/api/mdm/apple/enroll?${query}`;
   },
-  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic`,
+  MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic/default`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
@@ -185,6 +197,12 @@ export default {
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_ENCRYPTION_KEY: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/encryption_key`,
+  HOST_RECOVERY_LOCK_PASSWORD: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password`,
+  HOST_RECOVERY_LOCK_PASSWORD_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
+  HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
@@ -203,10 +221,11 @@ export default {
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
-  QUERIES: `/${API_VERSION}/fleet/queries`,
-  QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/queries/${id}/report`,
+  QUERIES: `/${API_VERSION}/fleet/reports`,
+  QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/reports/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
-  LIVE_QUERY: `/${API_VERSION}/fleet/queries/run`,
+  REST_API_ENDPOINTS: `/${API_VERSION}/fleet/rest_api`,
+  LIVE_QUERY: `/${API_VERSION}/fleet/reports/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {
     return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
@@ -215,7 +234,7 @@ export default {
 
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
@@ -249,23 +268,23 @@ export default {
   STATUS_RESULT_STORE: `/${API_VERSION}/fleet/status/result_store`,
   TARGETS: `/${API_VERSION}/fleet/targets`,
   TEAM_POLICIES: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/policies`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/policies`;
   },
   TEAM_SCHEDULE: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/schedule`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/schedule`;
   },
-  TEAMS: `/${API_VERSION}/fleet/teams`,
+  TEAMS: `/${API_VERSION}/fleet/fleets`,
   TEAMS_AGENT_OPTIONS: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/agent_options`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/agent_options`;
   },
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/secrets`;
   },
   TEAM_USERS: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/users`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
-    return `/${API_VERSION}/fleet/teams/${teamId}/hosts`;
+    return `/${API_VERSION}/fleet/fleets/${teamId}/hosts`;
   },
   UPDATE_USER_ADMIN: (id: number): string => {
     return `/${API_VERSION}/fleet/users/${id}/admin`;
@@ -275,6 +294,7 @@ export default {
   },
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
+  USERS_API_ONLY: `/${API_VERSION}/fleet/users/api_only`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
   // Vulnerabilities endpoints
@@ -298,7 +318,7 @@ export default {
     `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
   SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
-    `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
+    `/${API_VERSION}/fleet/scripts/batch/${id}/host_results`,
 
   // Command endpoints
   COMMANDS: `/${API_VERSION}/fleet/commands`,

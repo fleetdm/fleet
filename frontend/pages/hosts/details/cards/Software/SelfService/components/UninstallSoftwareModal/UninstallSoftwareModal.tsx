@@ -48,25 +48,22 @@ const UninstallSoftwareModal = ({
       onExit={onExit}
       isContentDisabled={isUninstalling}
     >
-      <>
-        <p>
-          Uninstalling this software will remove it and may remove{" "}
-          {softwareName} data from your device. You can always reinstall it
-          again later.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            variant="alert"
-            onClick={onUninstallSoftware}
-            isLoading={isUninstalling}
-          >
-            Uninstall
-          </Button>
-          <Button variant="inverse-alert" onClick={onExit}>
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        Uninstalling this software will remove it and may remove {softwareName}{" "}
+        data from your device. You can always reinstall it again later.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          variant="alert"
+          onClick={onUninstallSoftware}
+          isLoading={isUninstalling}
+        >
+          Uninstall
+        </Button>
+        <Button variant="inverse-alert" onClick={onExit}>
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

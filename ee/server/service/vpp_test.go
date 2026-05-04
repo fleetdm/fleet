@@ -23,12 +23,16 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 		ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 			return nil, sql.ErrNoRows
 		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
 		t.Run("dry run", func(t *testing.T) {
 			_, err := svc.BatchAssociateVPPApps(ctx, "", []fleet.VPPBatchPayload{
 				{
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
+					LabelsIncludeAll: []string{},
 					Categories:       []string{},
 					Platform:         fleet.MacOSPlatform,
 				},
@@ -41,6 +45,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 					AppStoreID:       "my-fake-app",
 					LabelsExcludeAny: []string{},
 					LabelsIncludeAny: []string{},
+					LabelsIncludeAll: []string{},
 					Categories:       []string{},
 					Platform:         fleet.MacOSPlatform,
 				},
@@ -67,6 +72,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
 						LabelsIncludeAny: []string{},
+						LabelsIncludeAll: []string{},
 						Categories:       []string{},
 						Platform:         fleet.AndroidPlatform,
 					},
@@ -79,6 +85,7 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 						AppStoreID:       pkg,
 						LabelsExcludeAny: []string{},
 						LabelsIncludeAny: []string{},
+						LabelsIncludeAll: []string{},
 						Categories:       []string{},
 						Platform:         fleet.AndroidPlatform,
 					},

@@ -1,4 +1,4 @@
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
 import { IDeviceSoftware } from "interfaces/software";
 import { ISetupStep } from "interfaces/setup";
@@ -67,7 +67,7 @@ export default {
   loadHostDetails: ({
     token,
     exclude_software,
-  }: IGetDeviceDetailsRequest): Promise<IDeviceUserResponse> => {
+  }: IGetDeviceDetailsRequest): Promise<IDUPDetails> => {
     const { DEVICE_USER_DETAILS } = endpoints;
     let path = `${DEVICE_USER_DETAILS}/${token}`;
     if (exclude_software) {

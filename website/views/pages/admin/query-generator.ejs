@@ -2,8 +2,8 @@
   <div purpose="page-container">
     <div purpose="page-content">
       <div purpose="page-headline">
-        <h2>Query robot 🤖</h2>
-        <p>Not great with SQL? Our query robot can help you.</p>
+        <h2>Report robot 🤖</h2>
+        <p>Not great with SQL? Our report robot can help you.</p>
       </div>
       <div purpose="query-form">
         <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
@@ -12,10 +12,10 @@
             <textarea class="form-control" type="textarea" :disabled="showGeneratedQuery" id="instructions" placeholder="E.g., is Filevault enabled?" :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
             <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
           </div>
-          <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/query-generator">reload this page and try again</a>.</cloud-error>
+          <cloud-error v-if="cloudError">An error occurred while generating your report. Please <a href="/report-generator">reload this page and try again</a>.</cloud-error>
 
           <div purpose="ai-note" v-if="!showGeneratedQuery">
-            <p>Fleet’s public query robot uses OpenAI <a href="https://github.com/fleetdm/fleet/blob/main/website/api/helpers/ai/prompt.js" target="_blank">under the hood</a>. Think before entering sensitive or confidential data in your prompts, as some data may not fall under your organization’s specific AI or data governance policies.</p>
+            <p>Fleet’s public report robot uses Anthropic <a href="https://github.com/fleetdm/fleet/blob/main/website/api/helpers/ai/prompt.js" target="_blank">under the hood</a>. Think before entering sensitive or confidential data in your prompts, as some data may not fall under your organization’s specific AI or data governance policies.</p>
           </div>
           <div purpose="note" v-if="!showGeneratedQuery">
             <img src="/images/icon-info-16x16@2x.png" alt="An icon indicating that this section has important information">
@@ -23,7 +23,7 @@
               <p>This will take at least 30 seconds to generate.</p>
             </div>
           </div>
-          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left" v-if="!cloudError && !showGeneratedQuery">Generate query</ajax-button>
+          <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left" v-if="!cloudError && !showGeneratedQuery">Generate report</ajax-button>
         </ajax-form>
       </div>
       <div v-show="showGeneratedQuery">
@@ -82,6 +82,5 @@
 
     </div>
   </div>
-  <signup-modal></signup-modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

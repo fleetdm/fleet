@@ -48,6 +48,7 @@ interface TooltipArgs {
   isSelfService?: boolean;
   softwareName?: string | null;
   lastInstalledAt?: string;
+  lastUninstalledAt?: string;
   isAppleAppStoreApp?: boolean;
   isHostOnline?: boolean;
 }
@@ -91,12 +92,12 @@ const failedInstallTooltip: IStatusDisplayConfig["tooltip"] = ({
 );
 
 const failedUninstallTooltip: IStatusDisplayConfig["tooltip"] = ({
-  lastInstalledAt = null,
+  lastUninstalledAt = null,
   isSelfService,
 }) => (
   <>
     Software failed to uninstall
-    {lastInstalledAt ? ` (${dateAgo(lastInstalledAt)})` : ""}. Select{" "}
+    {lastUninstalledAt ? ` (${dateAgo(lastUninstalledAt)})` : ""}. Select{" "}
     <b>Retry</b> to uninstall again
     {isSelfService && ", or contact your IT department"}.
   </>
@@ -128,8 +129,8 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   failed_uninstall_installed: {
     iconName: "success",
     displayText: "Installed", // Opens "Install details" modal
-    tooltip: ({ lastInstalledAt, isSelfService }) => {
-      return failedUninstallTooltip({ lastInstalledAt, isSelfService });
+    tooltip: ({ lastUninstalledAt, isSelfService }) => {
+      return failedUninstallTooltip({ lastUninstalledAt, isSelfService });
     },
   },
   recently_updated: {
@@ -258,12 +259,14 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   failed_install_update_available: {
     iconName: "error-outline", // Match update available icon and not failed install icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedInstallTooltip,
   },
   failed_uninstall_update_available: {
     iconName: "error-outline", // Match update available icon and not failed uninstall icon
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available", // Shows "Update available" modal instead of "Failed (uninstall)" modal as of 4.82 #31663
     // Tooltip indicates failure info in host activity logs
     tooltip: failedUninstallTooltip,
@@ -427,7 +430,7 @@ const InstallStatusCell = ({
 
   const displayConfig = INSTALL_STATUS_DISPLAY_OPTIONS[displayStatus];
 
-  // This is only called for script packages (payload-free installers: .sh, .ps1)
+  // This is only called for script packages (script-only installers: .sh, .ps1)
   const onClickScriptStatus = () => {
     onShowScriptDetails(software);
   };
@@ -541,7 +544,7 @@ const InstallStatusCell = ({
       return (
         <Button
           className={`${baseClass}__item-status-button`}
-          variant="text-link"
+          variant="link"
           onClick={match.onClick}
         >
           {resolvedDisplayText}
@@ -555,6 +558,7 @@ const InstallStatusCell = ({
 
   const tooltipContent = displayConfig.tooltip({
     lastInstalledAt: lastInstall?.installed_at,
+    lastUninstalledAt: lastUninstall?.uninstalled_at,
     softwareName: softwarePackageName,
     isAppleAppStoreApp,
     isSelfService,
@@ -574,7 +578,12 @@ const InstallStatusCell = ({
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (
-          <Spinner size="x-small" includeContainer={false} centered={false} />
+          <Spinner
+            size="x-small"
+            includeContainer={false}
+            centered={false}
+            delay={0}
+          />
         ) : (
           displayConfig?.iconName && (
             <Icon

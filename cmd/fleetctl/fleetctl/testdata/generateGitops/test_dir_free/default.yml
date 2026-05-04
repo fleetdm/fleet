@@ -14,10 +14,10 @@ agent_options:
       pack_delimiter: /
 controls:
   android_settings:
-    custom_settings:
+    configuration_profiles:
     - path: ./lib/profiles/global-android-profile.json
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
     - labels_include_all:
       - Label A
       - Label B
@@ -26,7 +26,7 @@ controls:
       - Label C
       path: ./lib/profiles/global-macos-json-profile.json
   windows_settings:
-    custom_settings:
+    configuration_profiles:
     - labels_include_any:
       - Label D
       path: ./lib/profiles/global-windows-profile.xml
@@ -49,6 +49,10 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 30
+    preserve_host_activities_on_reenrollment: true
   certificate_authorities:
     custom_est_proxy:
     - name: some-est-name
@@ -141,10 +145,10 @@ org_settings:
     - 1
     - 3
     deferred_save_host: false
+    discard_reports_data: false
     enable_analytics: true
-    live_query_disabled: false
-    query_report_cap: 1
-    query_reports_disabled: false
+    live_reporting_disabled: false
+    report_cap: 1
     scripts_disabled: false
     server_url: https://dogfood.fleetdm.com
   sso_settings:
@@ -164,7 +168,6 @@ org_settings:
       destination_url: https://some-failing-policies-webhook-url.com
       enable_failing_policies_webhook: true
       host_batch_size: 2
-      policy_ids:
     host_status_webhook:
       days_count: 5
       destination_url: https://some-host-status-webhook-url.com
@@ -182,7 +185,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_15___
+    hash_sha256: # TODO: Add your hash_sha256 here
   labels_include_any:
   - Label A
   - Label B
@@ -190,7 +193,9 @@ policies:
   platform: darwin
   query: SELECT * FROM global_policy WHERE id = 1
   resolution: Do a global thing
-queries:
+  type: dynamic
+  webhooks_and_tickets_enabled: false
+reports:
 - automations_enabled: true
   description: This is a global query
   discard_data: false
@@ -203,4 +208,4 @@ queries:
   name: Global Query
   observer_can_run: true
   platform: darwin
-  query: SELECT * FROM global_query WHERE id = 1
+  query: SELECT * FROM os_version;

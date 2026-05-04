@@ -36,7 +36,7 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import InheritedBadge from "components/InheritedBadge";
+import PillBadge from "components/PillBadge";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
@@ -154,7 +154,7 @@ const generateColumnConfigs = ({
               <>
                 {!isCurrentTeamObserverOrGlobalObserver && observer_can_run && (
                   <TooltipWrapper
-                    tipContent="Observers can run this query."
+                    tipContent="Observers can run this report."
                     underline={false}
                     showArrow
                     position="top"
@@ -171,12 +171,14 @@ const generateColumnConfigs = ({
                 {viewingTeamScope &&
                   // inherited
                   team_id !== currentTeamId && (
-                    <InheritedBadge tooltipContent="This query runs on all hosts." />
+                    <PillBadge tipContent="This report runs on all hosts.">
+                      Inherited
+                    </PillBadge>
                   )}
               </>
             }
-            path={getPathWithQueryParams(PATHS.QUERY_DETAILS(id), {
-              team_id: team_id ?? currentTeamId,
+            path={getPathWithQueryParams(PATHS.REPORT_DETAILS(id), {
+              fleet_id: team_id ?? currentTeamId,
             })}
           />
         );
@@ -240,7 +242,6 @@ const generateColumnConfigs = ({
         <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
-            id: cellProps.row.original.id,
           }}
         />
       ),

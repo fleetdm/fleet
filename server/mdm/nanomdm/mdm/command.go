@@ -62,6 +62,7 @@ type Command struct {
 type CommandWithSubtype struct {
 	Command
 	Subtype CommandSubtype
+	Name    string
 }
 
 // DecodeCommand unmarshals rawCommand into command

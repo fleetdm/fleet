@@ -426,8 +426,22 @@ module.exports = {
               if(htmlString.match(/(&#96;){3,4}[\s\S]+(&#96;){3}/g)){
                 throw new Error('The compiled markdown has a codeblock (\`\`\`) nested inside of another codeblock (\`\`\`\`) at '+pageSourcePath+'. To resolve this error, remove the codeblock nested inside another codeblock from this file.');
               }
-              // (2025-11-06) eashaw: I'm commenting the line below out to resolve a bug where the regex below would replace content inside of a code block. See https://github.com/fleetdm/fleet/issues/34935 for more details.
-              // htmlString = htmlString.replace(/\(\(([^())]*)\)\)/g, '<bubble type="$1" class="colors"><span is="bubble-heart"></span></bubble>');// « Replace ((bubble))s with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
+              htmlString = htmlString.replace(
+                /(<code(?:\s[^>]*)?>[\s\S]*?<\/code>)|\(\(([^()]*)\)\)/g,
+                (match, codeBlock, bubbleContent) => {
+                  if (codeBlock) {
+                    // ignore content inside of <code> elements.
+                    return codeBlock;
+                  } else {
+                    let sanitizedType = bubbleContent.trim().replace(/["'`]/g, '');
+                    if (!sanitizedType) {
+                      return match; // ignore bubbles with no text
+                    } else {
+                      return `<bubble type="${sanitizedType}" class="colors"></bubble>`;
+                    }
+                  }
+                }
+              );// « Replace ((bubble))s (outside of code blocks) with HTML. For more background, see https://github.com/fleetdm/fleet/issues/706#issuecomment-884622252
               htmlString = htmlString.replace(/(href="(\.\/[^"]+|\.\.\/[^"]+)")/g, (hrefString)=>{// « Modify path-relative links like `./…` and `../…` to make them absolute.  (See https://github.com/fleetdm/fleet/issues/706#issuecomment-884641081 for more background)
                 let oldRelPath = hrefString.match(/href="(\.\/[^"]+|\.\.\/[^"]+)"/)[1];
                 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -652,7 +666,7 @@ module.exports = {
                   throw new Error(`Failed compiling markdown content: An article page is missing a category meta tag (<meta name="category" value="guides">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, add a meta tag with the category of the article`);
                 } else {
                   // Throwing an error if the article has an invalid category.
-                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison' ];
+                  let validArticleCategories = ['deploy', 'articles', 'security', 'engineering', 'success stories', 'announcements', 'guides', 'releases', 'podcasts', 'report', 'case study', 'comparison', 'whitepaper', 'webinar' ];
                   if(!validArticleCategories.includes(embeddedMetadata.category)) {
                     throw new Error(`Failed compiling markdown content: An article page has an invalid category meta tag (<meta name="category" value="${embeddedMetadata.category}">) at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, change the meta tag to a valid category, one of: ${validArticleCategories}`);
                   }
@@ -686,64 +700,88 @@ module.exports = {
                   // Throwing an error if the article's description meta tag value is over 150 characters long
                   throw new Error(`Failed compiling markdown content: An article page has an invalid description meta tag (<meta name="description" value="${embeddedMetadata.description}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, make sure the value of the meta description is less than 150 characters long.`);
                 }
-                if(embeddedMetadata.showOnTestimonialsPageWithEmoji){
-                  // Throw an error if a showOnTestimonialsPageWithEmoji value is not one of: 🥀, 🔌, 🚪, or 🪟.
-                  if(!['🥀', '🔌', '🚪', '🪟'].includes(embeddedMetadata.showOnTestimonialsPageWithEmoji)){
-                    throw new Error(`Failed compiling markdown content: An article page has an invalid showOnTestimonialsPageWithEmoji meta tag (<meta name="showOnTestimonialsPageWithEmoji" value="${embeddedMetadata.articleImageUrl}">) at "${path.join(topLvlRepoPath, pageSourcePath)}".  To resolve, change the value of the meta tag to be one of 🥀, 🔌, 🚪, or 🪟 and try running this script again.`);
+                if(embeddedMetadata.category === 'case study') {
+                  // If a case study article does not have a `useBasicArticleTemplate` meta tag, check to see if has the meta tags required to use the case study speciifc template page.
+                  if(typeof embeddedMetadata.useBasicArticleTemplate === 'undefined') {
+                    // Note: Case study articles use a page template that requires additional meta tags.
+                    if(!embeddedMetadata.summaryChallenge){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryChallenge" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryChallenge meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    }
+
+                    if(!embeddedMetadata.summarySolution){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summarySolution" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summarySolution meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    }
+
+                    if(!embeddedMetadata.summaryKeyResults){
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryKeyResults" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryKeyResults meta tag and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    } else if(embeddedMetadata.summaryKeyResults.split(';').length === 1) {
+                      // Make sure that summaryKeyResults meta tag values are semicolon-separated lists.
+                      throw new Error(`Failed compiling markdown content: A case study article has an invalid "summaryKeyResults" meta tag value at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, change the summaryKeyResults meta tag value to be a list of results separated by semi-colons (e.g., "Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%;") and try running this script again. Note: you can add a "useBasicArticleTemplate" meta tag (e.g., <meta name="useBasicArticleTemplate" value="true"> to remove this requirement and display this article using the standard article template.`);
+                    }
+
+                    // If a companyLogoFilename meta tag is provided, make sure the image exists in the website/assets/images folder.
+                    if(embeddedMetadata.companyLogoFilename) {
+                      let companyLogoImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename));
+                      if(!companyLogoImageExists){
+                        throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "companyLogoFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename)}). Was it moved?`);
+                      }
+                    }
+
+                    if(embeddedMetadata.quoteContent) {
+                      // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
+                      if(!embeddedMetadata.quoteAuthorName) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again.`);
+                      }
+
+                      if(!embeddedMetadata.quoteAuthorJobTitle) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again.`);
+                      }
+
+                      if(!embeddedMetadata.quoteAuthorImageFilename) {
+                        throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again.`);
+                      } else {
+                        // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
+                        let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
+                        if(!quoteAuthorImageExists){
+                          throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "quoteAuthorImageFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename)}). Was it moved?`);
+                        }
+                      }
+                    }
+                  } else {
+                    if(!embeddedMetadata.cardTitleForCustomersPage) {
+                      throw new Error(`Failed compiling markdown content: A case study article is missing a "cardTitleForCustomersPage" meta tag at "${path.join(topLvlRepoPath, pageSourcePath)}". To resolve, add a "cardTitleForCustomersPage" meta tag with the title of this article when it is linked to from the /customers page. (e.g., "AI security company")`);
+                    }
                   }
                 }
-                if(embeddedMetadata.category === 'case study') {
-                  // Note: Case study articles use a page template that requires additional meta tags.
-                  if(!embeddedMetadata.summaryChallenge){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryChallenge" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryChallenge meta tag and try running this script again.`);
-                  }
-
-                  if(!embeddedMetadata.summarySolution){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summarySolution" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summarySolution meta tag and try running this script again.`);
-                  }
-
-                  if(!embeddedMetadata.summaryKeyResults){
-                    throw new Error(`Failed compiling markdown content: A case study article is missing a "summaryKeyResults" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a summaryKeyResults meta tag and try running this script again.`);
-                  } else if(embeddedMetadata.summaryKeyResults.split(';').length === 1) {
-                    // Make sure that summaryKeyResults meta tag values are semicolon-separated lists.
-                    throw new Error(`Failed compiling markdown content: A case study article has an invalid "summaryKeyResults" meta tag value at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, change the summaryKeyResults meta tag value to be a list of results separated by semi-colons (e.g., "Cut endpoint maintenance effort by 50%; Reduced licensing costs by 21%;") and try running this script again.`);
-                  }
-
-                  // If a companyLogoFilename meta tag is provided, make sure the image exists in the website/assets/images folder.
-                  if(embeddedMetadata.companyLogoFilename) {
-                    let companyLogoImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename));
-                    if(!companyLogoImageExists){
-                      throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "companyLogoFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.companyLogoFilename)}). Was it moved?`);
+                // If this is a whitepaper article, we'll check to make sure it has a whitepaperFilename and TODO metatags
+                if(embeddedMetadata.category === 'whitepaper') {
+                  if(!embeddedMetadata.whitepaperFilename){
+                    throw new Error(`Failed compiling markdown content: A whitepaper article is missing a 'whitepaperFilename' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a whitepaperFilename meta tag with a value that is the filename of a PDF whitepaper in the website/assets/pdf folder and try running this script again.`);
+                  } else {
+                    let whitePaperPdfExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/pdfs/'+embeddedMetadata.whitepaperFilename));
+                    if(!whitePaperPdfExists){
+                      throw new Error(`Failed compiling markdown content: A whitepaper article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "whitepaperFilename" meta tag value that references a PDF that is not in the website/assets/pdfs folder (${path.join(topLvlRepoPath, 'website/assets/pdfs/'+embeddedMetadata.whitepaperFilename)}). Was it moved?`);
                     }
                   }
-
-                  if(embeddedMetadata.quoteContent) {
-                    // If a quoteContent meta tag is provided, make sure that the article has quoteAuthorName, quoteAuthorJobTitle, and quoteAuthorImageFilename meta tags.
-                    if(!embeddedMetadata.quoteAuthorName) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorName" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorName meta tag and try running this script again.`);
+                }
+                // If this is a webinar article, we'll check to make sure it has a webinarEmbeddedVideoUrl meta tag.
+                if(embeddedMetadata.category === 'webinar') {
+                  if(!embeddedMetadata.webinarEmbeddedVideoUrl){
+                    throw new Error(`Failed compiling markdown content: A webinar article is missing a 'webinarEmbeddedVideoUrl' meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a webinarEmbeddedVideoUrl meta tag with a value that is the URL of the webinar this article is presenting, and try running this script again.`);
+                  } else {
+                    let parsedVideoUrl;
+                    try {
+                      parsedVideoUrl = require('url').parse(embeddedMetadata.webinarEmbeddedVideoUrl);
+                    } catch(err) {
+                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err);
                     }
-
-                    if(!embeddedMetadata.quoteAuthorJobTitle) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorJobTitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorJobTitle meta tag and try running this script again.`);
-                    }
-
-                    if(!embeddedMetadata.quoteAuthorImageFilename) {
-                      throw new Error(`Failed compiling markdown content: A case study article is missing a "quoteAuthorImageFilename" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a quoteAuthorImageFilename meta tag and try running this script again.`);
-                    } else {
-                      // If a quoteAuthorImageFilename meta tag is provided, make sure the file exists.
-                      let quoteAuthorImageExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename));
-                      if(!quoteAuthorImageExists){
-                        throw new Error(`Failed compiling markdown content: A case study article (${path.join(topLvlRepoPath, pageSourcePath)}) has a "quoteAuthorImageFilename" meta tag value that references an image that is not in the website/assets/images folder (${path.join(topLvlRepoPath, 'website/assets/images/'+embeddedMetadata.quoteAuthorImageFilename)}). Was it moved?`);
-                      }
+                    if(parsedVideoUrl.search) {
+                      throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
                     }
                   }
                 }
                 // If this is a comparison article, we will require a different set of meta tags and will determine the URL of the page using the articleSlugInCategory meta tag.
                 if(embeddedMetadata.category === 'comparison') {
-                  if(!embeddedMetadata.articleSubtitle){
-                    throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSubtitle" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSubtitle meta tag and try running this script again.`);
-                  }
-
                   if(!embeddedMetadata.articleSlugInCategory){
                     throw new Error(`Failed compiling markdown content: A comparison article is missing a "articleSlugInCategory" meta tag at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, add a articleSlugInCategory meta tag and try running this script again.`);
                   }
@@ -758,7 +796,7 @@ module.exports = {
                   // If the article is categorized as 'product' we'll replace the category with 'use-cases', or if it is categorized as 'success story' we'll replace it with 'device-management'
                   rootRelativeUrlPath = (
                     '/' +
-                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
+                    (encodeURIComponent(embeddedMetadata.category === 'success stories' ? 'success-stories' : embeddedMetadata.category === 'security' ? 'securing' : embeddedMetadata.category === 'whitepaper' ? 'whitepapers' : embeddedMetadata.category === 'webinar' ? 'webinars' : embeddedMetadata.category === 'case study' ? 'case-study' : embeddedMetadata.category)) + '/' +
                     (pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,'').replace(/\./g, '-'))).join('/'))
                   );
                 }
@@ -877,7 +915,7 @@ module.exports = {
             }
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#apply). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#apply). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -994,14 +1032,26 @@ module.exports = {
                 if(column.platforms.length > 3) {// FUTURE: add support for more than three platform values in columns.
                   throw new Error('Support for more than three platforms in columns has not been implemented yet. If this column is supported on all platforms, you can omit the platforms array entirely.');
                 }
-
+                let lowercasePlatformValuesToFriendlyNames = {
+                  darwin: 'macOS',
+                  macos: 'macOS',
+                  linux: 'Linux',
+                  windows: 'Windows',
+                  chrome: 'ChromeOS',
+                };
+                // Normalize the capitalization of platform names.
+                column.platforms = column.platforms.map((platform)=>{
+                  return lowercasePlatformValuesToFriendlyNames[platform.toLowerCase()];
+                });
+                // Filter out any platforms not included in the list above.
+                column.platforms = _.filter(column.platforms, (platform =>{return !! platform;}));
                 if(column.platforms.length === 3) { // Because there are only four options for platform, we can safely assume that there will be at most 3 platforms, so we'll just handle this one of three ways
                   // If there are three, we'll add a string with an oxford comma. e.g., "On macOS, Windows, and Linux"
                   platformString += `${column.platforms[0]}, ${column.platforms[1]}, and ${column.platforms[2]}`;
                 } else if(column.platforms.length === 2) {
                   // If there are two values in the platforms array, it will be formated as "[Platform 1] and [Platform 2]"
                   platformString += `${column.platforms[0]} and ${column.platforms[1]}`;
-                } else {
+                } else if(column.platforms.length === 1) {
                   // Otherwise, there is only one value in the platform array and we'll add that value to the column's description
                   platformString += column.platforms[0];
                 }
@@ -1432,43 +1482,45 @@ module.exports = {
           // Get the uninstall script for this version.
           let scriptToUninstallThisApp = detailedInformationAboutThisApp.refs[latestUninstallScriptRef];
           // Modify the latest uninstall script to be on a single line.
+          if(app.platform === 'darwin'){
 
-          // Remove lines that only contain comments.
-          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
-          // Condense functions in the uninstall script onto a single line.
-          // For each function in the script:
-          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
-            // Split the function content into an array
-            let linesInFunction = functionContent.split('\n');
+            // Remove lines that only contain comments.
+            scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/^\s*#.*$/gm, '');
+            // Condense functions in the uninstall script onto a single line.
+            // For each function in the script:
+            scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/(\w+)\s*\(\)\s*\{([\s\S]*?)^\}/gm, (match, functionName, functionContent)=> {
+              // Split the function content into an array
+              let linesInFunction = functionContent.split('\n');
 
-            // Remove extra leading or trailing whitespace from each line.
-            linesInFunction = linesInFunction.map((line)=>{ return line.trim();});
+              // Remove extra leading or trailing whitespace from each line.
+              linesInFunction = linesInFunction.map((line)=>{ return line.trim();});
 
-            // Remove any empty lines
-            linesInFunction = linesInFunction.filter((lineText)=>{
-              return lineText.length > 0;
+              // Remove any empty lines
+              linesInFunction = linesInFunction.filter((lineText)=>{
+                return lineText.length > 0;
+              });
+              // Iterate through the lines in the function, adding semicolons to lines with commands.
+              linesInFunction = linesInFunction.map((text, lineIndex, lines)=>{
+                // If this is not the last line in the function, and it does not only contain a control stucture keyword, append a semi colon to it.
+                if(lineIndex !== lines.length - 1 && !/^\s*(if|while|for|do|else|then|done|return)/.test(text)) {
+                  return text + ';';
+                }
+                // Otherwise, do not add a semicolon
+                return text;
+              });
+              // Join the lines into a single string
+              let condensedBodyOfFunction = linesInFunction.join(' ');
+
+              // Return the condensed single-line function.
+              return `${functionName}() { ${condensedBodyOfFunction} }`;
             });
-            // Iterate through the lines in the function, adding semicolons to lines with commands.
-            linesInFunction = linesInFunction.map((text, lineIndex, lines)=>{
-              // If this is not the last line in the function, and it does not only contain a control stucture keyword, append a semi colon to it.
-              if(lineIndex !== lines.length - 1 && !/^\s*(if|while|for|do|else|then|done|return)/.test(text)) {
-                return text + ';';
-              }
-              // Otherwise, do not add a semicolon
-              return text;
-            });
-            // Join the lines into a single string
-            let condensedBodyOfFunction = linesInFunction.join(' ');
-
-            // Return the condensed single-line function.
-            return `${functionName}() { ${condensedBodyOfFunction} }`;
-          });
-          // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
-          scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
+            // Remove newlines with "&&" and remove any that are added to the end and beginning of the condensed command.
+            scriptToUninstallThisApp = scriptToUninstallThisApp.replace(/\n\s*/g, ' && ').replace(/ && $/, '').replace(/^ && /, '');
+          }
 
           // Add the uninstall script and the latest version to this app's configuration.
           // Note: we esacape the uninstall script to prevent issues when storing these values in the website's JSON configuration.
-          appInformation.uninstallScript = _.escape(scriptToUninstallThisApp);
+          appInformation.uninstallScript = scriptToUninstallThisApp;
           appInformation.version = latestVersionOfThisApp.version.split(',')[0];
           appLibrary.push(appInformation);
         });
@@ -1509,7 +1561,7 @@ module.exports = {
           }
 
           // Format the script so it be safely stored as a string in the website's JSON configuration.
-          script.script = _.escape(script.script);
+          script.script = script.script;
 
           // Create a url slug for this script
           script.slug = _.kebabCase(script.platform+' '+script.name);// ex: macos-collect-fleetd-logs
@@ -1570,8 +1622,9 @@ module.exports = {
           command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
 
 
-          command.command = _.escape(command.command);
+          // Note: The command descriptions are escaped because they include references to XML tags (e.g., <Data>) that can cause issues with Vue.
           command.description = _.escape(command.description);
+          command.command = command.command;
           // Create a url slug for this script
           command.slug = _.kebabCase(command.platform+' '+command.name);
 

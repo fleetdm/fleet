@@ -3,15 +3,15 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
 )
 
 type BatchScripts struct {
 	Datastore fleet.Datastore
-	Log       kitlog.Logger
+	Log       *slog.Logger
 }
 
 func (b *BatchScripts) Name() string {

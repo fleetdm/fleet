@@ -14,11 +14,11 @@ const AllTeamsMessage = ({ onExit }: IAllTeamsMessageProps) => {
   return (
     <>
       <p>
-        Please select a team first. Software can&apos;t be added when{" "}
+        Please select a fleet first. Software can&apos;t be added when{" "}
         <b>All teams</b> is selected.
       </p>
       <div className="modal-cta-wrap">
-        <Button onClick={onExit}>Done</Button>
+        <Button onClick={onExit}>Close</Button>
       </div>
     </>
   );
@@ -36,7 +36,7 @@ const AddSoftwareModal = ({ onExit, isFreeTier }: IAddSoftwareModalProps) => {
         <>
           <PremiumFeatureMessage alignment="left" />{" "}
           <div className="modal-cta-wrap">
-            <Button onClick={onExit}>Done</Button>
+            <Button onClick={onExit}>Close</Button>
           </div>
         </>
       );

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/sync/errgroup"
 )
 
 func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
@@ -64,13 +65,13 @@ SELECT
 	vap.icon_url AS icon_url
 FROM software_titles st
 %s
-LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
-LEFT JOIN software_installers si ON si.title_id = st.id AND %s
+LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND (%s)
+LEFT JOIN software_installers si ON si.title_id = st.id AND si.is_active = TRUE AND %s
 LEFT JOIN vpp_apps vap ON vap.title_id = st.id
 LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND %s
 LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND %s
 WHERE st.id = ? AND
-	(sthc.hosts_count > 0 OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
+	(sthc.software_title_id IS NOT NULL OR vat.adam_id IS NOT NULL OR si.id IS NOT NULL OR iha.title_id IS NOT NULL)
 GROUP BY
 	st.id,
 	st.name,
@@ -117,6 +118,7 @@ GROUP BY
 	}
 
 	title.VersionsCount = uint(len(title.Versions))
+
 	return &title, nil
 }
 
@@ -166,6 +168,52 @@ func (ds *Datastore) UpdateSoftwareTitleName(ctx context.Context, titleID uint, 
 	return nil
 }
 
+// softwareTitleWithInstallerFields extends SoftwareTitleListResult with db-scanned
+// installer/VPP/in-house columns that get promoted in post-processing.
+type softwareTitleWithInstallerFields struct {
+	fleet.SoftwareTitleListResult
+	PackageSelfService        *bool   `db:"package_self_service"`
+	PackageName               *string `db:"package_name"`
+	PackageVersion            *string `db:"package_version"`
+	PackagePlatform           *string `db:"package_platform"`
+	PackageURL                *string `db:"package_url"`
+	PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
+	VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
+	VPPAppAdamID              *string `db:"vpp_app_adam_id"`
+	VPPAppVersion             *string `db:"vpp_app_version"`
+	VPPAppPlatform            *string `db:"vpp_app_platform"`
+	VPPAppIconURL             *string `db:"vpp_app_icon_url"`
+	VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
+	FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
+	InHouseAppName            *string `db:"in_house_app_name"`
+	InHouseAppVersion         *string `db:"in_house_app_version"`
+	InHouseAppPlatform        *string `db:"in_house_app_platform"`
+	InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
+	InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
+}
+
+// canUseOptimizedListTitlesQuery returns true when the common fast-path can be used:
+// ordering by hosts_count with no filters that require additional JOINs at scan time.
+func canUseOptimizedListTitlesQuery(opts fleet.SoftwareTitleListOptions) bool {
+	orderKey := opts.ListOptions.OrderKey
+	if orderKey == "" {
+		orderKey = "hosts_count"
+	}
+	return orderKey == "hosts_count" &&
+		!opts.VulnerableOnly &&
+		opts.MinimumCVSS == 0 &&
+		opts.MaximumCVSS == 0 &&
+		!opts.KnownExploit &&
+		opts.ListOptions.MatchQuery == "" &&
+		!opts.AvailableForInstall &&
+		!opts.SelfServiceOnly &&
+		!opts.PackagesOnly &&
+		opts.Platform == "" &&
+		opts.HashSHA256 == "" &&
+		opts.PackageName == "" &&
+		!opts.ForSetupExperience
+}
+
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
@@ -205,6 +253,12 @@ func (ds *Datastore) ListSoftwareTitles(
 		}
 	}
 
+	// Fast path: optimized two-phase query for the common case of listing
+	// by hosts_count with no additional filters.
+	if canUseOptimizedListTitlesQuery(opt) {
+		return ds.listSoftwareTitlesOptimized(ctx, opt, tmFilter)
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args, err := selectSoftwareTitlesSQL(opt)
 	if err != nil {
@@ -214,55 +268,94 @@ func (ds *Datastore) ListSoftwareTitles(
 	// build the count statement before adding the pagination constraints to `getTitlesStmt`
 	getTitlesCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, getTitlesStmt)
 
-	// grab titles that match the list options
-	type softwareTitle struct {
-		fleet.SoftwareTitleListResult
-		PackageSelfService        *bool   `db:"package_self_service"`
-		PackageName               *string `db:"package_name"`
-		PackageVersion            *string `db:"package_version"`
-		PackagePlatform           *string `db:"package_platform"`
-		PackageURL                *string `db:"package_url"`
-		PackageInstallDuringSetup *bool   `db:"package_install_during_setup"`
-		VPPAppSelfService         *bool   `db:"vpp_app_self_service"`
-		VPPAppAdamID              *string `db:"vpp_app_adam_id"`
-		VPPAppVersion             *string `db:"vpp_app_version"`
-		VPPAppPlatform            *string `db:"vpp_app_platform"`
-		VPPAppIconURL             *string `db:"vpp_app_icon_url"`
-		VPPInstallDuringSetup     *bool   `db:"vpp_install_during_setup"`
-		FleetMaintainedAppID      *uint   `db:"fleet_maintained_app_id"`
-		InHouseAppName            *string `db:"in_house_app_name"`
-		InHouseAppVersion         *string `db:"in_house_app_version"`
-		InHouseAppPlatform        *string `db:"in_house_app_platform"`
-		InHouseAppStorageID       *string `db:"in_house_app_storage_id"`
-		InHouseAppSelfService     *bool   `db:"in_house_app_self_service"`
-	}
-	var softwareList []*softwareTitle
+	var softwareList []*softwareTitleWithInstallerFields
 	getTitlesStmt, args = appendListOptionsWithCursorToSQL(getTitlesStmt, args, &opt.ListOptions)
 	// appendListOptionsWithCursorToSQL doesn't support multicolumn sort, so
 	// we need to add it here
 	getTitlesStmt = spliceSecondaryOrderBySoftwareTitlesSQL(getTitlesStmt, opt.ListOptions)
-	if err := sqlx.SelectContext(ctx, dbReader, &softwareList, getTitlesStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "select software titles")
-	}
 
-	// perform a second query to grab the counts
+	// Run list and count queries in parallel.
 	var counts int
-	if err := sqlx.GetContext(ctx, dbReader, &counts, getTitlesCountStmt, args...); err != nil {
-		return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software titles count")
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, getTitlesStmt, args...); err != nil {
+			return ctxerr.Wrap(gCtx, err, "select software titles")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if err := sqlx.GetContext(gCtx, dbReader, &counts, getTitlesCountStmt, args...); err != nil {
+			return ctxerr.Wrap(gCtx, err, "get software titles count")
+		}
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		return nil, 0, nil, err
 	}
 
-	// if we don't have any matching titles, there's no point trying to
-	// find matching versions. Early return
+	return ds.processSoftwareTitleResults(ctx, dbReader, softwareList, counts, opt, tmFilter)
+}
+
+// listSoftwareTitlesOptimized is the fast path for listing software titles ordered by hosts_count.
+// It uses a two-phase query (covering index scan → enrich) and a dedicated count query,
+// running both in parallel.
+func (ds *Datastore) listSoftwareTitlesOptimized(
+	ctx context.Context,
+	opt fleet.SoftwareTitleListOptions,
+	tmFilter fleet.TeamFilter,
+) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	// Normalize PerPage the same way appendListOptionsWithCursorToSQL does for the fallback path.
+	if opt.ListOptions.PerPage == 0 {
+		opt.ListOptions.PerPage = fleet.DefaultPerPage
+	}
+
+	dbReader := ds.reader(ctx)
+
+	listSQL := buildOptimizedListSoftwareTitlesSQL(opt)
+	countSQL := countSoftwareTitlesOptimized(opt)
+
+	// Run list and count queries in parallel.
+	var softwareList []*softwareTitleWithInstallerFields
+	var counts int
+	g, gCtx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		if err := sqlx.SelectContext(gCtx, dbReader, &softwareList, listSQL); err != nil {
+			return ctxerr.Wrap(gCtx, err, "optimized select software titles")
+		}
+		return nil
+	})
+	g.Go(func() error {
+		if err := sqlx.GetContext(gCtx, dbReader, &counts, countSQL); err != nil {
+			return ctxerr.Wrap(gCtx, err, "optimized count software titles")
+		}
+		return nil
+	})
+	if err := g.Wait(); err != nil {
+		return nil, 0, nil, err
+	}
+
+	return ds.processSoftwareTitleResults(ctx, dbReader, softwareList, counts, opt, tmFilter)
+}
+
+// processSoftwareTitleResults handles the shared post-processing after the list and count queries
+// have returned. It promotes installer/VPP/in-house fields, fetches versions, policies, icons,
+// display names, fleet-maintained versions, and builds pagination metadata.
+func (ds *Datastore) processSoftwareTitleResults(
+	ctx context.Context,
+	dbReader sqlx.QueryerContext,
+	softwareList []*softwareTitleWithInstallerFields,
+	counts int,
+	opt fleet.SoftwareTitleListOptions,
+	tmFilter fleet.TeamFilter,
+) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if len(softwareList) == 0 {
 		return nil, counts, &fleet.PaginationMetadata{}, nil
 	}
 
-	// grab all the IDs to find matching versions below
 	titleIDs := make([]uint, len(softwareList))
-	// build an index to quickly access a title by its ID
 	titleIndex := make(map[uint]int, len(softwareList))
 	for i, title := range softwareList {
-		// promote software installer properties to their proper destination fields
+		// Promote software installer properties to their proper destination fields.
 		if title.PackageName != nil {
 			var version string
 			if title.PackageVersion != nil {
@@ -272,7 +365,6 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.PackagePlatform != nil {
 				platform = *title.PackagePlatform
 			}
-
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:                 *title.PackageName,
 				Version:              version,
@@ -284,7 +376,8 @@ func (ds *Datastore) ListSoftwareTitles(
 			}
 		}
 
-		// promote in-house app properties to their proper destination fields
+		// Promote in-house app properties. As per the spec, in-house apps are returned as software packages.
+		// https://github.com/fleetdm/fleet/pull/33950/files
 		if title.InHouseAppName != nil {
 			var version string
 			if title.InHouseAppVersion != nil {
@@ -294,22 +387,17 @@ func (ds *Datastore) ListSoftwareTitles(
 			if title.InHouseAppPlatform != nil {
 				platform = *title.InHouseAppPlatform
 			}
-
-			// as per the spec, in-house apps are returned as software packages
-			// https://github.com/fleetdm/fleet/pull/33950/files
 			title.SoftwarePackage = &fleet.SoftwarePackageOrApp{
 				Name:        *title.InHouseAppName,
 				Version:     version,
 				Platform:    platform,
 				SelfService: title.InHouseAppSelfService,
 			}
-
-			// this is set directly for software packages, but if this is an in-house
-			// app we need to set it here
+			// This is set directly for software packages via db tag, but for in-house apps we need to set it here.
 			title.HashSHA256 = title.InHouseAppStorageID
 		}
 
-		// promote the VPP app id and version to the proper destination fields
+		// Promote VPP app properties.
 		if title.VPPAppAdamID != nil {
 			var version string
 			if title.VPPAppVersion != nil {
@@ -333,15 +421,14 @@ func (ds *Datastore) ListSoftwareTitles(
 		titleIndex[title.ID] = i
 	}
 
-	// Grab the automatic install policies & software title icons, if any exist.
-	// Skip for "All teams" titles because automatic install policies are set on teams/No-team.
-	// Skip software title icons for "All teams" as they also require a team id to exist.
+	// Fetch automatic install policies, icons, and display names for team-scoped queries.
+	// Skip for "All teams" because automatic install policies are set on teams/No-team,
+	// and icons/display names also require a team id.
 	if opt.TeamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, *opt.TeamID)
 		if err != nil {
 			return nil, 0, nil, ctxerr.Wrap(ctx, err, "batch getting policies by software title IDs")
 		}
-
 		for _, p := range policies {
 			if i, ok := titleIndex[p.TitleID]; ok {
 				switch {
@@ -354,10 +441,9 @@ func (ds *Datastore) ListSoftwareTitles(
 						softwareList[i].SoftwarePackage.AutomaticInstallPolicies, p,
 					)
 				default:
-					level.Warn(ds.logger).Log(
+					ds.logger.WarnContext(ctx, "policy should have an associated VPP application or software package",
 						"team_id", opt.TeamID,
 						"policy_id", p.ID,
-						"msg", "policy should have an associated VPP application or software package",
 					)
 				}
 			}
@@ -386,14 +472,11 @@ func (ds *Datastore) ListSoftwareTitles(
 		}
 	}
 
-	// we grab matching versions separately and build the desired object in
-	// the application logic. This is because we need to support MySQL 5.7
-	// and there's no good way to do an aggregation that builds a structure
-	// (like a JSON) object for nested arrays.
+	// Fetch matching versions separately to avoid aggregating nested arrays in the main query.
 	batchSize := 32000
 	var versions []fleet.SoftwareVersion
-	err = common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
-		getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+	err := common_mysql.BatchProcessSimple(titleIDs, batchSize, func(titleIDsToProcess []uint) error {
+		getVersionsStmt, versionArgs, err := ds.selectSoftwareVersionsSQL(
 			titleIDsToProcess,
 			opt.TeamID,
 			tmFilter,
@@ -403,22 +486,44 @@ func (ds *Datastore) ListSoftwareTitles(
 			return ctxerr.Wrap(ctx, err, "build get versions stmt")
 		}
 		var versionsBatch []fleet.SoftwareVersion
-		if err := sqlx.SelectContext(ctx, dbReader, &versions, getVersionsStmt, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, dbReader, &versionsBatch, getVersionsStmt, versionArgs...); err != nil {
 			return ctxerr.Wrap(ctx, err, "get software versions")
 		}
 		versions = append(versions, versionsBatch...)
-
 		return nil
 	})
 	if err != nil {
 		return nil, 0, nil, err
 	}
 
-	// append matching versions to titles
 	for _, version := range versions {
 		if i, ok := titleIndex[version.TitleID]; ok {
 			softwareList[i].VersionsCount++
 			softwareList[i].Versions = append(softwareList[i].Versions, version)
+		}
+	}
+
+	// Populate FleetMaintainedVersions for titles that have a fleet-maintained app.
+	// This must happen before pagination trimming so titleIndex is still valid.
+	if opt.TeamID != nil {
+		var fmaTitleIDs []uint
+		for _, st := range softwareList {
+			if st.FleetMaintainedAppID != nil {
+				fmaTitleIDs = append(fmaTitleIDs, st.ID)
+			}
+		}
+		if len(fmaTitleIDs) > 0 {
+			fmaVersions, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), fmaTitleIDs, *opt.TeamID, false)
+			if err != nil {
+				return nil, 0, nil, ctxerr.Wrap(ctx, err, "get fleet maintained versions")
+			}
+			for titleID, fmaVers := range fmaVersions {
+				if i, ok := titleIndex[titleID]; ok {
+					if softwareList[i].SoftwarePackage != nil {
+						softwareList[i].SoftwarePackage.FleetMaintainedVersions = fmaVers
+					}
+				}
+			}
 		}
 	}
 
@@ -506,7 +611,7 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}} AND si.is_active = TRUE
 		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = {{teamID .}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
@@ -561,7 +666,7 @@ WHERE
 	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL OR iha.id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
-			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
+			{{$defFilter = $defFilter | printf " ( %s OR sthc.software_title_id IS NOT NULL ) "}}
 		{{ end }}
 		{{if and $.SelfServiceOnly (hasTeamID $)}}
 		   {{$defFilter = $defFilter | printf "%s AND ( si.self_service = 1 OR vat.self_service = 1 OR iha.self_service = 1 ) "}}
@@ -671,6 +776,303 @@ GROUP BY
 	return buff.String(), args, nil
 }
 
+// buildOptimizedListSoftwareTitlesSQL builds a two-phase query for listing software titles
+// ordered by hosts_count. Phase 1 (inner query) uses the covering index on
+// software_titles_host_counts to filter by team, then joins software_titles for the correct
+// secondary sort (name, source, extension_for), and paginates. Phase 2 (outer query)
+// enriches only the ~20 paginated IDs with installer/VPP/in-house details.
+func buildOptimizedListSoftwareTitlesSQL(opts fleet.SoftwareTitleListOptions) string {
+	hasTeamID := opts.TeamID != nil
+	teamID := uint(0)
+	if hasTeamID {
+		teamID = *opts.TeamID
+	}
+
+	globalStats := 0
+	if !hasTeamID {
+		globalStats = 1
+	}
+
+	direction := "DESC"
+	if opts.ListOptions.OrderDirection == fleet.OrderAscending {
+		direction = "ASC"
+	}
+
+	perPage := opts.ListOptions.PerPage
+	if perPage == 0 {
+		perPage = fleet.DefaultPerPage
+	}
+	offset := perPage * opts.ListOptions.Page
+	if opts.ListOptions.IncludeMetadata {
+		perPage++
+	}
+
+	// Build the inner query: find paginated title IDs sorted by (hosts_count, software_title_id).
+	// The secondary sort uses software_title_id (not name) for performance so that the entire ORDER BY is satisfied
+	// by the covering index (team_id, global_stats, hosts_count, software_title_id) without a filesort.
+	// Both columns use the same direction so MySQL can do a forward (ASC) or backward (DESC) index scan.
+	var innerSQL string
+	if !hasTeamID {
+		// All teams: only titles with host counts, no installer-only titles.
+		// Sprintf is safe here: all values are server-controlled (direction is a hardcoded ASC/DESC keyword,
+		// perPage and offset are derived from validated pagination options).
+		innerSQL = fmt.Sprintf(`
+			SELECT sthc.software_title_id, sthc.hosts_count
+			FROM software_titles_host_counts sthc
+			WHERE sthc.team_id = 0 AND sthc.global_stats = 1
+			ORDER BY sthc.hosts_count %[1]s, sthc.software_title_id %[1]s
+			LIMIT %[2]d`, direction, perPage)
+		if offset > 0 {
+			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
+		}
+	} else {
+		// Specific team: titles with host counts UNION installer-only titles.
+		// The UNION gathers all candidate IDs, then we sort by (hosts_count, software_title_id) and paginate.
+		// Sprintf is safe here: all values are server-controlled (teamID is a validated uint, direction is a
+		// hardcoded ASC/DESC keyword, perPage and offset are derived from validated pagination options).
+		innerSQL = fmt.Sprintf(`
+			SELECT combined.software_title_id, combined.hosts_count
+			FROM (
+				(SELECT sthc.software_title_id, sthc.hosts_count
+				FROM software_titles_host_counts sthc
+				WHERE sthc.team_id = %[1]d AND sthc.global_stats = 0)
+
+				UNION ALL
+
+				(SELECT t.title_id AS software_title_id, 0 AS hosts_count
+				FROM (
+					SELECT si.title_id FROM software_installers si
+					WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
+					UNION
+					SELECT vap.title_id FROM vpp_apps vap
+					INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
+					WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
+					UNION
+					SELECT iha.title_id FROM in_house_apps iha
+					WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
+				) AS t
+				LEFT JOIN software_titles_host_counts sthc
+					ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
+				WHERE sthc.software_title_id IS NULL)
+			) AS combined
+			ORDER BY combined.hosts_count %[2]s, combined.software_title_id %[2]s
+			LIMIT %[3]d`, teamID, direction, perPage)
+		if offset > 0 {
+			innerSQL += fmt.Sprintf(` OFFSET %d`, offset)
+		}
+	}
+
+	// Build the outer query: enrich only the paginated IDs with full details.
+	outerSQL := `
+		SELECT
+			st.id,
+			st.name,
+			st.source,
+			st.extension_for,
+			st.bundle_identifier,
+			st.application_id,
+			st.upgrade_code,
+			top.hosts_count,
+			COALESCE(sthc.updated_at, DATE('0001-01-01 00:00:00')) AS counts_updated_at`
+
+	if hasTeamID {
+		outerSQL += `,
+			si.self_service AS package_self_service,
+			si.filename AS package_name,
+			si.version AS package_version,
+			si.platform AS package_platform,
+			si.url AS package_url,
+			si.install_during_setup AS package_install_during_setup,
+			si.storage_id AS package_storage_id,
+			si.fleet_maintained_app_id,
+			vat.self_service AS vpp_app_self_service,
+			vat.adam_id AS vpp_app_adam_id,
+			vat.install_during_setup AS vpp_install_during_setup,
+			vap.latest_version AS vpp_app_version,
+			vap.platform AS vpp_app_platform,
+			vap.icon_url AS vpp_app_icon_url,
+			iha.filename AS in_house_app_name,
+			iha.version AS in_house_app_version,
+			iha.platform AS in_house_app_platform,
+			iha.storage_id AS in_house_app_storage_id,
+			iha.self_service AS in_house_app_self_service`
+	}
+
+	outerSQL += fmt.Sprintf(`
+		FROM (%s) AS top
+		LEFT JOIN software_titles st ON st.id = top.software_title_id
+		LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = top.software_title_id
+			AND sthc.team_id = %d AND sthc.global_stats = %d`,
+		innerSQL, teamID, globalStats)
+
+	if hasTeamID {
+		outerSQL += fmt.Sprintf(`
+		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %[1]d AND si.is_active = TRUE
+		LEFT JOIN in_house_apps iha ON iha.title_id = st.id AND iha.global_or_team_id = %[1]d
+		LEFT JOIN vpp_apps vap ON vap.title_id = st.id
+		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform
+			AND vat.global_or_team_id = %[1]d`, teamID)
+	}
+
+	outerSQL += `
+		WHERE st.id IS NOT NULL`
+
+	// Re-apply the same sort as inner query to keep results consistent.
+	outerSQL += fmt.Sprintf(`
+		ORDER BY top.hosts_count %[1]s, top.software_title_id %[1]s`,
+		direction)
+
+	return outerSQL
+}
+
+// countSoftwareTitlesOptimized builds a dedicated count query that avoids the expensive
+// full-query-wrapping approach. It counts titles with host counts via a simple index scan,
+// and when a team is specified, adds the count of installer-only titles (small set).
+func countSoftwareTitlesOptimized(opts fleet.SoftwareTitleListOptions) string {
+	hasTeamID := opts.TeamID != nil
+	teamID := uint(0)
+	if hasTeamID {
+		teamID = *opts.TeamID
+	}
+
+	if !hasTeamID {
+		// All teams: only count titles with host counts.
+		return `SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = 0 AND global_stats = 1`
+	}
+
+	// Specific team: count of host-count titles + count of installer-only titles.
+	return fmt.Sprintf(`
+		SELECT
+			(SELECT COUNT(*) FROM software_titles_host_counts WHERE team_id = %[1]d AND global_stats = 0)
+			+
+			(SELECT COUNT(DISTINCT t.title_id) FROM (
+				SELECT si.title_id FROM software_installers si
+				WHERE si.global_or_team_id = %[1]d AND si.is_active = TRUE AND si.title_id IS NOT NULL
+				UNION
+				SELECT vap.title_id FROM vpp_apps vap
+				INNER JOIN vpp_apps_teams vat ON vap.adam_id = vat.adam_id AND vat.platform = vap.platform
+				WHERE vat.global_or_team_id = %[1]d AND vap.title_id IS NOT NULL
+				UNION
+				SELECT iha.title_id FROM in_house_apps iha
+				WHERE iha.global_or_team_id = %[1]d AND iha.title_id IS NOT NULL
+			) AS t
+			LEFT JOIN software_titles_host_counts sthc
+				ON sthc.software_title_id = t.title_id AND sthc.team_id = %[1]d AND sthc.global_stats = 0
+			WHERE sthc.software_title_id IS NULL)
+		AS total_count`, teamID)
+}
+
+// GetFleetMaintainedVersionsByTitleID returns all cached versions of a fleet-maintained app
+// for the given title and team.
+func (ds *Datastore) GetFleetMaintainedVersionsByTitleID(ctx context.Context, teamID *uint, titleID uint, byVersion bool) ([]fleet.FleetMaintainedVersion, error) {
+	result, err := ds.getFleetMaintainedVersionsByTitleIDs(ctx, ds.reader(ctx), []uint{titleID}, ptr.ValOrZero(teamID), byVersion)
+	if err != nil {
+		return nil, err
+	}
+	return result[titleID], nil
+}
+
+// getFleetMaintainedVersionsByTitleIDs returns all cached versions of fleet-maintained apps
+// for the given title IDs and team, keyed by title ID.
+func (ds *Datastore) getFleetMaintainedVersionsByTitleIDs(ctx context.Context, q sqlx.QueryerContext, titleIDs []uint, teamID uint, byVersion bool) (map[uint][]fleet.FleetMaintainedVersion, error) {
+	if len(titleIDs) == 0 {
+		return nil, nil
+	}
+
+	query := `
+		SELECT si.id, si.version, si.title_id
+			FROM software_installers si
+		WHERE si.title_id IN (?) AND si.global_or_team_id = ? AND si.fleet_maintained_app_id IS NOT NULL
+	`
+	if byVersion {
+		query += ` ORDER BY si.version DESC`
+	} else {
+		query += ` ORDER BY si.title_id, si.uploaded_at DESC`
+	}
+
+	query, args, err := sqlx.In(query, titleIDs, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build fleet maintained versions query")
+	}
+
+	type fmaVersionRow struct {
+		fleet.FleetMaintainedVersion
+		TitleID uint `db:"title_id"`
+	}
+
+	var rows []fmaVersionRow
+	if err := sqlx.SelectContext(ctx, q, &rows, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select fleet maintained versions")
+	}
+
+	result := make(map[uint][]fleet.FleetMaintainedVersion, len(titleIDs))
+	for _, row := range rows {
+		result[row.TitleID] = append(result[row.TitleID], row.FleetMaintainedVersion)
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) HasFMAInstallerVersion(ctx context.Context, teamID *uint, fmaID uint, version string) (bool, error) {
+	var exists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
+		SELECT EXISTS(
+			SELECT 1 FROM software_installers
+				WHERE global_or_team_id = ? AND fleet_maintained_app_id = ? AND version = ?
+			LIMIT 1
+		)
+	`, ptr.ValOrZero(teamID), fmaID, version)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check FMA installer version exists")
+	}
+	return exists, nil
+}
+
+func (ds *Datastore) GetCachedFMAInstallerMetadata(ctx context.Context, teamID *uint, fmaID uint, version string) (*fleet.MaintainedApp, error) {
+	globalOrTeamID := ptr.ValOrZero(teamID)
+
+	var result fleet.MaintainedApp
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, `
+		SELECT
+			si.version,
+			si.platform,
+			si.url,
+			si.storage_id,
+			COALESCE(isc.contents, '') AS install_script,
+			COALESCE(usc.contents, '') AS uninstall_script,
+			COALESCE(si.pre_install_query, '') AS pre_install_query,
+			si.upgrade_code,
+			si.patch_query
+		FROM software_installers si
+		LEFT JOIN script_contents isc ON isc.id = si.install_script_content_id
+		LEFT JOIN script_contents usc ON usc.id = si.uninstall_script_content_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+		LIMIT 1
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, notFound("CachedFMAInstaller")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer metadata")
+	}
+
+	// Load categories
+	var categories []string
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &categories, `
+		SELECT sc.name FROM software_categories sc
+		JOIN software_installer_software_categories sisc ON sisc.software_category_id = sc.id
+		JOIN software_installers si ON si.id = sisc.software_installer_id
+		WHERE si.global_or_team_id = ? AND si.fleet_maintained_app_id = ? AND si.version = ?
+	`, globalOrTeamID, fmaID, version)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get cached FMA installer categories")
+	}
+	result.Categories = categories
+
+	return &result, nil
+}
+
 func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, teamID *uint, tmFilter fleet.TeamFilter, withCounts bool) (
 	string, []any, error,
 ) {
@@ -692,7 +1094,6 @@ LEFT JOIN software_host_counts shc ON shc.software_id = s.id AND %s
 LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
 AND %s
-AND shc.hosts_count > 0
 GROUP BY s.id`
 
 	extraSelect := ""
@@ -724,9 +1125,8 @@ GROUP BY s.id`
 // table.
 func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time.Time) error {
 	const (
-		resetStmt = `
-            UPDATE software_titles_host_counts
-            SET hosts_count = 0, updated_at = ?`
+		swapTable       = "software_titles_host_counts_swap"
+		swapTableCreate = "CREATE TABLE IF NOT EXISTS " + swapTable + " LIKE software_titles_host_counts"
 
 		globalCountsStmt = `
             SELECT
@@ -766,7 +1166,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 			GROUP BY st.id`
 
 		insertStmt = `
-            INSERT INTO software_titles_host_counts
+            INSERT INTO ` + swapTable + `
                 (software_title_id, hosts_count, team_id, global_stats, updated_at)
             VALUES
                 %s
@@ -775,30 +1175,19 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
                 updated_at = VALUES(updated_at)`
 
 		valuesPart = `(?, ?, ?, ?, ?),`
-
-		cleanupOrphanedStmt = `
-            DELETE sthc
-            FROM
-                software_titles_host_counts sthc
-                LEFT JOIN software_titles st ON st.id = sthc.software_title_id
-            WHERE
-                st.id IS NULL`
-
-		cleanupTeamStmt = `
-            DELETE sthc
-            FROM software_titles_host_counts sthc
-            LEFT JOIN teams t ON t.id = sthc.team_id
-            WHERE
-                sthc.team_id > 0 AND
-                t.id IS NULL`
 	)
 
-	// first, reset all counts to 0
-	if _, err := ds.writer(ctx).ExecContext(ctx, resetStmt, updatedAt); err != nil {
-		return ctxerr.Wrap(ctx, err, "reset all software_titles_host_counts to 0")
+	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
+	w := ds.writer(ctx)
+	if _, err := w.ExecContext(ctx, "DROP TABLE IF EXISTS "+swapTable); err != nil {
+		return ctxerr.Wrap(ctx, err, "drop existing swap table")
+	}
+	// CREATE TABLE ... LIKE copies structure including CHECK constraints (with auto-generated names).
+	if _, err := w.ExecContext(ctx, swapTableCreate); err != nil {
+		return ctxerr.Wrap(ctx, err, "create swap table")
 	}
 
-	// next get a cursor for the global and team counts for each software
+	// Get a cursor for the global and team counts for each software title.
 	stmtLabel := []string{"global", "team", "no_team"}
 	for i, countStmt := range []string{globalCountsStmt, teamCountsStmt, noTeamCountsStmt} {
 		rows, err := ds.reader(ctx).QueryContext(ctx, countStmt)
@@ -850,16 +1239,25 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		rows.Close()
 	}
 
-	// remove any software count row for software that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupOrphanedStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing software")
-	}
-
-	// remove any software count row for teams that don't exist anymore
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupTeamStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete software_titles_host_counts for non-existing teams")
-	}
-	return nil
+	// Atomic table swap: rename the swap table to the real table, drop the old one.
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_titles_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop leftover old table")
+		}
+		_, err = tx.ExecContext(ctx, `
+			RENAME TABLE
+				software_titles_host_counts TO software_titles_host_counts_old,
+				`+swapTable+` TO software_titles_host_counts`)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "atomic table swap")
+		}
+		_, err = tx.ExecContext(ctx, "DROP TABLE IF EXISTS software_titles_host_counts_old")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "drop old table after swap")
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) UpdateSoftwareTitleAutoUpdateConfig(ctx context.Context, titleID uint, teamID uint, config fleet.SoftwareAutoUpdateConfig) error {

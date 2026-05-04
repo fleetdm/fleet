@@ -10,7 +10,7 @@ import {
   buildSoftwareVulnFiltersQueryParams,
   getVulnFilterRenderDetails,
   ISoftwareVulnFiltersParams,
-} from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 import {
   HostPlatform,
@@ -30,9 +30,6 @@ import TableCount from "components/TableContainer/TableCount";
 import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
-import { SUPPORT_LINK } from "utilities/constants";
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -75,6 +72,7 @@ interface IHostSoftwareTableProps {
   page: number;
   pagePath: string;
   vulnFilters: ISoftwareVulnFiltersParams;
+  teamId?: number;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
   onShowInventoryVersions: (software: IHostSoftware) => void;
@@ -92,6 +90,7 @@ const HostSoftwareTable = ({
   page,
   pagePath,
   vulnFilters,
+  teamId,
   onAddFiltersClick,
   isMyDevicePage,
   onShowInventoryVersions,
@@ -124,6 +123,7 @@ const HostSoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        fleet_id: teamId,
         ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
       return newQueryParam;
@@ -222,7 +222,7 @@ const HostSoftwareTable = ({
             searchQuery={searchQuery}
           />
         )}
-        customFiltersButton={
+        customControl={
           showFilterHeaders ? renderCustomFiltersButton : undefined
         }
         stackControls

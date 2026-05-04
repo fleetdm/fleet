@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -10,7 +11,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
 )
@@ -95,7 +95,7 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	worker := &SoftwareWorker{
 		Datastore:     ds,
 		AndroidModule: androidModule,
-		Log:           kitlog.NewNopLogger(),
+		Log:           slog.New(slog.DiscardHandler),
 	}
 
 	err := worker.bulkSetAndroidAppsAvailableForHosts(ctx, map[string]uint{hostUUID: hostID}, "enterprises/test")
@@ -149,7 +149,7 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 	worker := &SoftwareWorker{
 		Datastore:     ds,
 		AndroidModule: androidModule,
-		Log:           kitlog.NewNopLogger(),
+		Log:           slog.New(slog.DiscardHandler),
 	}
 
 	// Simulate adding a VPP app via BatchAssociateVPPApps

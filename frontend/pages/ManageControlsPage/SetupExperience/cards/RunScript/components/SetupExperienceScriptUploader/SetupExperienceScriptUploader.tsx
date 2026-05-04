@@ -39,7 +39,7 @@ const SetupExperienceScriptUploader = ({
 
     try {
       await mdmAPI.uploadSetupExperienceScript(file, currentTeamId);
-      renderFlash("success", "Successfully uploaded!");
+      renderFlash("success", "Successfully uploaded.");
       onUpload();
     } catch (e) {
       // TODO: what errors?

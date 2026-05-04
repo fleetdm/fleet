@@ -39,7 +39,7 @@ const EulaUploader = ({ onUpload }: IEulaUploaderProps) => {
 
     try {
       await mdmAPI.uploadEULA(file);
-      renderFlash("success", "Successfully updated end user authentication!");
+      renderFlash("success", "Successfully updated end user authentication.");
       onUpload();
     } catch (e) {
       const error = e as AxiosResponse<IApiError>;

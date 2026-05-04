@@ -4,8 +4,7 @@ import { ITeamFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
-// @ts-ignore
+
 import InputField from "components/forms/fields/InputField";
 
 const baseClass = "create-team-modal";
@@ -41,7 +40,7 @@ const CreateTeamModal = ({
   );
 
   const onFormSubmit = useCallback(
-    (evt: any) => {
+    (evt: React.FormEvent<HTMLFormElement>) => {
       evt.preventDefault();
       onSubmit({
         name: name.trim(),
@@ -51,7 +50,7 @@ const CreateTeamModal = ({
   );
 
   return (
-    <Modal title="Create team" onExit={onCancel} className={baseClass}>
+    <Modal title="Create fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -64,21 +63,16 @@ const CreateTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label="Team name"
+          label="Fleet name"
           placeholder="Workstations"
           value={name}
           error={errors.name}
           ignore1password
         />
-        <InfoBanner className={`${baseClass}__sandbox-info`}>
-          To organize your hosts, create a team, like
-          &ldquo;Workstations,&rdquo; &ldquo;Servers,&rdquo; or &ldquo;Servers
-          (canary)&rdquo;.
-        </InfoBanner>
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            disabled={name === ""}
+            disabled={name.trim() === ""}
             className="create-loading"
             isLoading={isUpdatingTeams}
           >

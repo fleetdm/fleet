@@ -115,7 +115,7 @@ func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleI
 
 func (ds *Datastore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
 	_, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM software_title_icons WHERE team_id = ?
-		AND software_title_id NOT IN (SELECT title_id FROM vpp_apps va JOIN vpp_apps_teams vat 
+		AND software_title_id NOT IN (SELECT title_id FROM vpp_apps va JOIN vpp_apps_teams vat
 			ON vat.adam_id = va.adam_id AND vat.platform = va.platform WHERE global_or_team_id = ?)
 		AND software_title_id NOT IN (SELECT title_id FROM software_installers WHERE global_or_team_id = ?)
 		AND software_title_id NOT IN (SELECT title_id FROM in_house_apps WHERE global_or_team_id = ?)`,
@@ -132,8 +132,10 @@ func (ds *Datastore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, iconSt
 		return nil
 	}
 
+	// Read from the writer: a stale replica missing a freshly-inserted
+	// storage_id would cause its in-use file to be deleted.
 	var storageIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_title_icons`); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &storageIDs, `SELECT DISTINCT storage_id FROM software_title_icons`); err != nil {
 		return ctxerr.Wrap(ctx, err, "get list of software title icons in use")
 	}
 
@@ -161,9 +163,13 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
 		LEFT JOIN teams ON software_title_icons.team_id = teams.id
 		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
+			AND software_installers.global_or_team_id = software_title_icons.team_id
 		LEFT JOIN in_house_apps ON in_house_apps.title_id = software_titles.id
+			AND in_house_apps.global_or_team_id = software_title_icons.team_id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id
+			AND vpp_apps_teams.platform = vpp_apps.platform
+			AND vpp_apps_teams.global_or_team_id = software_title_icons.team_id
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)
@@ -172,9 +178,10 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 	}
 
 	type ActivitySoftwareLabel struct {
-		ID      uint   `db:"id"`
-		Name    string `db:"name"`
-		Exclude bool   `db:"exclude"`
+		ID         uint   `db:"id"`
+		Name       string `db:"name"`
+		Exclude    bool   `db:"exclude"`
+		RequireAll bool   `db:"require_all"`
 	}
 	var labels []ActivitySoftwareLabel
 	if details.SoftwareInstallerID != nil {
@@ -182,7 +189,8 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			SELECT
 				labels.id AS id,
 				labels.name AS name,
-				software_installer_labels.exclude AS exclude
+				software_installer_labels.exclude AS exclude,
+				software_installer_labels.require_all AS require_all
 			FROM software_installer_labels
 			INNER JOIN labels ON software_installer_labels.label_id = labels.id
 			WHERE software_installer_id = ?
@@ -196,7 +204,8 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			SELECT
 				labels.id AS id,
 				labels.name AS name,
-				vpp_app_team_labels.exclude AS exclude
+				vpp_app_team_labels.exclude AS exclude,
+				vpp_app_team_labels.require_all AS require_all
 			FROM vpp_app_team_labels
 			INNER JOIN labels ON vpp_app_team_labels.label_id = labels.id
 			WHERE vpp_app_team_id = ?
@@ -210,7 +219,8 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			SELECT
 				labels.id AS id,
 				labels.name AS name,
-				in_house_app_labels.exclude AS exclude
+				in_house_app_labels.exclude AS exclude,
+				in_house_app_labels.require_all AS require_all
 			FROM in_house_app_labels
 			INNER JOIN labels ON in_house_app_labels.label_id = labels.id
 			WHERE in_house_app_id = ?
@@ -221,16 +231,28 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 	}
 
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			details.LabelsExcludeAny = append(details.LabelsExcludeAny, fleet.ActivitySoftwareLabel{
 				ID:   l.ID,
 				Name: l.Name,
 			})
-		} else {
+
+		case !l.Exclude && l.RequireAll:
+			details.LabelsIncludeAll = append(details.LabelsIncludeAll, fleet.ActivitySoftwareLabel{
+				ID:   l.ID,
+				Name: l.Name,
+			})
+
+		case !l.Exclude && !l.RequireAll:
 			details.LabelsIncludeAny = append(details.LabelsIncludeAny, fleet.ActivitySoftwareLabel{
 				ID:   l.ID,
 				Name: l.Name,
 			})
+
+		default:
+			// should never happen, we don't support ExcludeAll currently
+			ds.logger.ErrorContext(ctx, "unsupported label condition 'exclude-all' encountered for software", "title_id", titleID, "label_id", l.ID)
 		}
 	}
 

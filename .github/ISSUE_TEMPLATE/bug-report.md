@@ -7,7 +7,9 @@ assignees: ''
 
 ---
 
-**Fleet version**: <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
+**Fleet versions** <!-- Copy this from the "My account" page in the Fleet UI, or run `fleetctl --version` -->
+  - *Discovered:* <!-- Fleet version where the issue was first observed -->
+  - *Reproduced:* <!-- Fleet version where the issue was successfully reproduced/confirmed -->
 
 **Web browser and operating system**: <!-- e.g. Chrome 88.0.4324 running on macOS -->
 
@@ -17,8 +19,8 @@ assignees: ''
 <!-- What did you see?  Paste a screenshot, include a 30s video, or write 1-2 sentences describing the issue you observed. -->
 TODO
 
-### 🛠️ To fix
-<!-- Add the expected fix here. If you're not sure, leave this blank for product to specify.  -->
+### 🛠️ Expected behavior
+<!-- Add the expected behavior here. If you're not sure, you can leave this blank for the Product Designer (PD) to specify. -->
 TODO
 
 ### 🧑‍💻  Steps to reproduce

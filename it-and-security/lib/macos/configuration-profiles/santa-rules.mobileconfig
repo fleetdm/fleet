@@ -34,15 +34,6 @@
 										<key>rule_type</key>
 										<string>BINARY</string>
 									</dict>
-									<dict>
-										<!-- Block WhatsApp.app -->
-										<key>identifier</key>
-										<string>54a8ec11bcea48a276b1fdce556a29108ba77de4</string>
-										<key>policy</key>
-										<string>BLOCKLIST</string>
-										<key>rule_type</key>
-										<string>CDHASH</string>
-									</dict>									
 								</array>
 							</dict>
 						</dict>

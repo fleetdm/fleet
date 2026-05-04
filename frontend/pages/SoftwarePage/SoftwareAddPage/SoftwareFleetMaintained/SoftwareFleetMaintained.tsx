@@ -60,6 +60,8 @@ const SoftwareFleetMaintained = ({
     order_direction = DEFAULT_SORT_DIRECTION,
     query = "",
     page,
+    platform,
+    status,
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
@@ -115,6 +117,8 @@ const SoftwareFleetMaintained = ({
         orderKey={order_key}
         perPage={DEFAULT_PAGE_SIZE}
         currentPage={currentPage}
+        platformParam={platform}
+        statusParam={status}
       />
     </div>
   );

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"maps"
 	"net/http"
 	"slices"
@@ -15,17 +16,16 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, androidAgentConfig config.AndroidAgentConfig) error {
 	return ReconcileProfilesWithClient(ctx, ds, logger, licenseKey, nil, androidAgentConfig)
 }
 
 // ReconcileProfilesWithClient is like ReconcileProfiles but allows injecting a custom client for testing.
 // If client is nil, a new AMAPI client will be created.
-func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
+func ReconcileProfilesWithClient(ctx context.Context, ds fleet.Datastore, logger *slog.Logger, licenseKey string, client androidmgmt.Client, androidAgentConfig config.AndroidAgentConfig) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -71,7 +71,7 @@ type profileReconciler struct {
 	Enterprise         *android.Enterprise
 	Client             androidmgmt.Client
 	AndroidAgentConfig config.AndroidAgentConfig
-	Logger             kitlog.Logger
+	Logger             *slog.Logger
 }
 
 func getClientAuthenticationSecret(ctx context.Context, ds fleet.Datastore) (string, error) {
@@ -117,10 +117,21 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 		toRemoveByHostUUID[prof.HostUUID] = append(toRemoveByHostUUID[prof.HostUUID], prof)
 	}
 
+	// Extract ONC cert aliases once for all hosts (profile contents are shared),
+	// then batch-fetch cert statuses for all hosts in a single DB query.
+	certAliases := extractProfileCertAliases(ctx, r.Logger, profilesContents)
+	var allCertStatuses map[string]map[string]fleet.CertificateTemplateStatus
+	if len(certAliases) > 0 {
+		allCertStatuses, err = r.DS.GetCertificateTemplateStatusesByNameForHosts(ctx, slices.Collect(maps.Keys(profilesByHostUUID)))
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "batch get certificate template statuses")
+		}
+	}
+
 	var bulkHostProfs []*fleet.MDMAndroidProfilePayload
 	for hostUUID, toInstallProfs := range profilesByHostUUID {
 		toRemove := toRemoveByHostUUID[hostUUID]
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents)
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents, certAliases, allCertStatuses[hostUUID])
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
@@ -130,7 +141,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 
 	// if there are hosts with only profiles to remove, process them too
 	for hostUUID, toRemove := range toRemoveByHostUUID {
-		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil)
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil, nil, nil)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
@@ -149,6 +160,8 @@ func (r *profileReconciler) sendHostProfiles(
 	profilesToMerge []*fleet.MDMAndroidProfilePayload,
 	profilesToRemove []*fleet.MDMAndroidProfilePayload,
 	profilesContents map[string]json.RawMessage,
+	certAliases map[string][]string,
+	certStatuses map[string]fleet.CertificateTemplateStatus,
 ) ([]*fleet.MDMAndroidProfilePayload, error) {
 	const maxRequestFailures = 3
 
@@ -162,8 +175,32 @@ func (r *profileReconciler) sendHostProfiles(
 		return cmp.Compare(a.ProfileName, b.ProfileName)
 	})
 
+	// Withhold profiles whose openNetworkConfiguration references certificates
+	// that are not yet verified or terminally failed on this host.
+	var withheldProfiles []*fleet.MDMAndroidProfilePayload
+	if len(certAliases) > 0 {
+		profilesToMerge, withheldProfiles = filterProfilesWithPendingCerts(profilesToMerge, certAliases, certStatuses)
+	}
+
 	// map of the bulk struct keyed by profile UUID
-	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove))
+	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove)+len(withheldProfiles))
+
+	// appendWithheld adds withheld profiles to the result. Called before every return
+	// so they're always persisted, but after the policy patch loop so they don't get
+	// policy request metadata set on them.
+	appendWithheld := func() {
+		for _, prof := range withheldProfiles {
+			status := fleet.MDMDeliveryPending
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
+				HostUUID:      hostUUID,
+				Status:        &status,
+				OperationType: fleet.MDMOperationTypeInstall,
+				ProfileUUID:   prof.ProfileUUID,
+				ProfileName:   prof.ProfileName,
+				Detail:        prof.Detail,
+			}
+		}
+	}
 
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
@@ -211,6 +248,7 @@ func (r *profileReconciler) sendHostProfiles(
 				Detail:        detail,
 			}
 		}
+		appendWithheld()
 		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 	}
 
@@ -318,6 +356,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 	if patchPolicyReqFailed {
+		appendWithheld()
 		return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 	}
 
@@ -369,6 +408,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 	}
 
+	appendWithheld()
 	return slices.Collect(maps.Values(bulkProfilesByUUID)), nil
 }
 
@@ -405,9 +445,9 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 	}
 	sb.WriteString("%q")
 	if len(overriddenFields) > 1 {
-		sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+		sb.WriteString(" aren't applied. They are overridden by other configuration profiles.")
 	} else {
-		sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+		sb.WriteString(" isn't applied. It's overridden by another configuration profile.")
 	}
 
 	args := make([]any, len(overriddenFields))
@@ -415,6 +455,72 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 		args[i] = s
 	}
 	return fmt.Sprintf(sb.String(), args...)
+}
+
+// profileCertAliases holds the extracted cert aliases (or parse error) for a profile.
+// extractProfileCertAliases parses ONC cert aliases from all profile contents upfront.
+// Returns a non-empty map only if at least one profile has aliases.
+func extractProfileCertAliases(ctx context.Context, logger *slog.Logger, profilesContents map[string]json.RawMessage) map[string][]string {
+	result := make(map[string][]string)
+	for profileUUID, content := range profilesContents {
+		aliases, err := android.ExtractCertAliasesFromProfileJSON(content)
+		if err != nil {
+			// Should not happen since profiles are validated on upload.
+			logger.ErrorContext(ctx, "failed to extract ONC cert aliases from profile", "profile.uuid", profileUUID, "err", err)
+			ctxerr.Handle(ctx, err)
+			continue
+		}
+		if len(aliases) > 0 {
+			result[profileUUID] = aliases
+		}
+	}
+	return result
+}
+
+// filterProfilesWithPendingCerts separates profiles into those ready to merge
+// and those that should be withheld because they contain openNetworkConfiguration
+// with ClientCertKeyPairAlias references to certificates not yet in a terminal
+// state (verified or failed) on the host.
+func filterProfilesWithPendingCerts(
+	profiles []*fleet.MDMAndroidProfilePayload,
+	profileAliases map[string][]string,
+	certStatuses map[string]fleet.CertificateTemplateStatus,
+) (ready, withheld []*fleet.MDMAndroidProfilePayload) {
+	for _, prof := range profiles {
+		aliases, ok := profileAliases[prof.ProfileUUID]
+		if !ok {
+			ready = append(ready, prof)
+			continue
+		}
+
+		shouldWithhold := false
+		var pendingCertName string
+		for _, alias := range aliases {
+			status, exists := certStatuses[alias]
+			if !exists {
+				// No cert template with this name assigned to host.
+				// Admin may be referencing a pre-installed cert.
+				continue
+			}
+			if status != fleet.CertificateTemplateVerified &&
+				status != fleet.CertificateTemplateFailed {
+				shouldWithhold = true
+				pendingCertName = alias
+				break
+			}
+		}
+
+		if shouldWithhold {
+			prof.Detail = fmt.Sprintf(
+				fleet.ONCProfileWithheldDetailPrefix+" %q to be installed on the host before applying this profile.",
+				pendingCertName,
+			)
+			withheld = append(withheld, prof)
+		} else {
+			ready = append(ready, prof)
+		}
+	}
+	return ready, withheld
 }
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,

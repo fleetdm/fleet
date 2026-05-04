@@ -6,11 +6,6 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import {
-  createMockBatchScriptSummary,
-  createMockScriptBatchHostResults,
-} from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import {
@@ -33,7 +28,7 @@ export interface IScriptsResponse {
 export interface IListScriptsApiParams {
   page?: number;
   per_page?: number;
-  team_id?: number;
+  fleet_id?: number;
 }
 
 export interface IListScriptsQueryKey extends IListScriptsApiParams {
@@ -107,7 +102,7 @@ export interface IScriptBatchSupportedFilters {
   query?: string;
   label_id?: number;
   team_id?: number;
-  status: any; // TODO - improve upstream typing
+  status?: string; // TODO: More defined typing
 }
 interface IRunScriptBatchRequestBase {
   script_id: number;
@@ -183,7 +178,7 @@ export interface IScriptBatchSummaryV2 extends IScriptBatchHostCountsV2 {
 }
 
 export interface IScriptBatchSummariesParams {
-  team_id: number;
+  fleet_id: number;
   status: ScriptBatchStatus;
   page: number;
   per_page: number;
@@ -239,7 +234,7 @@ export default {
 
   getScripts(params: IListScriptsApiParams): Promise<IScriptsResponse> {
     const { SCRIPTS } = endpoints;
-    const path = `${SCRIPTS}?${buildQueryStringFromParams({ ...params })}`;
+    const path = `${SCRIPTS}?${buildQueryStringFromParams(params)}`;
 
     return sendRequest("GET", path);
   },
@@ -256,7 +251,7 @@ export default {
     formData.append("script", file);
 
     if (teamId) {
-      formData.append("team_id", teamId.toString());
+      formData.append("fleet_id", teamId.toString());
     }
 
     return sendRequest("POST", SCRIPTS, formData);
@@ -327,7 +322,7 @@ export default {
   ): Promise<IScriptBatchSummariesResponse> {
     const path = `${
       endpoints.SCRIPT_RUN_BATCH_SUMMARIES
-    }?${buildQueryStringFromParams({ ...params })}`;
+    }?${buildQueryStringFromParams(params)}`;
     return sendRequest("GET", path);
   },
   getScriptBatchHostResults(

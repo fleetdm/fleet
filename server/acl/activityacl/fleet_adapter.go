@@ -16,16 +16,21 @@ import (
 // FleetServiceAdapter provides access to Fleet service methods
 // for data that the activity bounded context doesn't own.
 type FleetServiceAdapter struct {
-	svc fleet.UserLookupService
+	svc fleet.ActivityLookupService
 }
 
 // NewFleetServiceAdapter creates a new adapter for the Fleet service.
-func NewFleetServiceAdapter(svc fleet.UserLookupService) *FleetServiceAdapter {
+func NewFleetServiceAdapter(svc fleet.ActivityLookupService) *FleetServiceAdapter {
 	return &FleetServiceAdapter{svc: svc}
 }
 
-// Ensure FleetServiceAdapter implements activity.UserProvider
-var _ activity.UserProvider = (*FleetServiceAdapter)(nil)
+// Ensure FleetServiceAdapter implements the required interfaces
+var (
+	_ activity.UserProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.HostProvider              = (*FleetServiceAdapter)(nil)
+	_ activity.AppConfigProvider         = (*FleetServiceAdapter)(nil)
+	_ activity.UpcomingActivityActivator = (*FleetServiceAdapter)(nil)
+)
 
 // UsersByIDs fetches users by their IDs from the Fleet service.
 func (a *FleetServiceAdapter) UsersByIDs(ctx context.Context, ids []uint) ([]*activity.User, error) {
@@ -70,6 +75,18 @@ func (a *FleetServiceAdapter) FindUserIDs(ctx context.Context, query string) ([]
 	return ids, nil
 }
 
+// GetHostLite fetches minimal host information for authorization.
+func (a *FleetServiceAdapter) GetHostLite(ctx context.Context, hostID uint) (*activity.Host, error) {
+	host, err := a.svc.GetHostLite(ctx, hostID)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.Host{
+		ID:     host.ID,
+		TeamID: host.TeamID,
+	}, nil
+}
+
 func convertUser(u *fleet.UserSummary) *activity.User {
 	return &activity.User{
 		ID:       u.ID,
@@ -78,4 +95,21 @@ func convertUser(u *fleet.UserSummary) *activity.User {
 		Gravatar: u.GravatarURL,
 		APIOnly:  u.APIOnly,
 	}
+}
+
+// GetActivitiesWebhookConfig returns the webhook configuration for activities.
+func (a *FleetServiceAdapter) GetActivitiesWebhookConfig(ctx context.Context) (*activity.ActivitiesWebhookSettings, error) {
+	settings, err := a.svc.GetActivitiesWebhookSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &activity.ActivitiesWebhookSettings{
+		Enable:         settings.Enable,
+		DestinationURL: settings.DestinationURL,
+	}, nil
+}
+
+// ActivateNextUpcomingActivity activates the next upcoming activity in the queue.
+func (a *FleetServiceAdapter) ActivateNextUpcomingActivity(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return a.svc.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }

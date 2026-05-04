@@ -93,6 +93,26 @@ const isAnyTeamMaintainer = (user: IUser): boolean => {
   return false;
 };
 
+export const isTeamTechnician = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "technician";
+};
+
+export const isAnyTeamTechnician = (user: IUser): boolean => {
+  if (!isOnGlobalTeam(user)) {
+    return user.teams.some((team) => team?.role === "technician");
+  }
+
+  return false;
+};
+
+export const isGlobalTechnician = (user: IUser): boolean => {
+  return user.global_role === "technician";
+};
+
 const isAnyTeamAdmin = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
     return user.teams.some((team) => team?.role === "admin");
@@ -166,6 +186,9 @@ export default {
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
   isAnyTeamAdmin,
+  isTeamTechnician,
+  isAnyTeamTechnician,
+  isGlobalTechnician,
   isOnlyObserver,
   isObserverPlus,
   isNoAccess,

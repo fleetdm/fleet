@@ -20,6 +20,7 @@ interface IScriptListItemProps {
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
   onEdit: (script: IScript) => void;
+  isTechnician?: boolean;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -30,7 +31,7 @@ const getFileRenderDetails = (
 
   switch (fileExtension) {
     case "py":
-      return { graphicName: "file-py", platform: null };
+      return { graphicName: "file-py", platform: "macOS & Linux" };
     case "sh":
       return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":
@@ -79,6 +80,7 @@ const ScriptListItem = ({
   onDelete,
   onClickScript,
   onEdit,
+  isTechnician,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -139,14 +141,14 @@ const ScriptListItem = ({
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="text-link">{script.name}</Button>}
+      title={<Button variant="link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}
           createdAt={script.created_at}
         />
       }
-      actions={actions}
+      actions={isTechnician ? undefined : actions}
       onClick={() => onClickScript(script)}
     />
   );

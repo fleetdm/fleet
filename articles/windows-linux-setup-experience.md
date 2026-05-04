@@ -4,18 +4,33 @@ _Available in Fleet Premium_
 
 In Fleet, you can customize the out-of-the-box Windows and Linux setup.
 
+Currently, Windows setup experience is only supported for [manual enrollments](https://fleetdm.com/guides/windows-mdm-setup#manual-enrollment). [Automatic enrollment](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment) and [Autopilot](https://fleetdm.com/guides/windows-mdm-setup#windows-autopilot) support is coming soon.
+
+Currently, Linux setup experience is only supported for Ubuntu, Debian, Fedora, Amazon Linux, CentOS, openSUSE, and Red Hat Enterprise Linux (RHEL).
+
 Here's what you can configure, and in what order each happen, to your Windows and Linux hosts during setup:
 
 1. Require [end users to authenticate](#end-user-authentication) with your identity provider (IdP).
 
-2. [Install software](#install-software) including [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps). 
+2. [Install software](#install-software) including [app store apps](https://fleetdm.com/guides/install-app-store-apps), [custom packages](https://fleetdm.com/guides/deploy-software-packages) (e.g. a bootstrap package), and [Fleet-maintained apps](https://fleetdm.com/guides/fleet-maintained-apps).
+
+Below is the end user experience for Linux. Check out the separate video for [Windows](https://www.youtube.com/watch?v=SHqT29NP-nk).
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/UZAqw4pg9xE?si=rMhbfImonY4Avb06" frameborder="0" allowfullscreen></iframe>
+</div>
 
 ## End user authentication
 
 ### End user experience
 
-Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue.
+Fleet automatically opens the default web browser and directs the end user to log in before the setup process can continue. 
+
+If the end user enrolls through **Settings > Access work or school**, Fleet's authentication window will be skipped because the user already authenticated.
+
 Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
+
+When wiping and re-enrolling a host, delete the host from Fleet as well. Otherwise, end user authentication won’t be enforced when it re-enrolls.
 
 > If the Fleet agent (fleetd) installed on the host is older than version 1.50.0, end user authentication won't be enforced.
 
@@ -28,6 +43,8 @@ Fleet automatically opens the default web browser to show end users software ins
 ![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser-1795x1122@2x.png)
 
 The browser can be closed, and the installation will continue in the background. End users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
+
+For Linux, Fleet automatically installs on compatible platforms. This means `.deb` packages are only installed on Ubuntu and Debian hosts. `.rpm` packages are only installed on Fedora, CentOS, Amazon Linux, and Red Hat Enterprise Linux (RHEL).
 
 If software installs fail, Fleet automatically retries. Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience#end-user-authentication).
 

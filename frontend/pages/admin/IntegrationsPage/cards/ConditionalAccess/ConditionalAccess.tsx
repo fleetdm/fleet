@@ -21,7 +21,7 @@ import {
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import { AppContext } from "context/app";
-import Spinner from "components/Spinner";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import { useQuery } from "react-query";
 import DataError from "components/DataError";
@@ -130,27 +130,25 @@ const DeleteConditionalAccessModal = ({
       onExit={toggleDeleteConditionalAccessModal}
       onEnter={handleDelete}
     >
-      <>
-        {copy}
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={handleDelete}
-            isLoading={isDeleting}
-            disabled={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={toggleDeleteConditionalAccessModal}
-            variant="inverse-alert"
-            disabled={isDeleting}
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      {copy}
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={handleDelete}
+          isLoading={isDeleting}
+          disabled={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={toggleDeleteConditionalAccessModal}
+          variant="inverse-alert"
+          disabled={isDeleting}
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
@@ -393,9 +391,22 @@ const ConditionalAccess = () => {
           )
         }
       >
-        {oktaConfigured
-          ? "Okta conditional access configured"
-          : "Connect Okta to enable conditional access."}
+        {oktaConfigured ? (
+          <span>
+            <TooltipWrapper
+              tipContent={
+                <>
+                  <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
+                </>
+              }
+            >
+              Okta
+            </TooltipWrapper>{" "}
+            conditional access connected.
+          </span>
+        ) : (
+          "Connect Okta to enable conditional access."
+        )}
       </SectionCard>
     );
   };
@@ -447,9 +458,22 @@ const ConditionalAccess = () => {
       entraCta = <Button onClick={toggleEntraModal}>Connect</Button>;
     }
 
-    let entraContent: string;
+    let entraContent: React.ReactNode;
     if (entraIsConfigured) {
-      entraContent = "Microsoft Entra conditional access configured";
+      entraContent = (
+        <span>
+          <TooltipWrapper
+            tipContent={
+              <>
+                <b>Tenant ID:</b> {entraTenantId}
+              </>
+            }
+          >
+            Microsoft Entra
+          </TooltipWrapper>{" "}
+          conditional access connected.
+        </span>
+      );
     } else if (entraIsAwaitingOAuth) {
       entraContent =
         "To complete your integration, follow the instructions in the other tab, then refresh this page to verify.";
@@ -525,8 +549,7 @@ const ConditionalAccess = () => {
               <TooltipWrapper
                 tipContent={
                   <>
-                    When enabled, end users will have the option to bypass Okta
-                    conditional access if they are unable to resolve failing
+                    Disables bypassing Okta conditional access for non-critical
                     policies.{" "}
                     <em>
                       (Default: <strong>Off</strong>)
@@ -534,7 +557,7 @@ const ConditionalAccess = () => {
                     <br />
                     <br />
                     Bypassing is valid for a single login attempt and is tracked
-                    in audit logs.
+                    in audit logs. Critical policies can never be bypassed.
                   </>
                 }
                 showArrow={false}

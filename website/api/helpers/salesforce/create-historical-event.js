@@ -51,6 +51,7 @@ module.exports = {
         'Fleet channel member in osquery Slack',
         'Implemented a trial key',
         'Signed up for Fleet event',
+        'Registered for a conference',
         'Engaged with Fleetie at event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
@@ -63,6 +64,9 @@ module.exports = {
         'Scheduled a "Let\'s get you set up" meeting',
         'Submitted the "GitOps workshop request" form',
         'Signed up for a fleetdm.com account',
+        'Requested whitepaper download',
+        'Created a quote for a self-service Fleet Premium license',
+        'Requested webinar recording',
       ]
     },
     eventContent: {

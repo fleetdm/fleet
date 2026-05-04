@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/url"
 	"regexp"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/str"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -26,8 +28,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/spf13/cast"
 )
@@ -44,7 +44,7 @@ type DetailQuery struct {
 	Query string
 	// QueryFunc is optionally used to dynamically build a query. If false is returned, then the query should be
 	// ignored.
-	QueryFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
+	QueryFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool)
 	// Discovery is the SQL query that defines whether the query will run on the host or not.
 	// If not set, Fleet makes sure the query will always run.
 	Discovery string
@@ -61,15 +61,15 @@ type DetailQuery struct {
 	SoftwareProcessResults func(mainSoftwareResults []map[string]string, additionalSoftwareResults []map[string]string) []map[string]string
 	// IngestFunc translates a query result into an update to the host struct,
 	// around data that lives on the hosts table.
-	IngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error
+	IngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error
 	// DirectIngestFunc gathers results from a query and directly works with the datastore to
 	// persist them. This is usually used for host data stored in a separate table.
 	// DirectTaskIngestFunc must not be set if this is set.
-	DirectIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
+	DirectIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error
 	// DirectTaskIngestFunc is similar to DirectIngestFunc except that it uses a task to
 	// ingest the results. This is for ingestion that can be either sync or async.
 	// DirectIngestFunc must not be set if this is set.
-	DirectTaskIngestFunc func(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
+	DirectTaskIngestFunc func(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error
 }
 
 // RunsForPlatform determines whether this detail query should run on the given platform
@@ -132,9 +132,9 @@ AND blocks_size > 0
 
 -- exclude external storage
 AND path NOT LIKE '/media%' AND path NOT LIKE '/mnt%'
-  
+
 -- exclude device drivers
-AND path NOT LIKE '/dev%' 
+AND path NOT LIKE '/dev%'
 
 -- exclude kernel-related mounts
 AND path NOT LIKE '/proc%'
@@ -145,7 +145,7 @@ AND path NOT LIKE '/run%'
 AND path NOT LIKE '/var/run%'
 
 -- exclude boot files
-AND path NOT LIKE '/boot%' 
+AND path NOT LIKE '/boot%'
 
 -- exclude snap packages
 AND path NOT LIKE '/snap%' AND path NOT LIKE '/var/snap%'
@@ -155,21 +155,21 @@ AND path NOT LIKE '/var/lib/docker%'
 AND path NOT LIKE '/var/lib/containers%'
 
 AND type IN (
-'ext4', 
-'ext3', 
-'ext2', 
-'xfs', 
-'btrfs', 
-'ntfs', 
+'ext4',
+'ext3',
+'ext2',
+'xfs',
+'btrfs',
+'ntfs',
 'vfat',
 'fuseblk', --seen on NTFS and exFAT volumes mounted via FUSE
 'zfs' --also valid storage
 )
 AND (
-device LIKE '/dev/sd%' 
-OR device LIKE '/dev/hd%' 
-OR device LIKE '/dev/vd%' 
-OR device LIKE '/dev/nvme%' 
+device LIKE '/dev/sd%'
+OR device LIKE '/dev/hd%'
+OR device LIKE '/dev/vd%'
+OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
@@ -201,10 +201,10 @@ var hostDetailQueries = map[string]DetailQuery{
 		// Note that data for `operating_system` and `host_operating_system` tables are ingested via
 		// the `os_unix_like` extra detail query below.
 		Query: "SELECT * FROM os_version LIMIT 1",
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)))
+				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_os_version expected single result got %d", len(rows)),
+					"component", "service", "method", "IngestFunc")
 				return nil
 			}
 
@@ -261,23 +261,31 @@ var hostDetailQueries = map[string]DetailQuery{
 			SELECT data AS ubr
 			FROM registry
 			WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+		),
+		installation_type_table AS (
+			SELECT data AS installation_type
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 		)
 		SELECT
 			os.name,
 			COALESCE(d.display_version, '') AS display_version,
-			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version
+			COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
+			COALESCE(it.installation_type, '') AS installation_type
 		FROM
 			os_version os,
 			kernel_info k
 		LEFT JOIN
 			display_version_table d
 		LEFT JOIN
-			ubr_table u`,
+			ubr_table u
+		LEFT JOIN
+			installation_type_table it`,
 		Platforms: []string{"windows"},
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)))
+				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_os_version_windows expected single result got %d", len(rows)),
+					"component", "service", "method", "IngestFunc")
 				return nil
 			}
 
@@ -285,6 +293,9 @@ var hostDetailQueries = map[string]DetailQuery{
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			s = strings.TrimSpace(s)
+			if strings.EqualFold(rows[0]["installation_type"], "Server Core") {
+				s += " (Server Core)"
+			}
 			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
@@ -297,7 +308,7 @@ var hostDetailQueries = map[string]DetailQuery{
 		// distributed_interval (but it's not required), and typically
 		// do not control config_tls_refresh.
 		Query: `select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")`,
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			var configTLSRefresh, configRefresh uint
 			var configRefreshSeen, configTLSRefreshSeen bool
 			for _, row := range rows {
@@ -355,10 +366,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"osquery_info": {
 		Query: "select * from osquery_info limit 1",
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)))
+				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_osquery_info expected single result got %d", len(rows)),
+					"component", "service", "method", "IngestFunc")
 				return nil
 			}
 
@@ -369,10 +380,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"system_info": {
 		Query: "select * from system_info limit 1",
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)))
+				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_system_info expected single result got %d", len(rows)),
+					"component", "service", "method", "IngestFunc")
 				return nil
 			}
 
@@ -410,10 +421,10 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"uptime": {
 		Query: "select * from uptime limit 1",
-		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+		IngestFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
-				logger.Log("component", "service", "method", "IngestFunc", "err",
-					fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)))
+				logger.ErrorContext(ctx, fmt.Sprintf("detail_query_uptime expected single result got %d", len(rows)),
+					"component", "service", "method", "IngestFunc")
 				return nil
 			}
 
@@ -437,7 +448,30 @@ var hostDetailQueries = map[string]DetailQuery{
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
 					 (SELECT round(SUM(blocks * blocks_size) * 10e-10, 2) FROM mounts %s) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;`, linuxGigsAllDiskSpaceSubQueryConditions),
-		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
+		Platforms:        fleet.HostLinuxOSs,
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin": {
+		Query: `
+SELECT
+    ROUND(bytes_available * 100.0 / bytes_total, 2) AS percent_disk_space_available,
+    ROUND(bytes_available * 10e-10, 2) AS gigs_disk_space_available,
+    ROUND(bytes_total * 10e-10, 2) AS gigs_total_disk_space
+FROM disk_space LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        discoveryTable("disk_space"),
+		DirectIngestFunc: directIngestDiskSpace,
+	},
+
+	"disk_space_darwin_legacy": {
+		Query: `
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`,
+		Platforms:        []string{"darwin"},
+		Discovery:        fmt.Sprintf(`SELECT 1 WHERE NOT EXISTS (%s);`, discoveryTable("disk_space")),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
 
@@ -458,8 +492,8 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
-	logger = log.With(logger,
+func ingestNetworkInterface(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
+	logger = logger.With(
 		"component", "service",
 		"method", "IngestFunc",
 		"host", host.Hostname,
@@ -478,16 +512,16 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		if ip != nil {
 			host.PublicIP = ipStr
 		} else {
-			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+			logger.ErrorContext(ctx, fmt.Sprintf("expected an IP address, got %s", ipStr))
 		}
 	}
 
 	switch {
 	case len(rows) == 0:
-		level.Debug(logger).Log("err", "detail_query_network_interface did not find a private IP address")
+		logger.DebugContext(ctx, "detail_query_network_interface did not find a private IP address")
 		return nil
 	case len(rows) > 1:
-		level.Error(logger).Log("msg", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		logger.ErrorContext(ctx, fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
 	}
 
@@ -497,10 +531,10 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 	return nil
 }
 
-func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestDiskSpace(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
-		logger.Log("component", "service", "method", "directIngestDiskSpace", "err",
-			fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)))
+		logger.ErrorContext(ctx, fmt.Sprintf("detail_query_disk_space expected single result got %d", len(rows)),
+			"component", "service", "method", "directIngestDiskSpace")
 		return nil
 	}
 
@@ -534,7 +568,7 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal, gigsAllForFnCall)
 }
 
-func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
+func ingestKubequeryInfo(ctx context.Context, logger *slog.Logger, host *fleet.Host, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return fmt.Errorf("kubernetes_info expected single result got: %d", len(rows))
 	}
@@ -677,6 +711,11 @@ var extraDetailQueries = map[string]DetailQuery{
 	SELECT data AS ubr
 	FROM registry
 	WHERE path ='HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR'
+	),
+	installation_type_table AS (
+	SELECT data AS installation_type
+	FROM registry
+	WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\InstallationType'
 	)
 	SELECT
 		os.name,
@@ -684,14 +723,17 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.arch,
 		k.version as kernel_version,
 		COALESCE(CONCAT((SELECT version FROM os_version), '.', u.ubr), k.version) AS version,
-		COALESCE(d.display_version, '') AS display_version
+		COALESCE(d.display_version, '') AS display_version,
+		COALESCE(it.installation_type, '') AS installation_type
 	FROM
 		os_version os,
 		kernel_info k
 	LEFT JOIN
 		display_version_table d
 	LEFT JOIN
-		ubr_table u`,
+		ubr_table u
+	LEFT JOIN
+		installation_type_table it`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -757,26 +799,33 @@ var extraDetailQueries = map[string]DetailQuery{
 		// osquery table on darwin and linux, it is always present.
 	},
 	"disk_encryption_windows": {
-		// Bitlocker is an optional component on Windows Server and
-		// isn't guaranteed to be installed. If we try to query the
-		// bitlocker_info table when the bitlocker component isn't
-		// present, the query will crash and fail to report back to
-		// the server. Before querying bitlocke_info, we check if it's
-		// either:
-		// 1. both an optional component, and installed.
-		// OR
-		// 2. not optional, meaning it's built into the OS
+		// BitLocker is an optional component on Windows Server and
+		// isn't guaranteed to be installed. We use bl_available to
+		// gate the bitlocker_info access: if BitLocker isn't installed,
+		// bl_available returns 0 rows and the CROSS JOIN ensures
+		// bitlocker_info is never scanned. This is safe on Windows
+		// Server without BitLocker (verified on Server 2022 with
+		// osquery 5.22.1 -- osquery returns empty results with a
+		// WMI warning but does not crash).
+		//
+		// bl_available returns a row when BitLocker is either:
+		// 1. not listed as an optional feature (built into the OS), OR
+		// 2. listed as an optional feature and installed (state = 1)
+		//
+		// Returns protection_status and conversion_status so the server
+		// can distinguish "encrypted + protected" from "encrypted + unprotected".
 		Query: `
-	WITH encrypted(enabled) AS (
-		SELECT CASE WHEN
+	WITH bl_available(ok) AS (
+		SELECT 1 WHERE
 			NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
-			OR
-			(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
-		THEN (SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1)
-	END)
-	SELECT 1 FROM encrypted WHERE enabled IS NOT NULL`,
+			OR EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
+	)
+	SELECT bi.protection_status, bi.conversion_status
+	FROM bl_available
+	CROSS JOIN bitlocker_info bi
+	WHERE bi.drive_letter = 'C:'`,
 		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestDiskEncryption,
+		DirectIngestFunc: directIngestDiskEncryptionWindows,
 	},
 	"certificates_darwin": {
 		Query: `
@@ -840,12 +889,6 @@ var mdmQueries = map[string]DetailQuery{
 			discoveryTable("macos_profiles"),
 			discoveryTable("macos_user_profiles"),
 		),
-	},
-	"mdm_config_profiles_windows": {
-		QueryFunc:        buildConfigProfilesWindowsQuery,
-		Platforms:        []string{"windows"},
-		DirectIngestFunc: directIngestWindowsProfiles,
-		Discovery:        discoveryTable("mdm_bridge"),
 	},
 	// There are two mutually-exclusive queries used to read the FileVaultPRK depending on which
 	// extension tables are discovered on the agent. The preferred query uses the newer custom
@@ -936,29 +979,34 @@ func generateSQLForAllExists(subqueries ...string) string {
 	return sql
 }
 
+// Usernames starting with an underscore are excluded (macOS system accounts),
+// with the managed local admin (_fleetadmin) allowlisted so the ingest layer
+// can capture its UUID for MDM rotation. The ingest layer is responsible for
+// excluding _fleetadmin from host_users — see directIngestUsers.
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
  SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
- WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND (username NOT LIKE '\_%' ESCAPE '\' OR username = '` + fleet.ManagedLocalAccountUsername + `') AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
 func withCachedUsers(query string) string {
 	return fmt.Sprintf(query, usersQueryStr)
 }
 
-var windowsUpdateHistory = DetailQuery{
-	Query:            `SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'`,
-	Platforms:        []string{"windows"},
-	Discovery:        discoveryTable("windows_update_history"),
-	DirectIngestFunc: directIngestWindowsUpdateHistory,
-}
-
-// entraIDDetails holds the query and ingestion function for Microsoft "Conditional access" feature.
-var entraIDDetails = DetailQuery{
+// macOSEntraIDDetails holds the query and ingestion function for macOS for Microsoft "Conditional access" feature.
+var macOSEntraIDDetails = DetailQuery{
 	// The query ingests Entra's Device ID and User Principal Name of the account
 	// that logged in to the device (using Company Portal.app with the Platform SSO extension).
 	Query:            "SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';",
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
+	DirectIngestFunc: directIngestEntraIDDetails,
+}
+
+// windowsEntraIDDetails holds the query and ingestion function for Windows for Microsoft "Conditional access" feature.
+var windowsEntraIDDetails = DetailQuery{
+	// The query ingests Entra's Device ID of Windows devices that logged in to Entra via "Access work or school".
+	Query:            "SELECT subject AS device_id FROM certificates WHERE issuer LIKE 'net + windows + MS-Organization-Access%' LIMIT 1;",
+	Platforms:        []string{"windows"},
 	DirectIngestFunc: directIngestEntraIDDetails,
 }
 
@@ -974,7 +1022,9 @@ var softwareMacOS = DetailQuery{
 	// which is used in vulnerability scanning.
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
-  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'), TRIM(name, '.app') ) AS name,
+  COALESCE(NULLIF(display_name, ''), NULLIF(bundle_name, ''), NULLIF(NULLIF(bundle_executable, ''), 'run.sh'),
+    CASE WHEN name IS NOT NULL AND lower(name) LIKE '%%.app' THEN substr(name, 1, length(name) - 4) ELSE name END
+  ) AS name,
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   bundle_identifier AS bundle_identifier,
   '' AS extension_id,
@@ -1130,6 +1180,25 @@ SELECT
 FROM fleetd_pacman_packages`,
 	Platforms: fleet.HostLinuxOSs,
 	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
+var softwareGoBinaries = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS extension_for,
+  'go_binaries' AS source,
+  '' AS release,
+  '' AS vendor,
+  '' AS arch,
+  installed_path AS installed_path
+FROM go_binaries`,
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("go_binaries"),
 	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
 	// the results of this query are appended to the results of the other software queries.
 }
@@ -1613,6 +1682,146 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		Discovery:              discoveryTable("rpm_package_files"),
 		SoftwareProcessResults: processPackageLastOpenedAt("rpm_packages"),
 	},
+	// windows_program_files_scan detects Windows software installed to C:\Program Files that lacks
+	// registry Uninstall entries (invisible to the osquery programs table). Scans at depth 0
+	// (Vendor\app.exe) and depth 1 (Vendor\Subfolder\app.exe), excluding WindowsApps (already
+	// covered by the programs table). Deduplication against programs entries is handled server-side
+	// via SoftwareProcessResults. Also enables detection of Windows Defender (MsMpEng.exe) which
+	// does not create registry entries (#42878).
+	"windows_program_files_scan": {
+		Description: "A software override query[^1] to detect Windows software installed to Program Files without registry entries.",
+		Platforms:   []string{"windows"},
+		Query: `SELECT
+  path,
+  filename,
+  file_version,
+  product_version,
+  size
+FROM file
+WHERE (
+    path LIKE 'C:\Program Files\%\%.exe'
+    OR path LIKE 'C:\Program Files\%\%\%.exe'
+  )
+  AND path NOT LIKE 'C:\Program Files\WindowsApps\%'`,
+		SoftwareProcessResults: processProgramFilesScan,
+	},
+}
+
+// processProgramFilesScan deduplicates file scan results against existing programs entries,
+// then appends new (non-duplicate) entries to the main software results.
+//
+// Dedup uses a directory prefix check rather than direct path equality because
+// programs.install_location and the file scan path are not directly comparable:
+//   - install_location is a root directory (e.g. ...\GoLand 2025.3.3), not the exe path
+//   - The exe may be nested deeper (e.g. ...\GoLand 2025.3.3\bin\goland64.exe)
+//   - install_location may or may not have a trailing backslash
+//
+// By normalizing both sides (lowercase, trailing backslash) and checking whether the
+// exe's parent directory starts with a known install_location, we correctly match
+// executables at any depth beneath a program's install root.
+func processProgramFilesScan(mainSoftwareResults, fileScanResults []map[string]string) []map[string]string {
+	if len(fileScanResults) == 0 {
+		return mainSoftwareResults
+	}
+
+	// Build a set of normalized installed paths from existing programs entries.
+	// normalizeWindowsDir ensures consistent trailing backslash and lowercase.
+	//
+	// We skip over-broad locations (drive roots, Windows\System32) because some
+	// programs report install_location as e.g. "C:\" which would prefix-match
+	// every file scan result. See the analogous skipInstallPaths filter in the
+	// windows_last_opened_at handler.
+	skipInstallPaths := map[string]struct{}{
+		`\`:                     {},
+		`\windows\`:             {},
+		`\windows\system32\`:    {},
+		`\program files\`:       {},
+		`\program files (x86)\`: {},
+	}
+	knownPaths := make(map[string]struct{})
+	for _, row := range mainSoftwareResults {
+		if row["source"] != "programs" {
+			continue
+		}
+		p := normalizeWindowsDir(row["installed_path"])
+		if p == "" {
+			continue
+		}
+		// Strip the drive letter (e.g. "c:") to get a volume-relative path for skip checking.
+		if vol, rel, ok := strings.Cut(p, ":"); !ok || len(vol) != 1 || len(rel) == 0 {
+			continue
+		} else if _, skip := skipInstallPaths[rel]; skip {
+			continue
+		}
+		knownPaths[p] = struct{}{}
+	}
+
+	for _, row := range fileScanResults {
+		exePath := row["path"]
+		if exePath == "" {
+			continue
+		}
+
+		// Extract and normalize the directory containing the exe.
+		exeDir := normalizeWindowsDir(windowsDirname(exePath))
+
+		// An exe is a duplicate if its directory falls under any known install_location.
+		// For example, install_location "c:\program files\foo\" matches exe dir
+		// "c:\program files\foo\bin\" because the exe lives inside that install root.
+		duplicate := false
+		for knownPath := range knownPaths {
+			if strings.HasPrefix(exeDir, knownPath) {
+				duplicate = true
+				break
+			}
+		}
+		if duplicate {
+			continue
+		}
+
+		version := row["product_version"]
+		if version == "" {
+			version = row["file_version"]
+		}
+
+		mainSoftwareResults = append(mainSoftwareResults, map[string]string{
+			"name":              row["filename"],
+			"version":           version,
+			"source":            "programs",
+			"vendor":            "",
+			"installed_path":    windowsDirname(exePath),
+			"extension_id":      "",
+			"extension_for":     "",
+			"upgrade_code":      "",
+			"release":           "",
+			"arch":              "",
+			"bundle_identifier": "",
+			"last_opened_at":    "",
+		})
+	}
+
+	return mainSoftwareResults
+}
+
+// windowsDirname returns the directory portion of a Windows path (everything before the last backslash).
+func windowsDirname(path string) string {
+	if idx := strings.LastIndex(path, `\`); idx >= 0 {
+		return path[:idx]
+	}
+	return path
+}
+
+// normalizeWindowsDir lowercases a Windows directory path and ensures it ends with a backslash.
+func normalizeWindowsDir(path string) string {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return ""
+	}
+	path = strings.ToLower(path)
+	if !strings.HasSuffix(path, `\`) {
+		path += `\`
+	}
+	return path
 }
 
 // processPackageLastOpenedAt is a shared function that processes package last_opened_at information
@@ -1672,7 +1881,7 @@ var usersQueryChrome = DetailQuery{
 }
 
 // directIngestOrbitInfo ingests data from the orbit_info extension table.
-func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestOrbitInfo(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOrbitInfo invalid number of rows: %d", len(rows))
 	}
@@ -1693,23 +1902,28 @@ func directIngestOrbitInfo(ctx context.Context, logger log.Logger, host *fleet.H
 }
 
 // directIngestOSWindows ingests selected operating system data from a host on a Windows platform
-func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestOSWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSWindows invalid number of rows: %d", len(rows))
 	}
 
 	hostOS := fleet.OperatingSystem{
-		Name:          rows[0]["name"],
-		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["version"],
-		Platform:      rows[0]["platform"],
-		Version:       rows[0]["version"],
+		Name:             rows[0]["name"],
+		Arch:             rows[0]["arch"],
+		KernelVersion:    rows[0]["version"],
+		Platform:         rows[0]["platform"],
+		Version:          rows[0]["version"],
+		InstallationType: rows[0]["installation_type"],
 	}
 
 	displayVersion := rows[0]["display_version"]
 	if displayVersion != "" {
 		hostOS.Name += " " + displayVersion
 		hostOS.DisplayVersion = displayVersion
+	}
+
+	if strings.EqualFold(hostOS.InstallationType, "Server Core") {
+		hostOS.Name += " (Server Core)"
 	}
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
@@ -1720,11 +1934,14 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 
 // directIngestOSUnixLike ingests selected operating system data from a host on a Unix-like platform
 // (e.g., darwin, Linux or ChromeOS)
-func directIngestOSUnixLike(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestOSUnixLike(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) != 1 {
 		return ctxerr.Errorf(ctx, "directIngestOSUnixLike invalid number of rows: %d", len(rows))
 	}
 	name := rows[0]["name"]
+	if strings.HasPrefix(name, "Arch Linux") {
+		name = strings.TrimSuffix(name, " ARM")
+	}
 	version := rows[0]["version"]
 	major := rows[0]["major"]
 	minor := rows[0]["minor"]
@@ -1772,7 +1989,7 @@ func parseOSVersion(name string, version string, major string, minor string, pat
 	return osVersion
 }
 
-func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestChromeProfiles(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostDeviceMapping, 0, len(rows))
 	for _, row := range rows {
 		mapping = append(mapping, &fleet.HostDeviceMapping{
@@ -1790,13 +2007,13 @@ func directIngestChromeProfiles(ctx context.Context, logger log.Logger, host *fl
 // and the ommission of the `health` column on Windows, we are not leveraging the `health`
 // column in the query and instead aligning the definition of battery health between
 // macOS and Windows.
-func directIngestBattery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestBattery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	mapping := make([]*fleet.HostBattery, 0, len(rows))
 
 	for _, row := range rows {
-		health, cycleCount, err := generateBatteryHealth(row, logger)
+		health, cycleCount, err := generateBatteryHealth(ctx, row, logger)
 		if err != nil {
-			level.Error(logger).Log("op", "directIngestBattery", "hostID", host.ID, "err", err)
+			logger.ErrorContext(ctx, "directIngestBattery", "host_id", host.ID, "err", err)
 		}
 
 		mapping = append(mapping, &fleet.HostBattery{
@@ -1819,14 +2036,14 @@ const (
 )
 
 // generateBatteryHealth calculates the battery health based on the cycle count and capacity.
-func generateBatteryHealth(row map[string]string, logger log.Logger) (string, int, error) {
+func generateBatteryHealth(ctx context.Context, row map[string]string, logger *slog.Logger) (string, int, error) {
 	designedCapacity := row["designed_capacity"]
 	maxCapacity := row["max_capacity"]
 	cycleCount := row["cycle_count"]
 
 	count, err := strconv.Atoi(EmptyToZero(cycleCount))
 	if err != nil {
-		level.Error(logger).Log("op", "generateBatteryHealth", "err", err)
+		logger.ErrorContext(ctx, "generateBatteryHealth", "err", err)
 		// If we can't parse the cycle count, we'll assume it's 0
 		// and continue with the rest of the battery health check.
 		count = 0
@@ -1859,45 +2076,9 @@ func generateBatteryHealth(row map[string]string, logger log.Logger) (string, in
 	return batteryStatusGood, count, nil
 }
 
-func directIngestWindowsUpdateHistory(
-	ctx context.Context,
-	logger log.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	// The windows update history table will also contain entries for the Defender Antivirus. Unfortunately
-	// there's no reliable way to differentiate between those entries and Cumulative OS updates.
-	// Since each antivirus update will have the same KB ID, but different 'dates', to
-	// avoid trying to insert duplicated data, we group by KB ID and then take the most 'out of
-	// date' update in each group.
-
-	uniq := make(map[uint]fleet.WindowsUpdate)
-	for _, row := range rows {
-		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
-		if err != nil {
-			// If the update failed to parse then we log a debug error and ignore it.
-			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
-			level.Debug(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
-			continue
-		}
-
-		if v, ok := uniq[u.KBID]; !ok || v.MoreRecent(u) {
-			uniq[u.KBID] = u
-		}
-	}
-
-	var updates []fleet.WindowsUpdate
-	for _, v := range uniq {
-		updates = append(updates, v)
-	}
-
-	return ds.InsertWindowsUpdates(ctx, host.ID, updates)
-}
-
 func directIngestEntraIDDetails(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
@@ -1912,10 +2093,13 @@ func directIngestEntraIDDetails(
 	if deviceID == "" {
 		return ctxerr.New(ctx, "empty Entra ID device_id")
 	}
-	userPrincipalName := row["user_principal_name"]
+
 	// userPrincipalName can be empty on macOS workstations with e.g. two accounts:
-	// one logged in to Entra and the other one not logged in.
-	// While the second one is logged in, it would report the same Device ID but empty user principal name.
+	// One logged in to Entra and the other one not logged in. While the second one is
+	// logged in, it would report the same Device ID but empty user principal name.
+	//
+	// userPrincipalName is empty on Windows devices.
+	userPrincipalName := row["user_principal_name"]
 
 	if err := ds.CreateHostConditionalAccessStatus(ctx, host.ID, deviceID, userPrincipalName); err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to create host conditional access status")
@@ -1923,23 +2107,17 @@ func directIngestEntraIDDetails(
 	return nil
 }
 
-func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
+func directIngestScheduledQueryStats(ctx context.Context, logger *slog.Logger, host *fleet.Host, task *async.Task, rows []map[string]string) error {
 	packs := map[string][]fleet.ScheduledQueryStats{}
 	for _, row := range rows {
 		providedName := row["name"]
 		if providedName == "" {
-			level.Debug(logger).Log(
-				"msg", "host reported scheduled query with empty name",
-				"host", host.Hostname,
-			)
+			logger.DebugContext(ctx, "host reported scheduled query with empty name", "host", host.Hostname)
 			continue
 		}
 		delimiter := row["delimiter"]
 		if delimiter == "" {
-			level.Debug(logger).Log(
-				"msg", "host reported scheduled query with empty delimiter",
-				"host", host.Hostname,
-			)
+			logger.DebugContext(ctx, "host reported scheduled query with empty delimiter", "host", host.Hostname)
 			continue
 		}
 
@@ -1947,10 +2125,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		// It is normal for host to have no executions when the query just got scheduled.
 		executions := cast.ToUint64(row["executions"])
 		if executions == 0 {
-			level.Debug(logger).Log(
-				"msg", "host reported scheduled query with no executions",
-				"host", host.Hostname,
-			)
+			logger.DebugContext(ctx, "host reported scheduled query with no executions", "host", host.Hostname)
 			continue
 		}
 
@@ -1960,12 +2135,10 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		trimmedName := strings.TrimPrefix(providedName, "pack"+delimiter)
 		parts := strings.SplitN(trimmedName, delimiter, 2)
 		if len(parts) != 2 {
-			level.Debug(logger).Log(
-				"msg", "could not split pack and query names",
+			logger.DebugContext(ctx, "could not split pack and query names",
 				"host", host.Hostname,
 				"name", providedName,
-				"delimiter", delimiter,
-			)
+				"delimiter", delimiter)
 			continue
 		}
 		packName, scheduledName := parts[0], parts[1]
@@ -2013,10 +2186,9 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 }
 
 const (
-	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-	amazonLinuxKernelName = "kernel"
-	rhelKernelName        = "kernel-core"
-	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+	linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	rpmKernelName   = "kernel"
+	archKernelName  = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
 var (
@@ -2024,18 +2196,16 @@ var (
 	archKernelRegex = regexp.MustCompile(archKernelName)
 )
 
-func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestSoftware(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
 	sPaths := map[string]struct{}{}
 
 	for _, row := range rows {
 		// Attempt to parse the last_opened_at and emit a debug log if it fails.
 		if _, err := fleet.ParseSoftwareLastOpenedAtRowValue(row["last_opened_at"]); err != nil {
-			level.Debug(logger).Log(
-				"msg", "host reported software with invalid last opened timestamp",
+			logger.DebugContext(ctx, "host reported software with invalid last opened timestamp",
 				"host_id", host.ID,
-				"row", fmt.Sprintf("%+v", row),
-			)
+				"row", fmt.Sprintf("%+v", row))
 		}
 
 		s, err := fleet.SoftwareFromOsqueryRow(
@@ -2053,20 +2223,18 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			row["upgrade_code"],
 		)
 		if err != nil {
-			level.Debug(logger).Log(
-				"msg", "failed to parse software row",
+			logger.DebugContext(ctx, "failed to parse software row",
 				"host_id", host.ID,
 				"row", fmt.Sprintf("%+v", row),
-				"err", err,
-			)
+				"err", err)
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == rpmKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
-		MutateSoftwareOnIngestion(s, logger)
+		MutateSoftwareOnIngestion(ctx, s, logger)
 
 		if shouldRemoveSoftware(host, s) {
 			continue
@@ -2122,14 +2290,17 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 var (
 	dcvVersionFormat         = regexp.MustCompile(`^(\d+\.\d+)\s*\(r(\d+)\)$`)
 	tunnelblickVersionFormat = regexp.MustCompile(`^(.+?)\s*\(build\s+\d+\)$`)
-	basicAppSanitizers       = []struct {
+	// jetbrainsNameVersion extracts version from JetBrains product names like "WebStorm 2025.1",
+	// "GoLand 2025.3.3", or "IntelliJ IDEA 2025.3.1.1" (supports 2, 3, or 4 part versions)
+	jetbrainsNameVersion = regexp.MustCompile(`\s(\d{4}\.\d+(?:\.\d+){0,2})$`)
+	basicAppSanitizers   = []struct {
 		matchBundleIdentifier string
 		matchName             string
-		mutate                func(*fleet.Software, log.Logger)
+		mutate                func(*fleet.Software, *slog.Logger)
 	}{
 		{
 			matchBundleIdentifier: "com.nicesoftware.dcvviewer",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if versionMatches := dcvVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 3 {
 					s.Version = fmt.Sprintf("%s.%s", versionMatches[1], versionMatches[2])
 				}
@@ -2139,69 +2310,69 @@ var (
 		{
 			matchBundleIdentifier: "com.synology.DSAssistant",
 			matchName:             "DSAssistant",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "SynologyAssistant"
 			},
 		},
 		{
 			matchBundleIdentifier: "com.now.gg.BlueStacksMIM",
 			matchName:             "HD-MultiInstanceManager",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "BlueStacksMIM"
 			},
 		},
 		{
 			matchBundleIdentifier: "jp.go.jpki.JPKIUninstall",
 			matchName:             "JPKIUninstall.scpt",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "JPKIUninstall"
 			},
 		},
 		{
 			matchBundleIdentifier: "com.oracle.OracleDataModeler",
 			matchName:             "datamodeler.sh",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "OracleDataModeler"
 			},
 		},
 		{
 			matchBundleIdentifier: "com.easeus.ntfsformacdaemon",
 			matchName:             "euntfsservice",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "EaseUS NTFS Service"
 			},
 		},
 		{
 			matchBundleIdentifier: "com.poly.lens.legacyhost.app",
 			matchName:             "legacyhost",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "Poly Lens Desktop (Legacy)"
 			},
 		},
 		{
 			matchBundleIdentifier: "app.zen-browser.plugincontainer",
 			matchName:             "plugin-container",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "Zen Browser Plugin Container"
 			},
 		},
 		{
 			matchBundleIdentifier: "org.mozilla.plugincontainer",
 			matchName:             "plugin-container",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "Mozilla Plugin Container"
 			},
 		},
 		{
 			matchBundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
 			matchName:             "remoting_host_uninstaller",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "Chrome Remote Desktop Host Uninstaller"
 			},
 		},
 		{
 			matchName: "runemu",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if s.BundleIdentifier == "" {
 					s.Name = "Android Emulator"
 				}
@@ -2210,13 +2381,13 @@ var (
 		{
 			matchBundleIdentifier: "com.oracle.SQLDeveloper",
 			matchName:             "sqldeveloper.sh/",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "Oracle SQLDeveloper"
 			},
 		},
 		{
 			matchBundleIdentifier: "net.tunnelblick.tunnelblick",
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				if versionMatches := tunnelblickVersionFormat.FindStringSubmatch(s.Version); len(versionMatches) == 2 {
 					s.Version = versionMatches[1]
 				}
@@ -2224,19 +2395,60 @@ var (
 		},
 		// end of #34159 cleanup in basic matchers
 	}
-	customAppSanitizers = []struct {
+	customSanitizers = []struct {
 		matches func(*fleet.Software) bool
-		mutate  func(*fleet.Software, log.Logger)
+		mutate  func(*fleet.Software, *slog.Logger)
 	}{
 		{
 			matches: func(s *fleet.Software) bool { // #34159
-				return strings.HasPrefix(s.Name, "TNMS ") &&
+				return s.Source == "apps" &&
+					strings.HasPrefix(s.Name, "TNMS ") &&
 					strings.HasPrefix(s.BundleIdentifier, "TNMS_") &&
 					strings.Replace(s.BundleIdentifier, "_", " ", 1) == s.Name
 			},
-			mutate: func(s *fleet.Software, logger log.Logger) {
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
 				s.Name = "TNMS"
 				s.Version = strings.Replace(s.BundleIdentifier, "TNMS_", "", 1)
+			},
+		},
+		{
+			// JetBrains products on Windows report build numbers (e.g., "253.31033.139")
+			// instead of marketing versions. This sanitizer extracts the version from
+			// the product name (e.g., "GoLand 2025.3.3" -> "2025.3.3").
+			// Excludes JetBrains Toolbox which reports the correct version.
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.Contains(strings.ToLower(s.Vendor), "jetbrains") &&
+					!strings.Contains(s.Name, "Toolbox") &&
+					jetbrainsNameVersion.MatchString(s.Name)
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				if matches := jetbrainsNameVersion.FindStringSubmatch(s.Name); len(matches) == 2 {
+					s.Version = matches[1]
+				}
+			},
+		},
+		{
+			// For RHEL kernels, join version and release to match OVAL format.
+			// See server/vulnerabilities/goval_dictionary/database.Eval
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "rpm_packages" && s.Name == rpmKernelName && s.Release != ""
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Version = fmt.Sprintf("%s-%s", s.Version, s.Release)
+				s.Release = "" // Clear release to avoid issues with vulnerability matching
+			},
+		},
+		{
+			// Windows Defender's service executable (MsMpEng.exe) is installed under
+			// C:\Program Files\Windows Defender without registry Uninstall entries.
+			// Map it to a user-friendly name for software inventory. (#42878)
+			matches: func(s *fleet.Software) bool {
+				return s.Source == "programs" &&
+					strings.EqualFold(s.Name, "MsMpEng.exe")
+			},
+			mutate: func(s *fleet.Software, logger *slog.Logger) {
+				s.Name = "Windows Defender"
 			},
 		},
 	}
@@ -2245,33 +2457,36 @@ var (
 // MutateSoftwareOnIngestion performs any tweaks required to the ingested software fields.
 //
 // Some fields are reported with known incorrect values and we need to fix them before using them.
-func MutateSoftwareOnIngestion(s *fleet.Software, logger log.Logger) {
-	// all of our current on-ingest mutations use this table,
-	// so might as well let other stuff go faster and save some redundant checks inside the matchers
-	if s != nil && s.Source == "apps" {
+func MutateSoftwareOnIngestion(ctx context.Context, s *fleet.Software, logger *slog.Logger) {
+	if s == nil {
+		return
+	}
+	// basicAppSanitizers only apply to macOS apps
+	if s.Source == "apps" {
 		for _, sanitizer := range basicAppSanitizers {
 			if (sanitizer.matchBundleIdentifier != "" || sanitizer.matchName != "") &&
 				(sanitizer.matchBundleIdentifier == "" || sanitizer.matchBundleIdentifier == s.BundleIdentifier) &&
 				(sanitizer.matchName == "" || sanitizer.matchName == s.Name) {
 				defer func() {
 					if r := recover(); r != nil {
-						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+						logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
 					}
 				}()
 				sanitizer.mutate(s, logger)
 				break
 			}
 		}
-		for _, sanitizer := range customAppSanitizers {
-			if sanitizer.matches(s) {
-				defer func() {
-					if r := recover(); r != nil {
-						level.Warn(logger).Log("msg", "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
-					}
-				}()
-				sanitizer.mutate(s, logger)
-				break
-			}
+	}
+
+	for _, sanitizer := range customSanitizers {
+		if sanitizer.matches(s) {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.WarnContext(ctx, "panic during software mutation", "softwareName", s.Name, "softwareVersion", s.Version, "error", r)
+				}
+			}()
+			sanitizer.mutate(s, logger)
+			break
 		}
 	}
 }
@@ -2286,7 +2501,7 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
 }
 
-func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestUsers(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	var appleManagedUsername, appleManagedUserUUID string
 	if host.Platform == "darwin" {
@@ -2299,6 +2514,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
 		}
 	}
+	var managedLocalAccountUUID string
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -2318,6 +2534,12 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		groupname := row["groupname"]
 		shell := row["shell"]
 		uuid := row["uuid"]
+		// _fleetadmin is allowlisted in usersQueryStr only so we can capture its uuid for
+		// MDM rotation. Do not persist it in host_users.
+		if host.Platform == "darwin" && username == fleet.ManagedLocalAccountUsername {
+			managedLocalAccountUUID = uuid
+			continue
+		}
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -2335,6 +2557,9 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			}
 		}
 	}
+	if host.Platform == "darwin" && managedLocalAccountUUID != "" {
+		captureManagedLocalAccountUUID(ctx, logger, host, ds, managedLocalAccountUUID)
+	}
 	if len(users) == 0 {
 		return nil
 	}
@@ -2344,20 +2569,44 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 	return nil
 }
 
-func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+// captureManagedLocalAccountUUID persists the osquery-reported UUID for the
+// managed local admin account when a row exists and the stored value is NULL
+// or differs from the latest reported UUID. Errors are logged and swallowed
+// so host-detail ingestion is not blocked by this secondary concern.
+func captureManagedLocalAccountUUID(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, accountUUID string) {
+	existing, err := ds.GetManagedLocalAccountUUID(ctx, host.UUID)
+	if fleet.IsNotFound(err) {
+		return
+	}
+	if err != nil {
+		logger.ErrorContext(ctx, "get managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+		return
+	}
+	if existing != nil && *existing == accountUUID {
+		return
+	}
+	if err := ds.SetManagedLocalAccountUUID(ctx, host.UUID, accountUUID); err != nil {
+		logger.ErrorContext(ctx, "set managed local account uuid during user ingest",
+			"err", err, "host_id", host.ID, "host_uuid", host.UUID)
+	}
+}
+
+func directIngestMDMMac(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
-		logger.Log("component", "service", "method", "ingestMDM", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		logger.WarnContext(ctx, fmt.Sprintf("mdm expected single result got %d",
+			len(rows)), "component", "service", "method", "ingestMDM")
 		// assume the extension is not there
 		return nil
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "ingestMDM", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		logger.WarnContext(ctx, fmt.Sprintf("mdm expected single result got %d",
+			len(rows)), "component", "service", "method", "ingestMDM")
 	}
 
 	if host.RefetchCriticalQueriesUntil != nil {
-		level.Debug(logger).Log("msg", "ingesting macos mdm data during refetch critical queries window", "host_id", host.ID,
+		logger.DebugContext(ctx, "ingesting macos mdm data during refetch critical queries window",
+			"host_id", host.ID,
 			"data", fmt.Sprintf("%+v", rows))
 	}
 
@@ -2446,20 +2695,21 @@ func deduceMDMNameWindows(data map[string]string) string {
 	return fleet.MDMNameFromServerURL(serverURL)
 }
 
-func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestMDMWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// no mdm information in the registry
 		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "", false)
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
+		logger.WarnContext(ctx, fmt.Sprintf("mdm expected single result got %d",
+			len(rows)), "component", "service", "method", "directIngestMDMWindows")
 		// assume the extension is not there
 		return nil
 	}
 
 	if host.RefetchCriticalQueriesUntil != nil {
-		level.Debug(logger).Log("msg", "ingesting Windows mdm data during refetch critical queries window", "host_id", host.ID,
+		logger.DebugContext(ctx, "ingesting Windows mdm data during refetch critical queries window",
+			"host_id", host.ID,
 			"data", fmt.Sprintf("%+v", rows))
 	}
 
@@ -2509,22 +2759,22 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	)
 }
 
-func directIngestMunkiInfo(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestMunkiInfo(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// munki is not there, and we need to mark it deleted if it was there before
 		return ds.SetOrUpdateMunkiInfo(ctx, host.ID, "", []string{}, []string{})
 	}
 	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "ingestMunkiInfo", "warn",
-			fmt.Sprintf("munki_info expected single result got %d", len(rows)))
+		logger.WarnContext(ctx, fmt.Sprintf("munki_info expected single result got %d",
+			len(rows)), "component", "service", "method", "ingestMunkiInfo")
 	}
 
 	errors, warnings := rows[0]["errors"], rows[0]["warnings"]
-	errList, warnList := splitCleanSemicolonSeparated(errors), splitCleanSemicolonSeparated(warnings)
+	errList, warnList := str.SplitAndTrim(errors, ";", true), str.SplitAndTrim(warnings, ";", true)
 	return ds.SetOrUpdateMunkiInfo(ctx, host.ID, rows[0]["version"], errList, warnList)
 }
 
-func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestDiskEncryptionLinux(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := false
 	for _, row := range rows {
 		if row["path"] == "/" && row["encrypted"] == "1" {
@@ -2533,50 +2783,70 @@ func directIngestDiskEncryptionLinux(ctx context.Context, logger log.Logger, hos
 		}
 	}
 
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
 }
 
-func directIngestDiskEncryption(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestDiskEncryption(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	encrypted := len(rows) > 0
-	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted)
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, nil)
+}
+
+func directIngestDiskEncryptionWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	if len(rows) == 0 {
+		return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, false, nil)
+	}
+
+	row := rows[0]
+
+	conversionStatus, err := strconv.Atoi(row["conversion_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker conversion_status %q: %w", row["conversion_status"], err)
+	}
+	encrypted := conversionStatus == fleet.BitLockerConversionStatusFullyEncrypted
+
+	// Normalize protection_status=2 (unknown) to nil so downstream status
+	// logic treats it the same as hosts that haven't reported yet.
+	var protectionStatus *int
+	protectionStatusVal, err := strconv.Atoi(row["protection_status"])
+	if err != nil {
+		return fmt.Errorf("parsing bitlocker protection_status %q: %w", row["protection_status"], err)
+	}
+	if protectionStatusVal == fleet.BitLockerProtectionStatusOff || protectionStatusVal == fleet.BitLockerProtectionStatusOn {
+		protectionStatus = &protectionStatusVal
+	}
+	// protectionStatusVal == 2 (unknown) or any other value: leave protectionStatus as nil
+
+	return ds.SetOrUpdateHostDisksEncryption(ctx, host.ID, encrypted, protectionStatus)
 }
 
 // directIngestDiskEncryptionKeyFileDarwin ingests the FileVault key from the `filevault_prk`
 // extension table. It is the preferred method when a host has the extension table available.
 func directIngestDiskEncryptionKeyFileDarwin(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
 		// assume the extension is not there
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "no rows or failed",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
-			"msg", "no rows or failed",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
 	if len(rows) > 1 {
-		level.Debug(logger).Log(
-			"component", "service",
-			"method", "directIngestDiskEncryptionKeyFileDarwin",
-			"msg", fmt.Sprintf("filevault_prk should have a single row, but got %d", len(rows)),
-			"host", host.Hostname,
-		)
+		logger.DebugContext(ctx, fmt.Sprintf("filevault_prk should have a single row, but got %d", len(rows)),
+			"component", "service", "method", "directIngestDiskEncryptionKeyFileDarwin", "host", host.Hostname)
 	}
 
 	if rows[0]["encrypted"] != "1" {
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "host does not use disk encryption",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
-			"msg", "host does not use disk encryption",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
@@ -2592,12 +2862,10 @@ func directIngestDiskEncryptionKeyFileDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team / globally)
 	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host (team/globally)",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileDarwin",
-			"msg", "skipping key archival, disk encryption not enabled for host (team/globally)",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
@@ -2614,31 +2882,27 @@ func directIngestDiskEncryptionKeyFileDarwin(
 // table is not available on the host.
 func directIngestDiskEncryptionKeyFileLinesDarwin(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
 		// assume the extension is not there
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "no rows or failed",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
-			"msg", "no rows or failed",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
 	var hexLines []string
 	for _, row := range rows {
 		if row["encrypted"] != "1" {
-			level.Debug(logger).Log(
+			logger.DebugContext(ctx, "host does not use disk encryption",
 				"component", "service",
 				"method", "directIngestDiskEncryptionKeyDarwin",
-				"msg", "host does not use disk encryption",
-				"host", host.Hostname,
-			)
+				"host", host.Hostname)
 			return nil
 		}
 		hexLines = append(hexLines, row["hex_line"])
@@ -2667,12 +2931,10 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 
 	// Only archive the key if disk encryption is enabled for this host (team/globally)
 	if !IsDiskEncryptionEnabledForHost(ctx, logger, ds, host) {
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "skipping key archival, disk encryption not enabled for host team/globally",
 			"component", "service",
 			"method", "directIngestDiskEncryptionKeyFileLinesDarwin",
-			"msg", "skipping key archival, disk encryption not enabled for host team/globally",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
@@ -2684,7 +2946,7 @@ func directIngestDiskEncryptionKeyFileLinesDarwin(
 	return nil
 }
 
-func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+func buildConfigProfilesMacOSQuery(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
 	query := `
 		SELECT
 			display_name,
@@ -2697,8 +2959,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host 
 
 	username, _, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	if err != nil {
-		logger.Log("component", "service",
-			"method", "QueryFunc - macos config profiles", "err", err)
+		logger.ErrorContext(ctx, "QueryFunc - macos config profiles", "component", "service", "err", err)
 		return "", false
 	}
 
@@ -2721,19 +2982,17 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host 
 
 func directIngestMacOSProfiles(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
 		// assume the extension is not there
-		level.Debug(logger).Log(
+		logger.DebugContext(ctx, "no rows or failed",
 			"component", "service",
 			"method", "directIngestMacOSProfiles",
-			"msg", "no rows or failed",
-			"host", host.Hostname,
-		)
+			"host", host.Hostname)
 		return nil
 	}
 
@@ -2745,22 +3004,18 @@ func directIngestMacOSProfiles(
 		}
 		if installDate.IsZero() {
 			// this should never happen, but if it does, we should log it
-			level.Debug(logger).Log(
+			logger.DebugContext(ctx, "profile install date is zero value",
 				"component", "service",
 				"method", "directIngestMacOSProfiles",
-				"msg", "profile install date is zero value",
-				"host", host.Hostname,
-			)
+				"host", host.Hostname)
 		}
 		if _, ok := installed[row["identifier"]]; ok {
 			// this should never happen, but if it does, we should log it
-			level.Debug(logger).Log(
+			logger.DebugContext(ctx, "duplicate profile identifier",
 				"component", "service",
 				"method", "directIngestMacOSProfiles",
-				"msg", "duplicate profile identifier",
 				"host", host.Hostname,
-				"identifier", row["identifier"],
-			)
+				"identifier", row["identifier"])
 		}
 		installed[row["identifier"]] = &fleet.HostMacOSProfile{
 			DisplayName: row["display_name"],
@@ -2771,7 +3026,7 @@ func directIngestMacOSProfiles(
 	return apple_mdm.VerifyHostMDMProfiles(ctx, ds, host, installed)
 }
 
-func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+func directIngestMDMDeviceIDWindows(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	if len(rows) == 0 {
 		// this registry key is only going to be present if the device is enrolled to mdm so assume that mdm is turned off
 		return nil
@@ -2820,13 +3075,13 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 				// This enables fields like idp_full_name, idp_groups, etc. to appear in the API
 				if err := ds.SetOrUpdateHostSCIMUserMapping(ctx, host.ID, scimUser.ID); err != nil {
 					// Log the error but don't fail the request since the main IDP mapping succeeded
-					level.Debug(logger).Log("msg", "failed to set SCIM user mapping", "err", err)
+					logger.DebugContext(ctx, "failed to set SCIM user mapping", "err", err)
 				}
 			} else {
 				// User doesn't exist in SCIM, remove any existing SCIM mapping for this host
 				if err := ds.DeleteHostSCIMUserMapping(ctx, host.ID); err != nil && !fleet.IsNotFound(err) {
 					// Log the error but don't fail the request
-					level.Debug(logger).Log("msg", "failed to delete SCIM user mapping", "err", err)
+					logger.DebugContext(ctx, "failed to delete SCIM user mapping", "err", err)
 				}
 			}
 		}
@@ -2841,7 +3096,7 @@ var luksVerifyQuery = DetailQuery{
 		discoveryTable("lsblk"),
 		discoveryTable("cryptsetup_luks_salt"),
 	),
-	QueryFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
+	QueryFunc: func(ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore) (string, bool) {
 		if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" || !host.IsLUKSSupported() {
 			return "", false
 		}
@@ -2901,10 +3156,10 @@ var luksVerifyQuery = DetailQuery{
 
 // We need to define the ingest function inline like this because we need access to the server private key
 var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
-	ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	ctx context.Context, logger *slog.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	return func(
 		ctx context.Context,
-		logger log.Logger,
+		logger *slog.Logger,
 		host *fleet.Host,
 		ds fleet.Datastore,
 		rows []map[string]string,
@@ -2916,20 +3171,13 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 		dek, err := ds.GetHostDiskEncryptionKey(ctx, host.ID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				level.Error(logger).Log(
+				logger.ErrorContext(ctx, "unexpected missing LUKS2 disk encryption key",
 					"component", "service",
 					"method", "luksVerifyQueryIngester",
-					"msg", "unexpected missing LUKS2 disk encryption key",
-					"err", err,
-				)
+					"err", err)
 				return nil
 			}
-			level.Error(logger).Log(
-				"component", "service",
-				"method", "luksVerifyQueryIngester",
-				"msg", "unexpected error",
-				"err", err,
-			)
+			logger.ErrorContext(ctx, "unexpected error", "component", "service", "method", "luksVerifyQueryIngester", "err", err)
 			return err
 		}
 		if dek == nil || dek.Base64EncryptedSalt == "" || dek.KeySlot == nil {
@@ -2938,12 +3186,7 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 
 		storedSalt, err := decrypter(dek.Base64EncryptedSalt)
 		if err != nil {
-			level.Debug(logger).Log(
-				"component", "service",
-				"method", "luksVerifyQueryIngester",
-				"host", host.ID,
-				"err", err,
-			)
+			logger.DebugContext(ctx, "failed to decrypt stored salt", "component", "service", "method", "luksVerifyQueryIngester", "host", host.ID, "err", err)
 			return err
 		}
 		storedKeySlot := fmt.Sprintf("%d", *dek.KeySlot)
@@ -2954,12 +3197,10 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			hostKeySlot, okKeySlot := row["key_slot"]
 
 			if !okSalt || !okKeySlot {
-				level.Error(logger).Log(
+				logger.ErrorContext(ctx, "luks_verify expected some salt and a key_slot",
 					"component", "service",
 					"method", "luksVerifyQueryIngester",
-					"host", host.ID,
-					"err", "luks_verify expected some salt and a key_slot",
-				)
+					"host", host.ID)
 				continue
 			}
 			if hostSalt == storedSalt && hostKeySlot == storedKeySlot {
@@ -2968,12 +3209,10 @@ var luksVerifyQueryIngester = func(decrypter func(string) (string, error)) func(
 			}
 		}
 		if !entryFound {
-			level.Info(logger).Log(
+			logger.InfoContext(ctx, "LUKS key do not match, deleting",
 				"component", "service",
 				"method", "luksVerifyQueryIngester",
-				"host", host.ID,
-				"msg", "LUKS key do not match, deleting",
-			)
+				"host", host.ID)
 			return ds.DeleteLUKSData(ctx, host.ID, *dek.KeySlot)
 		}
 		return nil
@@ -3010,16 +3249,13 @@ var tpmPINQueries = map[string]DetailQuery{
 		Query: "SELECT data FROM registry WHERE path='HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\FVE\\UseTPMPIN'",
 		DirectIngestFunc: func(
 			ctx context.Context,
-			logger log.Logger,
+			logger *slog.Logger,
 			host *fleet.Host,
 			ds fleet.Datastore,
 			rows []map[string]string,
 		) error {
 			if host == nil || host.UUID == "" {
-				level.Debug(logger).Log(
-					"query", "tpm_pin_config_verify",
-					"msg", "Ingestion not run, host is nil or UUID is empty",
-				)
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "tpm_pin_config_verify")
 				return nil
 			}
 
@@ -3033,11 +3269,9 @@ var tpmPINQueries = map[string]DetailQuery{
 			// If no results are returned, then the policy setting is in a 'Not Configured' state.
 			// If the policy is 'Enabled', we need to make sure the proper setting is not in a 'Disallowed' state.
 			if len(rows) == 0 || rows[0]["data"] == fmt.Sprintf("%d", microsoft_mdm.PolicyOptDropdownDisallowed) {
-				level.Info(logger).Log(
+				logger.InfoContext(ctx, "Updating TPM PIN protector configuration via MDM",
 					"query", "tpm_pin_config_verify",
-					"msg", "Updating TPM PIN protector configuration via MDM",
-					"host_id", host.ID,
-				)
+					"host_id", host.ID)
 				cmd, err := microsoft_mdm.SystemDriveRequiresStartupAuthCmd(
 					microsoft_mdm.SystemDriveRequiresStartupAuthSpec{
 						CmdUUID:      uuid.NewString(),
@@ -3080,16 +3314,13 @@ var tpmPINQueries = map[string]DetailQuery{
 			WHERE criteria = 1`,
 		DirectIngestFunc: func(
 			ctx context.Context,
-			logger log.Logger,
+			logger *slog.Logger,
 			host *fleet.Host,
 			ds fleet.Datastore,
 			rows []map[string]string,
 		) error {
 			if host == nil || host.UUID == "" {
-				level.Debug(logger).Log(
-					"query", "tpm_pin_set_verify",
-					"msg", "Ingestion not run, host is nil or UUID is empty",
-				)
+				logger.DebugContext(ctx, "Ingestion not run, host is nil or UUID is empty", "query", "tpm_pin_set_verify")
 				return nil
 			}
 			return ds.SetOrUpdateHostDiskTpmPIN(ctx, host.ID, len(rows) > 0)
@@ -3129,6 +3360,7 @@ func GetDetailQueries(
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
+		generatedMap["software_go_binaries"] = softwareGoBinaries
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -3138,10 +3370,6 @@ func GetDetailQueries(
 	if features != nil && features.EnableHostUsers {
 		generatedMap["users"] = usersQuery
 		generatedMap["users_chrome"] = usersQueryChrome
-	}
-
-	if !fleetConfig.Vulnerabilities.DisableWinOSVulnerabilities {
-		generatedMap["windows_update_history"] = windowsUpdateHistory
 	}
 
 	if fleetConfig.App.EnableScheduledQueryStats {
@@ -3177,7 +3405,8 @@ func GetDetailQueries(
 	}
 
 	if integrations.ConditionalAccessMicrosoft {
-		generatedMap["conditional_access_microsoft_device_id"] = entraIDDetails
+		generatedMap["conditional_access_microsoft_device_id"] = macOSEntraIDDetails
+		generatedMap["conditional_access_microsoft_device_id_windows"] = windowsEntraIDDetails
 	}
 
 	if appConfig != nil && appConfig.MDM.EnableDiskEncryption.Value {
@@ -3214,123 +3443,48 @@ func GetDetailQueries(
 	return generatedMap
 }
 
-func splitCleanSemicolonSeparated(s string) []string {
-	parts := strings.Split(s, ";")
-	cleaned := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			cleaned = append(cleaned, part)
-		}
-	}
-	return cleaned
-}
-
-func buildConfigProfilesWindowsQuery(
-	ctx context.Context,
-	logger log.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-) (string, bool) {
-	var sb strings.Builder
-	sb.WriteString("<SyncBody>")
-	gotProfiles := false
-	err := microsoft_mdm.LoopOverExpectedHostProfiles(ctx, logger, ds, host, func(profile *fleet.ExpectedMDMProfile, hash, locURI, data string) {
-		// Per the [docs][1], to `<Get>` configurations you must
-		// replace `/Policy/Config/` with `Policy/Result/`
-		// [1]: https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider
-		// Note that the trailing slash is important because there is also /Policy/ConfigOperations
-		// for ADMX policy ingestion which does not have a corresponding Result URI.
-		locURI = strings.Replace(locURI, "/Policy/Config/", "/Policy/Result/", 1)
-		sb.WriteString(
-			// NOTE: intentionally building the xml as a one-liner
-			// to prevent any errors in the query.
-			fmt.Sprintf(
-				"<Get><CmdID>%s</CmdID><Item><Target><LocURI>%s</LocURI></Target></Item></Get>",
-				hash,
-				locURI,
-			))
-		gotProfiles = true
-	})
-	if err != nil {
-		logger.Log(
-			"component", "service",
-			"method", "QueryFunc - windows config profiles",
-			"err", err,
-		)
-		return "", false
-	}
-	if !gotProfiles {
-		level.Debug(logger).Log(
-			"component", "service",
-			"method", "QueryFunc - windows config profiles",
-			"msg", "host doesn't have profiles to check",
-			"host_id", host.ID,
-		)
-		return "", false
-	}
-	sb.WriteString("</SyncBody>")
-	return fmt.Sprintf("SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '%s';", sb.String()), true
-}
-
-func directIngestWindowsProfiles(
-	ctx context.Context,
-	logger log.Logger,
-	host *fleet.Host,
-	ds fleet.Datastore,
-	rows []map[string]string,
-) error {
-	if len(rows) == 0 {
-		return nil
-	}
-
-	if len(rows) > 1 {
-		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles invalid number of rows: %d", len(rows))
-	}
-
-	rawResponse := []byte(rows[0]["raw_mdm_command_output"])
-	if len(rawResponse) == 0 {
-		return ctxerr.Errorf(ctx, "directIngestWindowsProfiles host %s got an empty SyncML response", host.UUID)
-	}
-	return microsoft_mdm.VerifyHostMDMProfiles(ctx, logger, ds, host, rawResponse)
-}
-
 var rxExtractUsernameFromHostCertPath = regexp.MustCompile(`^/Users/([^/]+)/Library/Keychains/login\.keychain\-db$`)
 
 func directIngestHostCertificatesDarwin(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
 		// if there are no results, it probably may indicate a problem so we log it
-		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		logger.DebugContext(ctx, "no rows returned", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID)
 		return nil
 	}
 
 	certs := make([]*fleet.HostCertificateRecord, 0, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			logger.ErrorContext(ctx, "extracting subject details", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			logger.ErrorContext(ctx, "extracting issuer details", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 		source := fleet.HostCertificateSource(row["source"])
 		if !source.IsValid() {
 			// should never happen as the source is hard-coded in the query
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "invalid certificate source", "err", fmt.Errorf("invalid source %s", row["source"]))
+			logger.ErrorContext(ctx, "invalid certificate source", "component", "service", "method", "directIngestHostCertificates", "err", fmt.Errorf("invalid source %s", row["source"]))
 			continue
 		}
 
@@ -3342,7 +3496,7 @@ func directIngestHostCertificatesDarwin(
 				username = matches[1]
 			} else {
 				// if we cannot extract the username, we log it but continue
-				level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "could not extract username from path", "err", fmt.Errorf("no username found in path %q", row["path"]))
+				logger.ErrorContext(ctx, "could not extract username from path", "component", "service", "method", "directIngestHostCertificates", "err", fmt.Errorf("no username found in path %q", row["path"]))
 			}
 		}
 
@@ -3381,14 +3535,14 @@ func directIngestHostCertificatesDarwin(
 
 func directIngestHostCertificatesWindows(
 	ctx context.Context,
-	logger log.Logger,
+	logger *slog.Logger,
 	host *fleet.Host,
 	ds fleet.Datastore,
 	rows []map[string]string,
 ) error {
 	if len(rows) == 0 {
 		// if there are no results, it indicates we may have a problem so we log it
-		level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "no rows returned", "host_id", host.ID)
+		logger.DebugContext(ctx, "no rows returned", "component", "service", "method", "directIngestHostCertificates", "host_id", host.ID)
 		return nil
 	}
 
@@ -3399,19 +3553,25 @@ func directIngestHostCertificatesWindows(
 	// SHA1 sum + username
 	existsSha1User := make(map[string]bool, len(rows))
 	for _, row := range rows {
+		// Unescape \xHH sequences in fields that may contain non-ASCII
+		// characters (e.g. Cyrillic) in the certificate's distinguished name.
+		row["common_name"] = fleet.DecodeHexEscapes(row["common_name"])
+		row["subject"] = fleet.DecodeHexEscapes(row["subject"])
+		row["issuer"] = fleet.DecodeHexEscapes(row["issuer"])
+
 		csum, err := hex.DecodeString(row["sha1"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "decoding sha1", "err", err)
+			logger.ErrorContext(ctx, "decoding sha1", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 		subject, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["subject"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting subject details", "err", err)
+			logger.ErrorContext(ctx, "extracting subject details", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 		issuer, err := fleet.ExtractDetailsFromOsqueryDistinguishedName(host.Platform, row["issuer"])
 		if err != nil {
-			level.Error(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg", "extracting issuer details", "err", err)
+			logger.ErrorContext(ctx, "extracting issuer details", "component", "service", "method", "directIngestHostCertificates", "err", err)
 			continue
 		}
 
@@ -3448,9 +3608,15 @@ func directIngestHostCertificatesWindows(
 		// deduplicate by SHA1 + Username
 		sha1UserKey := fmt.Sprintf("%x|%s", csum, username)
 		if exists := existsSha1User[sha1UserKey]; exists {
-			level.Debug(logger).Log("component", "service", "method", "directIngestHostCertificates", "msg",
-				"skipping duplicate certificate for sha1+user", "host_id", host.ID, "username", username, "sha1", fmt.Sprintf("%x", csum),
-				"issuer", cert.IssuerCommonName, "subject", cert.SubjectCommonName, "path", row["path"])
+			logger.DebugContext(ctx, "skipping duplicate certificate for sha1+user",
+				"component", "service",
+				"method", "directIngestHostCertificates",
+				"host_id", host.ID,
+				"username", username,
+				"sha1", fmt.Sprintf("%x", csum),
+				"issuer", cert.IssuerCommonName,
+				"subject", cert.SubjectCommonName,
+				"path", row["path"])
 			continue
 		}
 		existsSha1User[sha1UserKey] = true

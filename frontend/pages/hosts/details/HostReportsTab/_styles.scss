@@ -1,0 +1,195 @@
+.host-reports-tab {
+  position: relative;
+
+  &__controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $pad-medium;
+    flex-wrap: wrap;
+    gap: $pad-small;
+  }
+
+  &__controls-left {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__controls-right {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .input-icon-field .input-with-icon {
+      min-width: 300px;
+    }
+  }
+
+  &__sort-dropdown {
+    min-width: 160px;
+  }
+
+  @media screen and (max-width: $break-md) {
+    &__controls {
+      flex-direction: column-reverse;
+      align-items: stretch;
+      gap: $pad-smedium;
+    }
+
+    &__controls-right &__sort-dropdown {
+      width: auto;
+    }
+
+    &__controls-right .search-field__tooltip-container {
+      flex: 1;
+    }
+  }
+
+  &__count {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+  }
+
+  &__toggle {
+    margin: 0;
+    width: auto;
+  }
+
+  &__reports-list {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__fetching-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.5);
+    pointer-events: none;
+  }
+}
+
+.host-report-card {
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: $pad-medium;
+    margin-bottom: px-to-rem(24);
+  }
+
+  &__header-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__header-right {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    flex-shrink: 0;
+  }
+
+  &__title-row {
+    display: flex;
+    align-items: baseline;
+    gap: $pad-medium;
+    flex-wrap: wrap;
+  }
+
+  &__name {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__last-updated {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    white-space: nowrap;
+  }
+
+  &__description {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    margin: $pad-xsmall 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  &__clipped-badge {
+    .pill-badge__element {
+      background: transparent;
+      font-size: $xx-small;
+      color: $ui-fleet-black-75;
+      border: 1px solid $ui-fleet-black-25;
+      padding: $pad-small;
+    }
+  }
+
+  &__data-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $gap-data-sets $pad-xxlarge;
+    margin-bottom: px-to-rem(24);
+
+    @media (min-width: $break-sm) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    @media (min-width: $break-md) {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  &__banner-content {
+    display: flex;
+    align-items: center;
+    gap: px-to-rem(24);
+  }
+
+  &__banner-text {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+
+    .icon {
+      flex-shrink: 0;
+    }
+  }
+
+  &__view-full-report {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+}
+
+.empty-reports {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: $pad-xxxlarge 0;
+  text-align: center;
+
+  &__heading {
+    font-size: $small;
+    font-weight: $bold;
+    margin-top: $pad-medium;
+    margin-bottom: $pad-xsmall;
+  }
+
+  &__subheading {
+    font-size: $xx-small;
+    color: $ui-fleet-black-75;
+    margin: 0;
+  }
+}

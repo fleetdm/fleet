@@ -36,7 +36,7 @@ type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
-	TeamID           *uint                       `db:"team_id" json:"team_id"`
+	TeamID           *uint                       `db:"team_id" json:"team_id" renameto:"fleet_id"`
 	Name             string                      `db:"name" json:"name"`
 	SyncML           []byte                      `db:"syncml" json:"-"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
@@ -468,7 +468,10 @@ func (v *windowsSCEPProfileValidator) finalizeValidation() error {
 		return errors.New("SCEP profiles must include exactly one <Exec> element.")
 	}
 
-	// Verify that we do not have any non-scep loc URIs present
+	// Verify that we do not have any non-SCEP LocURIs present. This
+	// constraint also means SCEP profiles are always SCEP-only, which the
+	// ESP (EnrollmentStatusTracking) relies on to track them under
+	// Certificates instead of Security policies.
 	if v.totalLocURIs != len(v.foundLocURIs) {
 		return errors.New("Only options that have <LocURI> starting with \"ClientCertificateInstall/SCEP/\" can be added to SCEP profile.")
 	}

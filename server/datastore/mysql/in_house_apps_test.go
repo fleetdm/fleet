@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -463,7 +464,8 @@ func createInHouseAppInstallRequest(t *testing.T, ds *Datastore, hostID uint, ap
 
 func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, fleet.ActivityWebhookContextKey, true)
+
+	activitySvc := NewTestActivityService(t, ds)
 
 	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
 	require.NoError(t, err)
@@ -479,10 +481,10 @@ func createInHouseAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host
 
 	// inserting the activity is what marks the upcoming activity as completed
 	// (and activates the next one).
-	err = ds.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
 		HostID:      host.ID,
 		CommandUUID: cmdUUID,
-	}, []byte(`{}`), time.Now())
+	})
 	require.NoError(t, err)
 }
 
@@ -1734,7 +1736,7 @@ func testSoftwareTitleDisplayNameInHouse(t *testing.T, ds *Datastore) {
 }
 
 func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
-	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
+	ctx := t.Context()
 	test.CreateInsertGlobalVPPToken(t, ds)
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1789,8 +1791,11 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 1, Failed: 0}, *summary)
 
+	// Create activity service for checking past activities
+	activitySvc := NewTestActivityService(t, ds)
+
 	// no past activities yet
-	acts, _, err := ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	acts, _, err := activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 0)
 
@@ -1799,23 +1804,28 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	for i, act := range activitiesToCreate {
 		// caller's responsibility to create new activities
-		require.NoError(t, ds.NewActivity(ctx, users[i], act, nil, time.Now()))
+		var apiUser *activity_api.User
+		if users[i] != nil {
+			apiUser = &activity_api.User{ID: users[i].ID, Name: users[i].Name, Email: users[i].Email}
+		}
+		require.NoError(t, activitySvc.NewActivity(ctx, apiUser, act))
 	}
 
 	// fleet needs to receive some command result at some
 	// point for it to show up in the install summary
 	createInHouseAppInstallResult(t, ds, iosHost, ipaCmd, "Acknowledged")
 
-	// past activity for the failed install
-	acts, _, err = ds.ListHostPastActivities(ctx, iosHost.ID, fleet.ListOptions{})
+	// past activity for the failed install (ordered by created_at DESC - newest first)
+	acts, _, err = activitySvc.ListHostPastActivities(ctx, iosHost.ID, activity_api.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, acts, 2)
-	require.NotNil(t, acts[0].ActorID)
-	require.Equal(t, *acts[0].ActorID, user.ID)
-	require.Equal(t, acts[0].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
-	// limitation of using createInHouseAppInstallResult which creates an activity
-	require.Nil(t, acts[1].ActorID)
-	require.Equal(t, acts[1].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+	// newest: created by createInHouseAppInstallResult with nil user
+	require.Nil(t, acts[0].ActorID)
+	require.Equal(t, acts[0].Type, fleet.ActivityInstalledAppStoreApp{}.ActivityName())
+	// older: created by MDMTurnOff with user
+	require.NotNil(t, acts[1].ActorID)
+	require.Equal(t, *acts[1].ActorID, user.ID)
+	require.Equal(t, acts[1].Type, fleet.ActivityTypeInstalledSoftware{}.ActivityName())
 
 	// there should be no upcoming activities and 1 failed install
 	checkUpcomingActivities(t, ds, iosHost)

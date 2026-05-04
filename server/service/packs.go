@@ -13,7 +13,7 @@ import (
 
 type packResponse struct {
 	fleet.Pack
-	QueryCount uint `json:"query_count"`
+	QueryCount uint `json:"query_count" renameto:"report_count"`
 
 	// All current hosts in the pack. Hosts which are selected explicty and
 	// hosts which are part of a label.
@@ -22,7 +22,7 @@ type packResponse struct {
 	// IDs of hosts which were explicitly selected.
 	HostIDs  []uint `json:"host_ids"`
 	LabelIDs []uint `json:"label_ids"`
-	TeamIDs  []uint `json:"team_ids"`
+	TeamIDs  []uint `json:"team_ids" renameto:"fleet_ids"`
 }
 
 func userIsGitOpsOnly(ctx context.Context) (bool, error) {

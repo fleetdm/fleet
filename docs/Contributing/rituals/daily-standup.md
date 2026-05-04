@@ -16,8 +16,9 @@ Ritual DRI: EM or assigned team member.
 5. Open [GitHub pull requests](https://github.com/pulls) filtered using the template below after being modified to include each product group member:
 `is:open is:pr archived:false org:fleetdm org:osquery draft:false sort:created-asc author:sgress454 author:lucasmrod`
 6. Call out verbally any PRs open for more than the time to merge KPI goal (24 hours).
-7. End the Daily Standup for everyone except those with parking lot issues. 
-8. Go through each parking lot item with the relevant participants and define and assign TODOs to resolve the blocker.
+7. Review Priority board, assign priority to any tickets with no priority and a p* label. Verify all p0 and p1 have a daily update, if there isn't one today add a comment with the status.
+8. End the Daily Standup for everyone except those with parking lot issues. 
+9. Go through each parking lot item with the relevant participants and define and assign TODOs to resolve the blocker.
 
 You can find our time to merge and other detailed engineering metrics on the [Grafana engineering metrics project](https://fleeteng.grafana.net/d/b97a629f-3626-4a28-9781-0fa3c8427897/engineering-metrics?orgId=1&from=now-90d&to=now&timezone=browser&var-user=$__all&var-user_group=$__all&var-issue_type=$__all). 
 

@@ -2,14 +2,11 @@ import React, { useMemo } from "react";
 
 import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import { generateFormValidations, validateFormData } from "./helpers";
-
-const baseClass = "smallstep-form";
 
 export interface ISmallstepFormData {
   name: string;

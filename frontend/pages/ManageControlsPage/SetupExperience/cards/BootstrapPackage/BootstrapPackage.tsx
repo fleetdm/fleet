@@ -21,7 +21,8 @@ import {
 } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 
@@ -30,7 +31,7 @@ import UploadedPackageView from "./components/UploadedPackageView";
 import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModal";
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
+import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/InstallSoftwareForm/helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import getManualAgentInstallSetting from "../../helpers";
 
@@ -63,7 +64,7 @@ const BootstrapPackage = ({
     () =>
       mdmAPI.getSetupExperienceSoftware({
         platform: "macos",
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
@@ -109,7 +110,7 @@ const BootstrapPackage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: currentTeamId !== API_NO_TEAM_ID,
-      select: (res) => res.team,
+      select: (res) => res.fleet,
       onSuccess: (data) => {
         setSelectedManualAgentInstall(
           getManualAgentInstallSetting(currentTeamId, undefined, data)
@@ -140,10 +141,10 @@ const BootstrapPackage = ({
     try {
       await mdmAPI.deleteBootstrapPackage(currentTeamId);
       await mdmAPI.updateSetupExperienceSettings({
-        team_id: currentTeamId,
-        manual_agent_install: false,
+        fleet_id: currentTeamId,
+        macos_manual_agent_install: false,
       });
-      renderFlash("success", "Successfully deleted!");
+      renderFlash("success", "Successfully deleted.");
     } catch {
       renderFlash("error", "Couldn't delete. Please try again.");
     } finally {
@@ -216,12 +217,15 @@ const BootstrapPackage = ({
       )
     ) {
       return (
-        <GenericMsgWithNavButton
+        <EmptyState
+          variant="form"
           header="Additional configuration required"
           info="Supported on macOS. To customize, first turn on automatic enrollment."
-          buttonText="Turn on"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          router={router}
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }

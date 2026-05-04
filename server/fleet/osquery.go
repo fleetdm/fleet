@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 )
 
 // OsqueryDistributedQueryResults represents the format of the results of an

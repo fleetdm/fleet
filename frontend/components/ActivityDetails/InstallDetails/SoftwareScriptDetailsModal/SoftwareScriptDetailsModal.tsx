@@ -1,5 +1,5 @@
 /** This component is intentionally separate from SoftwareInstallDetailsModal
- * because it handles payload-free/script-based package installs (e.g. sh_packages or ps1_packages)
+ * because it handles script-only package installs (e.g. sh_packages or ps1_packages)
  *
  * Key differences from SoftwareInstallDetailsModal:
  * - Uses Script/Run/Rerun language in UI instead of Install/Retry.
@@ -180,7 +180,7 @@ export const ModalButtons = ({
   }
 
   return (
-    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Close</Button>} />
   );
 };
 
@@ -327,16 +327,14 @@ export const SoftwareScriptDetailsModal = ({
       onEnter={onCancel}
       className={baseClass}
     >
-      <>
-        {renderContent()}
-        <ModalButtons
-          deviceAuthToken={deviceAuthToken}
-          installResultStatus={swInstallResult?.status}
-          hostSoftwareId={hostSoftware?.id}
-          onRerun={onRerun}
-          onCancel={onCancel}
-        />
-      </>
+      {renderContent()}
+      <ModalButtons
+        deviceAuthToken={deviceAuthToken}
+        installResultStatus={swInstallResult?.status}
+        hostSoftwareId={hostSoftware?.id}
+        onRerun={onRerun}
+        onCancel={onCancel}
+      />
     </Modal>
   );
 };

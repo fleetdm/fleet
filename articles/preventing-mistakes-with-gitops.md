@@ -30,10 +30,6 @@ Clone the starter repo: `https://github.com/fleetdm/fleet-gitops` and create you
 
 An important benefit of GitOps is the ability to store all your environment secrets in GitHub - encrypted and protected from view. With the correct configuration, this prevents tampering and leaks.
 
-Add the `FLEET_URL` and `FLEET_API_TOKEN` secrets to your new repository's secrets. If you’re working out of the template, also add `FLEET_GLOBAL_ENROLL_SECRET`, `FLEET_WORKSTATIONS_ENROLL_SECRET` and `FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET`.
-
-This can be adjusted depending on how you want to leverage Teams and team names.
-
 ## A Typical GitOps Workflow
 
 We will start with a traditional workflow to demonstrate the process used to commit changes to your Fleet instance. In this example we are adding a passcode policy for Macs by setting the minimum length to 12 characters. 
@@ -42,7 +38,7 @@ We will start with a traditional workflow to demonstrate the process used to com
 
 ![gif-1](../website/assets/images/articles/preventing-mistakes-1-711x385@2x.gif)
 
-Here, after making changes to the `passcode.json` file, it has been added to the Team we are configuring under the `macos_settings` section.
+Here, after making changes to the `passcode.json` file, it has been added to the fleet we are configuring under the `macos_settings` section.
 
 ![gif-2](../website/assets/images/articles/preventing-mistakes-2-480x270@2x.gif)
 
@@ -58,7 +54,7 @@ Another benefit of a GitOps approach is the ability for members of a team to rev
 
 ![gif-4](../website/assets/images/articles/preventing-mistakes-4-480x270@2x.gif)
 
-The newest version of macOS is released and an engineer on your team wants to push a change to require an update of all hosts in the Workstations team. The IT engineer creates a branch to work from and makes the necessary changes, including setting a new target version and deadline.
+The newest version of macOS is released and an engineer on your team wants to push a change to require an update of all hosts in the Workstations fleet. The IT engineer creates a branch to work from and makes the necessary changes, including setting a new target version and deadline.
 
 ```
 macos_updates:

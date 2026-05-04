@@ -20,3 +20,19 @@ type ListActivitiesResponse struct {
 
 // Error implements the platform_http.Errorer interface.
 func (r ListActivitiesResponse) Error() error { return r.Err }
+
+// ListHostPastActivitiesRequest is the HTTP request type for listing host past activities.
+type ListHostPastActivitiesRequest struct {
+	HostID      uint            `url:"id"`
+	ListOptions api.ListOptions `url:"list_options"`
+}
+
+// ListHostPastActivitiesResponse is the HTTP response type for listing host past activities.
+type ListHostPastActivitiesResponse struct {
+	Meta       *api.PaginationMetadata `json:"meta"`
+	Activities []*api.Activity         `json:"activities"`
+	Err        error                   `json:"error,omitempty"`
+}
+
+// Error implements the platform_http.Errorer interface.
+func (r ListHostPastActivitiesResponse) Error() error { return r.Err }

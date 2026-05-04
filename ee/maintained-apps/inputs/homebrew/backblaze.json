@@ -1,0 +1,11 @@
+{
+  "name": "Backblaze",
+  "slug": "backblaze/darwin",
+  "unique_identifier": "com.backblaze.bzbmenu",
+  "token": "backblaze",
+  "installer_format": "dmg",
+  "frozen": true,
+  "default_categories": ["Utilities"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/backblaze_install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/backblaze_uninstall.sh"
+}

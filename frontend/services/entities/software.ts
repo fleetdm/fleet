@@ -84,16 +84,12 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken?: string | null;
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -153,7 +149,7 @@ export interface IFleetMaintainedAppResponse {
 }
 
 interface IAddFleetMaintainedAppPostBody {
-  team_id: number;
+  fleet_id: number;
   fleet_maintained_app_id: number;
   pre_install_query?: string;
   install_script?: string;
@@ -162,29 +158,32 @@ interface IAddFleetMaintainedAppPostBody {
   self_service?: boolean;
   automatic_install?: boolean;
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
   categories: string[];
 }
 
 export interface IAddAppStoreAppPostBody {
   app_store_id: string;
-  team_id: number;
+  fleet_id: number;
   platform: ApplePlatform | "android";
   // True by default for android apps
   self_service?: boolean;
   // No automatic_install on add Android app
   automatic_install?: boolean;
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
 }
 
 // 4.77 Edit for Android app is not yet available
 export interface IEditAppStoreAppPostBody {
-  team_id: number;
+  fleet_id: number;
   self_service?: boolean;
   // No automatic_install on edit VPP or android app
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
   categories?: SoftwareCategory[];
   display_name?: string;
@@ -205,7 +204,7 @@ const handleAndroidForm = (
 
   const body: IAddAppStoreAppPostBody = {
     app_store_id: formData.applicationID,
-    team_id: teamId,
+    fleet_id: teamId,
     platform: formData.platform,
     self_service: formData.selfService,
     automatic_install: formData.automaticInstall,
@@ -219,6 +218,8 @@ const handleAndroidForm = (
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
     if (formData.customTarget === "labelsIncludeAny") {
       body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
     } else {
       body.labels_exclude_any = selectedLabels;
     }
@@ -236,7 +237,7 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
 
   const body: IAddAppStoreAppPostBody = {
     app_store_id: formData.selectedApp.app_store_id,
-    team_id: teamId,
+    fleet_id: teamId,
     platform: formData.selectedApp?.platform, // Nested platform
     self_service: formData.selfService,
     automatic_install: formData.automaticInstall,
@@ -250,6 +251,8 @@ const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
     if (formData.customTarget === "labelsIncludeAny") {
       body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
     } else {
       body.labels_exclude_any = selectedLabels;
     }
@@ -299,6 +302,8 @@ const handleEditPackageForm = (
   if (data.targetType === "All hosts") {
     if (orignalPackage.labels_include_any) {
       formData.append("labels_include_any", "");
+    } else if (orignalPackage.labels_include_all) {
+      formData.append("labels_include_all", "");
     } else {
       formData.append("labels_exclude_any", "");
     }
@@ -310,6 +315,8 @@ const handleEditPackageForm = (
     let labelKey = "";
     if (data.customTarget === "labelsIncludeAny") {
       labelKey = "labels_include_any";
+    } else if (data.customTarget === "labelsIncludeAll") {
+      labelKey = "labels_include_all";
     } else {
       labelKey = "labels_exclude_any";
     }
@@ -346,12 +353,15 @@ const handleAutoUpdateConfigAppStoreAppForm = (
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
     if (formData.customTarget === "labelsIncludeAny") {
       body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
     } else {
       body.labels_exclude_any = selectedLabels;
     }
   } else {
     body.labels_exclude_any = [];
     body.labels_include_any = [];
+    body.labels_include_all = [];
   }
 };
 
@@ -371,12 +381,15 @@ const handleEditAppStoreAppForm = (
     const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
     if (formData.customTarget === "labelsIncludeAny") {
       body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
     } else {
       body.labels_exclude_any = selectedLabels;
     }
   } else {
     body.labels_exclude_any = [];
     body.labels_include_any = [];
+    body.labels_include_all = [];
   }
 };
 
@@ -407,7 +420,11 @@ export default {
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE}?${queryString}`;
 
     try {
@@ -433,7 +450,11 @@ export default {
       vulnerable,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restCountParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restCountParams,
+      fleet_id: team_id,
+    });
 
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
@@ -443,7 +464,11 @@ export default {
   ): Promise<ISoftwareTitlesResponse> => {
     const { SOFTWARE_TITLES } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restTitleParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restTitleParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_TITLES}?${queryString}`;
     return sendRequest("GET", path);
   },
@@ -453,7 +478,7 @@ export default {
     teamId,
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const queryString = buildQueryStringFromParams({ fleet_id: teamId });
     const path =
       typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
@@ -462,7 +487,11 @@ export default {
   getSoftwareVersions: (params: ISoftwareApiParams) => {
     const { SOFTWARE_VERSIONS } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restVersionParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restVersionParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_VERSIONS}?${queryString}`;
     return sendRequest("GET", path);
   },
@@ -472,7 +501,7 @@ export default {
     teamId,
   }: IGetSoftwareVersionQueryParams) => {
     const endpoint = endpoints.SOFTWARE_VERSION(versionId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const queryString = buildQueryStringFromParams({ fleet_id: teamId });
     const path =
       typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
@@ -524,7 +553,7 @@ export default {
       );
     data.automaticInstall &&
       formData.append("automatic_install", data.automaticInstall.toString());
-    teamId && formData.append("team_id", teamId.toString());
+    teamId && formData.append("fleet_id", teamId.toString());
     if (data.categories) {
       data.categories.forEach((category) => {
         formData.append("categories", category);
@@ -536,6 +565,8 @@ export default {
       let labelKey = "";
       if (data.customTarget === "labelsIncludeAny") {
         labelKey = "labels_include_any";
+      } else if (data.customTarget === "labelsIncludeAll") {
+        labelKey = "labels_include_all";
       } else {
         labelKey = "labels_exclude_any";
       }
@@ -575,7 +606,7 @@ export default {
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
     const formData = new FormData();
-    formData.append("team_id", teamId.toString());
+    formData.append("fleet_id", teamId.toString());
 
     if ("displayName" in data) {
       // Handles Edit display name form only
@@ -630,7 +661,7 @@ export default {
   ) => {
     const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
 
-    const body: IEditAppStoreAppPostBody = { team_id: teamId };
+    const body: IEditAppStoreAppPostBody = { fleet_id: teamId };
 
     if ("displayName" in formData) {
       // Handles Edit display name form only
@@ -662,7 +693,7 @@ export default {
   getSoftwareIcon: (softwareId: number, teamId: number) => {
     const { SOFTWARE_ICON } = endpoints;
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
-      team_id: teamId,
+      fleet_id: teamId,
     });
     return sendRequest(
       "GET",
@@ -676,7 +707,7 @@ export default {
   },
 
   // This API call is for both:
-  // "/api/v1/fleet/software/titles/{softwareId}/icon?team_id={teamId}"
+  // "/api/v1/fleet/software/titles/{softwareId}/icon?fleet_id={teamId}"
   // "/api/v1/fleet/device/{deviceToken}/software/titles/{softwareId}/icon"
   getSoftwareIconFromApiUrl: (apiUrl: string) => {
     // sendRequest prepends "/api" to the path, so we need to remove it
@@ -689,7 +720,7 @@ export default {
   deleteSoftwareIcon: (softwareId: number, teamId: number) => {
     const { SOFTWARE_ICON } = endpoints;
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
-      team_id: teamId,
+      fleet_id: teamId,
     });
     return sendRequest("DELETE", path);
   },
@@ -701,7 +732,7 @@ export default {
   ) => {
     const { SOFTWARE_ICON } = endpoints;
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
-      team_id: teamId,
+      fleet_id: teamId,
     });
 
     const formData = new FormData();
@@ -715,7 +746,7 @@ export default {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
       softwareId
-    )}?team_id=${teamId}`;
+    )}?fleet_id=${teamId}`;
     return sendRequest("DELETE", path);
   },
 
@@ -725,7 +756,7 @@ export default {
   ): Promise<ISoftwareInstallTokenResponse> => {
     const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
-    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+    )}?${buildQueryStringFromParams({ alt: "media", fleet_id: teamId })}`;
 
     return sendRequest("POST", path);
   },
@@ -740,7 +771,8 @@ export default {
     params: ISoftwareFleetMaintainedAppsQueryParams
   ): Promise<ISoftwareFleetMaintainedAppsResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
-    const queryStr = buildQueryStringFromParams(params);
+    const { team_id, ...rest } = params;
+    const queryStr = buildQueryStringFromParams({ ...rest, fleet_id: team_id });
     const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?${queryStr}`;
     return sendRequest("GET", path);
   },
@@ -751,7 +783,7 @@ export default {
   ): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
     const path = getPathWithQueryParams(SOFTWARE_FLEET_MAINTAINED_APP(id), {
-      team_id: teamId,
+      fleet_id: teamId,
     });
     return sendRequest("GET", path);
   },
@@ -764,7 +796,7 @@ export default {
 
     // Base64 encode script fields to bypass WAF rules that block script patterns
     const body: IAddFleetMaintainedAppPostBody = {
-      team_id: teamId,
+      fleet_id: teamId,
       fleet_maintained_app_id: formData.appId,
       pre_install_query: encodeScriptBase64(formData.preInstallQuery),
       install_script: encodeScriptBase64(formData.installScript),
@@ -779,6 +811,8 @@ export default {
       const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
       if (formData.customTarget === "labelsIncludeAny") {
         body.labels_include_any = selectedLabels;
+      } else if (formData.customTarget === "labelsIncludeAll") {
+        body.labels_include_all = selectedLabels;
       } else {
         body.labels_exclude_any = selectedLabels;
       }

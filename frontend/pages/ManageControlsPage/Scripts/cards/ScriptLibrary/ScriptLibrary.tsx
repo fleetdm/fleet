@@ -18,8 +18,9 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
+import EmptyState from "components/EmptyState";
 
-import UploadList from "../../../components/UploadList";
+import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
 import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
@@ -40,7 +41,12 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     ? parseInt(location.query.page, 10)
     : DEFAULT_PAGE;
 
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isGlobalTechnician, isTeamTechnician } = useContext(
+    AppContext
+  );
+
+  const isTechnician = isGlobalTechnician || isTeamTechnician;
+
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);
   const [showAddScriptModal, setShowAddScriptModal] = useState(false);
@@ -61,13 +67,13 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     [
       {
         scope: "scripts",
-        team_id: teamId,
+        fleet_id: teamId,
         page: currentPage,
         per_page: SCRIPTS_PER_PAGE,
       },
     ],
-    ({ queryKey: [{ team_id, page, per_page }] }) =>
-      scriptAPI.getScripts({ team_id, page, per_page }),
+    ({ queryKey: [{ fleet_id, page, per_page }] }) =>
+      scriptAPI.getScripts({ fleet_id, page, per_page }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
@@ -76,7 +82,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
 
   // pagination controls
   const path = PATHS.CONTROLS_SCRIPTS_LIBRARY;
-  const queryString = isPremiumTier ? `?team_id=${teamId}&` : "?";
+  const queryString = isPremiumTier ? `?fleet_id=${teamId}&` : "?";
   const onPrevPage = useCallback(() => {
     router.push(path.concat(`${queryString}page=${currentPage - 1}`));
   }, [router, path, currentPage, queryString]);
@@ -118,10 +124,6 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     refetchScripts();
   };
 
-  const onUploadScript = () => {
-    refetchScripts();
-  };
-
   const renderScriptsList = () => {
     if (isLoading) {
       return <Spinner />;
@@ -136,7 +138,11 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     }
 
     const headingComponent = () => (
-      <ScriptListHeading onClickAddScript={() => setShowAddScriptModal(true)} />
+      <ScriptListHeading
+        onClickAddScript={
+          isTechnician ? undefined : () => setShowAddScriptModal(true)
+        }
+      />
     );
 
     return (
@@ -151,6 +157,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
               onDelete={onClickDelete}
               onClickScript={onClickScript}
               onEdit={onEditScript}
+              isTechnician={isTechnician}
             />
           )}
         />
@@ -181,9 +188,14 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading && currentPage === 0 && !scripts?.length && (
-        <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
-      )}
+      {!isLoading &&
+        currentPage === 0 &&
+        !scripts?.length &&
+        (isTechnician ? (
+          <EmptyState variant="header-list" header="No scripts uploaded" />
+        ) : (
+          <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
+        ))}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}

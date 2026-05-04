@@ -21,6 +21,7 @@ func TestPlatformPackageDependencies(t *testing.T) {
 			// Platform packages can depend on each other
 			m+"/server/platform...",
 			// Infra packages
+			m+"/pkg/fleethttp",
 			m+"/server/contexts/authz",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/license",
@@ -41,7 +42,8 @@ func TestEndpointerPackageDependencies(t *testing.T) {
 		IgnoreDeps(
 			// Platform packages
 			m+"/server/platform...",
-			// Other infra packages
+			// Infra packages
+			m+"/pkg/fleethttp",
 			m+"/server/contexts/authz",
 			m+"/server/contexts/ctxerr",
 			m+"/server/contexts/license",
@@ -56,7 +58,11 @@ func TestHTTPPackageDependencies(t *testing.T) {
 	archtest.NewPackageTest(t, m+"/server/platform/http").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		WithTests().
-		ShouldNotDependOn(m + "/...").
+		ShouldNotDependOn(m+"/...").
+		IgnoreDeps(
+			m+"/pkg/fleethttp",
+			m+"/server/platform/errors",
+		).
 		Check()
 }
 
@@ -65,10 +71,13 @@ func TestAuthzCheckPackageDependencies(t *testing.T) {
 	archtest.NewPackageTest(t, m+"/server/platform/middleware/authzcheck").
 		OnlyInclude(regexp.MustCompile(`^github\.com/fleetdm/`)).
 		WithTests().
+		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
 			// Platform packages
+			m+"/server/platform/errors",
 			m+"/server/platform/http",
 			// Other infra packages
+			m+"/pkg/fleethttp",
 			m+"/server/contexts/authz",
 		).
 		Check()
@@ -82,6 +91,7 @@ func TestRatelimitPackageDependencies(t *testing.T) {
 		ShouldNotDependOn(m+"/...").
 		IgnoreDeps(
 			// Platform packages
+			m+"/server/platform/errors",
 			m+"/server/platform/http",
 			// Other infra packages
 			m+"/server/contexts/authz",
@@ -103,7 +113,8 @@ func TestMysqlPackageDependencies(t *testing.T) {
 			// Ignore our own packages
 			m+"/server/platform/mysql...",
 			// Other infra packages
-			m+"/server/platform/http",
+			m+"/server/platform/errors",
+			m+"/server/platform/logging",
 			m+"/server/contexts/ctxerr",
 		).
 		Check()

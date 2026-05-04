@@ -46,15 +46,15 @@ interface ITeamDetailsSubNavItem {
 const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   {
     name: "Users",
-    getPathname: PATHS.TEAM_DETAILS_USERS,
+    getPathname: PATHS.FLEET_DETAILS_USERS,
   },
   {
     name: "Agent options",
-    getPathname: PATHS.TEAM_DETAILS_OPTIONS,
+    getPathname: PATHS.FLEET_DETAILS_OPTIONS,
   },
   {
     name: "Settings",
-    getPathname: PATHS.TEAM_DETAILS_SETTINGS,
+    getPathname: PATHS.FLEET_DETAILS_SETTINGS,
   },
 ];
 
@@ -64,7 +64,7 @@ interface ITeamDetailsPageProps {
     pathname: string;
     search: string;
     hash?: string;
-    query: { team_id?: string };
+    query: { fleet_id?: string };
   };
   router: InjectedRouter;
 }
@@ -121,6 +121,7 @@ const TeamDetailsWrapper = ({
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -292,17 +293,17 @@ const TeamDetailsWrapper = ({
 
   const onDeleteSubmit = useCallback(async () => {
     if (!teamIdForApi) {
-      return false;
+      return;
     }
 
     setIsUpdatingTeams(true);
 
     try {
       await teamsAPI.destroy(teamIdForApi);
-      router.push(PATHS.ADMIN_TEAMS);
-      renderFlash("success", "Team removed");
+      router.push(PATHS.ADMIN_FLEETS);
+      renderFlash("success", "Fleet removed");
     } catch (response) {
-      renderFlash("error", "Something went wrong removing the team");
+      renderFlash("error", "Something went wrong removing the fleet");
       console.error(response);
     } finally {
       toggleDeleteTeamModal();
@@ -327,7 +328,7 @@ const TeamDetailsWrapper = ({
         await teamsAPI.update(updatedAttrs, teamIdForApi);
         renderFlash(
           "success",
-          `Successfully updated team name to ${updatedAttrs?.name}`
+          `Successfully updated fleet name to ${updatedAttrs?.name}`
         );
         setBackendValidators({});
         refetchTeams();
@@ -338,18 +339,18 @@ const TeamDetailsWrapper = ({
         const errorObject = formatErrorResponse(response);
         if (errorObject.base.includes("Duplicate")) {
           setBackendValidators({
-            name: "A team with this name already exists",
+            name: `A fleet with this name already exists`,
           });
         } else if (errorObject.base.includes("all teams")) {
           setBackendValidators({
-            name: `"All teams" is a reserved team name. Please try another name.`,
+            name: `"All fleets" is a reserved fleet name. Please try another name.`,
           });
         } else if (errorObject.base.includes("no team")) {
           setBackendValidators({
-            name: `"No team" is a reserved team name. Please try another name.`,
+            name: `"Unassigned" is a reserved fleet name. Please try another name.`,
           });
         } else {
-          renderFlash("error", "Could not create team. Please try again.");
+          renderFlash("error", "Could not create fleet. Please try again.");
         }
       } finally {
         setIsUpdatingTeams(false);
@@ -391,7 +392,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackButton text="Back to teams" path={PATHS.ADMIN_TEAMS} />
+            <BackButton text="Back to fleets" path={PATHS.ADMIN_FLEETS} />
           </div>
         ) : (
           <></>
@@ -433,7 +434,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: "Rename team",
+                label: "Rename fleet",
                 buttonVariant: "inverse",
                 iconName: "pencil",
                 onClick: toggleRenameTeamModal,
@@ -441,7 +442,7 @@ const TeamDetailsWrapper = ({
               },
               {
                 type: "secondary",
-                label: "Delete team",
+                label: "Delete fleet",
                 buttonVariant: "inverse",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,
@@ -527,7 +528,9 @@ const TeamDetailsWrapper = ({
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {children}
+        <div key={location.pathname} className="tab-nav-routed-content">
+          {children}
+        </div>
       </>
     </MainContent>
   );

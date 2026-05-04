@@ -748,5 +748,15 @@
     "filter": {
       "product": ["acrobat_reader_dc"]
     }
+  },
+  {
+    "software": {
+      "name": ["Mattermost", "/^Mattermost \\d/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["mattermost_desktop"],
+      "vendor": ["mattermost"]
+    }
   }
 ]

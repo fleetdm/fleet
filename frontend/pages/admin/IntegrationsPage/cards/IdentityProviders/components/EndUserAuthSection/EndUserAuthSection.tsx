@@ -11,17 +11,19 @@ import configAPI from "services/entities/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import CustomLink from "components/CustomLink";
 
 import {
   IFormDataIdp,
   IFormErrorsIdp,
+  isEmptyFormData,
   isMissingAnyRequiredField,
+  trimFormDataIdp,
   validateFormDataIdp,
 } from "./helpers";
 
@@ -50,14 +52,15 @@ const EndUserAuthSection = ({
   const { renderFlash } = useContext(NotificationContext);
   const [formErrors, setFormErrors] = useState<IFormErrorsIdp | null>(null);
 
+  const isFormCleared =
+    isEmptyFormData(formData) && !isEmptyFormData(originalFormData.current);
+
   const enableSaveButton =
-    // TODO: it seems like we should allow saving an empty form so that the user can clear their IdP info
-    // isEmptyFormData(formData) ||
-    !isMissingAnyRequiredField(formData) && !formErrors;
+    isFormCleared || (!isMissingAnyRequiredField(formData) && !formErrors);
 
   const onInputChange = useCallback(
     ({ name, value }: { name: keyof IFormDataIdp; value: string }) => {
-      const newData = { ...formData, [name]: value?.trim() || "" };
+      const newData = { ...formData, [name]: value };
       setFormData(newData);
       setDirty(true);
 
@@ -79,13 +82,18 @@ const EndUserAuthSection = ({
   );
 
   const onBlur = useCallback(() => {
-    setFormErrors(validateFormDataIdp(formData));
-  }, [formData]);
+    const trimmed = trimFormDataIdp(formData);
+    setFormData(trimmed);
+    setFormErrors(validateFormDataIdp(trimmed));
+  }, [formData, setFormData]);
 
   const onSubmit = useCallback(
     async (e: React.FormEvent<SubmitEvent>) => {
       e.preventDefault();
-      const newErrors = validateFormDataIdp(formData);
+      const trimmed = trimFormDataIdp(formData);
+      setFormData(trimmed);
+
+      const newErrors = validateFormDataIdp(trimmed);
       if (newErrors) {
         setFormErrors(newErrors);
         return;
@@ -95,11 +103,11 @@ const EndUserAuthSection = ({
         await configAPI.update({
           mdm: {
             end_user_authentication: {
-              ...formData,
+              ...trimmed,
             },
           },
         });
-        renderFlash("success", "Successfully updated end user authentication!");
+        renderFlash("success", "Successfully updated end user authentication.");
         originalFormData.current = { ...formData };
         setDirty(false);
         // Notify parent component of changes, since we're calling our own API
@@ -117,7 +125,7 @@ const EndUserAuthSection = ({
         renderFlash("error", "Couldn't update. Please try again.");
       }
     },
-    [formData, renderFlash, setDirty]
+    [formData, setFormData, renderFlash, setDirty]
   );
 
   const renderContent = () => {
@@ -128,12 +136,16 @@ const EndUserAuthSection = ({
     return (
       <form>
         <p>
-          If enabled in{" "}
+          After configuring, head to{" "}
           <strong>
             Controls &gt; Setup experience &gt; End user authentication
-          </strong>
-          , end users will be required to authenticate when they first set up
-          their host.
+          </strong>{" "}
+          to require end users to authenticate.{" "}
+          <CustomLink
+            text="Learn more"
+            url="https://fleetdm.com/learn-more-about/end-user-authentication"
+            newTab
+          />
         </p>
         <div
           className={`form ${
@@ -188,7 +200,6 @@ const EndUserAuthSection = ({
           />
         </div>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <TooltipWrapper
               tipContent="Complete all required fields to save end user authentication."

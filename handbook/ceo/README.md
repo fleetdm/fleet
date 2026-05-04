@@ -13,12 +13,11 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Contact us
 
-**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
-
+You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
 
 ## Responsibilities
 
-Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, human resources, legal counsel, signatures on all documents, and brand &amp; product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing tiers, the business model, product vision, signatures on many documents, and brand strategy.
 
 > **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [GTM Systems Architect](https://fleetdm.com/handbook/finance#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
@@ -29,7 +28,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
- -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+ -  Forward any emails from customers about paying Fleet to the Finance department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Process the CEO's calendar
@@ -40,7 +39,7 @@ Time management for the CEO is essential.  The Executive Assistant processes the
   1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
   2. Go to the organizer (or nearest fleetie who's not the CEO):
     - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
-    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Savannah before booking](https://fleetdm.com/handbook/company/leadership#schedule-time-with-the-ceo).
   3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
   4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
 
@@ -79,14 +78,17 @@ To check for pending connect requests, perform the following steps:
 ### Add LinkedIn connections to CRM
 
 To add the most recent connections from Linkedin to our CRM, follow these steps:
-  1. Log into the CEO's LinkedIn (if you're not already) and click "My Network", then "Connections" and open each person's LinkedIn page in a new tab.
-  2. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
-  3. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
-  4. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
-  5. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
-  6. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
-  7. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
-  8. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
+  1. Log into the CEO's LinkedIn (if you're not already).
+  2. Click "My Network".
+  3. Click "Connections".
+  4. Open each person's LinkedIn page in a new tab.
+  5. Log into our CRM using the Fleet's billing login (in 1Password) in another tab.
+  6. Scroll down to the "Experience" section to find the person's current employer and search for that account in the CRM database. 
+  7. In LinkedIn, navigate to the employer company profile. Click "insights" to see how many employees are listed and update the "Employees" field on the CRM account. 
+  8. The "Account rating" on the CRM account must be a 🦄, if they're not, Do not add the contact. Move on to the following person.
+  9. If the account is a 🦄, click "All contacts" and make sure they're not a contact already.
+  10. Create a new contact on the account: Click "New", fill out their full name, title, role, buying situation, and LinkedIn URL, then save the record.
+  11. Click on the new contact (their name) that you created and change their psychological stage to "intrigued" (we consider them intrigued since they've reached out to the CEO via LinkedIn).
 
 
 ### Connect with active community members
@@ -97,7 +99,6 @@ Once a week, the Executive Assistant will review the "community activity report"
  3. Paste the LinkedIn URLs in the [appropriate Dripify campaign](https://app.dripify.io/campaigns/1291030).
 
  ![image](https://github.com/user-attachments/assets/dc20c4c2-9691-4e70-bb9c-90b725403571)
-
 
 
 ### Schedule travel for the CEO
@@ -111,6 +112,44 @@ The Executive Assistant will verify daily that the CEO's calendar is accurate fo
   - Use the Brex card.
   - Frequent flyer details of all (previously flown) airlines are in 1Password as well as important travel documents.
   - The CEO will schedule his own transportation (e.g. to/from hotel/event location) while traveling. If the CEO is traveling to an event or meeting where other Fleeties are present, he may use travel time (e.g. an Uber ride) as time to align with other team members in person.
+
+The CEO's calendar should reflect the following schedule for travel:
+- Time block for the CEO to pack (always have this event even if the CEO doesn't check any bags in, he always bring a carry-on bag),
+  - 45 minutes
+  - Calendar event name: Pack
+- Travel time to the airport the CEO is going to,
+  - Check the time it takes from where the CEO is to the airport the CEO needs to get to, even if it's to his home airport. (e.g. If the CEO is leaving their hotel to the airport, google directions from the location of the hotel to the airport, but make sure you change the time at when the CEO will leave their hotel.)
+  - Calendar event name: Travel to NAME_OF_AIRPORT
+  - Location: Address of the airport the CEO needs to go to.
+- Time block to go through security,
+  - 30 minutes for domestic and international flights
+  - Calendar event name: Security
+  - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
+- Time block to get water and boarding,
+  - 30 minutes for domestic flights
+  - 90 minutes for international flights where the first leg crosses international borders (this is because they blockade international gates and make you wait in line and the boarding time in longer)
+  - Calendar event name: Get water and boarding
+- Airline flight calendar event
+  - The airline website will either offer to download the flight or have it emailed. After you download the flights from the airline website, import it to the CEO's calendar (this is in the calendar settings) or send it to the CEO's email. (For either option, there is either a calendar icon to click or a button that says "add to calendar".)
+  - If there is no offer to download or email it (usually happens with international flights), manually put it on the CEO's calendar with this event title: ABBREVIATED_AIRPORT to ABREVIATED_ AIRPORT. Make sure to double check the time the flight starts and lands.
+  - For connecting flights, when there is a time gap between flights, fill the gap with a calendar event named: Find next gate
+- Time block to get water and bags (this is after the CEO lands from the flight),
+  - 30 minutes
+  - Calendar event name if the CEO has checked bags: Get water and bags
+  - Calendar event name if the CEO has no checked bags: Get water
+  - No calendar event to get water and bags, if CEO is going home.
+- Travel time from the airport to the CEO's next destination,
+ - Time varies, you will need to google directions from the airport to the address the CEO needs to go to. Make sure to match the time they will need to leave the airport.
+ - The CEO sometimes needs to go straight to the event they are needed at whether it's a meeting, an event, resturaunt, etc.
+ - Calendar event: Travel to NAME_OF_DESTINATION (e.g. Travel to NAME_OF_HOTEL, NAME_OF_VENUE, NAME_OF_RESTURUANT, etc.)
+ - Location: Address to destination
+ - Calendar event name if CEO is going home: Travel home
+- If the CEO is checking into a hotel, they need a time block to check-in,
+ - If the CEO will arrive to the hotel before their check-in time, call the hotel ahead of time to request early check-in. If early check-in is not available, schedule the check-in time block at the hotel's check-in time.
+ - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
+ - 30 minutes
+ - Calendar event: Check-in at hotel
+ - Calendar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview
@@ -128,12 +167,12 @@ Use the following steps to schedule an interview between a candidate and the CEO
 7. Create a reminder meeting on your calendar to join the second half of the final interview call with the CEO and candidate.
 
 
-### Schedule Journalist prep
+### Schedule analyst briefing
 
-The Executive Assistant (EA) will use the following steps when a call is booked between the CEO and a journalist:
-1. The EA will schedule a 30-minute “📰 Journalist prep” call right before the journalist meeting, with the CEO as the only attendee. 
-2. Before the journalist call, The EA will meet with the Manager of Training and Enablement to build an agenda with 3 vertebrae listed and bring it to the Manager of Training and Enablement to collect the answers along with suggestions for the other two primary talking points.
-3. The CEO will review the agenda during the “📰 Journalist prep” time.
+The Executive Assistant (EA) will use the following steps to book an analyst briefing for the CEO:
+1. The EA will work with the marketing consultant to coordinate a time for when the CEO is available for an analyst briefing.
+2. The EA will [program the CEO](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something) to attend a 30-minute “analyst prep” call right before the analyst meeting. During the prep call, the EA will write down the 3 topics the CEO will bring to the analyst discussion. 
+3. The EA will prep the agenda with a link to the analyst's LinkedIn.
 
 
 ### Confirm CEO shadow dates
@@ -141,7 +180,7 @@ The Executive Assistant (EA) will use the following steps when a call is booked 
 Every Monday, the Executive Assistant will use the following steps to confirm CEO shadow dates:
 1. Edit the "All day", "Free" event on the CEO's calendar named "CEO shadow program (TODO_OR_DELETE)" to add the names of all people in the "@onboarding" Google group (group members are visible from the calendar event). E.g. "CEO shadow program (Froto Baggins, Samwise Gamgee)". 
 
-> If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed thier CEO shadow period), delete the calendar event for that week.
+> If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed their CEO shadow period), delete the calendar event for that week.
 
 2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) durring the 3-day CEO shadow period  have "[no shadows]" in the event title.
 
@@ -170,9 +209,15 @@ Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses de
 3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
-### Process and backup E-group agenda 
+### Prepare for the e-group meeting
 
-Follow these steps to process and backup the E-group agenda: 
+Before each e-group meeting, the Executive Assistant will complete the following steps to ensure pipeline progress is front and center at the start of the meeting:
+1. Using the CEO's browser, open Salesforce and pull up the current pipeline creation actuals vs. goals report (showing the gap clearly).
+2. Take a screenshot of the report and add it as the first item in the e-group meeting agenda doc.
+
+### Process and backup E-group agenda
+
+Follow these steps to process and backup the E-group agenda:
 1. [Archive the E-group agenda](https://fleetdm.com/handbook/ceo#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
 2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
 3. If the "All hands" meeting has happened today remove any spotlights covered in the current "All hands" presentation.
@@ -182,8 +227,9 @@ Follow these steps to process and backup the E-group agenda:
 
 The Executive Assistant will perform the following steps to process all communication from the CEO in the [help-being-ceo Slack channel](https://fleetdm.slack.com/archives/C03U703J0G5).
 1. As soon as the message is received in the channel, add the "`:eyes:` (👀)" emoji to the Slack message to signify that you have seen and understood the task or question.
-2. Start a Slack thread to add any context or let the stakeholders know the status of the task. 
-3. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
+2. If the message is prefixed with "ASAP", complete the task within 2 hours. If you are unable to, get another fleetie's help.
+3. Start a Slack thread to add any context or let the stakeholders know the status of the task.
+4. After each task is completed, apply the "`:white_check_mark:`" (✅) to the slack message.
 
 
 ### Unroll a Slack thread
@@ -232,6 +278,14 @@ Mike and the Fleet team
 
 4. Address the email to the executive team's Gmail.
 5. Using the [🌧️🦉 Investors + advisors](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit#gid=1068113636) spreadsheet, bcc the correct individuals and send the email.
+
+
+### Manually archive a Slack channel
+
+Use the following steps to manually archive a Slack channel and save any artifacts, e.g., images, attachments, or videos:
+1. Download all pictures and videos in the channel to your device you want to archive. To do this, you will go to that channel, click the "Files" tab, then "See all", and download each item.  
+2. Create a new folder inside of the [memories folder](https://drive.google.com/drive/folders/1lA38aTxsl4_qDtHCrYHcAaadES5ws0yJ?usp=drive_link) in Google Drive named ARCHIVED_DATE - CHANNEL_NAME and upload all of your artifacts.
+3. After you save your artifacts in Google Drive, navigate to and archive the Slack channel. Click the 3 dots in the top right corner, click "Edit settings", and "Archive channel for everyone".
 
 
 ### Archive a document

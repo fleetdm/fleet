@@ -79,7 +79,7 @@ go run ./tools/mdm/assets import -key=mykey -dir=./assets -name=scep_challenge -
 # Send APNS push notification
 go run ./tools/mdm/apple/apnspush -mysql localhost:3306 -server-private-key <key> <UUID>
 
-# Query Apple Business Manager
+# Query Apple Business
 go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name "My Org"
 
 # Generate app manifest from pkg
@@ -210,6 +210,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 |------|---------|-------|
 | **API & Integration** | | |
 | `api/` | Fleet API testing scripts using curl + jq | `export FLEET_ENV_PATH=./env && ./tools/api/fleet/me` |
+| `fleet-mcp/` | MCP server for querying Fleet data from AI agents (Claude, Cursor, etc.) | `go run ./tools/fleet-mcp` - See [fleet-mcp/README.md](fleet-mcp/README.md) |
 | `jira-integration/` | Test Jira ticket creation | `JIRA_PASSWORD=<pwd> go run ./tools/jira-integration -jira-url <url> -jira-username <user> -jira-project-key <key> -cve CVE-2024-1234` |
 | `webhook/` | Test webhook integrations | `go run ./tools/webhook 8082` |
 | `zendesk-integration/` | Test Zendesk ticket creation | `ZENDESK_TOKEN=<token> go run ./tools/zendesk-integration -zendesk-url <url> -zendesk-email <email> -zendesk-group-id <id> -cve CVE-2024-1234` |
@@ -219,7 +220,7 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `dbutils/` | Database schema generator | `go run ./tools/dbutils/schema_generator.go <dumpfile>` |
 | `mysql-replica-testing/` | MySQL replica testing | See [mysql-replica-testing/README.md](mysql-replica-testing/README.md) |
 | `mysql-tests/` | MySQL testing configs | Docker configs for MySQL testing |
-| `redis-stress/` | Redis stress testing | `go run` tools in directory |
+| `redis-stress/` | Redis stress testing — cluster-aware `write` (steady SET load) and `race` (SET-then-GET visibility race detection) modes | `go run ./tools/redis-stress write -addr 127.0.0.1:7001 -workers 5 -duration 1m` or `go run ./tools/redis-stress race -addr 127.0.0.1:7001 -workers 50 -iterations 2000` — see [redis-stress/README.md](redis-stress/README.md) |
 | `redis-tests/` | Redis testing configs | ElastiCache and general Redis test configs |
 | `snapshot/` | Database snapshot/restore tool | `go run ./tools/snapshot s` or `go run ./tools/snapshot r` |
 | **Development Tools** | | |
@@ -242,11 +243,12 @@ go run ./tools/run-scripts -scripts-disabled -content 'echo "Test"'
 | `percona/` | Percona testing | Percona MySQL testing configs - See [percona/test/README.md](percona/test/README.md) |
 | `sentry-self-hosted/` | Self-hosted Sentry | See [sentry-self-hosted/README.md](sentry-self-hosted/README.md) |
 | `smtp4dev/` | Local SMTP testing | SMTP4Dev server with TLS certs for email testing |
+| `signoz/` | SigNoz for traces, metrics, and logs | See [signoz/README.md](signoz/README.md) |
 | `telemetry/` | Jaeger + Prometheus for tracing | `docker compose up` - See [telemetry/README.md](telemetry/README.md) |
 | `terraform/` | Terraform provider for Fleet teams | `make install && make apply` - See [terraform/README.md](terraform/README.md) |
 | **MDM Tools** | | |
 | `android/` | Android management API tool | `go run ./tools/android -command <cmd> -enterprise_id <id> -device_id <id>` |
-| `mdm/apple/applebmapi/` | Query Apple Business Manager API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
+| `mdm/apple/applebmapi/` | Query Apple Business API | `go run ./tools/mdm/apple/applebmapi -mysql localhost:3306 -server-private-key <key> -org-name <org>` |
 | `mdm/apple/appmanifest/` | Generate app manifest XML from .pkg | `go run ./tools/mdm/apple/appmanifest -pkg-file app.pkg -pkg-url https://example.com/app.pkg` |
 | `mdm/apple/apnspush/` | Send APNS push to enrolled devices | `go run ./tools/mdm/apple/apnspush -mysql localhost:3306 -server-private-key <key> <HOST_UUID>` |
 | `mdm/apple/loadtest/` | MDM load testing | `go run ./tools/mdm/apple/loadtest` |

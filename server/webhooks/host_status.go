@@ -3,19 +3,18 @@ package webhooks
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
 )
 
 func TriggerHostStatusWebhook(
 	ctx context.Context,
 	ds fleet.Datastore,
-	logger kitlog.Logger,
+	logger *slog.Logger,
 ) error {
 	multiErr := &multierror.Error{}
 	multiErr = multierror.Append(multiErr, triggerGlobalHostStatusWebhook(ctx, ds, logger))
@@ -23,7 +22,7 @@ func TriggerHostStatusWebhook(
 	return multiErr.ErrorOrNil()
 }
 
-func triggerGlobalHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+func triggerGlobalHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
@@ -33,12 +32,12 @@ func triggerGlobalHostStatusWebhook(ctx context.Context, ds fleet.Datastore, log
 		return nil
 	}
 
-	level.Debug(logger).Log("global", "true", "enable_host_status_webhook", "true")
+	logger.DebugContext(ctx, "host status webhook triggered", "global", true)
 
-	return processWebhook(ctx, ds, nil, appConfig.WebhookSettings.HostStatusWebhook)
+	return processWebhook(ctx, ds, nil, appConfig.WebhookSettings.HostStatusWebhook, logger)
 }
 
-func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, settings fleet.HostStatusWebhookSettings) error {
+func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, settings fleet.HostStatusWebhookSettings, logger *slog.Logger) error {
 	total, unseen, err := ds.TotalAndUnseenHostsSince(ctx, teamID, settings.DaysCount)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting total and unseen hosts")
@@ -64,10 +63,11 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 			},
 		}
 		if teamID != nil {
-			payload["data"].(map[string]interface{})["team_id"] = *teamID
+			payload["data"].(map[string]any)["fleet_id"] = *teamID
+			payload["data"].(map[string]any)["team_id"] = *teamID
 		}
 
-		err = server.PostJSONWithTimeout(ctx, url, &payload)
+		err = server.PostJSONWithTimeout(ctx, url, &payload, logger)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "posting to %s", url)
 		}
@@ -76,8 +76,7 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 	return nil
 }
 
-func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
-
+func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
 	teams, err := ds.TeamsSummary(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting teams summary")
@@ -94,8 +93,8 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 		if team.Config.WebhookSettings.HostStatusWebhook == nil || !team.Config.WebhookSettings.HostStatusWebhook.Enable {
 			continue
 		}
-		level.Debug(logger).Log("team", id, "enable_host_status_webhook", "true")
-		err = processWebhook(ctx, ds, &id, *team.Config.WebhookSettings.HostStatusWebhook)
+		logger.DebugContext(ctx, "host status webhook triggered", "fleet_id", id)
+		err = processWebhook(ctx, ds, &id, *team.Config.WebhookSettings.HostStatusWebhook, logger)
 		if err != nil {
 			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "processing webhook"))
 		}

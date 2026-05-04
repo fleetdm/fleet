@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"reflect"
@@ -18,7 +20,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -35,8 +37,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -340,10 +340,6 @@ func TestEnrollOsqueryEnforceLimit(t *testing.T) {
 		ds.GetHostIdentityCertByNameFunc = func(ctx context.Context, name string) (*types.HostIdentityCertificate, error) {
 			return nil, newNotFoundError()
 		}
-		ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-			return nil
-		}
-
 		redisWrapDS := mysqlredis.New(ds, pool, mysqlredis.WithEnforcedHostLimit(maxHosts))
 		svc, ctx := newTestService(t, redisWrapDS, nil, nil, &TestServerOpts{
 			EnrollHostLimiter: redisWrapDS,
@@ -519,6 +515,52 @@ func TestAuthenticateHostFailure(t *testing.T) {
 	require.NotNil(t, err)
 }
 
+func TestAuthenticateHostContextCanceled(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.LoadHostByNodeKeyFunc = func(ctx context.Context, nodeKey string) (*fleet.Host, error) {
+		return nil, context.Canceled
+	}
+
+	_, _, err := svc.AuthenticateHost(ctx, "test")
+	require.Error(t, err)
+	// The error must preserve context.Canceled in the chain so that
+	// downstream error handling (e.g. ctxerr.isClientError) correctly
+	// classifies it as a client error instead of recording it as an
+	// OTEL exception.
+	require.ErrorIs(t, err, context.Canceled)
+	var osqueryErr *OsqueryError
+	require.False(t, errors.As(err, &osqueryErr), "context.Canceled should not be wrapped in OsqueryError")
+}
+
+func TestSubmitDistributedQueryResultsDecodeBodyDeadlineExceeded(t *testing.T) {
+	deadlineErr := &net.OpError{
+		Op:  "read",
+		Net: "tcp",
+		Err: os.ErrDeadlineExceeded,
+	}
+	failingReader := &errorReader{err: deadlineErr}
+
+	shim := &submitDistributedQueryResultsRequestShim{}
+	err := shim.DecodeBody(t.Context(), failingReader, nil, nil)
+	require.Error(t, err)
+
+	var osqueryErr *OsqueryError
+	require.True(t, errors.As(err, &osqueryErr), "expected OsqueryError wrapping deadline exceeded")
+	require.True(t, osqueryErr.IsClientError(), "deadline exceeded during body read should be a client error")
+	require.Equal(t, http.StatusRequestTimeout, osqueryErr.StatusCode)
+}
+
+// errorReader is an io.Reader that returns the given error on Read.
+type errorReader struct {
+	err error
+}
+
+func (r *errorReader) Read([]byte) (int, error) {
+	return 0, r.err
+}
+
 type testJSONLogger struct {
 	logs []json.RawMessage
 }
@@ -558,7 +600,7 @@ func TestSubmitStatusLogs(t *testing.T) {
 
 func TestSubmitResultLogsToLogDestination(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Logger: log.NewJSONLogger(os.Stdout)})
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Logger: slog.New(slog.NewJSONHandler(os.Stdout, nil))})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -1147,12 +1189,12 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "google_chrome_profiles":                  {},
 		hostDetailQueryPrefix + "mdm":                                     {},
 		hostDetailQueryPrefix + "munki_info":                              {},
-		hostDetailQueryPrefix + "windows_update_history":                  {},
 		hostDetailQueryPrefix + "kubequery_info":                          {},
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
 		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
 		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
+		hostDetailQueryPrefix + "software_go_binaries":                    {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
 		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
@@ -1161,6 +1203,8 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "software_macos_executable_sha256":        {},
 		hostDetailQueryPrefix + "software_rpm_last_opened_at":             {},
 		hostDetailQueryPrefix + "software_deb_last_opened_at":             {},
+		hostDetailQueryPrefix + "disk_space_darwin":                       {},
+		hostDetailQueryPrefix + "disk_space_darwin_legacy":                {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1205,10 +1249,10 @@ func TestHostDetailQueries(t *testing.T) {
 
 	svc := &Service{
 		clock:    mockClock,
-		logger:   log.NewNopLogger(),
+		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
@@ -1660,7 +1704,7 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 		}
 		return host, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 
@@ -1670,8 +1714,8 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 due to 'windows_update_history', +1 due to fleet_no_policies_wildcard query.
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
+	// +1 due to fleet_no_policies_wildcard query.
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1898,7 +1942,7 @@ func TestDetailQueries(t *testing.T) {
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 
@@ -1907,7 +1951,7 @@ func TestDetailQueries(t *testing.T) {
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
 	// +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1, len(queries)) {
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-1) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2248,10 +2292,10 @@ func TestMDMQueries(t *testing.T) {
 	ds := new(mock.Store)
 	svc := &Service{
 		clock:    clock.NewMockClock(),
-		logger:   log.NewNopLogger(),
+		logger:   slog.New(slog.DiscardHandler),
 		config:   config.TestConfig(),
 		ds:       ds,
-		jitterMu: new(sync.Mutex),
+		jitterMu: new(sync.RWMutex),
 		jitterH:  make(map[time.Duration]*jitterHashTable),
 	}
 
@@ -2431,7 +2475,7 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableSoftwareInventory: true,
 		}}, nil
 	}
-	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 		return nil, nil
 	}
 
@@ -2448,8 +2492,8 @@ func TestDistributedQueryResults(t *testing.T) {
 	// Now we should get the active distributed query
 	queries, discovery, acc, err := svc.GetDistributedQueries(hostCtx)
 	require.NoError(t, err)
-	// +1 for the distributed query for campaign ID 42, +1 for windows update history, +1 for the fleet_no_policies_wildcard query.
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+3, len(queries)) {
+	// +1 for the distributed query for campaign ID 42, +1 for the fleet_no_policies_wildcard query.
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Len(t, expected, len(queries)-2) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -2536,7 +2580,7 @@ func TestIngestDistributedQueryParseIdError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2555,7 +2599,7 @@ func TestIngestDistributedQueryOrphanedCampaignLoadError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2581,7 +2625,7 @@ func TestIngestDistributedQueryOrphanedCampaignWaitListener(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2614,7 +2658,7 @@ func TestIngestDistributedQueryOrphanedCloseError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2650,7 +2694,7 @@ func TestIngestDistributedQueryOrphanedStopError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2687,7 +2731,7 @@ func TestIngestDistributedQueryOrphanedStop(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2725,7 +2769,7 @@ func TestIngestDistributedQueryRecordCompletionError(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2756,7 +2800,7 @@ func TestIngestDistributedQuery(t *testing.T) {
 		ds:             ds,
 		resultStore:    rs,
 		liveQueryStore: lq,
-		logger:         log.NewNopLogger(),
+		logger:         slog.New(slog.DiscardHandler),
 		clock:          mockClock,
 	}
 
@@ -2789,8 +2833,8 @@ func TestUpdateHostIntervals(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
 		return []*fleet.Pack{}, nil
 	}
-	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
-		return nil, 0, nil, nil
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		return nil, 0, 0, nil, nil
 	}
 
 	testCases := []struct {
@@ -3032,14 +3076,14 @@ func TestGetHostIdentifier(t *testing.T) {
 		{identifierOption: "hostname", providedIdentifier: "foobar", details: details, expected: "foohost"},
 		{identifierOption: "provided", providedIdentifier: "foobar", details: details, expected: "foobar"},
 	}
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	for _, tt := range testCases {
 		t.Run("", func(t *testing.T) {
 			if tt.shouldPanic {
 				assert.Panics(
 					t,
-					func() { getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details) },
+					func() { getHostIdentifier(t.Context(), logger, tt.identifierOption, tt.providedIdentifier, tt.details) },
 				)
 				return
 			}
@@ -3047,7 +3091,7 @@ func TestGetHostIdentifier(t *testing.T) {
 			assert.Equal(
 				t,
 				tt.expected,
-				getHostIdentifier(logger, tt.identifierOption, tt.providedIdentifier, tt.details),
+				getHostIdentifier(t.Context(), logger, tt.identifierOption, tt.providedIdentifier, tt.details),
 			)
 		})
 	}
@@ -3055,8 +3099,7 @@ func TestGetHostIdentifier(t *testing.T) {
 
 func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	buf := new(bytes.Buffer)
-	logger := log.NewJSONLogger(buf)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	logger := slog.New(slog.NewJSONHandler(buf, nil))
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -3173,11 +3216,6 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
 	require.Error(t, err)
 
@@ -3212,11 +3250,6 @@ func TestObserversCanOnlyRunDistributedCampaigns(t *testing.T) {
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	lq.On("RunQuery", "21", "select 1;", []uint{1, 3, 5}).Return(nil)
 	_, err = svc.NewDistributedQueryCampaign(viewerCtx, "", ptr.Uint(42), fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}})
@@ -3255,11 +3288,6 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	})
 
 	q := "select year, month, day, hour, minutes, seconds from time"
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	// var gotQuery *fleet.Query
 	ds.NewQueryFunc = func(ctx context.Context, query *fleet.Query, opts ...fleet.OptionalArg) (*fleet.Query, error) {
 		// gotQuery = query
@@ -3278,11 +3306,6 @@ func TestTeamMaintainerCanRunNewDistributedCampaigns(t *testing.T) {
 	}
 	ds.HostIDsInTargetsFunc = func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets) ([]uint, error) {
 		return []uint{1, 3, 5}, nil
-	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
 	}
 	lq.On("RunQuery", "0", "select year, month, day, hour, minutes, seconds from time", []uint{1, 3, 5}).Return(nil)
 	_, err := svc.NewDistributedQueryCampaign(viewerCtx, q, nil, fleet.HostTargets{HostIDs: []uint{2}, LabelIDs: []uint{1}, TeamIDs: []uint{123}})
@@ -3326,7 +3349,7 @@ func TestPolicyQueries(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
@@ -3637,7 +3660,7 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 	recordedResults := make(map[uint]*bool)
 	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
-		deferred bool,
+		deferred bool, newlyPassingPolicyIDs []uint,
 	) error {
 		recordedResults = results
 		host = gotHost
@@ -3672,12 +3695,30 @@ func TestPolicyWebhooks(t *testing.T) {
 
 	checkPolicyResults(queries)
 
+	// Track FlippingPoliciesForHost calls to verify the deduplication optimization: it should be called exactly once
+	// per SubmitDistributedQueryResults with ALL policy results, not multiple times with subsets.
+	var flippingCallCount int
+	var flippingIncomingResults map[uint]*bool
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
 	) {
+		flippingCallCount++
+		flippingIncomingResults = incomingResults
 		return []uint{3}, nil, nil
 	}
 
+	// Track that pre-computed newlyPassingPolicyIDs is forwarded to RecordPolicyQueryExecutions.
+	var recordedNewlyPassing []uint
+	ds.RecordPolicyQueryExecutionsFunc = func(ctx context.Context, gotHost *fleet.Host, results map[uint]*bool, updated time.Time,
+		deferred bool, newlyPassingPolicyIDs []uint,
+	) error {
+		recordedResults = results
+		recordedNewlyPassing = newlyPassingPolicyIDs
+		host = gotHost
+		return nil
+	}
+
+	flippingCallCount = 0
 	// Record a query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -3701,6 +3742,14 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.Nil(t, result)
 	require.NotNil(t, recordedResults[3])
 	require.False(t, *recordedResults[3])
+
+	// Verify FlippingPoliciesForHost was called exactly once with all 3 policy results.
+	require.Equal(t, 1, flippingCallCount, "FlippingPoliciesForHost should be called exactly once per SubmitDistributedQueryResults")
+	require.Len(t, flippingIncomingResults, 3, "FlippingPoliciesForHost should receive all policy results")
+	// Verify pre-computed newlyPassingPolicyIDs was forwarded (FlippingPoliciesForHost returned nil for newPassing,
+	// but the caller normalizes it to a non-nil empty slice).
+	require.NotNil(t, recordedNewlyPassing, "pre-computed newlyPassingPolicyIDs should be forwarded to RecordPolicyQueryExecutions")
+	require.Empty(t, recordedNewlyPassing)
 
 	cmpSets := func(expSets map[uint][]fleet.PolicySetHost) error {
 		actualSets, err := failingPolicySet.ListSets()
@@ -3781,9 +3830,12 @@ func TestPolicyWebhooks(t *testing.T) {
 	ds.FlippingPoliciesForHostFunc = func(ctx context.Context, hostID uint, incomingResults map[uint]*bool) (newFailing []uint, newPassing []uint,
 		err error,
 	) {
+		flippingCallCount++
+		flippingIncomingResults = incomingResults
 		return []uint{1}, []uint{3}, nil
 	}
 
+	flippingCallCount = 0
 	// Record another query execution.
 	err = svc.SubmitDistributedQueryResults(
 		ctx,
@@ -3807,6 +3859,12 @@ func TestPolicyWebhooks(t *testing.T) {
 	require.Nil(t, result)
 	require.NotNil(t, recordedResults[3])
 	require.True(t, *recordedResults[3])
+
+	// Verify single call and correct forwarding when there are actual flips.
+	require.Equal(t, 1, flippingCallCount, "FlippingPoliciesForHost should be called exactly once")
+	require.Len(t, flippingIncomingResults, 3)
+	require.NotNil(t, recordedNewlyPassing)
+	require.ElementsMatch(t, []uint{3}, recordedNewlyPassing, "newlyPassingPolicyIDs should be forwarded from FlippingPoliciesForHost")
 
 	assert.Eventually(t, func() bool {
 		err = cmpSets(map[uint][]fleet.PolicySetHost{
@@ -3871,7 +3929,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 	lq := live_query_mock.New(t)
 	cfg := config.TestConfig()
 	buf := new(bytes.Buffer)
-	logger := log.NewLogfmtLogger(buf)
+	logger := slog.New(slog.NewTextHandler(buf, nil))
 	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, lq, &TestServerOpts{
 		Logger: logger,
 	})
@@ -3915,7 +3973,7 @@ func TestLiveQueriesFailing(t *testing.T) {
 
 	logs, err := io.ReadAll(buf)
 	require.NoError(t, err)
-	require.Contains(t, string(logs), "level=error")
+	require.Contains(t, string(logs), "level=ERROR")
 	require.Contains(t, string(logs), "failed to get queries for host")
 }
 
@@ -4543,7 +4601,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 				host = tc.host
 			}
 			// mutates tc.resultsIn
-			preProcessSoftwareResults(host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, log.NewNopLogger())
+			preProcessSoftwareResults(t.Context(), host, tc.resultsIn, tc.statusesIn, tc.messagesIn, tc.overrides, slog.New(slog.DiscardHandler))
 			require.Equal(t, tc.resultsExpected, tc.resultsIn)
 		})
 	}
@@ -4626,8 +4684,49 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
+		preProcessSoftwareResults(context.Background(), &fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, slog.New(slog.DiscardHandler))
 	}
+}
+
+// TestPythonPackageFilterDuplicateUserDirs verifies that when osquery
+// reports the same python package multiple times (once per user via CROSS JOIN users),
+// all duplicates are handled correctly. The old code used map[string]int which only
+// tracked the last index, leaving earlier duplicates unfiltered or unrenamed.
+func TestPythonPackageFilterDuplicateUserDirs(t *testing.T) {
+	const swLinux = hostDetailQueryPrefix + "software_linux"
+
+	t.Run("matched duplicates are all removed", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			swLinux: []map[string]string{
+				{"name": "python3-cryptography", "version": "41.0.7-4ubuntu0.1", "source": "deb_packages"},
+				{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+				{"name": "cryptography", "version": "41.0.7", "source": "python_packages"},
+			},
+		}
+		statuses := map[string]fleet.OsqueryStatus{swLinux: fleet.StatusOK}
+
+		pythonPackageFilter("ubuntu", results, statuses)
+
+		require.Len(t, results[swLinux], 1, "both duplicate python_packages entries should be removed")
+		require.Equal(t, "python3-cryptography", results[swLinux][0]["name"])
+	})
+
+	t.Run("unmatched duplicates are all renamed", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			swLinux: []map[string]string{
+				{"name": "flask", "version": "3.0.0", "source": "python_packages"},
+				{"name": "flask", "version": "3.0.0", "source": "python_packages"},
+			},
+		}
+		statuses := map[string]fleet.OsqueryStatus{swLinux: fleet.StatusOK}
+
+		pythonPackageFilter("ubuntu", results, statuses)
+
+		require.Len(t, results[swLinux], 2)
+		for _, row := range results[swLinux] {
+			require.Equal(t, "python3-flask", row["name"], "all duplicates should be renamed")
+		}
+	})
 }
 
 func TestUpdateFleetdVersion(t *testing.T) {

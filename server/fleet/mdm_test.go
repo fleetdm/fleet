@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -17,7 +18,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -67,7 +67,7 @@ func TestDEPClient(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	ds := new(mock.Store)
 
 	appCfg := fleet.AppConfig{}
@@ -553,6 +553,35 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestHasCAVariables(t *testing.T) {
+	tests := []struct {
+		name     string
+		vars     []string
+		expected bool
+	}{
+		{"empty", nil, false},
+		{"no CA vars", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial)}, false},
+		{"NDES challenge", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"NDES proxy URL", []string{string(fleet.FleetVarNDESSCEPProxyURL)}, true},
+		{"SCEP renewal", []string{string(fleet.FleetVarSCEPRenewalID)}, true},
+		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
+		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
+		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
+		{"Custom SCEP proxy URL", []string{string(fleet.FleetVarCustomSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Smallstep challenge", []string{string(fleet.FleetVarSmallstepSCEPChallengePrefix) + "my_ca"}, true},
+		{"Smallstep proxy URL", []string{string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + "my_ca"}, true},
+		{"Windows SCEP cert ID", []string{string(fleet.FleetVarSCEPWindowsCertificateID)}, true},
+		{"mixed with CA", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarHostHardwareSerial), string(fleet.FleetVarNDESSCEPChallenge)}, true},
+		{"unknown var", []string{"UNKNOWN_VAR"}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.HasCAVariables(tc.vars)
 			require.Equal(t, tc.expected, result)
 		})
 	}

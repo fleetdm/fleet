@@ -6,6 +6,8 @@
 - [Development infrastructure](#development-infrastructure)
   - [Starting the local development environment](#starting-the-local-development-environment)
   - [Running Fleet using Docker development infrastructure](#running-fleet-using-docker-development-infrastructure)
+  - [Customizing service ports](#customizing-service-ports)
+  - [Running a second Fleet server](#running-a-second-fleet-server)
 - [Debugging with Delve debugger](#debugging-with-delve-debugger)
 
 ## Building the code
@@ -185,6 +187,84 @@ To start the Fleet server backed by the Docker development infrastructure, run t
 
 > To develop Fleet's MDM features, you have to pass a `--fleet_server_private_key` in your `fleet serve --dev` command. Learn how to generate a private key in [Fleet's server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration#server-private-key).
 
+### Customizing service ports
+
+All Docker service ports in `docker-compose.yml` can be overridden with environment variables. This is useful for avoiding port
+conflicts or running multiple independent Fleet instances. The defaults match the original hardcoded values, so existing setups
+are unaffected.
+
+| Service | Environment variable(s) | Default |
+|---|---|---|
+| mysql | `FLEET_MYSQL_PORT` | 3306 |
+| mysql_test | `FLEET_MYSQL_TEST_PORT` | 3307 |
+| mysql_replica_test | `FLEET_MYSQL_REPLICA_TEST_PORT` | 3310 |
+| redis | `FLEET_REDIS_PORT` | 6379 |
+| s3 (RustFS) | `FLEET_S3_PORT`, `FLEET_S3_CONSOLE_PORT` | 9000, 9001 |
+| mailhog | `FLEET_MAILHOG_WEB_PORT`, `FLEET_MAILHOG_SMTP_PORT` | 8025, 1025 |
+| mailpit | `FLEET_MAILPIT_WEB_PORT`, `FLEET_MAILPIT_SMTP_PORT` | 8026, 1026 |
+| smtp4dev_test | `FLEET_SMTP4DEV_WEB_PORT`, `FLEET_SMTP4DEV_SMTP_PORT` | 8028, 1027 |
+| saml_idp | `FLEET_SAML_IDP_HTTP_PORT`, `FLEET_SAML_IDP_HTTPS_PORT` | 9080, 9443 |
+| localstack | `FLEET_LOCALSTACK_PORT`, `FLEET_LOCALSTACK_LEGACY_PORT` | 4566, 4571 |
+| cadvisor | `FLEET_CADVISOR_PORT` | 5678 |
+| prometheus | `FLEET_PROMETHEUS_PORT` | 9090 |
+
+You can verify resolved ports with:
+
+```sh
+docker compose config
+```
+
+Or with custom overrides:
+
+```sh
+FLEET_MYSQL_PORT=3326 docker compose config
+```
+
+### Running a second Fleet server
+
+You can run a fully independent second Fleet instance alongside the first by using a separate Docker Compose project with
+different ports. This is useful for parallelizing work (e.g. one instance for development, another for QA).
+
+```sh
+# Set ports for the second instance
+export FLEET_MYSQL_PORT=3326
+export FLEET_REDIS_PORT=6389
+export FLEET_S3_PORT=9020
+export FLEET_S3_CONSOLE_PORT=9011
+export FLEET_SERVER_PORT=8090
+export FLEET_S3_CARVES_ENDPOINT_URL=http://localhost:$FLEET_S3_PORT
+export FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL=http://localhost:$FLEET_S3_PORT
+
+# Start containers with a separate compose project
+docker compose -p fleet-alt up -d mysql redis s3
+
+# Migrate the database
+./build/fleet prepare db \
+  --mysql_address=localhost:$FLEET_MYSQL_PORT \
+  --mysql_username=root \
+  --mysql_password=toor \
+  --mysql_database=fleet
+
+# Start the Fleet server
+./build/fleet serve \
+  --dev --dev_license \
+  --server_address=localhost:$FLEET_SERVER_PORT \
+  --mysql_address=localhost:$FLEET_MYSQL_PORT \
+  --mysql_username=fleet \
+  --mysql_password=insecure \
+  --mysql_database=fleet \
+  --redis_address=localhost:$FLEET_REDIS_PORT \
+  --logging_debug
+```
+
+The `-p fleet-alt` flag gives the second instance separate containers and volumes, so data is fully isolated.
+
+> **Important:** Both instances run on `localhost`, so browser session cookies are shared between them. Use an incognito
+> window or a different browser profile for the second instance to avoid getting logged out when switching between them.
+
+> **Note:** You would typically run the second instance from a separate clone or git worktree (e.g. `~/fleet2`),
+> which also lets you build and run different code versions.
+
 ### Developing the Fleet UI
 
 When the Fleet server is running, the Fleet UI is accessible by default at
@@ -193,13 +273,6 @@ When the Fleet server is running, the Fleet UI is accessible by default at
 > Note that `./build/fleet serve --dev` requires the use of `make generate-dev` because the server will not use bundled assets in this mode. (You may see an error mentioning a template not found when visiting the website otherwise.)
 
 By default, Fleet will try to connect to servers running on default ports on `localhost`. Depending on your browser's settings, you may have to click through a security warning.
-
-If you're using the Google Chrome web browser, you can always automatically bypass the security warning. Visit [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) and set the "Allow invalid certificates for resources loaded from localhost." flag to "Enabled."
-
-> Note: in Chrome version 88, there is a bug where you must first enable
-> [chrome://flags/#temporary-unexpire-flags-m87](chrome://flags/#temporary-unexpire-flags-m87). The
-> [chrome://flags/#allow-insecure-localhost](chrome://flags/#allow-insecure-localhost) flag will
-> then be visible again.
 
 The Fleet UI is developed with [Typescript](https://www.typescriptlang.org/) using the [React library](https://reactjs.org/docs/getting-started.html) and [SCSS](https://sass-lang.com/) for styling.
 The source code can be found in the [frontend](https://github.com/fleetdm/fleet/tree/main/frontend) directory.

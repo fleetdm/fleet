@@ -383,7 +383,7 @@ describe("HostInstallerActionCell component", () => {
         software={{
           ...defaultSoftware,
           status: "failed_install",
-          ui_status: "failed_install",
+          ui_status: "failed_install_installed",
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
@@ -460,7 +460,7 @@ describe("HostInstallerActionCell component", () => {
         software={{
           ...defaultSoftware,
           status: "failed_uninstall",
-          ui_status: "failed_uninstall",
+          ui_status: "failed_uninstall_installed",
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}

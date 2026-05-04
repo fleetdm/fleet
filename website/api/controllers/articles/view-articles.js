@@ -36,7 +36,7 @@ module.exports = {
     if (category === 'articles') {
       // If the category is `/articles` we'll show all articles
       articles = sails.config.builtStaticContent.markdownPages.filter((page)=>{
-        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides')) {
+        if(_.startsWith(page.htmlId, 'articles') && !_.startsWith(page.url, '/guides') && !_.startsWith(page.url, '/whitepapers')) {
           return page;
         }
       });
@@ -99,6 +99,10 @@ module.exports = {
       case 'articles':
         pageTitleForMeta = 'Blog';
         pageDescriptionForMeta = 'Read the latest articles from the Fleet team and community.';
+        break;
+      case 'whitepapers':
+        pageTitleForMeta = 'Whitepapers';
+        pageDescriptionForMeta = 'Browse our whitepapers to learn how modern teams manage and secure their devices.';
         break;
     }
 

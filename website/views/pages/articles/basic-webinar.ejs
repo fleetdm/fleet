@@ -1,0 +1,97 @@
+<div id="basic-webinar" v-cloak>
+  <%if(!displayVideo){%>
+    <div purpose="page-container" class="container-fluid">
+      <div purpose="article-title-and-image">
+        <div purpose="article-title-and-introduction">
+          <div>
+            <h4>Webinar</h4>
+            <h1><%=thisPage.meta.articleTitle %></h1>
+          </div>
+          <div purpose="article-introduction">
+            <%if(thisPage.meta.introductionTextBlockOne){%><p><%- thisPage.meta.introductionTextBlockOne %></p><%}%>
+            <%if(thisPage.meta.introductionTextBlockTwo){%><p><%- thisPage.meta.introductionTextBlockTwo %></p><%}%>
+          </div>
+        </div>
+        <%if(thisPage.meta.articleImageUrl){%>
+        <div purpose="article-image">
+          <img alt="A preview image of the webinar" src="<%= thisPage.meta.articleImageUrl %>">
+        </div>
+        <% } %>
+      </div>
+      <div purpose="article-and-sidebar" class="d-flex flex-lg-row-reverse flex-column justify-content-lg-between">
+        <div purpose="sidebar-container">
+          <div purpose="right-sidebar" class="d-flex flex-column">
+            <div purpose="form-container">
+              <div id="webinar-recording-form" purpose="webinar-recording-form">
+                <h4>Sign up to watch the webinar</h4>
+                <ajax-form class="w-100" action="deliverWebinarAccessRequest" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" :syncing.sync="syncing" :cloud-error.sync="cloudError" @submitted="submittedDownloadForm()">
+                  <div class="form-group">
+                    <label for="first-name">First name *</label>
+                    <input tabindex="1" class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name">
+                    <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+                  </div>
+                  <div class="form-group">
+                    <label for="last-name">Last name *</label>
+                    <input tabindex="2" class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name">
+                    <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
+                  </div>
+                  <div class="form-group">
+                    <label for="email-address">Work email *</label>
+                    <input tabindex="3" class="form-control" id="email-address" type="email" autocomplete="email" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress">
+                    <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
+                  </div>
+                  <ajax-button tabindex="4" purpose="watch-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary">Watch the webinar</ajax-button>
+                  <cloud-error v-if="cloudError === 'invalidEmailDomain'">
+                    <p>
+                      Please enter your work or school email address.
+                    </p>
+                  </cloud-error>
+                  <cloud-error v-else-if="cloudError">
+                  </cloud-error>
+                </ajax-form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div purpose="article-container">
+          <div purpose="article-content" parasails-has-no-page-script>
+            <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+            <div purpose="watch-cta" class="d-lg-none d-flex">
+              <a purpose="watch-button" class="btn btn-primary" href="#webinar-recording-form">Watch the recording</a>
+            </div>
+            <div purpose="about-fleet-section">
+              <h3>About Fleet</h3>
+
+              <p>Fleet is the single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Trusted by over 1,300 organizations, Fleet empowers IT and security teams to accelerate productivity, build verifiable trust, and optimize costs.</p>
+
+              <p>By bringing infrastructure-as-code (IaC) practices to device management, Fleet ensures endpoints remain secure and operational, freeing engineering teams to focus on strategic initiatives.</p>
+
+              <p>Fleet offers total deployment flexibility: on-premises, air-gapped, container-native (Docker and Kubernetes), or cloud-agnostic (AWS, Azure, GCP, DigitalOcean). Organizations can also choose fully managed SaaS via Fleet Cloud, ensuring complete control over data residency and legal jurisdiction.</p>
+            </div>
+            <div purpose="social-share-and-edit-buttons" class="d-flex flex-row justify-content-between align-items-center">
+              <div purpose="social-share-buttons" class="d-flex flex-row">
+                <a :href="`https://news.ycombinator.com/submitlink?u=https://fleetdm.com${encodeURIComponent(thisPage.url)}&t=${encodeURIComponent(thisPage.meta.articleTitle)}`"><img src="/images/social-share-icon-hacker-news-20x20@2x.png" alt="Share this article on Hacker News"></a>
+                <a :href="`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-linkedin-20x20@2x.png" alt="Share this article on LinkedIn"></a>
+                <a :href="`https://twitter.com/intent/tweet?url=${encodeURIComponent('https://fleetdm.com'+thisPage.url)}`"><img src="/images/social-share-icon-twitter-20x20@2x.png" alt="Share this article on Twitter"></a>
+              </div>
+              <div purpose="edit-link">
+                <a :href="'https://github.com/fleetdm/fleet/edit/main/articles/'+thisPage.sectionRelativeRepoPath"> <img src="/images/icon-edit-16x16@2x.png" alt="Suggest an edit">Suggest an edit</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <%} else {%>
+    <div purpose="page-container" class="mx-auto">
+      <div purpose="success-message">
+        <h1 class="pb-3"><%= thisPage.meta.articleTitle %></h1>
+        <div purpose="embedded-video">
+          <iframe title="Webinar recording: <%= thisPage.meta.articleTitle %>" src="<%= thisPage.meta.webinarEmbeddedVideoUrl %>?loop=false&muted=false&preload=true&responsive=false" allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture;" allowfullscreen="true"></iframe>
+        </div>
+      </div>
+
+    </div>
+  <%}%>
+</div>
+<%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

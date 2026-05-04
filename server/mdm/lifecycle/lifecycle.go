@@ -2,6 +2,7 @@ package mdmlifecycle
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -9,8 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 // HostAction is a supported MDM lifecycle action that can be performed on a
@@ -52,17 +51,17 @@ type HostOptions struct {
 // HostLifecycle manages MDM host lifecycle actions
 type HostLifecycle struct {
 	ds              fleet.Datastore
-	logger          kitlog.Logger
+	logger          *slog.Logger
 	newActivityFunc NewActivityFunc
 }
 
 // NewActivityFunc is the signature type of the service-layer function that can
 // create activities and handle the webhook notification and all other
 // mechanisms required when creating an activity.
-type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error
+type NewActivityFunc = fleet.NewActivityFunc
 
 // New creates a new HostLifecycle struct
-func New(ds fleet.Datastore, logger kitlog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
+func New(ds fleet.Datastore, logger *slog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
 	return &HostLifecycle{
 		ds:              ds,
 		logger:          logger,
@@ -145,7 +144,6 @@ func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) erro
 func (t *HostLifecycle) resetApple(ctx context.Context, opts HostOptions) error {
 	isPersonalEnrollment := false
 	if opts.UUID == "" && opts.HardwareSerial == "" && opts.UserEnrollmentID != "" {
-		// We are doing user enrollment, where we don't have access to device hardware details
 		opts.UUID = opts.UserEnrollmentID
 		opts.HardwareSerial = opts.UserEnrollmentID
 		isPersonalEnrollment = true
@@ -194,17 +192,17 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on
 		// and log the details for debugging
-		keyvals := []interface{}{"msg", "skipping turn on darwin", "host_uuid", opts.UUID}
+		attrs := []slog.Attr{slog.String("host_uuid", opts.UUID)}
 		if nanoEnroll == nil {
-			keyvals = append(keyvals, "nano_enroll", "nil")
+			attrs = append(attrs, slog.String("nano_enroll", "nil"))
 		} else {
-			keyvals = append(keyvals,
-				"enabled", nanoEnroll.Enabled,
-				"type", nanoEnroll.Type,
-				"token_update_tally", nanoEnroll.TokenUpdateTally,
+			attrs = append(attrs,
+				slog.Bool("enabled", nanoEnroll.Enabled),
+				slog.String("type", nanoEnroll.Type),
+				slog.Int("token_update_tally", nanoEnroll.TokenUpdateTally),
 			)
 		}
-		level.Info(t.logger).Log(keyvals...)
+		t.logger.LogAttrs(ctx, slog.LevelInfo, "skipping turn on darwin", attrs...)
 
 		return nil
 	}
@@ -227,7 +225,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		} else {
 			mdmEnrolledActivity.HostSerial = ptr.String(info.HardwareSerial)
 		}
-		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity, t.ds, t.logger)
+		err = t.newActivityFunc(ctx, nil, mdmEnrolledActivity)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create mdm enrolled activity")
 		}
@@ -241,7 +239,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 	// TODO: improve this to not enqueue the job if a host that is
 	// assigned in ABM is manually enrolling for some reason.
 	if info.DEPAssignedToFleet || info.InstalledFromDEP {
-		level.Info(t.logger).Log("msg", "queueing post-enroll task for newly enrolled DEP device", "host_uuid", opts.UUID)
+		t.logger.InfoContext(ctx, "queueing post-enroll task for newly enrolled DEP device", "host_uuid", opts.UUID)
 		err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
@@ -259,7 +257,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 
 	// manual MDM enrollments
 	if !info.InstalledFromDEP {
-		level.Info(t.logger).Log("msg", "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
+		t.logger.InfoContext(ctx, "queueing post-enroll task for manual enrolled device", "host_uuid", opts.UUID)
 		if err := worker.QueueAppleMDMJob(
 			ctx,
 			t.ds,
@@ -366,11 +364,8 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	}
 
 	if !exists {
-		level.Info(t.logger).Log(
-			"msg",
-			"unable to find default team assigned to abm token, mdm devices won't be assigned to a team",
-			"team_id",
-			abmDefaultTeamID,
+		t.logger.InfoContext(ctx, "unable to find default team assigned to abm token, mdm devices won't be assigned to a team",
+			"team_id", abmDefaultTeamID,
 		)
 		return nil, nil
 	}
@@ -385,7 +380,7 @@ func (t *HostLifecycle) createActivities(ctx context.Context, users []*fleet.Use
 
 	for i, act := range acts {
 		user := users[i]
-		if err := t.newActivityFunc(ctx, user, act, t.ds, t.logger); err != nil {
+		if err := t.newActivityFunc(ctx, user, act); err != nil {
 			return ctxerr.Wrap(ctx, err, "create activity")
 		}
 	}

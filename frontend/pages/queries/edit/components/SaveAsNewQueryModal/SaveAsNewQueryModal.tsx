@@ -24,7 +24,6 @@ import {
 } from "interfaces/team";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import TeamsDropdown from "components/TeamsDropdown";
 import { useTeamIdParam } from "hooks/useTeamIdParam";
@@ -72,7 +71,7 @@ const SaveAsNewQueryModal = ({
   const [formData, setFormData] = useState<ISANQFormData>({
     queryName: `Copy of ${initialQueryData.name}`,
     team: {
-      id: initialQueryData.team_id,
+      id: initialQueryData.fleet_id,
       name: undefined,
     },
   });
@@ -90,6 +89,7 @@ const SaveAsNewQueryModal = ({
       maintainer: true,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -154,29 +154,29 @@ const SaveAsNewQueryModal = ({
     const createBody = {
       ...initialQueryData,
       name: queryName,
-      team_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
+      fleet_id: teamId === APP_CONTEXT_ALL_TEAMS_ID ? API_ALL_TEAMS_ID : teamId,
     };
     try {
       const { query: newQuery } = await queryAPI.create(createBody);
       setIsSaving(false);
-      renderFlash("success", `Successfully added query ${newQuery.name}.`);
+      renderFlash("success", `Successfully added report ${newQuery.name}.`);
       router.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(newQuery.id), {
-          team_id: newQuery.team_id,
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(newQuery.id), {
+          fleet_id: newQuery.team_id,
           host_id: hostId,
         })
       );
     } catch (createError: unknown) {
-      let errFlash = "Could not create query. Please try again.";
+      let errFlash = "Could not create report. Please try again.";
       const reason = getErrorReason(createError);
       if (reason.includes("already exists")) {
         let teamText;
         if (teamId !== APP_CONTEXT_ALL_TEAMS_ID) {
-          teamText = teamName ? `the ${teamName} team` : "this team";
+          teamText = teamName ? `the ${teamName} fleet` : "this fleet";
         } else {
-          teamText = "all teams";
+          teamText = "all fleets";
         }
-        errFlash = `A query called "${queryName}" already exists for ${teamText}.`;
+        errFlash = `A report called "${queryName}" already exists for ${teamText}.`;
       } else if (reason.includes(INVALID_PLATFORMS_REASON)) {
         errFlash = INVALID_PLATFORMS_FLASH_MESSAGE;
       }
@@ -202,7 +202,7 @@ const SaveAsNewQueryModal = ({
         />
         {isPremiumTier && (userTeams?.length || 0) > 1 && (
           <div className="form-field">
-            <div className="form-field__label">Team</div>
+            <div className="form-field__label">Fleet</div>
             <TeamsDropdown
               asFormField
               currentUserTeams={userTeams || []}

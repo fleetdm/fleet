@@ -25,8 +25,8 @@ describe("HostQueries card", () => {
       />
     );
 
-    expect(screen.getByText("Queries")).toBeInTheDocument();
-    expect(screen.getByText("Add query")).toBeInTheDocument();
+    expect(screen.getByText("Reports")).toBeInTheDocument();
+    expect(screen.getByText("Add report")).toBeInTheDocument();
     // Use getAllByText due to tooltip duplicates
     expect(screen.getAllByText("Query 1").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Query 2").length).toBeGreaterThan(0);
@@ -44,17 +44,17 @@ describe("HostQueries card", () => {
       />
     );
 
-    expect(screen.getByText("Queries")).toBeInTheDocument();
+    expect(screen.getByText("Reports")).toBeInTheDocument();
     expect(
-      screen.getByText("Queries not supported for this host")
+      screen.getByText("Reports not supported for this host")
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Interested in collecting data from your Chromebooks/)
     ).toBeInTheDocument();
-    expect(screen.queryByText("Add query")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add report")).not.toBeInTheDocument();
   });
 
-  it("renders empty state and add query button for supported platform with no queries", () => {
+  it("renders empty state and add query button for supported platform with no reports", () => {
     render(
       <HostQueries
         hostId={1}
@@ -66,11 +66,11 @@ describe("HostQueries card", () => {
       />
     );
 
-    expect(screen.getByText("Queries")).toBeInTheDocument();
-    expect(screen.getByText("Add query")).toBeInTheDocument();
-    expect(screen.getByText("No queries")).toBeInTheDocument();
+    expect(screen.getByText("Reports")).toBeInTheDocument();
+    expect(screen.getByText("Add report")).toBeInTheDocument();
+    expect(screen.getByText("No reports")).toBeInTheDocument();
     expect(
-      screen.getByText("Add a query to view custom vitals.")
+      screen.getByText("Add a report to view custom vitals.")
     ).toBeInTheDocument();
   });
 });
