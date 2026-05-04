@@ -1039,7 +1039,6 @@ func TestNewLabelFieldValidation(t *testing.T) {
 	require.NoError(t, err)
 }
 
-
 func TestLabelActivities(t *testing.T) {
 	ds := new(mock.Store)
 	opts := &TestServerOpts{}
