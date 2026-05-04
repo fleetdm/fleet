@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1" // nolint:gosec // test-only unique sha1 generator
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -29,6 +30,7 @@ func TestHostCertificates(t *testing.T) {
 	}{
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
+		{"Backfill host_mdm_managed_certificates from host_certificates", testBackfillHostMDMManagedCertsFromHostCerts},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
@@ -372,6 +374,291 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	require.NotNil(t, profile.NotValidAfter)
 	assert.Equal(t, expected1.NotAfter, *profile.NotValidAfter)
 	assert.Equal(t, "custom-ca", profile.CAName)
+}
+
+// checksumForTest returns a 16-byte value suitable for the BINARY(16) checksum
+// column on host_mdm_*_profiles tables. Truncates a sha1 hash of the input.
+func checksumForTest(s string) []byte {
+	sum := sha1.Sum([]byte(s)) // nolint:gosec // test-only checksum, not security-sensitive
+	return sum[:16]
+}
+
+func testBackfillHostMDMManagedCertsFromHostCerts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("backfill-osquery-id"),
+		NodeKey:         ptr.String("backfill-node-key"),
+		UUID:            "backfill-host-uuid",
+		Hostname:        "backfill-host",
+	})
+	require.NoError(t, err)
+
+	// backdateHMMC bypasses ON UPDATE CURRENT_TIMESTAMP by explicitly setting
+	// updated_at, so we can simulate a row that's been sitting in its current
+	// state for `ago` duration.
+	backdateHMMC := func(t *testing.T, hostUUID, profileUUID string, ago time.Duration) {
+		t.Helper()
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_managed_certificates
+			SET updated_at = DATE_SUB(NOW(), INTERVAL ? SECOND)
+			WHERE host_uuid = ? AND profile_uuid = ?
+		`, int(ago.Seconds()), hostUUID, profileUUID)
+		require.NoError(t, err)
+	}
+
+	// insertHostCert directly inserts a row into host_certificates, bypassing
+	// UpdateHostCertificates' toInsert matcher — the whole point of these tests
+	// is to exercise the backfill independently from the primary path.
+	insertHostCert := func(t *testing.T, hostID uint, commonName, ou string, notBefore, notAfter time.Time, serial string) {
+		t.Helper()
+		// Unique sha1 per insert so the (host_id, sha1_sum) index doesn't
+		// collide across subtests / multi-cert subtests.
+		sum := sha1.Sum([]byte(commonName + ":" + ou + ":" + serial + ":" + fmt.Sprint(time.Now().UnixNano(), mathrand.Int())))
+		_, err := ds.writer(ctx).ExecContext(ctx, `
+			INSERT INTO host_certificates
+				(host_id, sha1_sum, not_valid_before, not_valid_after, certificate_authority,
+				 common_name, key_algorithm, key_strength, key_usage, serial, signing_algorithm,
+				 subject_country, subject_org, subject_org_unit, subject_common_name,
+				 issuer_country, issuer_org, issuer_org_unit, issuer_common_name)
+			VALUES (?, ?, ?, ?, 0, ?, 'RSA', 2048, 'Digital Signature', ?, 'SHA256-RSA',
+				'', '', ?, ?, '', '', '', 'issuer.test')
+		`, hostID, sum[:], notBefore, notAfter, commonName, serial, ou, commonName)
+		require.NoError(t, err)
+	}
+
+	getApple := func(t *testing.T, hostUUID, profileUUID, caName string) *fleet.HostMDMCertificateProfile {
+		t.Helper()
+		profile, err := ds.GetAppleHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		return profile
+	}
+	getWindows := func(t *testing.T, hostUUID, profileUUID, caName string) *fleet.HostMDMCertificateProfile {
+		t.Helper()
+		profile, err := ds.GetWindowsHostMDMCertificateProfile(ctx, hostUUID, profileUUID, caName)
+		require.NoError(t, err)
+		require.NotNil(t, profile)
+		return profile
+	}
+
+	type seedOpts struct {
+		profileUUID string
+		certType    fleet.CAConfigAssetType
+		caName      string
+		// Set populated when the hmmc row should already have non-NULL values
+		// (e.g. a prior renewal cycle that succeeded). When zero, the row is
+		// inserted with NULL not_valid_*/serial — the typical post-reconcile
+		// in-flight state.
+		populatedNotBefore time.Time
+		populatedNotAfter  time.Time
+		populatedSerial    string
+	}
+	seedAppleProfile := func(t *testing.T, opts seedOpts, status fleet.MDMDeliveryStatus) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   opts.profileUUID,
+			HostUUID:      host.UUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   "cmd-" + opts.profileUUID,
+			Checksum:      checksumForTest(opts.profileUUID),
+			Scope:         fleet.PayloadScopeSystem,
+		}}))
+		hmmc := &fleet.MDMManagedCertificate{
+			HostUUID:    host.UUID,
+			ProfileUUID: opts.profileUUID,
+			Type:        opts.certType,
+			CAName:      opts.caName,
+		}
+		if !opts.populatedNotAfter.IsZero() {
+			hmmc.NotValidBefore = &opts.populatedNotBefore
+			hmmc.NotValidAfter = &opts.populatedNotAfter
+			hmmc.Serial = ptr.String(opts.populatedSerial)
+		}
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{hmmc}))
+	}
+	seedWindowsProfile := func(t *testing.T, opts seedOpts, status fleet.MDMDeliveryStatus) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMWindowsHostProfiles(ctx, []*fleet.MDMWindowsBulkUpsertHostProfilePayload{{
+			ProfileUUID:   opts.profileUUID,
+			HostUUID:      host.UUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   "cmd-" + opts.profileUUID,
+			ProfileName:   "win-" + opts.profileUUID,
+			Checksum:      checksumForTest(opts.profileUUID),
+		}}))
+		require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{{
+			HostUUID:    host.UUID,
+			ProfileUUID: opts.profileUUID,
+			Type:        opts.certType,
+			CAName:      opts.caName,
+		}}))
+	}
+
+	t.Run("missed ingest on Windows is recovered", func(t *testing.T) {
+		profileUUID := "win-missed-ingest"
+		seedWindowsProfile(t, seedOpts{
+			profileUUID: profileUUID,
+			certType:    fleet.CAConfigCustomSCEPProxy,
+			caName:      "win-missed-ca",
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, host.UUID, profileUUID, 5*time.Hour)
+
+		freshNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		freshNotAfter := time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC()
+		insertHostCert(t, host.ID,
+			"hostname-fleet-"+profileUUID,
+			"OU=fleet-"+profileUUID,
+			freshNotBefore, freshNotAfter, "abc123",
+		)
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getWindows(t, host.UUID, profileUUID, "win-missed-ca")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshNotAfter.Equal(*got.NotValidAfter), "expected hmmc.not_valid_after to be backfilled")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, fmt.Sprintf("%040s", "abc123"), *got.Serial)
+	})
+
+	t.Run("grace boundary skips recently-updated rows", func(t *testing.T) {
+		profileUUID := "apple-grace"
+		seedAppleProfile(t, seedOpts{
+			profileUUID: profileUUID,
+			certType:    fleet.CAConfigCustomSCEPProxy,
+			caName:      "apple-grace-ca",
+		}, fleet.MDMDeliveryVerified)
+		// Just under the gate — backfill must skip.
+		backdateHMMC(t, host.UUID, profileUUID, 3*time.Hour)
+
+		insertHostCert(t, host.ID,
+			"hostname-fleet-"+profileUUID,
+			"",
+			time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(),
+			"def456",
+		)
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getApple(t, host.UUID, profileUUID, "apple-grace-ca")
+		assert.Nil(t, got.NotValidAfter, "row updated within grace must NOT be backfilled")
+	})
+
+	t.Run("DigiCert rows are not clobbered", func(t *testing.T) {
+		profileUUID := "apple-digicert"
+		seededNotBefore := time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC()
+		seededNotAfter := time.Now().Add(48 * time.Hour).Truncate(time.Second).UTC()
+		seededSerial := "deadbeef"
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigDigiCert,
+			caName:             "digicert-ca",
+			populatedNotBefore: seededNotBefore,
+			populatedNotAfter:  seededNotAfter,
+			populatedSerial:    seededSerial,
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, host.UUID, profileUUID, 5*time.Hour)
+
+		// Plant a host cert that DOES match the renewal-ID substring, with
+		// different validity dates. DigiCert's hmmc must remain untouched.
+		insertHostCert(t, host.ID,
+			"hostname-fleet-"+profileUUID,
+			"",
+			time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(),
+			"different-serial",
+		)
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getApple(t, host.UUID, profileUUID, "digicert-ca")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, seededNotAfter.Equal(*got.NotValidAfter), "DigiCert row must be left alone")
+		require.NotNil(t, got.Serial)
+		assert.Equal(t, seededSerial, *got.Serial)
+	})
+
+	t.Run("pending profile is skipped", func(t *testing.T) {
+		profileUUID := "apple-pending"
+		seedAppleProfile(t, seedOpts{
+			profileUUID: profileUUID,
+			certType:    fleet.CAConfigCustomSCEPProxy,
+			caName:      "apple-pending-ca",
+		}, fleet.MDMDeliveryPending)
+		backdateHMMC(t, host.UUID, profileUUID, 5*time.Hour)
+
+		insertHostCert(t, host.ID,
+			"hostname-fleet-"+profileUUID,
+			"",
+			time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(),
+			"abc789",
+		)
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getApple(t, host.UUID, profileUUID, "apple-pending-ca")
+		assert.Nil(t, got.NotValidAfter, "in-flight profile must NOT be backfilled")
+	})
+
+	t.Run("tie-breaker picks the most recently issued cert", func(t *testing.T) {
+		profileUUID := "apple-tiebreaker"
+		seedAppleProfile(t, seedOpts{
+			profileUUID: profileUUID,
+			certType:    fleet.CAConfigCustomSCEPProxy,
+			caName:      "apple-tb-ca",
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, host.UUID, profileUUID, 5*time.Hour)
+
+		olderNotBefore := time.Now().Add(-48 * time.Hour).Truncate(time.Second).UTC()
+		olderNotAfter := time.Now().Add(180 * 24 * time.Hour).Truncate(time.Second).UTC()
+		newerNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		newerNotAfter := time.Now().Add(365 * 24 * time.Hour).Truncate(time.Second).UTC()
+
+		// Insert older first to ensure ordering doesn't accidentally match insertion order.
+		insertHostCert(t, host.ID, "older-fleet-"+profileUUID, "", olderNotBefore, olderNotAfter, "older-serial")
+		insertHostCert(t, host.ID, "newer-fleet-"+profileUUID, "", newerNotBefore, newerNotAfter, "newer-serial")
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getApple(t, host.UUID, profileUUID, "apple-tb-ca")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, newerNotAfter.Equal(*got.NotValidAfter), "expected newest cert to win the tie-breaker")
+	})
+
+	t.Run("idempotent when hmmc already fresher", func(t *testing.T) {
+		profileUUID := "apple-idempotent"
+		freshNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+		freshNotAfter := time.Now().Add(400 * 24 * time.Hour).Truncate(time.Second).UTC()
+		seedAppleProfile(t, seedOpts{
+			profileUUID:        profileUUID,
+			certType:           fleet.CAConfigCustomSCEPProxy,
+			caName:             "apple-idem-ca",
+			populatedNotBefore: freshNotBefore,
+			populatedNotAfter:  freshNotAfter,
+			populatedSerial:    fmt.Sprintf("%040s", "fresh-serial"),
+		}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, host.UUID, profileUUID, 5*time.Hour)
+
+		// host_certificates has an OLDER cert (e.g. the one before the most
+		// recent renewal). Backfill must NOT regress hmmc.
+		olderNotBefore := time.Now().Add(-2 * time.Hour).Truncate(time.Second).UTC()
+		olderNotAfter := time.Now().Add(180 * 24 * time.Hour).Truncate(time.Second).UTC()
+		insertHostCert(t, host.ID, "stale-fleet-"+profileUUID, "", olderNotBefore, olderNotAfter, "stale-serial")
+
+		require.NoError(t, ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, host.ID, host.UUID))
+
+		got := getApple(t, host.UUID, profileUUID, "apple-idem-ca")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshNotAfter.Equal(*got.NotValidAfter), "must not overwrite a fresher hmmc with a staler cert")
+	})
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {

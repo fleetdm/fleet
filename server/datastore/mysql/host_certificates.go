@@ -2,12 +2,14 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -158,7 +160,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := insertHostCertsDB(ctx, tx, toInsert); err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host certs")
 		}
@@ -193,7 +195,17 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
 		}
 		return nil
-	})
+	}); err != nil {
+		return err
+	}
+
+	// Safety net for the renewal flow: if the toInsert matcher above missed
+	// updating an hmmc row (replica lag, transaction race, or a profile that
+	// reached a settled state without a corresponding new cert in toInsert),
+	// look up the matching cert in host_certificates and backfill. Gated to
+	// preserve the natural in-flight synchronization between reconcile and
+	// the renewal cron. See issue #44111.
+	return ds.backfillHostMDMManagedCertsFromHostCertsDB(ctx, hostID, hostUUID)
 }
 
 // validateAndTruncateCertificateFields validates and truncates certificate string fields to match database schema constraints
@@ -521,5 +533,122 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
 		}
 	}
+	return nil
+}
+
+// hmmcBackfillGrace controls how long we wait after a managed-cert profile
+// lands in a settled state ('verified' / 'failed') before falling back to
+// looking up the cert in host_certificates. The primary path
+// (toInsert matcher in UpdateHostCertificates above) updates hmmc when the
+// device first reports the renewed cert via osquery / MDM CertificateList.
+// The backfill is the safety net for the cases where that primary path
+// missed the cert — replica lag, a transaction race, or a profile that
+// reached 'verified' without a corresponding new cert. The grace gives the
+// primary path time to fire before we fall back. See issue #44111.
+const hmmcBackfillGrace = 4 * time.Hour
+
+// backfillHostMDMManagedCertsFromHostCertsDB fills in
+// host_mdm_managed_certificates rows whose validity columns are stale or
+// NULL by looking up the matching cert in host_certificates. It runs after
+// the primary toInsert matcher in UpdateHostCertificates and is gated to
+// avoid clobbering the in-flight synchronization that the renewal cron
+// relies on (reconcile NULLs hmmc → cron's HAVING IS NOT NULL excludes
+// the row until ingest repopulates).
+func (ds *Datastore) backfillHostMDMManagedCertsFromHostCertsDB(ctx context.Context, hostID uint, hostUUID string) error {
+	supportedTypes := fleet.ListCATypesWithRenewalIDSupport()
+	if len(supportedTypes) == 0 {
+		return nil
+	}
+
+	type eligibleHMMCRow struct {
+		ProfileUUID   string     `db:"profile_uuid"`
+		CAName        string     `db:"ca_name"`
+		NotValidAfter *time.Time `db:"not_valid_after"`
+	}
+
+	// Eligible: managed-cert row on this host, type supports renewal IDs
+	// (excludes DigiCert — it's populated server-side at issuance), the
+	// related profile is in a settled delivery state ('verified' or
+	// 'failed') for the install operation, and the row hasn't been touched
+	// in the grace window.
+	eligibleStmt, eligibleArgs, err := sqlx.In(`
+		SELECT hmmc.profile_uuid, hmmc.ca_name, hmmc.not_valid_after
+		FROM host_mdm_managed_certificates hmmc
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.host_uuid = hmmc.host_uuid AND hmap.profile_uuid = hmmc.profile_uuid AND hmap.operation_type = ?
+		LEFT JOIN host_mdm_windows_profiles hwmp
+			ON hwmp.host_uuid = hmmc.host_uuid AND hwmp.profile_uuid = hmmc.profile_uuid AND hwmp.operation_type = ?
+		WHERE hmmc.host_uuid = ?
+		  AND hmmc.type IN (?)
+		  AND hmmc.updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)
+		  AND (hmap.status IN (?, ?) OR hwmp.status IN (?, ?))
+	`,
+		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeInstall,
+		hostUUID,
+		supportedTypes,
+		int(hmmcBackfillGrace.Seconds()),
+		fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed,
+		fleet.MDMDeliveryVerified, fleet.MDMDeliveryFailed,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build hmmc backfill eligibility query")
+	}
+
+	var eligible []eligibleHMMCRow
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &eligible, eligibleStmt, eligibleArgs...); err != nil {
+		return ctxerr.Wrap(ctx, err, "select eligible hmmc rows for backfill")
+	}
+	if len(eligible) == 0 {
+		return nil
+	}
+
+	// For each eligible row, find the most recently issued currently-valid
+	// host_certificates row whose subject CN or OU contains the renewal-ID
+	// substring `fleet-<profile_uuid>` (per FleetVarSCEPRenewalID). Update
+	// hmmc only if the candidate is strictly fresher than what's there
+	// (monotonic forward, idempotent).
+	for _, row := range eligible {
+		renewalIDPattern := "%fleet-" + row.ProfileUUID + "%"
+		var match struct {
+			NotValidBefore time.Time `db:"not_valid_before"`
+			NotValidAfter  time.Time `db:"not_valid_after"`
+			Serial         string    `db:"serial"`
+		}
+		err := sqlx.GetContext(ctx, ds.reader(ctx), &match, `
+			SELECT hc.not_valid_before, hc.not_valid_after, hc.serial
+			FROM host_certificates hc
+			WHERE hc.host_id = ?
+			  AND hc.deleted_at IS NULL
+			  AND (hc.subject_common_name LIKE ? OR hc.subject_org_unit LIKE ?)
+			  AND hc.not_valid_before < NOW()
+			  AND hc.not_valid_after > NOW()
+			ORDER BY hc.not_valid_before DESC
+			LIMIT 1
+		`, hostID, renewalIDPattern, renewalIDPattern)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				continue
+			}
+			return ctxerr.Wrap(ctx, err, "find matching host cert for hmmc backfill")
+		}
+
+		if row.NotValidAfter != nil && !row.NotValidAfter.Before(match.NotValidAfter) {
+			continue
+		}
+
+		if _, err := ds.writer(ctx).ExecContext(ctx, `
+			UPDATE host_mdm_managed_certificates
+			SET not_valid_before = ?, not_valid_after = ?, serial = ?
+			WHERE host_uuid = ? AND profile_uuid = ? AND ca_name = ?
+		`,
+			match.NotValidBefore,
+			match.NotValidAfter,
+			fmt.Sprintf("%040s", match.Serial),
+			hostUUID, row.ProfileUUID, row.CAName,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "backfill host mdm managed certificate from host cert")
+		}
+	}
+
 	return nil
 }

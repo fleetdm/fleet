@@ -1,0 +1,1 @@
+- Fixed SCEP certificates failing to auto-renew, including on devices that go offline between profile push and SCEP request.
