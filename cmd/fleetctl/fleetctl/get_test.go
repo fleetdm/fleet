@@ -724,7 +724,13 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			Features:              fleet.Features{EnableHostUsers: true},
+			Features: fleet.Features{
+				EnableHostUsers: true,
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
