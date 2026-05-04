@@ -140,8 +140,7 @@ const Modal = ({
     isDownOnBackgroundRef.current = false;
   };
 
-  const handleContainerMouseDown = (e: React.MouseEvent) =>
-    e.stopPropagation();
+  const handleContainerMouseDown = (e: React.MouseEvent) => e.stopPropagation();
 
   const handleContainerMouseUp = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -163,7 +162,9 @@ const Modal = ({
     <div
       className={backgroundClasses}
       style={
-        { "--modal-close-duration": `${CLOSE_ANIMATION_MS}ms` } as React.CSSProperties
+        {
+          "--modal-close-duration": `${CLOSE_ANIMATION_MS}ms`,
+        } as React.CSSProperties
       }
       onMouseDown={handleBackgroundMouseDown}
       onMouseUp={handleBackgroundMouseUp}
