@@ -202,7 +202,7 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 
 ### First Impressions group
 
-> **Paused** as of 2026-05-04. Engineering capacity is being redirected to Power to the PC and the new BYOD working group. We expect to resume First Impressions after backfilling the open MDM SWE role.
+> **Paused** as of 2026-05-19. Engineering capacity is being redirected to Power to the PC and the new BYOD working group. We expect to resume First Impressions after backfilling the open MDM SWE role.
 
 The goal of the First Impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
 
@@ -233,7 +233,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 ### BYOD group
 
-> _Goal TBD. Starting point: enable Fleet customers to manage employee-owned (BYOD) devices, with initial focus on Android (Cisco onboarding)._
+> _Goal TBD. Starting point: enable Fleet customers to manage employee-owned (BYOD) devices_
 
 The BYOD working group is the new home for cross-platform BYOD device management. Konstantin moves over from Power to the PC to take ownership of the deliverable, joined by Andrew Mellor (formerly MDM).
 
