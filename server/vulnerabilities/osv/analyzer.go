@@ -124,8 +124,17 @@ func analyzeOSV(
 		}
 	}
 
+	seen := make(map[string]struct{}, len(toInsert))
+	dedupedInsert := make([]fleet.SoftwareVulnerability, 0, len(toInsert))
+	for _, v := range toInsert {
+		if _, ok := seen[v.Key()]; !ok {
+			seen[v.Key()] = struct{}{}
+			dedupedInsert = append(dedupedInsert, v)
+		}
+	}
+
 	// Insert new vulnerabilities.
-	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, toInsert, source)
+	newVulns, err := ds.InsertSoftwareVulnerabilities(ctx, dedupedInsert, source)
 	if err != nil {
 		return nil, fmt.Errorf("inserting software vulnerabilities: %w", err)
 	}

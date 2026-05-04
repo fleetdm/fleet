@@ -12103,9 +12103,14 @@ func testListSoftwareVulnerabilitiesBySoftwareIDs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
 
-	swA := host.Software[0]
-	swB := host.Software[1]
-	swC := host.Software[2]
+	// Look up software by name to avoid depending on unstable ordering.
+	swByName := make(map[string]fleet.HostSoftwareEntry, len(host.Software))
+	for _, sw := range host.Software {
+		swByName[sw.Name] = sw
+	}
+	swA := swByName["pkg-a"]
+	swB := swByName["pkg-b"]
+	swC := swByName["pkg-c"]
 
 	// Insert vulns with different sources.
 	_, err = ds.InsertSoftwareVulnerabilities(ctx, []fleet.SoftwareVulnerability{

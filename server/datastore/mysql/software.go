@@ -3339,7 +3339,7 @@ func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
 			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
 			WHERE s.id IN (%s)
 		`, placeholders)
-		args := make([]interface{}, len(batch))
+		args := make([]any, len(batch))
 		for i, id := range batch {
 			args[i] = id
 		}
@@ -3373,7 +3373,7 @@ func (ds *Datastore) ListSoftwareVulnerabilitiesBySoftwareIDs(
 			FROM software_cve
 			WHERE source = ? AND software_id IN (%s)
 		`, placeholders)
-		args := make([]interface{}, 0, len(batch)+1)
+		args := make([]any, 0, len(batch)+1)
 		args = append(args, source)
 		for _, id := range batch {
 			args = append(args, id)
