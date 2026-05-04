@@ -91,9 +91,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
@@ -166,7 +163,6 @@ policies:
   - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
-  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   - path: ../lib/macos/policies/firewall-enabled.yml
   - path: ../lib/macos/policies/gatekeeper-enabled.yml
@@ -219,10 +215,6 @@ software:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
-      categories:
-        - Utilities
-    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
-      self_service: true
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
@@ -368,6 +360,10 @@ software:
       setup_experience: true
       categories:
         - Security
+    - slug: fleet-desktop/darwin # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
     - slug: claude/darwin # Claude for macOS
       self_service: true
       setup_experience: true
