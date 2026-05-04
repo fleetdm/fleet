@@ -59,10 +59,10 @@ type TeamPayload struct {
 // `PATCH /api/v1/fleet/fleets/{id}`. It mirrors the global config's
 // `features` shape so admins can use the same JSON path on both endpoints.
 //
-// Only the sub-fields defined here are accepted; the broader Features
+// Only the sub-fields defined here take effect; the broader Features
 // fields (enable_host_users, enable_software_inventory, additional_queries,
 // detail_query_overrides) remain settable per-fleet only via the
-// `/spec/fleets` GitOps path. Strict decoding rejects any other sub-keys.
+// `/spec/fleets` GitOps path.
 type TeamPayloadFeatures struct {
 	HistoricalData *HistoricalDataPayload `json:"historical_data"`
 }
