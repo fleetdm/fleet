@@ -61,6 +61,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
+		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 	}
 
 	for _, c := range cases {
@@ -3370,7 +3371,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, 2, count, "Only one device has responded, so the command should still be in the queue")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	// Finish setting up the second device for testing
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -3394,7 +3395,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, count, 1, "Two out of three have responded, so the command should still be in the queue for the last host")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	// Third device, which in our test case failed and will have it's command resent
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -3421,8 +3422,9 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	// We still expect one here, as the clearing of the command from the queue will happen in the resend flow.
-	assert.Equal(t, count, 1, "All devices have responded, so the command should be completely removed from the queue")
+	// Queue rows persist after ACK; device 3's command was excluded from processing (being resent),
+	// so all three queue rows remain.
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	t.Run("non-atomic command saves and verifies correctly", func(t *testing.T) {
 		replaceCommandUUID := uuid.NewString()
@@ -3947,15 +3949,9 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
 
-			// Re-enqueue the command (only the queue entry was deleted, the
-			// command itself stays in windows_mdm_commands). Do NOT restore
-			// wipe_ref — it was cleared by the first failure.
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx,
-					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
-					enrolled.ID, wipeCmdUUID)
-				return err
-			})
+			// Queue row persists after ACK (no longer deleted), so no
+			// re-insert is needed. Do NOT restore wipe_ref — it was
+			// cleared by the first failure.
 
 			// Second response — wipe_ref is already NULL, so 0 rows affected.
 			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
@@ -5224,6 +5220,102 @@ func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore
 			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE command_uuid = ?`, cmdUUID)
 	})
 	require.Equal(t, 2, profileCount)
+}
+
+func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	dev := createEnrolledDevice(t, ds)
+
+	// Insert two commands queued for the device.
+	cmd1 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test1",
+	}
+	cmd2 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test2",
+	}
+	cmd3 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test3",
+	}
+	err := ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd1)
+	require.NoError(t, err)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd2)
+	require.NoError(t, err)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd3)
+	require.NoError(t, err)
+
+	// All three should be in the queue.
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ?", dev.ID)
+	})
+	require.Equal(t, 3, count)
+
+	// Insert a response row (required FK for command results).
+	var responseID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, '<SyncML/>')`, dev.ID)
+		if err != nil {
+			return err
+		}
+		responseID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// Insert a result for cmd1 with a timestamp >1 hour ago (eligible for GC).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at)
+			VALUES (?, ?, '<Status/>', '200', ?, NOW() - INTERVAL 2 HOUR)`,
+			dev.ID, cmd1.CommandUUID, responseID)
+		return err
+	})
+
+	// Insert a result for cmd2 with a recent timestamp (not yet eligible for GC).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at)
+			VALUES (?, ?, '<Status/>', '200', ?, NOW())`,
+			dev.ID, cmd2.CommandUUID, responseID)
+		return err
+	})
+
+	// Run cleanup.
+	err = ds.CleanupWindowsMDMCommandQueue(ctx)
+	require.NoError(t, err)
+
+	// cmd1's queue row should be deleted (result is >1 hour old).
+	var cmd1Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd1Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd1.CommandUUID)
+	})
+	assert.Equal(t, 0, cmd1Count, "Queue row for cmd1 should be cleaned up (result >1 hour old)")
+
+	// cmd2's queue row should still exist (result is recent).
+	var cmd2Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd2.CommandUUID)
+	})
+	assert.Equal(t, 1, cmd2Count, "Queue row for cmd2 should remain (result <1 hour old)")
+
+	// cmd3's queue row should still exist (no result at all — still pending).
+	var cmd3Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd3Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd3.CommandUUID)
+	})
+	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
 // testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every

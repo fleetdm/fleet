@@ -5137,3 +5137,127 @@ settings:
 	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
 	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
 }
+
+// TestDryRunMacOSSetupScriptWithManualAgentInstallConflict tests that both
+// dry-run and real gitops runs fail when manual_agent_install is true and a
+// macos_script is configured. Regression test for
+// https://github.com/fleetdm/fleet/issues/34464
+func (s *enterpriseIntegrationGitopsTestSuite) TestDryRunMacOSSetupScriptWithManualAgentInstallConflict() {
+	t := s.T()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	bootstrapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "testdata/signed.pkg")
+	}))
+	defer bootstrapServer.Close()
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Create a setup experience script file
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "setup script"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	// Global config
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+	t.Run("team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(globalTemplate)
+		require.NoError(t, err)
+		err = globalFile.Close()
+		require.NoError(t, err)
+
+		teamName := uuid.NewString()
+		teamTemplate := `
+controls:
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, bootstrapServer.URL, scriptFile.Name(), teamName))
+		require.NoError(t, err)
+		err = teamFile.Close()
+		require.NoError(t, err)
+
+		// Dry-run should fail with the manual_agent_install conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", teamFile.Name(),
+			"--dry-run",
+		}, "macos_manual_agent_install")
+
+		// Actual run should also fail with the same conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", teamFile.Name(),
+		}, "macos_manual_agent_install")
+	})
+
+	t.Run("no team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(globalTemplate)
+		require.NoError(t, err)
+		err = globalFile.Close()
+		require.NoError(t, err)
+
+		noTeamTemplate := `name: Unassigned
+policies:
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+`
+		noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+		require.NoError(t, err)
+		err = noTeamFile.Close()
+		require.NoError(t, err)
+		noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
+		err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+		require.NoError(t, err)
+
+		// Dry-run should fail with the manual_agent_install conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", noTeamFilePath,
+			"--dry-run",
+		}, "macos_manual_agent_install")
+
+		// Actual run should also fail with the same conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", noTeamFilePath,
+		}, "macos_manual_agent_install")
+	})
+}

@@ -1,2 +1,0 @@
-- Fixed SCEP renewals not retrying after initial failure
-- Extend SCEP enrollment/renewal challenge credential TTL

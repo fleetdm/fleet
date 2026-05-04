@@ -306,6 +306,12 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/fleet/me`
 
+#### Parameters
+
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| include_ui_settings       | boolean | query | If set to true, includes the columns the user hides on the **Hosts** page (default: `false`). |
+
 #### Example
 
 `GET /api/v1/fleet/me`
@@ -327,7 +333,7 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "fleets": [],
+    "teams": [],
     "fleets": []
   },
   "available_teams" : [
@@ -1257,7 +1263,7 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 
 Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
-`DELETE /api/v1/conditional-access/microsoft`
+`DELETE /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
@@ -6682,29 +6688,6 @@ The summary can optionally be filtered by fleet ID.
 }
 ```
 
-### Update Recovery Lock
-
-_Available in Fleet Premium_
-
-Edit Recovery Lock password enforcement settings for eligible macOS hosts.
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-#### Parameters
-
-| Name                          | Type    | In    | Description                                                                                                 |
-| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------                      |
-| team_id                       | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.                       |
-| enable_recovery_lock_password | boolean | body  | Whether to enforce Recovery Lock password on eligible hosts.   |
-
-#### Example
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-##### Default response
-
-`204`
-
 ### Get OS settings (configuration profiles) status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
@@ -6745,7 +6728,7 @@ Get aggregate status counts of profiles for macOS and Windows hosts that are "Un
 
 Get status counts of a single OS settings (configuration profile) enforced on hosts.
 
-`GET /api/v1/fleet/configuration_profile/:profile_uuid/status`
+`GET /api/v1/fleet/configuration_profiles/:profile_uuid/status`
 
 #### Parameters
 
@@ -6755,7 +6738,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 #### Example
 
-`GET /api/v1/fleet/configuration_profile/f663713f-04ee-40f0-a95a-7af428c351a9/status`
+`GET /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9/status`
 
 ##### Default response
 
@@ -7440,36 +7423,6 @@ Add a script that will automatically run during macOS setup.
 #### Example
 
 `POST /api/v1/fleet/setup_experience/script`
-
-##### Request body
-
-```http
-fleet_id="1"
-script="myscript.sh"
-```
-
-##### Default response
-
-`Status: 200`
-
-### Update setup experience script
-
-_Available in Fleet Premium_
-
-Changes the script that will automatically run during macOS setup. Updates the existing script for the fleet, or for "Unassigned" hosts, if one already exists.
-
-> You need to send a request of type `multipart/form-data`.
-
-`PUT /api/v1/fleet/setup_experience/script`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
-| script | file | body | The contents of the script to run during setup. |
-
-#### Example
-
-`PUT /api/v1/fleet/setup_experience/script`
 
 ##### Request body
 
@@ -9059,7 +9012,7 @@ Returns the report specified by ID.
 
 Returns a specific report's data.
 
-`GET /api/v1/fleet/report/:id/report`
+`GET /api/v1/fleet/reports/:id/report`
 
 #### Parameters
 
@@ -14331,3 +14284,4 @@ Response:
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
 <meta name="pageOrderInSection" value="30">
+<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, teams api, fleets api, mdm commands api, certificates api, labels api, activities api">

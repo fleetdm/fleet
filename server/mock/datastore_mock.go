@@ -329,6 +329,8 @@ type CleanupHostMDMCommandsFunc func(ctx context.Context) error
 
 type CleanupHostMDMAppleProfilesFunc func(ctx context.Context) error
 
+type CleanupWindowsMDMCommandQueueFunc func(ctx context.Context) error
+
 type CleanupAllHostMDMProfilesForPlatformFunc func(ctx context.Context, platform string) error
 
 type CleanupStaleNanoRefetchCommandsFunc func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error
@@ -610,6 +612,8 @@ type MDMTurnOffFunc func(ctx context.Context, uuid string) (users []*fleet.User,
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.UpcomingActivity, *fleet.PaginationMetadata, error)
 
 type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error)
+
+type BatchCancelAllHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error)
 
 type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 
@@ -2363,6 +2367,9 @@ type DataStore struct {
 	CleanupHostMDMAppleProfilesFunc        CleanupHostMDMAppleProfilesFunc
 	CleanupHostMDMAppleProfilesFuncInvoked bool
 
+	CleanupWindowsMDMCommandQueueFunc        CleanupWindowsMDMCommandQueueFunc
+	CleanupWindowsMDMCommandQueueFuncInvoked bool
+
 	CleanupAllHostMDMProfilesForPlatformFunc        CleanupAllHostMDMProfilesForPlatformFunc
 	CleanupAllHostMDMProfilesForPlatformFuncInvoked bool
 
@@ -2785,6 +2792,9 @@ type DataStore struct {
 
 	CancelHostUpcomingActivityFunc        CancelHostUpcomingActivityFunc
 	CancelHostUpcomingActivityFuncInvoked bool
+
+	BatchCancelAllHostUpcomingActivitiesFunc        BatchCancelAllHostUpcomingActivitiesFunc
+	BatchCancelAllHostUpcomingActivitiesFuncInvoked bool
 
 	IsExecutionPendingForHostFunc        IsExecutionPendingForHostFunc
 	IsExecutionPendingForHostFuncInvoked bool
@@ -5798,6 +5808,13 @@ func (s *DataStore) CleanupHostMDMAppleProfiles(ctx context.Context) error {
 	return s.CleanupHostMDMAppleProfilesFunc(ctx)
 }
 
+func (s *DataStore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupWindowsMDMCommandQueueFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupWindowsMDMCommandQueueFunc(ctx)
+}
+
 func (s *DataStore) CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error {
 	s.mu.Lock()
 	s.CleanupAllHostMDMProfilesForPlatformFuncInvoked = true
@@ -6783,6 +6800,13 @@ func (s *DataStore) CancelHostUpcomingActivity(ctx context.Context, hostID uint,
 	s.CancelHostUpcomingActivityFuncInvoked = true
 	s.mu.Unlock()
 	return s.CancelHostUpcomingActivityFunc(ctx, hostID, executionID)
+}
+
+func (s *DataStore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
+	s.mu.Lock()
+	s.BatchCancelAllHostUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BatchCancelAllHostUpcomingActivitiesFunc(ctx, hostID)
 }
 
 func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error) {
