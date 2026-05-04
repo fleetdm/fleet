@@ -138,6 +138,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 
@@ -160,7 +161,10 @@ const InstallSoftware = ({
 
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      // Only Apple and Android setup experience require MDM
+      // Only Apple and Android setup experience require MDM. Windows admins can
+      // pre-stage setup-experience software without MDM, but the
+      // require_all_software_windows option does require Windows MDM to be on
+      // (gated at the checkbox level inside InstallSoftwareForm).
       const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
       return (
@@ -199,6 +203,14 @@ const InstallSoftware = ({
                   : globalConfig?.mdm?.setup_experience
                       ?.require_all_software_macos
               }
+              savedRequireAllSoftwareWindows={
+                currentTeamId
+                  ? teamConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+                  : globalConfig?.mdm?.setup_experience
+                      ?.require_all_software_windows
+              }
+              isWindowsMdmEnabled={!!isWindowsMdmEnabled}
               router={router}
               refetchSoftwareTitles={refetchSoftwareTitles}
             />

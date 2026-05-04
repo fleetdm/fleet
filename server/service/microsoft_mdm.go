@@ -1726,6 +1726,16 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					}
 				}
 			}
+
+			if result != nil && result.WipeSucceeded != nil {
+				host, err := svc.ds.HostByIdentifier(ctx, result.WipeSucceeded.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
+				}
+				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+			}
 		}
 		return nil
 	}

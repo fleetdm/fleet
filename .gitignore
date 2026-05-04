@@ -126,3 +126,4 @@ Fleet\ Desktop.app
 
 # custom golangci-lint executable
 custom-gcl
+/fleet

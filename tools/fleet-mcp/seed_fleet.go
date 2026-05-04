@@ -1,27 +1,18 @@
 package main
 
 import (
-	"os"
+	"context"
 
-	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
 // SeedFleet populates Fleet with a baseline set of standard saved queries.
 // Run this once against a fresh Fleet instance to bootstrap common queries.
-// Usage: set FLEET_BASE_URL and FLEET_API_KEY, then call SeedFleet() from a standalone main.
-func SeedFleet() {
-	_ = godotenv.Load()
-
-	baseURL := os.Getenv("FLEET_BASE_URL")
-	apiKey := os.Getenv("FLEET_API_KEY")
-	if baseURL == "" || apiKey == "" {
-		logrus.Fatal("FLEET_BASE_URL and FLEET_API_KEY must be set")
-	}
-
-	tlsSkipVerify := os.Getenv("FLEET_TLS_SKIP_VERIFY") == "true"
-	caFile := os.Getenv("FLEET_CA_FILE")
-	client := NewFleetClient(baseURL, apiKey, tlsSkipVerify, caFile)
+// Invoke via the -seed flag on the fleet-mcp binary; the caller supplies the
+// already-loaded Config and FleetClient so this function does not duplicate
+// environment loading or client construction.
+func SeedFleet(config *Config, client *FleetClient) {
+	_ = config // reserved for future use (e.g. choosing query sets per env)
 
 	queries := []struct {
 		Name        string
@@ -32,12 +23,12 @@ func SeedFleet() {
 		{
 			Name:        "Standard: MacOS Admin Users",
 			Description: "Lists all local users on macOS devices that have admin privileges.",
-			SQL:         "SELECT u.username, u.uid, u.gid, u.directory, u.shell " +
+			SQL: "SELECT u.username, u.uid, u.gid, u.directory, u.shell " +
 				"FROM users u " +
 				"JOIN user_groups ug ON u.uid = ug.uid " +
 				"JOIN groups g ON ug.gid = g.gid " +
 				"WHERE g.groupname = 'admin';",
-			Platform:    "darwin",
+			Platform: "darwin",
 		},
 		{
 			Name:        "Standard: Windows Missing Updates",
@@ -61,7 +52,9 @@ func SeedFleet() {
 
 	success := 0
 	for _, q := range queries {
-		if _, err := client.CreateSavedQuery(q.Name, q.Description, q.SQL, q.Platform); err != nil {
+		// Seed queries are intentionally Global — they are demo/sample data
+		// not tied to any specific team.
+		if _, err := client.CreateSavedQuery(context.Background(), q.Name, q.Description, q.SQL, q.Platform, nil); err != nil {
 			logrus.Errorf("failed to create %q: %v", q.Name, err)
 			continue
 		}

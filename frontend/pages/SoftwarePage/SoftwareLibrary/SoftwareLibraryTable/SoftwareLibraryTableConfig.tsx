@@ -176,7 +176,7 @@ const generateTableHeaders = (
         <HeaderCell
           value={
             <TooltipWrapper
-              tipContent="Host counts include all versions of this software title."
+              tipContent="Hosts with any version installed."
               position="bottom"
             >
               Hosts

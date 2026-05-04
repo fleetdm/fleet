@@ -520,25 +520,6 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
 		}
-
-		// Fresh cert metadata is the verification signal for iOS/iPadOS managed-cert
-		// profiles (which UpdateOrDeleteHostMDMAppleProfile parks at 'verifying' on
-		// MDM ack instead of short-circuiting to 'verified'). Flip the install row
-		// here so the renewal cron's IN ('verified', 'failed') filter only matches
-		// once cert metadata is in sync. For macOS this is redundant with
-		// VerifyHostMDMProfiles but idempotent. See issue #44111.
-		flipStmt := `
-			UPDATE host_mdm_apple_profiles
-			SET status = ?
-			WHERE host_uuid = ? AND profile_uuid = ?
-			  AND status = ? AND operation_type = ?`
-		if _, err := tx.ExecContext(ctx, flipStmt,
-			fleet.MDMDeliveryVerified,
-			certToUpdate.HostUUID, certToUpdate.ProfileUUID,
-			fleet.MDMDeliveryVerifying, fleet.MDMOperationTypeInstall,
-		); err != nil {
-			return ctxerr.Wrap(ctx, err, "flipping iOS managed cert profile to verified")
-		}
 	}
 	return nil
 }

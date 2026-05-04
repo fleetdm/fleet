@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.0.3",
+      "version": "26.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product' AND version_compare(bundle_short_version, '26.0.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product' AND version_compare(bundle_short_version, '26.0.4') < 0);"
       },
-      "installer_url": "https://dbeaver.io/files/26.0.3/dbeaver-ce-26.0.3-macos-aarch64.dmg",
+      "installer_url": "https://dbeaver.io/files/26.0.4/dbeaver-ce-26.0.4-macos-aarch64.dmg",
       "install_script_ref": "15b32d4c",
       "uninstall_script_ref": "d5f7201c",
-      "sha256": "bfc0902d04403b32d8d4fab120417368aa374622dbfe2f508713d06474ae82e2",
+      "sha256": "46434f6293ca270da728e9d1f3ad19198678e7f1b5e32d39d9779258a116be04",
       "default_categories": [
         "Developer tools"
       ]

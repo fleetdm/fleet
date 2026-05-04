@@ -61,6 +61,7 @@ type enterpriseIntegrationGitopsTestSuite struct {
 	integrationtest.WithServer
 	fleetCfg               config.FleetConfig
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
+	iconDir                string
 	activityMock           *mock_pkg.MockActivityService
 }
 
@@ -104,6 +105,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
 	require.NoError(s.T(), err)
 	s.softwareTitleIconStore = softwareTitleIconStore
+	s.iconDir = iconDir
 
 	serverConfig := service.TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -2922,6 +2924,139 @@ settings:
 	require.Equal(t, "icon.png", teamIconFilenames[1])
 }
 
+// TestGitOpsIconRecoversAfterClearingStaleHash documents the recovery path
+// when an icon row's storage_id refers to bytes that are no longer in the
+// store. The planner short-circuits any subsequent gitops run because the
+// row's hash still matches the local YAML; clearing the row's storage_id
+// forces the next run to re-upload.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconRecoversAfterClearingStaleHash() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		teamTemplate = `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	// Resolve the absolute path to the testdata icon used by the YAML.
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+	dirPath = filepath.Join(dirPath, "../../fleetctl")
+	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fmt.Fprintf(teamFile, teamTemplate, dirPath, teamName)
+	require.NoError(t, err)
+	require.NoError(t, teamFile.Close())
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	firstRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, firstRunOut)
+	require.Contains(t, firstRunOut, "set icons on 1 software title")
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx,
+		fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+
+	var storageID string
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &storageID,
+			"SELECT storage_id FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
+			team.ID, titles[0].ID)
+	})
+	require.NotEmpty(t, storageID)
+
+	iconPath := filepath.Join(s.iconDir, "software-title-icons", storageID)
+	info, err := os.Stat(iconPath)
+	require.NoError(t, err)
+	originalSize := info.Size()
+	require.Positive(t, originalSize)
+
+	// Truncate the bytes on disk while leaving the icon row intact.
+	require.NoError(t, os.Truncate(iconPath, 0))
+
+	// A second gitops run with the unchanged YAML silently no-ops because
+	// the planner short-circuits before any API call. This pins down that
+	// known limitation; the recovery below is what restores the icon.
+	secondRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, secondRunOut)
+	require.Contains(t, secondRunOut, "set icons on 0 software titles")
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), info.Size())
+
+	// Recovery: clearing storage_id forces a hash mismatch and re-upload
+	// on the next run.
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE software_title_icons SET storage_id = '' WHERE team_id = ? AND software_title_id = ?",
+			team.ID, titles[0].ID)
+		return err
+	})
+
+	thirdRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, thirdRunOut)
+	require.Contains(t, thirdRunOut, "set icons on 1 software title")
+
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, originalSize, info.Size())
+}
+
 // TestGitOpsTeamLabels tests operations around team labels
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsTeamLabels() {
 	t := s.T()
@@ -5001,4 +5136,128 @@ settings:
 	assert.True(t, team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 	assert.True(t, team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Valid)
 	assert.Equal(t, "admin", team.Config.MDM.MacOSSetup.EndUserLocalAccountType.Value)
+}
+
+// TestDryRunMacOSSetupScriptWithManualAgentInstallConflict tests that both
+// dry-run and real gitops runs fail when manual_agent_install is true and a
+// macos_script is configured. Regression test for
+// https://github.com/fleetdm/fleet/issues/34464
+func (s *enterpriseIntegrationGitopsTestSuite) TestDryRunMacOSSetupScriptWithManualAgentInstallConflict() {
+	t := s.T()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	bootstrapServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "testdata/signed.pkg")
+	}))
+	defer bootstrapServer.Close()
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Create a setup experience script file
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "setup script"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	// Global config
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+	t.Run("team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(globalTemplate)
+		require.NoError(t, err)
+		err = globalFile.Close()
+		require.NoError(t, err)
+
+		teamName := uuid.NewString()
+		teamTemplate := `
+controls:
+  setup_experience:
+    macos_bootstrap_package: %s
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(fmt.Sprintf(teamTemplate, bootstrapServer.URL, scriptFile.Name(), teamName))
+		require.NoError(t, err)
+		err = teamFile.Close()
+		require.NoError(t, err)
+
+		// Dry-run should fail with the manual_agent_install conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", teamFile.Name(),
+			"--dry-run",
+		}, "macos_manual_agent_install")
+
+		// Actual run should also fail with the same conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", teamFile.Name(),
+		}, "macos_manual_agent_install")
+	})
+
+	t.Run("no team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(globalTemplate)
+		require.NoError(t, err)
+		err = globalFile.Close()
+		require.NoError(t, err)
+
+		noTeamTemplate := `name: Unassigned
+policies:
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+`
+		noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(noTeamTemplate, scriptFile.Name()))
+		require.NoError(t, err)
+		err = noTeamFile.Close()
+		require.NoError(t, err)
+		noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "unassigned.yml")
+		err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+		require.NoError(t, err)
+
+		// Dry-run should fail with the manual_agent_install conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", noTeamFilePath,
+			"--dry-run",
+		}, "macos_manual_agent_install")
+
+		// Actual run should also fail with the same conflict
+		fleetctl.RunAppCheckErr(t, []string{
+			"gitops", "--config", fleetctlConfig.Name(),
+			"-f", globalFile.Name(), "-f", noTeamFilePath,
+		}, "macos_manual_agent_install")
+	})
 }
