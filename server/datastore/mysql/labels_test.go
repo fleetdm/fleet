@@ -3618,9 +3618,23 @@ func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
 	}
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
-	for _, key := range []string{"id", "name", "description", "query", "platform", "label_type", "created_at", "updated_at"} {
+	for _, key := range []string{
+		"id",
+		"created_at",
+		"updated_at",
+		"name",
+		"description",
+		"query",
+		"platform",
+		"label_type",
+		"label_membership_type",
+		"author_id",
+		"criteria",
+		"team_id",
+		"host_count",
+	} {
 		t.Run("order_"+key, func(t *testing.T) {
-			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, false)
+			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
 			require.NoError(t, err)
 			require.GreaterOrEqual(t, len(labels), 3)
 		})
