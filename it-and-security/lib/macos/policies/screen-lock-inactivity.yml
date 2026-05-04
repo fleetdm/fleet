@@ -31,6 +31,8 @@
   resolution: |-
     Screen lock should be automatically enforced by MDM. If this fails, restart the Mac and refetch in Fleet Desktop.
     If it still fails, drop a note in #help-it.
+    If the Mac is enrolled and you only need the display to stay awake briefly (for example a presentation), use System Settings → Desktop & Dock → Hot Corners and set a corner to Disable Screen Saver: https://support.apple.com/guide/mac-help/mchlp3000/mac (that is a temporary user workaround and does not change MDM compliance for this policy).
+    For a host-wide exemption from screen lock, follow the IT handbook after security approval.
   platform: darwin
   labels_exclude_any:
     - macOS screen lock exclusions

@@ -91,6 +91,8 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 
 The `macOS - Screen lock after inactivity (15 minutes or less)` and `Windows - Interactive logon screen lock timeout configured` policies, plus their associated configuration profiles (`screen-lock-inactivity.mobileconfig`, `Screen lock timeout.xml`), are deployed to every host on the [💻 Workstations](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml) fleet. To exclude a host (e.g., a kiosk, a conference-room display driver, or a host under approved temporary investigation), add its Fleet host ID to the matching exclusion label.
 
+On macOS, contributors who only need a **temporary** break from the screen saver (without changing MDM) should set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners** first. Use the steps below when a **full host exemption** from the profile and policy is required — not for ordinary short-term personal use.
+
 1. Confirm the request has security approval per the [policy exception process](https://fleetdm.com/handbook/it/security#security-policy-management-policy). Exceptions must include a business justification and an expiration date no longer than one year.
 2. Look up the host's Fleet ID in [dogfood](https://dogfood.fleetdm.com/dashboard) (visible in the host's URL).
 3. Open a **Draft** pull request against the `fleet` repo editing the appropriate label file:
