@@ -243,6 +243,36 @@ queries:
 	assert.ErrorContains(t, err, "Fleet Premium")
 }
 
+func TestGitOpsDryRunRejectsInvalidLabelPlatform(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+queries:
+labels:
+  - name: Test - Linux invalid platform
+    query: SELECT 1;
+    platform: linux
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.ErrorContains(t, err, "invalid platform")
+	require.ErrorContains(t, err, "linux")
+}
+
 func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -714,6 +744,121 @@ software:
 	if err != nil {
 		assert.NotContains(t, err.Error(), `"software" is excepted from GitOps management`)
 	}
+}
+
+// TestGitOpsSecretsAppliedOnFreeTierDespiteException verifies that on free tier, secrets
+// in a GitOps file are applied even when the server has GitOpsExceptions.Secrets=true
+// (the default for new installs). Free-tier users can't toggle the exception off, so
+// the exception flag must not cause secrets to be silently dropped.
+func TestGitOpsSecretsAppliedOnFreeTierDespiteException(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// Server returns Exceptions.Secrets=true (the default for new installs).
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Secrets: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+
+	var appliedSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		appliedSecrets = secrets
+		return nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: free-tier-secret-value
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSecrets, 1, "secrets in YAML should be applied on free tier even when Exceptions.Secrets=true")
+	assert.Equal(t, "free-tier-secret-value", appliedSecrets[0].Secret)
+}
+
+// TestGitOpsLabelsAppliedOnFreeTierDespiteException verifies that on free tier, labels
+// in a GitOps file are applied even when the server has GitOpsExceptions.Labels=true
+// (the value set by the exceptions migration for existing instances). Free-tier users
+// can't toggle the exception off, so applying labels via GitOps must still work.
+func TestGitOpsLabelsAppliedOnFreeTierDespiteException(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// Server returns Exceptions.Labels=true (the value set by the migration for existing instances).
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+
+	var appliedLabelSpecs []*fleet.LabelSpec
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		appliedLabelSpecs = specs
+		return nil
+	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: free-tier-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.Len(t, appliedLabelSpecs, 1, "labels in YAML should be applied on free tier even when Exceptions.Labels=true")
+	assert.Equal(t, "free-tier-label", appliedLabelSpecs[0].Name)
 }
 
 // TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
@@ -3729,6 +3874,39 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
+func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	t.Run("explicit true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_true.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops actually flips it.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("omitted preserves prior value", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops does not clobber
+		// the value when the field is absent from the YAML.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
@@ -6326,5 +6504,108 @@ software:
 		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 1, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should be called when grace_period_days changes")
+	})
+}
+
+// TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict verifies that both
+// dry-run and real gitops runs fail when macos_manual_agent_install is true and
+// macos_script is set. Regression test for
+// https://github.com/fleetdm/fleet/issues/34464
+func TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a setup experience script file on disk
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "setup script"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	t.Run("team", func(t *testing.T) {
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(fmt.Sprintf(`
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+queries:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+software:
+`, scriptFile.Name(), t.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+	})
+
+	t.Run("no team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: %s
+  secrets:
+policies:
+reports:
+`, fleetServerURL, orgName))
+		require.NoError(t, err)
+
+		noTeamFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
+		noTeamFile, err := os.Create(noTeamFilePath)
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(`name: Unassigned
+policies:
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+`, scriptFile.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
 }

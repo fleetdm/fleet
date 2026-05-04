@@ -1,5 +1,4 @@
 import React from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
@@ -9,7 +8,6 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
-
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -88,7 +86,7 @@ const isIdPConfigured = ({
   );
 };
 
-const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
+const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error

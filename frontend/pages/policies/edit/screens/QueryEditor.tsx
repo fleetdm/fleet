@@ -156,6 +156,7 @@ const QueryEditor = ({
       resolution: formData.resolution,
       platform: formData.platform,
       labels_include_any: formData.labels_include_any,
+      labels_include_all: formData.labels_include_all,
       labels_exclude_any: formData.labels_exclude_any,
     };
     if (isPremiumTier) {
@@ -169,7 +170,7 @@ const QueryEditor = ({
       );
       setIsUpdatingPolicy(false);
       router.push(
-        getPathWithQueryParams(PATHS.EDIT_POLICY(policy.id), {
+        getPathWithQueryParams(PATHS.POLICY_DETAILS(policy.id), {
           fleet_id: policy.team_id,
         })
       );

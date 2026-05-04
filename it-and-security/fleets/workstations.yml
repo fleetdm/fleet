@@ -9,8 +9,8 @@ settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 90
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
@@ -20,26 +20,63 @@ settings:
       webhook_url: $DOGFOOD_CALENDAR_WEBHOOK_URL
 agent_options:
   config:
+    options:
+      pack_delimiter: /
+      logger_tls_period: 10
+      distributed_plugin: tls
+      disable_distributed: false
+      logger_tls_endpoint: /api/osquery/log
+      distributed_interval: 10
+      distributed_tls_max_attempts: 3
     decorators:
       load:
         - SELECT uuid AS host_uuid FROM system_info;
         - SELECT hostname AS hostname FROM system_info;
-    options:
-      disable_distributed: false
-      distributed_interval: 10
-      distributed_plugin: tls
-      distributed_tls_max_attempts: 3
-      logger_tls_endpoint: /api/osquery/log
-      logger_tls_period: 10
-      pack_delimiter: /
+    # macOS FIM scope
+    file_paths:
+      system_binaries:
+        - /usr/bin/%%
+        - /usr/sbin/%%
+        - /bin/%%
+        - /sbin/%%
+      launch_items:
+        - /Library/LaunchAgents/%%
+        - /Library/LaunchDaemons/%%
+        - /Users/%/Library/LaunchAgents/%%
+      etc:
+        - /etc/%%
+        - /private/etc/%%
+    exclude_paths:
+      etc:
+        - /private/etc/cups/%%
+        - /private/etc/newsyslog.d/%%
+  command_line_flags:
+    # Primary switch for the eventing system
+    disable_events: false
+    # Buffer / retention
+    events_max: 50000
+    events_expiry: 86400
+    events_optimize: true
+    # Watchdog headroom so evented workloads don't get killed
+    watchdog_memory_limit: 350
+    watchdog_utilization_limit: 130
+    # --- macOS FIM ---
+    enable_file_events: true
+    # --- Linux process + socket auditing via the audit framework ---
+    disable_audit: false
+    audit_allow_process_events: true
+    audit_allow_sockets: true
+    audit_persist: true
+    # --- Windows process auditing via ETW ---
+    enable_process_etw_events: true
   update_channels:
     osqueryd: stable
     orbit: stable
     desktop: stable
 controls:
   enable_disk_encryption: true
-  macos_settings:
-    custom_settings:
+  apple_settings:
+    configuration_profiles:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
       - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
@@ -54,15 +91,15 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/screen-lock-inactivity.mobileconfig
+        labels_exclude_any:
+          - macOS screen lock exclusions
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
@@ -80,22 +117,28 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
-  macos_setup:
-    bootstrap_package: ""
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop.app installed"
+  setup_experience:
+    macos_bootstrap_package: ""
     enable_end_user_authentication: true
     lock_end_user_info: false
-    macos_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
+    apple_setup_assistant: ../lib/macos/enrollment-profiles/automatic-enrollment.dep.json
   macos_updates:
     deadline:
     minimum_version:
     update_new_hosts: true
   windows_settings:
-    custom_settings:
+    configuration_profiles:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
       - path: ../lib/windows/configuration-profiles/Password settings.xml
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock timeout.xml
+        labels_exclude_any:
+          - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
@@ -107,42 +150,58 @@ controls:
     - path: ../lib/windows/scripts/enable-ms-defender.ps1
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
-    - path: ../lib/macos/scripts/install-nudge.sh
+    - path: ../lib/macos/scripts/nudge-postinstall.sh
+    - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
-  - path: ../lib/macos/policies/update-1password.yml
-  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
-  - path: ../lib/macos/policies/1password-installed.yml
-  - path: ../lib/macos/policies/install-nudge.yml
+  # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
+  # - path: ../lib/macos/policies/nudge-installed.yml
+  - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
+  - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
-  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/sip-enabled.yml
+  - path: ../lib/macos/policies/remote-login-disabled.yml
+  - path: ../lib/macos/policies/screen-lock-inactivity.yml
+  - path: ../lib/macos/policies/local-admin-count-reasonable.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
-  - path: ../lib/windows/policies/1password-installed.yml
-  - path: ../lib/windows/policies/update-1password.yml
+  # - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  - path: ../lib/windows/policies/secure-boot-enabled.yml
+  - path: ../lib/windows/policies/remote-desktop-disabled.yml
+  - path: ../lib/windows/policies/screen-lock-timeout-configured.yml
   # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
   - path: ../lib/all/reports/dex-queries.yml
+  - path: ../lib/all/reports/collect-local-user-accounts.yml
+  - path: ../lib/all/reports/collect-usb-devices.yml
+  - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
+  - path: ../lib/all/reports/collect-safari-browser-extensions.yml
+  - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
+  - path: ../lib/all/reports/collect-listening-ports.yml
 software:
   packages:
     # macOS apps
@@ -151,26 +210,20 @@ software:
       setup_experience: true
       categories:
         - Security
-    - path: ../lib/macos/software/santa.yml # Santa for macOS
-      self_service: true
-      categories:
-        - Security
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
         - "Keynote 14 installed"
       categories:
         - Productivity
-    - path: ../lib/macos/software/nudge.yml # Nudge for macOS
-      self_service: false
-      categories:
-        - Utilities
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
       categories:
         - Utilities
-    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
-      self_service: true
+    - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
+      self_service: false
+      labels_include_any:
+        - "Macs with Fleet Desktop.app launch agent MDM profile"
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
@@ -239,11 +292,6 @@ software:
     #     - Browsers
     #   labels_include_any:
     #     - "ARM-based Windows hosts"
-    - path: ../lib/windows/software/1password.yml # 1Password for Windows
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
     - path: ../lib/windows/software/okta-verify.yml # Okta Verify for Windows (x86)
       self_service: true
       setup_experience: true
@@ -260,6 +308,11 @@ software:
         - Productivity
   fleet_maintained_apps:
     # macOS apps
+    - slug: 1password/darwin # 1Password for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
     - slug: aws-vpn-client/darwin # AWS VPN Client for macOS
       self_service: true
       labels_include_any:
@@ -311,6 +364,15 @@ software:
       setup_experience: true
       categories:
         - Security
+    - slug: santa/darwin # Santa for macOS
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
+    - slug: fleet-desktop/darwin # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
     - slug: claude/darwin # Claude for macOS
       self_service: true
       setup_experience: true
@@ -364,6 +426,11 @@ software:
         - Macs with Loom installed
       categories:
         - Productivity
+    - slug: nudge/darwin # Nudge for macOS
+      self_service: false
+      setup_experience: true
+      categories:
+        - Utilities
     - slug: spotify/darwin # Spotify for macOS
       self_service: true
       labels_include_any:
@@ -424,7 +491,24 @@ software:
         - Macs with Cursor installed
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Reader installed
+      categories:
+        - Productivity
+    - slug: adobe-acrobat-pro/darwin # Adobe Acrobat Pro for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Pro installed
+      categories:
+        - Productivity
     # Windows apps
+    - slug: 1password/windows # 1Password for Windows
+      self_service: true
+      setup_experience: true
+      categories:
+        - Security
     - slug: slack/windows # Slack for Windows
       self_service: true
       setup_experience: true
@@ -465,3 +549,9 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
+      self_service: true
+      labels_include_any:
+        - x86 Windows hosts with Adobe Acrobat Reader installed
+      categories:
+        - Productivity

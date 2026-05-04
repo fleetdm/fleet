@@ -1726,6 +1726,16 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, enrolledDevice *
 					}
 				}
 			}
+
+			if result != nil && result.WipeSucceeded != nil {
+				host, err := svc.ds.HostByIdentifier(ctx, result.WipeSucceeded.HostUUID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "wipe succeeded: get host by identifier")
+				}
+				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+			}
 		}
 		return nil
 	}
@@ -1964,7 +1974,7 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	resPendingCmds := []*mdm_types.SyncMLCmd{}
+	var resPendingCmds, espCmds []*mdm_types.SyncMLCmd
 
 	if requestAuthState == RequestAuthStateTrusted {
 		// Process the pending operations and get the MDM response protocol commands
@@ -1973,15 +1983,213 @@ func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.Syn
 			return nil, fmt.Errorf("message processing error %w", err)
 		}
 		resPendingCmds = pendingCmds
+
+		// Build ESP (Enrollment Status Page) commands for Windows Autopilot devices.
+		// Only run for trusted requests so we don't leak ESP state to unauthenticated devices.
+		espCmds, err = svc.getESPCommands(ctx, deviceID)
+		if err != nil {
+			return nil, fmt.Errorf("ESP commands error: %w", err)
+		}
 	}
 
+	allCmds := make([]*mdm_types.SyncMLCmd, 0, len(resIncomingCmds)+len(resPendingCmds)+len(espCmds))
+	allCmds = append(allCmds, resIncomingCmds...)
+	allCmds = append(allCmds, resPendingCmds...)
+	allCmds = append(allCmds, espCmds...)
+
 	// Create the response SyncML message
-	msg, err := svc.createResponseSyncML(ctx, reqMsg, append(resIncomingCmds, resPendingCmds...))
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, allCmds)
 	if err != nil {
 		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
 
 	return msg, nil
+}
+
+// getESPCommands checks if a Windows device is in the Autopilot setup experience
+// and returns appropriate ESP SyncML commands.
+//
+// For awaiting_configuration=Pending: sends hold commands to block the device at
+// the ESP during OOBE, then transitions to Active once orbit links the host UUID.
+//
+// For awaiting_configuration=Active: checks if all profiles have been delivered
+// and releases the device when ready.
+func (svc *Service) getESPCommands(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// Device may have just unenrolled; nothing to do.
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get enrolled device for ESP")
+	}
+
+	switch enrolledDevice.AwaitingConfiguration {
+	case fleet.WindowsMDMAwaitingConfigurationPending:
+		return svc.handleESPHoldOrTransition(ctx, enrolledDevice)
+	case fleet.WindowsMDMAwaitingConfigurationActive:
+		return svc.handleESPRelease(ctx, enrolledDevice)
+	default:
+		return nil, nil
+	}
+}
+
+// handleESPHoldOrTransition handles awaiting_configuration=Pending.
+// Before orbit links the host UUID: sends hold commands to block the device at
+// the ESP. These are idempotent and sent on every management session.
+// After orbit links: transitions to Active so the release check can begin.
+func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	providerID := syncml.DocProvisioningAppProviderID
+
+	if device.HostUUID == "" {
+		// Orbit hasn't enrolled yet. Send hold commands to activate the ESP
+		// and block the device during OOBE. These must be sent immediately --
+		// if we wait for orbit, OOBE progresses past the ESP window.
+		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
+		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
+		holdCmds := []*mdm_types.SyncMLCmd{
+			// SkipDeviceStatusPage and SkipUserStatusPage are bool format per
+			// DMClient CSP spec. Both must be false for the ESP to stay visible.
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
+			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
+			// BlockInStatusPage: 2 = block user, show "Try again" button on failure.
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "2"),
+			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
+			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
+			// PolicyProviders/{providerID} is a dynamic node -- must be created
+			// with Add before its children can be set with Replace.
+			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
+			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
+			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
+		}
+		for _, cmd := range holdCmds {
+			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+		}
+		return holdCmds, nil
+	}
+
+	// Orbit has linked the host UUID. Transition to Active.
+	svc.logger.DebugContext(ctx, "ESP: orbit linked, transitioning to active", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
+	}
+	if !transitioned {
+		return nil, nil
+	}
+
+	// Mark DevicePreparation as completed to advance the ESP phase.
+	dpCmd := newSyncMLCmdInt(fleet.CmdReplace,
+		fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "3")
+	dpCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	return []*mdm_types.SyncMLCmd{dpCmd}, nil
+}
+
+// handleESPRelease handles awaiting_configuration=Active. It checks if all
+// profiles have been delivered and releases the device when ready.
+func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) ([]*mdm_types.SyncMLCmd, error) {
+	if device.HostUUID == "" {
+		return nil, nil
+	}
+
+	// Check timeout first: if we've exceeded the 3-hour window, release
+	// regardless of profile status.
+	// TODO(phase 3): check require_all_software_windows. If true, send
+	// BlockInStatusPage to force "Try again"/reboot instead of releasing.
+	// If false, release with error text via CustomErrorText. See #42850.
+	timedOut := device.AwaitingConfigurationAt != nil && time.Since(*device.AwaitingConfigurationAt) > time.Duration(microsoft_mdm.ESPTimeoutSeconds)*time.Second
+	if timedOut {
+		svc.logger.WarnContext(ctx, "ESP: timeout reached, releasing device", "device_id", device.MDMDeviceID)
+	}
+
+	if !timedOut {
+		// Profile delivery has two stages, each covered by a different query:
+		//
+		// 1. Profiles configured for the host's team but not yet queued by the
+		//    profile reconciler (ListMDMWindowsProfilesToInstallForHost).
+		// 2. Profiles queued (rows in host_mdm_windows_profiles) but not yet
+		//    delivered to a terminal state (GetHostMDMWindowsProfiles).
+		//
+		// We check both so we never release while profiles are pending at
+		// either stage. Each management checkin re-evaluates both queries.
+
+		// Stage 1: profiles the reconciler hasn't picked up yet.
+		toInstall, err := svc.ds.ListMDMWindowsProfilesToInstallForHost(ctx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "list profiles to install for ESP release check")
+		}
+		if len(toInstall) > 0 {
+			return nil, nil
+		}
+
+		// Stage 2: profiles queued but still in-flight (pending/verifying).
+		profiles, err := svc.ds.GetHostMDMWindowsProfiles(ctx, device.HostUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host profiles for ESP release check")
+		}
+		for _, p := range profiles {
+			if p.OperationType != fleet.MDMOperationTypeInstall {
+				continue
+			}
+			if p.Status == nil || (*p.Status != fleet.MDMDeliveryVerified && *p.Status != fleet.MDMDeliveryFailed) {
+				return nil, nil
+			}
+		}
+	}
+
+	// Transition Active -> None. The CAS ensures only one concurrent
+	// checkin wins and enqueues the release command.
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationActive, fleet.WindowsMDMAwaitingConfigurationNone)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to none")
+	}
+	if !transitioned {
+		// Another concurrent checkin already released the device.
+		return nil, nil
+	}
+
+	// Build release commands and send them inline in this response.
+	// Also persist via MDMWindowsInsertCommandForHosts so the existing
+	// command retry infrastructure resends if this response is dropped.
+	provID := syncml.DocProvisioningAppProviderID
+	releaseCmds := []*mdm_types.SyncMLCmd{
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+		newSyncMLCmdBool(fleet.CmdReplace,
+			fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
+	}
+	for _, cmd := range releaseCmds {
+		cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	}
+
+	// Persist the ServerHasFinishedProvisioning command as a backup.
+	// If the inline response is delivered, the device acks and the
+	// persisted command is cleared. If the response is dropped, the
+	// command is resent automatically on the next management session.
+	finishedProvisioningURI := fmt.Sprintf(
+		"./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID)
+	releaseCmd := newSyncMLCmdBool(fleet.CmdReplace, finishedProvisioningURI, "true")
+	releaseCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	rawXML, err := xml.Marshal(releaseCmd)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ESP: failed to marshal release command for persistence", "err", err)
+	} else {
+		persistCmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  releaseCmd.CmdID.Value,
+			RawCommand:   rawXML,
+			TargetLocURI: finishedProvisioningURI,
+		}
+		if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{device.HostUUID}, persistCmd); err != nil {
+			svc.logger.WarnContext(ctx, "ESP: failed to persist release command", "err", err)
+		}
+	}
+
+	svc.logger.InfoContext(ctx, "ESP: releasing device from setup", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID, "timed_out", timedOut)
+	return releaseCmds, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
@@ -2161,6 +2369,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		awaitingConfiguration = fleet.WindowsMDMAwaitingConfigurationPending
 		now := time.Now().UTC()
 		awaitingConfigurationAt = &now
+		svc.logger.InfoContext(ctx, "ESP: device enrolled in OOBE, activating setup experience", "device_id", reqDeviceID)
 	}
 
 	// Getting the Windows Enrolled Device Information
@@ -2544,6 +2753,15 @@ func newSyncMLCmdBase64(cmdVerb string, cmdTarget string, cmdDataValue string) *
 	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
 }
 
+// newSyncMLCmdNode creates a new SyncML command that targets a node with no data.
+// Used for Add commands on dynamic OMA-DM nodes that must be created before their
+// children can be set.
+func newSyncMLCmdNode(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
+	cmdFormat := "node"
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, nil)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
 // newSyncMLCmdInt creates a new SyncML command with text data
 func newSyncMLCmdInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
 	cmdType := "text/plain"
@@ -2592,7 +2810,22 @@ func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *ui
 	return ps, nil
 }
 
-func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) error {
+// reconcileWindowsProfilesBatchSize bounds how many distinct hosts the
+// Windows MDM reconciliation cron processes per tick. The cron uses a
+// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
+// page through the pending-work universe in batches, smoothing the
+// writer pressure that an unbounded reconciliation generates during
+// bulk events like team transfers.
+//
+// var rather than const so property-based tests can shrink the batch size
+var reconcileWindowsProfilesBatchSize = 2000
+
+// ReconcileWindowsProfiles applies configuration profiles to Windows MDM hosts.
+// Named return so the deferred SetCursor block below sees the actual
+// function exit error. With a named return, every `return X`
+// assigns X to the named err before the defer fires, so any failure
+// path correctly skips the cursor write.
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *slog.Logger) (err error) {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("reading app config: %w", err)
@@ -2601,15 +2834,88 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		return nil
 	}
 
-	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	// Read the cursor; on error, treat as start-of-pass and continue. A
+	// stale or missing cursor is harmless because the listing predicates
+	// filter out hosts whose state already matches desired state.
+	cursor, err := ds.GetMDMWindowsReconcileCursor(ctx)
+	if err != nil {
+		logger.WarnContext(ctx, "failed to read windows MDM reconcile cursor; starting from beginning",
+			"err", err)
+		cursor = ""
+	}
+
+	hostUUIDs, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, cursor, reconcileWindowsProfilesBatchSize)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing next pending Windows MDM hosts")
+	}
+
+	if len(hostUUIDs) == 0 {
+		// Either no work, or we've reached the end of the cursor pass.
+		// Reset to "" so the next tick starts from the beginning.
+		//
+		// Decision: cursor write failures here (and in the deferred
+		// advance below) are logged-and-swallowed rather than returned
+		// as tick failures.
+		if cursor != "" {
+			logger.InfoContext(ctx, "windows MDM reconcile pass complete; resetting cursor",
+				"cursor", cursor)
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, ""); cerr != nil {
+				// We assume a transient Redis failure here.
+				logger.WarnContext(ctx, "failed to reset windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+		return nil
+	}
+
+	// Compute the next cursor before processing so we can advance after a
+	// successful pass. If we got fewer than the batch size, the next tick
+	// should restart from the beginning.
+	var nextCursor string
+	if len(hostUUIDs) >= reconcileWindowsProfilesBatchSize {
+		nextCursor = hostUUIDs[len(hostUUIDs)-1]
+	}
+
+	// Only log when the cursor is actually in play - i.e. the pending
+	// universe didn't fit in a single tick. The four state combos:
+	//   cursor=="", nextCursor!=""  - starting a multi-tick pass
+	//   cursor!="", nextCursor!=""  - continuing mid-pass
+	//   cursor!="", nextCursor==""  - completing the final tick of a pass
+	//   cursor=="", nextCursor==""  - silent: the entire universe fit in
+	//                                 this one tick, no cursor needed
+	if cursor != "" || nextCursor != "" {
+		logger.InfoContext(ctx, "windows MDM reconcile tick using cursor",
+			"cursor", cursor,
+			"next_cursor", nextCursor,
+			"batch_size", reconcileWindowsProfilesBatchSize,
+			"hosts_in_batch", len(hostUUIDs),
+		)
+	}
+
+	toInstall, err := ds.ListMDMWindowsProfilesToInstallForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
-	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
 	}
+
+	// On any error during the body below, leave the cursor where it was.
+	// The next tick will retry the same host window. The body's writes
+	// flip status from NULL to 'pending' on success, which removes those
+	// rows from the listing on retry, so a partial failure converges.
+	//
+	// Skip the write when the cursor isn't changing (steady-state ticks
+	// where the entire pending universe fit in one batch: cursor="",
+	// nextCursor=""). Mirrors the empty-result branch's `cursor != ""`
+	// guard above.
+	defer func() {
+		if err == nil && cursor != nextCursor {
+			if cerr := ds.SetMDMWindowsReconcileCursor(ctx, nextCursor); cerr != nil {
+				logger.WarnContext(ctx, "failed to advance windows MDM reconcile cursor", "err", cerr)
+			}
+		}
+	}()
 
 	// toGetContents contains the IDs of all the profiles from which we
 	// need to retrieve contents. Since the previous query returns one row
@@ -2718,11 +3024,53 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger *s
 		NDESChallengeErrorToDetail: scep.NDESChallengeErrorToDetail,
 	}
 
+	// Guard against a race where an admin deletes a profile between the
+	// initial ListMDMWindowsProfilesToInstall/GetMDMWindowsProfilesContents
+	// calls above and the per-profile upsert below. If we missed the
+	// deletion, we'd create a host_mdm_windows_profiles row (and enqueue a
+	// command) for a profile that no longer exists in
+	// mdm_windows_configuration_profiles. The remove path couldn't clean
+	// that row up later — <Delete> command generation needs the original
+	// SyncML, which is gone — and the host would be stuck with an
+	// un-removable install. Re-query existence right before the upsert
+	// loops to shrink the race window to just the loop body.
+	installProfileUUIDs := make([]string, 0, len(installTargets))
+	for profUUID := range installTargets {
+		installProfileUUIDs = append(installProfileUUIDs, profUUID)
+	}
+	stillExistingInstallProfiles, err := ds.GetExistingMDMWindowsProfileUUIDs(ctx, installProfileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking Windows profile existence before install upsert")
+	}
+
 	for profUUID, target := range installTargets {
+		if _, stillExists := stillExistingInstallProfiles[profUUID]; !stillExists {
+			logger.InfoContext(ctx, "skipping Windows profile install; profile was deleted after list",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
+		}
 		p, ok := profileContents[profUUID]
 		if !ok {
-			// this should never happen
-			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
+			// Insert-lag race: GetMDMWindowsProfilesContents earlier in
+			// this function reads from the replica, while
+			// GetExistingMDMWindowsProfileUUIDs above reads from the
+			// primary (it has to, to defeat the delete-race). For a
+			// profile that was inserted on primary just before this tick
+			// fired, the existence check sees it but profileContents
+			// (replica) misses it until replication catches up.
+			//
+			// Skip the install for now and let a later tick pick it up
+			// after replication catches up. With the host cursor
+			// advancing past this batch, the affected hosts won't be
+			// revisited until the cursor cycles back to the start of
+			// the host space; for large host populations that can be
+			// many ticks rather than the next one. The hosts stay in
+			// the listing's pending universe because no
+			// host_mdm_windows_profiles row was written for them, so
+			// no state is lost.
+			logger.InfoContext(ctx, "skipping Windows profile install; profile content not visible on replica yet (insert-lag), will retry on a later tick",
+				"profile_uuid", profUUID, "host_count", len(target.hostUUIDs))
+			continue
 		}
 
 		if !variables.ContainsBytes(p.SyncML) {

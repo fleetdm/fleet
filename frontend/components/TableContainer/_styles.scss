@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: $gap-table-elements;
 
-  // Container is responsive design used when customFilters is rendered
+  // Container is responsive design used when customControl is rendered
   .container {
     display: grid;
     grid-template-columns: 1fr auto; /* First column takes all remaining space */

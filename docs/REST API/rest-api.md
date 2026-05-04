@@ -306,6 +306,12 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/fleet/me`
 
+#### Parameters
+
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| include_ui_settings       | boolean | query | If set to true, includes the columns the user hides on the **Hosts** page (default: `false`). |
+
 #### Example
 
 `GET /api/v1/fleet/me`
@@ -327,7 +333,7 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "fleets": [],
+    "teams": [],
     "fleets": []
   },
   "available_teams" : [
@@ -616,6 +622,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 - [Delete certificate authority (CA)](#delete-certificate-authority-ca)
 - [Delete certificate template](#delete-certificate-template)
 - [Request certificate](#request-certificate)
+- [Resend host's certificate](#resend-hosts-certificate)
 
 ### Connect certificate authority (CA)
 
@@ -783,6 +790,7 @@ Add a certificate template to deploy a certificate to all hosts on the fleet. Fl
   "subject_name": "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, OU=$FLEET_VAR_HOST_UUID, ST=$FLEET_VAR_HOST_HARDWARE_SERIAL"
 }
 ```
+
 
 ### Update certificate authority (CA)
 
@@ -1207,6 +1215,27 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
 }
 ```
 
+### Resend host's certificate
+
+Resends a certificate for the specified host. Currently, only Android certificates are supported.
+
+`POST /api/v1/fleet/hosts/:id/certificates/:certificate_template_id/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| certificate_template_id   | string | path | **Required.** The ID of the certificate to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/certificates/322/resend`
+
+##### Default response
+
+`Status: 202`
+
 ---
 
 ## Conditional access
@@ -1259,7 +1288,7 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 
 Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
-`DELETE /api/v1/conditional-access/microsoft`
+`DELETE /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
@@ -1547,6 +1576,7 @@ None.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01",
@@ -1869,6 +1899,7 @@ Modifies the Fleet's configuration with the supplied information.
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -2461,6 +2492,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | enable_turn_on_windows_mdm_manually | boolean | _Available in Fleet Premium._ Specifies whether or not to require end users to manually turn on MDM in **Settings > Access work or school**. If `false`, MDM is automatically turned on for all Windows hosts that aren't connected to any MDM solution. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that are "Unassigned" will have disk encryption enabled if set to true. |
 | windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that are "Unassigned" will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
+| apple_require_hardware_attestation | boolean | _Available in Fleet Premium._ Specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment. |
 | enable_recovery_lock_password     | boolean | _Available in Fleet Premium._ Unassigned hosts will have Recovery Lock password enabled if set to true. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
@@ -2473,6 +2505,8 @@ When updating conditional access config, all `conditional_access` fields must ei
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
 
 > Note: If `apple_server_url` changes and Apple (macOS, iOS, iPadOS) hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+
+> Note: If `apple_require_hardware_attestation` is enabled and Apple attestation servers are down, macOS Apple Silicon hosts will not be able to enroll.
 
 <br/>
 
@@ -2564,7 +2598,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 
 <br/>
 
@@ -2574,7 +2608,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead. |
+| custom_settings                   | array   | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead. |
 
 <br/>
 
@@ -2600,6 +2634,7 @@ _Available in Fleet Premium._
     "enable_turn_on_windows_mdm_manually": false,
     "enable_disk_encryption": true,
     "windows_require_bitlocker_pin": false,
+    "apple_require_hardware_attestation": false,
     "enable_recovery_lock_password": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
@@ -3020,6 +3055,8 @@ the `software` table.
 | include_device_status     | boolean | query | If `true`, the response will include lock and wipe status (`mdm.device_status`) and `mdm.pending_action` information for each host. |
 | profile_uuid | string | query |  **Requires `profile_status`**. The UUID of the profile to download. |
 | profile_status | string | query | **Requires `profile_uuid`**. Valid options are 'verified', 'verifying', 'pending', or 'failed'. |
+| dep_profile_error | boolean | query | If `true`, the response will only include Apple MDM hosts with DEP profile assignment errors(`mdm.dep_profile_error: true`). |
+| dep_assign_profile_response | string | query | Filters the hosts by DEP profile assignment status. Valid options are 'SUCCESS', 'FAILED', 'THROTTLED' or 'NOT_ACCESSIBLE'. Only Apple hosts which are, or were assigned to Fleet in ABM will be returned. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -3379,6 +3416,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
   "new_count": 0,
   "all_linux_count": 1204,
   "low_disk_space_count": 12,
+  "dep_assign_error_count": 7,
   "builtin_labels": [
     {
       "id": 6,
@@ -3520,6 +3558,7 @@ Returns the information of the specified host.
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -3815,6 +3854,7 @@ If `hostname` is specified when there is more than one host with the same hostna
     "last_enrolled_at": "2022-02-10T02:29:13Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "software_updated_at": "2020-11-05T05:09:44Z",
     "seen_time": "2022-10-14T17:45:41Z",
     "refetch_requested": false,
@@ -4051,6 +4091,7 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
     "last_enrolled_at": "2021-08-19T02:02:22Z",
     "last_mdm_checked_in_at": "2023-02-26T22:33:12Z",
     "last_mdm_enrolled_at": "2023-02-26T22:33:12Z",
+    "mdm_enrollment_hardware_attested": false,
     "seen_time": "2021-08-19T21:14:58Z",
     "refetch_requested": false,
     "hostname": "Annas-MacBook-Pro.local",
@@ -6284,21 +6325,21 @@ Deletes the label specified by ID.
 
 ## OS settings
 
-- [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile)
-- [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
-- [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
-- [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
-- [Batch-update custom OS settings (configuration profiles)](#batch-update-custom-os-settings-configuration-profiles)
+- [Create configuration profile](#create-configuration-profile)
+- [List configuration profiles](#list-configuration-profiles)
+- [Get or download configuration profile](#get-or-download-configuration-profile)
+- [Delete configuration profile](#delete-configuration-profile)
+- [Batch-update configuration profiles](#batch-update-configuration-profiles)
 - [Update disk encryption](#update-disk-encryption)
 - [Get disk encryption status](#get-disk-encryption-status)
 - [Update Recovery Lock](#update-recovery-lock)
 - [Get OS settings (configuration profiles) status](#get-os-settings-configuration-profiles-status)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
-- [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
-- [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
+- [Resend configuration profile](#resend-configuration-profile)
+- [Batch-resend configuration profile](#batch-resend-configuration-profile)
 
 
-### Create custom OS setting (configuration profile)
+### Create configuration profile
 
 > **Experimental feature**. Deploying Windows SCEP profile is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -6353,7 +6394,7 @@ labels_include_all="Label name 1"
 }
 ```
 
-### List custom OS settings (configuration profiles)
+### List configuration profiles
 
 > [List custom macOS settings](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -6434,7 +6475,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 If one or more assigned labels are deleted the profile is considered broken (`broken: true`). It won’t be applied to new hosts.
 
-### Get or download custom OS setting (configuration profile)
+### Get or download configuration profile
 
 > [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
 
@@ -6522,7 +6563,7 @@ solely on the response status code returned by this endpoint.
 </plist>
 ```
 
-### Delete custom OS setting (configuration profile)
+### Delete configuration profile
 
 > [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
@@ -6542,7 +6583,7 @@ solely on the response status code returned by this endpoint.
 
 `Status: 200`
 
-### Resend custom OS setting (configuration profile)
+### Resend configuration profile
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
@@ -6563,7 +6604,7 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 
 `Status: 202`
 
-### Batch-update custom OS settings (configuration profiles)
+### Batch-update configuration profiles
 
 Modify configuration profiles for a fleet. The provided list of profiles will be the active profiles for the specified fleet. If no fleet (`fleet_id` or `fleet_name`) is provided, the profiles are applied for all hosts (Fleet Free) or for hosts that are "Unassigned" (Fleet Premium).
 
@@ -6623,7 +6664,7 @@ For each `profile`, only one of `labels_include_all`, `labels_include_any`, or `
 
 `204`
 
-### Resend custom OS setting (configuration profile) by Fleet Desktop token
+### Resend configuration profile by Fleet Desktop token
 
 Resends a configuration profile for the specified host. Currently, macOS, iOS, iPadOS configuration profiles (.mobileconfig) are supported, as well as Windows (.xml) configuration profiles.
 
@@ -6645,7 +6686,7 @@ Resends a configuration profile for the specified host. Currently, macOS, iOS, i
 `Status: 202`
 
 
-### Batch-resend custom OS setting (configuration profile)
+### Batch-resend configuration profile
 
 
 `POST /api/v1/fleet/configuration_profiles/resend/batch`
@@ -6743,29 +6784,6 @@ The summary can optionally be filtered by fleet ID.
 }
 ```
 
-### Update Recovery Lock
-
-_Available in Fleet Premium_
-
-Edit Recovery Lock password enforcement settings for eligible macOS hosts.
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-#### Parameters
-
-| Name                          | Type    | In    | Description                                                                                                 |
-| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------                      |
-| team_id                       | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.                       |
-| enable_recovery_lock_password | boolean | body  | Whether to enforce Recovery Lock password on eligible hosts.   |
-
-#### Example
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-##### Default response
-
-`204`
-
 ### Get OS settings (configuration profiles) status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
@@ -6806,7 +6824,7 @@ Get aggregate status counts of profiles for macOS and Windows hosts that are "Un
 
 Get status counts of a single OS settings (configuration profile) enforced on hosts.
 
-`GET /api/v1/fleet/configuration_profile/:profile_uuid/status`
+`GET /api/v1/fleet/configuration_profiles/:profile_uuid/status`
 
 #### Parameters
 
@@ -6816,7 +6834,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 #### Example
 
-`GET /api/v1/fleet/configuration_profile/f663713f-04ee-40f0-a95a-7af428c351a9/status`
+`GET /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9/status`
 
 ##### Default response
 
@@ -7517,36 +7535,6 @@ script="myscript.sh"
 
 `Status: 200`
 
-### Update setup experience script
-
-_Available in Fleet Premium_
-
-Changes the script that will automatically run during macOS setup. Updates the existing script for the fleet, or for "Unassigned" hosts, if one already exists.
-
-> You need to send a request of type `multipart/form-data`.
-
-`PUT /api/v1/fleet/setup_experience/script`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
-| script | file | body | The contents of the script to run during setup. |
-
-#### Example
-
-`PUT /api/v1/fleet/setup_experience/script`
-
-##### Request body
-
-```http
-fleet_id="1"
-script="myscript.sh"
-```
-
-##### Default response
-
-`Status: 200`
-
 ### Get or download setup experience script
 
 _Available in Fleet Premium_
@@ -7744,6 +7732,28 @@ The possible `status` values for Windows hosts are listed in [Microsoft's OMA DM
 }
 ```
 
+`results_metadata` contains command-specific metadata.
+
+For VPP `InstallApplication` command results, `results_metadata` may include:
++ `software_installed` (boolean) - Whether Fleet has reconciled the app as installed on the host.
++ `vpp_verify_timeout_seconds` (integer) - The VPP install verification timeout, in seconds, used by Fleet when determining whether an acknowledged install should be marked failed.
+
+Example VPP `InstallApplication` command result metadata:
+
+```json
+{
+  "results": [
+    {
+      "request_type": "InstallApplication",
+      "results_metadata": {
+        "software_installed": false,
+        "vpp_verify_timeout_seconds": 600
+      }
+    }
+  ]
+}
+```
+
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
 ### List MDM commands
@@ -7770,6 +7780,8 @@ This endpoint returns the list of custom MDM commands that have been executed.
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
+>
+> Apple (macOS, iOS, iPadOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows commands.
 
 #### Example
 
@@ -7790,6 +7802,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "command_status": "ran",
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
+      "name": null,
       "hostname": "mycomputer"
     },
     {
@@ -7799,6 +7812,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
       "command_status": "ran",
       "updated_at": "2023-05-04:00:00Z",
       "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "name": null,
       "hostname": "myhost"
     }
   ]
@@ -9137,7 +9151,7 @@ Returns the report specified by ID.
 
 Returns a specific report's data.
 
-`GET /api/v1/fleet/report/:id/report`
+`GET /api/v1/fleet/reports/:id/report`
 
 #### Parameters
 
@@ -10750,6 +10764,8 @@ Returns information about the specified software. By default, `versions` are sor
           "id": 294
         }
       ],
+      "labels_include_all": null,
+      "labels_exclude_any": null,
       "automatic_install_policies": [
         {
           "id": 343,
@@ -10831,6 +10847,9 @@ Returns information about the specified software. By default, `versions` are sor
           "type": "dynamic"
         }
       ],
+      "labels_include_any": null,
+      "labels_include_all": null,
+      "labels_exclude_any": null,
       "status": {
         "installed": 3,
         "pending": 1,
@@ -10884,6 +10903,7 @@ Returns information about the specified software. By default, `versions` are sor
       "self_service": false,
       "automatic_install_policies": null,
       "labels_include_any": null,
+      "labels_include_all": null,
       "labels_exclude_any": null,
       "created_at": "2025-08-15T00:55:03.96954Z",
       "categories": null
@@ -10942,6 +10962,7 @@ Returns information about the specified software. By default, `versions` are sor
       "post_install_script": null,
       "pre_install_query": null,
       "labels_include_any": null,
+      "labels_include_all": null,
       "labels_exclude_any": null,
     },
     "app_store_app": null,
@@ -11153,11 +11174,12 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz, .ipa) to install on Apple 
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | body | Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for iOS, iPadOS, Android, or for `.sh` and `.ps1`. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -11243,10 +11265,11 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | body | Whether this is optional self-service software that can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 > Changes to the installer package will reset installation counts. Changes to any field other than `self_service` will cancel pending installs for the old package.
 
@@ -11472,11 +11495,12 @@ Add Apple App Store or Google Play store app. Apple apps must be added in Apple 
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, for Android in **Play Store** app in end user's work profile, and for iOS/iPadOS in [self-service web](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) app.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
-| labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
+| labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | form | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 
 #### Example
@@ -11537,11 +11561,12 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | body | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | body | Target hosts that don't have any label, specified by label name, in the array. |
 | configuration | object | body | The Android Play Store app's managed configuration in JSON format. Currently only supported for Android. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 `configuration` only supports `managedConfiguration` and `workProfileWidgets` from [Android application policy](https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#ApplicationPolicy). Configuration keys vary by app. Refer to the app vendor's documentation for available managed configuration options. For example, see [Zoom's Android managed configuration](https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0064790) or [GlobalProtect's Android configuration](https://docs.paloaltonetworks.com/globalprotect/10-1/globalprotect-admin/mobile-endpoint-management/manage-the-globalprotect-app-using-other-third-party-mdms/configure-the-globalprotect-app-for-android).
 
@@ -11725,11 +11750,12 @@ Add Fleet-maintained app so it's available for install.
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| labels_include_all        | array     | body | Target hosts that have all labels, specified by label name, in the array. |
 | labels_include_any        | array     | form | Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label, specified by label name, in the array. |
 | automatic_install | boolean | form | Create a policy that triggers a software install only on hosts missing the software. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
 Add the `X-Fleet-Scripts-Encoded: base64` header line to parse `install_script`, `uninstall_script`, `post_install_script`, and `pre_install_query` fields as bas64-encoded rather than as-is.
 
@@ -12388,7 +12414,7 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/fleets/:id`
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
+`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 "Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
@@ -12799,6 +12825,8 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_disk_encryption | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
@@ -12864,8 +12892,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true.                                                                                        |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                                      |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
 
 <br/>
 
@@ -12875,7 +12902,7 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create custom OS setting (configuration profile)](#create-custom-os-setting-configuration-profile) endpoint instead.                                                                                                                             |
+| custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add Windows configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                             |
 
 
 <br/>
@@ -12898,6 +12925,8 @@ Returned when the requested name only differs from another fleet's name by lette
 ```json
 {
   "mdm": {
+    "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2025-04-01",
@@ -14524,3 +14553,4 @@ Response:
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
 <meta name="pageOrderInSection" value="30">
+<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, teams api, fleets api, mdm commands api, certificates api, labels api, activities api">

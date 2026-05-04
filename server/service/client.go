@@ -801,6 +801,11 @@ func (c *Client) ApplyGroup(
 				tmMacSetupAssistants[k] = nil
 			}
 			if setup.Script.Value != "" {
+				if setup.ManualAgentInstall.Value {
+					return nil, nil, nil, nil, fmt.Errorf(
+						"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (fleet %q).", k,
+					)
+				}
 				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleets: %w", err)
@@ -1940,7 +1945,7 @@ func (c *Client) DoGitOps(
 		if !exceptions.Secrets && !incoming.SecretsPresent {
 			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
 		}
 		delete(incoming.OrgSettings, "secrets")
@@ -2184,7 +2189,7 @@ func (c *Client) DoGitOps(
 			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			team["secrets"] = teamSecrets
 		}
 
@@ -2598,6 +2603,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	// load the no-team setup_experience.macos_script if any
 	var macosSetupScript *fileContent
 	if macOSSetup.Script.Value != "" {
+		if macOSSetup.ManualAgentInstall.Value {
+			return nil, nil, errors.New(
+				"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (unassigned hosts).",
+			)
+		}
 		b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, macOSSetup.Script.Value))
 		if err != nil {
 			return nil, nil, fmt.Errorf("applying setup_experience.macos_script for unassigned hosts: %w", err)

@@ -1117,6 +1117,16 @@ WHERE
 	return results, nil
 }
 
+var mdmAppleCommandsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"command_uuid": "nvq.command_uuid",
+	"request_type": "nvq.request_type",
+	"status":       "COALESCE(NULLIF(nvq.status, ''), 'Pending')",
+	"updated_at":   "COALESCE(nvq.result_updated_at, nvq.created_at)",
+	"hostname":     "h.hostname",
+	"device_id":    "ne.device_id",
+	"name":         "nvq.name",
+}
+
 func (ds *Datastore) ListMDMAppleCommands(
 	ctx context.Context,
 	tmFilter fleet.TeamFilter,
@@ -1148,7 +1158,10 @@ WHERE
    nvq.active = 1 AND
     %s
 `, ds.whereFilterHostsByTeams(tmFilter, "h"))
-	stmt, params := appendListOptionsWithCursorToSQL(stmt, nil, &listOpts.ListOptions)
+	stmt, params, err := appendListOptionsWithCursorToSQLSecure(stmt, nil, &listOpts.ListOptions, mdmAppleCommandsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
 
 	var results []*fleet.MDMAppleCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, params...); err != nil {
@@ -8319,4 +8332,18 @@ func (ds *Datastore) GetHostsForAutoRotation(ctx context.Context) ([]fleet.HostA
 	}
 
 	return hosts, nil
+}
+
+func (ds *Datastore) IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error) {
+	const stmt = `SELECT EXISTS(SELECT 1 FROM nano_cert_auth_associations WHERE renew_command_uuid = ? AND id = ? ORDER BY created_at DESC LIMIT 1)`
+
+	var exists bool
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, stmt, commandUUID, hostUUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check if command is apple enrollment renewal")
+	}
+
+	return exists, nil
 }

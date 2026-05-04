@@ -1,6 +1,8 @@
 # GitOps
 
-Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
+
+> Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/wgqI_lHnGJc" allowfullscreen></iframe>
@@ -8,31 +10,16 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 > When renaming a fleet, first update the name in the UI, then update your YAML. If you only update the YAML, the fleet will be deleted and its hosts will lose their settings because they become "Unassigned".
 
-Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
-
-Paths in YAML files are always relative to the file you’re editing.
-
-For example:
-```yaml
-# If the file is in the same directory:
-package_path: package_name.yml
-
-# If the file is in a different directory:
-package_path: ../software/package_name.yml
-```
-
-### `path:` vs `paths:` (glob patterns)
-
-Several sections support both `path:` (singular) and `paths:` (plural), including `scripts`, `configuration_profiles`, `labels`, `policies`, and `reports`:
-
-- **`path:`** references a single, literal file path. Must not contain the characters `*`, `?`, `[`, or `{`.
-- **`paths:`** accepts a glob pattern to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
-
-You cannot specify both `path:` and `paths:` on the same entry.
-
-> **Important:** Filenames containing `*`, `?`, `[`, or `{` cannot be referenced using `path:`. If your filenames contain these characters (e.g. Windows profiles named `[AllowSpotlightCollection].xml`), either rename the files to remove them, or use `paths:` with a wildcard pattern like `*.xml`.
+Any settings not defined in your YAML files will be reset to the default values or deleted (e.g. software packages).
 
 For the GitOps API token, create a dedicated API-only user with `fleetctl user create --api-only`. These users can modify configurations via GitOps but can’t access the Fleet UI. Assign the GitOps role and set the appropriate global or fleet scope in the UI.
+
+`scripts`, `configuration_profiles`, `labels`, `policies`, and `reports` support both `path` (singular) and `paths` (plural).
+
+- `path` references a single file path.
+- `paths` accepts a wildcard ([glob pattern](https://code.visualstudio.com/docs/editor/glob-patterns)) to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
+
+Paths are always relative to the file you’re editing. You can't specify both `path` and `paths` on the same entry. Filenames containing `*`, `?`, `[`, or `{` can't be referenced using `path`. If your filenames contain these characters (e.g. a Windows configuration profile named `[AllowSpotlightCollection].xml`), either rename the files, or use `paths` with a wildcard pattern like `*.xml`.
 
 ## labels
 
@@ -46,7 +33,7 @@ Labels support `path:` (single file) and `paths:` (glob pattern) references. See
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for type are `dynamic` , `manual`, and `host_vitals` (default: `dynamic`).
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`.
-- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`.
+- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. If omitted, existing host membership is preserved (no changes). If provided but empty, all hosts are removed from the label.
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `criteria` can be specified. If none are specified, a manual label with no hosts will be created.
@@ -135,6 +122,7 @@ You can create a patch policy by setting `type` to `patch` and specifying `fleet
 A patch policy's `query` automatically updates. Hosts will fail this policy if they’re not running the latest version found in [the app's metadata](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If `version` is set for `fleet_maintained_apps`, that version is included in the query.
 
 To automatically install the app when this policy fails, you can add an automation by setting `install_software` to `true`.
+
 #### Automations
 
 ##### Install software
@@ -143,6 +131,7 @@ _Available in Fleet Premium_
 
 To trigger software install, when policy fails, specify one of:
   - `install_software.package_path` is the path to a custom package YAML. Only one package can be specified in the package YAML.
+  - `install_software.fleet_maintained_app_slug` is a [Fleet-maintained app slug](https://fleetdm.com/docs/configuration/yaml-files#fleet-maintained-apps).
   - `install_software.hash_sha256` is [SHA256 hash](https://fleetdm.com/docs/configuration/yaml-files#hash) of a custom package.
 
 #### Run script
@@ -199,19 +188,27 @@ policies:
   calendar_events_enabled: false
   run_script:
     path: ./disable-guest-account.sh
-- name: Install Firefox on macOS
+- name: macOS - Firefox installed
   platform: darwin
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
-  query: "SELECT 1 FROM apps WHERE name = 'Firefox.app'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
   install_software:
     package_path: ./firefox.package.yml
-- name: [Install software] Logic Pro
+- name: macOS - Logic Pro installed
   platform: darwin
   description: This policy checks that Logic Pro is installed
   resolution: Install Logic Pro App Store app if not installed
-  query: "SELECT 1 FROM apps WHERE name = 'Logic Pro'"
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.apple.logic10'"
   install_software:
+    app_store_id: "1487937127" # (for App Store apps)
+- name: macOS - Zoom installed
+  platform: darwin
+  description: This policy checks that Zoom is installed
+  resolution: Install Logic Pro App Store app if not installed
+  query: "SELECT 1 FROM apps WHERE bundle_identifier = 'us.zoom.xos'"
+  install_software:
+    fleet_maintained_app_slug: zoom/darwin
     package_path: ./linux-firefox.deb.package.yml
     # app_store_id: "1487937127" (for App Store apps)
 - name: Zoom up to date
@@ -366,6 +363,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
+- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment (default: `false`).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 
 #### Example
@@ -383,6 +381,7 @@ controls:
   enable_turn_on_windows_mdm_manually: false # Available in Fleet Premium
   windows_migration_enabled: true # Available in Fleet Premium
   enable_disk_encryption: true # Available in Fleet Premium
+  apple_require_hardware_attestation: false # Available in Fleet Premium
   enable_recovery_lock_password: true # Available in Fleet Premium
   macos_updates: # Available in Fleet Premium
     deadline: "2024-12-31"
@@ -399,25 +398,10 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
-      - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any: # Available in Fleet Premium
-          - Macs on Sequoia
-<<<<<<< AdamBaali-Gitops-YAML-globs-update
-      - path: ../lib/macos-profile2.json
-        labels_include_all: # Available in Fleet Premium
-          - Macs on Sonoma
-      - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-=======
-      - path: ../lib/macos-profile3.mobileconfig
->>>>>>> main
-        labels_include_any: # Available in Fleet Premium
-          - Engineering
-          - Product
-      - paths: ../lib/configuration-profiles/*.json
+      - paths: ../lib/macos/profiles/*.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows-profile.xml
-      - paths: ../lib/windows/profiles/*.xml  # Glob pattern to include all .xml files in directory
+      - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
   android_settings:
@@ -581,7 +565,7 @@ The `software` section allows you to configure packages, store apps (Apple App S
 - `app_store_apps` is a list of Apple App Store or Android Play Store apps.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps.
 
-Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install a custom package or App Store app when a host fails a policy. [Automatic install support for Fleet-maintained apps](https://github.com/fleetdm/fleet/issues/34492) is coming soon.
+Currently, you can specify `install_software` in the [`policies` YAML](#policies) to automatically install software when a host fails a policy.
 
 Currently, Fleet only allows one package, Apple App Store app, or Fleet-maintained app for a specific software. This means, if you specify a Google Chrome for macOS twice in `packages` or once in `packages` and once in `fleet_maintained_apps`, only one of them will be added to Fleet.
 
@@ -645,7 +629,7 @@ software:
 #### self_service, labels, categories, and setup_experience
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
-- `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
+- `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
 - `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
   - `Browsers`: shown as **🌎 Browsers**
   - `Communication`: shown as **👬 Communication**
@@ -707,20 +691,22 @@ If your server doesn't support ETags reliably, you can disable this behavior wit
 
 ##### Script-only
 
-Script-only packages (`.sh` and `.ps1` files) are referenced directly inline in the team YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
-
-`self_service`, `categories`, `labels`, and `icon` are specified inline in the team YAML file.
+Script-only packages (`.sh` and `.ps1` files) are created by referencing a script file in the fleet YAML file. Currently, script-only packages don't support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
 
 ```yaml
 software:
   packages:
     - path: ../lib/linux/scripts/vpn-setup.sh
+      display_name: VPN setup
+      icon:
+         path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
         - Utilities
+      labels_include_any:
+      - Engineering
+      - Customer Support
 ```
-
-> Script-only packages do not currently support configuration via a separate package YAML file. All options must be specified inline in the team YAML file.
 
 ### app_store_apps
 
@@ -1328,3 +1314,4 @@ Unlike other options, omitting `smtp_settings` or leaving it blank won't reset t
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
+<meta name="keywordsForDocsearch" value="configuration as code, org settings, ci/cd, version control, declarative configuration">
