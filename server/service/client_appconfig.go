@@ -112,14 +112,15 @@ func (c *Client) planAndStripOrgLogos(
 	}
 
 	type modeSpec struct {
-		mode       fleet.OrgLogoMode
-		pathKey    string
-		urlKey     string
-		currentURL string
+		mode             fleet.OrgLogoMode
+		pathKey          string
+		urlKey           string
+		deprecatedURLKey string
+		currentURL       string
 	}
 	specs := []modeSpec{
-		{fleet.OrgLogoModeLight, "org_logo_path_light_mode", "org_logo_url_light_mode", currentOrgInfo.OrgLogoURLLightMode},
-		{fleet.OrgLogoModeDark, "org_logo_path_dark_mode", "org_logo_url_dark_mode", currentOrgInfo.OrgLogoURLDarkMode},
+		{fleet.OrgLogoModeLight, "org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background", currentOrgInfo.OrgLogoURLLightMode},
+		{fleet.OrgLogoModeDark, "org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url", currentOrgInfo.OrgLogoURLDarkMode},
 	}
 
 	var actions []orgLogoAction
@@ -146,10 +147,12 @@ func (c *Client) planAndStripOrgLogos(
 				return nil, fmt.Errorf("org logo (%s): %w", s.mode, err)
 			}
 			actions = append(actions, orgLogoAction{mode: s.mode, uploadPath: absPath})
-			// Strip both keys: PUT will set the served URL after the PATCH,
-			// so we must keep PATCH from writing anything to the URL field.
+			// Strip every URL key for this mode: PUT will set the served URL
+			// (and its deprecated alias) after the PATCH, so we must keep
+			// PATCH from writing anything to either URL field.
 			delete(orgInfo, s.pathKey)
 			delete(orgInfo, s.urlKey)
+			delete(orgInfo, s.deprecatedURLKey)
 			if dryRun {
 				logFn("[+] would upload org logo (%s) from %s\n", s.mode, yamlPath)
 			}
@@ -158,11 +161,21 @@ func (c *Client) planAndStripOrgLogos(
 				actions = append(actions, orgLogoAction{mode: s.mode})
 			}
 			delete(orgInfo, s.pathKey)
+			// Mirror the new key into the deprecated alias so PATCH carries
+			// both with the same value. Without this, a PATCH that only sets
+			// the new key leaves the deprecated field unchanged on the
+			// server, and the post-merge NormalizeLogoFields copies the old
+			// value back into the new field — silently undoing a clear or
+			// rewrite. See server/service/appconfig.go ModifyAppConfig.
+			orgInfo[s.deprecatedURLKey] = yamlURL
 		default:
 			if fleet.IsFleetHostedLogoURL(s.currentURL) {
 				actions = append(actions, orgLogoAction{mode: s.mode})
 			}
 			delete(orgInfo, s.pathKey)
+			// Same reason as above: send both keys as "" so the server
+			// can't restore the previous value via NormalizeLogoFields.
+			orgInfo[s.deprecatedURLKey] = ""
 		}
 	}
 	return actions, nil
