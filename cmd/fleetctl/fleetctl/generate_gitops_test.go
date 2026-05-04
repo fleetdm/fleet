@@ -851,6 +851,7 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
 				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				SubjectAlternativeName:   "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 			},
 		}
 	}

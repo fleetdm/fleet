@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -65,19 +66,19 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 	t.Run("Invalid CA type", func(t *testing.T) {
-		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(InvalidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 		require.Error(t, err)
 		// Check that the error is about invalid CA type
 		require.Contains(t, err.Error(), "Currently, only the custom_scep_proxy certificate authority is supported")
 	})
 
 	t.Run("Valid CA type", func(t *testing.T) {
-		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 		require.NoError(t, err)
 	})
 
 	t.Run("Missing CA", func(t *testing.T) {
-		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, 999, "CN=$FLEET_VAR_HOST_UUID")
+		_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, 999, "CN=$FLEET_VAR_HOST_UUID", "")
 		require.Error(t, err)
 		// Check that the error is about invalid CA type
 		require.Contains(t, err.Error(), "not found")
@@ -86,7 +87,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	t.Run("Empty or whitespace-only name", func(t *testing.T) {
 		whitespaceNames := []string{"", " ", "  ", "\t", "\n", "   \t\n  "}
 		for _, name := range whitespaceNames {
-			_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+			_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "Certificate template name is required")
 		}
@@ -94,7 +95,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 
 	t.Run("Name too long", func(t *testing.T) {
 		longName := strings.Repeat("a", 256)
-		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+		_, err := svc.CreateCertificateTemplate(ctx, longName, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Certificate template name is too long")
 	})
@@ -131,7 +132,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		}
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
-				_, err := svc.CreateCertificateTemplate(ctx, tc.name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+				_, err := svc.CreateCertificateTemplate(ctx, tc.name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "Invalid certificate template name")
 			})
@@ -156,7 +157,7 @@ func TestCreateCertificateTemplate(t *testing.T) {
 		}
 		for _, name := range validNames {
 			t.Run(name, func(t *testing.T) {
-				_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID")
+				_, err := svc.CreateCertificateTemplate(ctx, name, TeamID, uint(ValidCATypeID), "CN=$FLEET_VAR_HOST_UUID", "")
 				require.NoError(t, err)
 			})
 		}
@@ -165,11 +166,170 @@ func TestCreateCertificateTemplate(t *testing.T) {
 	t.Run("Empty or whitespace-only subject name", func(t *testing.T) {
 		whitespaceSubjectNames := []string{"", " ", "   \t\n  "}
 		for _, subjectName := range whitespaceSubjectNames {
-			_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), subjectName)
+			_, err := svc.CreateCertificateTemplate(ctx, "my template", TeamID, uint(ValidCATypeID), subjectName, "")
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "Certificate template subject name is required")
 		}
 	})
+}
+
+func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
+	const ValidCATypeID = uint(2)
+	const TeamID = 1
+
+	makePremiumService := func(t *testing.T) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			return &fleet.CertificateAuthority{ID: id, Type: string(fleet.CATypeCustomSCEPProxy)}, nil
+		}
+		ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+			return &fleet.CertificateTemplateResponse{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:                     1,
+					Name:                   certificateTemplate.Name,
+					SubjectName:            certificateTemplate.SubjectName,
+					SubjectAlternativeName: certificateTemplate.SubjectAlternativeName,
+				},
+				TeamID: certificateTemplate.TeamID,
+			}, nil
+		}
+		ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+			return 0, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+		return svc, ctx, ds
+	}
+
+	t.Run("Premium tenant with valid SAN succeeds and round-trips the value", func(t *testing.T) {
+		svc, ctx, ds := makePremiumService(t)
+
+		san := "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+		resp, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", san)
+		require.NoError(t, err)
+		require.Equal(t, san, resp.SubjectAlternativeName)
+		require.True(t, ds.CreateCertificateTemplateFuncInvoked)
+	})
+
+	t.Run("Empty or whitespace-only SAN bypasses Premium check and stores no SAN", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			return &fleet.CertificateAuthority{ID: id, Type: string(fleet.CATypeCustomSCEPProxy)}, nil
+		}
+		ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
+			// Service does NOT mutate whitespace-only SAN; the datastore converts it to NULL.
+			// Here we just record success; the empty/NULL contract is enforced by the datastore tests.
+			return &fleet.CertificateTemplateResponse{
+				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
+					ID:          1,
+					Name:        certificateTemplate.Name,
+					SubjectName: certificateTemplate.SubjectName,
+				},
+				TeamID: certificateTemplate.TeamID,
+			}, nil
+		}
+		ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
+			return 0, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		for i, san := range []string{"", "  ", "\t\n  "} {
+			_, err := svc.CreateCertificateTemplate(ctx, fmt.Sprintf("wifi-%d", i), TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", san)
+			require.NoError(t, err, "SAN %q should not require Premium", san)
+		}
+	})
+
+	t.Run("Non-Premium tenant with non-empty SAN is rejected with ErrMissingLicense", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		_, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", "DNS=example.com")
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+	})
+
+	t.Run("Format failures return BadRequestError naming the issue", func(t *testing.T) {
+		svc, ctx, _ := makePremiumService(t)
+
+		cases := []struct {
+			name   string
+			san    string
+			fragment string
+		}{
+			{"missing equals", "DNS=ok, OOPS", "missing '='"},
+			{"unknown key", "FOO=bar", "unsupported key"},
+			{"rfc822 not synonym", "RFC822=user@x", "unsupported key"},
+			{"too long", strings.Repeat("DNS=a,", 1024), "too long"},
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", tc.san)
+				require.Error(t, err)
+				var bre *fleet.BadRequestError
+				require.ErrorAs(t, err, &bre)
+				require.Contains(t, err.Error(), tc.fragment)
+			})
+		}
+	})
+
+	t.Run("Unsupported variable in SAN is rejected", func(t *testing.T) {
+		svc, ctx, _ := makePremiumService(t)
+
+		_, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", "EMAIL=$FLEET_VAR_HOST_PLATFORM")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "FLEET_VAR_HOST_PLATFORM")
+	})
+}
+
+func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
+	cases := []struct {
+		name        string
+		san         string
+		expectError bool
+		errContains string
+	}{
+		{"empty allowed", "", false, ""},
+		{"whitespace allowed", "   \t\n  ", false, ""},
+		{"single DNS", "DNS=example.com", false, ""},
+		{"single EMAIL", "EMAIL=user@example.com", false, ""},
+		{"single UPN", "UPN=user@corp.example.com", false, ""},
+		{"single IP", "IP=10.0.0.1", false, ""},
+		{"single URI", "URI=spiffe://example.com/x", false, ""},
+		{"all five mixed", "DNS=a, EMAIL=b@x, UPN=c@d, IP=10.0.0.1, URI=spiffe://x", false, ""},
+		{"case insensitive keys", "dns=a, email=b@x, upn=c@d, ip=10.0.0.1, uri=spiffe://x", false, ""},
+		{"repeated keys", "DNS=a, DNS=b, EMAIL=c@x, EMAIL=d@y", false, ""},
+		{"trailing comma is fine", "DNS=a,", false, ""},
+		{"missing equals", "DNS=a, OOPS", true, "missing '='"},
+		{"unknown key FOO", "FOO=bar", true, "unsupported key"},
+		{"RFC822 is not a synonym", "RFC822=user@x", true, "unsupported key"},
+		{"length cap", strings.Repeat("DNS=a,", 1024), true, "too long"},
+		{"empty key with equals only", "=value", true, "missing '='"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateCertificateTemplateSubjectAlternativeName(tc.san)
+			if tc.expectError {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }
 
 func TestApplyCertificateTemplateSpecs(t *testing.T) {

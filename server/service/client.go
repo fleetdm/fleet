@@ -3331,6 +3331,22 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			)
 		}
 
+		// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
+		// reaches the server. Server re-validates as the source of truth.
+		if certificates[i].SubjectAlternativeName != "" {
+			if err := validateCertificateTemplateSubjectAlternativeName(certificates[i].SubjectAlternativeName); err != nil {
+				return newGitOpsValidationError(
+					fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
+				)
+			}
+			if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectAlternativeName); err != nil {
+				return newGitOpsValidationError(
+					fmt.Sprintf(`Invalid Fleet variable in subject_alternative_name of certificate %q: %s`,
+						certificates[i].Name, err.Error()),
+				)
+			}
+		}
+
 		ca, ok := casByName[certificates[i].CertificateAuthorityName]
 		if !ok {
 			return fmt.Errorf("certificate authority %q not found for certificate %q",
@@ -3346,6 +3362,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			Team:                   teamName,
 			CertificateAuthorityId: ca.ID,
 			SubjectName:            certificates[i].SubjectName,
+			SubjectAlternativeName: certificates[i].SubjectAlternativeName,
 		}
 		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
 			return newGitOpsValidationError(
@@ -3365,8 +3382,10 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			newCert, exists := certsToBeAdded[cert.Name]
 			if !exists {
 				certificatesToDelete = append(certificatesToDelete, cert.ID)
-			} else if cert.SubjectName != newCert.SubjectName || cert.CertificateAuthorityId != newCert.CertificateAuthorityId {
-				// SubjectName or CA changed, mark for deletion (will be recreated)
+			} else if cert.SubjectName != newCert.SubjectName ||
+				cert.SubjectAlternativeName != newCert.SubjectAlternativeName ||
+				cert.CertificateAuthorityId != newCert.CertificateAuthorityId {
+				// Subject, SAN, or CA changed; mark for deletion (will be recreated).
 				certificatesToDelete = append(certificatesToDelete, cert.ID)
 			}
 		}

@@ -4,17 +4,33 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-// Fleet variables supported in certificate template subject names.
+// Fleet variables supported in certificate template subject names and SANs.
 var fleetVarsSupportedInCertificateTemplates = []fleet.FleetVarName{
 	fleet.FleetVarHostUUID,
 	fleet.FleetVarHostHardwareSerial,
 	fleet.FleetVarHostEndUserIDPUsername,
+}
+
+// maxCertificateTemplateSubjectAlternativeNameLength caps the SAN string length to prevent
+// pathological inputs. 4096 bytes accommodates real-world SAN lists (a handful of DNS / UPN /
+// EMAIL / IP / URI entries) with comfortable headroom.
+const maxCertificateTemplateSubjectAlternativeNameLength = 4096
+
+// subjectAlternativeNameAllowedKeys lists the SAN attribute KEYs the agent recognizes. The
+// server validates KEY membership at create time so admins get fast feedback on typos.
+var subjectAlternativeNameAllowedKeys = map[string]struct{}{
+	"DNS":   {},
+	"EMAIL": {},
+	"UPN":   {},
+	"IP":    {},
+	"URI":   {},
 }
 
 func validateCertificateTemplateFleetVariables(subjectName string) error {
@@ -31,6 +47,40 @@ func validateCertificateTemplateFleetVariables(subjectName string) error {
 
 	return nil
 }
+
+// validateCertificateTemplateSubjectAlternativeName performs lightweight format-only validation
+// of the SAN string. Empty / whitespace-only input is permitted (means no SAN). For non-empty
+// values it checks the length cap, that each non-empty comma-separated token contains '=', and
+// that each KEY is in the allow-list (DNS, EMAIL, UPN, IP, URI). The value (right of '=') is
+// not validated; value content is parsed by the Android agent at delivery time, where any
+// $FLEET_VAR_* references have already been expanded.
+func validateCertificateTemplateSubjectAlternativeName(san string) error {
+	if strings.TrimSpace(san) == "" {
+		return nil
+	}
+	if len(san) > maxCertificateTemplateSubjectAlternativeNameLength {
+		return fmt.Errorf("subject_alternative_name is too long. Maximum is %d bytes.",
+			maxCertificateTemplateSubjectAlternativeNameLength)
+	}
+	for raw := range strings.SplitSeq(san, ",") {
+		token := strings.TrimSpace(raw)
+		if token == "" {
+			continue
+		}
+		eqIdx := strings.Index(token, "=")
+		if eqIdx <= 0 {
+			return fmt.Errorf("subject_alternative_name token %q is missing '='", token)
+		}
+		key := strings.ToUpper(strings.TrimSpace(token[:eqIdx]))
+		if _, ok := subjectAlternativeNameAllowedKeys[key]; !ok {
+			return fmt.Errorf(
+				"subject_alternative_name has unsupported key %q. Allowed keys are DNS, EMAIL, UPN, IP, URI.",
+				key)
+		}
+	}
+	return nil
+}
+
 
 // replaceCertificateVariables replaces FLEET_VAR_* variables in the subject name with actual host values
 func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName string, host *fleet.Host) (string, error) {
