@@ -72,26 +72,15 @@
       }
 
       &--disabled {
-        cursor: not-allowed;
+        &:hover {
+          background-color: transparent;
+        }
       }
     }
 
     &__tab-panel--selected {
       margin-top: $gap-page-component;
       animation: fade-in 250ms ease-out;
-
-      .no-results-message {
-        margin-top: $pad-xxlarge;
-        font-size: $small;
-        font-weight: $bold;
-
-        span {
-          margin-top: $pad-medium;
-          font-size: $x-small;
-          font-weight: $regular;
-          display: block;
-        }
-      }
     }
 
     .tab-text {

@@ -500,6 +500,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}
+	if config.Redis.HostCacheEnabled {
+		if config.Redis.HostCacheTTL <= 0 {
+			initFatal(
+				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
+				"validate host cache configuration",
+			)
+		}
+		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
+		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
+			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
+	}
 	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 	ds = redisWrapperDS
 
@@ -1506,6 +1517,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		if err := apiendpoints.Init(apiHandler); err != nil {
 			panic(fmt.Sprintf("error initializing API endpoints: %v", err))
 		}
+		apiHandler = service.WithMDMSSOCallbackRedirect(svc, logger, apiHandler)
 
 		if serveCSP {
 			// Only injecting this if CSP is turned on since the default security headers add some overhead to each request
@@ -1952,6 +1964,7 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	// Register all chart types here. The registry is used to validate chart types in the API
 	// and to iterate over all chart types when generating chart data.
 	chartSvc.RegisterDataset(&chart.UptimeDataset{})
+	chartSvc.RegisterDataset(&chart.CVEDataset{})
 	// Create auth middleware for chart bounded context
 	chartAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return auth.AuthenticatedUser(svc, next)

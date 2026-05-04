@@ -1,7 +1,7 @@
 # Fleet 4.84.0 | Python scripts, Entra for Windows, auto-rotate Recovery Lock, and more...
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/tNi7AcMH_sk?si=YBDsDvKPc4H3cbg7" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/mpKDV7zpb-I?si=PG5inruNQNzHrPVw" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.84.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
@@ -22,7 +22,7 @@ This makes it easier to ramp up with GitOps incrementally: start by managing pol
 
 > **Note:**
 > - After upgrading, existing Fleet instances will have the labels exception enabled automatically. This way, your next GitOps run after upgrade doesn't wipe any labels not defined in git. If your GitOps YAML files include a `labels:` key, you will encounter new errors.
-> - To resolve, either remove `labels:` from your YAML files (to manage labels via the UI or API going forward) or disable the labels exception in **Settings > Integrations > GitOps** (to manage labels via GitOps). If you disable the exception, make sure you move any labels managed via the UI into your YAML, otherwise your next GitOps run will wipe them out. Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
+> - To resolve, either remove `labels:` from your YAML files (to manage labels via the UI or API going forward) or disable the labels exception in **Settings > Integrations > Change management** (to manage labels via GitOps). If you disable the exception, make sure you move any labels managed via the UI into your YAML, otherwise your next GitOps run will wipe them out. Feel free to [reach out to Fleet](https://fleetdm.com/support) if you need a hand.
 
 GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 

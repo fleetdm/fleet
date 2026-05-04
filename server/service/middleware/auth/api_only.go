@@ -19,22 +19,24 @@ import (
 var RouteTemplateRequestFunc = eu.RouteTemplateRequestFunc
 
 // APIOnlyEndpointCheck returns an endpoint.Endpoint middleware that enforces
-// access control for API-only users (api_only=true). It must be wired inside
-// AuthenticatedUser (so a Viewer is already in context when it runs) and the
-// enclosing transport must register RouteTemplateRequestFunc as a ServerBefore
-// option so the mux route template is available in context.
+// access control for API-only users (api_only=true) that have configured
+// endpoint restrictions. It must be wired inside AuthenticatedUser (so a Viewer
+// is already in context when it runs) and the enclosing transport must register
+// RouteTemplateRequestFunc as a ServerBefore option so the mux route template
+// is available in context.
 //
-// For non-API-only users the check is skipped entirely. When there is no Viewer
-// in context, the call passes through — AuthenticatedUser guarantees that any
-// request that needs a Viewer has already been rejected before reaching here.
+// The check is skipped entirely for: non-API-only users, requests with no
+// Viewer in context (AuthenticatedUser already rejects those), and API-only
+// users with no endpoint restrictions configured — the latter are granted
+// access to every registered route, gated only by role-based authz further
+// down the chain.
 //
-// For API-only users two checks are applied in order:
+// For API-only users with a non-empty restriction list (rows in
+// user_api_endpoints), two checks are applied in order:
 //  1. The requested route must appear in the API endpoint catalog. If not, a
 //     permission error (403) is returned.
-//  2. If the user has configured endpoint restrictions (rows in
-//     user_api_endpoints), the route must match one of them. If not, a
-//     permission error (403) is returned. An empty restriction list grants
-//     full access to all catalog endpoints.
+//  2. The route must match one of the user's allowed endpoints. If not, a
+//     permission error (403) is returned.
 func APIOnlyEndpointCheck(next endpoint.Endpoint) endpoint.Endpoint {
 	return apiOnlyEndpointCheck(apiendpoints.IsInCatalog, next)
 }
@@ -42,7 +44,7 @@ func APIOnlyEndpointCheck(next endpoint.Endpoint) endpoint.Endpoint {
 func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint) endpoint.Endpoint {
 	return func(ctx context.Context, request any) (any, error) {
 		v, ok := viewer.FromContext(ctx)
-		if !ok || v.User == nil || !v.User.APIOnly {
+		if !ok || v.User == nil || !v.User.APIOnly || len(v.User.APIEndpoints) == 0 {
 			return next(ctx, request)
 		}
 
@@ -53,11 +55,6 @@ func apiOnlyEndpointCheck(isInCatalog func(string) bool, next endpoint.Endpoint)
 
 		if !isInCatalog(fp) {
 			return nil, permissionDenied(ctx)
-		}
-
-		// No endpoint restrictions: full access to all catalog endpoints.
-		if len(v.User.APIEndpoints) == 0 {
-			return next(ctx, request)
 		}
 
 		// Check whether the requested endpoint matches any of the user's allowed endpoints.

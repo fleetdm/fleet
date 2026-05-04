@@ -17,8 +17,8 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
 import ActionsDropdown from "components/ActionsDropdown";
+import EmptyState from "components/EmptyState";
 import {
   generateTableHeaders,
   combineDataSets,
@@ -42,7 +42,7 @@ const ADD_USER_OPTIONS: IDropdownOption[] = [
 ];
 
 const EmptyUsersTable = () => (
-  <EmptyTable
+  <EmptyState
     header="No users match the current criteria"
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
