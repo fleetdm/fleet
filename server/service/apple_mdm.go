@@ -4332,6 +4332,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			if err := svc.ds.FailManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID, errMsg); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "fail managed local account rotation")
 			}
+			// Failure activity is always attributed to Fleet (no viewer context here,
+			// and the original initiating user — if any — isn't tracked on the row).
+			if err := svc.newActivityFn(r.Context, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			}); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "create failed-to-rotate managed local account activity")
+			}
 		}
 	}
 

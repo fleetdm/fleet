@@ -242,6 +242,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeEnabledManagedLocalAccount{},
 	ActivityTypeDisabledManagedLocalAccount{},
 	ActivityTypeRotatedManagedLocalAccountPassword{},
+	ActivityTypeFailedToRotateManagedLocalAccountPassword{},
 
 	ActivityTypeCanceledSetupExperience{},
 }
@@ -1138,6 +1139,28 @@ func (a ActivityTypeRotatedManagedLocalAccountPassword) HostIDs() []uint {
 
 func (a ActivityTypeRotatedManagedLocalAccountPassword) WasFromAutomation() bool {
 	return a.FleetInitiated
+}
+
+// ActivityTypeFailedToRotateManagedLocalAccountPassword records a failed attempt
+// to rotate the managed local account password (the device acked the
+// SetAutoAdminPassword command with an error or command-format error). Always
+// attributed to Fleet — the failure is detected at ack time, outside any user
+// context, regardless of who originally initiated the rotation.
+type ActivityTypeFailedToRotateManagedLocalAccountPassword struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) ActivityName() string {
+	return "failed_to_rotate_managed_local_account_password"
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeFailedToRotateManagedLocalAccountPassword) WasFromAutomation() bool {
+	return true
 }
 
 type ActivityTypeCreatedDeclarationProfile struct {

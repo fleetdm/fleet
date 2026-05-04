@@ -236,10 +236,16 @@ func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, ho
 		return ctxerr.Wrap(ctx, err, "encrypt pending managed local account password")
 	}
 
+	// auto_rotate_at is cleared once the command is staged: the API surfaces
+	// auto_rotate_at as a "rotation will fire at" hint, but once a rotation is in
+	// flight the hint is stale (the row is now waiting on the device ack instead
+	// of the cron). Complete/Fail also clear auto_rotate_at; this just covers the
+	// pending-but-unacked window between enqueue and ack.
 	stmt := fmt.Sprintf(`
 		UPDATE host_managed_local_account_passwords
 		SET pending_encrypted_password = ?,
 		    pending_command_uuid = ?,
+		    auto_rotate_at = NULL,
 		    status = '%s'
 		WHERE host_uuid = ?
 		  AND encrypted_password IS NOT NULL
