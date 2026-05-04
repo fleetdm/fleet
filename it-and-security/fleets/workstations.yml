@@ -117,9 +117,6 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop.app installed"
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -163,7 +160,6 @@ policies:
   # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
   # - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
-  - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
@@ -218,12 +214,6 @@ software:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
-      categories:
-        - Utilities
-    - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
-      self_service: false
-      labels_include_any:
-        - "Macs with Fleet Desktop.app launch agent MDM profile"
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
