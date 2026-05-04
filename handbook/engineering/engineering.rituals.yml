@@ -193,5 +193,8 @@
   description: "Respond to code scanning alerts for the website/ folder in the \"Security and quality\" tab of the Fleet repo" 
   moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#respond-to-website-code-scanning-alerts"
   dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-website" ] 
+    repo: "fleet"
 
 

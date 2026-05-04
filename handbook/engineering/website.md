@@ -130,7 +130,7 @@ If the action fails, please complete the following steps:
 Every week, the website maintainer looks for any new [code scanning alerts](https://github.com/fleetdm/fleet/security/code-scanning) that have been created for the `website/` folder. If any are found they:
 1. Determine if the alert is affecting the production evironment. If this is an alert for a vulnerability in a depedency, then the maintainer will look at what brings the depedency into the codebase.
 2. Respond to the alert. 
-   - If the alert is for code that has been merged into the repo, the maintiner will create a patch to fix it. 
+   - If the alert is for code that has been merged into the repo, the maintiner will create a pull request to fix it. 
    - If the alert is for a dependency that runs in production, the maintainer will upgrade it to a version that is not affected by the vulnerability. 
    - If the alert is for a devDependency or a dependency of a devDependency, the maintainer will dismiss the alert as a false-positive, because it does not affect the production environment.
 
