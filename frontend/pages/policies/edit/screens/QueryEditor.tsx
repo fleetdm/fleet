@@ -156,6 +156,7 @@ const QueryEditor = ({
       resolution: formData.resolution,
       platform: formData.platform,
       labels_include_any: formData.labels_include_any,
+      labels_include_all: formData.labels_include_all,
       labels_exclude_any: formData.labels_exclude_any,
     };
     if (isPremiumTier) {

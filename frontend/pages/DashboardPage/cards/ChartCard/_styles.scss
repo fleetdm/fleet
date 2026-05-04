@@ -111,6 +111,7 @@
     border-radius: $border-radius;
     font-size: $xx-small;
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
+
   }
 
   &__tooltip-label {
@@ -120,6 +121,14 @@
 
   &__tooltip-value {
     font-weight: $bold;
+  }
+
+  .react-tooltip {
+    a {
+      color: $core-fleet-white;
+      display: inline;
+      font-size: $xx-small;
+    }
   }
 }
 
@@ -163,6 +172,18 @@
     position: absolute;
     transform: translate(-50%, -100%);
     pointer-events: none;
+    white-space: nowrap;
+
+    // Near the right edge, anchor the tooltip's right side to the cell center
+    // so it grows leftward into the grid instead of overflowing the card.
+    &--align-right {
+      transform: translate(-100%, -100%);
+    }
+
+    // Mirror for the left edge.
+    &--align-left {
+      transform: translate(0, -100%);
+    }
   }
 
   &__x-axis {
@@ -210,40 +231,58 @@
   }
 
   // Color levels for cells (SVG fill) and legend swatches (background-color).
-  // Scale colors don't exist in the shared palette, so they stay as literal
-  // hex values; level-4 matches $core-fleet-green and is aliased accordingly.
+  // The per-level colors are exposed as custom properties so themes can
+  // override them with a single block of overrides below.
+  &--theme-green {
+    --level-0: #ebedf0;
+    --level-1: #e4f1ec;
+    --level-2: #badecf;
+    --level-3: #82d2b9;
+    --level-4: #009a7d;
+    --level-5: #005b4a;
+  }
+
+  &--theme-red {
+    --level-0: #ebedf0;
+    --level-1: #f1e4e4;
+    --level-2: #debaba;
+    --level-3: #d28282;
+    --level-4: #9a0000;
+    --level-5: #5b0000;
+  }
+
   &__cell {
     stroke: $core-fleet-white;
     stroke-width: 1px;
 
     &--level-0 {
-      fill: #ebedf0;
-      background-color: #ebedf0;
+      fill: var(--level-0);
+      background-color: var(--level-0);
     }
 
     &--level-1 {
-      fill: #e4f1ec;
-      background-color: #e4f1ec;
+      fill: var(--level-1);
+      background-color: var(--level-1);
     }
 
     &--level-2 {
-      fill: #badecf;
-      background-color: #badecf;
+      fill: var(--level-2);
+      background-color: var(--level-2);
     }
 
     &--level-3 {
-      fill: #82d2b9;
-      background-color: #82d2b9;
+      fill: var(--level-3);
+      background-color: var(--level-3);
     }
 
     &--level-4 {
-      fill: $core-fleet-green;
-      background-color: $core-fleet-green;
+      fill: var(--level-4);
+      background-color: var(--level-4);
     }
 
     &--level-5 {
-      fill: #005b4a;
-      background-color: #005b4a;
+      fill: var(--level-5);
+      background-color: var(--level-5);
     }
   }
 }
