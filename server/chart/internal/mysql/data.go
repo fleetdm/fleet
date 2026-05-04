@@ -20,6 +20,10 @@ var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 // scdUpsertBatch caps how many entity rows are written per INSERT statement.
 const scdUpsertBatch = 200
 
+// scdCleanupBatch caps how many rows CleanupSCDData deletes per statement, so
+// each batch's lock window is short and concurrent writers can interleave.
+const scdCleanupBatch = 1000
+
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
 	EntityID   string    `db:"entity_id"`
@@ -367,17 +371,32 @@ func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy a
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 // retention cutoff. Open rows (valid_to = sentinel) are always preserved.
+// Deletes in batches so each statement holds locks briefly and the concurrent
+// collection cron can interleave writes.
 func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 	// Compute the cutoff in Go (UTC) so the retention boundary doesn't depend
 	// on the MySQL session time zone — all valid_to writes are UTC.
+	fmt.Println("Starting SCD data cleanup...")
 	cutoff := time.Now().UTC().AddDate(0, 0, -days)
-	_, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM host_scd_data
-		 WHERE valid_to < ?
-		   AND valid_to <> ?`,
-		cutoff, scdOpenSentinel)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+	for {
+		if err := ctx.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM host_scd_data
+			 WHERE valid_to < ?
+			   AND valid_to <> ?
+			 LIMIT ?`,
+			cutoff, scdOpenSentinel, scdCleanupBatch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data rows affected")
+		}
+		if n < scdCleanupBatch {
+			return nil
+		}
 	}
-	return nil
 }
