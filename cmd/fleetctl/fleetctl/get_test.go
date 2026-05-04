@@ -157,7 +157,9 @@ spec:
 func TestGetTeams(t *testing.T) {
 	var expiredBanner strings.Builder
 	fleet.WriteExpiredLicenseBanner(&expiredBanner)
-	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+	bannerStr := expiredBanner.String()
+	require.Contains(t, bannerStr, "Your license for Fleet Premium is about to expire")
+	require.Contains(t, bannerStr, "https://fleetdm.com/learn-more-about/downgrading")
 
 	testCases := []struct {
 		name                    string
