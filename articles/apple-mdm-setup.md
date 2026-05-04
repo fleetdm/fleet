@@ -17,22 +17,22 @@ Apple uses Apple Push Notification service (APNs) APNs to authenticate and manag
 
 How to connect Fleet to APNs:
 
-1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
+1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
+2. Select **Turn on** for Apple (macOS, iOS, iPadOS) MDM.
 3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
-4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/). If you don't have an Apple ID, select **Create yours now**.
+4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/). If you don't have an Apple Account, create one.
 5. In Apple Push Certificates Portal, select **Create a Certificate**, upload your CSR, and download your APNs certificate.
 6. Upload APNs certificate (.pem file) in Fleet.
 
 ### Renew APNs
 
-1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Apple Business** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**
+1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
+2. Select **Edit** next to **Apple MDM turned on**.
 3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
-4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
-5. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
-6. Upload your CSR and download new APNs certificate.
-7. Upload APNs certificate (.pem file) in Fleet.
+5. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
+6. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
+7. Upload your CSR and download new APNs certificate.
+8. Upload APNs certificate (.pem file) in Fleet.
 
 ## Apple Business (AB)
 
@@ -40,39 +40,36 @@ How to connect Fleet to APNs:
 
 Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
-### To connect Fleet to AB, you have to add an AB token to Fleet. To add an AB token:
+1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
+2. Under **Apple Business (AB)**, select **Add AB**.
+3. Select **Download public key** to download a public key for AB.
+4. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, create one.
+5. Select **Devices > Management** and select **Add** at the bottom of list.
+7. Enter a name for the server such as "Fleet" and upload the public key downloaded in step 3 and select **Next**.
+8. Download the service token and select **Done**.
+9. In the **Default Device Assignment** section, assign the newly created server as the default for your Macs, iPhones, and iPads. Then select **Save**.
+10. In Fleet, upload the service token (.p7m file) downloaded in step 8.
 
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Automatic enrollment**, select **Add AB**, and then follow the instructions in the modal to upload an AB token to Fleet.
+macOS, iOS, and iPadOS hosts listed in AB and assigned to a Fleet will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
 
 When one of your uploaded AB tokens has expired or is within 30 days of expiring, you will see a warning banner at the top of page reminding you to renew your token.
 
-### To renew an AB token:
+### Renew AB:
 
-1. Sign in to [Apple Business](https://business.apple.com/)
-2. Select your **account name** at the bottom left of the screen, then select **Preferences**.
-3. In the **Your MDM Servers** section, select your Fleet server, then select **Download Token** at the top.
-4. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-5. Under **Automatic enrollment**:
-  - Select **Edit**, and then find the token that you want to renew. 
-  - Select the **Actions** dropdown for the token and then select **Renew**.
-> **Note:** Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
-6. Upload the downloaded token (.p7m file).
-   
-### After connecting Fleet to AB, set Fleet to be the MDM for all Macs:
+> Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 
-1. Log in to [Apple Business](https://business.apple.com)
-2. Select your profile icon in the bottom left
-3. Select **Preferences**
-4. Select **MDM Server Assignment** and select **Edit** next to **Default Server Assignment**.
-5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
-
-macOS, iOS, and iPadOS hosts listed in AB and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+1. Sign in to [Apple Business](https://business.apple.com/).
+2. Select **Devices > Management** and select your MDM server.
+3. Select the three dots and select **Download Token**.
+4. In Fleet, navigate to the **Settings > Integrations > MDM** page.
+5. Under **Apple Business (AB)** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**, and then find the token that you want to renew.
+6. Select the **Actions > Renew** for the token.
+7. Upload the token (.p7m file) downloaded in step 3.
 
 ### Hosts that automatically enroll will be assigned to a default fleet. You can configure the default fleet for macOS, iOS, and iPadOS hosts:
 
 1. Create a fleet, if you have not already, following [this guide](https://fleetdm.com/guides/fleets).
-2. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page and select **Edit** under **Automatic enrollment**.
+2. Navigate to the **Settings > Integrations > MDM** page and select **Edit** under **Apple Business (AB)**.
 3. Select the **Actions** dropdown for the AB token you want to update, and then select **Edit fleets**.
 4. Select the default fleet for each platform, and select **Save** to save your selections.
 
@@ -130,19 +127,25 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 
 > Available in Fleet Premium
 
-### Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts:
+Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides/install-app-store-apps) to your hosts.
 
-1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > Mobile device management (MDM)**
+1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > MDM**.
+2. Under **Apple Business (AB)**, select **Add VPP** next to **Volume Purchasing Program (VPP)**.
+3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
+4. Head to **Settings > Apps & Books** and download the content token for the location you want to use. Each token is based on a location in Apple Business.
+5. Upload the content token (.vpptoken file) to Fleet.
+6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
-2. In the **Volume Purchasing Program (VPP)** section, select **Add VPP**, and then select **Add VPP** again on the following page. Follow the directions on the modal to get your VPP token from Apple Business, and then select the **Upload** button at the bottom to upload it to Fleet.
+### Renew VPP:
 
-3. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
+> Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator.
 
-### To renew a VPP token:
-
-1. Navigate to the **Settings > Integrations > Mobile device management (MDM)** page
-
-2. Under **Volume Purchasing Program (VPP)**, select **Edit** and then find the token that you want to renew. Token status is indicated in the **Renew date** column: tokens less than 30 days from expiring will have a yellow indicator, and expired tokens will have a red indicator. Select the **Actions** dropdown for the token and then select **Renew**. Follow the instructions in the modal to download a new token from Apple Business and then upload the new token to Fleet.
+1. Navigate to the **Settings > Integrations > MDM** page
+2. Under **Apple Business (AB)**, select **Edit** next to **Volume Purchasing Program (VPP)** and then find the token that you want to renew.
+3. Select the **Actions > Renew** for the token.
+4. Sign in to [Apple Business](https://business.apple.com).
+5. Head to **Settings > Apps & Books** and download your content token.
+6. Upload the content token (.vpptoken file) to Fleet.
 
 ## Best practice
 
@@ -185,6 +188,8 @@ The acquisitions's VPP token will be assigned to the above fleets.
 
 Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
 renews each host's SCEP certificates automatically every 180 days.
+
+For manually enrolled devices, if SCEP certificate renewal fails, MDM will be turned off on the host. The user will need to re-enroll the device to restore MDM management.
 
 ## Troubleshooting failed enrollments
 

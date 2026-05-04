@@ -223,8 +223,8 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
-	// Targeting queries by label is a premium feature only
-	if len(p.LabelsIncludeAny) > 0 && !license.IsPremium(ctx) {
+	// Targeting queries by label is a premium feature only.
+	if (len(p.LabelsIncludeAny) > 0 || len(p.LabelsIncludeAll) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -243,7 +243,7 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.AuthorEmail = vc.Email()
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, p.LabelsIncludeAny, vc.User); err != nil {
+	if err := verifyLabelsToAssociate(ctx, svc.ds, p.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -278,11 +278,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		query.DiscardData = *p.DiscardData
 	}
 	if len(p.LabelsIncludeAny) > 0 {
-		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
-		for _, label := range p.LabelsIncludeAny {
-			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
-		}
-		query.LabelsIncludeAny = labelIdents
+		query.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
+	}
+	if len(p.LabelsIncludeAll) > 0 {
+		query.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
@@ -353,7 +352,7 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 	}
 
 	// Targeting queries by label is a premium feature only.
-	if p.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+	if (len(p.LabelsIncludeAny) > 0 || len(p.LabelsIncludeAll) > 0) && !license.IsPremium(ctx) {
 		return nil, fleet.ErrMissingLicense
 	}
 
@@ -363,8 +362,8 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		})
 	}
 
-	// We use query.TeamID because we do not allow changing the team
-	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, p.LabelsIncludeAny, authz.UserFromContext(ctx)); err != nil {
+	// We use query.TeamID because we do not allow changing the team.
+	if err := verifyLabelsToAssociate(ctx, svc.ds, query.TeamID, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll), authz.UserFromContext(ctx)); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -416,15 +415,13 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		}
 		query.DiscardData = *p.DiscardData
 	}
-	if p.LabelsIncludeAny != nil {
-		// Users submitting an empty array of labels will still
-		// initiate LabelsIncludeAny. It will only be nil if it was
-		// not included in the request (not modified)
-		labelIdents := make([]fleet.LabelIdent, 0, len(p.LabelsIncludeAny))
-		for _, label := range p.LabelsIncludeAny {
-			labelIdents = append(labelIdents, fleet.LabelIdent{LabelName: label})
-		}
-		query.LabelsIncludeAny = labelIdents
+	// If either label scope field is non-nil, treat both as authoritative.
+	// Mutual exclusion is enforced upstream so at most one slice is non-nil;
+	// the other is reset to empty so a scope switch implicitly clears the
+	// previous scope.
+	if p.LabelsIncludeAny != nil || p.LabelsIncludeAll != nil {
+		query.LabelsIncludeAny = fleet.LabelNamesToIdents(p.LabelsIncludeAny)
+		query.LabelsIncludeAll = fleet.LabelNamesToIdents(p.LabelsIncludeAll)
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
@@ -714,8 +711,7 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 	// 1. Turn specs into queries.
 	queries := []*fleet.Query{}
 	for _, spec := range specs {
-		// Targeting queries by label is a premium feature only.
-		if spec.LabelsIncludeAny != nil && !license.IsPremium(ctx) {
+		if len(spec.LabelsIncludeAny) > 0 && !license.IsPremium(ctx) {
 			setAuthCheckedOnPreAuthErr(ctx)
 			return fleet.ErrMissingLicense
 		}
@@ -806,7 +802,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	if logging == "" {
 		logging = fleet.LoggingSnapshot
 	}
-	// Find labels by name
+	// Find labels by name.
 	var queryLabels []fleet.LabelIdent
 	if len(spec.LabelsIncludeAny) > 0 {
 		vc, ok := viewer.FromContext(ctx)
@@ -821,7 +817,7 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		for labelName := range labelsMap {
 			queryLabels = append(queryLabels, fleet.LabelIdent{LabelName: labelName, LabelID: labelsMap[labelName].ID})
 		}
-		// Make sure that all labels were found
+		// Make sure that all labels were found.
 		for _, label := range spec.LabelsIncludeAny {
 			if _, ok := labelsMap[label]; !ok {
 				return nil, ctxerr.New(ctx, "label not found")

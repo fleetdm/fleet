@@ -52,7 +52,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Target hosts using labels                                                                                                                  | ✅       | ✅         | ✅         | ✅         | ✅    |         |
 | Add/remove manual labels to/from hosts                                                                                                     |          |            | ✅         | ✅         | ✅    | ✅      |
 | Add and delete hosts                                                                                                                       |          |            |            | ✅         | ✅    |         |
-| Transfer hosts between fleets\*                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
+| Transfer hosts between fleets\*                                                                                                            |          |            |            | ✅         | ✅    | ✅      |
 | Add user information from IdP to hosts\*                                                                                                   |          |            |            | ✅         | ✅    |         |
 | Create, edit, and delete labels                                                                                                            |          |            | ✅         | ✅         | ✅    | ✅      |
 | View all software                                                                                                                          | ✅       | ✅         | ✅         | ✅         | ✅    |         |
@@ -95,7 +95,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Retrieve contents from file carving                                                                                                        |          |            |            |            | ✅    |         |
 | Create Apple Push Certificates service (APNs) certificate signing request (CSR)                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete APNs certificate                                                                                                    |          |            |            |            | ✅    |         |
-| View, edit, and delete Apple Business Manager (ABM) connections                                                                            |          |            |            |            | ✅    |         |
+| View, edit, and delete Apple Business (AB) connections                                                                            |          |            |            |            | ✅    |         |
 | View, edit, and delete Volume Purchasing Program (VPP) connections                                                                         |          |            |            |            | ✅    |         |
 | Connect Android Enterprise                                                                                                                 |          |            |            |            | ✅    |         |
 | View disk encryption key for macOS, Windows, and Linux hosts                                                                               | ✅       | ✅         | ✅         | ✅        | ✅    |         |
@@ -111,6 +111,8 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Edit [setup experience](https://fleetdm.com/guides/setup-experience)\*                                                                     |          |            |            | ✅         | ✅    | ✅      |
 | Add and edit identity provider for end user authentication, end user license agreement (EULA), and end user migration workflow\*           |          |            |            |            | ✅    |         |
 | Add and edit certificate authorities (CA)\*                                                                                                |          |            |            |            | ✅    | ✅      |
+| View certificate authorities (CA)\*                                                                                                        |          |            |            | ✅         | ✅    | ✅      |
+| View certificate authority secrets (CA)\*                                                                                                  |          |            |            |            | ✅    | ✅      |
 | Request certificates (CA)\*                                                                                                                |          |            |            |            | ✅    | ✅      |
 | Run scripts on hosts                                                                                                                       |          |            | ✅         | ✅         | ✅    |         |
 | Schedule scripts on hosts                                                                                                                  |          |            |            | ✅         | ✅    |         |
@@ -151,6 +153,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | Add/remove manual labels to/from hosts                                                                                           |               |                | ✅              | ✅              | ✅         | ✅          |
 | Create and edit self-authored labels                                                                                             |               |                | ✅              | ✅              | ✅         | ✅          |
 | Add and delete hosts                                                                                                             |               |                |                 | ✅              | ✅         |             |
+| Transfer hosts between fleets\*                                                                                                             |          |            |            | ✅         | ✅    | ✅      |
 | View software                                                                                                                    | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Add, edit, and delete software                                                                                                   |               |                |                 | ✅              | ✅         | ✅          |
 | Download added software                                                                                                          |               |                | ✅              | ✅              | ✅         |             |
@@ -196,6 +199,7 @@ Users can be assigned to multiple fleets, and can have different roles for each 
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅              | ✅         |             |
 | Lock, unlock, and wipe hosts                                                                                                     |               |                |                 | ✅              | ✅         |             |
 | Turn off MDM for specific hosts                                                                                                  |               |                |                 | ✅              | ✅         |             |
+| View certificate authorities (CA)                                                                                                |               |                |                 | ✅              | ✅         | ✅          |
 | View [custom variables](https://fleetdm.com/docs/rest-api/rest-api#list-custom-variables)                                        | ✅            | ✅             | ✅             | ✅              | ✅         |             |
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)

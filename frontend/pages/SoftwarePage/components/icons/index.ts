@@ -11,6 +11,8 @@ import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
 import DruvaInSync from "./DruvaInSync";
+import FleetDesktop from "./FleetDesktop";
+import Gemini from "./Gemini";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
@@ -250,6 +252,7 @@ import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -316,6 +319,8 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "fleet desktop": FleetDesktop,
+  gemini: Gemini,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
   insyncclient: DruvaInSync,
@@ -513,6 +518,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   zed: Zed,
   zen: Zen,
   zeplin: Zeplin,
+  "zoom rooms": ZoomRooms,
   zotero: Zotero,
 } as const;
 

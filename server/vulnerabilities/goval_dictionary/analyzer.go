@@ -39,6 +39,11 @@ func Analyze(
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			logger.ErrorContext(ctx, "failed to close goval dictionary database", "platform", platform, "vuln_path", vulnPath, "err", err)
+		}
+	}()
 
 	// For kernel-only platforms (e.g., RHEL), we only scan kernel packages via goval-dictionary.
 	// Non-kernel packages are scanned via regular OVAL processing.  This keeps the testing

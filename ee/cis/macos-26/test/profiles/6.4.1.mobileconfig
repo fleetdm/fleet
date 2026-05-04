@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 6.4.1</string>
+      <key>PayloadType</key>
+      <string>com.apple.Terminal</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-6.4.1.check</string>
+      <key>PayloadUUID</key>
+      <string>33CA62AC-564C-4222-8807-BC696F3C6BEB</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>SecureKeyboardEntry</key>
+      <true/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 6.4.1 - Ensure Secure Keyboard Entry Terminal.app Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Secure Keyboard Entry Terminal.app Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-6.4.1</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>85799877-8751-4E0A-BE98-D88AE131AE5D</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

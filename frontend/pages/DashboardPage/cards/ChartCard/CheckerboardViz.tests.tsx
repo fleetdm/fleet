@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-empty-function, class-methods-use-this */
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import CheckerboardViz from "./CheckerboardViz";
@@ -176,6 +176,230 @@ describe("CheckerboardViz", () => {
     expect(screen.getByText("No data")).toBeInTheDocument();
     expect(screen.getByText("Less")).toBeInTheDocument();
     expect(screen.getByText("More")).toBeInTheDocument();
+  });
+
+  it("applies the default green theme class when no theme prop is passed", async () => {
+    const data = generateData(1);
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={data} selectedDays={30} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    expect(
+      container.querySelector(".checkerboard-viz--theme-green")
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(".checkerboard-viz--theme-red")
+    ).not.toBeInTheDocument();
+  });
+
+  it("applies the red theme class when theme='red' is passed", async () => {
+    const data = generateData(1);
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={data} selectedDays={30} theme="red" />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    expect(
+      container.querySelector(".checkerboard-viz--theme-red")
+    ).toBeInTheDocument();
+    expect(
+      container.querySelector(".checkerboard-viz--theme-green")
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the default '<percentage>% of hosts' tooltip when no formatter is provided", async () => {
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 42,
+        percentage: 70,
+        total: 60,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={points} selectedDays={14} />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    // The first cell (slot 0) is the one populated by the data point above.
+    fireEvent.mouseEnter(container.querySelector("rect") as SVGRectElement);
+
+    expect(await screen.findByText("70% of hosts")).toBeInTheDocument();
+  });
+
+  it("invokes tooltipFormatter with the cell's value, percentage, and total", async () => {
+    const formatter = jest.fn(({ value, total, percentage }) => (
+      <span data-testid="custom-tooltip">
+        {percentage}% exposed ({value} / {total} hosts)
+      </span>
+    ));
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 12,
+        percentage: 20,
+        total: 60,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz
+        data={points}
+        selectedDays={14}
+        tooltipFormatter={formatter}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.mouseEnter(container.querySelector("rect") as SVGRectElement);
+
+    const tooltip = await screen.findByTestId("custom-tooltip");
+    expect(tooltip).toHaveTextContent("20% exposed (12 / 60 hosts)");
+    expect(formatter).toHaveBeenCalledWith({
+      value: 12,
+      total: 60,
+      percentage: 20,
+    });
+  });
+
+  it("passes total=0 through to tooltipFormatter when the dataset reports zero hosts", async () => {
+    const formatter = jest.fn(({ value, total, percentage }) => (
+      <span data-testid="custom-tooltip">
+        {percentage}% ({value} / {total} hosts)
+      </span>
+    ));
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 0,
+        percentage: 0,
+        total: 0,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz
+        data={points}
+        selectedDays={14}
+        tooltipFormatter={formatter}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.mouseEnter(container.querySelector("rect") as SVGRectElement);
+
+    const tooltip = await screen.findByTestId("custom-tooltip");
+    expect(tooltip).toHaveTextContent("0% (0 / 0 hosts)");
+    expect(formatter).toHaveBeenCalledWith({
+      value: 0,
+      total: 0,
+      percentage: 0,
+    });
+  });
+
+  it("passes total=undefined through to tooltipFormatter when the data point omits it", async () => {
+    const formatter = jest.fn(({ value, total, percentage }) => (
+      <span data-testid="custom-tooltip">
+        {percentage}% / value={value} / total=
+        {total === undefined ? "n/a" : total}
+      </span>
+    ));
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 5,
+        percentage: 50,
+        // total intentionally omitted
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz
+        data={points}
+        selectedDays={14}
+        tooltipFormatter={formatter}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.mouseEnter(container.querySelector("rect") as SVGRectElement);
+
+    const tooltip = await screen.findByTestId("custom-tooltip");
+    expect(tooltip).toHaveTextContent("50% / value=5 / total=n/a");
+    expect(formatter).toHaveBeenCalledWith({
+      value: 5,
+      total: undefined,
+      percentage: 50,
+    });
+  });
+
+  it("falls back to value=0 when hovering a cell with no underlying data point", async () => {
+    const formatter = jest.fn(({ value, total, percentage }) => (
+      <span data-testid="custom-tooltip">
+        v={value}/p={percentage}/t={total === undefined ? "n/a" : total}
+      </span>
+    ));
+    // Single data point at slot 0; remaining 11 slots in the day are filled
+    // with synthetic level-0 cells whose value/total fall back to 0/undefined.
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 80,
+        percentage: 80,
+        total: 100,
+      },
+    ];
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz
+        data={points}
+        selectedDays={14}
+        tooltipFormatter={formatter}
+      />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    const emptyCell = Array.from(container.querySelectorAll("rect")).find((r) =>
+      (r.getAttribute("class") || "").includes("--level-0")
+    );
+    expect(emptyCell).toBeDefined();
+    fireEvent.mouseEnter(emptyCell as Element);
+
+    const tooltip = await screen.findByTestId("custom-tooltip");
+    expect(tooltip).toHaveTextContent("v=0/p=0/t=n/a");
+    expect(formatter).toHaveBeenCalledWith({
+      value: 0,
+      total: undefined,
+      percentage: 0,
+    });
   });
 
   it("fills empty hour slots with level-0 cells", async () => {
