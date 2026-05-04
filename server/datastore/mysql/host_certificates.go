@@ -591,4 +591,3 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 	}
 	return nil
 }
-
