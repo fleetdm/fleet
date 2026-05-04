@@ -63,7 +63,7 @@ const DATASETS: IDataSet[] = [
         <br />({total ? `${value} / ${total}` : 0} hosts)
       </>
     ),
-    relativeScale: true,
+    relativeScale: false,
   },
   {
     name: "cve",
