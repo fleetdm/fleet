@@ -1,0 +1,10 @@
+- name: macOS - Fleet Desktop.app launch agent installed
+  query: SELECT 1 FROM package_receipts WHERE package_id = 'com.fleetdm.fleet-desktop-launchagent' LIMIT 1;
+  critical: false
+  description: Ensures the Fleet Desktop.app launch agent helper package is installed after the MDM profile is present.
+  resolution: Fleet installs this package when the policy fails. If it still fails after a refetch, contact #help-it. If the receipt never appears, confirm the installer package_id matches this policy query.
+  install_software:
+    package_path: ../software/fleet-desktop-launch-agent.yml
+  labels_include_any:
+    - "Macs with Fleet Desktop.app launch agent MDM profile"
+  platform: darwin

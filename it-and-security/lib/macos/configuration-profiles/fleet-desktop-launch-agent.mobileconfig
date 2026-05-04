@@ -33,9 +33,9 @@
         </dict>
     </array>
     <key>PayloadDescription</key>
-    <string>Configures managed Login and Background items for Fleet Desktop.</string>
+    <string>Configures managed Login and Background items for Fleet Desktop.app.</string>
     <key>PayloadDisplayName</key>
-    <string>Fleet Desktop login item management</string>
+    <string>Fleet Desktop.app login item management</string>
     <key>PayloadIdentifier</key>
     <string>com.fleetdm.profile.fleet-desktop-launchagent</string>
     <key>PayloadOrganization</key>
