@@ -61,7 +61,7 @@ describe("EditIconModal", () => {
 
     await user.keyboard("{Escape}");
 
-    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalled());
+    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalledTimes(1));
   });
 
   // Note: Rely on QA Wolf for E2e testing of file upload, preview, save, and remove icon

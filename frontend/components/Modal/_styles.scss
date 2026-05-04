@@ -12,7 +12,7 @@
     transition: opacity 150ms ease-out, visibility 0s; // Used for transitions between modals
 
     &.modal__closing {
-      animation: fade-out 100ms ease-in forwards;
+      animation: fade-out var(--modal-close-duration) ease-in forwards;
     }
   }
 
@@ -72,7 +72,7 @@
     animation: scale-up 150ms ease-out;
 
     &.modal__closing {
-      animation: scale-down 100ms ease-in forwards;
+      animation: scale-down var(--modal-close-duration) ease-in forwards;
     }
 
     &__medium {

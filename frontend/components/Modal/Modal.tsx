@@ -4,6 +4,7 @@ import Button from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 
 const baseClass = "modal";
+const CLOSE_ANIMATION_MS = 100;
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
 //                  650px    800px      850px      auto
@@ -63,7 +64,7 @@ const Modal = ({
     setIsClosing(true);
     setTimeout(() => {
       onExit();
-    }, 150);
+    }, CLOSE_ANIMATION_MS);
   }, [onExit]);
 
   useEffect(() => {
@@ -124,40 +125,56 @@ const Modal = ({
     [`${baseClass}__content-disabled`]: isContentDisabled,
   });
 
+  const handleBackgroundMouseDown = () => {
+    isDownOnBackgroundRef.current = true;
+  };
+
+  const handleBackgroundMouseUp = () => {
+    if (
+      !disableClosingModal &&
+      isDownOnBackgroundRef.current &&
+      !isFormDirtyRef.current
+    ) {
+      handleClose();
+    }
+    isDownOnBackgroundRef.current = false;
+  };
+
+  const handleContainerMouseDown = (e: React.MouseEvent) =>
+    e.stopPropagation();
+
+  const handleContainerMouseUp = (e: React.MouseEvent) => e.stopPropagation();
+
+  const handleContainerInput = () => {
+    isFormDirtyRef.current = true;
+  };
+
+  const handleContainerClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const isCheckbox =
+      target instanceof HTMLInputElement && target.type === "checkbox";
+    const isToggle = !!target.closest('button[role="switch"]');
+    if (isCheckbox || isToggle) {
+      isFormDirtyRef.current = true;
+    }
+  };
+
   return (
     <div
       className={backgroundClasses}
-      onMouseDown={() => {
-        isDownOnBackgroundRef.current = true;
-      }}
-      onMouseUp={() => {
-        if (
-          !disableClosingModal &&
-          isDownOnBackgroundRef.current &&
-          !isFormDirtyRef.current
-        ) {
-          handleClose();
-        }
-        isDownOnBackgroundRef.current = false;
-      }}
+      style={
+        { "--modal-close-duration": `${CLOSE_ANIMATION_MS}ms` } as React.CSSProperties
+      }
+      onMouseDown={handleBackgroundMouseDown}
+      onMouseUp={handleBackgroundMouseUp}
     >
       <div
         className={modalContainerClasses}
         tabIndex={-1} // Make focusable
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        onInput={() => {
-          isFormDirtyRef.current = true;
-        }}
-        onClick={(e) => {
-          const target = e.target as HTMLElement;
-          const isCheckbox =
-            target instanceof HTMLInputElement && target.type === "checkbox";
-          const isToggle = !!target.closest('button[role="switch"]');
-          if (isCheckbox || isToggle) {
-            isFormDirtyRef.current = true;
-          }
-        }}
+        onMouseDown={handleContainerMouseDown}
+        onMouseUp={handleContainerMouseUp}
+        onInput={handleContainerInput}
+        onClick={handleContainerClick}
       >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
