@@ -147,6 +147,54 @@ var ValidLabelPlatformVariants = map[string]struct{}{
 	"centos":  {},
 }
 
+// ValidateLabelMembershipFields checks that the fields on a label spec are
+// consistent with its declared membership type. It returns all validation
+// errors found (not just the first).
+func ValidateLabelMembershipFields(spec *LabelSpec) []error {
+	var errs []error
+	switch spec.LabelMembershipType {
+	case LabelMembershipTypeManual:
+		if spec.Query != "" {
+			errs = append(errs, fmt.Errorf("label %q is declared as manual but contains a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			errs = append(errs, fmt.Errorf("label %q is declared as manual but contains criteria", spec.Name))
+		}
+		if spec.Platform != "" {
+			errs = append(errs, fmt.Errorf("label %q is declared as manual but contains a platform", spec.Name))
+		}
+	case LabelMembershipTypeDynamic:
+		if spec.Query == "" {
+			errs = append(errs, fmt.Errorf("label %q is declared as dynamic but is missing a query", spec.Name))
+		}
+		if spec.HostVitalsCriteria != nil {
+			errs = append(errs, fmt.Errorf("label %q is declared as dynamic but contains criteria", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			errs = append(errs, fmt.Errorf("label %q is declared as dynamic but contains hosts", spec.Name))
+		}
+		if spec.Platform != "" {
+			if _, ok := ValidLabelPlatformVariants[spec.Platform]; !ok {
+				errs = append(errs, fmt.Errorf("label %q has invalid platform: %q", spec.Name, spec.Platform))
+			}
+		}
+	case LabelMembershipTypeHostVitals:
+		if spec.HostVitalsCriteria == nil {
+			errs = append(errs, fmt.Errorf("label %q is declared as host_vitals but is missing criteria", spec.Name))
+		}
+		if spec.Query != "" {
+			errs = append(errs, fmt.Errorf("label %q is declared as host_vitals but contains a query", spec.Name))
+		}
+		if spec.Platform != "" {
+			errs = append(errs, fmt.Errorf("label %q is declared as host_vitals but contains a platform", spec.Name))
+		}
+		if len(spec.Hosts) > 0 {
+			errs = append(errs, fmt.Errorf("label %q is declared as host_vitals but contains hosts", spec.Name))
+		}
+	}
+	return errs
+}
+
 type Label struct {
 	UpdateCreateTimestamps
 	ID                  uint                `json:"id"`
