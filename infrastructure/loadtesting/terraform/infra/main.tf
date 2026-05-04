@@ -57,7 +57,7 @@ module "loadtest" {
       require_secure_transport = "ON"
     }
     observability = {
-      performance_insights_enabled = false
+      database_insights_mode = "standard"
     }
   }
   redis_config = {
