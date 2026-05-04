@@ -1069,6 +1069,7 @@ module.exports.routes = {
   'GET /register': '/login#register',
   'GET /handbook/finance/security': '/handbook/it/security',
   'GET /fleet-gitops': '/infrastructure-as-code',
+  'GET /report-generator': '/query-generator',
   'GET /queries': '/reports',
   'GET /queries/:slug': {
     fn: (req, res) => {
