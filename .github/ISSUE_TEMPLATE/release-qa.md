@@ -583,6 +583,26 @@ Perform a quick visual scan of the UI and confirm:
 </tr>
 
 <tr>
+<td>Helm chart</td>
+<td>Verify the Fleet Helm chart deploys cleanly against the RC image.</td>
+<td>
+
+Follow the [Test Fleet Helm Chart With Docker Desktop runbook](https://github.com/fleetdm/confidential/blob/main/infrastructure/runbooks/test-fleet-helm-chart-with-docker-desktop.md).
+
+1. Back up your local Fleet dev MySQL data if you have anything you care about
+2. Start MySQL and Redis from the Fleet repo's Docker Compose file.
+3. Prepare the `fleet` namespace and `mysql` secret on the `docker-desktop` kube context.
+4. `helm upgrade --install` the chart from `./charts/fleet` using the RC image tag (e.g. `imageTag=rc-minor-fleet-v4.xx.0`).
+5. Confirm the Fleet pod becomes Ready (`kubectl -n fleet get pods`) with no errors in `kubectl -n fleet logs deploy/fleet -c fleet`.
+6. Port-forward `svc/fleet-service` and confirm the Fleet UI loads at `http://localhost:8080`.
+7. Attach a screenshot of `kubectl -n fleet get pods` (showing the Fleet pod Ready) and the loaded Fleet UI to this issue as a comment.
+8. Tear down with `helm uninstall` + `kubectl delete namespace fleet` + `docker compose stop mysql redis`.
+
+</td>
+<td>pass/fail</td>
+</tr>
+
+<tr>
 <td>Migration test</td>
 <td>Verify Fleet can migrate to the next version with no issues.</td>
 <td>
