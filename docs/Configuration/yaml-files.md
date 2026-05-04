@@ -1,6 +1,8 @@
 # GitOps
 
-Use Fleet's best practice GitOps workflow to manage your computers as code. To learn how to set up a GitOps workflow see the [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
+In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
+
+> Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/wgqI_lHnGJc" allowfullscreen></iframe>
@@ -8,31 +10,16 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 > When renaming a fleet, first update the name in the UI, then update your YAML. If you only update the YAML, the fleet will be deleted and its hosts will lose their settings because they become "Unassigned".
 
-Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values or deleted (e.g. software packages).
-
-Paths in YAML files are always relative to the file you’re editing.
-
-For example:
-```yaml
-# If the file is in the same directory:
-package_path: package_name.yml
-
-# If the file is in a different directory:
-package_path: ../software/package_name.yml
-```
-
-### `path:` vs `paths:` (glob patterns)
-
-Several sections support both `path:` (singular) and `paths:` (plural), including `scripts`, `configuration_profiles`, `labels`, `policies`, and `reports`:
-
-- **`path:`** references a single, literal file path. Must not contain the characters `*`, `?`, `[`, or `{`.
-- **`paths:`** accepts a glob pattern to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
-
-You cannot specify both `path:` and `paths:` on the same entry.
-
-> **Important:** Filenames containing `*`, `?`, `[`, or `{` cannot be referenced using `path:`. If your filenames contain these characters (e.g. Windows profiles named `[AllowSpotlightCollection].xml`), either rename the files to remove them, or use `paths:` with a wildcard pattern like `*.xml`.
+Any settings not defined in your YAML files will be reset to the default values or deleted (e.g. software packages).
 
 For the GitOps API token, create a dedicated API-only user with `fleetctl user create --api-only`. These users can modify configurations via GitOps but can’t access the Fleet UI. Assign the GitOps role and set the appropriate global or fleet scope in the UI.
+
+`scripts`, `configuration_profiles`, `labels`, `policies`, and `reports` support both `path` (singular) and `paths` (plural).
+
+- `path` references a single file path.
+- `paths` accepts a wildcard ([glob pattern](https://code.visualstudio.com/docs/editor/glob-patterns)) to match multiple files at once (e.g. `../lib/windows/profiles/*.xml`).
+
+Paths are always relative to the file you’re editing. You can't specify both `path` and `paths` on the same entry. Filenames containing `*`, `?`, `[`, or `{` can't be referenced using `path`. If your filenames contain these characters (e.g. a Windows configuration profile named `[AllowSpotlightCollection].xml`), either rename the files, or use `paths` with a wildcard pattern like `*.xml`.
 
 ## labels
 
@@ -414,14 +401,10 @@ controls:
       - path: ../lib/macos-profile1.mobileconfig
         labels_exclude_any: # Available in Fleet Premium
           - Macs on Sequoia
-<<<<<<< AdamBaali-Gitops-YAML-globs-update
       - path: ../lib/macos-profile2.json
         labels_include_all: # Available in Fleet Premium
           - Macs on Sonoma
       - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-=======
-      - path: ../lib/macos-profile3.mobileconfig
->>>>>>> main
         labels_include_any: # Available in Fleet Premium
           - Engineering
           - Product

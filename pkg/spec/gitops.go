@@ -1378,6 +1378,10 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
 		}
+
+		if _, ok := fleet.ValidLabelPlatformVariants[l.Platform]; !ok {
+			multiError = multierror.Append(multiError, fmt.Errorf("invalid platform for label %q: %s", l.Name, l.Platform))
+		}
 		// Check that host vitals criteria is valid
 		if l.HostVitalsCriteria != nil {
 			criteriaJson, err := json.Marshal(l.HostVitalsCriteria)

@@ -389,7 +389,7 @@ func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindo
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	var details fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID)
+		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID, true)
 		details = activityDetails
 		return err
 	}); err != nil {
@@ -397,6 +397,41 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	}
 
 	return details, nil
+}
+
+// BatchCancelAllHostUpcomingActivities cancels every upcoming activity (both queued
+// and already-activated) for the given host in a single transaction. Unlike the public
+// single-cancel API, this bypasses the lock/wipe service-layer guard intentionally -
+// this is called after a Wipe so there's no need for this check. Returns the canceled
+// activities.
+func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
+	var canceled []fleet.ActivityDetails
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
+		var execIDs []string
+		if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
+		}
+
+		canceled = make([]fleet.ActivityDetails, 0, len(execIDs))
+		for i, execID := range execIDs {
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			// Technically we could always pass "false" as there shouldn't be any activity
+			// at the end, but there's no harm in doing it just in case a race could happen.
+			activateNext := i == len(execIDs)-1
+			details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "cancel upcoming activity")
+			}
+			canceled = append(canceled, details)
+		}
+		return nil
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch cancel upcoming activities transaction")
+	}
+
+	return canceled, nil
 }
 
 type activityToCancel struct {
@@ -408,7 +443,7 @@ type activityToCancel struct {
 	Activated       bool   `db:"activated"`
 }
 
-func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, activateNext bool) (fleet.ActivityDetails, error) {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -617,12 +652,14 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
 	}
 
-	// must activate the next activity, if any (this should be required only if
-	// the canceled activity was already "activated", but there's no harm in
-	// doing it if it wasn't, and it makes sure there's always progress even in
-	// unsuspected scenarios)
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+	if activateNext {
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
 	}
 
 	// creating the canceled activity must be done via svc.NewActivity, so we

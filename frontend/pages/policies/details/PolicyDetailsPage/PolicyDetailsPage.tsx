@@ -75,6 +75,7 @@ const PolicyDetailsPage = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsIncludeAll,
     setLastEditedQueryLabelsExcludeAny,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -130,6 +131,9 @@ const PolicyDetailsPage = ({
         setLastEditedQueryPlatform(returnedPolicy.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedPolicy.labels_include_any || []
+        );
+        setLastEditedQueryLabelsIncludeAll(
+          returnedPolicy.labels_include_all || []
         );
         setLastEditedQueryLabelsExcludeAny(
           returnedPolicy.labels_exclude_any || []
@@ -255,12 +259,23 @@ const PolicyDetailsPage = ({
 
   const renderLabels = (): JSX.Element | null => {
     const includeAny = storedPolicy?.labels_include_any;
+    const includeAll = storedPolicy?.labels_include_all;
     const excludeAny = storedPolicy?.labels_exclude_any;
 
-    if (!includeAny?.length && !excludeAny?.length) return null;
-
-    const isInclude = !!includeAny?.length;
-    const labels = isInclude ? includeAny : excludeAny;
+    let labels: ILabelPolicy[] | undefined;
+    let scopeLabel: string;
+    if (includeAny?.length) {
+      labels = includeAny;
+      scopeLabel = "have any";
+    } else if (includeAll?.length) {
+      labels = includeAll;
+      scopeLabel = "have all";
+    } else if (excludeAny?.length) {
+      labels = excludeAny;
+      scopeLabel = "exclude any";
+    } else {
+      return null;
+    }
 
     return (
       <DataSet
@@ -269,8 +284,7 @@ const PolicyDetailsPage = ({
         value={
           <div className={`${baseClass}__labels-section`}>
             <p>
-              Policy will target hosts that{" "}
-              <b>{isInclude ? "have any" : "exclude any"}</b> of these labels:
+              Policy will target hosts that <b>{scopeLabel}</b> of these labels:
             </p>
             <ul className={`${baseClass}__labels-list`}>
               {labels?.map((label: ILabelPolicy) => (

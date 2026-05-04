@@ -2657,6 +2657,8 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
 AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS),
 or running S3 locally with localstack. Leave this blank to use the default S3 service endpoint.
 
+> Setting `s3_software_installers_endpoint_url` overrides the endpoint for **all** AWS API calls (not just S3), breaking IAM Roles for Service Accounts (IRSA) and other token-based IAM authentication. If you use IRSA on Amazon Elastic Kubernetes Service (EKS) or Elastic Container Service (ECS) task roles, do not set this. Use `s3_software_installers_region` instead.
+
 - Default value: none
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL`
 - Config file format:
@@ -2689,6 +2691,8 @@ will use [virtual hosted bucket addressing](http://docs.aws.amazon.com/AmazonS3/
 AWS S3 Region. Leave blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
+
+If neither `s3_software_installers_region` nor `s3_software_installers_endpoint_url` is set, Fleet defaults to `us-east-1` for initial region discovery.
 
 - Default value:
 - Environment variable: `FLEET_S3_SOFTWARE_INSTALLERS_REGION`
@@ -2809,6 +2813,8 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
 
 ### s3_carves_endpoint_url
 
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+
 - Default value: none
 - Environment variable: `FLEET_S3_CARVES_ENDPOINT_URL`
 - Config file format:
@@ -2828,6 +2834,8 @@ All carve objects will also be prefixed by date and hour (UTC), making the resul
   ```
 
 ### s3_carves_region
+
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value:
 - Environment variable: `FLEET_S3_CARVES_REGION`
@@ -3231,6 +3239,8 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
 This is the AWS S3 Endpoint URL. Override when using a different S3 compatible object storage backend (such as RustFS)
 or running S3 locally with LocalStack. Leave this blank to use the default AWS S3 service endpoint.
 
+> Same override behavior as [`s3_software_installers_endpoint_url`](#s3_software_installers_endpoint_url). Do not set this when using IRSA or IAM role-based authentication.
+
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_ENDPOINT_URL`
 - Config file format:
@@ -3276,6 +3286,8 @@ See the [Virtual hosting of buckets doc](http://docs.aws.amazon.com/AmazonS3/lat
 This is the AWS S3 Region. Leave it blank to enable region discovery.
 
 You'll likely need to set this if using a non-AWS S3-compatible object store.
+
+> Same region-discovery behavior as [`s3_software_installers_region`](#s3_software_installers_region). Set this explicitly to avoid defaulting to `us-east-1`.
 
 - Default value: ""
 - Environment variable: `FLEET_PACKAGING_S3_REGION`

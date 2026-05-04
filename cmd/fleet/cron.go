@@ -1431,6 +1431,9 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
 		}),
+		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
+			return ds.CleanupWindowsMDMCommandQueue(ctx)
+		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)
 		}),

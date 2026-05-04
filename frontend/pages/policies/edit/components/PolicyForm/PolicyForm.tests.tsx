@@ -105,6 +105,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -174,6 +175,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -256,6 +258,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -334,6 +337,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -407,6 +411,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: undefined, // missing policy platforms
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -498,6 +503,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: "linux",
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             setLastEditedQueryName: jest.fn(),
             setLastEditedQueryDescription: jest.fn(),
@@ -603,6 +609,43 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual(["Fun"]);
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
+      });
+
+      it("should set labels_include_all when picking the Include all option", async () => {
+        const onUpdate = jest.fn();
+        const props = { ...defaultProps, onUpdate };
+        render(<PolicyForm {...props} />);
+        await waitFor(() => {
+          expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        });
+
+        await userEvent.click(screen.getByLabelText("Custom"));
+        await userEvent.click(
+          await screen.findByRole("checkbox", {
+            name: "Fun",
+          })
+        );
+
+        // Open the scope dropdown and pick "Include all".
+        await userEvent.click(
+          screen.getByRole("option", { name: "Include any" })
+        );
+        let includeAllOption: unknown;
+        await waitFor(() => {
+          includeAllOption = screen.getByRole("option", {
+            name: "Include all",
+          });
+        });
+        await userEvent.click(includeAllOption as Element);
+
+        const saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+        await userEvent.click(saveButton);
+
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual(["Fun"]);
+        expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
       });
 
       it("should clear labels when saving a new query in All hosts target mode", async () => {
@@ -629,6 +672,7 @@ describe("PolicyForm - component", () => {
 
         expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
         expect(onUpdate.mock.calls[0][0].labels_exclude_any).toEqual([]);
+        expect(onUpdate.mock.calls[0][0].labels_include_all).toEqual([]);
       });
     });
 
@@ -668,6 +712,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: patchPolicy.critical,
             lastEditedQueryPlatform: patchPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -775,6 +820,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -819,6 +865,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: mockPolicy.critical,
             lastEditedQueryPlatform: mockPolicy.platform,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),
@@ -866,6 +913,7 @@ describe("PolicyForm - component", () => {
             lastEditedQueryCritical: false,
             lastEditedQueryPlatform: undefined,
             lastEditedQueryLabelsIncludeAny: [],
+            lastEditedQueryLabelsIncludeAll: [],
             lastEditedQueryLabelsExcludeAny: [],
             defaultPolicy: false,
             setLastEditedQueryName: jest.fn(),

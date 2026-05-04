@@ -9,8 +9,8 @@ settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 90
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
@@ -91,15 +91,15 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/screen-lock-inactivity.mobileconfig
+        labels_exclude_any:
+          - macOS screen lock exclusions
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
@@ -133,6 +133,9 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock timeout.xml
+        labels_exclude_any:
+          - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
@@ -160,7 +163,6 @@ policies:
   - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
-  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   - path: ../lib/macos/policies/firewall-enabled.yml
   - path: ../lib/macos/policies/gatekeeper-enabled.yml
@@ -213,10 +215,6 @@ software:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
-      categories:
-        - Utilities
-    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
-      self_service: true
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
@@ -362,6 +360,10 @@ software:
       setup_experience: true
       categories:
         - Security
+    - slug: fleet-desktop/darwin # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
     - slug: claude/darwin # Claude for macOS
       self_service: true
       setup_experience: true
@@ -480,6 +482,18 @@ software:
         - Macs with Cursor installed
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/darwin # Adobe Acrobat Reader for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Reader installed
+      categories:
+        - Productivity
+    - slug: adobe-acrobat-pro/darwin # Adobe Acrobat Pro for macOS
+      self_service: true
+      labels_include_any:
+        - Macs with Adobe Acrobat Pro installed
+      categories:
+        - Productivity
     # Windows apps
     - slug: 1password/windows # 1Password for Windows
       self_service: true
@@ -526,3 +540,9 @@ software:
         - "x86 Windows hosts with Visual Studio Code installed"
       categories:
         - Developer tools
+    - slug: adobe-acrobat-reader/windows # Adobe Acrobat Reader for Windows
+      self_service: true
+      labels_include_any:
+        - x86 Windows hosts with Adobe Acrobat Reader installed
+      categories:
+        - Productivity

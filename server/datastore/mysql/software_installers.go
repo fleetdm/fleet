@@ -836,8 +836,11 @@ func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, 
 		// as canceled, and activates the next upcoming activity.
 		// The returned ActivityDetails is discarded because this is an
 		// internal reset for a new install, not a user-initiated cancel.
-		for _, execID := range executionIDs {
-			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID); err != nil {
+		for i, execID := range executionIDs {
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			activateNext := i == len(executionIDs)-1
+			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext); err != nil {
 				return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retry")
 			}
 		}

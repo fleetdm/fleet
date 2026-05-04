@@ -306,6 +306,12 @@ Retrieves the user data for the authenticated user.
 
 `GET /api/v1/fleet/me`
 
+#### Parameters
+
+| Name                      | Type   | In   | Description                                                               |
+| ------------------------- | ------ | ---- | ------------------------------------------------------------------------- |
+| include_ui_settings       | boolean | query | If set to true, includes the columns the user hides on the **Hosts** page (default: `false`). |
+
 #### Example
 
 `GET /api/v1/fleet/me`
@@ -327,7 +333,7 @@ Retrieves the user data for the authenticated user.
     "force_password_reset": false,
     "gravatar_url": "",
     "sso_enabled": false,
-    "fleets": [],
+    "teams": [],
     "fleets": []
   },
   "available_teams" : [
@@ -12727,6 +12733,8 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| enable_disk_encryption | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true. |
+| windows_require_bitlocker_pin | boolean | End users on Windows hosts that belong to this fleet will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates2). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates2). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates2). |
@@ -12792,7 +12800,6 @@ Returned when the requested name only differs from another fleet's name by lette
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| enable_disk_encryption          | boolean | Hosts that belong to this fleet will have disk encryption enabled if set to true.                                                                                        |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Create configuration profile](#create-configuration-profile) endpoint instead.                                                                                                                                      |
 
 <br/>
@@ -12826,6 +12833,8 @@ Returned when the requested name only differs from another fleet's name by lette
 ```json
 {
   "mdm": {
+    "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": true,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2025-04-01",
