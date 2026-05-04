@@ -482,9 +482,6 @@ module.exports.routes = {
 
   'GET /query-generator': {
     action: 'query-generator/view-query-generator',
-    locals: {
-      showAdminLinks: true,
-    }
   },
 
   'GET /os-settings': {
