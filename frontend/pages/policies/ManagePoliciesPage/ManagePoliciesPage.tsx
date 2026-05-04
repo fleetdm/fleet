@@ -97,6 +97,7 @@ interface IManagePoliciesPageProps {
       order_direction?: "asc" | "desc";
       page?: string;
       automation_type?: AutomationType;
+      manage_automations?: string;
     };
     search: string;
   };
@@ -565,6 +566,34 @@ const ManagePolicyPage = ({
       default:
     }
   };
+
+  // Open specific policy automation modal via query param (e.g. from command palette)
+  useEffect(() => {
+    const param = queryParams?.manage_automations;
+    if (!param) return;
+
+    switch (param) {
+      case "webhooks":
+        toggleOtherWorkflowsModal();
+        break;
+      case "install_software":
+        toggleInstallSoftwareModal();
+        break;
+      case "run_script":
+        togglePolicyRunScriptModal();
+        break;
+      case "calendar":
+        toggleCalendarEventsModal();
+        break;
+      case "conditional_access":
+        toggleConditionalAccessModal();
+        break;
+      default:
+    }
+
+    const { manage_automations, ...rest } = queryParams;
+    router.replace({ pathname: location.pathname, query: rest });
+  }, [queryParams?.manage_automations]);
 
   const onUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
