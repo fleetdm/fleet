@@ -97,7 +97,8 @@ parasails.registerPage('basic-article', {
     // Add an event listener to add a class to the right sidebar when the header is hidden.
     window.addEventListener('scroll', this.handleScrollingInArticle);
 
-    if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
+    if(this.articleCategorySlug === 'guides' && this.algoliaPublicKey){
+    // Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the search bar will be disabled.
       docsearch({
         appId: 'NZXAYZXDGH',
         apiKey: this.algoliaPublicKey,
