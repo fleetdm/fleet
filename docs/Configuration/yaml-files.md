@@ -770,7 +770,7 @@ The `features` section of the configuration YAML lets you turn on/off Fleet feat
 - `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned (default: empty).
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
-- `historical_data` controls per-dataset collection of the time-series rollups that drive the dashboard charts. Each sub-key defaults to `true`:
+- `historical_data` controls per-dataset collection of the data that drive the dashboard charts. Each sub-key defaults to `true`:
   - `uptime` — host activity samples that drive the Hosts Active dashboard chart.
   - `vulnerabilities` — per-host software vulnerability data that drive the Vulnerability Exposure dashboard chart.
 
