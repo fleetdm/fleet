@@ -19,23 +19,23 @@ const baseClass = "software-app-store-android";
 
 interface IEnableAndroidMdmMessageProps {
   onEnableMdm: () => void;
-  isAdmin: boolean;
+  isGlobalAdmin?: boolean;
 }
 
 const EnableAndroidMdmMessage = ({
   onEnableMdm,
-  isAdmin,
+  isGlobalAdmin,
 }: IEnableAndroidMdmMessageProps) => (
   <EmptyState
     variant="form"
     header="Android MDM isn't enabled"
     info={
-      isAdmin
+      isGlobalAdmin
         ? "To add Android apps, first enable Android MDM."
         : "To add Android apps, ask your admin to enable Android MDM."
     }
     primaryButton={
-      isAdmin ? (
+      isGlobalAdmin ? (
         <Button onClick={onEnableMdm}>Enable Android MDM</Button>
       ) : undefined
     }
@@ -118,7 +118,7 @@ const SoftwareAppStoreAndroid = ({
       return (
         <EnableAndroidMdmMessage
           onEnableMdm={onEnableAndroidMdm}
-          isAdmin={!!isGlobalAdmin}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }

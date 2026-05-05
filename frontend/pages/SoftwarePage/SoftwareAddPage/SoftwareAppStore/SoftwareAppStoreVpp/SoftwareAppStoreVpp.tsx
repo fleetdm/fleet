@@ -35,40 +35,48 @@ const baseClass = "software-app-store-vpp";
 
 interface IEnableVppMessage {
   onEnableVpp: () => void;
-  isAdmin: boolean;
+  isGlobalAdmin?: boolean;
 }
 
-const EnableVppMessage = ({ onEnableVpp, isAdmin }: IEnableVppMessage) => (
+const EnableVppMessage = ({
+  onEnableVpp,
+  isGlobalAdmin,
+}: IEnableVppMessage) => (
   <EmptyState
     variant="list"
     header="Volume Purchasing Program (VPP) isn't enabled"
     info={
-      isAdmin
+      isGlobalAdmin
         ? "To add App Store apps, first enable VPP."
         : "To add App Store apps, ask your admin to enable VPP."
     }
     primaryButton={
-      isAdmin ? <Button onClick={onEnableVpp}>Enable VPP</Button> : undefined
+      isGlobalAdmin ? (
+        <Button onClick={onEnableVpp}>Enable VPP</Button>
+      ) : undefined
     }
   />
 );
 
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
-  isAdmin: boolean;
+  isGlobalAdmin?: boolean;
 }
 
-const AddTeamToVppMessage = ({ onEditVpp, isAdmin }: IAddTeamToVppMessage) => (
+const AddTeamToVppMessage = ({
+  onEditVpp,
+  isGlobalAdmin,
+}: IAddTeamToVppMessage) => (
   <EmptyState
     variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
     info={
-      isAdmin
+      isGlobalAdmin
         ? "To add App Store apps, first add this fleet to VPP."
         : "To add App Store apps, ask your admin to add this fleet to VPP."
     }
     primaryButton={
-      isAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+      isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
     }
   />
 );
@@ -237,7 +245,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-          isAdmin={!!isGlobalAdmin}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
@@ -246,7 +254,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
-          isAdmin={!!isGlobalAdmin}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
