@@ -35,6 +35,58 @@
     flex-shrink: 0;
     width: 200px;
   }
+
+  // Stack the search bar above the filter dropdowns on smaller screens so
+  // they don't get scrunched together (matches the Hosts page pattern).
+  .table-container {
+    @media (max-width: $table-controls-break) {
+      &__header {
+        flex-direction: column;
+      }
+
+      .table-container__search {
+        order: 1;
+        width: 100%;
+
+        .table-container__search-input {
+          margin-left: 0;
+
+          .input-with-icon {
+            width: 100%;
+          }
+
+          & .search-field__input-wrapper {
+            width: auto;
+          }
+        }
+      }
+
+      &__header-left {
+        order: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+
+        .results-count {
+          order: 2;
+        }
+
+        .controls {
+          order: -2;
+
+          .policies-table__filter-dropdowns {
+            flex: 1;
+
+            .form-field--dropdown,
+            .policies-table__platform-dropdown {
+              flex: 1;
+              width: auto;
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 .automations-cell {
