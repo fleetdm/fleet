@@ -177,7 +177,7 @@ const ActivityDataRetentionSection = ({
               )
             }
           >
-            Disable hosts active
+            Disable hosts online
           </Checkbox>
         )}
       />

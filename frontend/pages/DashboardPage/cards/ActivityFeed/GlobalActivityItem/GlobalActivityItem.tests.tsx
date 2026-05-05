@@ -979,7 +979,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("enabled data collection for", { exact: false })
     ).toBeInTheDocument();
-    expect(screen.getByText("Hosts active")).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
     expect(screen.queryByText(/for the /)).toBeNull();
   });
 
@@ -993,7 +993,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("disabled data collection for", { exact: false })
     ).toBeInTheDocument();
-    expect(screen.getByText("Vulnerabilities")).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
     expect(screen.queryByText(/for the /)).toBeNull();
   });
 
@@ -1007,7 +1007,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("enabled data collection for", { exact: false })
     ).toBeInTheDocument();
-    expect(screen.getByText("Hosts active")).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText(/for the/)).toBeInTheDocument();
   });
@@ -1026,7 +1026,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText("disabled data collection for", { exact: false })
     ).toBeInTheDocument();
-    expect(screen.getByText("Vulnerabilities")).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
     expect(screen.getByText("Engineering")).toBeInTheDocument();
     expect(screen.getByText(/for the/)).toBeInTheDocument();
   });

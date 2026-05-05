@@ -17,7 +17,7 @@
 
 - [x] **Add `DATASET_LABEL` mapping**
   `Record<HistoricalDataConfigKey, string>`:
-  `{ uptime: "Hosts active", vulnerabilities: "Vulnerabilities" }`.
+  `{ uptime: "Hosts online", vulnerabilities: "Vulnerabilities" }`.
 
 - [x] **Add `isHistoricalDataEnabled` helper**
   `(global, fleet, configKey) => boolean`. Both args optional; missing
@@ -45,7 +45,7 @@
   In `Advanced.tsx`, add `<SectionHeader title="Activity & data retention" />`
   inside the form, above the Save button.
 
-- [x] **Add "Disable hosts active" checkbox**
+- [x] **Add "Disable hosts online" checkbox**
   Form key `disableHostsActive`. Wrapped in `GitOpsModeTooltipWrapper`.
   Tooltip: explains what the toggle does ("When enabled, Fleet stops
   collecting hourly hosts-active data...").
@@ -194,7 +194,7 @@
   - Wire both into the switch in the appropriate place.
 
 - [x] **Tests for `GlobalActivityItem`**
-  - Global enable renders "Enabled data collection for **Hosts active**."
+  - Global enable renders "Enabled data collection for **Hosts online**."
   - Global disable renders "Disabled data collection for **Vulnerabilities**."
   - Fleet-scoped enable includes "for the **Engineering** fleet."
   - Fleet-scoped disable includes "for the **Engineering** fleet."

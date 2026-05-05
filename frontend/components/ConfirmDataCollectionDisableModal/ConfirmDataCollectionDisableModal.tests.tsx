@@ -27,8 +27,8 @@ describe("ConfirmDataCollectionDisableModal", () => {
 
   it("renders the dataset labels prominently", () => {
     renderModal({ datasets: ["uptime", "vulnerabilities"] });
-    expect(screen.getByText("Hosts active")).toBeInTheDocument();
-    expect(screen.getByText("Vulnerabilities")).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
   });
 
   it("uses global-scoped copy when scope is 'global'", () => {

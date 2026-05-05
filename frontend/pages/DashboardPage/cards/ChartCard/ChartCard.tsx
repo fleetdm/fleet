@@ -40,7 +40,7 @@ const CHART_DAYS = 30;
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
-    label: "Hosts active",
+    label: "Hosts online",
     defaultChartType: "checkerboard",
     description: (
       <>

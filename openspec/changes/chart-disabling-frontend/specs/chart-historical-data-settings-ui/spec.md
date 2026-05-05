@@ -10,7 +10,7 @@ the historical-data datasets that drive dashboard charts.
 
 - **WHEN** a global admin opens `/settings/organization/advanced`
 - **THEN** the page SHALL display a section titled "Activity & data retention"
-- **AND** the section SHALL contain a "Disable hosts active" checkbox
+- **AND** the section SHALL contain a "Disable hosts online" checkbox
 - **AND** the section SHALL contain a "Disable vulnerabilities" checkbox
 
 #### Scenario: Available on both Free and Premium tiers
@@ -30,7 +30,7 @@ Checking the box SHALL store `false`; unchecking SHALL store `true`.
 
 - **GIVEN** `appConfig.features.historical_data.uptime = true`
 - **WHEN** the Advanced page loads
-- **THEN** the "Disable hosts active" checkbox SHALL be unchecked
+- **THEN** the "Disable hosts online" checkbox SHALL be unchecked
 
 - **GIVEN** `appConfig.features.historical_data.vulnerabilities = false`
 - **WHEN** the Advanced page loads
@@ -38,7 +38,7 @@ Checking the box SHALL store `false`; unchecking SHALL store `true`.
 
 #### Scenario: Saving inverts back to API shape
 
-- **GIVEN** the "Disable hosts active" checkbox is checked
+- **GIVEN** the "Disable hosts online" checkbox is checked
 - **AND** the "Disable vulnerabilities" checkbox is unchecked
 - **WHEN** the form is saved
 - **THEN** the `PATCH /api/v1/fleet/config` payload SHALL include
@@ -55,7 +55,7 @@ subheading containing the same two checkboxes, scoped to the current fleet.
 
 - **WHEN** a fleet admin opens a fleet's settings page
 - **THEN** the page SHALL display an "Activity & data retention" section
-- **AND** the section SHALL contain "Disable hosts active" and
+- **AND** the section SHALL contain "Disable hosts online" and
   "Disable vulnerabilities" checkboxes scoped to the active fleet
 
 #### Scenario: Premium-tier gating
@@ -78,7 +78,7 @@ value SHALL be preserved underneath the lock.
 
 - **GIVEN** `appConfig.features.historical_data.uptime = false`
 - **WHEN** a fleet admin opens the fleet settings page
-- **THEN** the fleet's "Disable hosts active" checkbox SHALL be disabled
+- **THEN** the fleet's "Disable hosts online" checkbox SHALL be disabled
   (non-interactive)
 - **AND** hovering the checkbox SHALL show a tooltip "Disabled globally"
 
@@ -87,7 +87,7 @@ value SHALL be preserved underneath the lock.
 - **GIVEN** the fleet has `historical_data.uptime = false` saved
 - **AND** the global setting is then set to `false`
 - **WHEN** the fleet admin opens the fleet settings page
-- **THEN** the fleet's "Disable hosts active" checkbox SHALL render as
+- **THEN** the fleet's "Disable hosts online" checkbox SHALL render as
   checked (matching the fleet's stored value), but disabled
 - **WHEN** the global setting is later flipped back to `true`
 - **AND** the fleet admin reopens the page
@@ -120,9 +120,9 @@ NOT show the modal.
 #### Scenario: Confirmation on enable → disable transition
 
 - **GIVEN** the page loaded with `uptime = true`
-- **AND** the user checks "Disable hosts active"
+- **AND** the user checks "Disable hosts online"
 - **WHEN** the user clicks Save
-- **THEN** a confirmation modal SHALL open listing "Hosts active" as the
+- **THEN** a confirmation modal SHALL open listing "Hosts online" as the
   dataset being disabled
 - **AND** no API request SHALL be issued until the user confirms
 
@@ -138,7 +138,7 @@ NOT show the modal.
 #### Scenario: No confirmation on re-enable
 
 - **GIVEN** the page loaded with `uptime = false`
-- **AND** the user unchecks "Disable hosts active"
+- **AND** the user unchecks "Disable hosts online"
 - **WHEN** the user clicks Save
 - **THEN** the confirmation modal SHALL NOT open
 - **AND** the PATCH SHALL be issued
@@ -146,7 +146,7 @@ NOT show the modal.
 #### Scenario: Confirmation lists all disabling datasets
 
 - **GIVEN** the page loaded with both sub-keys `true`
-- **AND** the user checks both "Disable hosts active" and
+- **AND** the user checks both "Disable hosts online" and
   "Disable vulnerabilities"
 - **WHEN** the user clicks Save
 - **THEN** the confirmation modal SHALL list both dataset labels
@@ -171,7 +171,7 @@ about to stop.
 - **GIVEN** the user is disabling the `uptime` and `vulnerabilities`
   datasets
 - **WHEN** the modal opens
-- **THEN** the modal SHALL display "Hosts active"
+- **THEN** the modal SHALL display "Hosts online"
 - **AND** the modal SHALL display "Vulnerabilities"
 
 #### Scenario: Single click confirms
@@ -208,14 +208,14 @@ tooltip-explained when GitOps mode is enabled.
 
 - **GIVEN** GitOps mode is enabled
 - **WHEN** a global admin opens `/settings/organization/advanced`
-- **THEN** "Disable hosts active" SHALL be disabled with the GitOps tooltip
+- **THEN** "Disable hosts online" SHALL be disabled with the GitOps tooltip
 - **AND** "Disable vulnerabilities" SHALL be disabled with the GitOps tooltip
 
 #### Scenario: GitOps mode on TeamSettings
 
 - **GIVEN** GitOps mode is enabled
 - **WHEN** a fleet admin opens a fleet settings page
-- **THEN** the fleet's "Disable hosts active" SHALL be disabled with the
+- **THEN** the fleet's "Disable hosts online" SHALL be disabled with the
   GitOps tooltip
 - **AND** the fleet's "Disable vulnerabilities" SHALL be disabled with the
   GitOps tooltip
@@ -229,7 +229,7 @@ The global activity feed SHALL render the `enabled_historical_dataset` and
 dataset and, when the change was fleet-scoped, names the fleet.
 
 The dataset label SHALL come from the shared `DATASET_LABEL` mapping
-(`uptime` → "Hosts active", `vulnerabilities` → "Vulnerabilities") so the
+(`uptime` → "Hosts online", `vulnerabilities` → "Vulnerabilities") so the
 activity copy matches the checkbox, confirmation modal, and empty-state
 copy. If `details.dataset` is a config key the frontend does not recognize,
 the renderer SHALL fall back to a sentence-cased rendering of the raw key
@@ -242,7 +242,7 @@ than throwing.
   `details.dataset = "uptime"`, and `details.fleet_id = null`
 - **WHEN** the activity feed renders the row
 - **THEN** the message SHALL read
-  "Enabled data collection for **Hosts active**."
+  "Enabled data collection for **Hosts online**."
 
 #### Scenario: Global disable
 
@@ -259,7 +259,7 @@ than throwing.
   `details.fleet_name = "Engineering"`
 - **WHEN** the activity feed renders the row
 - **THEN** the message SHALL read
-  "Enabled data collection for **Hosts active** for the **Engineering** fleet."
+  "Enabled data collection for **Hosts online** for the **Engineering** fleet."
 
 #### Scenario: Fleet-scoped disable
 

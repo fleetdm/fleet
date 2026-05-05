@@ -63,8 +63,8 @@ SHALL NOT attempt to deep-link into a specific fleet's settings page.
 
 #### Scenario: Empty-state content
 
-- **WHEN** the empty state is rendered for the "Hosts active" dataset
-- **THEN** the empty state SHALL display "Hosts active" as the dataset name
+- **WHEN** the empty state is rendered for the "Hosts online" dataset
+- **THEN** the empty state SHALL display "Hosts online" as the dataset name
 - **AND** the empty state SHALL include a link to the
   `/settings/organization/advanced` page
 - **AND** the link text SHALL describe re-enabling collection (e.g.

@@ -32,7 +32,7 @@ TeamSettings, ChartCard) need to share them.
     (`{ uptime: "uptime", cve: "vulnerabilities" }`). The single source of
     truth for the internal-name ↔ config-key translation on the frontend,
     paralleling the backend `HistoricalDataSettings.Enabled(dataset)` helper.
-  - `DATASET_LABEL` — `Record<configKey, string>` (`{ uptime: "Hosts active",
+  - `DATASET_LABEL` — `Record<configKey, string>` (`{ uptime: "Hosts online",
     vulnerabilities: "Vulnerabilities" }`). Used by checkboxes, confirmation
     modal, and empty state.
   - `isHistoricalDataEnabled(global, fleet, configKey)` — the AND rule. Pure
@@ -55,7 +55,7 @@ TeamSettings, ChartCard) need to share them.
     inside `SettingsSection` for this page, matching the precedent in
     `TeamSettings.tsx`.
   - Under the new subheading, add two `<Checkbox>` inputs:
-    - "Disable hosts active" — form key `disableHostsActive`, bound to
+    - "Disable hosts online" — form key `disableHostsActive`, bound to
       `!features.historical_data.uptime`
     - "Disable vulnerabilities" — form key `disableVulnerabilities`, bound to
       `!features.historical_data.vulnerabilities`
@@ -91,7 +91,7 @@ TeamSettings, ChartCard) need to share them.
 
 - New `ConfirmDataCollectionDisableModal.tsx`. Inputs: scope ("global" |
   "fleet"), the `configKey[]` being disabled, fleet name (when scope=fleet).
-- Body lists the dataset labels prominently (e.g. "Hosts active",
+- Body lists the dataset labels prominently (e.g. "Hosts online",
   "Vulnerabilities") and explains what disabling means: collection
   stops; previously collected data is not retained.
 - Buttons: "Save and disable" (destructive variant) / "Cancel". A
@@ -114,10 +114,10 @@ TeamSettings, ChartCard) need to share them.
 - Add tagged-template renderers in
   `frontend/pages/DashboardPage/cards/ActivityFeed/GlobalActivityItem/GlobalActivityItem.tsx`
   and wire them into the switch. Copy:
-  - Global enable: `Enabled data collection for <b>Hosts active</b>.`
-  - Global disable: `Disabled data collection for <b>Hosts active</b>.`
-  - Fleet-scoped enable: `Enabled data collection for <b>Hosts active</b> for the <b>Engineering</b> fleet.`
-  - Fleet-scoped disable: `Disabled data collection for <b>Hosts active</b> for the <b>Engineering</b> fleet.`
+  - Global enable: `Enabled data collection for <b>Hosts online</b>.`
+  - Global disable: `Disabled data collection for <b>Hosts online</b>.`
+  - Fleet-scoped enable: `Enabled data collection for <b>Hosts online</b> for the <b>Engineering</b> fleet.`
+  - Fleet-scoped disable: `Disabled data collection for <b>Hosts online</b> for the <b>Engineering</b> fleet.`
 - The dataset label uses `DATASET_LABEL[details.dataset]`. If the config key
   is unrecognized (e.g. a future dataset whose frontend mapping hasn't
   shipped), fall back to a sentence-cased rendering of the raw key:

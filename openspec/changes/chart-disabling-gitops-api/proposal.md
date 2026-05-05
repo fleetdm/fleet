@@ -176,7 +176,7 @@ datasets enabled, preserving current behavior.
 - **Data drop on disable.** The issue requires that disabling a dataset
   globally truncates its `host_scd_data` rows, and disabling per-fleet
   scrubs that fleet's contributions. This is a separate change.
-- **Frontend UI.** "Disable hosts active" / "Disable vulnerabilities"
+- **Frontend UI.** "Disable hosts online" / "Disable vulnerabilities"
   checkboxes on Advanced + Fleet Settings, the confirmation dialog, and the
   dashboard empty-state messaging are all separate changes.
 - **Per-dataset defaults other than `true`.** A future expensive/opt-in

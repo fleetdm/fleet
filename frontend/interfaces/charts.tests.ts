@@ -84,7 +84,7 @@ describe("DATASET_CONFIG_KEY", () => {
 
 describe("DATASET_LABEL", () => {
   it("provides a human-readable label for each config key", () => {
-    expect(DATASET_LABEL.uptime).toBe("Hosts active");
-    expect(DATASET_LABEL.vulnerabilities).toBe("Vulnerabilities");
+    expect(DATASET_LABEL.uptime).toBe("Hosts online");
+    expect(DATASET_LABEL.vulnerabilities).toBe("Vulnerability exposure");
   });
 });

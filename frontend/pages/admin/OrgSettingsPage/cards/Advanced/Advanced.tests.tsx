@@ -39,7 +39,7 @@ describe("Advanced settings — Activity & data retention", () => {
   it("renders the new section heading and both checkboxes", () => {
     renderAdvanced();
     expect(screen.getByText("Activity & data retention")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Disable hosts active/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Disable hosts online/i)).toBeInTheDocument();
     expect(
       screen.getByLabelText(/Disable vulnerabilities/i)
     ).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe("Advanced settings — Activity & data retention", () => {
 
   it("starts with both checkboxes unchecked when collection is enabled", () => {
     renderAdvanced();
-    expect(screen.getByLabelText(/Disable hosts active/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Disable hosts online/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
   });
 
@@ -55,7 +55,7 @@ describe("Advanced settings — Activity & data retention", () => {
     renderAdvanced({
       historicalData: { uptime: false, vulnerabilities: true },
     });
-    expect(screen.getByLabelText(/Disable hosts active/i)).toBeChecked();
+    expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
     expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
   });
 
