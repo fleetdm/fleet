@@ -110,7 +110,7 @@ export const buildCommandItems = (
       path: withTeamId(paths.MANAGE_HOSTS),
       keywords: ["devices", "hostname", "serial number", "manage"],
     },
-    ...(canAccessControls
+    ...(canAccessControls && hasTeamOrUnassigned
       ? [
           {
             id: "controls-page",
@@ -206,8 +206,10 @@ export const buildCommandItems = (
         ]
       : []),
 
-    // Controls — maintainers, admins, technicians only
-    ...(canAccessControls
+    // Controls — maintainers, admins, technicians only.
+    // Controls pages don't support "All fleets" (includeAllTeams: false),
+    // so only show when a team or unassigned is selected.
+    ...(canAccessControls && hasTeamOrUnassigned
       ? [
           {
             id: "controls-os-updates",
