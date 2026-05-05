@@ -1126,7 +1126,7 @@ Valid time units are `s`, `m`, `h`.
 This is the log output plugin that should be used for osquery status logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `cloudrun_service`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_STATUS_LOG_PLUGIN`
@@ -1140,7 +1140,7 @@ Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`
 
 This is the log output plugin that should be used for osquery result logs received from clients. Check out the [reference documentation for log destinations](https://fleetdm.com/docs/using-fleet/log-destinations).
 
-Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
+Options are `filesystem`, `firehose`, `kinesis`, `lambda`, `cloudrun_service`, `pubsub`, `kafkarest`, `nats`, and `stdout`.
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_OSQUERY_RESULT_LOG_PLUGIN`
@@ -1368,7 +1368,7 @@ This flag only has effect if `activity_enable_audit_log` is set to `true`.
 
 Each plugin has additional configuration options. Please see the configuration section linked below for your logging plugin.
 
-Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
+Options are [`filesystem`](#filesystem), [`firehose`](#firehose), [`kinesis`](#kinesis), [`lambda`](#lambda), [`cloudrun_service`](#cloud-run-service), [`pubsub`](#pubsub), [`kafkarest`](#kafka-rest-proxy-logging), [`nats`](#nats), and `stdout` (no additional configuration needed).
 
 - Default value: `filesystem`
 - Environment variable: `FLEET_ACTIVITY_AUDIT_LOG_PLUGIN`
@@ -2040,6 +2040,100 @@ The IAM role used to send to Lambda must allow the following permissions on
 the function listed:
 
 - `lambda:InvokeFunction`
+
+## Cloud Run service
+
+### cloudrun_service_status_url
+
+This flag only has effect if `osquery_status_log_plugin` is set to `cloudrun_service`.
+
+Cloud Run service URL to write osquery status logs received from clients. Fleet sends each log as a raw JSON request body.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_STATUS_URL`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    status_url: https://status-service-abc-uc.a.run.app/logs/status
+  ```
+
+### cloudrun_service_status_audience
+
+This flag only has effect if `osquery_status_log_plugin` is set to `cloudrun_service`.
+
+Audience to use when Fleet authenticates to the Cloud Run service for status logs with a Google-signed ID token from Application Default Credentials. For Cloud Run, this is usually the service root URL, for example `https://status-service-abc-uc.a.run.app/`.
+
+If this value is omitted, Fleet sends unauthenticated HTTP requests.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_STATUS_AUDIENCE`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    status_audience: https://status-service-abc-uc.a.run.app/
+  ```
+
+### cloudrun_service_result_url
+
+This flag only has effect if `osquery_result_log_plugin` is set to `cloudrun_service`.
+
+Cloud Run service URL to write osquery result logs received from clients. Fleet sends each log as a raw JSON request body.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_RESULT_URL`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    result_url: https://result-service-abc-uc.a.run.app/logs/result
+  ```
+
+### cloudrun_service_result_audience
+
+This flag only has effect if `osquery_result_log_plugin` is set to `cloudrun_service`.
+
+Audience to use when Fleet authenticates to the Cloud Run service for result logs with a Google-signed ID token from Application Default Credentials. For Cloud Run, this is usually the service root URL, for example `https://result-service-abc-uc.a.run.app/`.
+
+If this value is omitted, Fleet sends unauthenticated HTTP requests.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_RESULT_AUDIENCE`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    result_audience: https://result-service-abc-uc.a.run.app/
+  ```
+
+### cloudrun_service_audit_url
+
+This flag only has effect if `activity_audit_log_plugin` is set to `cloudrun_service`.
+
+Cloud Run service URL to write audit logs. Fleet sends each log as a raw JSON request body.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_AUDIT_URL`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    audit_url: https://audit-service-abc-uc.a.run.app/logs/audit
+  ```
+
+### cloudrun_service_audit_audience
+
+This flag only has effect if `activity_audit_log_plugin` is set to `cloudrun_service`.
+
+Audience to use when Fleet authenticates to the Cloud Run service for audit logs with a Google-signed ID token from Application Default Credentials. For Cloud Run, this is usually the service root URL, for example `https://audit-service-abc-uc.a.run.app/`.
+
+If this value is omitted, Fleet sends unauthenticated HTTP requests.
+
+- Default value: none
+- Environment variable: `FLEET_CLOUDRUN_SERVICE_AUDIT_AUDIENCE`
+- Config file format:
+  ```yaml
+  cloudrun_service:
+    audit_audience: https://audit-service-abc-uc.a.run.app/
+  ```
+
+The service account used by Fleet must be allowed to invoke the target Cloud Run service.
 
 ## PubSub
 

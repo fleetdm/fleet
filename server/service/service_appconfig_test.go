@@ -164,6 +164,15 @@ func TestService_LoggingConfig(t *testing.T) {
 		AuditFunction:  testLambdaPluginConfig().Lambda.AuditFunction,
 	}
 
+	cloudRunServiceConfig := fleet.CloudRunServiceConfig{
+		StatusURL:      testCloudRunServicePluginConfig().CloudRunService.StatusURL,
+		StatusAudience: testCloudRunServicePluginConfig().CloudRunService.StatusAudience,
+		ResultURL:      testCloudRunServicePluginConfig().CloudRunService.ResultURL,
+		ResultAudience: testCloudRunServicePluginConfig().CloudRunService.ResultAudience,
+		AuditURL:       testCloudRunServicePluginConfig().CloudRunService.AuditURL,
+		AuditAudience:  testCloudRunServicePluginConfig().CloudRunService.AuditAudience,
+	}
+
 	pubsubConfig := fleet.PubSubConfig{
 		PubSubConfig: config.PubSubConfig{
 			Project:       testPubSubPluginConfig().PubSub.Project,
@@ -268,6 +277,27 @@ func TestService_LoggingConfig(t *testing.T) {
 				Audit: fleet.LoggingPlugin{
 					Plugin: "lambda",
 					Config: lambdaConfig,
+				},
+			},
+		},
+		{
+			name:   "test cloudrun_service config",
+			fields: fields{config: testCloudRunServicePluginConfig()},
+			args:   args{ctx: test.UserContext(context.Background(), test.UserAdmin)},
+			want: &fleet.Logging{
+				Debug: true,
+				Json:  false,
+				Result: fleet.LoggingPlugin{
+					Plugin: "cloudrun_service",
+					Config: cloudRunServiceConfig,
+				},
+				Status: fleet.LoggingPlugin{
+					Plugin: "cloudrun_service",
+					Config: cloudRunServiceConfig,
+				},
+				Audit: fleet.LoggingPlugin{
+					Plugin: "cloudrun_service",
+					Config: cloudRunServiceConfig,
 				},
 			},
 		},

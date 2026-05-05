@@ -247,6 +247,7 @@ export type LogDestination =
   | "firehose"
   | "kinesis"
   | "lambda"
+  | "cloudrun_service"
   | "pubsub"
   | "kafka"
   | "nats"

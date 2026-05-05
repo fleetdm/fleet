@@ -56,6 +56,11 @@ type LambdaConfig struct {
 	StsExternalID    string
 }
 
+type CloudRunServiceConfig struct {
+	URL      string
+	Audience string
+}
+
 type PubSubConfig struct {
 	Topic string
 
@@ -91,14 +96,15 @@ type NatsConfig struct {
 type Config struct {
 	Plugin string
 
-	Filesystem FilesystemConfig
-	Webhook    WebhookConfig
-	Firehose   FirehoseConfig
-	Kinesis    KinesisConfig
-	Lambda     LambdaConfig
-	PubSub     PubSubConfig
-	KafkaREST  KafkaRESTConfig
-	Nats       NatsConfig
+	Filesystem      FilesystemConfig
+	Webhook         WebhookConfig
+	Firehose        FirehoseConfig
+	Kinesis         KinesisConfig
+	Lambda          LambdaConfig
+	CloudRunService CloudRunServiceConfig
+	PubSub          PubSubConfig
+	KafkaREST       KafkaRESTConfig
+	Nats            NatsConfig
 }
 
 func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog.Logger) (fleet.JSONLogger, error) {
@@ -170,6 +176,17 @@ func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create lambda %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "cloudrun_service":
+		writer, err := NewCloudRunServiceLogWriter(
+			ctx,
+			config.CloudRunService.URL,
+			config.CloudRunService.Audience,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create cloudrun_service %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	case "pubsub":
