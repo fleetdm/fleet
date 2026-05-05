@@ -167,6 +167,44 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+
+### Field event follow-up
+
+#### Solution Specialist: Tradeshows, GitOps & field events
+
+##### Post-event goals
+- Immediate outreach to all scans and attendees within 24 hours
+- Assign Partner, ICP, and pipeline accounts to the correct DRI
+- Direct non-ICP accounts to the "Let's Get You Set Up" engagement
+
+##### Follow-up process
+
+**Immediate**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Prioritize | Sort contacts by status. Tag each as ICP prospect, existing pipeline, partner, or non-ICP. Assign DRI immediately. | Within 2 hrs |
+| Pull from SF | Open recent events dashboard. Pull all "Attended", "Engaged", "Interacted", and "Registered" members from the campaign record. | Within 2 hrs |
+
+**Outreach**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Email | Send a personalized email to every scan/attendee. Reference the event. Lead with value — not a generic follow-up. | Within 24 hrs |
+| Call to Action | ICP/pipeline: request a meeting or demo with a booking link. Non-ICP: direct to self-serve or "Let's Get You Set Up." | Within 24 hrs |
+| LinkedIn | Send a personalized connection request referencing the event. Follow up with a message after acceptance. | Within 24 hrs |
+| Log in SFDC | Update campaign member status. Log all tasks, activities, meetings booked, and opportunities identified. | Within 24 hrs |
+
+**Routing (concurrent with outreach)**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| ICP Prospect | Begin discovery. Book intro/demo. Create opportunity in SFDC. | Immediate |
+| Pipeline Account | Notify DRI. Use event touch to accelerate the deal. Log against the open opportunity. | Immediate |
+| Partner Account | Route to channel DRI. Log in CRM. | Immediate |
+| Non-ICP | Send "Let's Get You Set Up." Point to self-serve. Log disposition in CRM. | Immediate |
+
+
 #### SWAG
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
