@@ -245,6 +245,15 @@ const ManageHostsPage = ({
     }
   }, [queryParams?.add_hosts, location.pathname, router]);
 
+  // Open enroll secrets modal via query param (e.g. from command palette)
+  useEffect(() => {
+    if (queryParams?.manage_enroll_secrets === "1") {
+      setShowEnrollSecretModal(true);
+      const { manage_enroll_secrets, ...rest } = queryParams;
+      router.replace({ pathname: location.pathname, query: rest });
+    }
+  }, [queryParams?.manage_enroll_secrets, location.pathname, router]);
+
   const [hiddenColumns, setHiddenColumns] = useState<string[]>(
     userSettings?.hidden_host_columns || defaultHiddenColumns
   );
