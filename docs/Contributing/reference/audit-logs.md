@@ -955,17 +955,7 @@ This activity contains the following fields:
 - "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
 - "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
 
-#### Example (global)
-
-```json
-{
-  "dataset": "vulnerabilities",
-  "fleet_id": null,
-  "fleet_name": null
-}
-```
-
-#### Example (fleet-scoped)
+#### Example
 
 ```json
 {
@@ -984,17 +974,7 @@ This activity contains the following fields:
 - "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
 - "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
 
-#### Example (global)
-
-```json
-{
-  "dataset": "uptime",
-  "fleet_id": null,
-  "fleet_name": null
-}
-```
-
-#### Example (fleet-scoped)
+#### Example
 
 ```json
 {
