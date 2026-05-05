@@ -29884,4 +29884,3 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
 	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
 }
-
