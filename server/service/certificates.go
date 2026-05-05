@@ -265,7 +265,10 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 		return nil, fleet.NewPermissionError("host does not have access to this certificate template")
 	}
 
-	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host)
+	// Memo for the host's end-user list, shared between subject_name and subject_alternative_name
+	// expansion so we don't double-fetch when both reference $FLEET_VAR_HOST_END_USER_IDP_USERNAME.
+	var endUsersMemo []fleet.HostEndUser
+	subjectName, err := svc.replaceCertificateVariables(ctx, certificate.SubjectName, host, &endUsersMemo)
 	if err != nil {
 		// If the certificate variables cannot be replaced, mark the certificate as failed.
 		errorMsg := fmt.Sprintf("Could not replace certificate variables: %s", err.Error())
@@ -288,7 +291,7 @@ func (svc *Service) GetDeviceCertificateTemplate(ctx context.Context, id uint) (
 
 	// Expand variables in SAN with the same error semantics as subject_name.
 	if certificate.SubjectAlternativeName != "" {
-		san, err := svc.replaceCertificateVariables(ctx, certificate.SubjectAlternativeName, host)
+		san, err := svc.replaceCertificateVariables(ctx, certificate.SubjectAlternativeName, host, &endUsersMemo)
 		if err != nil {
 			errorMsg := fmt.Sprintf("Could not replace certificate variables in subject_alternative_name: %s", err.Error())
 			if err := svc.ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{

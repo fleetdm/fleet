@@ -103,14 +103,18 @@ func validateCertificateTemplateSubjectAlternativeName(san, certName string) err
 	return nil
 }
 
-// replaceCertificateVariables replaces FLEET_VAR_* variables in the subject name with actual host values
-func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName string, host *fleet.Host) (string, error) {
-	fleetVars := variables.Find(subjectName)
+// replaceCertificateVariables replaces FLEET_VAR_* variables in the input string with actual
+// host values. endUsersMemo is an optional cross-call cache for the host's end-user list — pass
+// the same `*[]fleet.HostEndUser` (with `*memo == nil` initially) into successive calls for the
+// same host to avoid re-fetching from the datastore. The IDP-username variable is the only one
+// that triggers a DB round-trip; UUID and hardware serial come from the in-memory host struct.
+func (svc *Service) replaceCertificateVariables(ctx context.Context, input string, host *fleet.Host, endUsersMemo *[]fleet.HostEndUser) (string, error) {
+	fleetVars := variables.Find(input)
 	if len(fleetVars) == 0 {
-		return subjectName, nil
+		return input, nil
 	}
 
-	result := subjectName
+	result := input
 	for _, fleetVar := range fleetVars {
 		switch fleetVar {
 		case string(fleet.FleetVarHostUUID):
@@ -124,9 +128,18 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, subjectName
 			}
 			result = fleet.FleetVarHostHardwareSerialRegexp.ReplaceAllString(result, host.HardwareSerial)
 		case string(fleet.FleetVarHostEndUserIDPUsername):
-			users, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
-			if err != nil {
-				return "", ctxerr.Wrapf(ctx, err, "getting host end users for variable %s", fleetVar)
+			var users []fleet.HostEndUser
+			if endUsersMemo != nil && *endUsersMemo != nil {
+				users = *endUsersMemo
+			} else {
+				fetched, err := fleet.GetEndUsers(ctx, svc.ds, host.ID)
+				if err != nil {
+					return "", ctxerr.Wrapf(ctx, err, "getting host end users for variable %s", fleetVar)
+				}
+				users = fetched
+				if endUsersMemo != nil {
+					*endUsersMemo = users
+				}
 			}
 			if len(users) == 0 || users[0].IdpUserName == "" {
 				return "", ctxerr.Errorf(ctx, "host %s does not have an IDP username for variable %s", host.UUID, fleetVar)

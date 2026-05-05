@@ -218,9 +218,10 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		require.True(t, ds.CreateCertificateTemplateFuncInvoked)
 	})
 
-	t.Run("Non-Premium tenant cannot create any certificate template (gate is at endpoint level)", func(t *testing.T) {
+	t.Run("Non-Premium tenant cannot create any certificate template (gate is in CreateCertificateTemplate, before validation)", func(t *testing.T) {
 		// Certificate templates require a CA, and CAs are Premium-only, so the whole feature is
-		// gated. SAN-bearing payloads are not the only ones rejected.
+		// gated by a Premium check at the top of Service.CreateCertificateTemplate. SAN-bearing
+		// payloads are not the only ones rejected.
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
