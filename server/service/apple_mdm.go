@@ -5035,7 +5035,9 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	osVersion, osVersionOK := queryResponses["OSVersion"].(string)
 
 	if supplementalOSVersionExtra, supplementalOSVersionExtraOK := queryResponses["SupplementalOSVersionExtra"]; supplementalOSVersionExtraOK {
-		osVersion += " " + supplementalOSVersionExtra.(string)
+		if s, isStr := supplementalOSVersionExtra.(string); isStr && s != "" {
+			osVersion += " " + s
+		}
 	}
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
