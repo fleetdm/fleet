@@ -293,7 +293,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         <SectionHeader title="Webhook settings" />
         <Checkbox
           name="teamHostStatusWebhookEnabled"
-          onChange={onInputChange}
+          onChange={({ name: n, value: v }) =>
+            onInputChange({ name: n as FormNames, value: v })
+          }
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
           helpText={`This will trigger webhooks specific to this fleet, separate from the global host status webhook.`}
