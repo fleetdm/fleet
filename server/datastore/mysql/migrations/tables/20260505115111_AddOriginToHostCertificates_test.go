@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260428151210(t *testing.T) {
+func TestUp_20260505115111(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed a host so we can reference it from host_certificates.

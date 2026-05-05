@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260428151210, Down_20260428151210)
+	MigrationClient.AddMigration(Up_20260505115111, Down_20260505115111)
 }
 
-func Up_20260428151210(tx *sql.Tx) error {
+func Up_20260505115111(tx *sql.Tx) error {
 	// Add an `origin` column tracking which ingestion source created the
 	// host_certificates row. This scopes deletion semantics so each ingestion
 	// source only soft-deletes rows it owns: an osquery sync that omits a row
@@ -29,6 +29,6 @@ func Up_20260428151210(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260428151210(tx *sql.Tx) error {
+func Down_20260505115111(tx *sql.Tx) error {
 	return nil
 }
