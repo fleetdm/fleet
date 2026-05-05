@@ -196,6 +196,14 @@ func (r *engine) run(ctx context.Context) {
 				Kind: s.kind, Status: stepFailed,
 				Detail: err.Error(), Elapsed: time.Since(t0),
 			})
+			// Tear down any processes earlier successful steps brought
+			// up so we don't leave fleet/webpack/ngrok orphaned while
+			// the dashboard sits in stateError. The user could quit
+			// to clean up, but doing it here keeps state consistent
+			// with what the dashboard shows.
+			cleanupCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			r.stopProcs(cleanupCtx)
+			cancel()
 			r.emit(runtimeFailedMsg{Err: fmt.Errorf("%s: %w", s.kind, err)})
 			return
 		}
@@ -256,11 +264,19 @@ func readGit(args ...string) string {
 }
 
 func (r *engine) emit(msg tea.Msg) {
-	select {
-	case r.sink <- msg:
+	switch msg.(type) {
+	case stepUpdateMsg, runtimeReadyMsg, runtimeFailedMsg:
+		// Lifecycle messages must arrive — dropping a runtimeFailedMsg
+		// or stepFailed leaves the dashboard permanently stuck on a
+		// stale state. Block if needed; the TUI will catch up.
+		r.sink <- msg
 	default:
-		// Drop rather than block — keeps the start goroutine from
-		// stalling if the TUI is briefly behind.
+		// Log lines and other high-volume traffic — better to drop
+		// than block the engine if the TUI is briefly behind.
+		select {
+		case r.sink <- msg:
+		default:
+		}
 	}
 }
 
@@ -429,18 +445,49 @@ func (r *engine) stepNgrok(ctx context.Context) error {
 	r.mu.Lock()
 	r.ngrok = p
 	r.mu.Unlock()
-	// ngrok comes up fast; if the user's static domain is misconfigured the
-	// process will exit with output we'll see in the log pane.
-	return nil
+
+	// Watch for an immediate exit. ngrok with a missing auth token,
+	// invalid static domain, or already-claimed tunnel exits within a
+	// second or two of starting. Without this check, stepNgrok returns
+	// success and the dashboard says "running" while the public URL is
+	// actually offline (the ERR_NGROK_3200 case).
+	exitedEarly := make(chan struct{})
+	go func() {
+		// proc.wg counts the two scan goroutines that drain
+		// stdout+stderr. They exit when the pipes close, which
+		// happens when the process itself exits. So wg reaching zero
+		// means ngrok has died.
+		p.wg.Wait()
+		close(exitedEarly)
+	}()
+
+	select {
+	case <-exitedEarly:
+		// Best-effort: clear our reference so Stop doesn't try to
+		// signal a dead process.
+		r.mu.Lock()
+		if r.ngrok == p {
+			r.ngrok = nil
+		}
+		r.mu.Unlock()
+		return errors.New("ngrok exited shortly after starting; check tools/ship/.state/logs/ngrok.log (likely causes: missing auth token, invalid static domain, or domain already in use)")
+	case <-time.After(2 * time.Second):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // -----------------------------------------------------------------------------
 // Shutdown
 // -----------------------------------------------------------------------------
 
-// Stop gracefully tears down everything Start brought up, in reverse order.
-// Volumes are preserved (`docker compose down`, no `-v`).
-func (r *engine) Stop(ctx context.Context) {
+// stopProcs stops the supervised long-running processes (ngrok, fleet,
+// generate-dev) in reverse start order. It does NOT close logSink or
+// run `docker compose down` — those are part of the full teardown
+// reserved for Stop(). Used by Stop() and by run() on a step failure
+// to clean up partially-started state.
+func (r *engine) stopProcs(ctx context.Context) {
 	r.mu.Lock()
 	ngrok := r.ngrok
 	fleet := r.fleet
@@ -448,18 +495,25 @@ func (r *engine) Stop(ctx context.Context) {
 	r.ngrok, r.fleet, r.genDev = nil, nil, nil
 	r.mu.Unlock()
 
+	if ngrok != nil {
+		_ = ngrok.Stop(ctx, 2*time.Second)
+	}
+	if fleet != nil {
+		_ = fleet.Stop(ctx, 5*time.Second)
+	}
+	if genDev != nil {
+		_ = genDev.Stop(ctx, 5*time.Second)
+	}
+}
+
+// Stop gracefully tears down everything Start brought up, in reverse order.
+// Volumes are preserved (`docker compose down`, no `-v`).
+func (r *engine) Stop(ctx context.Context) {
 	stopCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 
-	if ngrok != nil {
-		_ = ngrok.Stop(stopCtx, 2*time.Second)
-	}
-	if fleet != nil {
-		_ = fleet.Stop(stopCtx, 5*time.Second)
-	}
-	if genDev != nil {
-		_ = genDev.Stop(stopCtx, 5*time.Second)
-	}
+	r.stopProcs(stopCtx)
+
 	// All proc.Stop calls block until their scan goroutines have exited
 	// (proc.wg.Wait), so by this point no goroutine can still be writing
 	// to logSink. Close it so the log-pump goroutine started in
