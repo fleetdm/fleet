@@ -10,7 +10,6 @@ import {
   trimEnd,
   union,
   uniqueId,
-  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -763,8 +762,7 @@ export const secondsToHms = (d: number): string => {
 export const abbreviateTimeUnits = (str: string): string =>
   str.replace("minute", "min").replace("second", "sec");
 
-// TODO: Type any because ts files missing the following properties from type 'JSON': parse, stringify, [Symbol.toStringTag]
-export const syntaxHighlight = (json: any): string => {
+export const syntaxHighlight = (json: unknown): string => {
   let jsonStr: string = JSON.stringify(json, undefined, 2);
   jsonStr = jsonStr
     .replace(/&/g, "&amp;")

@@ -149,6 +149,7 @@ const Advanced = ({
       ),
     // intentionally leave activityExpiryWindow out of the dependencies, so that the custom
     // options are maintained even if the user changes the frequency in the UI
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deleteActivities]
   );
 
