@@ -118,7 +118,7 @@ const CheckerboardViz = ({
           value: point.value,
           total: point.total,
           percentage: point.percentage,
-          dayLabel: format(date, "MMM d"),
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
         };
       });
@@ -177,7 +177,7 @@ const CheckerboardViz = ({
           percentage: point?.percentage ?? 0,
           value: point?.value ?? 0,
           total: point?.total,
-          dayLabel: format(date, "MMM d"),
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
       }

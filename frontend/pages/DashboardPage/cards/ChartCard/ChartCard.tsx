@@ -32,7 +32,7 @@ const CHART_DAYS = 30;
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
-    label: "Hosts active",
+    label: "Hosts online",
     defaultChartType: "checkerboard",
     description: (
       <>
@@ -41,21 +41,9 @@ const DATASETS: IDataSet[] = [
         during a given hour.
       </>
     ),
-    tooltipFormatter: ({
-      value,
-      total,
-      percentage,
-    }: {
-      value: number;
-      total?: number;
-      percentage?: number;
-    }) => (
-      <>
-        {percentage}% active
-        <br />({total ? `${value} / ${total}` : 0} hosts)
-      </>
-    ),
-    relativeScale: false,
+    tooltipFormatter: ({ value }: { value: number }) =>
+      `${value.toLocaleString()} hosts`,
+    relativeScale: true,
   },
   {
     name: "cve",
@@ -74,23 +62,24 @@ const DATASETS: IDataSet[] = [
           vulnerabilities
         </a>{" "}
         during a given hour.
+        <br />
+        <br />
+        Want more control over this chart? Comprehensive vulnerability filtering
+        is{" "}
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://github.com/fleetdm/fleet/issues/44746"
+        >
+          coming soon
+        </a>
+        .
       </>
     ),
-    tooltipFormatter: ({
-      value,
-      total,
-      percentage,
-    }: {
-      value: number;
-      total?: number;
-      percentage?: number;
-    }) => (
-      <>
-        {percentage}% exposed
-        <br />({total ? `${value} / ${total}` : 0} hosts)
-      </>
-    ),
+    tooltipFormatter: ({ value }: { value: number }) =>
+      `${value.toLocaleString()} hosts`,
     theme: "red",
+    relativeScale: true,
   },
 ];
 

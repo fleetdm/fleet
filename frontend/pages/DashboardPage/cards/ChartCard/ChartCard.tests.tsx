@@ -138,7 +138,7 @@ describe("ChartCard", () => {
     // Only one dataset is wired up today, so it renders as a heading rather
     // than a dropdown. Days selection is fixed at 30 and has no UI yet.
     await waitFor(() => {
-      expect(screen.getByText("Hosts active")).toBeInTheDocument();
+      expect(screen.getByText("Hosts online")).toBeInTheDocument();
     });
   });
 });
