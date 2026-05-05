@@ -1779,11 +1779,11 @@ type HostMDMManagedLocalAccount struct {
 	// availability from the rotation lifecycle ("pending" is also viewable).
 	PasswordAvailable bool `json:"password_available" db:"-" csv:"-"`
 	// AutoRotateAt is the wall-clock time at which the rotation cron will pick
-	// this row up (set on first view; cleared on rotation complete).
-	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty" db:"-" csv:"-"`
+	// this row up (set on first view; cleared on rotation).
+	AutoRotateAt *time.Time `json:"auto_rotate_at" db:"-" csv:"-"`
 	// PendingRotation is true when a SetAutoAdminPassword command is in flight
 	// (pending_encrypted_password IS NOT NULL).
-	PendingRotation bool `json:"pending_rotation,omitempty" db:"-" csv:"-"`
+	PendingRotation bool `json:"pending_rotation" db:"-" csv:"-"`
 }
 
 // HostManagedLocalAccountPassword is the API response for the managed local account password.
