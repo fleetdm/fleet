@@ -846,10 +846,9 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	cmdUUID := uuid.NewString()
 	if err := svc.ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, newPassword, cmdUUID); err != nil {
 		// Race against the cron: a rotation snuck in between our
-		// PendingRotation check and now. Treat the same as the idempotent
-		// short-circuit above.
+		// PendingRotation check and now.
 		if errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) {
-			return nil
+			return &fleet.BadRequestError{Message: "Cannot rotate managed local account password while an operation is pending."}
 		}
 		return ctxerr.Wrap(ctx, err, "initiate managed local account rotation")
 	}
