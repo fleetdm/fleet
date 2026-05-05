@@ -752,6 +752,18 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	// separate host-details refetch round-trip.
 	pwd.PendingRotation = acct.PendingRotation
 
+	// Log the activity before applying any view side-effects. If activity
+	// creation fails the endpoint returns an error and the password is not
+	// delivered, so we must not flip status/auto_rotate_at/initiated_by_fleet
+	// (which could trigger an auto-rotation for a password the caller never
+	// successfully received).
+	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
+	}
+
 	// Start the auto-rotation timer (no-op for views inside the existing window)
 	// and capture the resulting deadline. notFound here means a rotation is
 	// currently in flight (pending_encrypted_password IS NOT NULL) — the
@@ -765,13 +777,6 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		pwd.AutoRotateAt = &rotateAt
 	}
 
-	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{
-		HostID:          host.ID,
-		HostDisplayName: host.DisplayName(),
-	}); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create viewed managed local account activity")
-	}
-
 	return pwd, nil
 }
 
@@ -781,6 +786,9 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 // When account_uuid is missing we record a deferred rotation that the cron
 // will fulfill once the UUID arrives via osquery — the user-actor activity
 // is still logged immediately (the cron must NOT re-log it for these rows).
+// If a rotation is already in flight (pending_encrypted_password IS NOT NULL)
+// the request is rejected with 400 BadRequest; callers should wait for the
+// in-flight rotation to land before retrying.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
@@ -789,7 +797,11 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionWrite); err != nil {
+	// Authorize again with team loaded as "execute mdm_command", matching
+	// the other peer MDM command flows in this file (lock/wipe/recovery-lock
+	// rotation) — this path queues a device command, so a generic host write
+	// check would weaken the permission model.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 	if !fleet.IsMacOSPlatform(host.Platform) {
