@@ -1931,6 +1931,7 @@ func (c *Client) DoGitOps(
 		}
 	}
 
+	var orgLogoActions []orgLogoAction
 	if incoming.TeamName == nil {
 		// OrgSettings is the basis of the group AppConfig, but we will be adding and removing some
 		// items because the GitOps structure is not the same as the AppConfig structure.
@@ -1958,6 +1959,19 @@ func (c *Client) DoGitOps(
 		}
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
+
+		// Plan org logo upload/delete actions and strip the gitops-only path
+		// keys before the AppConfig PATCH. Execution runs after ApplyGroup so
+		// a PATCH failure leaves the logo store untouched. Skipped entirely
+		// when appConfig wasn't fetched (e.g. validation-only call paths in
+		// tests) — the planner needs the current OrgInfo to decide whether
+		// stale Fleet-hosted blobs should be deleted.
+		if appConfig != nil {
+			orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, &appConfig.OrgInfo, baseDir, dryRun, logFn)
+			if err != nil {
+				return nil, err
+			}
+		}
 
 		// Update labels if there were any changes.
 		if incoming.LabelChangesSummary.HasChanges() {
@@ -2422,6 +2436,13 @@ func (c *Client) DoGitOps(
 	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename)
 	if err != nil {
 		return nil, err
+	}
+
+	// Apply org logo uploads/deletes after the AppConfig PATCH succeeded.
+	if incoming.TeamName == nil {
+		if err := c.doGitOpsOrgLogos(orgLogoActions, dryRun, logFn); err != nil {
+			return nil, err
+		}
 	}
 
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse

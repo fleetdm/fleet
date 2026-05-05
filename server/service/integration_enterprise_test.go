@@ -15,6 +15,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log/slog"
 	"math/big"
@@ -29700,4 +29703,48 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	require.False(t, hasQueryFor(hostNone.ID), "host with no labels should not match include_all query")
 	require.False(t, hasQueryFor(hostA.ID), "host with one of two required labels should not match include_all query")
 	require.True(t, hasQueryFor(hostBoth.ID), "host with both required labels should match include_all query")
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
+	t := s.T()
+
+	pngImg := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	pngImg.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var pngBuf bytes.Buffer
+	require.NoError(t, png.Encode(&pngBuf, pngImg))
+	pngBytes := pngBuf.Bytes()
+
+	gitopsEmail := "gitops-logo-enterprise@example.com"
+	gitopsUser := &fleet.User{
+		Name:       "GitOps Logo",
+		Email:      gitopsEmail,
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, gitopsUser.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(t.Context(), gitopsUser)
+	require.NoError(t, err)
+
+	s.token = s.getCachedUserToken(gitopsEmail, test.GoodPassword)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	fw, err := w.CreateFormFile("logo", "dark.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewReader(pngBytes))
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=dark", body.Bytes(), http.StatusOK, map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": "Bearer " + s.token,
+	})
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
+
+	s.token = s.getTestAdminToken()
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 }
