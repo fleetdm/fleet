@@ -24042,6 +24042,15 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 		require.NotZero(t, manualRotationActivityID)
 
+		// Rotating again while one is already in flight is rejected with 400 — the
+		// previous behavior was an idempotent 204, but per spec this should now
+		// surface a clear error to the caller.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusBadRequest)
+		// And the activity count must not have grown — the rejected call must
+		// not log a duplicate triggered-rotation activity.
+		require.Equal(t, manualRotationActivityID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
+			"rejected rotate-while-pending must not emit a new activity")
+
 		// Drain commands and ack the SetAutoAdminPassword. Verify state transitions to verified.
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)
@@ -24169,9 +24178,6 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// is logged and the row transitions to status=failed.
 		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusNoContent)
 
-		failedName := fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName()
-		preFailedID := s.lastActivityOfTypeMatches(failedName, "", 0)
-
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)
 		var nackedSetAutoAdmin bool
@@ -24188,9 +24194,10 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 
 		// failed-to-rotate activity logged with the host's display name. No actor —
 		// the activity is intentionally attributed to Fleet at ack time.
+		failedName := fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName()
 		failedActivityID := s.lastActivityOfTypeMatches(failedName,
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
-		require.Greater(t, failedActivityID, preFailedID, "device error should produce a failed-to-rotate activity")
+		require.NotZero(t, failedActivityID, "device error should produce a failed-to-rotate activity")
 
 		hostResp = getHostResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)

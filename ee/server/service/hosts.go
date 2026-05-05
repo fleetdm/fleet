@@ -32,7 +32,8 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 }
 
 func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, _ bool,
-	maxVulnerabilities *int) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	maxVulnerabilities *int,
+) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	// reuse OSVersions, but include premium options
 	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true, maxVulnerabilities)
 }
@@ -814,12 +815,8 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	if !acct.PasswordAvailable {
 		return &fleet.BadRequestError{Message: "Couldn’t rotate managed local account password. Please try again."}
 	}
-	// Idempotent no-op when a rotation is already enqueued. Distinct from the
-	// view-initiated 'pending' window (no pending_encrypted_password yet) — that
-	// path does NOT short-circuit; it lets the user replace the cron-driven
-	// rotation with their own and reattributes the activity to them.
 	if acct.PendingRotation {
-		return nil
+		return &fleet.BadRequestError{Message: "Managed local account password rotation is already in progress for this host."}
 	}
 
 	accountUUID, err := svc.ds.GetManagedLocalAccountUUID(ctx, host.UUID)
@@ -849,10 +846,9 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	cmdUUID := uuid.NewString()
 	if err := svc.ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, newPassword, cmdUUID); err != nil {
 		// Race against the cron: a rotation snuck in between our
-		// PendingRotation check and now. Treat the same as the idempotent
-		// short-circuit above.
+		// PendingRotation check and now.
 		if errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) {
-			return nil
+			return &fleet.BadRequestError{Message: "Cannot rotate managed local account password while an operation is pending."}
 		}
 		return ctxerr.Wrap(ctx, err, "initiate managed local account rotation")
 	}

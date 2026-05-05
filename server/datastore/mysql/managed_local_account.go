@@ -179,9 +179,6 @@ func (ds *Datastore) lookupManagedLocalAccountHost(ctx context.Context, column, 
 // The conditional UPDATE only fires when auto_rotate_at IS NULL, so subsequent views
 // inside the window do not extend the timer. The pre-existing rotateAt is read back
 // in either case so callers can show the deadline to the user.
-//
-// The 65 minute window is the spec'd value (1h5m, providing a buffer over the 1h
-// shown in the UI so the cron has time to actually fire before the user expects it).
 func (ds *Datastore) MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
 	stmt := fmt.Sprintf(`
 		UPDATE host_managed_local_account_passwords
