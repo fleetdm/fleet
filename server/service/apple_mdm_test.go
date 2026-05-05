@@ -7283,6 +7283,9 @@ func TestMDMTokenUpdateSCEPRenewal(t *testing.T) {
 			require.Equal(t, uuid, hostUUID)
 			return nil
 		}
+		ds.MDMAppleResetOnReenrollmentFunc = func(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+			return nil
+		}
 
 		err := svc.TokenUpdate(
 			&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
