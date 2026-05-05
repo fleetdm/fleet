@@ -133,6 +133,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   activity_expiry_settings: {
     activity_expiry_enabled: true,
     activity_expiry_window: 90,
+    preserve_host_activities_on_reenrollment: false,
   },
   agent_options: "",
   license: DEFAULT_LICENSE_MOCK,
