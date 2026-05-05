@@ -4479,6 +4479,24 @@ var versionPattern = regexp.MustCompile(
 	`^v?\s*(\d+(?:\.\d+)*)\s*$`,
 )
 
+var supplementalOSVersionExtraRe = regexp.MustCompile(`^[A-Za-z0-9 ()._-]+$`)
+
+// buildOSVersion combines osVersion and supplementalOSVersionExtra into a
+// single version string, validating the supplemental value before appending.
+// The result is capped at 255 characters to match the hosts.os_version column.
+func buildOSVersion(osVersion, supplementalOSVersionExtra string) (string, error) {
+	if supplementalOSVersionExtra != "" {
+		if len(supplementalOSVersionExtra) > 32 || !supplementalOSVersionExtraRe.MatchString(supplementalOSVersionExtra) {
+			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: length=%d", len(supplementalOSVersionExtra))
+		}
+		osVersion += " " + supplementalOSVersionExtra
+	}
+	if len(osVersion) > 255 {
+		osVersion = osVersion[:255]
+	}
+	return osVersion, nil
+}
+
 // trimLeadingZeros converts "00123" → "123", "000" → "0", "0" → "0"
 func trimLeadingZeros(s string) string {
 	s = strings.TrimLeft(s, "0")
@@ -5032,12 +5050,15 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	deviceName, deviceNameOK := queryResponses["DeviceName"].(string)
 	deviceCapacity, deviceCapacityOK := queryResponses["DeviceCapacity"].(float64)
 	availableDeviceCapacity, availableDeviceCapacityOK := queryResponses["AvailableDeviceCapacity"].(float64)
-	osVersion, osVersionOK := queryResponses["OSVersion"].(string)
-
-	if supplementalOSVersionExtra, supplementalOSVersionExtraOK := queryResponses["SupplementalOSVersionExtra"]; supplementalOSVersionExtraOK {
-		if s, isStr := supplementalOSVersionExtra.(string); isStr && s != "" {
-			osVersion += " " + s
-		}
+	rawOSVersion, osVersionOK := queryResponses["OSVersion"].(string)
+	var supplementalExtra string
+	if v, ok := queryResponses["SupplementalOSVersionExtra"]; ok {
+		supplementalExtra, _ = v.(string)
+	}
+	osVersion, err := buildOSVersion(rawOSVersion, supplementalExtra)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ignoring invalid SupplementalOSVersionExtra from device", "host_uuid", host.UUID, "err", err)
+		osVersion = rawOSVersion
 	}
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
