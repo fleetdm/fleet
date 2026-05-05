@@ -1,0 +1,76 @@
+name: Incubate website dependency changes
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'website/package.json'
+      - 'website/package-lock.json'
+  schedule:
+    - cron: '0 7 * * *'  # 7am UTC nightly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # needed for `gh run rerun`
+
+concurrency:
+  group: incubate-website-deps-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-22.04
+    env:
+      INCUBATION_HOURS: 72
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0  # full history needed to compute commit timestamp
+
+      - name: Verify 72-hour incubation
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "${GITHUB_BASE_REF}"
+          THRESHOLD_SECONDS=$(( INCUBATION_HOURS * 3600 ))
+          LATEST_TS=$(git log -1 --format=%ct \
+            "origin/${GITHUB_BASE_REF}..HEAD" \
+            -- website/package.json website/package-lock.json || true)
+          if [ -z "${LATEST_TS}" ]; then
+            echo "No website dependency changes on this branch relative to ${GITHUB_BASE_REF}."
+            exit 0
+          fi
+          AGE=$(( $(date +%s) - LATEST_TS ))
+          AGE_HOURS=$(( AGE / 3600 ))
+          if [ "${AGE}" -lt "${THRESHOLD_SECONDS}" ]; then
+            REMAINING=$(( (THRESHOLD_SECONDS - AGE + 3599) / 3600 ))
+            echo "::error::Website dependency files were changed ${AGE_HOURS}h ago. Incubation period is ${INCUBATION_HOURS}h. Wait ~${REMAINING}h, then re-run this check."
+            exit 1
+          fi
+          echo "Incubation complete: last website dep change was ${AGE_HOURS}h ago."
+
+      - name: Re-run previously-failed PR checks (nightly)
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Find recent failed runs of THIS workflow on pull_request events and re-trigger them.
+          # As wall-clock time advances, the git-log age in each rerun grows past the 72h threshold
+          # and the run passes — flipping the required check green without requiring a force-push.
+          gh run list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow "${{ github.workflow }}" \
+            --event pull_request \
+            --status failure \
+            --limit 100 \
+            --json databaseId \
+            --jq '.[].databaseId' \
+          | while read -r run_id; do
+              echo "Re-running failed run ${run_id}"
+              gh run rerun "${run_id}" --repo "${GITHUB_REPOSITORY}" || true
+            done

@@ -125,5 +125,12 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
 
+## Incubate website dependency changes
+
+Pull requests that modify `website/package.json` or `website/package-lock.json` must wait 72 hours after the most recent commit to either file before they can merge to `main`. This incubation period gives the maintainer time to spot regressions or supply-chain concerns introduced by a dependency bump before it reaches the website's production environment.
+
+The `Incubate website dependency changes` GitHub Actions workflow enforces this as a required status check. The check runs on every PR that touches those files and re-evaluates open PRs nightly, once 72 hours have elapsed the check turns green automatically. Pushing a new commit to either file resets the clock.
+
+
 <meta name="maintainedBy" value="lukeheath">
 <meta name="description" value="Processes for maintaining and releasing changes to fleetdm.com.">
