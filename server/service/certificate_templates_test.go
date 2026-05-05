@@ -306,8 +306,7 @@ func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 			if tc.expectError {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.errContains)
-				// Validator must return a typed *fleet.InvalidArgumentError scoped to the SAN field
-				// (HTTP 422).
+				// Validator must return a typed *fleet.InvalidArgumentError scoped to the SAN field (HTTP 422).
 				var iae *fleet.InvalidArgumentError
 				require.ErrorAs(t, err, &iae)
 				require.True(t, iae.HasErrors())
