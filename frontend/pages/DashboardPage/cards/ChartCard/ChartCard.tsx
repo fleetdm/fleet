@@ -257,6 +257,7 @@ const ChartCard = ({
                 }
               }}
               className={`${baseClass}__dataset-dropdown`}
+              nowrapMenu
             />
           ) : (
             <h2 className={`${baseClass}__title`}>{currentDataset.label}</h2>
