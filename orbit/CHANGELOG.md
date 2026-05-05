@@ -573,7 +573,7 @@ Fleet, which will preserve the order in which the scripts are queued.
 
 * Fixed theme detection and icon coloring issues for Fleet Desktop on Windows. (#13457)
 
-## 1.2.0 - Orbit 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
+## 1.2.0 - 1.15.0 (Oct 4, 2022 - Aug 17, 2023)
 
 * Fixed an issue preventing Nudge from reading the configuration file delivered by Fleet on some installations. This only affects you if Nudge was enabled and configured on a host using Orbit v1.8.0.
 
