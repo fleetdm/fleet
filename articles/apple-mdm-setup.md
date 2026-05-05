@@ -179,6 +179,8 @@ Entity A's VPP token will be assigned to the above fleets.
 
 ### International organizations
 
+> Support for Apple App Store (VPP) apps from non-US stores is [coming soon](https://github.com/fleetdm/fleet/issues/43846).
+
 For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
 
 The default fleets for each country's AB token will look like this:
