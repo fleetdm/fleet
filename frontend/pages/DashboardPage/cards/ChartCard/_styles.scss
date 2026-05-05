@@ -15,6 +15,7 @@
   &__description-tooltip {
     display: inline-flex;
     align-items: center;
+    line-height: 1;
   }
 
   &__header-right {
@@ -36,17 +37,27 @@
       display: none;
     }
 
-    // Override inline styles from DropdownWrapper to make it look like a heading.
-    // !important is needed because react-select applies inline styles via the
-    // styles prop which always beat class-based selectors. Padding is zeroed
-    // so the dropdown's text baseline aligns horizontally with the
-    // HostsEnrolledCard heading rendered alongside it.
+    // DropdownWrapper sets the react-select container to a fixed 36px height
+    // via inline styles, which makes the chart-card header taller than the
+    // HostsEnrolledCard heading next to it. Collapse the SelectContainer to
+    // its natural content height so both card headings line up.
+    > div {
+      height: auto !important;
+    }
+
     .react-select__control {
       background-color: transparent !important;
       border-color: transparent !important;
+      border-width: 0 !important;
       box-shadow: none !important;
-      padding: 0;
-      min-height: auto;
+      // !important overrides DropdownWrapper's inline 8px left/right padding
+      // so the dropdown text starts at the card's left edge, matching the
+      // HostsEnrolledCard heading.
+      padding: 0 !important;
+      // !important defeats react-select's default 38px min-height on the
+      // control so the chart-card header collapses to its content height
+      // and lines up with the HostsEnrolledCard h2 next door.
+      min-height: 0 !important;
     }
 
     // When menu is open, show the border
@@ -89,6 +100,9 @@
   }
 
   &__settings-btn {
+    // Button variant="inverse" applies a 36px height that would make the
+    // chart-card header taller than HostsEnrolledCard's bare h2 next door.
+    // Shrink to content height so headers match.
     display: flex;
     align-items: center;
     justify-content: center;
@@ -96,6 +110,8 @@
     background: transparent;
     cursor: pointer;
     color: $ui-fleet-black-75;
+    height: auto !important;
+    padding: 0 !important;
   }
 
   &__chart-container {
