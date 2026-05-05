@@ -1260,7 +1260,7 @@ module.exports.routes = {
   'GET /learn-more-about/setup-experience/run-script': '/guides/setup-experience',
   'GET /learn-more-about/setup-experience/end-user-authentication': '/guides/setup-experience',
   'GET /learn-more-about/setup-experience/bootstrap-package': '/guides/setup-experience',
-  'GET /learn-more-about/built-in-variables': '/docs/configuration/yaml-files#variables',
+  'GET /learn-more-about/built-in-variables': '/guides/fleet-variables',
   'GET /learn-more-about/disable-entra-conditional-access': '/guides/entra-conditional-access-integration#disable',
   'GET /learn-more-about/available-fma-versions': 'https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs',
   'GET /learn-more-about/connect-microsoft-entra': '/guides/windows-mdm-setup#step-2-connect-fleet-to-microsoft-entra-id',
