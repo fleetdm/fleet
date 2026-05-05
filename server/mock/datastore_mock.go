@@ -1905,6 +1905,8 @@ type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context
 
 type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
 
+type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -4728,6 +4730,9 @@ type DataStore struct {
 
 	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
 	IsAppleEnrollmentRenewalCommandFuncInvoked bool
+
+	MDMAppleResetOnReenrollmentFunc        MDMAppleResetOnReenrollmentFunc
+	MDMAppleResetOnReenrollmentFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11317,4 +11322,11 @@ func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, command
 	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+	s.mu.Lock()
+	s.MDMAppleResetOnReenrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleResetOnReenrollmentFunc(ctx, hostUUID, preserveHostActivities)
 }
