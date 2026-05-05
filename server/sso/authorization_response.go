@@ -1,68 +1,16 @@
 package sso
 
 import (
-	"bytes"
 	"encoding/base64"
-	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/url"
+	"slices"
 	"strings"
 
+	"github.com/crewjam/saml"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-const (
-	// These are response status codes described in the core SAML spec section
-	// 3.2.2.1 See http://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf
-	Success int = iota
-	Requestor
-	Responder
-	VersionMismatch
-	AuthnFailed
-	InvalidAttrNameOrValue
-	InvalidNameIDPolicy
-	NoAuthnContext
-	NoAvailableIDP
-	NoPassive
-	NoSupportedIDP
-	PartialLogout
-	ProxyCountExceeded
-	RequestDenied
-	RequestUnsupported
-	RequestVersionDeprecated
-	RequestVersionTooHigh
-	RequestVersionTooLow
-	ResourceNotRecognized
-	TooManyResponses
-	UnknownAttrProfile
-	UnknownPrincipal
-	UnsupportedBinding
-)
-
-var statusMap = map[string]int{
-	"urn:oasis:names:tc:SAML:2.0:status:Success":                  Success,
-	"urn:oasis:names:tc:SAML:2.0:status:Requester":                Requestor,
-	"urn:oasis:names:tc:SAML:2.0:status:Responder":                Responder,
-	"urn:oasis:names:tc:SAML:2.0:status:VersionMismatch":          VersionMismatch,
-	"urn:oasis:names:tc:SAML:2.0:status:AuthnFailed":              AuthnFailed,
-	"urn:oasis:names:tc:SAML:2.0:status:InvalidAttrNameOrValue":   InvalidAttrNameOrValue,
-	"urn:oasis:names:tc:SAML:2.0:status:InvalidNameIDPolicy":      InvalidNameIDPolicy,
-	"urn:oasis:names:tc:SAML:2.0:status:NoAuthnContext":           NoAuthnContext,
-	"urn:oasis:names:tc:SAML:2.0:status:NoAvailableIDP":           NoAvailableIDP,
-	"urn:oasis:names:tc:SAML:2.0:status:NoPassive":                NoPassive,
-	"urn:oasis:names:tc:SAML:2.0:status:NoSupportedIDP":           NoSupportedIDP,
-	"urn:oasis:names:tc:SAML:2.0:status:PartialLogout":            PartialLogout,
-	"urn:oasis:names:tc:SAML:2.0:status:ProxyCountExceeded":       ProxyCountExceeded,
-	"urn:oasis:names:tc:SAML:2.0:status:RequestDenied":            RequestDenied,
-	"urn:oasis:names:tc:SAML:2.0:status:RequestUnsupported":       RequestUnsupported,
-	"urn:oasis:names:tc:SAML:2.0:status:RequestVersionDeprecated": RequestVersionDeprecated,
-	"urn:oasis:names:tc:SAML:2.0:status:RequestVersionTooLow":     RequestVersionTooLow,
-	"urn:oasis:names:tc:SAML:2.0:status:ResourceNotRecognized":    ResourceNotRecognized,
-	"urn:oasis:names:tc:SAML:2.0:status:TooManyResponses":         TooManyResponses,
-	"urn:oasis:names:tc:SAML:2.0:status:UnknownAttrProfile":       UnknownAttrProfile,
-	"urn:oasis:names:tc:SAML:2.0:status:UnknownPrincipal":         UnknownPrincipal,
-	"urn:oasis:names:tc:SAML:2.0:status:UnsupportedBinding":       UnsupportedBinding,
-}
 
 // Since there's not a standard for display names, I have collected the most
 // commonly used attribute names for it.
@@ -80,109 +28,97 @@ var validDisplayNameAttrs = map[string]struct{}{
 }
 
 type resp struct {
-	response *Response
-	rawResp  []byte
+	assertion *saml.Assertion
 }
 
 var _ fleet.Auth = resp{}
 
-func (r *resp) setResponse(val *Response) {
-	r.response = val
-}
-
-func (r resp) statusDescription() string {
-	if r.response != nil {
-		return r.response.Status.StatusCode.Value
-	}
-	return "missing response"
-}
-
 // UserID partially implements the fleet.Auth interface.
 func (r resp) UserID() string {
-	if r.response != nil {
-		return r.response.Assertion.Subject.NameID.Value
+	if r.assertion != nil && r.assertion.Subject != nil && r.assertion.Subject.NameID != nil {
+		return r.assertion.Subject.NameID.Value
 	}
 	return ""
 }
 
 // UserDisplayName partially implements the fleet.Auth interface.
 func (r resp) UserDisplayName() string {
-	if r.response != nil {
-		for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
+	if r.assertion == nil {
+		return ""
+	}
+	for _, attrStatement := range r.assertion.AttributeStatements {
+		for _, attr := range attrStatement.Attributes {
 			if _, ok := validDisplayNameAttrs[strings.ToLower(attr.Name)]; ok {
-				for _, v := range attr.AttributeValues {
-					if v.Value != "" {
-						return v.Value
+				for _, vv := range attr.Values {
+					if vv.Value != "" {
+						return vv.Value
 					}
 				}
 			}
 		}
-	}
-
-	return ""
-}
-
-func (r resp) status() (int, error) {
-	if r.response != nil {
-		statusURI := r.response.Status.StatusCode.Value
-		if code, ok := statusMap[statusURI]; ok {
-			return code, nil
-		}
-	}
-	return AuthnFailed, errors.New("malformed or missing auth response")
-}
-
-// RequestID partially implements the fleet.Auth interface.
-func (r resp) RequestID() string {
-	if r.response != nil {
-		return r.response.InResponseTo
 	}
 	return ""
 }
 
 // AssertionAttributes partially implements the fleet.Auth interface.
 func (r resp) AssertionAttributes() []fleet.SAMLAttribute {
-	if r.response == nil {
+	if r.assertion == nil {
 		return nil
 	}
 	var attrs []fleet.SAMLAttribute
-	for _, attr := range r.response.Assertion.AttributeStatement.Attributes {
-		var values []fleet.SAMLAttributeValue
-		for _, value := range attr.AttributeValues {
-			values = append(values, fleet.SAMLAttributeValue{
-				Type:  value.Type,
-				Value: value.Value,
+	for _, attrStatement := range r.assertion.AttributeStatements {
+		for _, attr := range attrStatement.Attributes {
+			var values []fleet.SAMLAttributeValue
+			for _, value := range attr.Values {
+				values = append(values, fleet.SAMLAttributeValue{
+					Type:  value.Type,
+					Value: value.Value,
+				})
+			}
+			attrs = append(attrs, fleet.SAMLAttribute{
+				Name:   attr.Name,
+				Values: values,
 			})
 		}
-		attrs = append(attrs, fleet.SAMLAttribute{
-			Name:   attr.Name,
-			Values: values,
-		})
 	}
 	return attrs
 }
 
-func (r resp) rawResponse() []byte {
-	return r.rawResp
-}
-
-// DecodeAuthResponse extracts SAML assertions from the IDP response (base64 encoded).
-func DecodeAuthResponse(samlResponse string) (fleet.Auth, error) {
-	decoded, err := base64.StdEncoding.DecodeString(samlResponse)
+// DecodeSAMLResponse base64-decodes the SAMLResponse.
+func DecodeSAMLResponse(samlResponse string) ([]byte, error) {
+	decodedSAMLResponse, err := base64.StdEncoding.DecodeString(samlResponse)
 	if err != nil {
-		return nil, fmt.Errorf("decoding saml response: %w", err)
+		return nil, fmt.Errorf("decoding SAMLResponse: %w", err)
 	}
-
-	return decodeSAMLResponse(decoded)
+	return decodedSAMLResponse, nil
 }
 
-func decodeSAMLResponse(rawXML []byte) (fleet.Auth, error) {
-	var saml Response
-	if err := xml.NewDecoder(bytes.NewBuffer(rawXML)).Decode(&saml); err != nil {
-		return nil, fmt.Errorf("decoding response xml: %w", err)
+// validateAudiences validates that the audience restrictions of the assertion is one of the expected audiences.
+func validateAudiences(assertion *saml.Assertion, expectedAudiences []string) error {
+	if assertion.Conditions == nil {
+		return errors.New("missing conditions in assertion")
+	}
+	if len(assertion.Conditions.AudienceRestrictions) == 0 {
+		return errors.New("missing audience restrictions")
+	}
+	for _, audienceRestriction := range assertion.Conditions.AudienceRestrictions {
+		if slices.Contains(expectedAudiences, audienceRestriction.Audience.Value) {
+			return nil
+		}
+	}
+	return fmt.Errorf("wrong audience: %+v", assertion.Conditions.AudienceRestrictions)
+}
+
+// ParseAndVerifySAMLResponse runs the parsing and validation of SAMLResponses.
+func ParseAndVerifySAMLResponse(samlProvider *saml.ServiceProvider, samlResponse []byte, requestID string, acsURL *url.URL) (fleet.Auth, error) {
+	verifiedAssertion, err := samlProvider.ParseXMLResponse(samlResponse, []string{requestID}, *acsURL)
+	if err != nil {
+		if samlErr, ok := err.(*saml.InvalidResponseError); ok {
+			err = samlErr.PrivateErr
+		}
+		return nil, err
 	}
 	return &resp{
-		response: &saml,
-		rawResp:  rawXML,
+		assertion: verifiedAssertion,
 	}, nil
 }

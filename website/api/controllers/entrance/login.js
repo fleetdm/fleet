@@ -19,6 +19,7 @@ password attempt.`,
     emailAddress: {
       description: 'The email to try in this attempt, e.g. "irl@example.com".',
       type: 'string',
+      isEmail: true,
       required: true
     },
 

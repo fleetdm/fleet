@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 	_ "time/tzdata" // embed timezone information in the program
 
@@ -13,7 +14,10 @@ const (
 	CalendarBodyStaticHeader   = "reserved this time to make some changes to your work computer"
 	CalendarEventConflictText  = "because there was no remaining availability "
 	CalendarDefaultDescription = "needs to make sure your device meets the organization's requirements."
-	CalendarDefaultResolution  = "During this maintenance window, you can expect updates to be applied automatically. Your device may be unavailable during this time."
+	CalendarDefaultResolution  = (`• Click the <a href="https://fleetdm.com/better" rel="noreferrer" target="_blank" >Fleet</a> icon in your computer&apos;s menu and<br />&nbsp;&nbsp;&nbsp;select <b>My device</b>
+• Navigate to the <b>Policies</b> tab
+• Follow instructions to resolve any policies marked "Fail"
+• Click <b>Refetch</b>`)
 )
 
 type DayEndedError struct {
@@ -99,6 +103,7 @@ func FireCalendarWebhook(
 	hostDisplayName string,
 	failingCalendarPolicies []PolicyCalendarData,
 	err string,
+	logger *slog.Logger,
 ) error {
 	if err := server.PostJSONWithTimeout(context.Background(), webhookURL, &CalendarWebhookPayload{
 		Timestamp:        time.Now(),
@@ -107,7 +112,7 @@ func FireCalendarWebhook(
 		HostSerialNumber: hostHardwareSerial,
 		FailingPolicies:  failingCalendarPolicies,
 		Error:            err,
-	}); err != nil {
+	}, logger); err != nil {
 		return fmt.Errorf("POST to %q: %w", server.MaskSecretURLParams(webhookURL), server.MaskURLError(err))
 	}
 	return nil

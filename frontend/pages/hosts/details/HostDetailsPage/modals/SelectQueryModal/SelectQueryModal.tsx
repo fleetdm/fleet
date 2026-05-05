@@ -3,8 +3,6 @@ import { useQuery } from "react-query";
 import { filter, includes } from "lodash";
 import { InjectedRouter } from "react-router";
 
-import { TAGGED_TEMPLATES } from "utilities/helpers";
-
 import PATHS from "router/paths";
 
 import permissions from "utilities/permissions";
@@ -19,6 +17,7 @@ import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 
 import {
   IListQueriesResponse,
@@ -27,6 +26,7 @@ import {
 } from "interfaces/schedulable_query";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
+import { getPathWithQueryParams } from "utilities/url";
 
 export interface ISelectQueryModalProps {
   onCancel: () => void;
@@ -75,16 +75,20 @@ const SelectQueryModal = ({
   const onQueryHostCustom = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.NEW_QUERY() +
-        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+      getPathWithQueryParams(PATHS.NEW_REPORT, {
+        host_id: hostId,
+        fleet_id: currentTeamId,
+      })
     );
   };
 
   const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      PATHS.EDIT_QUERY(selectedQuery.id) +
-        TAGGED_TEMPLATES.queryByHostRoute(hostId, currentTeamId)
+      getPathWithQueryParams(PATHS.EDIT_REPORT(selectedQuery.id), {
+        host_id: hostId,
+        fleet_id: currentTeamId,
+      })
     );
   };
 
@@ -137,13 +141,13 @@ const SelectQueryModal = ({
   const renderDescription = (): JSX.Element => {
     return (
       <div className={`${baseClass}__description`}>
-        Choose a query to run on this host
+        Choose a report to run on this host
         {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
           <>
             {" "}
             or{" "}
-            <Button variant="text-link" onClick={onQueryHostCustom}>
-              create your own query
+            <Button variant="link" onClick={onQueryHostCustom}>
+              create your own report
             </Button>
           </>
         )}
@@ -159,13 +163,11 @@ const SelectQueryModal = ({
 
     if (!queriesFilter && queriesCount === 0) {
       return (
-        <div className={`${baseClass}__no-queries`}>
-          <span className="info__header">You have no saved queries.</span>
-          <span className="info__data">
-            Expecting to see queries? Try again in a few seconds as the system
-            catches up.
-          </span>
-        </div>
+        <EmptyState
+          variant="list"
+          header="You have no saved reports"
+          info="Expecting to see reports? Try again in a few seconds as the system catches up."
+        />
       );
     }
 
@@ -194,11 +196,10 @@ const SelectQueryModal = ({
           <InputFieldWithIcon
             name="query-filter"
             onChange={onFilterQueries}
-            placeholder="Filter queries"
+            placeholder="Filter reports"
             value={queriesFilter}
             autofocus
             iconSvg="search"
-            iconPosition="start"
           />
           <div className={`${baseClass}__query-selection`}>{queryList}</div>
         </>
@@ -212,22 +213,17 @@ const SelectQueryModal = ({
             <InputFieldWithIcon
               name="query-filter"
               onChange={onFilterQueries}
-              placeholder="Filter queries"
+              placeholder="Filter reports"
               value={queriesFilter}
               autofocus
               iconSvg="search"
-              iconPosition="start"
             />
           </div>
-          <div className={`${baseClass}__no-queries`}>
-            <span className="info__header">
-              No queries match the current search criteria.
-            </span>
-            <span className="info__data">
-              Expecting to see queries? Try again in a few seconds as the system
-              catches up.
-            </span>
-          </div>
+          <EmptyState
+            variant="list"
+            header="No reports match the current search criteria"
+            info="Expecting to see reports? Try again in a few seconds as the system catches up."
+          />
         </>
       );
     }
@@ -236,16 +232,14 @@ const SelectQueryModal = ({
 
   return (
     <Modal
-      title="Select a query"
+      title="Select a report"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}
       width="large"
     >
-      <>
-        {renderDescription()}
-        {renderQueries()}
-      </>
+      {renderDescription()}
+      {renderQueries()}
     </Modal>
   );
 };

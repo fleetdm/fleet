@@ -1,0 +1,10 @@
+{
+  "name": "Camtasia",
+  "slug": "camtasia/windows",
+  "package_identifier": "TechSmith.Camtasia",
+  "unique_identifier": "Camtasia",
+  "installer_arch": "x64",
+  "installer_type": "msi",
+  "installer_scope": "machine",
+  "default_categories": ["Productivity"]
+}

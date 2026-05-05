@@ -1,0 +1,8 @@
+{
+  "name": "Hyper",
+  "unique_identifier": "co.zeit.hyper",
+  "token": "hyper",
+  "installer_format": "zip",
+  "slug": "hyper/darwin",
+  "default_categories": ["Productivity"]
+}

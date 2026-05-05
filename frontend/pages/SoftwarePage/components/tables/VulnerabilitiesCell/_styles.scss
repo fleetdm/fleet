@@ -1,0 +1,13 @@
+.vulnerabilities-cell {
+  &__vulnerability-text-with-tooltip {
+    display: inline-block;
+    vertical-align: middle;
+  }
+
+  &__vulnerability-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+  }
+}

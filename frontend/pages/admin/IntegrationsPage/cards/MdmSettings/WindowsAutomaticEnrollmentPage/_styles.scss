@@ -1,56 +1,36 @@
 .windows-automatic-enrollment-page {
-  &__back-to-automatic-enrollment {
-    margin-bottom: $pad-xlarge;
+  @include vertical-page-layout;
+
+  &__content-container {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xlarge;
+    max-width: $settings-form-max-width;
   }
 
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $x-large;
+  h2 {
+    font-size: $small;
   }
 
-  &__description {
-    margin: 0 0 $pad-large;
-    max-width: 800px;
+  p {
+    margin-top: 0;
   }
 
-  &__setup-list {
-    font-size: $x-small;
+  &__mdm-urls-container,
+  &__tenants-container {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
-    padding: 0;
-    margin: 0;
-    max-width: 800px;
-    list-style: none;
-
-    li {
-      display: flex;
-      flex-direction: row;
-      gap: $pad-small;
-
-      p {
-        margin: 0;
-      }
-    }
   }
 
   &__url-inputs-wrapper {
     display: flex;
     flex-direction: column;
     gap: $pad-icon;
-    margin-top: $pad-large;
   }
 
   &__url-input {
     margin-bottom: 0;
-  }
-
-  &__permissions-list {
-    margin-top: $pad-large;
-    list-style: disc;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
   }
 
   &__cloud-customer-banner {
@@ -61,5 +41,9 @@
     display: flex;
     align-items: column;
     gap: $pad-small;
+  }
+
+  .empty-table__container {
+    margin: $pad-small auto;
   }
 }

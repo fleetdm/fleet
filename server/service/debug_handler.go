@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
 
@@ -12,10 +13,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/token"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gorilla/mux"
 )
 
@@ -32,13 +32,13 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 			return
 		}
 		ctx := token.NewContext(context.Background(), bearer)
-		v, err := authViewer(ctx, string(bearer), m.service)
+		v, err := auth.AuthViewer(ctx, string(bearer), m.service)
 		if err != nil {
 			http.Error(w, "Invalid authentication", http.StatusUnauthorized)
 			return
 		}
 
-		if !v.CanPerformActions() {
+		if !v.CanPerformActions() || v.User.GlobalRole == nil || *v.User.GlobalRole != fleet.RoleAdmin {
 			http.Error(w, "Unauthorized", http.StatusForbidden)
 			return
 		}
@@ -48,8 +48,8 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 }
 
 func jsonHandler(
-	logger kitlog.Logger,
-	jsonGenerator func(ctx context.Context) (interface{}, error),
+	logger *slog.Logger,
+	jsonGenerator func(ctx context.Context) (any, error),
 ) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		lc := &logging.LoggingContext{SkipUser: true} // The debug handler does not save the logged-in user.
@@ -70,7 +70,8 @@ func jsonHandler(
 		}
 		b, err := json.MarshalIndent(jsonData, "", "  ")
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			lc.SetErrs(err)
+			lc.Log(ctx, logger)
 			rw.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -79,7 +80,7 @@ func jsonHandler(
 }
 
 // MakeDebugHandler creates an HTTP handler for the Fleet debug endpoints.
-func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
+func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger *slog.Logger, eh *errorstore.Handler, ds fleet.Datastore) http.Handler {
 	r := mux.NewRouter()
 	r.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 	r.HandleFunc("/debug/pprof/profile", pprof.Profile)

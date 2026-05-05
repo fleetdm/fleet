@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import TableContainer from "components/TableContainer";
 
 import generateTableHeaders, {
@@ -9,21 +9,42 @@ const baseClass = "os-settings-table";
 
 interface IOSSettingsTableProps {
   canResendProfiles: boolean;
-  hostId: number;
+  canRotateRecoveryLockPassword?: boolean;
   tableData: IHostMdmProfileWithAddedStatus[];
-  onProfileResent?: () => void;
+  resendRequest: (profileUUID: string) => Promise<void>;
+  resendCertificateRequest?: (certificateTemplateId: number) => Promise<void>;
+  rotateRecoveryLockPassword?: () => Promise<void>;
+  onProfileResent: () => void;
 }
 
 const OSSettingsTable = ({
   canResendProfiles,
-  hostId,
+  canRotateRecoveryLockPassword = false,
   tableData,
+  resendRequest,
+  resendCertificateRequest,
+  rotateRecoveryLockPassword,
   onProfileResent,
 }: IOSSettingsTableProps) => {
-  const tableConfig = generateTableHeaders(
-    hostId,
-    canResendProfiles,
-    onProfileResent
+  // useMemo prevents tooltip flashing during host data refetch
+  const tableConfig = useMemo(
+    () =>
+      generateTableHeaders(
+        canResendProfiles,
+        resendRequest,
+        onProfileResent,
+        resendCertificateRequest,
+        canRotateRecoveryLockPassword,
+        rotateRecoveryLockPassword
+      ),
+    [
+      canResendProfiles,
+      resendRequest,
+      onProfileResent,
+      canRotateRecoveryLockPassword,
+      rotateRecoveryLockPassword,
+      resendCertificateRequest,
+    ]
   );
 
   return (

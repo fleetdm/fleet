@@ -1,12 +1,5 @@
 .apple-mdm-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
-
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $x-large;
-  }
+  @include vertical-page-layout;
 
   h4 {
     margin-bottom: 0;
@@ -59,7 +52,7 @@
     display: flex;
     gap: $pad-small;
     align-items: center;
-    margin-top: $pad-small;
+    align-self: flex-start;
 
     label {
       display: flex;
@@ -83,12 +76,9 @@
     display: flex;
     gap: $pad-medium;
     align-items: center;
-    margin-top: $pad-xxlarge;
   }
 
   &__file-uploader {
-    margin-top: $pad-medium;
-    margin-left: $pad-medium;
     border-radius: 6px;
 
     .file-uploader__message {

@@ -1,0 +1,117 @@
+.sql-editor {
+  &__label {
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $core-fleet-black;
+
+    &--error {
+      color: $core-vibrant-red;
+    }
+
+    &--with-action {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .sql-editor__label-text {
+        flex: 1 1 auto;
+        margin-right: $pad-small;
+      }
+
+      .sql-editor__label-actions {
+        display: flex;
+        align-items: center;
+        gap: $pad-xsmall;
+        flex: 0 0 auto;
+      }
+
+      .sql-editor__copy-wrapper {
+        display: flex;
+        align-items: center;
+        gap: $pad-xxsmall;
+      }
+
+      .sql-editor__copied-confirmation {
+        @include copy-message;
+      }
+
+      button {
+        height: initial; // aligning space between label and textarea
+        margin: -$pad-small 0;
+        animation: fade-in 250ms ease-out;
+      }
+
+      .custom-link {
+        margin-bottom: 0;
+      }
+    }
+  }
+
+  &__wrapper {
+    &--error {
+      .ace-fleet {
+        border: 1px solid $core-vibrant-red;
+      }
+    }
+    &--disabled {
+      @include disabled;
+    }
+
+    &--readonly-copy {
+      cursor: default;
+
+      .ace-fleet:hover {
+        border: 1px solid $ui-blue-gray;
+      }
+
+      // remove interaction on both code + gutter
+      .ace_scroller,
+      .ace_gutter {
+        pointer-events: auto;
+        cursor: not-allowed;
+        user-select: none;
+      }
+
+      // keep label actions (copy, etc.) usable
+      .sql-editor__label-actions,
+      .sql-editor__label-actions * {
+        pointer-events: auto;
+        cursor: pointer;
+      }
+    }
+  }
+
+  .ace_scroller {
+    padding-left: 4px;
+  }
+
+  .ace_placeholder {
+    font-family: "SourceCodePro", $monospace;
+    margin: initial;
+  }
+
+  &__help-text {
+    @include help-text;
+
+    code {
+      color: $ui-fleet-black-75;
+      background-color: $ui-light-grey;
+      padding: $pad-xxsmall;
+      font-family: "SourceCodePro", $monospace;
+    }
+  }
+
+  .loading-spinner {
+    margin: 0;
+  }
+}
+
+.sql-editor,
+.sql-editor * {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+}
+
+.sql-editor .ace_editor {
+  font-family: "SourceCodePro", monospace !important;
+}

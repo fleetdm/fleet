@@ -13,17 +13,18 @@ const AppleBMTermsMessage = () => {
       cta={
         <CustomLink
           url="https://business.apple.com/" // TODO: maybe point to new /settings/integrations/mdm/abm
-          text="Go to ABM"
+          text="Go to AB"
           className={`${baseClass}__new-tab`}
           newTab
-          color="core-fleet-black"
-          iconColor="core-fleet-black"
+          variant="banner-link"
         />
       }
     >
       You can’t automatically enroll macOS, iOS, and iPadOS hosts until you
-      accept the new terms and conditions for your Apple Business Manager (ABM).
-      An ABM administrator can accept these terms.
+      accept the new terms and conditions for your Apple Business (AB). An AB
+      administrator can accept these terms. If you have connected multiple AB
+      instances, this banner will disappear once you accept the new terms and
+      conditions in all of them.
     </InfoBanner>
   );
 };

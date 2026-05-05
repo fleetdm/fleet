@@ -43,6 +43,7 @@ describe("MDM Card", () => {
         mdmStatusData={[
           { status: "On (automatic)", hosts: 10 },
           { status: "On (manual)", hosts: 5 },
+          { status: "On (personal)", hosts: 3 },
           { status: "Off", hosts: 1 },
           { status: "Pending", hosts: 3 },
         ]}
@@ -54,22 +55,28 @@ describe("MDM Card", () => {
 
     expect(
       screen.getByRole("row", {
-        name: /On \(automatic\)(.*?)10 host/i,
+        name: /On \(company-owned\)(.*?)10 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /On \(manual\)(.*?)5 host/i,
+        name: /On \(manual\)(.*?)5 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Off(.*?)1 host/i,
+        name: /On \(personal\)(.*?)3 view all hosts/i,
+      })
+    ).toBeInTheDocument();
+
+    expect(
+      screen.getByRole("row", {
+        name: /Off(.*?)1 view all hosts/i,
       })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("row", {
-        name: /Pending(.*?)3 host/i,
+        name: /Pending(.*?)3 view all hosts/i,
       })
     ).toBeInTheDocument();
   });

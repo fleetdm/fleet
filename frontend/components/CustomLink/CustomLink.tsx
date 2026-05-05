@@ -5,16 +5,23 @@ import classnames from "classnames";
 import { Colors } from "styles/var/colors";
 
 interface ICustomLinkProps {
-  url: string;
+  url?: string;
   text: string;
   className?: string;
+  /** open the link in a new tab
+   * @default false
+   */
   newTab?: boolean;
   /** Icon wraps on new line with last word */
   multiline?: boolean;
-  iconColor?: Colors;
-  color?: "core-fleet-blue" | "core-fleet-black";
   /** Restricts access via keyboard when CustomLink is part of disabled UI */
   disableKeyboardNavigation?: boolean;
+  /**
+   * Changes the appearance of the link.
+   *
+   * @default "default"
+   */
+  variant?: "tooltip-link" | "banner-link" | "flash-message-link" | "default";
 }
 
 const baseClass = "custom-link";
@@ -25,13 +32,31 @@ const CustomLink = ({
   className,
   newTab = false,
   multiline = false,
-  iconColor = "core-fleet-blue",
-  color = "core-fleet-blue",
   disableKeyboardNavigation = false,
+  variant = "default",
 }: ICustomLinkProps): JSX.Element => {
+  const getIconColor = (): Colors => {
+    switch (variant) {
+      case "tooltip-link":
+      case "flash-message-link":
+        return "core-fleet-white";
+      case "banner-link":
+        return "core-fleet-black";
+      default:
+        return "ui-fleet-black-75";
+    }
+  };
+
   const customLinkClass = classnames(baseClass, className, {
-    [`${baseClass}--black`]: color === "core-fleet-black",
+    [`${baseClass}--${variant}`]: variant !== "default",
+    [`${baseClass}--multiline`]: multiline,
   });
+
+  // Needed to not trigger clickable parent elements
+  // e.g. cell/row handlers with a tooltip that has a custom link inside
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   const target = newTab ? "_blank" : "";
 
@@ -47,7 +72,7 @@ const CustomLink = ({
           <Icon
             name="external-link"
             className={`${baseClass}__external-icon`}
-            color={iconColor}
+            color={getIconColor()}
           />
         )}
       </span>
@@ -59,7 +84,7 @@ const CustomLink = ({
         <Icon
           name="external-link"
           className={`${baseClass}__external-icon`}
-          color={iconColor}
+          color={getIconColor()}
         />
       )}
     </>
@@ -72,6 +97,7 @@ const CustomLink = ({
       rel="noopener noreferrer"
       className={customLinkClass}
       tabIndex={disableKeyboardNavigation ? -1 : 0}
+      onClick={handleClick}
     >
       {content}
     </a>

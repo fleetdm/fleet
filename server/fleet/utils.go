@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
 
-	"github.com/Masterminds/semver"
+	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"golang.org/x/text/unicode/norm"
 )
@@ -31,8 +32,8 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 	warningColor.Fprintf(
 		w,
 		`Your organization can’t automatically enroll macOS hosts until you accept the new terms `+
-			`and conditions for Apple Business Manager (ABM). An ABM administrator can accept these terms. `+
-			`Go to ABM: https://business.apple.com/`,
+			`and conditions for Apple Business (AB). An AB administrator can accept these terms. `+
+			`Go to AB: https://business.apple.com/`,
 	)
 	// We need to disable color and print a new line to make it look somewhat neat, otherwise colors continue to the
 	// next line
@@ -60,6 +61,7 @@ func JSONStrictDecode(r io.Reader, v interface{}) error {
 	return nil
 }
 
+// Preprocess trims and normalises unicode characters of the given input
 func Preprocess(input string) string {
 	// Remove leading/trailing whitespace.
 	input = strings.TrimSpace(input)
@@ -72,8 +74,8 @@ func Preprocess(input string) string {
 // An invalid semantic version string is considered less than a valid one. All invalid semantic
 // version strings compare equal to each other.
 func CompareVersions(a string, b string) int {
-	verA, errA := semver.NewVersion(a)
-	verB, errB := semver.NewVersion(b)
+	verA, errA := VersionToSemverVersion(a)
+	verB, errB := VersionToSemverVersion(b)
 	switch {
 	case errA != nil && errB != nil:
 		return 0
@@ -90,4 +92,18 @@ func CompareVersions(a string, b string) int {
 // of CompareVersions for version validity
 func IsAtLeastVersion(currentVersion string, minimumVersion string) bool {
 	return CompareVersions(currentVersion, minimumVersion) >= 0
+}
+
+var macOSRapidSecurityResponseVersionSuffix = regexp.MustCompile(` \([a-z]\)`)
+
+// VersionToSemvarVersion converts a version string to a semver version. This wrap semver.NewVersion
+// and applies some additional formatting to the version string.
+// Formatting applied:
+// - Strip mac rapid security response suffix - "13.3.1 (a)" -> "13.3.1"
+func VersionToSemverVersion(version string) (*semver.Version, error) {
+	ver, err := semver.NewVersion(macOSRapidSecurityResponseVersionSuffix.ReplaceAllString(version, ``))
+	if err != nil {
+		return nil, err
+	}
+	return ver, nil
 }

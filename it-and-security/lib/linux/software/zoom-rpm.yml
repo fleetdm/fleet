@@ -1,4 +1,2 @@
-url: https://zoom.us/client/6.3.0.5527/zoom_x86_64.rpm
-self-service: true
-pre_install_query:
-  path: ../queries/all-rpm-hosts.yml
+url: https://cdn.zoom.us/prod/6.7.5.6891/zoom_x86_64.rpm
+display_name: Zoom

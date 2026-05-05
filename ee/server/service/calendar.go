@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/calendar"
-	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 )
 
@@ -24,12 +23,13 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return fmt.Errorf("load app config: %w", err)
 	}
 
 	if len(appConfig.Integrations.GoogleCalendar) == 0 {
 		svc.authz.SkipAuthorization(ctx)
-		level.Warn(svc.logger).Log("msg", "Received calendar callback, but Google Calendar integration is not configured")
+		svc.logger.WarnContext(ctx, "Received calendar callback, but Google Calendar integration is not configured")
 		return nil
 	}
 	googleCalendarIntegrationConfig := appConfig.Integrations.GoogleCalendar[0]
@@ -44,6 +44,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
 	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
@@ -55,6 +56,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// Otherwise, we do additional validation to see if we need to process the event.
 	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	unlocked := false
@@ -69,15 +71,24 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		svc.authz.SkipAuthorization(ctx)
 		if fleet.IsNotFound(err) {
 			// We could try to stop the channel callbacks here, but that may not be secure since we don't know if the request is legitimate
-			level.Info(svc.logger).Log("msg", "Received calendar callback, but did not find corresponding event in database", "event_uuid",
+			svc.logger.InfoContext(ctx, "Received calendar callback, but did not find corresponding event in database", "event_uuid",
 				eventUUID, "channel_id", channelID)
 			return nil
 		}
 		return err
 	}
+
+	// Check if the event belongs to a deleted host ... in which case we do a noop (the event will eventually be
+	// removed by the cleanup CRON job)
+	if eventDetails.HostID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+
 	if eventDetails.TeamID == nil {
 		// Should not happen
-		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
+		svc.authz.SkipAuthorization(ctx)
+		return fmt.Errorf("calendar event %s has no fleet ID", eventUUID)
 	}
 
 	localConfig := &calendar.Config{
@@ -109,7 +120,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 			if err != nil {
 				if fleet.IsNotFound(err) {
 					// We found the event the first time, but it was deleted before we got the lock.
-					level.Info(svc.logger).Log("msg", "Received calendar callback, but the event was just deleted", "event_uuid",
+					svc.logger.InfoContext(ctx, "Received calendar callback, but the event was just deleted", "event_uuid",
 						eventUUID, "channel_id", channelID)
 					return nil
 				}
@@ -167,8 +178,8 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 	var genBodyFn fleet.CalendarGenBodyFn = func(conflict bool) (body string, ok bool, err error) {
 
 		// This function is called when a new event is being created.
-		var team *fleet.Team
-		team, err = svc.ds.TeamWithoutExtras(ctx, *eventDetails.TeamID)
+		var team *fleet.TeamLite
+		team, err = svc.ds.TeamLite(ctx, *eventDetails.TeamID)
 		if err != nil {
 			return "", false, err
 		}
@@ -196,8 +207,13 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		}
 
 		var hosts []fleet.HostPolicyMembershipData
-		hosts, err = svc.ds.GetTeamHostsPolicyMemberships(ctx, googleCalendarIntegrationConfig.Domain, team.ID, policyIDs,
-			&eventDetails.HostID)
+		hosts, err = svc.ds.GetTeamHostsPolicyMemberships(
+			ctx,
+			googleCalendarIntegrationConfig.Domain,
+			team.ID,
+			policyIDs,
+			eventDetails.HostID,
+		)
 		if err != nil {
 			return "", false, err
 		}
@@ -242,7 +258,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return ctxerr.Wrap(ctx, err, "save calendar event body tag")
 		}
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
-			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
+			event.TimeZone, *eventDetails.HostID, fleet.CalendarWebhookStatusNone)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
 		}
@@ -267,11 +283,11 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 func (svc *Service) releaseCalendarLock(ctx context.Context, eventUUID string, lockValue string) {
 	ok, err := svc.distributedLock.ReleaseLock(ctx, calendar.LockKeyPrefix+eventUUID, lockValue)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to release calendar lock", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to release calendar lock", "err", err)
 	}
 	if !ok {
 		// If the lock was not released, it will expire on its own.
-		level.Error(svc.logger).Log("msg", "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
+		svc.logger.ErrorContext(ctx, "Failed to release calendar lock", "event uuid", eventUUID, "lockValue", lockValue)
 	}
 }
 
@@ -352,7 +368,7 @@ func (svc *Service) processCalendarAsync(ctx context.Context, eventIDs []string)
 		var err error
 		eventIDs, err = svc.distributedLock.GetSet(ctx, calendar.QueueKey)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to get calendar event queue", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to get calendar event queue", "err", err)
 			return
 		}
 	}
@@ -363,13 +379,13 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
 	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to get recent update flag", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to get recent update flag", "err", err)
 		return false
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
 		err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "Failed to remove calendar event from queue", "err", err)
+			svc.logger.ErrorContext(ctx, "Failed to remove calendar event from queue", "err", err)
 			return false
 		}
 		return true
@@ -377,7 +393,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 
 	lockValue, _, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to get calendar lock", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to get calendar lock", "err", err)
 		return false
 	}
 	if lockValue == "" {
@@ -392,13 +408,13 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 	// Note: This item can be added back to the queue while we are processing it.
 	err = svc.distributedLock.RemoveFromSet(ctx, calendar.QueueKey, eventUUID)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to remove calendar event from queue", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to remove calendar event from queue", "err", err)
 		return false
 	}
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to load app config", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to load app config", "err", err)
 		return false
 	}
 
@@ -414,12 +430,12 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 			// We found this event when the callback initially came in. So the event may have been removed or re-created since then.
 			return true
 		}
-		level.Error(svc.logger).Log("msg", "Failed to get calendar event details", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to get calendar event details", "err", err)
 		return false
 	}
 	if eventDetails.TeamID == nil {
 		// Should not happen
-		level.Error(svc.logger).Log("msg", "Calendar event has no team ID", "uuid", eventUUID)
+		svc.logger.ErrorContext(ctx, "Calendar event has no team ID", "uuid", eventUUID)
 		return false
 	}
 
@@ -431,7 +447,7 @@ func (svc *Service) processCalendarEventAsync(ctx context.Context, eventUUID str
 
 	err = svc.processCalendarEvent(ctx, eventDetails, googleCalendarIntegrationConfig, userCalendar)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to process calendar event", "err", err)
+		svc.logger.ErrorContext(ctx, "Failed to process calendar event", "err", err)
 		return false
 	}
 	return true

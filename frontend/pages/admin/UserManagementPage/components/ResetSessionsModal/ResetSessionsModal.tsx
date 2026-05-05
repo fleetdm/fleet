@@ -1,18 +1,15 @@
 import React from "react";
-import { IUser } from "interfaces/user";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
 const baseClass = "reset-sessions-modal";
 
 interface IResetSessionsModal {
-  user: IUser;
-  onResetConfirm: (user: IUser) => void;
+  onResetConfirm: () => void;
   onResetCancel: () => void;
 }
 
 const ResetSessionsModal = ({
-  user,
   onResetConfirm,
   onResetCancel,
 }: IResetSessionsModal): JSX.Element => {
@@ -20,7 +17,7 @@ const ResetSessionsModal = ({
     <Modal
       title="Reset sessions"
       onExit={onResetCancel}
-      onEnter={() => onResetConfirm(user)}
+      onEnter={onResetConfirm}
     >
       <div className={baseClass}>
         <p>
@@ -29,11 +26,7 @@ const ResetSessionsModal = ({
           This will revoke all active Fleet API tokens for this user.
         </p>
         <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="brand"
-            onClick={() => onResetConfirm(user)}
-          >
+          <Button type="button" onClick={onResetConfirm}>
             Confirm
           </Button>
           <Button onClick={onResetCancel} variant="inverse">

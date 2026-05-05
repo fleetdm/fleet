@@ -13,7 +13,7 @@ describe("ManualLabelForm", () => {
   it("should render a Select Hosts input", () => {
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<ManualLabelForm onSave={noop} onCancel={noop} />);
+    render(<ManualLabelForm onSave={noop} onCancel={noop} teamName={null} />);
 
     expect(
       screen.getByText(LABEL_TARGET_HOSTS_INPUT_LABEL)
@@ -33,6 +33,7 @@ describe("ManualLabelForm", () => {
         onSave={onSave}
         onCancel={noop}
         defaultTargetedHosts={targetedHosts}
+        teamName={null}
       />
     );
 

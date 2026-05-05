@@ -32,13 +32,17 @@ func (a *asyncLastSeen) markHostSeen(ctx context.Context, id string) {
 }
 
 func (a *asyncLastSeen) runFlushLoop(ctx context.Context) {
-	tickCh := time.Tick(a.flushInterval)
+	ticker := time.NewTicker(a.flushInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
-		case <-tickCh:
+		case <-ticker.C:
 			ids := a.set.getAndClear()
 			if len(ids) > 0 {
 				a.fn(ctx, ids)
+				// Reset the ticker to ensure consistent timing
+				ticker.Reset(a.flushInterval)
 			}
 
 		case <-ctx.Done():
@@ -62,7 +66,7 @@ type seenSet[T cmp.Ordered] struct {
 // value. Otherwise it returns nil and false. Essentially, if the number of
 // unique IDs >= cap, it acts as if getAndClear was called after adding the new
 // id. A cap <= 0 is ignored.
-func (s *seenSet[T]) add(id T, cap int) ([]T, bool) {
+func (s *seenSet[T]) add(id T, capacity int) ([]T, bool) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -71,7 +75,7 @@ func (s *seenSet[T]) add(id T, cap int) ([]T, bool) {
 	}
 	s.seenIDs[id] = struct{}{}
 
-	if cap > 0 && len(s.seenIDs) >= cap {
+	if capacity > 0 && len(s.seenIDs) >= capacity {
 		return s.getAndClearLocked(), true
 	}
 	return nil, false

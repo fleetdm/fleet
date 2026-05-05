@@ -14,50 +14,60 @@ import (
 func (ds *Datastore) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
 	const upsertStmt = `
 INSERT INTO
-	fleet_library_apps (
-		name, token, version, platform, installer_url,
-		sha256, bundle_identifier, install_script_content_id, uninstall_script_content_id
-	)
+	fleet_maintained_apps (name, slug, platform, unique_identifier)
 VALUES
-	( ?, ?, ?, ?, ?,
-	  ?, ?, ?, ? )
+	(?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
 	name = VALUES(name),
-	version = VALUES(version),
 	platform = VALUES(platform),
-	installer_url = VALUES(installer_url),
-	sha256 = VALUES(sha256),
-	bundle_identifier = VALUES(bundle_identifier),
-	install_script_content_id = VALUES(install_script_content_id),
-	uninstall_script_content_id = VALUES(uninstall_script_content_id)
+	unique_identifier = VALUES(unique_identifier)
 `
 
 	var appID uint
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
-		// ensure the install script exists
-		installRes, err := insertScriptContents(ctx, tx, app.InstallScript)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert install script content")
-		}
-		installScriptID, _ := installRes.LastInsertId()
-
-		// ensure the uninstall script exists
-		uninstallRes, err := insertScriptContents(ctx, tx, app.UninstallScript)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "insert uninstall script content")
-		}
-		uninstallScriptID, _ := uninstallRes.LastInsertId()
-
 		// upsert the maintained app
-		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Token, app.Version, app.Platform, app.InstallerURL,
-			app.SHA256, app.BundleIdentifier, installScriptID, uninstallScriptID)
+		res, err := tx.ExecContext(ctx, upsertStmt, app.Name, app.Slug, app.Platform, app.UniqueIdentifier)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert maintained app")
 		}
 		id, _ := res.LastInsertId()
 		appID = uint(id) //nolint:gosec // dismiss G115
+
+		// For darwin apps, update existing software_titles and software entries
+		// to use the FMA canonical name. This ensures consistency when an FMA
+		// is added for software that was previously ingested with osquery-reported names.
+		//
+		// We only run these UPDATEs when the FMA was actually inserted or modified.
+		// MySQL's ON DUPLICATE KEY UPDATE returns RowsAffected:
+		//   0 = duplicate key, no changes (existing FMA with same values)
+		//   1 = new row inserted
+		//   2 = duplicate key, values changed
+		// Skip if RowsAffected == 0 since nothing changed.
+		rowsAffected, _ := res.RowsAffected()
+		if app.Platform == "darwin" && app.UniqueIdentifier != "" && rowsAffected > 0 {
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software_titles
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software_titles names for FMA")
+			}
+
+			_, err = tx.ExecContext(ctx, `
+				UPDATE software
+				SET name = ?
+				WHERE bundle_identifier = ?
+					AND name != ?
+			`, app.Name, app.UniqueIdentifier, app.Name)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "update software names for FMA")
+			}
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -68,28 +78,52 @@ ON DUPLICATE KEY UPDATE
 	return app, nil
 }
 
-func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint) (*fleet.MaintainedApp, error) {
-	const stmt = `
-SELECT
-	fla.id,
-	fla.name,
-	fla.token,
-	fla.version,
-	fla.platform,
-	fla.installer_url,
-	fla.sha256,
-	fla.bundle_identifier,
-	sc1.contents AS install_script,
-	sc2.contents AS uninstall_script
-FROM fleet_library_apps fla
-JOIN script_contents sc1 ON sc1.id = fla.install_script_content_id
-JOIN script_contents sc2 ON sc2.id = fla.uninstall_script_content_id
-WHERE
-	fla.id = ?
-	`
+const teamFMATitlesJoin = `
+			team_titles.id software_title_id FROM fleet_maintained_apps fma
+			LEFT JOIN (
+				SELECT DISTINCT st.id, st.unique_identifier, st.name, si.platform
+				FROM software_titles st
+				LEFT JOIN
+					software_installers si
+					ON si.title_id = st.id AND si.global_or_team_id = ?
+					AND si.platform IN ('darwin','windows')
+				LEFT JOIN
+					vpp_apps va
+					ON va.title_id = st.id
+					AND va.platform = 'darwin'
+				LEFT JOIN
+					vpp_apps_teams vat
+					ON vat.adam_id = va.adam_id
+					AND vat.platform = va.platform
+					AND vat.global_or_team_id = ?
+				WHERE si.id IS NOT NULL OR vat.id IS NOT NULL
+			) team_titles 
+				ON team_titles.unique_identifier = fma.unique_identifier
+				-- pattern match fma name to a similar title name, since upgrade_code is not surfaced in fma table
+				OR (
+					team_titles.platform = fma.platform 
+					AND fma.platform = 'windows' 
+					-- Box Drive is the only FMA at the point of writing this where unique_identifier is shorter than name
+					AND team_titles.name LIKE CONCAT(LEAST(fma.name, fma.unique_identifier), '%')
+				)
+`
+
+func (ds *Datastore) GetMaintainedAppByID(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
+	var args []any
+
+	if teamID != nil {
+		stmt += teamFMATitlesJoin
+		args = []any{teamID, teamID}
+	} else {
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
+	}
+
+	stmt += ` WHERE fma.id = ?`
+	args = append(args, appID)
 
 	var app fleet.MaintainedApp
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, appID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, args...); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
 		}
@@ -100,66 +134,129 @@ WHERE
 	return &app, nil
 }
 
-func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
-	stmt := `SELECT fla.id, fla.name, fla.version, fla.platform, fla.updated_at FROM fleet_library_apps fla `
+func (ds *Datastore) GetMaintainedAppBySlug(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.unique_identifier, fma.slug, `
 	var args []any
 
 	if teamID != nil {
-		stmt += `WHERE NOT EXISTS (
-			SELECT
-				1
-			FROM
-				software_titles st
-			LEFT JOIN
-				software_installers si
-				ON si.title_id = st.id
-			LEFT JOIN
-				vpp_apps va
-				ON va.title_id = st.id
-			LEFT JOIN
-				vpp_apps_teams vat
-				ON vat.adam_id = va.adam_id
-			WHERE
-				st.bundle_identifier = fla.bundle_identifier
-			AND (
-				(si.platform = fla.platform AND si.global_or_team_id = ?)
-				OR
-				(va.platform = fla.platform AND vat.global_or_team_id = ?)
-			)
-		)`
+		stmt += teamFMATitlesJoin
 		args = []any{teamID, teamID}
 	} else {
-		stmt += `WHERE TRUE`
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
+	}
+
+	stmt += ` WHERE fma.slug = ?`
+	args = append(args, slug)
+
+	var app fleet.MaintainedApp
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, args...); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("MaintainedApp"), "no matching maintained app found")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "getting maintained app by slug")
+	}
+
+	return &app, nil
+}
+
+func (ds *Datastore) ListAvailableFleetMaintainedApps(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]fleet.MaintainedApp, *fleet.PaginationMetadata, error) {
+	stmt := `SELECT fma.id, fma.name, fma.platform, fma.slug, `
+	var args []any
+
+	if teamID != nil {
+		stmt += teamFMATitlesJoin + ` WHERE TRUE`
+		args = []any{teamID, teamID}
+	} else {
+		stmt += `NULL software_title_id FROM fleet_maintained_apps fma`
 	}
 
 	if match := opt.MatchQuery; match != "" {
 		match = likePattern(match)
-		stmt += ` AND (fla.name LIKE ?)`
+		stmt += ` AND (fma.name LIKE ?)`
 		args = append(args, match)
 	}
 
-	// perform a second query to grab the counts. Build the count statement before
+	// perform a second query to grab the filtered count. Build the count statement before
 	// adding the pagination constraints to the stmt but after including the
 	// MatchQuery option sql.
 	dbReader := ds.reader(ctx)
 	getAppsCountStmt := fmt.Sprintf(`SELECT COUNT(DISTINCT s.id) FROM (%s) AS s`, stmt)
-	var counts int
-	if err := sqlx.GetContext(ctx, dbReader, &counts, getAppsCountStmt, args...); err != nil {
+	var filteredCount int
+	if err := sqlx.GetContext(ctx, dbReader, &filteredCount, getAppsCountStmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps count")
+	}
+
+	if filteredCount == 0 { // check if we have nothing in the full apps list, in which case provide an error back
+		var totalCount int
+		if err := sqlx.GetContext(ctx, dbReader, &totalCount, `SELECT COUNT(id) FROM fleet_maintained_apps`); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get fleet maintained apps total count")
+		}
+
+		if totalCount == 0 {
+			return nil, nil, &fleet.NoMaintainedAppsInDatabaseError{}
+		}
 	}
 
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opt)
 
 	var avail []fleet.MaintainedApp
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &avail, stmtPaged, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet managed apps")
+		return nil, nil, ctxerr.Wrap(ctx, err, "selecting available fleet maintained apps")
 	}
 
-	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(counts)} //nolint:gosec // dismiss G115
-	if len(avail) > int(opt.PerPage) {                                                              //nolint:gosec // dismiss G115
+	meta := &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: uint(filteredCount)} //nolint:gosec // dismiss G115
+	if len(avail) > int(opt.PerPage) {                                                                     //nolint:gosec // dismiss G115
 		meta.HasNextResults = true
 		avail = avail[:len(avail)-1]
 	}
 
 	return avail, meta, nil
+}
+
+func (ds *Datastore) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
+	query := `SELECT unique_identifier, name FROM fleet_maintained_apps WHERE platform = 'darwin'`
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, query)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "query FMA names by identifier")
+	}
+	defer rows.Close()
+
+	result := make(map[string]string)
+	for rows.Next() {
+		var identifier, name string
+		if err := rows.Scan(&identifier, &name); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scan FMA name row")
+		}
+		result[identifier] = name
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterate FMA name rows")
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
+	stmt := `DELETE FROM fleet_maintained_apps WHERE slug NOT IN (?)`
+
+	var err error
+	var args []any
+	switch len(slugsToKeep) {
+	case 0:
+		stmt = `DELETE FROM fleet_maintained_apps`
+	default:
+		stmt, args, err = sqlx.In(stmt, slugsToKeep)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building sqlx.In statement for clearing removed maintained apps")
+		}
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "clearing removed maintained apps")
+	}
+
+	return nil
 }

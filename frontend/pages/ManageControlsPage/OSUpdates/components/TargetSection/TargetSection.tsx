@@ -4,12 +4,11 @@ import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 import { ApplePlatform } from "interfaces/platform";
 
-import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
 import WindowsTargetForm from "../WindowsTargetForm";
 import PlatformTabs from "../PlatformTabs";
-import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
+import { OSUpdatesTargetPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
 
@@ -18,6 +17,27 @@ type GetDefaultFnParams = {
   currentTeamId: number;
   appConfig: IConfig;
   teamConfig?: ITeamConfig;
+};
+
+const getDefaultUpdateNewHosts = ({
+  osType,
+  currentTeamId,
+  appConfig,
+  teamConfig,
+}: GetDefaultFnParams) => {
+  const mdmData =
+    currentTeamId === API_NO_TEAM_ID ? appConfig?.mdm : teamConfig?.mdm;
+
+  switch (osType) {
+    case "darwin":
+      return !!mdmData?.macos_updates.update_new_hosts;
+    case "ios":
+      return !!mdmData?.ios_updates.update_new_hosts;
+    case "ipados":
+      return !!mdmData?.ipados_updates.update_new_hosts;
+    default:
+      return false;
+  }
 };
 
 const getDefaultOSVersion = ({
@@ -86,9 +106,9 @@ interface ITargetSectionProps {
   appConfig: IConfig;
   currentTeamId: number;
   isFetching: boolean;
-  selectedPlatform: OSUpdatesSupportedPlatform;
+  selectedPlatform: OSUpdatesTargetPlatform;
   teamConfig?: ITeamConfig;
-  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  onSelectPlatform: (platform: OSUpdatesTargetPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
 }
@@ -106,6 +126,8 @@ const TargetSection = ({
   if (isFetching) {
     return <Spinner />;
   }
+
+  const isAndroidMdmEnabled = appConfig.mdm.android_enabled_and_configured;
 
   const isAppleMdmEnabled = appConfig.mdm.enabled_and_configured;
 
@@ -148,6 +170,12 @@ const TargetSection = ({
     appConfig,
     teamConfig,
   });
+  const defaultMacOSUpdateNewHosts = getDefaultUpdateNewHosts({
+    osType: "darwin",
+    currentTeamId,
+    appConfig,
+    teamConfig,
+  });
 
   const defaultWindowsDeadlineDays = getDefaultWindowsDeadlineDays({
     currentTeamId,
@@ -161,46 +189,40 @@ const TargetSection = ({
   });
 
   const renderTargetForms = () => {
-    if (isAppleMdmEnabled) {
+    if (isWindowsMdmEnabled && !isAppleMdmEnabled && !isAndroidMdmEnabled) {
       return (
-        <PlatformTabs
+        <WindowsTargetForm
           currentTeamId={currentTeamId}
-          defaultMacOSVersion={defaultMacOSVersion}
-          defaultMacOSDeadline={defaultMacOSDeadline}
-          defaultIOSVersion={defaultIOSVersion}
-          defaultIOSDeadline={defaultIOSDeadline}
-          defaultIPadOSVersion={defaultIPadOSOSVersion}
-          defaultIPadOSDeadline={defaultIPadOSDeadline}
-          defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
-          defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
-          selectedPlatform={selectedPlatform}
-          onSelectPlatform={onSelectPlatform}
+          defaultDeadlineDays={defaultWindowsDeadlineDays}
+          defaultGracePeriodDays={defaultWindowsGracePeriodDays}
           refetchAppConfig={refetchAppConfig}
           refetchTeamConfig={refetchTeamConfig}
-          isWindowsMdmEnabled={isWindowsMdmEnabled}
         />
       );
     }
     return (
-      <WindowsTargetForm
+      <PlatformTabs
         currentTeamId={currentTeamId}
-        defaultDeadlineDays={defaultWindowsDeadlineDays}
-        defaultGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSVersion={defaultMacOSVersion}
+        defaultMacOSDeadline={defaultMacOSDeadline}
+        defaultIOSVersion={defaultIOSVersion}
+        defaultIOSDeadline={defaultIOSDeadline}
+        defaultIPadOSVersion={defaultIPadOSOSVersion}
+        defaultIPadOSDeadline={defaultIPadOSDeadline}
+        defaultWindowsDeadlineDays={defaultWindowsDeadlineDays}
+        defaultWindowsGracePeriodDays={defaultWindowsGracePeriodDays}
+        defaultMacOSUpdateNewHosts={defaultMacOSUpdateNewHosts}
+        selectedPlatform={selectedPlatform}
+        onSelectPlatform={onSelectPlatform}
         refetchAppConfig={refetchAppConfig}
         refetchTeamConfig={refetchTeamConfig}
+        isWindowsMdmEnabled={isWindowsMdmEnabled}
+        isAndroidMdmEnabled={isAndroidMdmEnabled}
       />
     );
   };
 
-  return (
-    <div className={baseClass}>
-      <SectionHeader
-        title="Target"
-        wrapperCustomClass={`${baseClass}__header`}
-      />
-      {renderTargetForms()}
-    </div>
-  );
+  return <div className={baseClass}>{renderTargetForms()}</div>;
 };
 
 export default TargetSection;

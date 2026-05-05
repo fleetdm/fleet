@@ -19,7 +19,7 @@ Fleet will now automatically create a user account when a new user attempts to l
 ## See remaining disk space for all hosts
 **Available in Fleet Free and Fleet Premium**
 
-![See remaining disk space for all hosts](../website/assets/images/articles/fleet-4.19.0-1.gif)
+![See remaining disk space for all hosts](../website/assets/images/articles/fleet-4.19.0-1-800x450@2x.gif)
 
 Fleet 4.19.0 adds the ability to quickly see which hosts may not have enough remaining disk space to install operating system updates.
 
@@ -34,7 +34,7 @@ Fleet 4.19.0 adds the ability to see a list of all Windows operating system (OS)
 
 Also, Windows operating system versions now include the display version like "21H" or "21H2." This allows you to quickly reference [endoflife.date/windows](https://endoflife.date/windows), so you can see which operating systems Microsoft no longer supports. 
 
-![Aggregate mobile device management (MDM) data](../website/assets/images/articles/fleet-4.19.0-2.gif) 
+![Aggregate mobile device management (MDM) data](../website/assets/images/articles/fleet-4.19.0-2-800x450@2x.gif) 
 
 Fleet 4.19.0 also adds the improved Windows operating system versions on the **Hosts** page and **Host details** page in the Fleet UI, as well as the `GET /hosts` and `GET /hosts/{id}` API routes.
 

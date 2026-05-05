@@ -2,7 +2,7 @@ import { getErrorReason } from "interfaces/errors";
 
 const UPLOAD_ERROR_MESSAGES = {
   default: {
-    message: "Couldn't upload. Please try again.",
+    message: "Couldn't add. Please try again.",
   },
 };
 

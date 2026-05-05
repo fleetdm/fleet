@@ -1,0 +1,8 @@
+{
+  "name": "VLC media player",
+  "unique_identifier": "org.videolan.vlc",
+  "token": "vlc",
+  "installer_format": "dmg",
+  "slug": "vlc/darwin",
+  "default_categories": ["Productivity"]
+}

@@ -4,6 +4,7 @@ import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
 import { getErrorReason } from "interfaces/errors";
+import { isIPadOrIPhone } from "interfaces/platform";
 import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
 
 import Modal from "components/Modal";
@@ -83,6 +84,14 @@ const UnlockModal = ({
       );
     }
 
+    if (isIPadOrIPhone(platform)) {
+      return (
+        <p>
+          This will disable Lost Mode. End users will be able to use the host.
+        </p>
+      );
+    }
+
     return (
       <>
         <p>
@@ -96,8 +105,8 @@ const UnlockModal = ({
     if (platform === "darwin") {
       return (
         <>
-          <Button type="button" onClick={onClose} variant="brand">
-            Done
+          <Button type="button" onClick={onClose}>
+            Close
           </Button>
         </>
       );
@@ -108,7 +117,6 @@ const UnlockModal = ({
         <Button
           type="button"
           onClick={onUnlock}
-          variant="brand"
           className="delete-loading"
           isLoading={isUnlocking}
         >
@@ -122,14 +130,12 @@ const UnlockModal = ({
   };
 
   return (
-    <Modal className={baseClass} title="Unlock host" onExit={onClose}>
-      <>
-        <div className={`${baseClass}__modal-content`}>
-          {renderModalContent()}
-        </div>
+    <Modal className={baseClass} title="Unlock" onExit={onClose}>
+      <div className={`${baseClass}__modal-content`}>
+        {renderModalContent()}
+      </div>
 
-        <div className="modal-cta-wrap">{renderModalButtons()}</div>
-      </>
+      <div className="modal-cta-wrap">{renderModalButtons()}</div>
     </Modal>
   );
 };

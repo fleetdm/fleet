@@ -27,7 +27,7 @@ describe("Dashboard software card", () => {
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "vscode",
           vendor: "Microsoft",
           generated_cpe:
             "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
@@ -46,16 +46,18 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
         {
           id: 758,
           name: noVulnSwInfo.name,
           version: noVulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "cursor",
           generated_cpe: "",
           vulnerabilities: null,
           hosts_count: noVulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };
@@ -70,6 +72,7 @@ describe("Dashboard software card", () => {
         software={allSwResponse}
         teamId={-1}
         router={createMockRouter()}
+        softwarePageIndex={0}
       />
     );
 
@@ -78,9 +81,11 @@ describe("Dashboard software card", () => {
     expect(screen.getByText("Hosts")).toBeInTheDocument();
 
     Object.keys(noVulnSwInfo).forEach((key) => {
-      expect(
-        screen.getByText(noVulnSwInfo[key as keyof typeof noVulnSwInfo])
-      ).toBeInTheDocument();
+      const value = noVulnSwInfo[key as keyof typeof noVulnSwInfo];
+      const elements = screen.getAllByText((content, element) => {
+        return element?.textContent === String(value);
+      });
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
   it("renders vulnerable software normally when present", () => {
@@ -92,7 +97,7 @@ describe("Dashboard software card", () => {
           name: vulnSwInfo.name,
           version: vulnSwInfo.version,
           source: "vscode_extensions",
-          browser: "",
+          extension_for: "vscode",
           vendor: "Microsoft",
           generated_cpe:
             "cpe:2.3:a:microsoft:jupyter:2023.10.10:*:*:*:*:visual_studio_code:*:*",
@@ -111,6 +116,7 @@ describe("Dashboard software card", () => {
             },
           ],
           hosts_count: vulnSwInfo.hostsCount,
+          icon_url: null,
         },
       ],
     };
@@ -125,6 +131,7 @@ describe("Dashboard software card", () => {
         software={vulnSwResponse}
         teamId={-1}
         router={createMockRouter()}
+        softwarePageIndex={0}
       />
     );
 
@@ -133,9 +140,11 @@ describe("Dashboard software card", () => {
     expect(screen.getByText("Hosts")).toBeInTheDocument();
 
     Object.keys(vulnSwInfo).forEach((key) => {
-      expect(
-        screen.getByText(vulnSwInfo[key as keyof typeof vulnSwInfo])
-      ).toBeInTheDocument();
+      const value = vulnSwInfo[key as keyof typeof vulnSwInfo];
+      const elements = screen.getAllByText((content, element) => {
+        return element?.textContent === String(value);
+      });
+      expect(elements.length).toBeGreaterThan(0);
     });
   });
 });

@@ -18,7 +18,7 @@ func Up_20161118212656(tx *sql.Tx) error {
 			"`key` varchar(255) NOT NULL," +
 			"PRIMARY KEY (`id`)," +
 			"UNIQUE KEY `idx_session_unique_key` (`key`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	return err
 }

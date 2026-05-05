@@ -30,11 +30,12 @@
 
         &:hover,
         &:focus {
-          background-color: $ui-vibrant-blue-10;
+          background-color: $ui-fleet-black-10;
           color: $core-fleet-black;
         }
       }
     }
+
     @media (min-width: $break-md) {
       display: none;
     }

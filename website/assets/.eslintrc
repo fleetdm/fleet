@@ -49,13 +49,15 @@
     "docsearch": true,
     "Chart": true,
     "gtag": true,
-    "analytics": true,
+    "ace": true,
+    'qualified': true,
     // ...etc.
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // Make sure backend globals aren't indadvertently tolerated in our client-side JS:
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     "sails": false,
+    "ƒ": false,
     "User": false,
     "HistoricalUsageSnapshot": false,
     "Quote": false,
@@ -64,6 +66,9 @@
     "VantaConnection": false,
     "CertificateSigningRequest": false,
     "Platform": false,
+    "AdCampaign": false,
+    "MicrosoftComplianceTenant": false,
+    "AndroidEnterprise": false,
     // ...and any other backend globals (e.g. `"Organization": false`)
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   }

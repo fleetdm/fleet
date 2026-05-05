@@ -3,6 +3,9 @@ name: Test fleetctl preview
 
 on:
   workflow_dispatch: # Manual
+  pull_request:
+    paths:
+      - '.github/workflows/fleetctl-preview.yml'
   schedule:
   - cron: '0 2 * * *' # Nightly 2AM UTC
 
@@ -17,28 +20,23 @@ permissions:
 jobs:
   test-preview:
     timeout-minutes: 60
-    strategy:
-      matrix:
-        # Only run on Linux because:
-        #   - Linux Docker containers are not supported in Windows.
-        #   - Unattended installation of Docker on macOS fails. (see
-        #   https://github.com/docker/for-mac/issues/6450)
-        os: [ubuntu-20.04, ubuntu-22.04]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
 
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
       with:
         egress-policy: audit
 
     - name: Test fleetctl preview
+      env:
+        GITHUB_TOKEN: ${{ secrets.FLEET_RELEASE_GITHUB_PAT }}
       run: |
         npm install -g fleetctl
-        fleetctl preview
+        fleetctl preview --disable-open-browser
         sleep 10
         fleetctl get hosts | tee hosts.txt
-        [ $( cat hosts.txt | grep online | wc -l) -eq 9 ]
+        [ $( cat hosts.txt | grep online | wc -l) -eq 8 ]
       shell: bash
 
     - name: Get fleet logs

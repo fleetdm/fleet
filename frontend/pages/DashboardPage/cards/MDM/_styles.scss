@@ -1,9 +1,18 @@
 .home-mdm {
-  margin-top: $pad-large;
   position: relative;
   height: 100%; // centers loading spinner
 
-  .component__tabs-wrapper .table-container__header {
+  &__mdm-status-table {
+    .data-table-block {
+      .data-table__wrapper {
+        // this handles an edge case where the table is too wide for the
+        // container at a smaller viewport width.
+        overflow: auto;
+      }
+    }
+  }
+
+  .tab-nav .table-container__header {
     display: none;
   }
 
@@ -14,32 +23,14 @@
           .status__header {
             width: 30%;
           }
-
-          .hosts__header {
-            border-right: 0;
-            padding-right: 0;
-            width: 60px;
-          }
-
-          .linkToFilteredHosts__header {
-            width: 140px;
+        }
+        tbody {
+          .status-cell .component__tooltip-wrapper__element {
+            // prevent status name from wrapping to multiple lines
+            white-space: nowrap;
           }
         }
       }
     }
-
-    tbody {
-      .mdm-solution-link {
-        opacity: 0;
-        transition: 250ms;
-        text-overflow: none;
-      }
-      tr:hover {
-        .mdm-solution-link {
-          opacity: 1;
-        }
-      }
-    }
-
   }
 }

@@ -6,7 +6,7 @@ import { IScheduledQuery } from "interfaces/scheduled_query";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon/Icon";
 import {
   generateTableHeaders,
@@ -83,45 +83,49 @@ const PackQueriesTable = ({
           inputPlaceHolder="Search queries"
           onQueryChange={onTableQueryChange}
           resultsTitle="queries"
-          emptyComponent={() =>
-            EmptyTable({
-              header: "No queries match your search criteria",
-              info: "Try a different search.",
-            })
-          }
+          emptyComponent={() => (
+            <EmptyState
+              header="No queries match your search criteria"
+              info="Try a different search."
+            />
+          )}
           showMarkAllPages={false}
           actionButton={{
             name: "add query",
             buttonText: "Add query",
             iconSvg: "plus",
-            variant: "text-icon",
-            onActionButtonClick: onAddPackQuery,
+            iconColor: "core-fleet-green",
+            variant: "brand-inverse-icon",
+            onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
-            variant: "text-icon",
-            onActionButtonClick: onRemovePackQueries,
+            variant: "inverse",
+            onClick: onRemovePackQueries,
           }}
           searchable
           disablePagination
+          hideFooter
           isAllPagesSelected={false}
         />
       ) : (
-        <div className={`${baseClass}__no-queries`}>
-          <p>Your pack has no queries.</p>
-          <Button
-            onClick={onAddPackQuery}
-            variant="text-icon"
-            className={`${baseClass}__no-queries-action-button`}
-          >
-            <>
-              Add query
-              <Icon name="plus" />
-            </>
-          </Button>
-        </div>
+        <EmptyState
+          header="Your pack has no reports"
+          primaryButton={
+            <Button
+              onClick={onAddPackQuery}
+              variant="brand-inverse-icon"
+              iconStroke
+            >
+              <>
+                Add report
+                <Icon name="plus" color="core-fleet-green" />
+              </>
+            </Button>
+          }
+        />
       )}
     </div>
   );

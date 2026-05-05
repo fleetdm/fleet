@@ -72,7 +72,7 @@ func TestWriteFlagFile(t *testing.T) {
 func touchFile(t *testing.T, name string) {
 	t.Helper()
 
-	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0o644)
+	file, err := os.OpenFile(name, os.O_RDONLY|os.O_CREATE, 0o644) // nolint:gosec // G302
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
 }

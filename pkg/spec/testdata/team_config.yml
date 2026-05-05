@@ -5,6 +5,11 @@ agent_options:
   path: ./agent-options.yml
 controls:
   path: ./controls.yml
+labels:
+  - name: a
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
 queries:
   - path: ./top.queries.yml
   - path: ./empty.yml
@@ -26,6 +31,11 @@ policies:
     resolution: There is no resolution for this policy.
     query: SELECT 1 FROM osquery_info WHERE start_time < 0;
   - path: ./team_install_software.policies.yml
+  - name: Slack on macOS is installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app';
+    install_software:
+      app_store_id: "123456"
   - name: Script run policy
     platform: linux
     description: This should run a script on failure
@@ -34,7 +44,36 @@ policies:
       path: ./lib/collect-fleetd-logs.sh
   - path: ./policies/script-policy.yml
 software:
+  app_store_apps:
+    - app_store_id: "123456"
   packages:
     - path: ./microsoft-teams.pkg.software.yml
+      labels_include_any:
+        - a
+      categories:
+        - Productivity
+        - Communication
     - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
       self_service: true
+      labels_exclude_any:
+        - a
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      version: "4.47.65"
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+    - slug: box-drive/windows
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml
+      self_service: true
+      categories:
+        - Productivity
+        - Developer tools

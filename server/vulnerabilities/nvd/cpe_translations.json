@@ -12,6 +12,26 @@
   },
   {
     "software": {
+      "name": ["vault"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["vault"],
+      "vendor": ["hashicorp"]
+    }
+  },
+  {
+    "software": {
+      "name": ["pass"],
+      "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["simple_password_store"],
+      "vendor": ["simple_password_store_project"]
+    }
+  },
+  {
+    "software": {
       "name": ["/^ruby(@.*)?$/"],
       "source": ["homebrew_packages"]
     },
@@ -62,6 +82,16 @@
   },
   {
     "software": {
+      "name": ["/^Python 3\\.\\d{1,2}/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["python"],
+      "vendor": ["python"]
+    }
+  },
+  {
+    "software": {
       "name": ["Docs"],
       "source": ["chrome_extensions"]
     },
@@ -88,8 +118,27 @@
       "source": ["apps"]
     },
     "filter": {
-      "product": ["docker_desktop"],
-      "vendor": ["docker"]
+      "product": ["desktop"],
+      "vendor": ["docker"],
+      "sw_edition": [""]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.nextcloud.desktopclient"]
+    },
+    "filter": {
+      "product": ["desktop"],
+      "vendor": ["nextcloud"]
+    }
+  },
+  {
+    "software": {
+      "name": ["jira"],
+      "source": ["python_packages"]
+    },
+    "filter": {
+      "skip": true
     }
   },
   {
@@ -134,6 +183,16 @@
     "software": {
       "name": ["/^intellij-idea(-ce)?$/"],
       "source": ["homebrew_packages"]
+    },
+    "filter": {
+      "product": ["intellij_idea"],
+      "vendor": ["jetbrains"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/^IntelliJ IDEA Community Edition/"],
+      "source": ["programs"]
     },
     "filter": {
       "product": ["intellij_idea"],
@@ -312,6 +371,15 @@
   },
   {
     "software": {
+      "name": ["/golang\\.go/"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["ms-vscode-remote.vscode-remote-extensionpack"],
       "source": ["vscode_extensions"]
     },
@@ -442,6 +510,15 @@
   },
   {
     "software": {
+      "name": ["docker.docker"],
+      "source": ["vscode_extensions"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "name": ["oracle.mysql-shell-for-vs-code"],
       "source": ["vscode_extensions"]
     },
@@ -462,6 +539,16 @@
   },
   {
     "software": {
+      "bundle_identifier": ["com.now.gg.BlueStacksMIM"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["bluestacks"],
+      "vendor": ["bluestacks"]
+    }
+  },
+  {
+    "software": {
       "name": ["sourcegraph.cody-ai"],
       "source": ["vscode_extensions"]
     },
@@ -478,6 +565,26 @@
     "filter": {
       "product": ["pull_requests_and_issues"],
       "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.oracle.SQLDeveloper"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["sql_developer"],
+      "vendor": ["oracle"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.poly.lens.legacyhost.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["lens"],
+      "vendor": ["poly"]
     }
   },
   {
@@ -530,6 +637,14 @@
   },
   {
     "software": {
+      "name": ["git-man"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
       "bundle_identifier": ["org.virtualbox.app.VirtualBox"]
     },
     "filter": {
@@ -544,6 +659,104 @@
     "filter": {
       "product": ["cli"],
       "vendor": ["github"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.googlecode.iterm2"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["iterm2"],
+      "vendor": ["iterm2"],
+      "skip": false
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["/^com\\.googlecode\\.iterm2\\./"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "target_sw": ["node.js"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Firefox ESR.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["firefox"],
+      "vendor": ["mozilla"],
+      "sw_edition": ["esr"]
+    }
+  },
+  {
+    "software": {
+      "bundle_identifier": ["com.logi.bolt.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "skip": true
+    }
+  },
+  {
+    "software": {
+      "name": ["/Snyk/"],
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "product": ["snyk_security"],
+      "target_sw": ["intellij"],
+      "vendor": ["snyk"]
+    }
+  },
+  {
+    "software": {
+      "source": ["jetbrains_plugins"]
+    },
+    "filter": {
+      "target_sw": ["intellij"]
+    }
+  },
+  {
+    "software": {
+      "name": ["/(?i)^pgadmin ?4/"],
+      "source": ["programs", "homebrew_packages"]
+    },
+    "filter": {
+      "product": ["pgadmin", "pgadmin_4"],
+      "vendor": ["pgadmin"],
+      "target_sw": ["postgresql"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Acrobat Reader"],
+      "source": ["apps"],
+      "bundle_identifier": ["com.adobe.Reader"]
+    },
+    "filter": {
+      "product": ["acrobat_reader_dc"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Mattermost", "/^Mattermost \\d/"],
+      "source": ["programs"]
+    },
+    "filter": {
+      "product": ["mattermost_desktop"],
+      "vendor": ["mattermost"]
     }
   }
 ]

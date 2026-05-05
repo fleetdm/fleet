@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -25,25 +26,42 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
+	fleet_httptest "github.com/fleetdm/fleet/v4/server/test/httptest"
 	"github.com/ghodss/yaml"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
+// testSAMLIDPBaseURL is the SAML IDP base URL, read from FLEET_SAML_IDP_HTTP_PORT (defaults to http://localhost:9080).
+var (
+	testSAMLIDPBaseURL     = getTestSAMLIDPBaseURL()
+	testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
+	testSAMLIDPSSOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
+	testSAMLIDPSLOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+)
+
+func getTestSAMLIDPBaseURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return "http://localhost:9080"
+}
+
 type withDS struct {
-	s  *suite.Suite
-	ds *mysql.Datastore
+	s       *suite.Suite
+	ds      *mysql.Datastore
+	dbConns *common_mysql.DBConnections
 }
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds = mysql.CreateNamedMySQLDS(t, dbName)
+	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
@@ -76,6 +94,10 @@ type withServer struct {
 	cachedTokens   map[string]string // email -> auth token
 
 	lq *live_query_mock.MockLiveQuery
+
+	redisPool fleet.RedisPool
+
+	fleetSvc fleet.Service
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -84,20 +106,23 @@ func (ts *withServer) SetupSuite(dbName string) {
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
 	cfg.Osquery.EnrollCooldown = 0
+	redisPool := redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false)
 	opts := &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
-		Pool:        redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false),
+		Pool:        redisPool,
+		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, opts)
 	ts.server = server
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
+	ts.redisPool = redisPool
 }
 
 func (ts *withServer) TearDownSuite() {
@@ -138,19 +163,33 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
 	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
-		return err
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM in_house_apps;")
+		if err != nil {
+			return err
+		}
+
+		_, err = q.ExecContext(ctx, "DELETE FROM vpp_apps;")
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
-	lbls, err := ts.ds.ListLabels(ctx, fleet.TeamFilter{}, fleet.ListOptions{})
+	lbls, err := ts.ds.ListLabels(ctx, filter, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	for _, lbl := range lbls {
 		if lbl.LabelType != fleet.LabelTypeBuiltIn {
-			err := ts.ds.DeleteLabel(ctx, lbl.Name)
+			err := ts.ds.DeleteLabel(ctx, lbl.Name, filter)
 			require.NoError(t, err)
 		}
 	}
 
-	queries, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
+	queries, _, _, _, err := ts.ds.ListQueries(ctx, fleet.ListQueryOptions{})
 	require.NoError(t, err)
 	queryIDs := make([]uint, 0, len(queries))
 	for _, query := range queries {
@@ -198,7 +237,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// Do the software/titles cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
-	err = ts.ds.ReconcileSoftwareTitles(ctx)
+	err = ts.ds.CleanupSoftwareTitles(ctx)
 	require.NoError(t, err)
 	err = ts.ds.SyncHostsSoftwareTitles(ctx, time.Now())
 	require.NoError(t, err)
@@ -224,6 +263,24 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		_, err := tx.ExecContext(ctx, "DELETE FROM secret_variables")
 		return err
 	})
+
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM fleet_maintained_apps; ")
+		return err
+	})
+	// Most tests reference FMAs by ID, and the expect the records to be inserted starting with 1, so we need to reset the auto increment.
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "ALTER TABLE fleet_maintained_apps AUTO_INCREMENT = 1;")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -243,47 +300,16 @@ func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCo
 func (ts *withServer) DoRawWithHeaders(
 	verb string, path string, rawBytes []byte, expectedStatusCode int, headers map[string]string, queryParams ...string,
 ) *http.Response {
-	t := ts.s.T()
-
-	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
-	req, err := http.NewRequest(verb, ts.server.URL+path, requestBody)
-	require.NoError(t, err)
-	for key, val := range headers {
-		req.Header.Add(key, val)
-	}
-
 	opts := []fleethttp.ClientOpt{}
 	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}
 	client := fleethttp.NewClient(opts...)
+	return fleet_httptest.DoHTTPReq(ts.s.T(), client, decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
+}
 
-	if len(queryParams)%2 != 0 {
-		require.Fail(t, "need even number of params: key value")
-	}
-	if len(queryParams) > 0 {
-		q := req.URL.Query()
-		for i := 0; i < len(queryParams); i += 2 {
-			q.Add(queryParams[i], queryParams[i+1])
-		}
-		req.URL.RawQuery = q.Encode()
-	}
-
-	resp, err := client.Do(req)
-	require.NoError(t, err)
-
-	if resp.StatusCode != expectedStatusCode {
-		defer resp.Body.Close()
-		var je jsonError
-		err := json.NewDecoder(resp.Body).Decode(&je)
-		if err != nil {
-			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
-			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
-		}
-		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
-	}
-
-	return resp
+func decodeJSON(r io.Reader, v interface{}) error {
+	return json.NewDecoder(r).Decode(v)
 }
 
 func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -292,16 +318,16 @@ func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedS
 	}, queryParams...)
 }
 
-func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int) *http.Response {
-	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil)
+func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
+	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil, queryParams...)
 }
 
 func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
-	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+	if e, ok := v.(fleet.Errorer); ok {
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
@@ -315,8 +341,8 @@ func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, e
 	})
 	err = json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
-	if e, ok := v.(errorer); ok {
-		require.NoError(ts.s.T(), e.error())
+	if e, ok := v.(fleet.Errorer); ok {
+		require.NoError(ts.s.T(), e.Error())
 	}
 }
 
@@ -360,18 +386,22 @@ func (ts *withServer) getCachedUserToken(email, password string) string {
 }
 
 func (ts *withServer) getTestToken(email string, password string) string {
-	params := loginRequest{
+	return GetToken(ts.s.T(), email, password, ts.server.URL)
+}
+
+func GetToken(t *testing.T, email string, password string, serverURL string) string {
+	params := contract.LoginRequest{
 		Email:    email,
 		Password: password,
 	}
 	j, err := json.Marshal(&params)
-	require.NoError(ts.s.T(), err)
+	require.NoError(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
-	resp, err := http.Post(ts.server.URL+"/api/latest/fleet/login", "application/json", requestBody)
-	require.NoError(ts.s.T(), err)
+	resp, err := http.Post(serverURL+"/api/latest/fleet/login", "application/json", requestBody)
+	require.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(ts.s.T(), http.StatusOK, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	jsn := struct {
 		User  *fleet.User         `json:"user"`
@@ -379,8 +409,8 @@ func (ts *withServer) getTestToken(email string, password string) string {
 		Err   []map[string]string `json:"errors,omitempty"`
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
-	require.NoError(ts.s.T(), err)
-	require.Len(ts.s.T(), jsn.Err, 0)
+	require.NoError(t, err)
+	require.Len(t, jsn.Err, 0)
 
 	return jsn.Token
 }
@@ -410,30 +440,76 @@ func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
 	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
 }
 
-func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
+func (ts *withServer) LoginSSOUser(username, password string) string {
 	t := ts.s.T()
-	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
 	defer res.Body.Close()
 	body, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
-	return auth, string(body)
+	return string(body)
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
+	res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 
-func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) (fleet.Auth, *http.Response) {
+func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
+	requestParams := initiateMDMSSORequest{
+		Initiator:      "account_driven_enroll",
+		UserIdentifier: username + "@example.com",
+	}
+	body, err := json.Marshal(requestParams)
+	require.NoError(ts.s.T(), err)
+	res := ts.loginSSOUserWithBody(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther, body)
+	return res
+}
+
+func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID string) string {
+	t := ts.s.T()
+	res := ts.loginSSOUserIDPInitiated(
+		username, password,
+		"/api/v1/fleet/sso",
+		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, entityID),
+		http.StatusOK,
+	)
+	defer res.Body.Close()
+	body, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	return string(body)
+}
+
+func (ts *withServer) doWithClient(
+	client *http.Client,
+	verb string, path string, rawBytes []byte,
+	expectedStatusCode int, headers map[string]string,
+	queryParams ...string,
+) *http.Response {
+	return fleet_httptest.DoHTTPReq(
+		ts.s.T(),
+		client,
+		decodeJSON,
+		verb,
+		rawBytes,
+		ts.server.URL+path,
+		headers,
+		expectedStatusCode,
+		queryParams...,
+	)
+}
+
+func (ts *withServer) loginSSOUser(username, password string, basePath string, callbackStatus int) *http.Response {
+	return ts.loginSSOUserWithBody(username, password, basePath, callbackStatus, []byte(`{}`))
+}
+
+func (ts *withServer) loginSSOUserWithBody(username, password string, basePath string, callbackStatus int, requestBody []byte) *http.Response {
 	t := ts.s.T()
 
 	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
 		t.Skip("SSO tests are disabled")
 	}
 
-	var resIni initiateSSOResponse
-	ts.DoJSON("POST", basePath, map[string]string{}, http.StatusOK, &resIni)
-
+	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
 
@@ -441,6 +517,12 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 		fleethttp.WithFollowRedir(false),
 		fleethttp.WithCookieJar(jar),
 	)
+
+	var resIni initiateSSOResponse
+	httpResponse := ts.doWithClient(client, "POST", basePath, requestBody, http.StatusOK, nil)
+	err = json.NewDecoder(httpResponse.Body).Decode(&resIni)
+	require.NoError(ts.s.T(), err)
+	require.NoError(ts.s.T(), resIni.Error())
 
 	resp, err := client.Get(resIni.URL)
 	require.NoError(t, err)
@@ -462,29 +544,115 @@ func (ts *withServer) loginSSOUser(username, password string, basePath string, c
 	defer resp.Body.Close()
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	re := regexp.MustCompile(`value="(.*)"`)
+
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	samlResponse := string(matches[1])
+
+	callbackUrl := basePath + "/callback"
+	res := ts.doWithClient(client, "POST", callbackUrl, nil, callbackStatus, nil, "SAMLResponse", samlResponse)
+
+	return res
+}
+
+func (ts *withServer) loginSSOUserIDPInitiated(
+	username, password string,
+	callbackBasePath string,
+	idpURL string,
+	callbackStatus int,
+) *http.Response {
+	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+
+	resp, err := client.Get(idpURL)
+	require.NoError(t, err)
+
+	// From the redirect Location header we can get the AuthState and the URL to
+	// which we submit the credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {username},
+		"password":  {password},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+
+	// The response is an HTML form, we can extract the base64-encoded response
+	// to submit to the Fleet server from here
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
 	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
 	rawSSOResp := string(matches[1])
 
-	auth, err := sso.DecodeAuthResponse(rawSSOResp)
-	require.NoError(t, err)
 	q := url.QueryEscape(rawSSOResp)
-	res := ts.DoRawNoAuth("POST", basePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
+	res := ts.DoRawNoAuth("POST", callbackBasePath+"/callback?SAMLResponse="+q, nil, callbackStatus)
 
-	return auth, res
+	return res
+}
+
+type listActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listActivitiesResponse) Error() error { return r.Err }
+
+func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+	return ts.lastActivityMatchesExtended(name, details, id, nil)
 }
 
 // gets the latest activity and checks that it matches any provided properties.
 // empty string or 0 id means do not check that property. It returns the ID of that
 // latest activity.
-func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
+func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint, fleetInitiated *bool) uint {
 	t := ts.s.T()
 	var listActivities listActivitiesResponse
 	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "1")
 	require.True(t, len(listActivities.Activities) > 0)
 
 	act := listActivities.Activities[0]
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
+	}
+	if fleetInitiated != nil {
+		assert.Equal(t, *fleetInitiated, act.FleetInitiated)
+	}
+	return act.ID
+}
+
+func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.NotEmpty(t, listActivities.Activities)
+
+	act := listActivities.Activities[0]
+
 	if name != "" {
 		assert.Equal(t, name, act.Type)
 	}
@@ -552,6 +720,16 @@ func (ts *withServer) lastActivityOfTypeDoesNotMatch(name, details string, id ui
 	}
 }
 
+// listActivities retrieves all activities via the HTTP API endpoint.
+func (ts *withServer) listActivities() []*fleet.Activity {
+	t := ts.s.T()
+	var resp listActivitiesResponse
+	ts.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &resp,
+		"order_key", "a.id", "order_direction", "asc", "per_page", "10000")
+	require.NotNil(t, resp.Activities)
+	return resp.Activities
+}
+
 func (ts *withServer) uploadSoftwareInstaller(
 	t *testing.T,
 	payload *fleet.UploadSoftwareInstallerPayload,
@@ -570,19 +748,26 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
-	if errors.Is(err, os.ErrNotExist) {
-		var err2 error
-		tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
-		if err2 == nil {
-			err = nil
+	// Determine which file to use: either provided by test or opened from testdata
+	var installerFile io.Reader
+	if payload.InstallerFile == nil {
+		// Open file from testdata and close it when done
+		tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
+		// Try the test installers in the pkg/file testdata (to reduce clutter/copies).
+		if errors.Is(err, os.ErrNotExist) {
+			var err2 error
+			tfr, err2 = fleet.NewKeepFileReader(filepath.Join("..", "..", "pkg", "file", "testdata", "software-installers", payload.Filename))
+			if err2 == nil {
+				err = nil
+			}
 		}
+		require.NoError(t, err)
+		defer tfr.Close()
+		installerFile = tfr
+	} else {
+		// Use the file provided by the test
+		installerFile = payload.InstallerFile
 	}
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -590,7 +775,7 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	// add the software field
 	fw, err := w.CreateFormFile("software", payload.Filename)
 	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
+	n, err := io.Copy(fw, installerFile)
 	require.NoError(t, err)
 	require.NotZero(t, n)
 
@@ -614,6 +799,11 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	if payload.LabelsExcludeAny != nil {
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
 		}
 	}
 	if payload.AutomaticInstall {
@@ -650,21 +840,17 @@ func (ts *withServer) updateSoftwareInstaller(
 ) {
 	t.Helper()
 
-	tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "software-installers", payload.Filename))
-	require.NoError(t, err)
-	defer tfr.Close()
-
-	payload.InstallerFile = tfr
-
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
 
 	// add the software field
-	fw, err := w.CreateFormFile("software", payload.Filename)
-	require.NoError(t, err)
-	n, err := io.Copy(fw, payload.InstallerFile)
-	require.NoError(t, err)
-	require.NotZero(t, n)
+	if payload.Filename != "" && payload.InstallerFile != nil {
+		fw, err := w.CreateFormFile("software", payload.Filename)
+		require.NoError(t, err)
+		n, err := io.Copy(fw, payload.InstallerFile)
+		require.NoError(t, err)
+		require.NotZero(t, n)
+	}
 
 	// add the team_id field
 	var tmID uint
@@ -702,6 +888,19 @@ func (ts *withServer) updateSoftwareInstaller(
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
+		}
+	}
+	if payload.Categories != nil {
+		for _, c := range payload.Categories {
+			require.NoError(t, w.WriteField("categories", c))
+		}
+	}
+	if payload.DisplayName != nil {
+		require.NoError(t, w.WriteField("display_name", *payload.DisplayName))
+	}
 
 	w.Close()
 
@@ -717,5 +916,16 @@ func (ts *withServer) updateSoftwareInstaller(
 	if expectedError != "" {
 		errMsg := extractServerErrorText(r.Body)
 		require.Contains(t, errMsg, expectedError)
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+
+	var resp getSoftwareInstallerResponse
+	require.NoError(t, json.Unmarshal(bodyBytes, &resp))
+
+	if payload.DisplayName != nil {
+		assert.Equal(t, *payload.DisplayName, resp.SoftwareInstaller.DisplayName)
 	}
 }

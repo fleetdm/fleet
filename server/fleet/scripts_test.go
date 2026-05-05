@@ -26,6 +26,14 @@ func TestScriptValidate(t *testing.T) {
 			wantErr: nil,
 		},
 		{
+			name: "valid python script",
+			script: Script{
+				Name:           "test.py",
+				ScriptContents: "#!/usr/bin/env python3\nprint('hi')",
+			},
+			wantErr: nil,
+		},
+		{
 			name: "empty name",
 			script: Script{
 				Name:           "",
@@ -39,7 +47,7 @@ func TestScriptValidate(t *testing.T) {
 				Name:           "test.txt",
 				ScriptContents: "valid",
 			},
-			wantErr: errors.New("File type not supported. Only .sh and .ps1 file type is allowed."),
+			wantErr: errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed."),
 		},
 		{
 			name: "invalid script content",
@@ -82,13 +90,33 @@ func TestValidateShebang(t *testing.T) {
 			directExecute: true,
 		},
 		{
+			name:          "bash shebang",
+			contents:      "#!/bin/bash\necho hi",
+			directExecute: true,
+		},
+		{
 			name:          "zsh shebang with args",
 			contents:      "#!/bin/zsh -x\necho hi",
 			directExecute: true,
 		},
 		{
+			name:          "python3 env shebang",
+			contents:      "#!/usr/bin/env python3\nprint('hi')",
+			directExecute: true,
+		},
+		{
+			name:          "python3 direct shebang",
+			contents:      "#!/usr/bin/python3\nprint('hi')",
+			directExecute: true,
+		},
+		{
+			name:          "python3 env shebang with args",
+			contents:      "#!/usr/bin/env python3 -u\nprint('hi')",
+			directExecute: true,
+		},
+		{
 			name:          "shebang with unsupported interpreter",
-			contents:      "#!/usr/bin/python\nprint('hi')",
+			contents:      "#!/bin/ksh\necho hi",
 			directExecute: false,
 			err:           ErrUnsupportedInterpreter,
 		},
@@ -143,12 +171,22 @@ func TestValidateHostScriptContents(t *testing.T) {
 		},
 		{
 			name:    "unsupported interpreter",
-			script:  "#!/bin/bash\necho 'hello'",
+			script:  "#!/bin/ksh\necho 'hello'",
 			wantErr: ErrUnsupportedInterpreter,
 		},
 		{
 			name:    "valid script",
 			script:  "#!/bin/sh\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/bin/bash\necho 'hello'",
+			wantErr: nil,
+		},
+		{
+			name:    "valid bash script",
+			script:  "#!/usr/bin/bash\necho 'hello'",
 			wantErr: nil,
 		},
 		{
@@ -161,11 +199,171 @@ func TestValidateHostScriptContents(t *testing.T) {
 			script:  "#!/usr/bin/zsh\necho 'hello'",
 			wantErr: nil,
 		},
+		{
+			name:    "valid python script",
+			script:  "#!/usr/bin/env python3\nprint('hello')",
+			wantErr: nil,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateHostScriptContents(tt.script, !tt.isUnsaved)
+			require.Equal(t, tt.wantErr, err)
+		})
+	}
+}
+
+func TestValidateSoftwareInstallerScript(t *testing.T) {
+	tests := []struct {
+		name     string
+		script   string
+		platform string
+		wantErr  error
+	}{
+		{
+			name:     "empty script is valid (darwin)",
+			script:   "",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "empty script is valid (windows)",
+			script:   "",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "empty script is valid (linux)",
+			script:   "",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with bash shebang on darwin",
+			script:   "#!/bin/bash\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with sh shebang on darwin",
+			script:   "#!/bin/sh\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with zsh shebang on darwin",
+			script:   "#!/bin/zsh\necho hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with no shebang on darwin",
+			script:   "echo hello",
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with bash shebang on linux",
+			script:   "#!/bin/bash\necho hello",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid shell script with no shebang on linux",
+			script:   "echo hello",
+			platform: "linux",
+			wantErr:  nil,
+		},
+		{
+			name:     "unsupported interpreter on darwin",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "darwin",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "unsupported interpreter on linux",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "linux",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "unsupported interpreter on windows is OK (shebang not checked)",
+			script:   "#!/usr/bin/perl\nprint 'hello'",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "valid powershell content on windows",
+			script:   "Write-Host 'hello'",
+			platform: "windows",
+			wantErr:  nil,
+		},
+		{
+			name:     "too large by byte count (darwin)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "darwin",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by rune count (darwin)",
+			script:   strings.Repeat("🙂", SavedScriptMaxRuneLen+1),
+			platform: "darwin",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by byte count (windows)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "windows",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "too large by byte count (linux)",
+			script:   strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			platform: "linux",
+			wantErr:  errors.New(RunScriptSavedMaxLenErrMsg),
+		},
+		{
+			name:     "invalid utf8 encoding (darwin)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "darwin",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "invalid utf8 encoding (windows)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "windows",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "invalid utf8 encoding (linux)",
+			script:   string([]byte{0xff, 0xfe, 0xfd}),
+			platform: "linux",
+			wantErr:  errors.New("Wrong data format. Only plain text allowed."),
+		},
+		{
+			name:     "at exactly the size limit is valid",
+			script:   strings.Repeat("a", SavedScriptMaxRuneLen),
+			platform: "darwin",
+			wantErr:  nil,
+		},
+		{
+			name:     "python shebang is rejected on darwin (software installer scripts are shell only)",
+			script:   "#!/usr/bin/env python3\nprint('hello')",
+			platform: "darwin",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+		{
+			name:     "python shebang is rejected on linux (software installer scripts are shell only)",
+			script:   "#!/usr/bin/env python3\nprint('hello')",
+			platform: "linux",
+			wantErr:  ErrUnsupportedShellInterpreter,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSoftwareInstallerScript(tt.script, tt.platform)
 			require.Equal(t, tt.wantErr, err)
 		})
 	}

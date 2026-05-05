@@ -9,6 +9,7 @@ on:
       - 'handbook/**'
       - 'articles/**'
       - 'schema/**'
+      - "ee/maintained-apps/outputs/**"
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -31,18 +32,18 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x]
+        node-version: [20.x]
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
       with:
         egress-policy: audit
 
     - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     # Configure our access credentials for the Heroku CLI
-    - uses: akhileshns/heroku-deploy@79ef2ae4ff9b897010907016b268fd0f88561820 # v3.6.8
+    - uses: akhileshns/heroku-deploy@e3eb99d45a8e2ec5dca08735e089607befa4bf28 # v3.14.15
       with:
         heroku_api_key: ${{secrets.HEROKU_API_TOKEN_FOR_BOT_USER}}
         heroku_app_name: "" # this has to be blank or it doesn't work
@@ -62,12 +63,13 @@ jobs:
 
     # Install the right version of Go for the Golang child process that we are currently using for CSR signing
     - name: Set up Go
-      uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version-file: 'go.mod'
 
-    # Download top-level dependencies and build Storybook in the website's assets/ folder
-    - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
+    # 2025-08-07: The Storybook steps in website workflows have been temporarily disabled until a compatibility issue with the @storybook/test-runner has been resolved. See https://github.com/fleetdm/fleet/issues/31720 for more information.
+    # # Download top-level dependencies and build Storybook in the website's assets/ folder
+    # - run: npm install --legacy-peer-deps && npm run build-storybook -- -o ./website/assets/storybook --loglevel verbose
 
     # Now start building!
     # > …but first, get a little crazy for a sec and delete the top-level package.json file
@@ -105,18 +107,29 @@ jobs:
     # > The local config flags make this work in GitHub's environment.
     - run: git add website/.www
     - run: git add website/.tools
+    # Remove the website/assets folder
+    - run: git rm -rf --cached website/assets
     - run: git add -f website/views/partials/built-from-markdown  > /dev/null 2>&1 || echo '* * * WARNING - Silently ignoring the fact that there are no HTML partials generated from markdown to include in automated commit...'
-    - run: git -c "user.name=Fleetwood" -c "user.email=github@example.com" commit -am 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.'
 
     # Configure the Heroku app we'll be deploying to
     - run: heroku git:remote -a production-fleetdm-website
     - run: git remote -v
 
-    # Deploy to Heroku (by pushing)
-    # > Since a shallow clone was grabbed, we have to "unshallow" it before forcepushing.
-    - run: echo "Unshallowing local repository…"
-    - run: git fetch --prune --unshallow
+    # Deploy to Heroku
     - run: echo "Deploying branch '${GITHUB_REF##*/}' to Heroku…"
-    - run: git push heroku +${GITHUB_REF##*/}:master  # note that Heroku, at least as of Jun 10 2021, still uses "master" on their end
+    - name: Deploy to Heroku
+      run: |
+        set -euo pipefail
+        git add -A
+        # Create a git tree object that contains only the changes in the /website folder.
+        TREE=$(git write-tree)
+        # Create a parentless commit from the tree object.
+        COMMIT=$(git -c "user.name=Fleetwood" -c "user.email=github@example.com" \
+          commit-tree "$TREE" \
+          -m 'AUTOMATED COMMIT - Deployed the latest, including generated collateral such as compiled documentation, modified HTML layouts, and a .sailsrc file that references minified client-side code assets.')
+        # Push the parentless commit to Heroku
+        # Note: The commit pushed to Heroku will not contain the full git history.
+        # This lets up deploy the website from the Fleet monorepo while working around Heroku's pack size limits.
+        git push heroku "$COMMIT":refs/heads/master --force
     - name: 🌐 https://fleetdm.com
       run: echo '' && echo '--' && echo 'OK, done.  It should be live momentarily.' && echo '(if you get impatient, check the Heroku dashboard for status)' && echo && echo ' 🌐–•  https://fleetdm.com'

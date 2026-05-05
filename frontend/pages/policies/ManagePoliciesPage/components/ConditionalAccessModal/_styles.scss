@@ -1,0 +1,12 @@
+.conditional-access-modal {
+  .header {
+    display: flex;
+    justify-content: space-between;
+    .custom-link {
+      white-space: nowrap;
+    }
+  }
+  .paginated-list .fleet-checkbox__label {
+    gap: 0.5rem;
+  }
+}

@@ -16,6 +16,7 @@ assets/*@*.eot
 assets/*@*.woff
 assets/*@*.woff2
 assets/*@*.ttf
+assets/*@*.mp4
 frontend/templates/react.tmpl
 bindata.go
 server/bindata/generated.go
@@ -28,6 +29,9 @@ frontend/coverage
 
 # typescript generated test files
 tmp/
+
+# test debug files
+debug.test*
 
 # operating system artifacts
 .DS_Store
@@ -49,6 +53,7 @@ backup.sql.gz
 # Common mistake for new developers to run npm install and then end up
 # committing a package-lock.json. Fleet app uses Yarn with yarn.lock.
 package-lock.json
+!website/package-lock.json
 
 # infra
 .terraform
@@ -85,6 +90,7 @@ macoffice_rel_notes/
 
 # IDE
 .vscode
+.cursor
 
 # residual files when running the build-windows tool
 orbit/cmd/desktop/manifest.xml
@@ -100,8 +106,23 @@ fleetd_tables_*
 
 # Location of test extensions executables
 tools/test_extensions/hello_world/macos
-tools/test_extensions/hello_world/windows
 tools/test_extensions/hello_world/linux
+tools/test_extensions/hello_world/linux-arm64
+tools/test_extensions/hello_world/windows
+tools/test_extensions/hello_world/windows-arm64
 
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
+
+# Local dev files
+.env
+.tool-versions
+.zed/
+third_party/vuln-check/go.sum
+cvefeed
+
+# Required to not make `fleet-desktop` macOS executable built with a `dirty` flag (see #35006).
+Fleet\ Desktop.app
+
+# custom golangci-lint executable
+custom-gcl

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>martin</key>
+	<array>
+		<dict>
+			<key>ProfileDescription</key>
+			<string>Enables automatic updates</string>
+			<key>ProfileDisplayName</key>
+			<string>Turn on automatic updates</string>
+			<key>ProfileIdentifier</key>
+			<string>com.github.erikberglund.ProfileCreator.BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8</string>
+			<key>ProfileInstallDate</key>
+			<string>2025-06-18 14:07:46 +0000</string>
+			<key>ProfileItems</key>
+			<array>
+				<dict>
+					<key>PayloadContent</key>
+					<dict>
+						<key>AllowPreReleaseInstallation</key>
+						<true/>
+						<key>AutomaticCheckEnabled</key>
+						<true/>
+						<key>AutomaticDownload</key>
+						<true/>
+						<key>AutomaticallyInstallAppUpdates</key>
+						<true/>
+						<key>AutomaticallyInstallMacOSUpdates</key>
+						<true/>
+						<key>ConfigDataInstall</key>
+						<true/>
+						<key>CriticalUpdateInstall</key>
+						<true/>
+					</dict>
+					<key>PayloadDescription</key>
+					<string>Configures Software Update settings</string>
+					<key>PayloadDisplayName</key>
+					<string>Software Update</string>
+					<key>PayloadIdentifier</key>
+					<string>com.github.erikberglund.ProfileCreator.BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8.com.apple.SoftwareUpdate.A8B97032-7645-4068-B457-01DE5C6B33F7</string>
+					<key>PayloadOrganization</key>
+					<string></string>
+					<key>PayloadType</key>
+					<string>com.apple.SoftwareUpdate</string>
+					<key>PayloadUUID</key>
+					<string>A8B97032-7645-4068-B457-01DE5C6B33F7</string>
+					<key>PayloadVersion</key>
+					<integer>1</integer>
+				</dict>
+			</array>
+			<key>ProfileOrganization</key>
+			<string>FleetDM</string>
+			<key>ProfileRemovalDisallowed</key>
+			<string>true</string>
+			<key>ProfileType</key>
+			<string>Configuration</string>
+			<key>ProfileUUID</key>
+			<string>BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8</string>
+			<key>ProfileVerificationState</key>
+			<string>verified</string>
+			<key>ProfileVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>ProfileDescription</key>
+			<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+			<key>ProfileDisplayName</key>
+			<string>Turn on set time and date automatically</string>
+			<key>ProfileIdentifier</key>
+			<string>cis.macOSBenchmark.section2.TimeDate</string>
+			<key>ProfileInstallDate</key>
+			<string>2025-06-18 14:07:45 +0000</string>
+			<key>ProfileItems</key>
+			<array>
+				<dict>
+					<key>PayloadContent</key>
+					<dict>
+						<key>forceAutomaticDateAndTime</key>
+						<true/>
+					</dict>
+					<key>PayloadDisplayName</key>
+					<string>2.2.1 - Ensure Set time and date automatically is Enabled</string>
+					<key>PayloadIdentifier</key>
+					<string>com.apple.applicationaccess</string>
+					<key>PayloadType</key>
+					<string>com.apple.applicationaccess</string>
+					<key>PayloadUUID</key>
+					<string>031F88EC-976F-4599-8532-DDB4809E2573</string>
+					<key>PayloadVersion</key>
+					<integer>1</integer>
+				</dict>
+			</array>
+			<key>ProfileOrganization</key>
+			<string>Center for Internet Security</string>
+			<key>ProfileRemovalDisallowed</key>
+			<string>true</string>
+			<key>ProfileType</key>
+			<string>Configuration</string>
+			<key>ProfileUUID</key>
+			<string>C352A927-0C49-4AB2-AC98-27CE9F3391D7</string>
+			<key>ProfileVerificationState</key>
+			<string>verified</string>
+			<key>ProfileVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+</dict>
+</plist>

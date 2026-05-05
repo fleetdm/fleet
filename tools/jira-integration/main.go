@@ -12,6 +12,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/log"
 )
 
 func main() {
@@ -77,15 +77,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	ds := new(mock.Store)
 	ds.HostsByCVEFunc = func(ctx context.Context, cve string) ([]fleet.HostVulnerabilitySummary, error) {
 		hosts := make([]fleet.HostVulnerabilitySummary, *hostsCount)
 		for i := 0; i < *hostsCount; i++ {
-			hosts[i] = fleet.HostVulnerabilitySummary{ID: uint(i + 1), //nolint:gosec // dismiss G115
+			hosts[i] = fleet.HostVulnerabilitySummary{
+				ID:          uint(i + 1), //nolint:gosec // dismiss G115
 				Hostname:    fmt.Sprintf("host-test-%d", i+1),
-				DisplayName: fmt.Sprintf("host-test-%d", i+1)}
+				DisplayName: fmt.Sprintf("host-test-%d", i+1),
+			}
 		}
 		return hosts, nil
 	}
@@ -105,11 +107,11 @@ func main() {
 			},
 		}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
-		return &fleet.Team{
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{
 			ID:   tid,
 			Name: fmt.Sprintf("team-test-%d", tid),
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Jira: []*fleet.TeamJiraIntegration{
 						{

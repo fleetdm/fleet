@@ -1,11 +1,13 @@
 import React from "react";
 
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
+
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IHeaderProps {
   column: {
@@ -62,7 +64,7 @@ const generateTableHeaders = (
       Cell: (cellProps: ICellProps) => (
         <LinkCell
           value={cellProps.cell.value}
-          path={PATHS.TEAM_DETAILS_USERS(cellProps.row.original.id)}
+          path={PATHS.FLEET_DETAILS_USERS(cellProps.row.original.id)}
         />
       ),
     },
@@ -91,12 +93,27 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (
-        <ActionsDropdown
-          options={cellProps.cell.value}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder={"Actions"}
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <div
+              className={
+                disableChildren
+                  ? "disabled-by-gitops-mode team-actions-wrapper"
+                  : "team-actions-wrapper"
+              }
+            >
+              <ActionsDropdown
+                options={cellProps.cell.value}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder="Actions"
+                disabled={disableChildren}
+                variant="small-button"
+              />
+            </div>
+          )}
         />
       ),
     },

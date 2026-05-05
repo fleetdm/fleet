@@ -1,0 +1,17 @@
+.user-card {
+  @include vertical-card-layout;
+
+  &__header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  &__content {
+    display: inline-grid;
+    gap: $pad-medium $pad-xxlarge;
+    grid-template-columns: repeat(2, auto);
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+  }
+}

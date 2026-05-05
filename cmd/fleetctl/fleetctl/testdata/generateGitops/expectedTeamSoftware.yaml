@@ -1,0 +1,63 @@
+packages:
+  - categories:
+      - Browsers
+    hash_sha256: software-package-hash ___GITOPS_COMMENT_0___
+    setup_experience: true
+    install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-install
+    labels_include_any:
+      - Label A
+      - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-postinstall
+    pre_install_query:
+      path: ../lib/some-team/queries/my-software-package-darwin-preinstallquery.yml
+    self_service: true
+    uninstall_script:
+      path: ../lib/some-team/scripts/my-software-package-darwin-uninstall
+    url: https://example.com/download/my-software.pkg
+fleet_maintained_apps:
+  - categories:
+      - Browsers
+    setup_experience: true
+    slug: fma1/darwin
+    labels_include_any:
+      - Label A
+      - Label B
+    post_install_script:
+      path: ../lib/some-team/scripts/my-fma-darwin-postinstall
+    pre_install_query:
+      path: ../lib/some-team/queries/my-fma-darwin-preinstallquery.yml
+    self_service: true
+  - slug: fma2/windows
+    labels_include_all:
+      - Label A
+      - Label B
+    self_service: true
+  - slug: fma3/windows
+    self_service: true
+app_store_apps:
+  - app_store_id: "1234567890"
+    labels_exclude_any:
+      - Label C
+      - Label D
+    categories:
+      - Productivity
+      - Utilities
+    self_service: true
+    platform: darwin
+  - app_store_id: "55566677778"
+    labels_include_all:
+      - Label C
+      - Label D
+    platform: android
+    self_service: true
+    setup_experience: true
+  - app_store_id: "9999888877"
+    labels_include_all:
+      - Label C
+      - Label D
+    auto_update_enabled: true
+    auto_update_window_start: "01:00"
+    auto_update_window_end: "03:00"
+    platform: ios

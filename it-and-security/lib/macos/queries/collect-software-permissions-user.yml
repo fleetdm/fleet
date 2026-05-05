@@ -1,5 +1,0 @@
-- name: Collect software permissions (user)
-  description: "Research for #16899"
-  query: SELECT * from tcc_user;
-  interval: 3600 # 1 hour
-  platform: darwin

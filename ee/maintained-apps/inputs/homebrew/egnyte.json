@@ -1,0 +1,8 @@
+{
+  "name": "Egnyte",
+  "unique_identifier": "com.egnyte.DesktopApp",
+  "token": "egnyte",
+  "installer_format": "dmg",
+  "slug": "egnyte/darwin",
+  "default_categories": ["Productivity"]
+}

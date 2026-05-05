@@ -13,8 +13,11 @@ import {
   isGlobalMaintainer,
   isGlobalObserver,
   isTeamObserver,
+  isGlobalTechnician,
+  isTeamTechnician,
 } from "utilities/permissions/permissions";
 import Button from "components/buttons/Button";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 
 import ScriptStatusCell from "./components/ScriptStatusCell";
@@ -60,7 +63,9 @@ export const generateActionDropdownOptions = (
       // TODO - refactor all permissions to be clear and granular
       // each of these (confusingly) cover both observer and observer+
       isGlobalObserver(currentUser) ||
-      isTeamObserver(currentUser, teamId));
+      isTeamObserver(currentUser, teamId) ||
+      isGlobalTechnician(currentUser) ||
+      isTeamTechnician(currentUser, teamId));
   const options: IDropdownOption[] = [
     {
       label: "Show run details",
@@ -83,7 +88,7 @@ export const generateTableColumnConfigs = (
   currentUser: IUser | null,
   hostTeamId: number | null,
   scriptsDisabled: boolean,
-  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void,
+  onClickViewScript: (scriptDetails: IHostScript) => void,
   onSelectAction: (value: string, script: IHostScript) => void
 ) => {
   return [
@@ -93,21 +98,23 @@ export const generateTableColumnConfigs = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
-        const { name, script_id } = cellProps.row.original;
-
         const onClickScriptName = (e: React.MouseEvent) => {
-          // Allows for button to be clickable in a clickable row
+          // Allows for a button to be clickable in a clickable row
           e.stopPropagation();
-          onClickViewScript(script_id, cellProps.row.original);
+          onClickViewScript(cellProps.row.original);
         };
 
         return (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="text-icon"
+            variant="inverse"
+            size="small"
           >
-            <span className={`script-info-text`}>{name}</span>
+            <TooltipTruncatedTextCell
+              value={cellProps.row.original.name}
+              className="w400" // Funky workaround for a truncation text cell WITHIN a button
+            />
           </Button>
         );
       },
@@ -135,7 +142,7 @@ export const generateTableColumnConfigs = (
               <TooltipWrapper
                 tipContent={
                   <div>
-                    Running scripts is disabled in organization settings
+                    Running scripts is disabled in organization settings.
                   </div>
                 }
               >
@@ -160,6 +167,7 @@ export const generateTableColumnConfigs = (
             placeholder="Actions"
             disabled={scriptsDisabled}
             menuAlign="right"
+            variant="small-button"
           />
         );
       },

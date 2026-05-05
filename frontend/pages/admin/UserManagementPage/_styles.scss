@@ -1,16 +1,293 @@
 .user-management {
-  &__page-description {
-    font-size: $x-small;
-    color: $core-fleet-black;
-    @include sticky-settings-description;
-    padding-bottom: $pad-medium;
+  .data-table-block {
+    .data-table__table {
+      thead {
+        // need specificity to override datatable css
+        th {
+          &.actions__header {
+            padding-left: 0;
+          }
+          &.status__header,
+          &.role__header {
+            width: 86px; // set to prevent expanding
+          }
+        }
+      }
+
+      tbody {
+        // need specificity to override datatable css
+        td.name__cell,
+        td.role__cell,
+        td.teams__cell,
+        td.status__cell,
+        td.email__cell {
+          max-width: $col-sm;
+          white-space: nowrap;
+        }
+
+        td.status__cell,
+        td.role__cell {
+          white-space: nowrap; // Prevent No access from wrapping
+        }
+
+        td.actions__cell {
+          padding-left: 0;
+        }
+      }
+
+      @media (min-width: ($break-lg)) {
+        .name__header,
+        .name__cell {
+          max-width: $col-md;
+        }
+      }
+
+      @media (max-width: ($break-sm - 1)) {
+        .email__header,
+        .email__cell {
+          display: none;
+          width: 0;
+        }
+      }
+
+      @media (max-width: ($break-xs - 1)) {
+        .status__header,
+        .status__cell {
+          display: none;
+          width: 0;
+        }
+      }
+
+      @media (max-width: ($break-mobile-md - 1)) {
+        .teams__header,
+        .teams__cell {
+          display: none;
+          width: 0;
+        }
+
+        // Splits header to 2 lines with user count on the first line
+        .table-container__header {
+          align-items: end;
+          &-left {
+            flex-direction: column;
+            width: initial;
+            align-items: start;
+          }
+
+          .table-container__search {
+            width: 100%;
+          }
+        }
+      }
+
+      @media (max-width: ($break-mobile-sm - 1)) {
+        .role__header,
+        .role__cell {
+          display: none;
+          width: 0;
+        }
+
+        // Splits header to 3 lines; user count, wide add user button, wide search
+        .table-container__header {
+          flex-direction: column;
+          align-items: start;
+          width: 100%;
+
+          &-left {
+            width: 100%;
+
+            .controls,
+            .button {
+              width: 100%;
+            }
+          }
+        }
+      }
+    }
   }
 
-  &__sandbox-demo-message {
-    margin-top: 3.5rem;
+  // Override react-select container positioning so the brand-button
+  // dropdown menu anchors to the wrapper instead of the collapsed control.
+  // The .add-user-dropdown className is applied to the react-select container
+  // element inside .actions-dropdown__wrapper.
+  .actions-dropdown__wrapper:has(.add-user-dropdown) {
+    position: relative;
+
+    // Make react-select container static so the absolutely positioned
+    // menu anchors to the wrapper above
+    .add-user-dropdown {
+      position: static;
+    }
   }
 
-  &__api-only-user {
-    @include grey-badge;
+  .add-user-dropdown {
+    .actions-dropdown-select__menu {
+      margin-top: 4px !important; // Override inline 20px from brand-button variant
+    }
+
+    .actions-dropdown__option {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .actions-dropdown__help-text {
+      @include help-text;
+    }
   }
 }
+
+.create-user-page,
+.create-api-user-page,
+.edit-user-page {
+  @include vertical-page-layout;
+
+  h1 {
+    margin: 0;
+  }
+
+  .back-button {
+    align-self: flex-start;
+  }
+
+  .page-description {
+    margin-top: 8px;
+  }
+
+  // Left-align form footers on page-based flows (both UserForm's
+  // ModalFooter and ApiUserForm's shared footer class)
+  .modal-footer__content-wrapper,
+  .user-management-form__footer {
+    display: flex;
+    gap: $pad-medium;
+    padding-top: $pad-medium;
+    align-self: flex-start;
+  }
+}
+
+.api-key-display {
+  display: flex;
+  flex-direction: column;
+
+  &__api-key-label {
+    color: $core-fleet-black;
+    font-size: $small;
+    margin-bottom: $pad-large;
+  }
+
+  .input-field-hidden-content {
+    margin-bottom: $pad-medium;
+  }
+
+  .info-banner {
+    margin-bottom: $pad-medium;
+  }
+}
+
+.api-access-section {
+  @include vertical-page-layout;
+
+  &__endpoint-selector {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+}
+
+.endpoint-selector-table {
+  position: relative;
+
+  &__name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__search-dropdown {
+    width: 100%;
+    position: absolute;
+    top: 44px;
+    left: 0;
+    z-index: 1;
+    background-color: $core-fleet-white;
+    border-radius: 0 0 8px 8px;
+
+    .table-container {
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+      border-radius: 0 0 8px 8px;
+
+      &__header {
+        display: none;
+      }
+
+      .data-table__wrapper {
+        position: relative;
+        width: 100%;
+        max-height: 300px;
+        overflow: auto;
+        margin: 0;
+      }
+    }
+
+    .empty-search {
+      padding: $pad-xlarge;
+      display: flex;
+      justify-content: center;
+      box-shadow: 0px 4px 10px rgba(52, 59, 96, 0.15);
+
+      &__inner {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h4 {
+        margin: 0 0 $pad-small;
+        font-size: $small;
+      }
+      p {
+        margin: 0;
+        font-size: $x-small;
+        text-align: center;
+      }
+    }
+  }
+
+  &__selected-table {
+    margin-top: $pad-medium;
+
+    .table-container {
+      background-color: $core-fleet-white;
+
+      &__header {
+        display: none;
+      }
+
+      .data-table__wrapper {
+        position: relative;
+        margin: 0;
+      }
+    }
+
+    .data-table__table {
+      table-layout: fixed;
+    }
+
+    .method__header,
+    .method__cell {
+      width: 100px;
+    }
+
+    .path__cell {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .delete__header,
+    .delete__cell {
+      width: 40px;
+      text-align: center;
+    }
+  }
+}
+

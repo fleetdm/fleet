@@ -1,0 +1,8 @@
+{
+  "name": "Archaeology",
+  "unique_identifier": "com.mothersruin.Archaeology",
+  "token": "archaeology",
+  "installer_format": "dmg",
+  "slug": "archaeology/darwin",
+  "default_categories": ["Developer tools"]
+}

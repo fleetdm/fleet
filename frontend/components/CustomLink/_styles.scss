@@ -1,7 +1,30 @@
 .custom-link {
-  display: inline-flex;
-  align-items: center;
-  gap: $pad-xsmall;
+  @include link;
+  @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+
+  .external-link-icon__outline {
+    transition: fill 0.2s;
+  }
+  .external-link-icon__arrow {
+    transition: stroke 0.2s;
+  }
+
+  // Inverse hover over effect
+  &:hover {
+    .external-link-icon__outline {
+      fill: $ui-fleet-black-75-over;
+    }
+    .external-link-icon__arrow {
+      stroke: $core-fleet-white;
+    }
+  }
+
+  // Changing display will break multiline links
+  &:not(.custom-link--multiline) {
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
+  }
 
   &__no-wrap {
     white-space: nowrap;
@@ -10,7 +33,47 @@
     }
   }
 
-  &--black {
-    color: $core-fleet-black;
+  // Variants
+  &--tooltip-link,
+  &--banner-link,
+  &--flash-message-link {
+    color: inherit; // Overrides fleet blue link color with parent color
+  }
+
+  &--tooltip-link,
+  &--flash-message-link {
+    font-size: inherit; // Overrides link default font size with parent tooltip font size
+    // Use static (non-themed) colors so the underline and icon stay light on
+    // the always-dark tooltip/flash background regardless of light/dark mode.
+    @include animated-bottom-border($static-white, rgba($static-white, 0.4));
+
+    .external-link-icon__outline {
+      stroke: $static-white;
+    }
+
+    .external-link-icon__arrow {
+      stroke: $static-white;
+    }
+
+    // Inverse hover over effect
+    &:hover {
+      color: rgba($static-white, 0.7);
+
+      .external-link-icon__outline {
+        fill: rgba($static-white, 0.7);
+      }
+
+      .external-link-icon__arrow {
+        stroke: $tooltip-bg;
+      }
+    }
+  }
+
+  &--flash-message-link {
+    &:hover {
+      .external-link-icon__arrow {
+        stroke: $core-vibrant-red;
+      }
+    }
   }
 }

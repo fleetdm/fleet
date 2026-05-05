@@ -1,0 +1,8 @@
+{
+  "name": "Front",
+  "unique_identifier": "com.frontapp.Front",
+  "token": "front",
+  "installer_format": "zip",
+  "slug": "front/darwin",
+  "default_categories": ["Communication"]
+}

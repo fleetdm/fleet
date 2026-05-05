@@ -1,14 +1,13 @@
 import React, { useCallback, useContext, useState } from "react";
 
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 
-import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "add-vpp-modal";
@@ -58,31 +57,35 @@ const AddVppModal = ({ onCancel, onAdded }: IAddVppModalProps) => {
       onExit={onCancel}
       width="large"
     >
-      <>
-        <VppSetupSteps extendendSteps />
-        <FileUploader
-          className={`${baseClass}__file-uploader ${
-            isUploading ? `${baseClass}__file-uploader--loading` : ""
-          }`}
-          accept=".vpptoken"
-          message="Content token (.vpptoken)"
-          graphicName="file-vpp"
-          buttonType="link"
-          buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-          onFileUpload={onSelectFile}
+      <p className={`${baseClass}__description`}>
+        Follow the step-by-step guide to add VPP.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/add-vpp"
+          text="Learn how"
+          newTab
         />
-        <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={uploadVppToken}
-            isLoading={isUploading}
-            disabled={!tokenFile || isUploading}
-          >
-            Add VPP
-          </Button>
-        </div>
-      </>
+      </p>
+      <FileUploader
+        className={`${baseClass}__file-uploader ${
+          isUploading ? `${baseClass}__file-uploader--loading` : ""
+        }`}
+        accept=".vpptoken"
+        message="Content token (.vpptoken)"
+        graphicName="file-vpp"
+        buttonType="brand-inverse-icon"
+        buttonMessage={isUploading ? "Uploading..." : "Upload"}
+        fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        onFileUpload={onSelectFile}
+      />
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={uploadVppToken}
+          isLoading={isUploading}
+          disabled={!tokenFile || isUploading}
+        >
+          Add VPP
+        </Button>
+      </div>
     </Modal>
   );
 };

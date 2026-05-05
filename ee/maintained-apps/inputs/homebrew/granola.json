@@ -1,0 +1,8 @@
+{
+  "name": "Granola",
+  "unique_identifier": "com.granola.app",
+  "token": "granola",
+  "installer_format": "dmg",
+  "slug": "granola/darwin",
+  "default_categories": ["Productivity"]
+}

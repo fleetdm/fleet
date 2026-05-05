@@ -1,0 +1,8 @@
+{
+  "name": "Loom",
+  "slug": "loom/darwin",
+  "unique_identifier": "com.loom.desktop",
+  "token": "loom",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

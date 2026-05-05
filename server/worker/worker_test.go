@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"github.com/tj/assert"
@@ -34,13 +34,14 @@ func TestWorker(t *testing.T) {
 	ds := new(mock.Store)
 
 	// set up mocks
-	getQueuedJobsCalled := 0
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
-		if getQueuedJobsCalled > 0 {
+	getFilteredQueuedJobsCalled := 0
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
+		if getFilteredQueuedJobsCalled > 0 {
 			return nil, nil
 		}
-		getQueuedJobsCalled++
-
+		getFilteredQueuedJobsCalled++
+		require.Equal(t, 1, len(jobNames))
+		require.Equal(t, "test", jobNames[0])
 		argsJSON := json.RawMessage(`{"arg1":"foo"}`)
 		return []*fleet.Job{
 			{
@@ -55,7 +56,7 @@ func TestWorker(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -75,7 +76,7 @@ func TestWorker(t *testing.T) {
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
 
 	require.True(t, jobCalled)
@@ -93,7 +94,7 @@ func TestWorkerRetries(t *testing.T) {
 		State:   fleet.JobStateQueued,
 		Retries: 0,
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
 		if theJob.State == fleet.JobStateQueued {
 			return []*fleet.Job{theJob}, nil
 		}
@@ -111,7 +112,7 @@ func TestWorkerRetries(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -131,9 +132,9 @@ func TestWorkerRetries(t *testing.T) {
 		err := w.ProcessJobs(context.Background())
 		require.NoError(t, err)
 
-		require.True(t, ds.GetQueuedJobsFuncInvoked)
+		require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 		require.True(t, ds.UpdateJobFuncInvoked)
-		ds.GetQueuedJobsFuncInvoked = false
+		ds.GetFilteredQueuedJobsFuncInvoked = false
 		ds.UpdateJobFuncInvoked = false
 
 		require.Equal(t, i+1, jobCalled)
@@ -173,7 +174,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 			Retries: 0,
 		},
 	}
-	ds.GetQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
+	ds.GetFilteredQueuedJobsFunc = func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error) {
 		var queued []*fleet.Job
 		for _, j := range jobs {
 			if j.State == fleet.JobStateQueued {
@@ -187,7 +188,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 		return job, nil
 	}
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	w := NewWorker(ds, logger)
 
 	// register a test job
@@ -215,9 +216,9 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	err := w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
-	ds.GetQueuedJobsFuncInvoked = false
+	ds.GetFilteredQueuedJobsFuncInvoked = false
 	ds.UpdateJobFuncInvoked = false
 
 	require.Equal(t, fleet.JobStateSuccess, jobs[0].State)
@@ -230,7 +231,7 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 	err = w.ProcessJobs(context.Background())
 	require.NoError(t, err)
 
-	require.True(t, ds.GetQueuedJobsFuncInvoked)
+	require.True(t, ds.GetFilteredQueuedJobsFuncInvoked)
 	require.True(t, ds.UpdateJobFuncInvoked)
 
 	require.Equal(t, fleet.JobStateQueued, jobs[1].State)
@@ -244,16 +245,13 @@ func TestWorkerWithRealDatastore(t *testing.T) {
 	// call TruncateTables immediately, because a DB migration may create jobs
 	mysql.TruncateTables(t, ds)
 
-	oldDelayPerRetry := delayPerRetry
-	delayPerRetry = []time.Duration{
+	logger := slog.New(slog.DiscardHandler)
+	w := NewWorker(ds, logger)
+	w.delayPerRetry = []time.Duration{
 		1: 0,
 		2: 0,
 		3: time.Hour,
 	} // retry twice on the next cron, then not before an hour
-	t.Cleanup(func() { delayPerRetry = oldDelayPerRetry })
-
-	logger := kitlog.NewNopLogger()
-	w := NewWorker(ds, logger)
 
 	// register a test job
 	var jobCallCount int

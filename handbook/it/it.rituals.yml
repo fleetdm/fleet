@@ -1,0 +1,36 @@
+# https://github.com/fleetdm/fleet/pull/13084
+- task: "Prioritize for next sprint" # Title that will actually show in rituals table
+  startedOn: "2023-08-09" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
+  frequency: "Triweekly" # must be supported by https://github.com/fleetdm/fleet/blob/dbbb501358e226fa3fdf48865175efe3334c826c/website/scripts/build-static-content.js
+  description: "Using your departmental kanban board, prioritize and finalize next sprint's goals for your team by draging the appropriate issues to the top of the 'Planned' column and archive everything in the 'Done' column."
+  moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
+  dri: "allenhouchins" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
+  autoIssue:
+    labels: [":help-solutions-consulting"]
+    repo: "confidential"
+- task: "Vanta check"
+  startedOn: "2025-06-09"
+  frequency: "Weekly"
+  description: "Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks."
+  moreInfoUrl: "https://fleetdm.com/handbook/it#monitor-compliance-tests"
+  dri: "lppepper2"
+  autoIssue:
+    labels: [":help-it"]
+    repo: "confidential"
+- task: "Quarterly access review"
+  startedOn: "2026-04-01"
+  frequency: "Quarterly"
+  description: "This is a compliance requirement. Create a new issue using the quarterly access review template."
+  moreInfoUrl: "https://github.com/fleetdm/confidential/issues/new?template=compliance-quarterly-access-review.md"
+  dri: "lppepper2"
+  autoIssue:
+    labels: [":help-it"]
+    repo: "confidential"
+- task: "Review active eval instances"
+  startedOn: "2025-08-25"
+  frequency: "Monthly"
+  description: "Review [list of active instances](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud) to see what can be shutdown and deleted."
+  dri: "allenhouchins"
+  autoIssue:
+    labels: [":help-solutions-consulting"]
+    repo: "confidential"

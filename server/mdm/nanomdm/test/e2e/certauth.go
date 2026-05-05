@@ -10,7 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test/enrollment"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 func certAuth(t *testing.T, ctx context.Context, store storage.CertAuthStore) {

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>OktaVerify.OrgUrl</key>
+			<string>https://yourdomain.okta.com</string>
+			<key>OktaVerify.PasswordSyncClientID</key>
+			<string>YOUR_CLIENT_ID_FROM_PLATFORM_SSO_APP</string>
+			<key>OktaVerify.UserPrincipalName</key>
+			<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+			<key>PayloadDisplayName</key>
+			<string>Okta Verify (SSO Extension)</string>
+			<key>PayloadIdentifier</key>
+			<string>com.okta.mobile.auth-service-extension.EA162E1C-A648-4BAD-8298-1D3C30B55BA1</string>
+			<key>PayloadType</key>
+			<string>com.okta.mobile.auth-service-extension</string>
+			<key>PayloadUUID</key>
+			<string>EA162E1C-A648-4BAD-8298-1D3C30B55BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PlatformSSO.ProtocolVersion</key>
+			<string>2.0</string>
+		</dict>
+		<dict>
+			<key>OktaVerify.EnrollmentOptions</key>
+			<string>Enabled</string>
+			<key>OktaVerify.OrgUrl</key>
+			<string>https://yourdomain.okta.com</string>
+			<key>OktaVerify.UserPrincipalName</key>
+			<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+			<key>PayloadDisplayName</key>
+			<string>Okta Verify</string>
+			<key>PayloadIdentifier</key>
+			<string>com.okta.mobile.9709B069-A144-4070-B107-393732FAF3BC</string>
+			<key>PayloadType</key>
+			<string>com.okta.mobile</string>
+			<key>PayloadUUID</key>
+			<string>9709B069-A144-4070-B107-393732FAF3BC</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Okta Verify App Configuration</string>
+	<key>PayloadIdentifier</key>
+	<string>com.okta.device.access.255D8077-5323-4E52-8FD4-B73DA3FEAA62</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>255D8077-5323-4E52-8FD4-B73DA3FEAA62</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -3,7 +3,6 @@ import React, { useState, useCallback, useEffect } from "react";
 import { ITeamFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
@@ -47,7 +46,7 @@ const RenameTeamModal = ({
   };
 
   return (
-    <Modal title="Rename team" onExit={onCancel} className={baseClass}>
+    <Modal title="Rename fleet" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -60,8 +59,8 @@ const RenameTeamModal = ({
           onBlur={() => {
             setName(name.trim());
           }}
-          label="Team name"
-          placeholder="Team name"
+          label="Fleet name"
+          placeholder="Fleet name"
           value={name}
           error={errors.name}
           ignore1password
@@ -69,8 +68,7 @@ const RenameTeamModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="submit"
-            variant="brand"
-            disabled={name === ""}
+            disabled={name.trim() === ""}
             className="save-loading"
             isLoading={isUpdatingTeams}
           >

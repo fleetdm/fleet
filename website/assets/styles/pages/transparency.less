@@ -7,21 +7,15 @@
   @page-container-max-width-md: 480px;
 
   h1 {
-    color: #192147;
-    font-size: 48px;
-    font-weight: 800;
-    line-height: @heading-lineheight; /* 120% */
+    .title-xl();
   }
 
   h2 {
-    font-size: 32px;
-    font-weight: 800;
-    line-height: @heading-lineheight;
+    .title-l();
     margin-bottom: 16px;
   }
   h3 {
-    font-size: 24px;
-    line-height: @heading-lineheight;
+    .title-m();
   }
   h4 {
     font-weight: 700;
@@ -153,6 +147,7 @@
     width: 100%;
     text-align: center;
     color: #FFF;
+    margin-bottom: 48px;
     h2, p {
       color: #FFF;
     }
@@ -181,37 +176,6 @@
       margin-bottom: 16px;
     }
   }
-  [purpose='three-column-features'] {
-    max-width: 1080px;
-    padding-bottom: 64px;
-  }
-  [purpose='feature-row'] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-  }
-  [purpose='feature-column'] {
-    max-width: 267px;
-    margin-left: 40px;
-    margin-right: 40px;
-    p {
-      font-size: 14px;
-      margin-bottom: 0px;
-    }
-    img {
-      height: 48px;
-      width: auto;
-      margin-bottom: 16px;
-    }
-    h5 {
-      font-weight: 800;
-      font-size: 16px;
-      line-height: @heading-lineheight;
-      margin-bottom: 16px;
-    }
-  }
-
-
   [purpose='agents-note'] {
     color: #515774;
     font-size: 16px;
@@ -265,7 +229,61 @@
     border: 1px solid @core-vibrant-blue-15;
     box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.1);
     border-radius: 16px;
-
+  }
+  [purpose='video-button'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    cursor: pointer;
+    color: #192147;
+    text-decoration: none;
+    img {
+      height: 32px;
+      margin-right: 8px;
+    }
+    span {
+      margin-left: 4px;
+      display: inline-block;
+      color: #8B8FA2;
+      font-size: 12px;
+      margin-top: 2px;
+      font-weight: 400;
+    }
+  }
+  [purpose='video-modal'] {
+    [purpose='modal-dialog'] {
+      width: 100%;
+      max-width: 100%;
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+    [purpose='modal-content'] {
+      max-width: 1140px;
+      height: 641px;
+      background-color: transparent;
+      box-shadow: none;
+      border: none;
+      padding: 0px;
+      margin-top: 150px;
+      margin-left: auto;
+      margin-right: auto;
+      [purpose='modal-close-button'] {
+        top: -40px;
+        right: 0px;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        padding: 0px 0px 4px 0px;
+        background-color: #192147;
+        color: #FFF;
+        opacity: 1;
+      }
+    }
+    iframe {
+      border-radius: 16px;
+      width: auto;
+      height: 641px;
+    }
   }
 
   @media (max-width: 1199px) {
@@ -300,6 +318,20 @@
     [purpose='hero-text'] {
       text-align: center;
       margin-bottom: 0px;
+    }
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        width: 100%;
+        max-width: 100%;
+      }
+      [purpose='modal-content'] {
+        max-width: 720px;
+        height: 405px;
+      }
+      iframe {
+        width: 720px;
+        height: 405px;
+      }
     }
 
   }
@@ -342,10 +374,35 @@
     [purpose='page-content'] {
       max-width: @page-container-max-width-md;
     }
-
+    [purpose='video-modal'] {
+      [purpose='modal-dialog'] {
+        max-width: 97vw;
+        padding-left: 0px;
+        padding-right: 0px;
+      }
+      [purpose='modal-content'] {
+        max-width: 540px;
+        height: 304px;
+      }
+      iframe {
+        width: 540px;
+        height: 304px;
+      }
+    }
   }
 
   @media (max-width: 575px) {
+    [purpose='hero-text'] {
+
+      h1 {
+        font-size: 32px;
+      }
+    }
+    [purpose='feature-text'] {
+      h2 {
+        font-size: 24px;
+      }
+    }
     [purpose='page-container'] {
       padding-top: 32px;
       padding-left: 24px;
@@ -391,20 +448,17 @@
         font-size: 24px;
       }
     }
-  }
-
-  @media (max-width: 375px) {
-    [purpose='hero-text'] {
-
-      h1 {
-        font-size: 32px;
+    [purpose='video-modal'] {
+      [purpose='modal-content'] {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
       }
-    }
-    [purpose='feature-text'] {
-      h2 {
-        font-size: 24px;
+      iframe {
+        width: 95vw;
+        height: calc(~'9/16 * 95vw');
       }
     }
   }
+
 
 }

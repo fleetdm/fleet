@@ -20,8 +20,7 @@ const ApplePNCertRenewalMessage = ({ expired }: IApplePNCertRenewalMessage) => {
           text="Renew APNs"
           className={`${baseClass}__new-tab`}
           newTab
-          color="core-fleet-black"
-          iconColor="core-fleet-black"
+          variant="banner-link"
         />
       }
     >

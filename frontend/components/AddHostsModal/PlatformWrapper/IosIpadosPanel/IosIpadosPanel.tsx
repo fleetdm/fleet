@@ -1,8 +1,9 @@
 import React, { useContext } from "react";
 
+import CustomLink from "components/CustomLink";
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 
 const generateUrl = (serverUrl: string, enrollSecret: string) => {
@@ -18,7 +19,7 @@ interface IosIpadosPanelProps {
 }
 
 const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
-  const { config } = useContext(AppContext);
+  const { config, isMacMdmEnabledAndConfigured } = useContext(AppContext);
 
   const helpText =
     "When the end user navigates to this URL, the enrollment profile " +
@@ -27,6 +28,18 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
 
   if (!config) return null;
 
+  if (!isMacMdmEnabledAndConfigured) {
+    return (
+      <p>
+        <CustomLink
+          url={PATHS.ADMIN_INTEGRATIONS_MDM_APPLE}
+          text="Turn on Apple MDM"
+        />{" "}
+        to enroll iOS & iPadOS hosts.
+      </p>
+    );
+  }
+
   const url = generateUrl(config.server_settings.server_url, enrollSecret);
 
   return (
@@ -34,9 +47,8 @@ const IosIpadosPanel = ({ enrollSecret }: IosIpadosPanelProps) => {
       <InputField
         label="Send this to your end users:"
         enableCopy
-        copyButtonPosition="inside"
         readOnly
-        inputWrapperClass
+        inputWrapperClass={`${baseClass}__enroll-link`}
         name="enroll-link"
         value={url}
         helpText={helpText}

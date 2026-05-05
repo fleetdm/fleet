@@ -42,14 +42,14 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("menuitem", { name: /manage users/i })
+      screen.getByRole("menuitem", { name: /users/i })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -89,7 +89,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -102,7 +102,7 @@ describe("SiteTopNav - component", () => {
     ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for free global observer", async () => {
     const render = createCustomRenderer({
@@ -130,7 +130,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -144,7 +144,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium global admin", async () => {
     const render = createCustomRenderer({
@@ -171,13 +171,13 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("menuitem", { name: /manage users/i })
+      screen.getByRole("menuitem", { name: /users/i })
     ).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -217,7 +217,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -230,7 +230,7 @@ describe("SiteTopNav - component", () => {
     ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium global observer", async () => {
     const render = createCustomRenderer({
@@ -258,7 +258,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -272,7 +272,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium team admin", async () => {
     const render = createCustomRenderer({
@@ -302,7 +302,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /settings/i })
@@ -317,7 +317,7 @@ describe("SiteTopNav - component", () => {
       screen.getByRole("menuitem", { name: /sign out/i })
     ).toBeInTheDocument();
 
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium team maintainer", async () => {
     const render = createCustomRenderer({
@@ -347,7 +347,7 @@ describe("SiteTopNav - component", () => {
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/controls/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
     expect(
       screen.getByRole("menuitem", { name: /my account/i })
@@ -360,7 +360,7 @@ describe("SiteTopNav - component", () => {
     ).toBeInTheDocument();
 
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
   it("renders correct navigation for premium team observer", async () => {
     const render = createCustomRenderer({
@@ -388,7 +388,7 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.getByText(/hosts/i)).toBeInTheDocument();
     expect(screen.getByText(/software/i)).toBeInTheDocument();
-    expect(screen.getByText(/queries/i)).toBeInTheDocument();
+    expect(screen.getByText(/reports/i)).toBeInTheDocument();
     expect(screen.getByText(/policies/i)).toBeInTheDocument();
 
     expect(
@@ -403,6 +403,6 @@ describe("SiteTopNav - component", () => {
 
     expect(screen.queryByText(/controls/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/settings/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/manage users/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/users/i)).not.toBeInTheDocument();
   });
 });

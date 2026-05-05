@@ -39,7 +39,7 @@ Once the installer has been created, you can bring it over to the host you want 
 
 ## Generate the installer
 
-You can generate an osquery installer using `fleetctl` for Windows, macOS, and Linux distributions. For this article, we will assume you are enrolling a Linux device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Windows](https://fleetdm.com//guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet).
+You can generate an osquery installer using `fleetctl` for Windows, macOS, and Linux distributions. For this article, we will assume you are enrolling a Linux device. To generate an osquery installer for a different OS, check out the guides for [macOS](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-macos-devices-into-fleet) and [Windows](https://fleetdm.com/guides/how-to-install-osquery-and-enroll-windows-devices-into-fleet).
 
 Installers are generated using the fleetctl package command. The full command looks like this:
 
@@ -52,7 +52,7 @@ Thankfully, you don’t need to know the `type`, `server url`, or `enroll secret
 Make sure you choose the correct package type for your Linux distribution. Red Hat and SUSE distributions will use RPM, and Debian based distributions (like Ubuntu) will use DEB. If you aren’t sure which to use, Wikipedia has a [categorized list](https://en.wikipedia.org/wiki/List_of_Linux_distributions).
 
 
-![Add hosts](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-1-700x393@2x.png)
+![Add hosts for Linux MDM](../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-1-700x393@2x.png)
 *Even if you know all of that information, getting the exact command from the Fleet UI can save some typo woes. The enroll secret is long and random.*
 
 Next, head over to your terminal (or the magic box where you can run commands to make cool stuff happen), paste the copied command, and then hit enter and watch while `fleetctl` does its thing.
@@ -93,3 +93,4 @@ If you’re managing an enterprise environment, you will likely have a deploymen
 <meta name="publishedOn" value="2022-03-19">
 <meta name="articleTitle" value="How to install osquery and enroll Linux devices into Fleet">
 <meta name="articleImageUrl" value="../website/assets/images/articles/install-osquery-and-enroll-linux-devices-into-fleet-cover-1600x900@2x.jpg">
+<meta name="keywords" value="Linux MDM, Linux device management, open source MDM, Linux management" />

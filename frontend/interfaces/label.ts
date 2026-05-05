@@ -15,7 +15,37 @@ export default PropTypes.shape({
 });
 
 export type LabelType = "regular" | "builtin";
-export type LabelMembershipType = "dynamic" | "manual";
+export type LabelMembershipType = "dynamic" | "manual" | "host_vitals";
+export const LabelMembershipTypeToDisplayCopy: Record<
+  LabelMembershipType,
+  string
+> = {
+  dynamic: "Dynamic",
+  manual: "Manual",
+  host_vitals: "Host vitals",
+};
+
+export type LabelHostVitalsCriterion =
+  | "end_user_idp_group"
+  | "end_user_idp_department"; // for now, may expand to be configurable
+
+export type LabelLeafCriterion = {
+  vital: LabelHostVitalsCriterion;
+  value: string; // from user input
+};
+
+type LabelAndCriterion = {
+  and: LabelHostVitalsCriteria[];
+};
+
+type LabelOrCriterion = {
+  or: LabelHostVitalsCriteria[];
+};
+
+export type LabelHostVitalsCriteria =
+  | LabelLeafCriterion
+  | LabelAndCriterion
+  | LabelOrCriterion;
 
 export interface ILabelSummary {
   id: number;
@@ -29,20 +59,41 @@ export interface ILabelSoftwareTitle {
   name: string;
 }
 
+export interface ILabelQuery {
+  id: number;
+  name: string;
+}
+
+export interface ILabelPolicy {
+  id: number;
+  name: string;
+}
+
 export interface ILabel extends ILabelSummary {
   created_at: string;
   updated_at: string;
   uuid?: string;
-  query: string;
-  label_membership_type: LabelMembershipType;
   host_count?: number; // returned for built-in labels but not custom labels
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
-  host_ids: number[] | null;
   type?: "custom" | "platform" | "status" | "all";
   slug?: string; // e.g., "labels/13" | "online"
   target_type?: string; // e.g., "labels"
-  platform: string;
+  author_id?: number;
+  team_id: number | null;
+  team_name?: string | null; // returned on individual label endpoints but not list endpoints
+
+  label_membership_type: LabelMembershipType;
+
+  // dynamic-specific
+  query: string; // does return '""' for other types
+  platform: string; // does return '""' for other types
+
+  // host_vitals-specific
+  criteria: LabelHostVitalsCriteria | null;
+
+  // manual-specific
+  host_ids: number[] | null;
 }
 
 // corresponding to fleet>server>fleet>labels.go>LabelSpec

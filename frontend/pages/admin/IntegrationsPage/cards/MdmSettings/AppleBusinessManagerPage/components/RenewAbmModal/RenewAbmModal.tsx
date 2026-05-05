@@ -14,14 +14,12 @@ const baseClass = "renew-abm-modal";
 
 interface IRenewAbmModalProps {
   tokenId: number;
-  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewAbmModal = ({
   tokenId,
-  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewAbmModalProps) => {
@@ -65,60 +63,35 @@ const RenewAbmModal = ({
       width="large"
     >
       <div className={`${baseClass}__page-content ${baseClass}__setup-content`}>
-        <p className={`${baseClass}__description`}>
-          Renew Apple Business Manager for <b>{orgName}</b>.
+        <p>
+          Follow the step-by-step guide to renew.{" "}
+          <CustomLink
+            url="https://fleetdm.com/learn-more-about/renew-abm"
+            text="Learn how"
+            newTab
+          />
         </p>
-        <ol className={`${baseClass}__setup-instructions-list`}>
-          <li>
-            <p>
-              1. Sign in to{" "}
-              <CustomLink
-                url="https://business.apple.com/"
-                text="Apple Business Manager"
-                newTab
-              />
-            </p>
-          </li>
-          <li>
-            <p>
-              2. Select your <b>account name</b> at the bottom left of the
-              screen, then select <b>Preferences</b>.
-            </p>
-          </li>
-          <li>
-            <p>
-              3. In the <b>Your MDM Servers</b> section, select your Fleet
-              server, then select <b>Download Token</b> at the top.
-            </p>
-          </li>
-          <li>
-            <p>
-              4. Upload the downloaded token (.p7m file) below.
-              <FileUploader
-                className={`${baseClass}__file-uploader`}
-                accept=".p7m"
-                buttonMessage="Choose file"
-                buttonType="link"
-                graphicName="file-p7m"
-                message="ABM token (.p7m)"
-                onFileUpload={onSelectFile}
-                fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-              />
-            </p>
-          </li>
-        </ol>
+        <FileUploader
+          className={`${baseClass}__file-uploader`}
+          accept=".p7m"
+          buttonMessage="Choose file"
+          buttonType="brand-inverse-icon"
+          graphicName="file-p7m"
+          message="AB token (.p7m)"
+          onFileUpload={onSelectFile}
+          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        />
         <div className="modal-cta-wrap">
           <Button
             className={`${baseClass}__submit-button ${
               isUploading ? `uploading` : ""
             }`}
-            variant="brand"
             disabled={!tokenFile || isUploading}
             isLoading={isUploading}
             type="button"
             onClick={onRenewToken}
           >
-            Renew ABM
+            Renew AB
           </Button>
         </div>
       </div>

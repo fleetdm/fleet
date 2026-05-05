@@ -66,7 +66,7 @@ func TestUp_20241203125346(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, fmas, 1)
 	require.Equal(t, "Box Drive", fmas[0].Name)
-	require.Equal(t, "box-drive", fmas[0].Token)
+	require.Equal(t, "box-drive", fmas[0].Slug)
 
 	// Only the triggered job record should remain in the cron_stats table
 	var stats []fleet.CronStats

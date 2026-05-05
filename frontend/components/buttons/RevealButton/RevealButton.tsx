@@ -50,14 +50,17 @@ const RevealButton = ({
         {caretPosition === "before" && (
           <Icon
             name={isShowing ? "chevron-down" : "chevron-right"}
-            color="core-fleet-blue"
+            color="ui-fleet-black-75"
           />
         )}
         {buttonText}
         {caretPosition === "after" && (
           <Icon
-            name={isShowing ? "chevron-up" : "chevron-down"}
-            color="core-fleet-blue"
+            name="chevron-down"
+            color="ui-fleet-black-75"
+            className={`reveal-button__caret ${
+              isShowing ? "reveal-button__caret--open" : ""
+            }`}
           />
         )}
       </>
@@ -66,11 +69,12 @@ const RevealButton = ({
 
   const button = (
     <Button
-      variant="text-icon"
+      variant="inverse"
       className={classNames}
       onClick={onClick}
       autofocus={autofocus}
       disabled={disabled}
+      iconStroke
     >
       {buttonContent()}
     </Button>

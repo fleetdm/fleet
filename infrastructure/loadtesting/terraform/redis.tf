@@ -1,20 +1,20 @@
 resource "aws_elasticache_replication_group" "default" {
-  availability_zones         = ["us-east-2a", "us-east-2b", "us-east-2c"]
-  engine                     = "redis"
-  parameter_group_name       = aws_elasticache_parameter_group.default.id
-  subnet_group_name          = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
-  security_group_ids         = [aws_security_group.redis.id, aws_security_group.backend.id]
-  replication_group_id       = "${local.prefix}-redis"
-  num_cache_clusters         = 3
-  node_type                  = var.redis_instance_type
-  engine_version             = "6.2"
-  port                       = "6379"
-  snapshot_retention_limit   = 0
-  automatic_failover_enabled = true
-  at_rest_encryption_enabled = false #tfsec:ignore:aws-elasticache-enable-at-rest-encryption
-  transit_encryption_enabled = false #tfsec:ignore:aws-elasticache-enable-in-transit-encryption
-  apply_immediately          = true
-  description                = "${local.prefix}-redis"
+  preferred_cache_cluster_azs = ["us-east-2a", "us-east-2b", "us-east-2c"]
+  engine                      = "redis"
+  parameter_group_name        = aws_elasticache_parameter_group.default.id
+  subnet_group_name           = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
+  security_group_ids          = [aws_security_group.redis.id, aws_security_group.backend.id]
+  replication_group_id        = "${local.prefix}-redis"
+  num_cache_clusters          = 3
+  node_type                   = var.redis_instance_type
+  engine_version              = "6.2"
+  port                        = "6379"
+  snapshot_retention_limit    = 0
+  automatic_failover_enabled  = true
+  at_rest_encryption_enabled  = false #tfsec:ignore:aws-elasticache-enable-at-rest-encryption
+  transit_encryption_enabled  = false #tfsec:ignore:aws-elasticache-enable-in-transit-encryption
+  apply_immediately           = true
+  description                 = "${local.prefix}-redis"
 
 }
 

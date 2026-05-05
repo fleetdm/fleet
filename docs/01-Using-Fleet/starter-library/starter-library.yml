@@ -1,0 +1,13 @@
+# This file adds best practice fleets to all new Fleet Premium instances: https://fleetdm.com/guides/teams#best-practice
+
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 💻 Workstations
+---
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: 📱🔐 Personal mobile devices

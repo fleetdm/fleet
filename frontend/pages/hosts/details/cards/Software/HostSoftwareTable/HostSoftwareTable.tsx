@@ -6,23 +6,28 @@ import { IGetDeviceSoftwareResponse } from "services/entities/device_user";
 import { getNextLocationPath } from "utilities/helpers";
 import { QueryParams } from "utilities/url";
 
-import { IHostSoftwareDropdownFilterVal } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
+import {
+  buildSoftwareVulnFiltersQueryParams,
+  getVulnFilterRenderDetails,
+  ISoftwareVulnFiltersParams,
+} from "pages/SoftwarePage/SoftwareInventory/SoftwareInventoryTable/helpers";
 
 import {
-  ApplePlatform,
-  APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
-  isIPadOrIPhone,
+  isAndroid,
+  PLATFORM_DISPLAY_NAMES,
+  isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
+import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
-import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
-import { VulnsNotSupported } from "pages/SoftwarePage/components/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
+import { VulnsNotSupported } from "pages/SoftwarePage/components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import { Row } from "react-table";
 import { IHostSoftware } from "interfaces/software";
 
@@ -30,31 +35,31 @@ const DEFAULT_PAGE_SIZE = 20;
 
 const baseClass = "host-software-table";
 
-export const DROPDOWN_OPTIONS = [
-  {
-    disabled: false,
-    label: "All software",
-    value: "allSoftware",
-    helpText: "All software installed on your hosts.",
-  },
-  {
-    disabled: false,
-    label: "Vulnerable software",
-    value: "vulnerableSoftware",
-    helpText:
-      "All software installed on your hosts with detected vulnerabilities.",
-  },
-  {
-    disabled: false,
-    label: "Available for install",
-    value: "installableSoftware",
-    helpText: "Software that can be installed on your hosts.",
-  },
-] as const;
-
 interface IHostSoftwareRowProps extends Row {
   original: IHostSoftware;
 }
+
+interface IEmptyComponentProps {
+  hasVulnFilters: boolean;
+  platform: HostPlatform;
+  searchQuery: string;
+}
+
+const EmptyComponent = React.memo(
+  ({ hasVulnFilters, platform, searchQuery }: IEmptyComponentProps) => {
+    const vulnFilterAndNotSupported =
+      hasVulnFilters && isVulnUnsupportedPlatform(platform);
+    return vulnFilterAndNotSupported ? (
+      <VulnsNotSupported platformText={PLATFORM_DISPLAY_NAMES[platform]} />
+    ) : (
+      <EmptySoftwareTable
+        noSearchQuery={searchQuery === ""}
+        platform={platform}
+      />
+    );
+  }
+);
+
 interface IHostSoftwareTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
@@ -66,11 +71,11 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  routeTemplate?: string;
-  pathPrefix: string;
-  hostSoftwareFilter: IHostSoftwareDropdownFilterVal;
+  vulnFilters: ISoftwareVulnFiltersParams;
+  teamId?: number;
+  onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
-  onShowSoftwareDetails: (software: IHostSoftware) => void;
+  onShowInventoryVersions: (software: IHostSoftware) => void;
 }
 
 const HostSoftwareTable = ({
@@ -84,57 +89,12 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  routeTemplate,
-  pathPrefix,
-  hostSoftwareFilter,
+  vulnFilters,
+  teamId,
+  onAddFiltersClick,
   isMyDevicePage,
-  onShowSoftwareDetails,
+  onShowInventoryVersions,
 }: IHostSoftwareTableProps) => {
-  const handleFilterDropdownChange = useCallback(
-    (val: IHostSoftwareDropdownFilterVal) => {
-      const newParams: QueryParams = {
-        query: searchQuery,
-        order_key: sortHeader,
-        order_direction: sortDirection,
-        page: 0,
-      };
-
-      // mutually exclusive
-      if (val === "installableSoftware") {
-        newParams.available_for_install = true.toString();
-      } else if (val === "vulnerableSoftware") {
-        newParams.vulnerable = true.toString();
-      }
-
-      const nextPath = getNextLocationPath({
-        pathPrefix,
-        routeTemplate,
-        queryParams: newParams,
-      });
-      const prevYScroll = window.scrollY;
-      setTimeout(() => {
-        window.scroll({
-          top: prevYScroll,
-          behavior: "smooth",
-        });
-      }, 0);
-      router.replace(nextPath);
-    },
-    [pathPrefix, routeTemplate, router, searchQuery, sortDirection, sortHeader]
-  );
-
-  const memoizedFilterDropdown = useCallback(() => {
-    return (
-      <Dropdown
-        value={hostSoftwareFilter}
-        options={DROPDOWN_OPTIONS}
-        searchable={false}
-        onChange={handleFilterDropdownChange}
-        iconName="filter"
-      />
-    );
-  }, [handleFilterDropdownChange, hostSoftwareFilter]);
-
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
       const changedEntry = Object.entries(newTableQuery).find(([key, val]) => {
@@ -163,17 +123,12 @@ const HostSoftwareTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        fleet_id: teamId,
+        ...buildSoftwareVulnFiltersQueryParams(vulnFilters),
       };
-
-      if (hostSoftwareFilter === "vulnerableSoftware") {
-        newQueryParam.vulnerable = "true";
-      } else if (hostSoftwareFilter === "installableSoftware") {
-        newQueryParam.available_for_install = "true";
-      }
-
       return newQueryParam;
     },
-    [hostSoftwareFilter]
+    [vulnFilters]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -211,31 +166,39 @@ const HostSoftwareTable = ({
     return <TableCount name="items" count={count} />;
   }, [count, isSoftwareNotDetected]);
 
-  const memoizedEmptyComponent = useCallback(() => {
-    const vulnFilterAndNotSupported =
-      isIPadOrIPhone(platform) && hostSoftwareFilter === "vulnerableSoftware";
-    return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
-    ) : (
-      <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
-    );
-  }, [hostSoftwareFilter, platform, searchQuery]);
-
   // Determines if a user should be able to filter or search in the table
   const hasData = data && data.software.length > 0;
   const hasQuery = searchQuery !== "";
-  const hasSoftwareFilter = hostSoftwareFilter !== "allSoftware";
+  const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
+  const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const showFilterHeaders = hasData || hasQuery || hasSoftwareFilter;
+  const showFilterHeaders = hasData || hasQuery || hasVulnFilters;
 
   const onClickMyDeviceRow = useCallback(
     (row: IHostSoftwareRowProps) => {
-      onShowSoftwareDetails(row.original);
+      onShowInventoryVersions(row.original);
     },
-    [onShowSoftwareDetails]
+    [onShowInventoryVersions]
   );
+
+  const renderCustomFiltersButton = () => {
+    return (
+      <TooltipWrapper
+        className={`${baseClass}__filters`}
+        position="left"
+        underline={false}
+        showArrow
+        tipOffset={12}
+        tipContent={vulnFilterDetails.tooltipText}
+        disableTooltip={!hasVulnFilters}
+      >
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
+          <span>{vulnFilterDetails.buttonText}</span>
+        </Button>
+      </TooltipWrapper>
+    );
+  };
 
   return (
     <div className={baseClass}>
@@ -247,18 +210,27 @@ const HostSoftwareTable = ({
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}
         defaultSearchQuery={searchQuery}
-        defaultPageIndex={page}
+        pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
-        inputPlaceHolder="Search by name"
+        inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        emptyComponent={memoizedEmptyComponent}
-        customControl={showFilterHeaders ? memoizedFilterDropdown : undefined}
+        emptyComponent={() => (
+          <EmptyComponent
+            hasVulnFilters={hasVulnFilters}
+            platform={platform}
+            searchQuery={searchQuery}
+          />
+        )}
+        customControl={
+          showFilterHeaders ? renderCustomFiltersButton : undefined
+        }
+        stackControls
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable={showFilterHeaders}
         manualSortBy
-        keyboardSelectableRows
+        keyboardSelectableRows={isMyDevicePage}
         // my device page row clickability
         disableMultiRowSelect={isMyDevicePage}
         onClickRow={isMyDevicePage ? onClickMyDeviceRow : undefined}

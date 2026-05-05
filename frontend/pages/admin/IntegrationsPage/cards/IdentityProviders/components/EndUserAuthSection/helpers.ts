@@ -1,0 +1,107 @@
+import { IEndUserAuthentication } from "interfaces/config";
+
+import isURL from "validator/lib/isURL";
+
+export interface IFormDataIdp {
+  idp_name: string;
+  entity_id: string;
+  metadata_url: string;
+  metadata: string;
+}
+
+export const newFormDataIdp = (
+  config?: IEndUserAuthentication
+): IFormDataIdp => {
+  return {
+    idp_name: config?.idp_name?.trim() || "",
+    entity_id: config?.entity_id?.trim() || "",
+    metadata_url: config?.metadata_url?.trim() || "",
+    metadata: config?.metadata?.trim() || "",
+  };
+};
+
+export const isEmptyFormData = (data: IFormDataIdp) => {
+  return (
+    !data.idp_name && !data.entity_id && !data.metadata && !data.metadata_url
+  );
+};
+
+export const isMissingAnyRequiredField = (data: IFormDataIdp) => {
+  return (
+    !data.idp_name || !data.entity_id || (!data.metadata && !data.metadata_url)
+  );
+};
+
+const errorIdpName = (data: IFormDataIdp) => {
+  if (!data.idp_name) {
+    return "Identity provider name must be present.";
+  }
+  return "";
+};
+
+const errorEntityId = (data: IFormDataIdp) => {
+  if (!data.entity_id) {
+    return "Entity ID must be present.";
+  }
+  return "";
+};
+
+const errorMetadataUrl = (data: IFormDataIdp) => {
+  switch (true) {
+    case !data.metadata && !data.metadata_url:
+      return "Metadata or Metadata URL must be present.";
+    case data.metadata_url && !isURL(data.metadata_url):
+      return "Metadata URL is not a valid URL.";
+    case data.metadata_url &&
+      !isURL(data.metadata_url, {
+        require_protocol: true,
+        protocols: ["http", "https"],
+      }):
+      return `Metadata URL must start with a supported protocol (https:// or http://).`;
+    default:
+      return "";
+  }
+};
+
+const errorMetadata = (data: IFormDataIdp) => {
+  if (!data.metadata && !data.metadata_url) {
+    return "Metadata or Metadata URL must be present.";
+  }
+  return "";
+};
+
+const validators = {
+  idp_name: errorIdpName,
+  entity_id: errorEntityId,
+  metadata_url: errorMetadataUrl,
+  metadata: errorMetadata,
+} as const;
+
+export const trimFormDataIdp = (data: IFormDataIdp): IFormDataIdp => ({
+  idp_name: data.idp_name.trim(),
+  entity_id: data.entity_id.trim(),
+  metadata_url: data.metadata_url.trim(),
+  metadata: data.metadata.trim(),
+});
+
+export type IFormErrorsIdp = Partial<Record<keyof IFormDataIdp, string>>;
+
+export const validateFormDataIdp = (
+  data: IFormDataIdp
+): IFormErrorsIdp | null => {
+  let formErrors: IFormErrorsIdp | null = null;
+  if (isEmptyFormData(data)) {
+    return formErrors;
+  }
+  Object.entries(validators).forEach(([k, v]) => {
+    const err = v(data);
+    if (err) {
+      if (!formErrors) {
+        formErrors = { [k as keyof IFormDataIdp]: err };
+      } else {
+        formErrors[k as keyof IFormDataIdp] = err;
+      }
+    }
+  });
+  return formErrors;
+};

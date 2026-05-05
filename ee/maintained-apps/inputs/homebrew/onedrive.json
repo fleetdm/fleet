@@ -1,0 +1,8 @@
+{
+  "name": "OneDrive",
+  "slug": "onedrive/darwin",
+  "unique_identifier": "com.microsoft.OneDrive",
+  "token": "onedrive",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}

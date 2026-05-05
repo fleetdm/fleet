@@ -29,13 +29,13 @@ import validURL from "components/forms/validators/valid_url";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Checkbox from "components/forms/fields/Checkbox";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
@@ -132,6 +132,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -149,7 +150,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       host_expiry_enabled: globalHostExpiryEnabled,
       host_expiry_window: globalHostExpiryWindow,
     },
-  } = appConfig ?? { host_expiry_settings: {} };
+    gitops: { gitops_mode_enabled: gitopsModeEnabled },
+  } = appConfig ?? { host_expiry_settings: {}, gitops: {} };
 
   const {
     data: teamConfig,
@@ -263,7 +265,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         .catch((errorResponse: { data: IApiError }) => {
           renderFlash(
             "error",
-            `Could not update team settings. ${errorResponse.data.errors[0].reason}`
+            `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
           );
         })
         .finally(() => {
@@ -281,7 +283,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   const renderForm = () => {
     if (errorLoadGlobalConfig || errorLoadTeamConfig) {
-      return <DataError />;
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
     if (isLoadingTeamConfig || isLoadingAppConfig) {
       return <Spinner />;
@@ -294,14 +296,15 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           onChange={onInputChange}
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
-          helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
-          tooltipContent="Send an alert if a portion of your hosts go offline."
+          helpText={`This will trigger webhooks specific to this fleet, separate from the global host status webhook.`}
+          labelTooltipContent="Send an alert if a portion of your hosts go offline."
+          disabled={gitopsModeEnabled}
         >
           Enable host status webhook
         </Checkbox>
         <Button
           type="button"
-          variant="text-link"
+          variant="inverse"
           onClick={toggleHostStatusWebhookPreviewModal}
         >
           Preview request
@@ -316,6 +319,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               value={formData.teamHostStatusWebhookDestinationUrl}
               parseTarget
               error={formErrors.host_status_webhook_destination_url}
+              disabled={gitopsModeEnabled}
               tooltip={
                 <p>
                   Provide a URL to deliver <br />
@@ -331,6 +335,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               value={formData.teamHostStatusWebhookHostPercentage}
               parseTarget
               searchable={false}
+              disabled={gitopsModeEnabled}
               tooltip={
                 <p>
                   Select the minimum percentage of hosts that
@@ -348,6 +353,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               name="teamHostStatusWebhookWindow"
               value={formData.teamHostStatusWebhookWindow}
               parseTarget
+              disabled={gitopsModeEnabled}
               searchable={false}
               tooltip={
                 <p>
@@ -372,6 +378,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             setTeamExpiryEnabled={(isEnabled: boolean) =>
               onInputChange({ name: "teamHostExpiryEnabled", value: isEnabled })
             }
+            gitopsModeEnabled={gitopsModeEnabled}
           />
         )}
         {formData.teamHostExpiryEnabled && (
@@ -385,17 +392,21 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             name="teamHostExpiryWindow"
             value={formData.teamHostExpiryWindow}
             error={formErrors.host_expiry_window}
+            disabled={gitopsModeEnabled}
           />
         )}
-        <Button
-          type="submit"
-          variant="brand"
-          className="button-wrap"
-          isLoading={updatingTeamSettings}
-          disabled={Object.keys(formErrors).length > 0}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              className="button-wrap"
+              isLoading={updatingTeamSettings}
+              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+            >
+              Save
+            </Button>
+          )}
+        />
       </form>
     );
   };

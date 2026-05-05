@@ -1,0 +1,8 @@
+{
+  "name": "Tunnelblick",
+  "unique_identifier": "net.tunnelblick.tunnelblick",
+  "token": "tunnelblick",
+  "installer_format": "dmg",
+  "slug": "tunnelblick/darwin",
+  "default_categories": ["Productivity"]
+}

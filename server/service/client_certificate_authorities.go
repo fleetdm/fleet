@@ -1,0 +1,35 @@
+package service
+
+import "github.com/fleetdm/fleet/v4/server/fleet"
+
+// GetCertificateAuthoritiesSpec fetches the certificate authorities stored on the server
+func (c *Client) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	verb, path := "GET", "/api/latest/fleet/spec/certificate_authorities"
+	var responseBody getCertificateAuthoritiesSpecResponse
+	query := ""
+	if includeSecrets {
+		query = "include_secrets=true"
+	}
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	return responseBody.CertificateAuthorities, err
+}
+
+// ApplyCertificateAuthoritiesSpec applies the certificate authorities.
+func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertificateAuthorities, specOpts fleet.ApplySpecOptions, opts fleet.BatchApplyCertificateAuthoritiesOpts) error {
+	req := batchApplyCertificateAuthoritiesRequest{
+		CertificateAuthorities: groupedCAs,
+		DryRun:                 specOpts.DryRun,
+		SkipDeletes:            opts.SkipDeletes,
+	}
+	verb, path := "POST", "/api/latest/fleet/spec/certificate_authorities"
+	var responseBody batchApplyCertificateAuthoritiesResponse
+	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, specOpts.RawQuery())
+}
+
+// GetCertificateAuthorities fetches the list of certificate authorities
+func (c *Client) GetCertificateAuthorities() ([]*fleet.CertificateAuthoritySummary, error) {
+	verb, path := "GET", "/api/latest/fleet/certificate_authorities"
+	var responseBody listCertificateAuthoritiesResponse
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
+	return responseBody.CertificateAuthorities, err
+}

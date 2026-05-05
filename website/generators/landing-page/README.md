@@ -6,7 +6,7 @@ A `landing-page` generator for use with the Sails command-line interface.
 ## Usage
 
 ```bash
-$ sails generate landing-page 
+$ sails generate landing-page
 ```
 
 
@@ -17,9 +17,9 @@ See [Extending Sails > Generators > Custom Generators](https://sailsjs.com/docs/
 <a href="https://sailsjs.com" target="_blank" title="Node.js framework for building realtime APIs."><img src="https://github-camo.global.ssl.fastly.net/9e49073459ed4e0e2687b80eaf515d87b0da4a6b/687474703a2f2f62616c64657264617368792e6769746875622e696f2f7361696c732f696d616765732f6c6f676f2e706e67" width=60 alt="Sails.js logo (small)"/></a>
 
 
-## Bugs 
+## Bugs
 
-To report a bug, [click here](https://github.com/fleetdm/fleet/issues/new).
+To report a bug, [create an issue in the `fleet` GitHub repository](https://github.com/fleetdm/fleet/issues/new).
 
 
 ## Contributing

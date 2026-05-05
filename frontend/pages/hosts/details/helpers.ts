@@ -1,5 +1,9 @@
 /** Helpers used across the host details and my device pages and components. */
-import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
+import {
+  HostMdmDeviceStatus,
+  HostMdmPendingAction,
+  RecoveryLockPasswordStatus,
+} from "interfaces/host";
 import {
   IHostMdmProfile,
   WindowsDiskEncryptionStatus,
@@ -9,10 +13,20 @@ import {
 
 const convertWinDiskEncryptionStatusToSettingStatus = (
   diskEncryptionStatus: WindowsDiskEncryptionStatus
-): MdmProfileStatus => {
+): MdmProfileStatus | "action_required" => {
   return diskEncryptionStatus === "enforcing"
     ? "pending"
     : diskEncryptionStatus;
+};
+
+const generateWindowsDiskEncryptionMessage = (
+  status: WindowsDiskEncryptionStatus,
+  detail: string
+) => {
+  if (status === "failed") {
+    detail += ". Fleet will retry automatically.";
+  }
+  return detail;
 };
 
 /**
@@ -20,18 +34,19 @@ const convertWinDiskEncryptionStatusToSettingStatus = (
  * this as we don't have a windows disk encryption profile in the `profiles`
  * attribute coming back from the GET /hosts/:id API response.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const generateWinDiskEncryptionSetting = (
   diskEncryptionStatus: WindowsDiskEncryptionStatus,
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This s the only type of profile that can have this value
+    profile_uuid: "0", // This is the only type of profile that can have this value
     platform: "windows",
-    name: "Disk Encryption",
+    name: "Disk encryption",
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
-    detail,
+    detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 
@@ -46,12 +61,32 @@ export const generateLinuxDiskEncryptionSetting = (
   detail: string
 ): IHostMdmProfile => {
   return {
-    profile_uuid: "0", // This s the only type of profile that can have this value
+    profile_uuid: "disk_enc_dummy",
     platform: "linux",
-    name: "Disk Encryption",
+    name: "Disk encryption",
     status: diskEncryptionStatus,
     detail,
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
+  };
+};
+
+export const REC_LOCK_SYNTHETIC_PROFILE_UUID = "rec_lock_dummy";
+
+export const generateRecoveryLockPasswordSetting = (
+  status: RecoveryLockPasswordStatus,
+  detail: string
+): IHostMdmProfile => {
+  return {
+    profile_uuid: REC_LOCK_SYNTHETIC_PROFILE_UUID,
+    platform: "darwin",
+    name: "Recovery Lock password",
+    status,
+    detail,
+    operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 
@@ -61,7 +96,8 @@ export type HostMdmDeviceStatusUIState =
   | "unlocking"
   | "locking"
   | "wiped"
-  | "wiping";
+  | "wiping"
+  | "locating";
 
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
@@ -75,6 +111,10 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
   wiped: "wiped",
   wipe: "wiping",
+  /** When device_status is "locked" and pending_action is "location", show "locating",
+   * device_status is "unlocked" and pending_action is "location" is still "locking"
+   */
+  location: "locating",
 };
 
 const deviceUpdatingStates = ["unlocking", "locking", "wiping"] as const;
@@ -94,6 +134,14 @@ export const getHostDeviceStatusUIState = (
   if (pendingAction === "") {
     return API_TO_UI_DEVICE_STATUS_MAP[deviceStatus];
   }
+
+  // Special case: when pending_action is "location" and device_status is "unlocked",
+  // the device is in the process of locking in order to enable location tracking.
+  // Return "locking" in this case.
+  if (pendingAction === "location" && deviceStatus === "unlocked") {
+    return "locking";
+  }
+
   return API_TO_UI_DEVICE_STATUS_MAP[pendingAction];
 };
 

@@ -11,6 +11,7 @@ import SettingsSection from "pages/admin/components/SettingsSection";
 
 import AppleMdmCard from "./AppleMdmCard";
 import WindowsMdmCard from "./WindowsMdmCard";
+import AndroidMdmCard from "./AndroidMdmCard";
 
 const baseClass = "mdm-settings-section";
 
@@ -37,6 +38,10 @@ const MdmSettingsSection = ({
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM_WINDOWS);
   };
 
+  const navigateToAndroidMdm = () => {
+    router.push(PATHS.ADMIN_INTEGRATIONS_MDM_ANDROID);
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
@@ -47,7 +52,7 @@ const MdmSettingsSection = ({
     }
 
     return (
-      <div className={`${baseClass}__content`}>
+      <>
         <AppleMdmCard
           appleAPNSInfo={appleAPNSInfo}
           errorData={appleAPNSError}
@@ -58,7 +63,11 @@ const MdmSettingsSection = ({
           turnOnWindowsMdm={navigateToWindowsMdm}
           editWindowsMdm={navigateToWindowsMdm}
         />
-      </div>
+        <AndroidMdmCard
+          turnOffAndroidMdm={navigateToAndroidMdm}
+          editAndroidMdm={navigateToAndroidMdm}
+        />
+      </>
     );
   };
 

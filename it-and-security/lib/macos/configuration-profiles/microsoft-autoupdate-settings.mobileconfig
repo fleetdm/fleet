@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>AcknowledgedDataCollectionPolicy</key>
+			<string>RequiredDataOnly</string>
+			<key>ChannelName</key>
+			<string>Current</string>
+			<key>HowToCheck</key>
+			<string>AutomaticDownload</string>
+			<key>IgnoreUIOpenAfterInstall</key>
+			<true/>
+			<key>PayloadDisplayName</key>
+			<string>Microsoft AutoUpdate</string>
+			<key>PayloadIdentifier</key>
+			<string>com.microsoft.autoupdate2.DD5F294A-3B5C-48EA-AA0B-B17C8806667D</string>
+			<key>PayloadType</key>
+			<string>com.microsoft.autoupdate2</string>
+			<key>PayloadUUID</key>
+			<string>DD5F294A-3B5C-48EA-AA0B-B17C8806667D</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Microsoft AutoUpdate settings</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.547B48AB-75CF-4BB2-BA78-76A291F0EC3E</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>348EF514-7155-415A-A7CC-EF276614EFE7</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

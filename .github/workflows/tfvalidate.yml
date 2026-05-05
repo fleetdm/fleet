@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -41,7 +41,7 @@ jobs:
       - name: Install terraform
         uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
         with:
-          terraform_version: 1.9.0
+          terraform_version: 1.12.0
       # If we want to test more of these, consider using a matrix.  With a matrix of directories, all terraform modules could be fully tested and potentially in parallel.
       - name: Validate loadtesting
         working-directory: ./infrastructure/loadtesting/terraform

@@ -2,6 +2,7 @@ package tables
 
 import (
 	"database/sql"
+
 	"github.com/pkg/errors"
 )
 
@@ -19,7 +20,7 @@ func Up_20220915165116(tx *sql.Tx) error {
 			    display_name varchar(255) NOT NULL,
 			    PRIMARY KEY (host_id),
 			    KEY (display_name)
-			);
+			) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 		`},
 		{"migrate data", `
 			INSERT INTO host_display_names (
@@ -30,7 +31,6 @@ func Up_20220915165116(tx *sql.Tx) error {
 		if _, err := tx.Exec(change.sql); err != nil {
 			return errors.Wrapf(err, "upHostDisplayName: %s", change.name)
 		}
-
 	}
 	return nil
 }

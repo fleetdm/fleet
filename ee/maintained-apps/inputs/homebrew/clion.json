@@ -1,0 +1,8 @@
+{
+  "name": "CLion",
+  "unique_identifier": "com.jetbrains.CLion",
+  "token": "clion",
+  "installer_format": "dmg",
+  "slug": "clion/darwin",
+  "default_categories": ["Developer tools"]
+}

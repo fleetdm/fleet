@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft Auto Update",
+  "unique_identifier": "com.microsoft.autoupdate2",
+  "token": "microsoft-auto-update",
+  "installer_format": "pkg",
+  "slug": "microsoft-auto-update/darwin",
+  "default_categories": ["Productivity"]
+}

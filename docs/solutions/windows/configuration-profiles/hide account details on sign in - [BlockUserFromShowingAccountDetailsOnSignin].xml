@@ -1,0 +1,12 @@
+<Replace>
+  <Item>
+    <Meta>
+      <Format>chr</Format>
+      <Type>text/plain</Type>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_Logon/BlockUserFromShowingAccountDetailsOnSignin</LocURI>
+    </Target>
+    <Data>&lt;enabled/&gt;</Data>
+  </Item>
+</Replace>

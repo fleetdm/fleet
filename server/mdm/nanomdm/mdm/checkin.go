@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 var ErrUnrecognizedMessageType = errors.New("unrecognized MessageType")
@@ -51,7 +51,7 @@ func (b b64Data) String() string {
 // TokenUpdate is a representation of a "TokenUpdate" check-in message type.
 // See https://developer.apple.com/documentation/devicemanagement/token_update
 type TokenUpdate struct {
-	Enrollment
+	TokenUpdateEnrollment
 	MessageType
 	Push
 	UnlockToken []byte `plist:",omitempty"`

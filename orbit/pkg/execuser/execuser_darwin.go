@@ -41,7 +41,15 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 		}
 	}
 
-	cmd := exec.Command("/usr/bin/open", arg...)
+	var cmd *exec.Cmd
+	// If we have a user in the options, use sudo to run "open" as that user
+	if opts.user != "" {
+		arg = append([]string{"-u", opts.user, "/usr/bin/open"}, arg...)
+		cmd = exec.Command("sudo", arg...)
+	} else {
+		// Otherwise, just run "open" as the current user
+		cmd = exec.Command("/usr/bin/open", arg...)
+	}
 	tw := &TransientWriter{}
 	cmd.Stderr = io.MultiWriter(tw, os.Stderr)
 	cmd.Stdout = io.MultiWriter(tw, os.Stdout)
@@ -53,8 +61,4 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
 	return nil, 0, errors.New("not implemented")
-}
-
-func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	return nil, errors.New("not implemented")
 }

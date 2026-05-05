@@ -102,6 +102,13 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		},
 	}
 
+	// One of the calls to renewReceiver.Run() will run first and get blocked in checkEnrollmentFn. The
+	// second won't call the command (won't be able to lock the mutex). So, it will still complete successfully
+	// without being blocked by the other call in progress. Whichever one exits first then needs to close
+	// chProceed so the other one is unblocked.
+	var shouldCloseChProceed atomic.Bool
+	shouldCloseChProceed.Store(true)
+
 	started := make(chan struct{})
 	frequencyMu := sync.Mutex{}
 	go func() {
@@ -109,23 +116,25 @@ func TestRenewEnrollmentProfilePrevented(t *testing.T) {
 		defer frequencyMu.Unlock()
 		close(started)
 
-		// the first call will block in runCmdFn
 		err := renewReceiver.Run(testConfig)
 		require.NoError(t, err)
+		if shouldCloseChProceed.CompareAndSwap(true, false) {
+			close(chProceed)
+			t.Logf("%v unblock the first call from the goroutine", time.Now())
+		}
 	}()
 
 	<-started
 	t.Logf("%v started", time.Now())
-	// this call will happen while the first call is blocked in checkEnrollmentFn, so it
-	// won't call the command (won't be able to lock the mutex). However, it will
-	// still complete successfully without being blocked by the other call in
-	// progress.
+
 	err := renewReceiver.Run(testConfig)
 	require.NoError(t, err)
 
-	// unblock the first call
-	close(chProceed)
-	t.Logf("%v unblock the first call", time.Now())
+	if shouldCloseChProceed.CompareAndSwap(true, false) {
+		// unblock the first call
+		close(chProceed)
+		t.Logf("%v unblock the first call", time.Now())
+	}
 
 	// this next call won't execute the command because of the frequency
 	// restriction (it got called less than N seconds ago)
@@ -425,7 +434,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
 	})
 
@@ -446,7 +455,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // all scripts executed in a single run
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts failed")
 		require.Contains(t, logBuf.String(), io.ErrUnexpectedEOF.Error())
 	})
@@ -475,7 +484,7 @@ func TestRunScripts(t *testing.T) {
 
 		waitForRun(t, runner)
 		require.Equal(t, int64(1), callsCount.Load()) // only called once because of mutex
-		require.Contains(t, logBuf.String(), "received request to run scripts [a b c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a b c]")
 		require.Contains(t, logBuf.String(), "running scripts [a b c] succeeded")
 	})
 
@@ -539,11 +548,11 @@ func TestRunScripts(t *testing.T) {
 
 		// validate the Scripts Enabled flags that were passed to the runScriptsFn
 		require.Equal(t, []bool{false, true, false}, scriptsEnabledCalls)
-		require.Contains(t, logBuf.String(), "received request to run scripts [a]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [a]")
 		require.Contains(t, logBuf.String(), "running scripts [a] succeeded")
-		require.Contains(t, logBuf.String(), "received request to run scripts [b]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [b]")
 		require.Contains(t, logBuf.String(), "running scripts [b] succeeded")
-		require.Contains(t, logBuf.String(), "received request to run scripts [c]")
+		require.Contains(t, logBuf.String(), "received notification to run scripts [c]")
 		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
 	})
 }
@@ -568,17 +577,9 @@ func TestBitlockerOperations(t *testing.T) {
 	var (
 		shouldEncrypt          = true
 		shouldFailEncryption   = false
-		shouldFailDecryption   = false
 		shouldFailServerUpdate = false
 		encryptFnCalled        = false
-		decryptFnCalled        = false
 	)
-
-	testConfig := &fleet.OrbitConfig{
-		Notifications: fleet.OrbitConfigNotifications{
-			EnforceBitLockerEncryption: shouldEncrypt,
-		},
-	}
 
 	clientMock := &mockDiskEncryptionKeySetter{}
 	clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
@@ -587,6 +588,9 @@ func TestBitlockerOperations(t *testing.T) {
 		}
 		return nil
 	}
+
+	var rotateKeyFnCalled bool
+	var shouldFailKeyRotation bool
 
 	var enrollReceiver *windowsMDMBitlockerConfigReceiver
 	setupTest := func() {
@@ -605,52 +609,54 @@ func TestBitlockerOperations(t *testing.T) {
 
 				return "123456", nil
 			},
-			execDecryptVolumeFn: func(string) error {
-				decryptFnCalled = true
-				if shouldFailDecryption {
-					return errors.New("error decrypting")
+			execRotateRecoveryKeyFn: func(string) (string, error) {
+				rotateKeyFnCalled = true
+				if shouldFailKeyRotation {
+					return "", errors.New("error rotating key")
 				}
-
-				return nil
+				return "rotated-key-789", nil
 			},
 		}
 		shouldEncrypt = true
 		shouldFailEncryption = false
-		shouldFailDecryption = false
+		shouldFailKeyRotation = false
 		shouldFailServerUpdate = false
 		encryptFnCalled = false
-		decryptFnCalled = false
+		rotateKeyFnCalled = false
 		clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
 		logBuf.Reset()
 	}
 
+	makeConfig := func() *fleet.OrbitConfig {
+		return &fleet.OrbitConfig{
+			Notifications: fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: shouldEncrypt,
+			},
+		}
+	}
+
 	t.Run("bitlocker encryption is performed", func(t *testing.T) {
 		setupTest()
-		shouldEncrypt = true
-		shouldFailEncryption = false
-		shouldFailDecryption = false
-		err := enrollReceiver.Run(testConfig)
+		// shouldEncrypt defaults to true from setupTest
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err) // the dummy receiver never returns an error
 	})
 
-	t.Run("bitlocker encryption is not performed", func(t *testing.T) {
+	t.Run("bitlocker encryption is not performed when not enforced", func(t *testing.T) {
 		setupTest()
 		shouldEncrypt = false
-		shouldFailEncryption = false
-		err := enrollReceiver.Run(testConfig)
-		require.NoError(t, err) // the dummy receiver never returns an error
-		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.False(t, encryptFnCalled, "encryption function should not be called when not enforced")
+		require.False(t, rotateKeyFnCalled, "rotate key function should not be called when not enforced")
 	})
 
 	t.Run("bitlocker encryption returns an error", func(t *testing.T) {
 		setupTest()
-		shouldEncrypt = true
 		shouldFailEncryption = true
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err) // the dummy receiver never returns an error
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
@@ -669,11 +675,10 @@ func TestBitlockerOperations(t *testing.T) {
 					return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 				}
 
-				err := enrollReceiver.Run(testConfig)
+				err := enrollReceiver.Run(makeConfig())
 				require.NoError(t, err)
 				require.Contains(t, logBuf.String(), "skipping encryption as the disk is not available")
 				require.False(t, encryptFnCalled, "encryption function should not be called")
-				require.False(t, decryptFnCalled, "decryption function should not be called")
 				logBuf.Reset() // Reset the log buffer for the next iteration
 			})
 		}
@@ -689,42 +694,41 @@ func TestBitlockerOperations(t *testing.T) {
 			return "", bitlocker.NewEncryptionError("", bitlocker.ErrorCodeNotDecrypted)
 		}
 
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err)
 		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt, user action required")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
-	t.Run("decrypts the disk if previously encrypted", func(t *testing.T) {
+	t.Run("rotates recovery key if disk already encrypted", func(t *testing.T) {
 		setupTest()
 		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
 		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err)
-		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
-		require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
-		require.False(t, encryptFnCalled, "encryption function should not have been called")
-		require.True(t, decryptFnCalled, "decryption function should have been called")
-	})
-
-	t.Run("reports to the server if decryption fails", func(t *testing.T) {
-		setupTest()
-		shouldFailDecryption = true
-		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
-		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
-			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
-		}
-
-		err := enrollReceiver.Run(testConfig)
-		require.NoError(t, err)
-		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
-		require.Contains(t, logBuf.String(), "decryption failed")
-		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.Contains(t, logBuf.String(), "disk is already encrypted, rotating recovery key")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked, "should escrow the rotated key")
+		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.True(t, decryptFnCalled, "decryption function should have been called")
+	})
+
+	t.Run("reports to the server if key rotation fails", func(t *testing.T) {
+		setupTest()
+		shouldFailKeyRotation = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.Contains(t, logBuf.String(), "disk is already encrypted, rotating recovery key")
+		require.Contains(t, logBuf.String(), "recovery key rotation failed")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
+		require.False(t, encryptFnCalled, "encryption function should not be called")
 	})
 
 	t.Run("encryption skipped if last run too recent", func(t *testing.T) {
@@ -732,11 +736,10 @@ func TestBitlockerOperations(t *testing.T) {
 		enrollReceiver.lastRun = time.Now().Add(-30 * time.Minute)
 		enrollReceiver.Frequency = 1 * time.Hour
 
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err)
 		require.Contains(t, logBuf.String(), "skipped encryption process, last run was too recent")
 		require.False(t, encryptFnCalled, "encryption function should not be called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("successful fleet server update", func(t *testing.T) {
@@ -747,11 +750,10 @@ func TestBitlockerOperations(t *testing.T) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err)
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 
 	t.Run("failed fleet server update", func(t *testing.T) {
@@ -763,11 +765,57 @@ func TestBitlockerOperations(t *testing.T) {
 			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
 		}
 
-		err := enrollReceiver.Run(testConfig)
+		err := enrollReceiver.Run(makeConfig())
 		require.NoError(t, err)
 		require.Contains(t, logBuf.String(), "failed to send encryption result to Fleet Server")
 		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
 		require.True(t, encryptFnCalled, "encryption function should have been called")
-		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
+
+	t.Run("failed escrow caches key for retry", func(t *testing.T) {
+		setupTest()
+		shouldFailServerUpdate = true
+		lastRunBefore := enrollReceiver.lastRun
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		// First run: rotation succeeds but escrow fails, key should be cached
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.True(t, rotateKeyFnCalled, "rotate key function should have been called")
+		require.Equal(t, "rotated-key-789", enrollReceiver.pendingRecoveryKey, "key should be cached after failed escrow")
+		require.Equal(t, lastRunBefore, enrollReceiver.lastRun, "lastRun should not advance when escrow fails")
+	})
+
+	t.Run("cached key retried without re-rotating", func(t *testing.T) {
+		setupTest()
+		shouldFailServerUpdate = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollReceiver.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		// First run: rotation succeeds, escrow fails, key cached
+		err := enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.True(t, rotateKeyFnCalled)
+		require.Equal(t, "rotated-key-789", enrollReceiver.pendingRecoveryKey)
+
+		// Second run: escrow succeeds, key cleared, no re-rotation
+		rotateKeyFnCalled = false
+		encryptFnCalled = false
+		shouldFailServerUpdate = false
+		logBuf.Reset()
+
+		err = enrollReceiver.Run(makeConfig())
+		require.NoError(t, err)
+		require.Contains(t, logBuf.String(), "retrying escrow of previously rotated recovery key")
+		require.False(t, rotateKeyFnCalled, "should NOT rotate again")
+		require.False(t, encryptFnCalled, "should NOT encrypt again")
+		require.Empty(t, enrollReceiver.pendingRecoveryKey, "cached key should be cleared after successful escrow")
+		require.False(t, enrollReceiver.lastRun.IsZero(), "lastRun should be set after successful escrow")
+	})
+
 }

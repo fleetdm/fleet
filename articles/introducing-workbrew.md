@@ -19,7 +19,7 @@ Workbrew enables companies to maintain the agility developers love while ensurin
 
 As noted in the article, Workbrew brings a customizable solution to organizations struggling with “[shadow IT](https://techcrunch.com/2015/09/25/its-time-to-embrace-not-fear-shadow-it/)” risks. By offering a fleet dashboard, vulnerability detection, and deep integrations with tools like [Fleet](https://fleetdm.com/device-management), Workbrew helps companies maintain visibility and control over Homebrew deployments at scale. Whether it’s ensuring compliance in regulated industries or automating package installations for remote teams, Workbrew is paving the way for safer, smarter IT management.
 
-![Workbrew console](../website/assets/images/articles/workbrew-console-3412x2020px.png)
+![Workbrew console](../website/assets/images/articles/workbrew-console-1706x1010@2x.png)
 
 At Fleet, we’re excited to support Workbrew’s efforts. Our [integration](https://fleetdm.com/integrations) ensures that Workbrew users can easily sync device data, enabling seamless management across teams. Workbrew’s approach resonates with our belief in open-source and transparent tools for IT and security.
 

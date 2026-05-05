@@ -1,0 +1,14 @@
+# Software architecture
+
+Fleet's software architecture is designed to manage software across the device fleet, including software inventory and software installation. This directory contains documentation about Fleet's software architecture.
+
+## Contents
+
+- [Software Overview](software-overview.md) - Overview of Fleet's software architecture
+- [Software Installation](software-installation.md) - Architecture for software installation
+- [Software Updates](software-updates.md) - Architecture for software updates
+- [Software automations](software-automations.md) - Architecture for software automations
+
+## Related resources
+
+- [Software Product Group Documentation](../../product-groups/software/) - Documentation for the Software product group

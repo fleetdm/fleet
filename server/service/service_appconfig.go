@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"html/template"
 	"strings"
 
@@ -15,24 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 )
 
-// mailError is set when an error performing mail operations
-type mailError struct {
-	message string
-}
-
-func (e mailError) Error() string {
-	return fmt.Sprintf("a mail error occurred: %s", e.message)
-}
-
-func (e mailError) MailError() []map[string]string {
-	return []map[string]string{
-		{
-			"name":   "base",
-			"reason": e.message,
-		},
-	}
-}
-
 func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet.AppConfig, error) {
 	// skipauth: No user context yet when the app config is first created.
 	svc.authz.SkipAuthorization(ctx)
@@ -43,12 +24,9 @@ func (svc *Service) NewAppConfig(ctx context.Context, p fleet.AppConfig) (*fleet
 	}
 
 	// Set up a default enroll secret
-	secret := svc.config.Packaging.GlobalEnrollSecret
-	if secret == "" {
-		secret, err = server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
-		}
+	secret, err := server.GenerateRandomText(fleet.EnrollSecretDefaultLength)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "generate enroll secret string")
 	}
 	secrets := []*fleet.EnrollSecret{
 		{
@@ -86,7 +64,7 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
-		return mailError{message: err.Error()}
+		return MailError{Message: err.Error()}
 	}
 	return nil
 }
@@ -96,25 +74,34 @@ func cleanupURL(url string) string {
 }
 
 func (svc *Service) License(ctx context.Context) (*fleet.LicenseInfo, error) {
-	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) {
+	if !svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceCertificate) &&
+		!svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceURL) {
 		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
 			return nil, err
 		}
 	}
 
-	lic, _ := license.FromContext(ctx)
+	licChecker, _ := license.FromContext(ctx)
+	// Type assert to get the concrete type for modification and return
+	lic, _ := licChecker.(*fleet.LicenseInfo)
+
+	// Currently we use the presence of Microsoft Compliance Partner settings
+	// (only configured in cloud instances) to determine if a Fleet instance
+	// is a cloud managed instance.
+	if lic != nil && svc.config.MicrosoftCompliancePartner.IsSet() {
+		lic.ManagedCloud = true
+	}
+
 	return lic, nil
 }
 
 func (svc *Service) SetupRequired(ctx context.Context) (bool, error) {
-	users, err := svc.ds.ListUsers(ctx, fleet.UserListOptions{ListOptions: fleet.ListOptions{Page: 0, PerPage: 1}})
+	hasUsers, err := svc.ds.HasUsers(ctx)
 	if err != nil {
 		return false, err
 	}
-	if len(users) == 0 {
-		return true, nil
-	}
-	return false, nil
+	return !hasUsers, nil
 }
 
 func (svc *Service) UpdateIntervalConfig(ctx context.Context) (*fleet.UpdateIntervalConfig, error) {
@@ -135,6 +122,7 @@ func (svc *Service) VulnerabilitiesConfig(ctx context.Context) (*fleet.Vulnerabi
 		DisableDataSync:             svc.config.Vulnerabilities.DisableDataSync,
 		RecentVulnerabilityMaxAge:   svc.config.Vulnerabilities.RecentVulnerabilityMaxAge,
 		DisableWinOSVulnerabilities: svc.config.Vulnerabilities.DisableWinOSVulnerabilities,
+		OSVForVulnerabilities:       svc.config.Vulnerabilities.OSVForVulnerabilities,
 	}, nil
 }
 
@@ -176,6 +164,13 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 				Plugin: "filesystem",
 				Config: fleet.FilesystemConfig{
 					FilesystemConfig: conf.Filesystem,
+				},
+			}
+		case "webhook":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "webhook",
+				Config: fleet.WebhookConfig{
+					WebhookConfig: conf.Webhook,
 				},
 			}
 		case "kinesis":
@@ -227,6 +222,16 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					ProxyHost:   conf.KafkaREST.ProxyHost,
 				},
 			}
+		case "nats":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "nats",
+				Config: fleet.NatsConfig{
+					StatusSubject: conf.Nats.StatusSubject,
+					ResultSubject: conf.Nats.ResultSubject,
+					AuditSubject:  conf.Nats.AuditSubject,
+					Server:        conf.Nats.Server,
+				},
+			}
 		default:
 			return nil, ctxerr.Errorf(ctx, "unrecognized logging plugin: %s", lp.plugin)
 		}
@@ -256,4 +261,18 @@ func (svc *Service) EmailConfig(ctx context.Context) (*fleet.EmailConfig, error)
 	}
 
 	return email, nil
+}
+
+func (svc *Service) PartnershipsConfig(ctx context.Context) (*fleet.Partnerships, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+	enablePrimo := svc.config.Partnerships.EnablePrimo
+	if !enablePrimo {
+		// for now, since this is the only partnership of this type, exclude the whole struct if not enabled
+		return nil, nil
+	}
+	return &fleet.Partnerships{
+		EnablePrimo: svc.config.Partnerships.EnablePrimo,
+	}, nil
 }

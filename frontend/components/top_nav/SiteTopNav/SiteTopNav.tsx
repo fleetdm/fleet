@@ -1,16 +1,23 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { Link } from "react-router";
 import classnames from "classnames";
 
+import { getPathWithQueryParams, QueryParams } from "utilities/url";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import { isDarkMode } from "utilities/theme";
+
 import { AppContext } from "context/app";
+
 import { IConfig } from "interfaces/config";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
-import { QueryParams } from "utilities/url";
 
 import LinkWithContext from "components/LinkWithContext";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import Icon from "components/Icon";
+import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import UserMenu from "../UserMenu";
 import getNavItems, { INavItem } from "./navItems";
@@ -70,6 +77,36 @@ const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
 };
 
+const GitOpsModeIndicator = () => {
+  const baseClass = "gitops-mode-indicator";
+  const tipContent = (
+    <>
+      Items managed in YAML are read-only.
+      <br />
+      <CustomLink
+        newTab
+        text="Learn more"
+        variant="tooltip-link"
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/ui-gitops-mode`}
+      />
+    </>
+  );
+  return (
+    <TooltipWrapper
+      position="bottom"
+      underline={false}
+      showArrow
+      tipContent={tipContent}
+      tipOffset={2}
+    >
+      <div className={`${baseClass}__content`}>
+        <Icon name="gitops-mode" />
+        GitOps mode
+      </div>
+    </TooltipWrapper>
+  );
+};
+
 const SiteTopNav = ({
   config,
   currentUser,
@@ -83,8 +120,21 @@ const SiteTopNav = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainer,
+    isGlobalTechnician,
+    isAnyTeamTechnician,
     isNoAccess,
   } = useContext(AppContext);
+
+  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+
+  useEffect(() => {
+    const onThemeChange = (e: Event) => {
+      setDarkMode((e as CustomEvent).detail.dark);
+    };
+    window.addEventListener("fleet-theme-change", onThemeChange);
+    return () =>
+      window.removeEventListener("fleet-theme-change", onThemeChange);
+  }, []);
 
   const isActiveDetailPage = isDetailPage(currentPath);
   const isActiveGlobalPage = isGlobalPage(currentPath);
@@ -92,9 +142,9 @@ const SiteTopNav = ({
   const currentQueryParams = { ...query };
   if (isActiveGlobalPage || isActiveDetailPage) {
     // detail pages (e.g., host details) and some manage pages (e.g., queries) aren't guaranteed to
-    // have a team_id in the URL that we can simply append to the top nav links so instead we need grab the team
+    // have a fleet_id in the URL that we can simply append to the top nav links so instead we need grab the team
     // id from context
-    currentQueryParams.team_id =
+    currentQueryParams.fleet_id =
       currentTeam?.id === APP_CONTEXT_ALL_TEAMS_ID
         ? API_ALL_TEAMS_ID
         : currentTeam?.id;
@@ -102,7 +152,10 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const orgLogoURL = config.org_info.org_logo_url;
+    const darkLogoURL = config.org_info.org_logo_url;
+    const lightLogoURL = config.org_info.org_logo_url_light_background;
+    const hasDarkLogo = darkLogoURL && darkLogoURL !== lightLogoURL;
+    const orgLogoURL = darkMode && hasDarkLogo ? darkLogoURL : lightLogoURL;
     const active = navItem.location.regex.test(currentPath);
 
     const navItemBaseClass = "site-nav-item";
@@ -114,31 +167,28 @@ const SiteTopNav = ({
     if (iconName && iconName === "logo") {
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <LinkWithContext
+          <Link
             className={`${navItemBaseClass}__logo-wrapper`}
-            currentQueryParams={currentQueryParams}
             to={navItem.location.pathname}
-            withParams={{ type: "query", names: ["team_id"] }}
           >
             <div className={`${navItemBaseClass}__logo`}>
               <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
-          </LinkWithContext>
+          </Link>
         </li>
       );
     }
 
     if (active && !isActiveDetailPage) {
-      const path = navItem.alwaysToPathname
+      let path = navItem.alwaysToPathname
         ? navItem.location.pathname
         : currentPath;
 
-      const includeTeamId = (activePath: string) => {
-        if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
-          return `${path}?team_id=${currentQueryParams.team_id}`;
-        }
-        return activePath;
-      };
+      if (currentQueryParams.fleet_id !== API_ALL_TEAMS_ID) {
+        path = getPathWithQueryParams(path, {
+          fleet_id: currentQueryParams.fleet_id,
+        });
+      }
 
       // Clicking an active link returns user to default page
       // Resetting all filters except team ID
@@ -146,14 +196,14 @@ const SiteTopNav = ({
       // replace to the same url, which triggers a re-render)
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <a className={`${navItemBaseClass}__link`} href={includeTeamId(path)}>
+          <Link to={path} className={`${navItemBaseClass}__link`}>
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
             >
               {name}
             </span>
-          </a>
+          </Link>
         </li>
       );
     }
@@ -164,7 +214,7 @@ const SiteTopNav = ({
           <LinkWithContext
             className={`${navItemBaseClass}__link`}
             withParams={withParams}
-            currentQueryParams={{ team_id: currentQueryParams.team_id }}
+            currentQueryParams={{ fleet_id: currentQueryParams.fleet_id }}
             to={navItem.location.pathname}
           >
             <span
@@ -197,24 +247,30 @@ const SiteTopNav = ({
     isAnyTeamAdmin,
     isAnyTeamMaintainer,
     isGlobalMaintainer,
-    isNoAccess
+    isNoAccess,
+    isGlobalTechnician,
+    isAnyTeamTechnician
   );
 
   const renderNavItems = () => {
     return (
       <div className="site-nav-content">
-        <ul className="site-nav-list">
+        <ul className="site-nav-left">
           {userNavItems.map((navItem) => {
             return renderNavItem(navItem);
           })}
         </ul>
-        <UserMenu
-          onLogout={onLogoutUser}
-          onUserMenuItemClick={onUserMenuItemClick}
-          currentUser={currentUser}
-          isAnyTeamAdmin={isAnyTeamAdmin}
-          isGlobalAdmin={isGlobalAdmin}
-        />
+        <div className="site-nav-right">
+          {config.gitops.gitops_mode_enabled && <GitOpsModeIndicator />}
+          <UserMenu
+            onLogout={onLogoutUser}
+            onUserMenuItemClick={onUserMenuItemClick}
+            currentUser={currentUser}
+            currentTeam={currentTeam}
+            isAnyTeamAdmin={isAnyTeamAdmin}
+            isGlobalAdmin={isGlobalAdmin}
+          />
+        </div>
       </div>
     );
   };

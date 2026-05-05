@@ -16,26 +16,26 @@ import (
 /////////////////////////////////////////////////////////////////////////////////
 
 type getTeamScheduleRequest struct {
-	TeamID      uint              `url:"team_id"`
+	TeamID      uint              `url:"fleet_id"`
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
 type getTeamScheduleResponse struct {
-	Scheduled []scheduledQueryResponse `json:"scheduled"`
-	Err       error                    `json:"error,omitempty"`
+	Scheduled []fleet.ScheduledQueryResponse `json:"scheduled"`
+	Err       error                          `json:"error,omitempty"`
 }
 
-func (r getTeamScheduleResponse) error() error { return r.Err }
+func (r getTeamScheduleResponse) Error() error { return r.Err }
 
-func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamScheduleRequest)
-	resp := getTeamScheduleResponse{Scheduled: []scheduledQueryResponse{}}
+	resp := getTeamScheduleResponse{Scheduled: []fleet.ScheduledQueryResponse{}}
 	queries, err := svc.GetTeamScheduledQueries(ctx, req.TeamID, req.ListOptions)
 	if err != nil {
 		return getTeamScheduleResponse{Err: err}, nil
 	}
 	for _, q := range queries {
-		resp.Scheduled = append(resp.Scheduled, scheduledQueryResponse{
+		resp.Scheduled = append(resp.Scheduled, fleet.ScheduledQueryResponse{
 			ScheduledQuery: *q,
 		})
 	}
@@ -47,7 +47,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 	if teamID != 0 {
 		teamID_ = &teamID
 	}
-	queries, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
+	queries, _, _, _, err := svc.ListQueries(ctx, opts, teamID_, ptr.Bool(true), false, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (svc Service) GetTeamScheduledQueries(ctx context.Context, teamID uint, opt
 /////////////////////////////////////////////////////////////////////////////////
 
 type teamScheduleQueryRequest struct {
-	TeamID uint `url:"team_id"`
+	TeamID uint `url:"fleet_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -72,7 +72,7 @@ type teamScheduleQueryResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r teamScheduleQueryResponse) error() error { return r.Err }
+func (r teamScheduleQueryResponse) Error() error { return r.Err }
 
 func uintValueOrZero(v *uint) uint {
 	if v == nil {
@@ -88,7 +88,7 @@ func nullIntToPtrUint(v *null.Int) *uint {
 	return ptr.Uint(uint(v.ValueOrZero())) //nolint:gosec // dismiss G115
 }
 
-func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func teamScheduleQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*teamScheduleQueryRequest)
 	resp, err := svc.TeamScheduleQuery(ctx, req.TeamID, &fleet.ScheduledQuery{
 		QueryID:  uintValueOrZero(req.QueryID),
@@ -135,8 +135,8 @@ func (svc Service) TeamScheduleQuery(ctx context.Context, teamID uint, scheduled
 /////////////////////////////////////////////////////////////////////////////////
 
 type modifyTeamScheduleRequest struct {
-	TeamID           uint `url:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	TeamID           uint `url:"fleet_id"`
+	ScheduledQueryID uint `url:"report_id"`
 	fleet.ScheduledQueryPayload
 }
 
@@ -145,9 +145,9 @@ type modifyTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r modifyTeamScheduleResponse) error() error { return r.Err }
+func (r modifyTeamScheduleResponse) Error() error { return r.Err }
 
-func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyTeamScheduleRequest)
 	if _, err := svc.ModifyTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID, req.ScheduledQueryPayload); err != nil {
 		return modifyTeamScheduleResponse{Err: err}, nil
@@ -155,7 +155,6 @@ func modifyTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return modifyTeamScheduleResponse{}, nil
 }
 
-// TODO(lucas): Document new behavior.
 // teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) ModifyTeamScheduledQueries(
 	ctx context.Context,
@@ -175,8 +174,8 @@ func (svc Service) ModifyTeamScheduledQueries(
 /////////////////////////////////////////////////////////////////////////////////
 
 type deleteTeamScheduleRequest struct {
-	TeamID           uint `url:"team_id"`
-	ScheduledQueryID uint `url:"scheduled_query_id"`
+	TeamID           uint `url:"fleet_id"`
+	ScheduledQueryID uint `url:"report_id"`
 }
 
 type deleteTeamScheduleResponse struct {
@@ -184,9 +183,9 @@ type deleteTeamScheduleResponse struct {
 	Err       error                 `json:"error,omitempty"`
 }
 
-func (r deleteTeamScheduleResponse) error() error { return r.Err }
+func (r deleteTeamScheduleResponse) Error() error { return r.Err }
 
-func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteTeamScheduleRequest)
 	err := svc.DeleteTeamScheduledQueries(ctx, req.TeamID, req.ScheduledQueryID)
 	if err != nil {
@@ -195,7 +194,6 @@ func deleteTeamScheduleEndpoint(ctx context.Context, request interface{}, svc fl
 	return deleteTeamScheduleResponse{}, nil
 }
 
-// TODO(lucas): Document new behavior.
 // teamID is not used because of mismatch between old internal representation and API.
 func (svc Service) DeleteTeamScheduledQueries(ctx context.Context, teamID uint, scheduledQueryID uint) error {
 	return svc.DeleteQueryByID(ctx, scheduledQueryID)

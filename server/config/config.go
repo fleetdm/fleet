@@ -19,7 +19,14 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
+
+	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -32,21 +39,24 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string `yaml:"protocol"`
-	Address         string `yaml:"address"`
-	Username        string `yaml:"username"`
-	Password        string `yaml:"password"`
-	PasswordPath    string `yaml:"password_path"`
-	Database        string `yaml:"database"`
-	TLSCert         string `yaml:"tls_cert"`
-	TLSKey          string `yaml:"tls_key"`
-	TLSCA           string `yaml:"tls_ca"`
-	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	SQLMode         string `yaml:"sql_mode"`
+	Protocol         string `yaml:"protocol"`
+	Address          string `yaml:"address"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	PasswordPath     string `yaml:"password_path"`
+	Database         string `yaml:"database"`
+	TLSCert          string `yaml:"tls_cert"`
+	TLSKey           string `yaml:"tls_key"`
+	TLSCA            string `yaml:"tls_ca"`
+	TLSServerName    string `yaml:"tls_server_name"`
+	TLSConfig        string `yaml:"tls_config"` // tls=customValue in DSN
+	MaxOpenConns     int    `yaml:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
+	SQLMode          string `yaml:"sql_mode"`
+	Region           string `yaml:"region"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -55,7 +65,11 @@ type RedisConfig struct {
 	Username                  string
 	Password                  string
 	Database                  int
+	Region                    string        `yaml:"region"`
+	CacheName                 string        `yaml:"cache_name"`
 	UseTLS                    bool          `yaml:"use_tls"`
+	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
+	StsExternalID             string        `yaml:"sts_external_id"`
 	DuplicateResults          bool          `yaml:"duplicate_results"`
 	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
@@ -75,6 +89,18 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
+	// HostCacheEnabled turns on the Redis-backed cache that fronts
+	// LoadHostByNodeKey and LoadHostByOrbitNodeKey on the osquery and orbit
+	// authentication paths. When false, every authenticated request resolves the
+	// host from MySQL; when true (default), successful lookups are cached in
+	// Redis and invalidated on write paths. Hidden from --help: this is a
+	// feature flag, not an operator-facing tunable. See
+	// server/datastore/mysqlredis/host_cache.go.
+	HostCacheEnabled bool `yaml:"host_cache_enabled"`
+	// HostCacheTTL is the base TTL for cached host lookup entries. Actual
+	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
+	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
+	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
 }
 
 const (
@@ -85,23 +111,35 @@ const (
 
 // ServerConfig defines configs related to the Fleet server
 type ServerConfig struct {
-	Address                     string
-	Cert                        string
-	Key                         string
-	TLS                         bool
-	TLSProfile                  string `yaml:"tls_compatibility"`
-	URLPrefix                   string `yaml:"url_prefix"`
-	Keepalive                   bool   `yaml:"keepalive"`
-	SandboxEnabled              bool   `yaml:"sandbox_enabled"`
-	WebsocketsAllowUnsafeOrigin bool   `yaml:"websockets_allow_unsafe_origin"`
-	FrequentCleanupsEnabled     bool   `yaml:"frequent_cleanups_enabled"`
-	PrivateKey                  string `yaml:"private_key"`
+	Address                          string
+	Cert                             string
+	Key                              string
+	TLS                              bool
+	TLSProfile                       string        `yaml:"tls_compatibility"`
+	URLPrefix                        string        `yaml:"url_prefix"`
+	Keepalive                        bool          `yaml:"keepalive"`
+	SandboxEnabled                   bool          `yaml:"sandbox_enabled"`
+	WebsocketsAllowUnsafeOrigin      bool          `yaml:"websockets_allow_unsafe_origin"`
+	FrequentCleanupsEnabled          bool          `yaml:"frequent_cleanups_enabled"`
+	ForceH2C                         bool          `yaml:"force_h2c"`
+	PrivateKey                       string        `yaml:"private_key"`
+	PrivateKeySecretArn              string        `yaml:"private_key_arn"`
+	PrivateKeySecretRegion           string        `yaml:"private_key_region"`
+	PrivateKeySecretSTSAssumeRoleArn string        `yaml:"private_key_sts_assume_role_arn"`
+	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_sts_external_id"`
+	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
+	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
+	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
+	TrustedProxies                   string        `yaml:"trusted_proxies"`
+	GzipResponses                    bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
-	return &http.Server{
+	// Create the base server configuration
+	server := &http.Server{
 		Addr:        s.Address,
-		Handler:     handler,
 		ReadTimeout: 25 * time.Second,
 		// WriteTimeout is set for security purposes.
 		// If we don't set it, (bugy or malignant) clients making long running
@@ -114,12 +152,29 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 			return ctx
 		},
 	}
+
+	// Check if H2C (HTTP/2 without TLS) is enabled
+	if s.ForceH2C && !s.TLS {
+		// Create an HTTP/2 server
+		h2s := &http2.Server{}
+
+		// Wrap the original handler with h2c handler
+		// This allows both HTTP/1.1 and HTTP/2 requests without TLS
+		server.Handler = h2c.NewHandler(handler, h2s)
+	} else {
+		// Use regular HTTP/1.1 handler
+		server.Handler = handler
+	}
+
+	return server
 }
 
-// AuthConfig defines configs related to user authorization
+// AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost  int `yaml:"bcrypt_cost"`
-	SaltKeySize int `yaml:"salt_key_size"`
+	BcryptCost                  int           `yaml:"bcrypt_cost"`
+	SaltKeySize                 int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -168,6 +223,13 @@ type OsqueryConfig struct {
 	AsyncHostRedisPopCount           int           `yaml:"async_host_redis_pop_count"`
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
+
+	// MaxLogWriteBodySize overrides the default body size limit for the
+	// osquery/log endpoint. A value of 0 means use the built-in default.
+	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
+	// MaxDistributedWriteBodySize overrides the default body size limit for the
+	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -228,8 +290,14 @@ type LoggingConfig struct {
 	DisableBanner        bool          `yaml:"disable_banner"`
 	ErrorRetentionPeriod time.Duration `yaml:"error_retention_period"`
 	TracingEnabled       bool          `yaml:"tracing_enabled"`
-	// TracingType can either be opentelemetry or elasticapm for whichever type of tracing wanted
+	// TracingType can be set to TracingTypeElasticAPM to send traces to Elastic APM.
+	// By default (empty or any other value), traces are sent to OpenTelemetry (OTEL).
 	TracingType string `yaml:"tracing_type"`
+	// OtelLogsEnabled enables exporting logs to an OpenTelemetry collector.
+	// When enabled, logs are sent to both stderr and the OTLP endpoint.
+	OtelLogsEnabled  bool   `yaml:"otel_logs_enabled"`
+	EnableLogTopics  string `yaml:"enable_topics"`
+	DisableLogTopics string `yaml:"disable_topics"`
 }
 
 // ActivityConfig defines configs related to activities.
@@ -490,6 +558,11 @@ type FilesystemConfig struct {
 	MaxBackups           int    `json:"max_backups" yaml:"max_backups"`
 }
 
+type WebhookConfig struct {
+	StatusURL string `json:"status_url" yaml:"status_url"`
+	ResultURL string `json:"result_url" yaml:"result_url"`
+}
+
 // KafkaRESTConfig defines configs for the Kafka REST Proxy logging plugin.
 type KafkaRESTConfig struct {
 	StatusTopic      string `json:"status_topic" yaml:"status_topic"`
@@ -498,6 +571,22 @@ type KafkaRESTConfig struct {
 	ProxyHost        string `json:"proxyhost" yaml:"proxyhost"`
 	ContentTypeValue string `json:"content_type_value" yaml:"content_type_value"`
 	Timeout          int    `json:"timeout" yaml:"timeout"`
+}
+
+// NatsConfig defines configs for the NATS logging plugin.
+type NatsConfig struct {
+	StatusSubject    string        `json:"status_subject" yaml:"status_subject"`
+	ResultSubject    string        `json:"result_subject" yaml:"result_subject"`
+	AuditSubject     string        `json:"audit_subject" yaml:"audit_subject"`
+	Server           string        `json:"server" yaml:"server"`
+	CredFile         string        `json:"cred_file" yaml:"cred_file"`
+	NKeyFile         string        `json:"nkey_file" yaml:"nkey_file"`
+	TLSClientCrtFile string        `json:"tls_client_crt_file" yaml:"tls_client_crt_file"`
+	TLSClientKeyFile string        `json:"tls_client_key_file" yaml:"tls_client_key_file"`
+	CACrtFile        string        `json:"ca_crt_file" yaml:"ca_crt_file"`
+	Compression      string        `json:"compression" yaml:"compression"`
+	JetStream        bool          `json:"jetstream" yaml:"jetstream"`
+	Timeout          time.Duration `json:"timeout" yaml:"timeout"`
 }
 
 // LicenseConfig defines configs related to licensing Fleet.
@@ -513,11 +602,13 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL              string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CISAKnownExploitsURL        string        `json:"cisa_known_exploits_url" yaml:"cisa_known_exploits_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
 	RecentVulnerabilityMaxAge   time.Duration `json:"recent_vulnerability_max_age" yaml:"recent_vulnerability_max_age"`
 	DisableWinOSVulnerabilities bool          `json:"disable_win_os_vulnerabilities" yaml:"disable_win_os_vulnerabilities"`
+	OSVForVulnerabilities       bool          `json:"osv_for_vulnerabilities" yaml:"osv_for_vulnerabilities"`
 	MaxConcurrency              int           `json:"max_concurrency" yaml:"max_concurrency"`
 }
 
@@ -551,6 +642,8 @@ type HTTPBasicAuthConfig struct {
 }
 
 // PackagingConfig holds configuration to build and retrieve Fleet packages
+//
+// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 type PackagingConfig struct {
 	// GlobalEnrollSecret is the enroll secret that will be used to enroll
 	// hosts in the global scope
@@ -564,34 +657,92 @@ type PackagingConfig struct {
 // structs, Manager.addConfigs and Manager.LoadConfig should be
 // updated to set and retrieve the configurations as appropriate.
 type FleetConfig struct {
-	Mysql            MysqlConfig
-	MysqlReadReplica MysqlConfig `yaml:"mysql_read_replica"`
-	Redis            RedisConfig
-	Server           ServerConfig
-	Auth             AuthConfig
-	App              AppConfig
-	Session          SessionConfig
-	Osquery          OsqueryConfig
-	Activity         ActivityConfig
-	Logging          LoggingConfig
-	Firehose         FirehoseConfig
-	Kinesis          KinesisConfig
-	Lambda           LambdaConfig
-	S3               S3Config
-	Email            EmailConfig
-	SES              SESConfig
-	PubSub           PubSubConfig
-	Filesystem       FilesystemConfig
-	KafkaREST        KafkaRESTConfig
-	License          LicenseConfig
-	Vulnerabilities  VulnerabilitiesConfig
-	Upgrades         UpgradesConfig
-	Sentry           SentryConfig
-	GeoIP            GeoIPConfig
-	Prometheus       PrometheusConfig
-	Packaging        PackagingConfig
-	MDM              MDMConfig
-	Calendar         CalendarConfig
+	Mysql                      MysqlConfig
+	MysqlReadReplica           MysqlConfig `yaml:"mysql_read_replica"`
+	Redis                      RedisConfig
+	Server                     ServerConfig
+	Auth                       AuthConfig
+	App                        AppConfig
+	Session                    SessionConfig
+	Osquery                    OsqueryConfig
+	Activity                   ActivityConfig
+	Logging                    LoggingConfig
+	Firehose                   FirehoseConfig
+	Kinesis                    KinesisConfig
+	Lambda                     LambdaConfig
+	S3                         S3Config
+	Email                      EmailConfig
+	SES                        SESConfig
+	PubSub                     PubSubConfig
+	Filesystem                 FilesystemConfig
+	Webhook                    WebhookConfig
+	KafkaREST                  KafkaRESTConfig
+	Nats                       NatsConfig
+	License                    LicenseConfig
+	Vulnerabilities            VulnerabilitiesConfig
+	Upgrades                   UpgradesConfig
+	Sentry                     SentryConfig
+	GeoIP                      GeoIPConfig
+	Prometheus                 PrometheusConfig
+	MDM                        MDMConfig
+	Calendar                   CalendarConfig
+	Partnerships               PartnershipsConfig
+	MicrosoftCompliancePartner MicrosoftCompliancePartnerConfig `yaml:"microsoft_compliance_partner"`
+	ConditionalAccess          ConditionalAccessConfig          `yaml:"conditional_access"`
+
+	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
+	Packaging PackagingConfig
+}
+
+func (f FleetConfig) OTELEnabled() bool {
+	return f.Logging.TracingEnabled && f.Logging.TracingType != "elasticapm"
+}
+
+type PartnershipsConfig struct {
+	EnableSecureframe bool `yaml:"enable_secureframe"`
+	EnablePrimo       bool `yaml:"enable_primo"`
+}
+
+// Certificate serial number format constants for conditional access
+const (
+	CertSerialFormatHex     = "hex"
+	CertSerialFormatDecimal = "decimal"
+)
+
+// ConditionalAccessConfig holds the server configuration for the Okta conditional access feature.
+type ConditionalAccessConfig struct {
+	// CertSerialFormat specifies the format for parsing certificate serial numbers from
+	// the X-Client-Cert-Serial header. AWS ALB sends hex format, while Caddy sends decimal.
+	// Valid values: "hex" (default), "decimal"
+	CertSerialFormat string `yaml:"cert_serial_format"`
+}
+
+// Validate checks that the ConditionalAccessConfig has valid values.
+func (c ConditionalAccessConfig) Validate(initFatal func(err error, msg string)) {
+	switch c.CertSerialFormat {
+	case CertSerialFormatHex, CertSerialFormatDecimal:
+		return
+	default:
+		initFatal(
+			fmt.Errorf("%q is not a valid value (must be %q or %q)", c.CertSerialFormat, CertSerialFormatHex, CertSerialFormatDecimal),
+			"conditional_access.cert_serial_format",
+		)
+	}
+}
+
+// MicrosoftCompliancePartnerConfig holds the server configuration for the "Conditional access" feature.
+// Currently only set on Cloud environments.
+type MicrosoftCompliancePartnerConfig struct {
+	// ProxyAPIKey is a shared key required to use the Microsoft Compliance Partner proxy API (fleetdm.com).
+	ProxyAPIKey string `yaml:"proxy_api_key"`
+	// ProxyURI is the URI of the Microsoft Compliance Partner proxy (for development/testing).
+	ProxyURI string `yaml:"proxy_uri"`
+}
+
+// IsSet returns if the compliance partner configuration is set.
+// Currently only set on Cloud environments.
+func (m MicrosoftCompliancePartnerConfig) IsSet() bool {
+	return m.ProxyAPIKey != ""
 }
 
 type MDMConfig struct {
@@ -641,9 +792,9 @@ type MDMConfig struct {
 	// AppleSCEPSignerValidityDays are the days signed client certificates will
 	// be valid.
 	AppleSCEPSignerValidityDays int `yaml:"apple_scep_signer_validity_days"`
-	// AppleSCEPSignerAllowRenewalDays are the allowable renewal days for
-	// certificates.
-	AppleSCEPSignerAllowRenewalDays int `yaml:"apple_scep_signer_allow_renewal_days"`
+	// AppleConnectJWT is the Apple Connect JWT used to access VPP app metadata.
+	// If supplied, Fleet will contact the Apple API directly rather than checking the Fleet proxy
+	AppleConnectJWT string `yaml:"apple_vpp_app_metadata_api_bearer_token"`
 
 	// WindowsWSTEPIdentityCert is the path to the certificate used to sign
 	// WSTEP responses.
@@ -664,6 +815,35 @@ type MDMConfig struct {
 	microsoftWSTEP        *tls.Certificate
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
+
+	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
+	CertificateProfilesLimit          int  `yaml:"certificate_profiles_limit"`
+	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
+	AllowAllDeclarations              bool `yaml:"allow_all_declarations"`
+
+	AndroidAgent AndroidAgentConfig `yaml:"android_agent"`
+}
+
+// AndroidAgentConfig holds configuration for the Fleet Android agent.
+type AndroidAgentConfig struct {
+	// Package is the package name for the Fleet Android agent.
+	// Default: com.fleetdm.agent
+	Package string `yaml:"package"`
+	// SigningSHA256 is the signing certificate SHA256 fingerprint for the Fleet Android agent.
+	SigningSHA256 string `yaml:"signing_sha256"`
+}
+
+// Validate checks that the AndroidAgentConfig is valid.
+// Both package and signing_sha256 must be set together, or both must be empty.
+func (c AndroidAgentConfig) Validate(initFatal func(err error, msg string)) {
+	if c.Package != "" && c.SigningSHA256 == "" {
+		initFatal(errors.New("mdm.android_agent.signing_sha256 must be set when mdm.android_agent.package is set"),
+			"Android agent configuration")
+	}
+	if c.SigningSHA256 != "" && c.Package == "" {
+		initFatal(errors.New("mdm.android_agent.package must be set when mdm.android_agent.signing_sha256 is set"),
+			"Android agent configuration")
+	}
 }
 
 type CalendarConfig struct {
@@ -987,6 +1167,9 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".region", "", "RDS region for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -999,6 +1182,10 @@ func (man Manager) addConfigs() {
 		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
+	man.addConfigString("redis.cache_name", "",
+		"Redis server Elasticache cache name")
+	man.addConfigString("redis.region", "",
+		"Redis server Elasticache region")
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
@@ -1006,7 +1193,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.connect_timeout", 5*time.Second, "Timeout at connection time")
 	man.addConfigDuration("redis.keep_alive", 10*time.Second, "Interval between keep alive probes")
 	man.addConfigInt("redis.connect_retry_attempts", 0, "Number of attempts to retry a failed connection")
-	man.addConfigBool("redis.cluster_follow_redirections", false, "Automatically follow Redis Cluster redirections")
+	man.addConfigBool("redis.cluster_follow_redirections", true, "Automatically follow Redis Cluster redirections")
 	man.addConfigBool("redis.cluster_read_from_replica", false, "Prefer reading from a replica when possible (for Redis Cluster)")
 	man.addConfigString("redis.tls_cert", "", "Redis TLS client certificate path")
 	man.addConfigString("redis.tls_key", "", "Redis TLS client key path")
@@ -1020,6 +1207,15 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
+	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
+	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
+	man.addConfigBool("redis.host_cache_enabled", true,
+		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
+			"and serve every check-in from MySQL.")
+	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
+			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
+			"redis.host_cache_enabled=false to disable the cache.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1041,7 +1237,20 @@ func (man Manager) addConfigs() {
 		"When enabled, Fleet limits some features for the Sandbox")
 	man.addConfigBool("server.websockets_allow_unsafe_origin", false, "Disable checking the origin header on websocket connections, this is sometimes necessary when proxies rewrite origin headers between the client and the Fleet webserver")
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
+	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
+	man.addConfigString("server.private_key_region", "", "AWS region of the Secrets Manager secret containing server private key")
+	man.addConfigString("server.private_key_arn", "", "ARN of AWS Secrets Manager secret containing server private key")
+	man.addConfigString("server.private_key_sts_assume_role_arn", "", "ARN of role to assume for accessing private key secret")
+	man.addConfigString("server.private_key_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
+	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
+	man.addConfigString("server.trusted_proxies", "",
+		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
+	man.addConfigBool("server.gzip_responses", false, "Enable gzip-compressed responses for supported clients")
+	man.addConfigByteSize("server.default_max_request_body_size", installersize.Human(platform_http.MaxRequestBodySize), "Default maximum size in bytes for request bodies, certain endpoints will have higher limits (e.g. 10MiB, 500KB, 1G)")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
 	man.hideConfig("server.sandbox_enabled")
@@ -1051,6 +1260,10 @@ func (man Manager) addConfigs() {
 		"Bcrypt iterations")
 	man.addConfigInt("auth.salt_key_size", 24,
 		"Size of salt for passwords")
+	man.addConfigDuration("auth.sso_session_validity_period", 15*time.Minute,
+		"Timeout from SSO start to SSO callback")
+	man.addConfigBool("auth.require_http_message_signature", false,
+		"Require HTTP message signatures for fleetd requests (Premium feature)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1113,8 +1326,12 @@ func (man Manager) addConfigs() {
 		"Batch size to pop items from redis in async collection")
 	man.addConfigInt("osquery.async_host_redis_scan_keys_count", 1000,
 		"Batch size to scan redis keys in async collection")
-	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 1*time.Hour,
+	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
+	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1133,11 +1350,18 @@ func (man Manager) addConfigs() {
 		"Amount of time to keep errors, 0 means no expiration, < 0 means disable storage of errors")
 	man.addConfigBool("logging.tracing_enabled", false,
 		"Enable Tracing, further configured via standard env variables")
-	man.addConfigString("logging.tracing_type", "opentelemetry",
-		"Select the kind of tracing, defaults to opentelemetry, can also be elasticapm")
+	man.addConfigString("logging.tracing_type", "",
+		"Select the kind of tracing, defaults to OpenTelemetry, can also be elasticapm")
+	man.addConfigBool("logging.otel_logs_enabled", false,
+		"Enable exporting logs to an OpenTelemetry collector (requires tracing_enabled)")
+	man.addConfigString("logging.enable_topics", "",
+		"Comma-separated log topics to enable (overrides code defaults)")
+	man.addConfigString("logging.disable_topics", "",
+		"Comma-separated log topics to disable (overrides code defaults)")
 
 	// Email
 	man.addConfigString("email.backend", "", "Provide the email backend type, acceptable values are currently \"ses\" and \"default\" or empty string which will default to SMTP")
+
 	// SES
 	man.addConfigString("ses.region", "", "AWS Region to use")
 	man.addConfigString("ses.endpoint_url", "", "AWS Service Endpoint to use (leave empty for default service endpoints)")
@@ -1273,6 +1497,10 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("filesystem.max_age", 28, "Maximum number of days to retain old log files based on the timestamp encoded in their filename. Setting to zero wil retain old log files indefinitely (only valid if enable_log_rotation is true) default is 28 days")
 	man.addConfigInt("filesystem.max_backups", 3, "Maximum number of old log files to retain. Setting to zero will retain all old log files (only valid if enable_log_rotation is true) default is 3")
 
+	// Webhook
+	man.addConfigString("webhook.status_url", "", "Webhook URL for osquery status logs")
+	man.addConfigString("webhook.result_url", "", "Webhook URL for osquery result logs")
+
 	// KafkaREST
 	man.addConfigString("kafkarest.status_topic", "", "Kafka REST topic for status logs")
 	man.addConfigString("kafkarest.result_topic", "", "Kafka REST topic for result logs")
@@ -1281,6 +1509,20 @@ func (man Manager) addConfigs() {
 	man.addConfigString("kafkarest.content_type_value", "application/vnd.kafka.json.v1+json",
 		"Kafka REST proxy content type header (defaults to \"application/vnd.kafka.json.v1+json\"")
 	man.addConfigInt("kafkarest.timeout", 5, "Kafka REST proxy json post timeout")
+
+	// NATS
+	man.addConfigString("nats.status_subject", "", "NATS subject for status logs")
+	man.addConfigString("nats.result_subject", "", "NATS subject for result logs")
+	man.addConfigString("nats.audit_subject", "", "NATS subject for audit logs")
+	man.addConfigString("nats.server", "", "NATS server URL")
+	man.addConfigString("nats.cred_file", "", "NATS credentials file")
+	man.addConfigString("nats.nkey_file", "", "NATS NKey file")
+	man.addConfigString("nats.tls_client_crt_file", "", "NATS TLS client certificate file")
+	man.addConfigString("nats.tls_client_key_file", "", "NATS TLS client key file")
+	man.addConfigString("nats.ca_crt_file", "", "NATS CA certificate file")
+	man.addConfigString("nats.compression", "", "NATS compression algorithm (gzip, snappy, zstd)")
+	man.addConfigBool("nats.jetstream", false, "NATS JetStream publish")
+	man.addConfigDuration("nats.timeout", 30*time.Second, "NATS timeout")
 
 	// License
 	man.addConfigString("license.key", "", "Fleet license key (to enable Fleet Premium features)")
@@ -1297,6 +1539,8 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+	man.addConfigString("vulnerabilities.cisa_known_exploits_url", "",
+		"URL from which to get the latest CISA (Known exploited vulnerabilities) database. If empty, it will be downloaded from https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_schedule", false,
@@ -1310,9 +1554,14 @@ func (man Manager) addConfigs() {
 		false,
 		"Don't sync installed Windows updates nor perform Windows OS vulnerability processing.",
 	)
+	man.addConfigBool(
+		"vulnerabilities.osv_for_vulnerabilities",
+		true,
+		"Use OSV (osv.dev) format for vulnerability detection instead of OVAL where supported.",
+	)
 	man.addConfigInt(
 		"vulnerabilities.max_concurrency",
-		5,
+		1,
 		"Maximum number of concurrent database queries to use for processing vulnerabilities.",
 	)
 
@@ -1332,6 +1581,8 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("prometheus.basic_auth.disable", false, "Disable HTTP Basic Auth for Prometheus")
 
 	// Packaging config
+	//
+	// DEPRECATED: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	man.addConfigString("packaging.global_enroll_secret", "", "Enroll secret to be used for the global domain (instead of randomly generating one)")
 	man.addConfigString("packaging.s3.bucket", "", "Bucket where to retrieve installers")
 	man.addConfigString("packaging.s3.prefix", "", "Prefix under which installers are stored")
@@ -1353,27 +1604,48 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
-	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
-	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
-	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
-	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business Manager PEM-encoded certificate bytes")
-	man.addConfigString("mdm.apple_bm_key", "", "Apple Business Manager PEM-encoded private key path")
-	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business Manager PEM-encoded private key bytes")
+	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business encrypted server token path (.p7m file)")
+	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business encrypted server token bytes")
+	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business PEM-encoded certificate path")
+	man.addConfigString("mdm.apple_bm_cert_bytes", "", "Apple Business PEM-encoded certificate bytes")
+	man.addConfigString("mdm.apple_bm_key", "", "Apple Business PEM-encoded private key path")
+	man.addConfigString("mdm.apple_bm_key_bytes", "", "Apple Business PEM-encoded private key bytes")
 	man.addConfigBool("mdm.apple_enable", false, "Enable MDM Apple functionality")
 	man.addConfigInt("mdm.apple_scep_signer_validity_days", 365, "Days signed client certificates will be valid")
-	man.addConfigInt("mdm.apple_scep_signer_allow_renewal_days", 14, "Allowable renewal days for client certificates")
+	man.addConfigString("mdm.apple_vpp_app_metadata_api_bearer_token", "", "Apple Connect JWT, used for accessing VPP app metadata directly from Apple")
 	man.addConfigString("mdm.apple_scep_challenge", "", "SCEP static challenge for enrollment")
 	man.addConfigDuration("mdm.apple_dep_sync_periodicity", 1*time.Minute, "How much time to wait for DEP profile assignment")
 	man.addConfigString("mdm.windows_wstep_identity_cert", "", "Microsoft WSTEP PEM-encoded certificate path")
 	man.addConfigString("mdm.windows_wstep_identity_key", "", "Microsoft WSTEP PEM-encoded private key path")
 	man.addConfigString("mdm.windows_wstep_identity_cert_bytes", "", "Microsoft WSTEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.windows_wstep_identity_key_bytes", "", "Microsoft WSTEP PEM-encoded private key bytes")
+	man.addConfigInt("mdm.sso_rate_limit_per_minute", 0, "Number of allowed requests per minute to MDM SSO endpoints (default is sharing login rate limit bucket)")
+	man.addConfigInt("mdm.certificate_profiles_limit", 100, "Maximum number of CA certificate profile installations per batch (0 = unlimited)")
+	man.addConfigBool("mdm.enable_custom_os_updates_and_filevault", false, "Allows usage of custom Apple MDM profiles for OS updates and FileVault (Fleet Premium required)")
+	man.addConfigBool("mdm.allow_all_declarations", false, "Allows all MDM declaration types to be sent, bypassing safety checks")
+	man.addConfigString("mdm.android_agent.package", "com.fleetdm.agent", "Package name for the Fleet Android agent")
+	man.addConfigString("mdm.android_agent.signing_sha256", "x+IyvrwVbQEBYV/ojWmLavJE0VIZE1RAT2JmxeI5sFw=", "Signing certificate SHA256 fingerprint for the Fleet Android agent")
+	man.hideConfig("mdm.android_agent.package")
+	man.hideConfig("mdm.android_agent.signing_sha256")
 
 	// Calendar integration
 	man.addConfigDuration(
 		"calendar.periodicity", 0,
 		"How much time to wait between processing calendar integration.",
 	)
+
+	// Partnerships
+	man.addConfigBool("partnerships.enable_secureframe", false, "Point transparency URL at Secureframe landing page")
+
+	// Microsoft Compliance Partner
+	man.addConfigString("microsoft_compliance_partner.proxy_api_key", "", "Shared key required to use the Microsoft Compliance Partner proxy API")
+	man.addConfigString("microsoft_compliance_partner.proxy_uri", "https://fleetdm.com", "URI of the Microsoft Compliance Partner proxy (for development/testing)")
+
+	man.addConfigBool("partnerships.enable_primo", false, "Disables the ability to manage multiple fleets in an instance, even in premium tier")
+
+	// Conditional Access
+	man.addConfigString("conditional_access.cert_serial_format", "hex",
+		"Format for parsing certificate serial numbers from X-Client-Cert-Serial header: 'hex' (default, used by AWS ALB) or 'decimal' (used by Caddy)")
 }
 
 func (man Manager) hideConfig(name string) {
@@ -1390,21 +1662,24 @@ func (man Manager) LoadConfig() FleetConfig {
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
-			Protocol:        man.getConfigString(prefix + ".protocol"),
-			Address:         man.getConfigString(prefix + ".address"),
-			Username:        man.getConfigString(prefix + ".username"),
-			Password:        man.getConfigString(prefix + ".password"),
-			PasswordPath:    man.getConfigString(prefix + ".password_path"),
-			Database:        man.getConfigString(prefix + ".database"),
-			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
-			TLSKey:          man.getConfigString(prefix + ".tls_key"),
-			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
-			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
-			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
-			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
-			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
-			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
+			Protocol:         man.getConfigString(prefix + ".protocol"),
+			Address:          man.getConfigString(prefix + ".address"),
+			Username:         man.getConfigString(prefix + ".username"),
+			Password:         man.getConfigString(prefix + ".password"),
+			PasswordPath:     man.getConfigString(prefix + ".password_path"),
+			Database:         man.getConfigString(prefix + ".database"),
+			TLSCert:          man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:           man.getConfigString(prefix + ".tls_key"),
+			TLSCA:            man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:    man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:        man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:     man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			Region:           man.getConfigString(prefix + ".region"),
+			StsAssumeRoleArn: man.getConfigString(prefix + ".sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString(prefix + ".sts_external_id"),
 		}
 	}
 
@@ -1416,6 +1691,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
+			Region:                    man.getConfigString("redis.region"),
+			CacheName:                 man.getConfigString("redis.cache_name"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
 			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
 			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
@@ -1435,23 +1712,41 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:             man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
 		},
 		Server: ServerConfig{
-			Address:                     man.getConfigString("server.address"),
-			Cert:                        man.getConfigString("server.cert"),
-			Key:                         man.getConfigString("server.key"),
-			TLS:                         man.getConfigBool("server.tls"),
-			TLSProfile:                  man.getConfigTLSProfile(),
-			URLPrefix:                   man.getConfigString("server.url_prefix"),
-			Keepalive:                   man.getConfigBool("server.keepalive"),
-			SandboxEnabled:              man.getConfigBool("server.sandbox_enabled"),
-			WebsocketsAllowUnsafeOrigin: man.getConfigBool("server.websockets_allow_unsafe_origin"),
-			FrequentCleanupsEnabled:     man.getConfigBool("server.frequent_cleanups_enabled"),
-			PrivateKey:                  man.getConfigString("server.private_key"),
+			Address:                          man.getConfigString("server.address"),
+			Cert:                             man.getConfigString("server.cert"),
+			Key:                              man.getConfigString("server.key"),
+			TLS:                              man.getConfigBool("server.tls"),
+			TLSProfile:                       man.getConfigTLSProfile(),
+			URLPrefix:                        man.getConfigString("server.url_prefix"),
+			Keepalive:                        man.getConfigBool("server.keepalive"),
+			SandboxEnabled:                   man.getConfigBool("server.sandbox_enabled"),
+			WebsocketsAllowUnsafeOrigin:      man.getConfigBool("server.websockets_allow_unsafe_origin"),
+			FrequentCleanupsEnabled:          man.getConfigBool("server.frequent_cleanups_enabled"),
+			ForceH2C:                         man.getConfigBool("server.force_h2c"),
+			PrivateKey:                       man.getConfigString("server.private_key"),
+			PrivateKeySecretArn:              man.getConfigString("server.private_key_arn"),
+			PrivateKeySecretRegion:           man.getConfigString("server.private_key_region"),
+			PrivateKeySecretSTSAssumeRoleArn: man.getConfigString("server.private_key_sts_assume_role_arn"),
+			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_sts_external_id"),
+			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
+			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
+			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
+			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
+			GzipResponses:                    man.getConfigBool("server.gzip_responses"),
+			DefaultMaxRequestBodySize:        man.getConfigByteSize("server.default_max_request_body_size"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:  man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize: man.getConfigInt("auth.salt_key_size"),
+			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1488,6 +1783,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			AsyncHostRedisPopCount:           man.getConfigInt("osquery.async_host_redis_pop_count"),
 			AsyncHostRedisScanKeysCount:      man.getConfigInt("osquery.async_host_redis_scan_keys_count"),
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
+			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
+			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -1500,6 +1797,9 @@ func (man Manager) LoadConfig() FleetConfig {
 			ErrorRetentionPeriod: man.getConfigDuration("logging.error_retention_period"),
 			TracingEnabled:       man.getConfigBool("logging.tracing_enabled"),
 			TracingType:          man.getConfigString("logging.tracing_type"),
+			OtelLogsEnabled:      man.getConfigBool("logging.otel_logs_enabled"),
+			EnableLogTopics:      man.getConfigString("logging.enable_topics"),
+			DisableLogTopics:     man.getConfigString("logging.disable_topics"),
 		},
 		Firehose: FirehoseConfig{
 			Region:           man.getConfigString("firehose.region"),
@@ -1563,6 +1863,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxAge:               man.getConfigInt("filesystem.max_age"),
 			MaxBackups:           man.getConfigInt("filesystem.max_backups"),
 		},
+		Webhook: WebhookConfig{
+			StatusURL: man.getConfigString("webhook.status_url"),
+			ResultURL: man.getConfigString("webhook.result_url"),
+		},
 		KafkaREST: KafkaRESTConfig{
 			StatusTopic:      man.getConfigString("kafkarest.status_topic"),
 			ResultTopic:      man.getConfigString("kafkarest.result_topic"),
@@ -1570,6 +1874,20 @@ func (man Manager) LoadConfig() FleetConfig {
 			ProxyHost:        man.getConfigString("kafkarest.proxyhost"),
 			ContentTypeValue: man.getConfigString("kafkarest.content_type_value"),
 			Timeout:          man.getConfigInt("kafkarest.timeout"),
+		},
+		Nats: NatsConfig{
+			StatusSubject:    man.getConfigString("nats.status_subject"),
+			ResultSubject:    man.getConfigString("nats.result_subject"),
+			AuditSubject:     man.getConfigString("nats.audit_subject"),
+			Server:           man.getConfigString("nats.server"),
+			CredFile:         man.getConfigString("nats.cred_file"),
+			NKeyFile:         man.getConfigString("nats.nkey_file"),
+			TLSClientCrtFile: man.getConfigString("nats.tls_client_crt_file"),
+			TLSClientKeyFile: man.getConfigString("nats.tls_client_key_file"),
+			CACrtFile:        man.getConfigString("nats.ca_crt_file"),
+			Compression:      man.getConfigString("nats.compression"),
+			JetStream:        man.getConfigBool("nats.jetstream"),
+			Timeout:          man.getConfigDuration("nats.timeout"),
 		},
 		License: LicenseConfig{
 			Key:              man.getConfigString("license.key"),
@@ -1581,11 +1899,13 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:              man.getConfigString("vulnerabilities.cpe_database_url"),
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CISAKnownExploitsURL:        man.getConfigString("vulnerabilities.cisa_known_exploits_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
 			RecentVulnerabilityMaxAge:   man.getConfigDuration("vulnerabilities.recent_vulnerability_max_age"),
 			DisableWinOSVulnerabilities: man.getConfigBool("vulnerabilities.disable_win_os_vulnerabilities"),
+			OSVForVulnerabilities:       man.getConfigBool("vulnerabilities.osv_for_vulnerabilities"),
 			MaxConcurrency:              man.getConfigInt("vulnerabilities.max_concurrency"),
 		},
 		Upgrades: UpgradesConfig{
@@ -1604,48 +1924,52 @@ func (man Manager) LoadConfig() FleetConfig {
 				Disable:  man.getConfigBool("prometheus.basic_auth.disable"),
 			},
 		},
-		Packaging: PackagingConfig{
-			GlobalEnrollSecret: man.getConfigString("packaging.global_enroll_secret"),
-			S3: S3Config{
-				Bucket:           man.getConfigString("packaging.s3.bucket"),
-				Prefix:           man.getConfigString("packaging.s3.prefix"),
-				Region:           man.getConfigString("packaging.s3.region"),
-				EndpointURL:      man.getConfigString("packaging.s3.endpoint_url"),
-				AccessKeyID:      man.getConfigString("packaging.s3.access_key_id"),
-				SecretAccessKey:  man.getConfigString("packaging.s3.secret_access_key"),
-				StsAssumeRoleArn: man.getConfigString("packaging.s3.sts_assume_role_arn"),
-				StsExternalID:    man.getConfigString("packaging.s3.sts_external_id"),
-				DisableSSL:       man.getConfigBool("packaging.s3.disable_ssl"),
-				ForceS3PathStyle: man.getConfigBool("packaging.s3.force_s3_path_style"),
-			},
-		},
 		MDM: MDMConfig{
-			AppleAPNsCert:                   man.getConfigString("mdm.apple_apns_cert"),
-			AppleAPNsCertBytes:              man.getConfigString("mdm.apple_apns_cert_bytes"),
-			AppleAPNsKey:                    man.getConfigString("mdm.apple_apns_key"),
-			AppleAPNsKeyBytes:               man.getConfigString("mdm.apple_apns_key_bytes"),
-			AppleSCEPCert:                   man.getConfigString("mdm.apple_scep_cert"),
-			AppleSCEPCertBytes:              man.getConfigString("mdm.apple_scep_cert_bytes"),
-			AppleSCEPKey:                    man.getConfigString("mdm.apple_scep_key"),
-			AppleSCEPKeyBytes:               man.getConfigString("mdm.apple_scep_key_bytes"),
-			AppleBMServerToken:              man.getConfigString("mdm.apple_bm_server_token"),
-			AppleBMServerTokenBytes:         man.getConfigString("mdm.apple_bm_server_token_bytes"),
-			AppleBMCert:                     man.getConfigString("mdm.apple_bm_cert"),
-			AppleBMCertBytes:                man.getConfigString("mdm.apple_bm_cert_bytes"),
-			AppleBMKey:                      man.getConfigString("mdm.apple_bm_key"),
-			AppleBMKeyBytes:                 man.getConfigString("mdm.apple_bm_key_bytes"),
-			AppleEnable:                     man.getConfigBool("mdm.apple_enable"),
-			AppleSCEPSignerValidityDays:     man.getConfigInt("mdm.apple_scep_signer_validity_days"),
-			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
-			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
-			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
-			WindowsWSTEPIdentityCert:        man.getConfigString("mdm.windows_wstep_identity_cert"),
-			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
-			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
-			WindowsWSTEPIdentityKeyBytes:    man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			AppleAPNsCert:                     man.getConfigString("mdm.apple_apns_cert"),
+			AppleAPNsCertBytes:                man.getConfigString("mdm.apple_apns_cert_bytes"),
+			AppleAPNsKey:                      man.getConfigString("mdm.apple_apns_key"),
+			AppleAPNsKeyBytes:                 man.getConfigString("mdm.apple_apns_key_bytes"),
+			AppleSCEPCert:                     man.getConfigString("mdm.apple_scep_cert"),
+			AppleSCEPCertBytes:                man.getConfigString("mdm.apple_scep_cert_bytes"),
+			AppleSCEPKey:                      man.getConfigString("mdm.apple_scep_key"),
+			AppleSCEPKeyBytes:                 man.getConfigString("mdm.apple_scep_key_bytes"),
+			AppleBMServerToken:                man.getConfigString("mdm.apple_bm_server_token"),
+			AppleBMServerTokenBytes:           man.getConfigString("mdm.apple_bm_server_token_bytes"),
+			AppleBMCert:                       man.getConfigString("mdm.apple_bm_cert"),
+			AppleBMCertBytes:                  man.getConfigString("mdm.apple_bm_cert_bytes"),
+			AppleBMKey:                        man.getConfigString("mdm.apple_bm_key"),
+			AppleBMKeyBytes:                   man.getConfigString("mdm.apple_bm_key_bytes"),
+			AppleEnable:                       man.getConfigBool("mdm.apple_enable"),
+			AppleSCEPSignerValidityDays:       man.getConfigInt("mdm.apple_scep_signer_validity_days"),
+			AppleConnectJWT:                   man.getConfigString("mdm.apple_vpp_app_metadata_api_bearer_token"),
+			AppleSCEPChallenge:                man.getConfigString("mdm.apple_scep_challenge"),
+			AppleDEPSyncPeriodicity:           man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			WindowsWSTEPIdentityCert:          man.getConfigString("mdm.windows_wstep_identity_cert"),
+			WindowsWSTEPIdentityKey:           man.getConfigString("mdm.windows_wstep_identity_key"),
+			WindowsWSTEPIdentityCertBytes:     man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),
+			WindowsWSTEPIdentityKeyBytes:      man.getConfigString("mdm.windows_wstep_identity_key_bytes"),
+			SSORateLimitPerMinute:             man.getConfigInt("mdm.sso_rate_limit_per_minute"),
+			CertificateProfilesLimit:          man.getConfigInt("mdm.certificate_profiles_limit"),
+			EnableCustomOSUpdatesAndFileVault: man.getConfigBool("mdm.enable_custom_os_updates_and_filevault"),
+			AllowAllDeclarations:              man.getConfigBool("mdm.allow_all_declarations"),
+			AndroidAgent: AndroidAgentConfig{
+				Package:       man.getConfigString("mdm.android_agent.package"),
+				SigningSHA256: man.getConfigString("mdm.android_agent.signing_sha256"),
+			},
 		},
 		Calendar: CalendarConfig{
 			Periodicity: man.getConfigDuration("calendar.periodicity"),
+		},
+		Partnerships: PartnershipsConfig{
+			EnableSecureframe: man.getConfigBool("partnerships.enable_secureframe"),
+			EnablePrimo:       man.getConfigBool("partnerships.enable_primo"),
+		},
+		MicrosoftCompliancePartner: MicrosoftCompliancePartnerConfig{
+			ProxyAPIKey: man.getConfigString("microsoft_compliance_partner.proxy_api_key"),
+			ProxyURI:    man.getConfigString("microsoft_compliance_partner.proxy_uri"),
+		},
+		ConditionalAccess: ConditionalAccessConfig{
+			CertSerialFormat: man.getConfigString("conditional_access.cert_serial_format"),
 		},
 	}
 
@@ -1867,6 +2191,33 @@ func (man Manager) getConfigDuration(key string) time.Duration {
 	return durationVal
 }
 
+// addConfigByteSize adds a byte size config that accepts human-readable values like "10GiB", "500MB", "1G"
+func (man Manager) addConfigByteSize(key string, defVal string, usage string) {
+	man.command.PersistentFlags().String(flagNameFromConfigKey(key), defVal, getFlagUsage(key, usage))
+	man.viper.BindPFlag(key, man.command.PersistentFlags().Lookup(flagNameFromConfigKey(key))) //nolint:errcheck
+	man.viper.BindEnv(key, envNameFromConfigKey(key))                                          //nolint:errcheck
+
+	// Add default
+	man.addDefault(key, defVal)
+}
+
+// getConfigByteSize retrieves a byte size from the loaded config, parsing human-readable strings
+// like "10GiB", "500MB", "1G" into int64 byte values
+func (man Manager) getConfigByteSize(key string) int64 {
+	interfaceVal := man.getInterfaceVal(key)
+	stringVal, err := cast.ToStringE(interfaceVal)
+	if err != nil {
+		panic("Unable to cast to string for key " + key + ": " + err.Error())
+	}
+
+	byteSize, err := units.RAMInBytes(stringVal)
+	if err != nil {
+		panic("Unable to parse byte size for key " + key + ": " + err.Error())
+	}
+
+	return byteSize
+}
+
 // panics if the config is invalid, this is handled by Viper (this is how all
 // getConfigT helpers indicate errors). The default value is only applied if
 // there is no task-specific config (i.e., no "task=true" config format for that
@@ -1970,8 +2321,10 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:  6, // Low cost keeps tests fast
-			SaltKeySize: 24,
+			BcryptCost:                  6, // Low cost keeps tests fast
+			SaltKeySize:                 24,
+			SsoSessionValidityPeriod:    5 * time.Minute,
+			RequireHTTPMessageSignature: false,
 		},
 		Session: SessionConfig{
 			KeySize:  64,
@@ -2002,7 +2355,14 @@ func TestConfig() FleetConfig {
 			AuditLogFile:  testLogFile,
 			MaxSize:       500,
 		},
-		Server: ServerConfig{PrivateKey: "72414F4A688151F75D032F5CDA095FC4"},
+		Server: ServerConfig{
+			PrivateKey: "72414F4A688151F75D032F5CDA095FC4",
+			// smaller than normal max to allow for testing max in CI, while being above the multipart chunk size
+			MaxInstallerSizeBytes: 513 * units.MiB,
+		},
+		Vulnerabilities: VulnerabilitiesConfig{
+			OSVForVulnerabilities: true,
+		},
 	}
 }
 

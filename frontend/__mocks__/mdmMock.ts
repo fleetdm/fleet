@@ -60,12 +60,13 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
       status: "verified",
       detail: "",
     },
+    certificates: [],
   },
-  macos_settings: {
+  apple_settings: {
     disk_encryption: null,
     action_required: null,
   },
-  macos_setup: {
+  setup_experience: {
     bootstrap_package_status: "",
     details: "",
     bootstrap_package_name: "",

@@ -19,8 +19,10 @@ import (
 
 func TestExecCmdNonWindows(t *testing.T) {
 	zshPath := "/bin/zsh"
+	bashPath := "/bin/bash"
 	if runtime.GOOS == "linux" {
 		zshPath = "/usr/bin/zsh"
+		bashPath = "/usr/bin/bash"
 	}
 
 	tests := []struct {
@@ -41,6 +43,11 @@ func TestExecCmdNonWindows(t *testing.T) {
 			output:   "1",
 		},
 		{
+			name:     "bash shebang",
+			contents: "#!" + bashPath + "\n[ -n \"$BASH_VERSION\" ] && echo 1",
+			output:   "1",
+		},
+		{
 			name:     "zsh shebang",
 			contents: "#!" + zshPath + "\n[ -n \"$ZSH_VERSION\" ] && echo 1",
 			output:   "1",
@@ -52,7 +59,7 @@ func TestExecCmdNonWindows(t *testing.T) {
 		},
 		{
 			name:     "unsupported shebang",
-			contents: "#!/bin/python",
+			contents: "#!/bin/ksh\necho 1",
 			error:    fleet.ErrUnsupportedInterpreter,
 			exitCode: -1,
 		},
@@ -95,7 +102,7 @@ func writeTestScript(content string) (string, error) {
 		return "", err
 	}
 
-	err = os.Chmod(tmpfile.Name(), 0o700)
+	err = os.Chmod(tmpfile.Name(), 0o700) // nolint:gosec // G302
 	if err != nil {
 		return "", err
 	}

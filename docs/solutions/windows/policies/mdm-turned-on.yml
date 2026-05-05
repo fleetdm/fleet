@@ -1,0 +1,13 @@
+- name: Windows - MDM turned on
+  description: This policy checks if the computer has MDM turned on. If the policy fails, a script runs to open two windows: instructions to turn on MDM and 'Setup work or school'. The 'Setup work or school' requires connecting Fleet to Microsoft Entra: https://fleetdm.com/learn-more-about/connect-microsoft-entra
+  resolution: |-
+    Turn on MDM by following these steps:
+
+    Close this window, go to Settings and search "Access work or school."
+
+    Select "Connect" and enter your work email and password.
+  query: SELECT 1 FROM mdm_bridge WHERE enrollment_status = 'device_enrolled';
+  platform: windows
+  critical: true
+  run_script:
+    path: ../scripts/turn-on-mdm-notification.ps1

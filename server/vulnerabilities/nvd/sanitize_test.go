@@ -379,3 +379,44 @@ func TestSanitizedSoftwareName(t *testing.T) {
 		}
 	})
 }
+
+func TestParseUpdateFromVersion(t *testing.T) {
+	testCases := []struct {
+		desc            string
+		originalVersion string
+		expectedVersion string
+		expectedUpdate  string
+	}{
+		{
+			desc:            "alpha release",
+			originalVersion: "3.14.0a1",
+			expectedVersion: "3.14.0",
+			expectedUpdate:  "alpha1",
+		},
+		{
+			desc:            "beta release",
+			originalVersion: "3.14.0b2",
+			expectedVersion: "3.14.0",
+			expectedUpdate:  "beta2",
+		},
+		{
+			desc:            "release candidate",
+			originalVersion: "3.14.0rc1",
+			expectedVersion: "3.14.0",
+			expectedUpdate:  "rc1",
+		},
+		{
+			desc:            "no update",
+			originalVersion: "3.14.0",
+			expectedVersion: "3.14.0",
+			expectedUpdate:  "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.desc, func(t *testing.T) {
+			version, update := parseUpdateFromVersion(tc.originalVersion)
+			require.Equal(t, tc.expectedVersion, version)
+			require.Equal(t, tc.expectedUpdate, update)
+		})
+	}
+}

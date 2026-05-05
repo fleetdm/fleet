@@ -21,7 +21,7 @@ CREATE TABLE jobs (
     state VARCHAR(255) NOT NULL,
     retries INT NOT NULL DEFAULT 0,
     error TEXT
-)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")

@@ -8,7 +8,13 @@ import CustomLink from "components/CustomLink";
 
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
-const DEFAULT_ERROR_MESSAGE = "Couldn't add. Please try again.";
+import {
+  ADD_SOFTWARE_ERROR_PREFIX,
+  DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE,
+  REQUEST_TIMEOUT_ERROR_MESSAGE,
+  ensurePeriod,
+  formatAlreadyAvailableInstallMessage,
+} from "../helpers";
 
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: unknown) => {
@@ -16,47 +22,58 @@ export const getErrorMessage = (err: unknown) => {
     isAxiosError(err) &&
     (err.response?.status === 504 || err.response?.status === 408);
   const reason = getErrorReason(err);
-
   if (isTimeout) {
-    return "Couldn't upload. Request timeout. Please make sure your server and load balancer timeout is long enough.";
-  } else if (reason.includes("Fleet couldn't read the version from")) {
-    return (
-      <>
-        {reason}{" "}
-        <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
-          text="Learn more"
-          iconColor="core-fleet-white"
-        />
-      </>
+    return REQUEST_TIMEOUT_ERROR_MESSAGE;
+  }
+
+  // software is already available for install
+  if (reason.toLowerCase().includes("already")) {
+    const alreadyAvailableMessage = formatAlreadyAvailableInstallMessage(
+      reason
     );
-  } else if (reason.includes("Secret variable")) {
+    if (alreadyAvailableMessage) {
+      return alreadyAvailableMessage;
+    }
+  }
+
+  if (reason.includes("Secret variable")) {
     return generateSecretErrMsg(err);
-  } else if (reason.includes("Unable to extract necessary metadata")) {
+  }
+
+  if (reason.includes("Unable to extract necessary metadata")) {
     return (
       <>
-        Couldn&apos;t add. Unable to extract necessary metadata.{" "}
+        {ADD_SOFTWARE_ERROR_PREFIX} Unable to extract necessary metadata.{" "}
         <CustomLink
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/package-metadata-extraction`}
           text="Learn more"
           newTab
+          variant="flash-message-link"
         />
       </>
     );
-  } else if (reason.includes("Fleet couldn't read the version from")) {
+  }
+  if (reason.includes("not a valid .tar.gz archive")) {
     return (
       <>
-        {reason}{" "}
+        This is not a valid .tar.gz archive.{" "}
         <CustomLink
-          newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}/read-package-version`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/tarball-archives`}
           text="Learn more"
-          iconColor="core-fleet-white"
+          newTab
+          variant="flash-message-link"
         />
       </>
     );
   }
 
-  return reason || DEFAULT_ERROR_MESSAGE;
+  if (reason.startsWith("Couldn't add.")) {
+    return `${ensurePeriod(reason)}`;
+  }
+
+  if (reason) {
+    return `${ADD_SOFTWARE_ERROR_PREFIX} ${ensurePeriod(reason)}`;
+  }
+
+  return DEFAULT_ADD_SOFTWARE_ERROR_MESSAGE;
 };

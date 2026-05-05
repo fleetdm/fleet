@@ -11,7 +11,8 @@ var ManifestXMLTemplate = template.Must(template.New("").Option("missingkey=erro
     type="win32"
     name="Fleet osquery"
     version="{{.Version}}"
-    processorArchitecture="*"/>
+    processorArchitecture="{{.Arch}}"
+  />
  <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
    <security>
      <requestedPrivileges>
@@ -65,6 +66,11 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
     {{ else if .EndUserEmail }}
 		{{ $endUserEmailArg = printf " --end-user-email \"%s\"" .EndUserEmail }}
     {{ end }}
+	{{ $euaTokenArg := "" }}
+    {{ if .EnableEUATokenProperty }}
+		<Property Id="EUA_TOKEN" Value="dummy"/>
+		{{ $euaTokenArg = " --eua-token=\"[EUA_TOKEN]\"" }}
+    {{ end }}
 
     <MediaTemplate EmbedCab="yes" />
 
@@ -92,7 +98,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                 <CreateFolder>
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </CreateFolder>
-                <File Source="root\bin\orbit\windows\{{ .OrbitChannel }}\orbit.exe">
+                <File Source="root\bin\orbit\{{ .NativePlatform }}\{{ .OrbitChannel }}\orbit.exe">
                   <PermissionEx Sddl="O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)" />
                 </File>
                 <Environment Id='OrbitUpdateInterval' Name='ORBIT_UPDATE_INTERVAL' Value='{{ .OrbitUpdateInterval }}' Action='set' System='yes' />
@@ -108,7 +114,7 @@ var windowsWixTemplate = template.Must(template.New("").Option("missingkey=error
                   Start="auto"
                   Type="ownProcess"
                   Description="This service runs Fleet's osquery runtime and autoupdater (Orbit)."
-                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }} --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" --enable-scripts="[ENABLE_SCRIPTS]" {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}{{ $endUserEmailArg }}{{ if .OsqueryDB }} --osquery-db="{{ .OsqueryDB }}"{{ end }}'
+                  Arguments='--root-dir "[ORBITROOT]." --log-file "[System64Folder]config\systemprofile\AppData\Local\FleetDM\Orbit\Logs\orbit-osquery.log" --fleet-url "[FLEET_URL]"{{ if .FleetCertificate }} --fleet-certificate "[ORBITROOT]fleet.pem"{{ end }}{{ if .EnrollSecret }} --enroll-secret-path "[ORBITROOT]secret.txt"{{ end }}{{if .Insecure }} --insecure{{ end }}{{ if .Debug }} --debug{{ end }}{{ if .UpdateURL }} --update-url "{{ .UpdateURL }}"{{ end }}{{ if .UpdateTLSServerCertificate }} --update-tls-certificate "[ORBITROOT]update.pem"{{ end }}{{ if .DisableUpdates }} --disable-updates{{ end }} --fleet-desktop="[FLEET_DESKTOP]" --desktop-channel {{ .DesktopChannel }}{{ if .FleetDesktopAlternativeBrowserHost }} --fleet-desktop-alternative-browser-host {{ .FleetDesktopAlternativeBrowserHost }}{{ end }} --orbit-channel "{{ .OrbitChannel }}" --osqueryd-channel "{{ .OsquerydChannel }}" --enable-scripts="[ENABLE_SCRIPTS]" {{ if and (ne .HostIdentifier "") (ne .HostIdentifier "uuid") }}--host-identifier={{ .HostIdentifier }}{{ end }}{{ $endUserEmailArg }}{{ $euaTokenArg }}{{ if .OsqueryDB }} --osquery-db="{{ .OsqueryDB }}"{{ end }}{{ if .DisableSetupExperience }} --disable-setup-experience{{ end }}'
                 >
                   <util:ServiceConfig
                     FirstFailureActionType="restart"
@@ -579,7 +585,8 @@ function Force-Remove-Orbit {
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse  -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
       # Filter for osquery entries
-      $properties = Get-ItemProperty -LiteralPath $_.PSPath  -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "Fleet osquery")}
+      $entryPath = $_.PSPath
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "Fleet osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove Registry Entries
@@ -621,7 +628,8 @@ function Force-Remove-Osquery {
     Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" -Recurse -ErrorAction "SilentlyContinue" |  Where-Object {($_.ValueCount -gt 0)} | ForEach-Object {
 
       # Filter for osquery entries
-      $properties = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction "SilentlyContinue" |  Where-Object {($_.DisplayName -eq "osquery")}
+      $entryPath = $_.PSPath
+      $properties = try { Get-ItemProperty -LiteralPath $entryPath -ErrorAction "SilentlyContinue" | Where-Object {($_.DisplayName -eq "osquery")} } catch { Write-Host "Skipping invalid registry entry at ${entryPath}: $_"; $null }
       if ($properties) {
 
         #Remove files from osquery location

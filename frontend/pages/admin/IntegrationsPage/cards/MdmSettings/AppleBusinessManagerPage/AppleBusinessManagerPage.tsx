@@ -13,13 +13,14 @@ import mdmAbmAPI, {
   IGetAbmTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import EmptyState from "components/EmptyState";
+import { getEarliestExpiry } from "components/App/App";
 
 import AppleBusinessManagerTable from "./components/AppleBusinessManagerTable";
 import AddAbmModal from "./components/AddAbmModal";
@@ -35,21 +36,16 @@ interface IAddAbmMessageProps {
 
 const AddAbmMessage = ({ onAddAbm }: IAddAbmMessageProps) => {
   return (
-    <div className={`${baseClass}__add-adm-message`}>
-      <h2>Add your ABM</h2>
-      <p>
-        Automatically enroll newly purchased Apple hosts when they&apos;re first
-        unboxed and set up by your end users.
-      </p>
-      <Button variant="brand" onClick={onAddAbm}>
-        Add ABM
-      </Button>
-    </div>
+    <EmptyState
+      header="Add your AB"
+      info="Automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users."
+      primaryButton={<Button onClick={onAddAbm}>Add AB</Button>}
+    />
   );
 };
 
 const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { config, isPremiumTier, setABMExpiry } = useContext(AppContext);
 
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -72,6 +68,18 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       retry: (tries, error) =>
         error.status !== 404 && error.status !== 400 && tries <= 3,
       select: (data) => data?.abm_tokens,
+      onSuccess: (data) => {
+        // we need to call setABMExpiry here to update the expiry info so the terms banner
+        // displays correctly
+        if (data.length === 0) {
+          setABMExpiry({ earliestExpiry: "", needsAbmTermsRenewal: false });
+        } else {
+          setABMExpiry({
+            earliestExpiry: getEarliestExpiry(data),
+            needsAbmTermsRenewal: data.some((token) => token.terms_expired),
+          });
+        }
+      },
       enabled: isPremiumTier,
     }
   );
@@ -146,11 +154,14 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     if (!config?.mdm.enabled_and_configured) {
       return (
-        <TurnOnMdmMessage
-          router={router}
+        <EmptyState
           header="Turn on Apple MDM"
-          info="To add your ABM and enable automatic enrollment for macOS, iOS, and
-        iPadOS hosts, first turn on Apple MDM."
+          info="To add your ABM and enable automatic enrollment for macOS, iOS, and iPadOS hosts, first turn on Apple MDM."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
         />
       );
     }
@@ -161,11 +172,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
 
     // TODO: error UI
     if (showDataError) {
-      return (
-        <div>
-          <DataError />
-        </div>
-      );
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
 
     if (abmTokens?.length === 0) {
@@ -176,8 +183,9 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       return (
         <>
           <p>
-            Add your ABM to automatically enroll newly purchased Apple hosts
-            when they&apos;re first unboxed and set up by your end users.
+            Add your AB to enable automatic enrollment for company-owned hosts
+            and enrollment, via a Managed Apple Account, for personal (BYOD)
+            hosts.
           </p>
           <AppleBusinessManagerTable
             abmTokens={abmTokens}
@@ -195,20 +203,20 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
-            <h1>Apple Business Manager (ABM)</h1>
+            <h1>Apple Business (AB)</h1>
             {isPremiumTier &&
               abmTokens?.length !== 0 &&
               !!config?.mdm.enabled_and_configured && (
-                <Button variant="brand" onClick={onAddAbm}>
-                  Add ABM
-                </Button>
+                <Button onClick={onAddAbm}>Add AB</Button>
               )}
           </div>
           <>{renderContent()}</>
@@ -223,7 +231,6 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
       {showRenewModal && selectedToken.current && (
         <RenewAbmModal
           tokenId={selectedToken.current.id}
-          orgName={selectedToken.current.org_name}
           onCancel={onCancelRenewToken}
           onRenewedToken={onRenewed}
         />

@@ -1,0 +1,8 @@
+{
+  "name": "Ghostty",
+  "unique_identifier": "com.mitchellh.ghostty",
+  "token": "ghostty",
+  "installer_format": "dmg",
+  "slug": "ghostty/darwin",
+  "default_categories": ["Productivity"]
+}

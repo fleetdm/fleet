@@ -1,0 +1,10 @@
+{
+  "name": "DisplayLink USB Graphics Software",
+  "unique_identifier": "com.displaylink.DisplayLinkUserAgent",
+  "token": "displaylink",
+  "installer_format": "pkg",
+  "slug": "displaylink/darwin",
+  "default_categories": [
+    "Productivity"
+  ]
+}

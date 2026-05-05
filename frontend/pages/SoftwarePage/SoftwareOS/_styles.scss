@@ -1,3 +1,4 @@
 .software-os {
-
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 }

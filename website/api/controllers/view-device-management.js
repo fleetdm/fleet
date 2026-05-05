@@ -25,14 +25,23 @@ module.exports = {
 
     // Specify an order for the testimonials on this page using the last names of quote authors
     let testimonialOrderForThisPage = [
+      'Bart Reardon',
       'Scott MacVicar',
+      'Mike Meyer',
+      'Luis Madrigal',
+      'Tom Larkin',
       'Kenny Botelho',
       'Erik Gomez',
       'Chandra Majumdar',
       'Eric Tan',
-      'Matt Carr',
+      'matt carr',
       'Nico Waisman',
       'Dan Grzelak',
+      'Philip Chotipradit',
+      'Roger Cantrell',
+      'Chayce O\'Neal',
+      'David Bodmer',
+      'Fiona Skelton',
     ];
 
     // Filter the testimonials by product category

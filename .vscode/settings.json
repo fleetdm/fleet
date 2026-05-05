@@ -6,7 +6,6 @@
     "diffEditor.codeLens": true,
     "rewrap.autoWrap.enabled": true,
     "rewrap.wrappingColumn": 100,
-    "go.formatTool": "gofumports",
     "go.lintTool": "golangci-lint",
     "go.useLanguageServer": true,
     "gopls": {
@@ -38,5 +37,6 @@
     "prettier.requireConfig": true,
     "yaml.schemas": {
         "https://json.schemastore.org/codecov.json": ".github/workflows/codecov.yml"
-    }
+    },
+    "js/ts.tsdk.path": "node_modules/typescript/lib"
 }

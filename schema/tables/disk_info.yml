@@ -48,5 +48,5 @@ columns:
 evented: false
 notes: |-
   - On ChromeOS, this table requires the [fleetd Chrome extension](https://fleetdm.com/docs/using-fleet/chromeos).
-  
+  - On ChromeOS, this table will only display information about _removable_ storage media, such as USB sticks or external hard drives.
   - Available for ChromeOS 91+.

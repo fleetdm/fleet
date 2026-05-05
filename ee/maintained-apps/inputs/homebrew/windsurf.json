@@ -1,0 +1,8 @@
+{
+  "name": "Windsurf",
+  "unique_identifier": "com.exafunction.windsurf",
+  "token": "windsurf",
+  "installer_format": "dmg",
+  "slug": "windsurf/darwin",
+  "default_categories": ["Developer tools"]
+}

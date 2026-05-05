@@ -1,0 +1,8 @@
+{
+  "name": "Rancher Desktop",
+  "unique_identifier": "io.rancherdesktop.app",
+  "token": "rancher",
+  "installer_format": "dmg",
+  "slug": "rancher/darwin",
+  "default_categories": ["Developer tools"]
+}

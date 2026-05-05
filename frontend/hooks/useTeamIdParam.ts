@@ -1,6 +1,6 @@
 import { useCallback, useContext, useEffect, useMemo } from "react";
 import { InjectedRouter } from "react-router";
-import { findLastIndex, over, trimStart } from "lodash";
+import { findLastIndex, sortBy, trimStart } from "lodash";
 
 import { AppContext } from "context/app";
 import { TableContext } from "context/table";
@@ -21,23 +21,37 @@ type OnTeamChangeFuncShouldStripParam = (
   teamIdForApi: number | undefined
 ) => boolean;
 
+type OnTeamChangeFuncShouldStripParamConsiderCurTeam = (
+  newTeamid: number | undefined,
+  curTeamId: number | undefined
+) => boolean;
+
 type OnTeamChangeFuncShouldReplaceParam = (
   teamIdForApi: number | undefined
 ) => [boolean, string];
+
+type ChangeTeamOverrideParamFn =
+  | OnTeamChangeFuncShouldReplaceParam
+  | OnTeamChangeFuncShouldStripParam
+  | OnTeamChangeFuncShouldStripParamConsiderCurTeam;
+
+const considersCurTeam = (
+  fn: ChangeTeamOverrideParamFn
+): fn is OnTeamChangeFuncShouldStripParamConsiderCurTeam => fn.length === 2;
 
 /**
  * This type is used to define functions that determine whether a query parameter should be stripped or replaced
  * when the team id changes.
  *
- * The key is the name of the query parameter and the value is a function that receives the new team
- * id with a return type of either:
- *  - boolean indicating whether the query parameter should be stripped
- *  - tuple of a boolean and a string, where the boolean indicates whether the query parameter should be replaced
- *    and the string is the new value for the query parameter
+ * The key is the name of the query parameter
+ * The value is a function that receives the new team id and optionally the current team id, and returns either:
+ *  - a boolean indicating whether the query parameter should be stripped, or
+ *  - a tuple of a boolean and a string, where the boolean indicates whether the query parameter should be replaced
+ *    and the string is the new value for the query parameter (TODO - support considering curTeamId)
  */
 export type IConfigOverrideParamsOnTeamChange = Record<
   string,
-  OnTeamChangeFuncShouldReplaceParam | OnTeamChangeFuncShouldStripParam
+  ChangeTeamOverrideParamFn
 >;
 
 const splitQueryStringParts = (queryString: string) =>
@@ -51,6 +65,7 @@ const joinQueryStringParts = (parts: string[]) =>
 const rebuildQueryStringWithTeamId = (
   queryString: string,
   newTeamId: number,
+  curTeamId: number | undefined,
   configAdditionalParams?: IConfigOverrideParamsOnTeamChange
 ) => {
   const parts = splitQueryStringParts(queryString);
@@ -61,10 +76,20 @@ const rebuildQueryStringWithTeamId = (
     parts.splice(pageIndex, 1, "page=0");
   }
 
-  const teamIndex = parts.findIndex((p) => p.startsWith("team_id="));
-  // URLs for the app represent "All teams" by the absence of the team id param
+  // Backward compat: rewrite legacy team_id= to fleet_id=
+  const legacyIndex = parts.findIndex((p) => p.startsWith("team_id="));
+  if (legacyIndex !== -1) {
+    parts.splice(
+      legacyIndex,
+      1,
+      parts[legacyIndex].replace("team_id=", "fleet_id=")
+    );
+  }
+
+  const teamIndex = parts.findIndex((p) => p.startsWith("fleet_id="));
+  // URLs for the app represent "All teams" by the absence of the fleet id param
   const newTeamPart =
-    newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `team_id=${newTeamId}` : "";
+    newTeamId > APP_CONTEXT_ALL_TEAMS_ID ? `fleet_id=${newTeamId}` : "";
 
   if (teamIndex === -1) {
     // nothing to remove/replace so add the new part (if any) and rejoin
@@ -73,9 +98,9 @@ const rebuildQueryStringWithTeamId = (
     );
   }
 
-  if (teamIndex !== findLastIndex(parts, (p) => p.startsWith("team_id="))) {
+  if (teamIndex !== findLastIndex(parts, (p) => p.startsWith("fleet_id="))) {
     console.warn(
-      `URL contains more than one team_id parameter: ${queryString}`
+      `URL contains more than one fleet_id parameter: ${queryString}`
     );
   }
 
@@ -91,7 +116,12 @@ const rebuildQueryStringWithTeamId = (
       let shouldReplace = false;
       let replaceString = "";
 
-      const val = fn(newTeamId);
+      let val;
+      if (considersCurTeam(fn)) {
+        val = fn(newTeamId, curTeamId);
+      } else {
+        val = fn(newTeamId);
+      }
       if (Array.isArray(val)) {
         [shouldReplace, replaceString] = val;
       } else if (typeof val === "boolean") {
@@ -156,36 +186,70 @@ const getUserTeams = ({
     : filterUserTeamsByRole(currentUser.teams, permittedAccessByTeamRole);
 };
 
+// Prefer a fleet named "Workstations" (with or without emoji prefix),
+// otherwise fall back to the fleet with the lowest ID.
+export const preferredOrLowestIdFleet = (fleets: ITeamSummary[]) => {
+  const name = "workstations";
+  const workstations = fleets.find((t) => {
+    const lower = t.name.toLowerCase();
+    return lower === name || lower === `\u{1F4BB} ${name}`;
+  });
+  return workstations ?? sortBy(fleets, (t) => t.id)[0];
+};
+
 const getDefaultTeam = ({
   currentUser,
   includeAllTeams,
   includeNoTeam,
   userTeams,
+  isPrimoMode,
 }: {
   currentUser: IUser | null;
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   userTeams?: ITeamSummary[];
+  isPrimoMode: boolean;
 }) => {
   if (!currentUser || !userTeams?.length) {
     return undefined;
   }
+  const realFleets = userTeams.filter((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+
   if (permissions.isOnGlobalTeam(currentUser)) {
     let defaultTeam: ITeamSummary | undefined;
-    if (includeAllTeams) {
-      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
-    }
-    if (!defaultTeam && includeNoTeam) {
-      defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+    if (isPrimoMode) {
+      // in Primo mode "No team" takes precedence
+      if (includeNoTeam) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+      } else if (includeAllTeams) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+      } else {
+        // neither All teams nor No team included on the page, as is the case for a few settings
+        // pages. Default to "All teams"
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+      }
+    } else {
+      // normally "All teams" takes precedence
+      if (includeAllTeams) {
+        defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_ALL_TEAMS_ID);
+      }
+      if (!defaultTeam && includeNoTeam) {
+        // prefer a real fleet over "Unassigned"
+        if (realFleets.length > 0) {
+          defaultTeam = preferredOrLowestIdFleet(realFleets);
+        } else {
+          defaultTeam = userTeams.find((t) => t.id === APP_CONTEXT_NO_TEAM_ID);
+        }
+      }
     }
 
-    return defaultTeam || userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID);
+    return defaultTeam || preferredOrLowestIdFleet(realFleets);
   }
 
   return (
     userTeams.find((t) => permissions.isTeamAdmin(currentUser, t.id)) ||
     userTeams.find((t) => permissions.isTeamMaintainer(currentUser, t.id)) ||
-    userTeams.find((t) => t.id > APP_CONTEXT_NO_TEAM_ID)
+    preferredOrLowestIdFleet(realFleets)
   );
 };
 
@@ -198,6 +262,9 @@ const getTeamIdForApi = ({
   includeAllTeams?: boolean;
   includeNoTeam?: boolean;
 }) => {
+  // note that CONTEXT refers to React Context, not the colloquial use of the word context, so the
+  // return value of this function should be used everywhere except in Context, not just in calls to
+  // the API service
   if (includeNoTeam && currentTeam?.id === APP_CONTEXT_NO_TEAM_ID) {
     return API_NO_TEAM_ID;
   }
@@ -207,6 +274,7 @@ const getTeamIdForApi = ({
   if (currentTeam && currentTeam.id > APP_CONTEXT_NO_TEAM_ID) {
     return currentTeam.id;
   }
+  // should never reach this case
   return undefined;
 };
 
@@ -215,12 +283,26 @@ const isValidTeamId = ({
   includeAllTeams,
   includeNoTeam,
   teamId,
+  isPrimoMode,
 }: {
   userTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
   teamId: number;
+  isPrimoMode: boolean;
 }) => {
+  if (isPrimoMode) {
+    // teamId at this point for all teams will be coerced to -1
+    if (includeNoTeam) {
+      return teamId === APP_CONTEXT_NO_TEAM_ID;
+    }
+    if (includeAllTeams) {
+      return teamId === APP_CONTEXT_ALL_TEAMS_ID;
+    }
+    // neither included - this is the case in a number of settings pages. Consider valid to allow
+    // editing teams
+    return true;
+  }
   if (
     (teamId === APP_CONTEXT_ALL_TEAMS_ID && !includeAllTeams) ||
     (teamId === APP_CONTEXT_NO_TEAM_ID && !includeNoTeam) ||
@@ -243,16 +325,18 @@ const shouldRedirectToDefaultTeam = ({
   includeAllTeams,
   includeNoTeam,
   query,
+  isPrimoMode,
 }: {
   userTeams: ITeamSummary[];
   includeAllTeams: boolean;
   includeNoTeam: boolean;
-  query: { team_id?: string };
+  query: { fleet_id?: string };
+  isPrimoMode: boolean;
 }) => {
-  const teamIdString = query?.team_id || "";
+  const teamIdString = query?.fleet_id || "";
   const parsedTeamId = parseInt(teamIdString, 10);
 
-  // redirect non-numeric strings and negative numbers to default (e.g., `/hosts?team_id=-1` should
+  // redirect non-numeric strings and negative numbers to default (e.g., `/hosts?fleet_id=-1` should
   // be redirected to `/hosts`)
   if (teamIdString.length && (isNaN(parsedTeamId) || parsedTeamId < 0)) {
     return true;
@@ -266,6 +350,7 @@ const shouldRedirectToDefaultTeam = ({
     includeAllTeams,
     includeNoTeam,
     teamId: coerceAllTeamsId(teamIdString),
+    isPrimoMode,
   });
 };
 
@@ -281,8 +366,9 @@ export const useTeamIdParam = ({
   location?: {
     pathname: string;
     search: string;
-    query: { team_id?: string };
+    query: { fleet_id?: string; team_id?: string };
     hash?: string;
+    [key: string]: any; // for other location properties that may be passed in
   };
   router: InjectedRouter;
   includeAllTeams: boolean;
@@ -292,6 +378,9 @@ export const useTeamIdParam = ({
   overrideParamsOnTeamChange?: IConfigOverrideParamsOnTeamChange;
 }) => {
   const { hash, pathname, query, search } = location;
+
+  const hasLegacyTeamIdParam = search.includes("team_id=");
+
   const {
     availableTeams,
     currentTeam: contextTeam,
@@ -299,7 +388,9 @@ export const useTeamIdParam = ({
     isFreeTier,
     isPremiumTier,
     setCurrentTeam: setContextTeam,
+    config,
   } = useContext(AppContext);
+  const isPrimoMode = config?.partnerships?.enable_primo || false;
 
   const { setResetSelectedRows } = useContext(TableContext);
 
@@ -316,18 +407,22 @@ export const useTeamIdParam = ({
         includeAllTeams,
         includeNoTeam,
         userTeams,
+        isPrimoMode,
       }),
-    [currentUser, includeAllTeams, includeNoTeam, userTeams]
+    [currentUser, includeAllTeams, includeNoTeam, isPrimoMode, userTeams]
   );
 
   const currentTeam = useMemo(
     () =>
-      userTeams?.find((t) => t.id === coerceAllTeamsId(query?.team_id || "")),
-    [query?.team_id, userTeams]
+      userTeams?.find(
+        (t) =>
+          t.id === coerceAllTeamsId(query?.fleet_id || query?.team_id || "")
+      ),
+    [query?.fleet_id, query?.team_id, userTeams]
   );
 
   const handleTeamChange = useCallback(
-    (teamId: number) => {
+    (newTeamId: number) => {
       // TODO: This results in a warning that TableProvider is being updated while
       // rendering a different component (the component that invokes the useTeamIdParam hook).
       // This requires further investigation but is not currently causing any known issues.
@@ -335,12 +430,15 @@ export const useTeamIdParam = ({
         setResetSelectedRows(true);
       }
 
+      // `replace` instead of `push` is okay here since we don't want users to be able to go back to
+      // the invalid route we are replacing
       router.replace(
         pathname
           .concat(
             rebuildQueryStringWithTeamId(
               search,
-              teamId,
+              newTeamId,
+              currentTeam?.id,
               overrideParamsOnTeamChange
             )
           )
@@ -348,11 +446,12 @@ export const useTeamIdParam = ({
       );
     },
     [
-      overrideParamsOnTeamChange,
       resetSelectedRowsOnTeamChange,
       router,
       pathname,
       search,
+      currentTeam?.id,
+      overrideParamsOnTeamChange,
       hash,
       setResetSelectedRows,
     ]
@@ -360,10 +459,18 @@ export const useTeamIdParam = ({
 
   // reconcile router location and redirect to default team as applicable
   let isRouteOk = false;
-  if (isFreeTier) {
-    // free tier should never have team_id param
-    if (query.team_id) {
-      handleTeamChange(-1); // remove team_id param from url
+  if (hasLegacyTeamIdParam) {
+    // Backward compat: redirect legacy ?team_id= URLs to ?fleet_id=
+    // Skip other reconciliation to avoid a second redirect overwriting this one.
+    router.replace(
+      pathname
+        .concat(search.replace(/\bteam_id=/g, "fleet_id="))
+        .concat(hash || "")
+    );
+  } else if (isFreeTier) {
+    // free tier should never have fleet_id param, so change to "All teams"
+    if (query.fleet_id) {
+      handleTeamChange(-1); // -1 because all pages on Free actually function as if on "All teams", even when not supported e.g. Controls
     } else {
       isRouteOk = true;
     }
@@ -374,6 +481,7 @@ export const useTeamIdParam = ({
         includeNoTeam,
         query,
         userTeams,
+        isPrimoMode,
       })
     ) {
       handleTeamChange(defaultTeam.id);
@@ -389,7 +497,8 @@ export const useTeamIdParam = ({
   }, [contextTeam?.id, currentTeam, isRouteOk, setContextTeam]);
 
   return {
-    // essentially `currentTeamIdForAppContext`, where -1: all teams, 0: no team, and positive integers: team ids
+    // essentially `currentTeamIdForAppContext`, where -1 represents all teams, 0 represents no
+    // team, and positive integers represent all teams other than the "no team" team
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
@@ -397,12 +506,17 @@ export const useTeamIdParam = ({
     isAnyTeamSelected: isAnyTeamSelected(currentTeam?.id),
     isAllTeamsSelected:
       !isAnyTeamSelected(currentTeam?.id) && currentTeam?.id !== 0,
+    /** isRouteOk indicates whether the team currently indicated by the url params is valid for the
+     * current user and tier */
     isRouteOk,
     isTeamAdmin:
       !!currentTeam?.id && permissions.isTeamAdmin(currentUser, currentTeam.id),
     isTeamMaintainer:
       !!currentTeam?.id &&
       permissions.isTeamMaintainer(currentUser, currentTeam.id),
+    isTeamTechnician:
+      !!currentTeam?.id &&
+      permissions.isTeamTechnician(currentUser, currentTeam.id),
     isTeamMaintainerOrTeamAdmin:
       !!currentTeam?.id &&
       permissions.isTeamMaintainerOrTeamAdmin(currentUser, currentTeam.id),
@@ -413,7 +527,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: team_id=0 for No team (same as currentTeamId), undefined for All teams
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext: fleet_id=0 for No team (same as currentTeamId), undefined for All teams
     userTeams,
     handleTeamChange,
   };

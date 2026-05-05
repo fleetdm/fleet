@@ -8,7 +8,7 @@ import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
 
 describe("Policies table", () => {
-  it("Renders the page-wide empty state when no policies are present", async () => {
+  it("Renders the page-wide empty state when no policies are present (free tier)", async () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -22,19 +22,81 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
-        currentTeam={{ id: -1, name: "All teams" }}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+  });
+
+  it("Renders the page-wide empty state when no policies are present (all teams)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
-    expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
+    expect(
+      screen.getByText("You don't have any policies that apply to all fleets")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Name")).toBeNull();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+  });
+
+  it("Renders the page-wide empty state when no policies are present (specific team)", async () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: 1, name: "Some team" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={0}
+      />
+    );
+
+    expect(
+      screen.getByText("You don't have any policies that apply to this fleet")
+    ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
@@ -52,19 +114,19 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
-        currentTeam={{ id: -1, name: "All teams" }}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={0}
       />
     );
 
     expect(screen.getByText("No matching policies")).toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("Search by name")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
@@ -84,15 +146,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testCriticalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
-        currentTeam={{ id: -1, name: "All teams" }}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testCriticalPolicy].length}
       />
     );
 
@@ -123,15 +184,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testInheritedPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testInheritedPolicy].length}
       />
     );
 
@@ -146,7 +206,7 @@ describe("Policies table", () => {
     });
   });
 
-  it("Does not render an inherited badge and tooltip for global policy on the All teams's policies page", () => {
+  it("Does not render an inherited badge and tooltip for global policy on the All fleets's policies page", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -162,15 +222,14 @@ describe("Policies table", () => {
       <PoliciesTable
         policiesList={[testGlobalPolicy]}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
-        currentTeam={{ id: -1, name: "All teams" }}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        resetPageIndex={false}
+        count={[testGlobalPolicy].length}
       />
     );
 
@@ -198,42 +257,145 @@ describe("Policies table", () => {
       createMockPolicy({ id: 5, team_id: 2, name: "Team policy 2" }),
     ];
 
-    const { container, user } = render(
+    const policiesList = [...testInheritedPolicies, ...testTeamPolicies];
+
+    const { user } = render(
       <PoliciesTable
-        policiesList={[...testInheritedPolicies, ...testTeamPolicies]}
+        policiesList={policiesList}
         isLoading={false}
-        // eslint-disable-next-line @typescript-eslint/no-empty-function
-        onDeletePolicyClick={() => {}}
+        onDeletePoliciesClick={noop}
         currentTeam={{ id: 2, name: "Team 2" }}
         isPremiumTier
         searchQuery=""
         page={0}
         onQueryChange={noop}
         renderPoliciesCount={() => null}
-        canAddOrDeletePolicy
+        canAddOrDeletePolicies
         hasPoliciesToDelete
-        resetPageIndex={false}
+        count={policiesList.length}
       />
     );
 
-    const numberOfCheckboxes = container.querySelectorAll(
-      "input[type='checkbox']"
-    ).length;
+    const numberOfCheckboxes = screen.queryAllByRole("checkbox").length;
 
     expect(numberOfCheckboxes).toBe(
       testTeamPolicies.length + 1 // +1 for Select all checkbox
     );
 
-    const checkbox = container.querySelectorAll(
-      "input[type='checkbox']"
-    )[0] as HTMLInputElement;
+    const checkbox = screen.queryAllByRole("checkbox")[0];
 
-    await waitFor(() => {
-      waitFor(() => {
-        user.click(checkbox);
-      });
-
-      expect(checkbox.checked).toBe(true);
+    await waitFor(async () => {
+      await user.click(checkbox);
     });
+
+    expect(checkbox).toBeChecked();
+  });
+
+  it("Renders a Patch badge for a patch policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testPatchPolicy = createMockPolicy({
+      type: "patch",
+      name: "macOS - Zoom up to date",
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[testPatchPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.getByText("Patch")).toBeInTheDocument();
+  });
+
+  it("Does not render a Patch badge for a dynamic policy", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const testDynamicPolicy = createMockPolicy({ type: "dynamic" });
+
+    render(
+      <PoliciesTable
+        policiesList={[testDynamicPolicy]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={1}
+      />
+    );
+
+    expect(screen.queryByText("Patch")).not.toBeInTheDocument();
+  });
+
+  it("Renders the Automations column with correct values", () => {
+    const render = createCustomRenderer({
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          currentUser: createMockUser(),
+        },
+      },
+    });
+
+    const policyWithAutomations = createMockPolicy({
+      id: 10,
+      name: "Policy with automations",
+      install_software: { name: "Zoom", software_title_id: 1 },
+      calendar_events_enabled: true,
+    });
+
+    const policyWithoutAutomations = createMockPolicy({
+      id: 11,
+      name: "Policy without automations",
+      install_software: undefined,
+      calendar_events_enabled: false,
+      conditional_access_enabled: false,
+    });
+
+    render(
+      <PoliciesTable
+        policiesList={[policyWithAutomations, policyWithoutAutomations]}
+        isLoading={false}
+        onDeletePoliciesClick={noop}
+        currentTeam={{ id: -1, name: "All fleets" }}
+        isPremiumTier
+        searchQuery=""
+        page={0}
+        onQueryChange={noop}
+        renderPoliciesCount={() => null}
+        count={2}
+      />
+    );
+
+    expect(screen.getByText("Automations")).toBeInTheDocument();
+    expect(screen.getByText("Software, calendar")).toBeInTheDocument();
+    expect(screen.getByText("---")).toBeInTheDocument();
   });
 });

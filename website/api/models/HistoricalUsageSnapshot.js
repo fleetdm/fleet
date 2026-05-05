@@ -48,6 +48,13 @@ module.exports = {
     maintenanceWindowsConfigured: {required: true, type: 'boolean'},
     numHostsFleetDesktopEnabled: {required: true, type: 'number'},
     numQueries: {required: true, type: 'number' },
+    numHostsABMPending: {required: true, type: 'number' },
+    fleetMaintainedAppsMacOS: {required: true, type: 'json'},
+    fleetMaintainedAppsWindows: {required: true, type: 'json'},
+    oktaConditionalAccessConfigured: {required: true, type: 'boolean'},
+    conditionalAccessEnabled: {required: true, type: 'boolean'},
+    conditionalAccessBypassDisabled: {required: true, type: 'boolean'},
+    entraConditionalAccessConfigured: {required: true, type: 'boolean'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

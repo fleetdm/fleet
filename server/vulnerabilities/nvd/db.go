@@ -1,11 +1,14 @@
 package nvd
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 	"github.com/jmoiron/sqlx"
@@ -16,6 +19,20 @@ func sqliteDB(dbPath string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, err
+	}
+	return db, nil
+}
+
+func sqliteDBReadOnly(ctx context.Context, dbPath string, logger *slog.Logger) (*sqlx.DB, error) {
+	db, err := sqlx.Open("sqlite3", dbPath+"?mode=ro")
+	if err != nil {
+		return nil, err
+	}
+	// Memory-map up to 1GB for faster reads via OS page cache.
+	// Best-effort: don't fail if the PRAGMA isn't supported on this platform.
+	if _, err := db.Exec("PRAGMA mmap_size = 1073741824"); err != nil {
+		logger.ErrorContext(ctx, "failed to set mmap_size pragma", "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 	return db, nil
 }
@@ -32,6 +49,7 @@ CREATE TABLE IF NOT EXISTS cpe_2 (
     product TEXT,
     version TEXT,
     target_sw TEXT,
+    sw_edition TEST,
     deprecated BOOLEAN DEFAULT FALSE
 );
 CREATE VIEW IF NOT EXISTS cpe AS
@@ -54,6 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_cpe_2_vendor ON cpe_2 (vendor);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_product ON cpe_2 (product);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_version ON cpe_2 (version);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_target_sw ON cpe_2 (target_sw);
+CREATE INDEX IF NOT EXISTS idx_cpe_2_sw_edition ON cpe_2 (sw_edition);
 CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
 `)
 	return err
@@ -69,8 +88,9 @@ func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, er
 	product := wfn.StripSlashes(item.CPE23.Name.Product)
 	version := wfn.StripSlashes(item.CPE23.Name.Version)
 	targetSW := wfn.StripSlashes(item.CPE23.Name.TargetSW)
+	SWEdition := wfn.StripSlashes(item.CPE23.Name.SWEdition)
 
-	cpes = append(cpes, cpe23, title, vendor, product, version, targetSW, item.Deprecated)
+	cpes = append(cpes, cpe23, title, vendor, product, version, targetSW, SWEdition, item.Deprecated)
 
 	if item.CPE23.Deprecation != nil {
 		for _, deprecatedBy := range item.CPE23.Deprecation.DeprecatedBy {
@@ -165,7 +185,7 @@ func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations 
 }
 
 func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
-	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", cpesCount), ", ")
+	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?, ?), ", cpesCount), ", ")
 	_, err := db.Exec(
 		fmt.Sprintf(`
 INSERT INTO cpe_2 (
@@ -175,6 +195,7 @@ INSERT INTO cpe_2 (
 	product,
 	version,
 	target_sw,
+	sw_edition,
 	deprecated
 )
 VALUES %s`, values),

@@ -32,67 +32,63 @@ const DeleteHostModal = ({
   hostName,
   isUpdating,
 }: IDeleteHostModalProps): JSX.Element => {
-  const pluralizeHost = () => {
-    if (!selectedHostIds) {
-      return "host";
-    }
-    return strUtils.pluralize(selectedHostIds.length, "host");
-  };
-
   const hostText = () => {
     if (selectedHostIds) {
       return `${selectedHostIds.length}${
         isAllMatchingHostsSelected ? "+" : ""
-      } ${pluralizeHost()}`;
+      } ${strUtils.pluralize(selectedHostIds.length, "host")}`;
     }
     return hostName;
   };
-  const largeVolumeText = (): string => {
-    if (
-      selectedHostIds &&
-      isAllMatchingHostsSelected &&
-      hostsCount &&
-      hostsCount >= 500
-    ) {
-      return " When deleting a large volume of hosts, it may take some time for this change to be reflected in the UI.";
-    }
-    return "";
-  };
+
+  const hasManyHosts =
+    selectedHostIds &&
+    isAllMatchingHostsSelected &&
+    hostsCount &&
+    hostsCount >= 500;
 
   return (
-    <Modal title="Delete host" onExit={onCancel} className={baseClass}>
-      <>
+    <Modal title="Delete" onExit={onCancel} className={baseClass}>
+      <p>
+        This will remove <b>{hostText()}</b> and associated data such as unlock
+        PINs and disk encryption keys.
+      </p>
+      {hasManyHosts && (
         <p>
-          This will remove the record of <b>{hostText()}</b> and associated data
-          (e.g. unlock PINs).{largeVolumeText()}
+          When deleting a large volume of hosts, it may take some time for this
+          change to be reflected in the UI.
         </p>
-        <ul>
-          <li>
-            macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
-            agent is uninstalled.{" "}
-            <CustomLink
-              text="Uninstall Fleet's agent"
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
-              newTab
-            />
-          </li>
-          <li>iOS and iPadOS hosts will re-appear unless MDM is turned off.</li>
-        </ul>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onSubmit}
-            variant="alert"
-            className="delete-loading"
-            isLoading={isUpdating}
-          >
-            Delete
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      )}
+      <ul>
+        <li>
+          macOS, Windows, or Linux hosts will re-appear unless Fleet&apos;s
+          agent is uninstalled.{" "}
+          <CustomLink
+            text="Uninstall Fleet's agent"
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstall-fleetd`}
+            newTab
+          />
+        </li>
+        <li>
+          iOS, iPadOS, and Android hosts will re-appear unless MDM is turned
+          off. For iOS and iPadOS it may take up to an hour and for Android it
+          may take up to 24 hours to re-appear.
+        </li>
+      </ul>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onSubmit}
+          variant="alert"
+          className="delete-loading"
+          isLoading={isUpdating}
+        >
+          Delete
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

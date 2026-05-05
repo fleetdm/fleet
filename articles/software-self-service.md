@@ -1,81 +1,137 @@
-# Software self-service
+# Self-service 
 
-![Software self-service](../website/assets/images/articles/software-self-service-1600x900@2x.png)
+_Available in Fleet Premium_
 
-Fleet’s self-service software feature empowers end users by allowing them to independently install approved software packages from a curated list through the Fleet Desktop “My device” page. This not only reduces the administrative burden on IT teams but also enhances user productivity and satisfaction. In this guide, we will walk you through the process of uploading, editing, and managing self-service software packages in Fleet, enabling seamless software distribution and management.
+Fleet’s self-service lets end users update and install approved apps and run scripts from a curated list on the **Fleet Desktop > Self-service** page. This reduces overhead for IT and keeps teams productive.
 
-## Prerequisites
+For macOS, Windows, and Linux hosts, self-service is accessible via the **Self-service** page in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop). 
 
-* Fleet Premium is required for software self-service.
+> **Note:** The **Self-service** page is hidden by default to avoid confusion in organizations that use a different self-service tool. It appears after you add self-service software or scripts.
 
-> Software packages can be added to a specific team or to the "No team" category. The "No team" category is the default assignment for hosts that are not part of any specific team.
+For iOS/iPadOS hosts, [deploy a webclip](#deploy-self-service-on-ios-and-ipados) to give end users access. For Android hosts, all self-service software is available in the Managed Google Play store. [Learn more](https://fleetdm.com/guides/install-app-store-apps#google-play-android2).
 
-## Step-by-Step Instructions
+## Add software
 
-### Adding a self-service software package
+1. Select the fleet to which you want to add the software from the dropdown in the upper left corner of the page.
+2. Select **Software** in the main navigation menu.
+3. Select the **Add software** button in the upper right corner of the page.
+4. Pick a [Fleet-maintained app](https://fleetdm.com/guides/fleet-maintained-apps), [app store app](https://fleetdm.com/guides/install-app-store-apps#add-the-app-to-fleet), or upload a [custom package](https://fleetdm.com/guides/deploy-software-packages).
+5. Check **Self-service** to make it available for self-service as soon as it's added.
 
-1. **Navigate to the Software page**: Click “Software” in the main navigation menu.
-2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you want to add the software package.
-3. **Open the “Add software” modal**: Click the “Add software” button in the upper right corner of the page.
-4. **Select a software package to upload**: Click “Choose file” in the “Add software” modal and select a software package from your computer.
-5. **Select the hosts that you want to target**: Select "All hosts" if you want the software to be available to all your hosts. Select "Custom" to scope the software to specific groups of hosts based on label membership. You can select "Include any", which will scope the software to hosts that have any of the labels you select, or "Exclude any", which will scope the software to hosts that do _not_ have the selected labels.
-6. **Advanced options**: If desired, click “Advanced options” to add a pre-install condition or post-install script to your software package.
-    * **Pre-install condition**: This is an osquery query that results in true. For example, you might require a specific software title to exist before installing additional extensions.
-    * **Post-install script**: This might be used to apply a license key, perform configuration tasks, or execute cleanup tasks after the software installation.
-7. **Make the software package self-service**: Check the “Self-service” checkbox to mark the software package as self-service.
-8. **Finish the upload**: Click the “Add software” button to finish the upload process.
+> Use script-only packages (`.sh` and `.ps1` files) for self-service scripts like connecting to a VPN or configuring printers. Learn more in the [deploy software guide](https://fleetdm.com/guides/deploy-software-packages#script-only-packages).
 
-### Editing a self-service software package
+You can also add the software and later make it available in self-service:
 
-1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
-2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. **Filter by self-service**: To make it easier to find your software package, click on the dropdown to the left of the search bar and select “Self-service”. This will filter the results in the table to only show self-service software packages. If you still don’t see your software package, you can page through the results or search for your software package’s name in the search bar.
-4. **Open the details page**: Click on the software package’s name. 
-5. **Open the actions dropdown**: Click on the “Actions” dropdown on the far right of the page. From here, you can download the software package, delete the software package, or click “Advanced options” to see the options you configured when adding the software package. 
+1. Select the fleet to which you added the software from the dropdown in the upper left corner of the page.
+2. Select **Software** in the main navigation menu.
+3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
+4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon. Icons appear on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [app store apps](https://fleetdm.com/guides/install-app-store-apps).
+5. Select the **Save** button.
 
-### Downloading a self-service software package
+If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
 
-1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
-2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. **Filter by self-service**: Click on the dropdown to the left of the search bar and select “Self-service” and page through the results or search for your software package’s name in the search bar.
-4. **Download the software package**:
-* **Option 1**: Click on the down-arrow next to the software package name in the list of self-service software packages to start an immediate download.
-* **Option 2**: Click on the software package’s name to open the details page. Click on the “Actions” dropdown on the far right of the page, and then click on “Download” to download the software package to your computer.
+## Deploy self-service on iOS and iPadOS
 
-### Deleting a self-service software package
+Install this configuration profile to add the self-service web app to the home screen on iPhone and iPad.
 
-1. **Navigate to the software details page for the software package**: Click “Software” in the main navigation menu.
-2. **Select a team**: Click the dropdown in the upper left corner of the page and click on the team to which you added the software package.
-3. **Filter by self-service**: Click on the dropdown to the left of the search bar and select “Self-service” and page through the results or search for your software package’s name in the search bar.
-4. **Open the details page**: Click on the software package’s name.
-5. **Open the actions dropdown**: Click on the “Actions” dropdown on the far right of the page.
-6. **Delete the software package**: Click on “Delete” to remove the software package from Fleet. Confirm the deletion if prompted.
 
-### Installing self-service software packages
+### Create the self-service configuration profile
 
-To install the self-service software package on the host:
+On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **Web Clip** payload with these settings:
 
-1. **Navigate to the “Self-service” tab**: Click on the Fleet Desktop icon in the OS menu bar. Click “Self-service”. This will point your default web browser to the list of self-service software packages in the “My device” page.
-2. **Install the self-service software package**: Click the “Install” button for the software package you want to install.
+#### Under the General tab
 
-### Using the REST API for self-service software packages
+- **Name:** Friendly name like "iOS self-service".
+- **Identifier and UUID:** You can use default values.
 
-Fleet provides a REST API for managing software packages, including self-service software packages.  Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
+#### Under the Web Clip tab
 
-### Managing self-service software packages with GitOps
+- **Label:** Type "Self-service". This name will display as the app name on the home screen.
+- **URL:** `<your_server_url>/device/$FLEET_VAR_HOST_UUID/self-service`
+- **Removable:** Uncheck it.
+- **Icon:** Upload a square icon that will be displayed as the app icon on the home screen.
+- **Full Screen:** Check this field.
+- **Target Application Bundle Identifier:** Select **Choose...**, type "safari" in the search box, and select **Safari - com.apple.mobilesafari**.
 
-To manage self-service software packages using Fleet's best practice GitOps, check out the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software).
+#### Download configuration profile
 
-> Note: with GitOps enabled, software packages uploaded using the web UI will not persist.
+You can also download the configuration profile (`.mobileconfig`) and change values in code editor. If you want to change the icon, use iMazing Profile Editor and follow the steps above.
 
-## Conclusion
+Download example Web Clip profile from [our repository](https://github.com/fleetdm/fleet/tree/main/docs/solutions/ios-ipados/configuration-profiles/fleet-self-service.mobileconfig).
 
-Fleet’s self-service software feature not only simplifies software management for IT administrators but also empowers end users by giving them access to necessary software on demand. This feature ensures that your hosts remain secure while improving overall user experience. For further information and advanced management techniques, refer to Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software) and [GitOps](https://fleetdm.com/docs/using-fleet/gitops#software) documentation. 
+## IT admin experience
 
-<meta name="articleTitle" value="Software self-service">
+How to view, update, install, or uninstall self-service software:
+
+1. Go to **Hosts**.
+2. Select a host to go to the Host details page.
+3. Open the **Software > Library** tab and select **Self-service** in the dropdown.
+4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
+
+**Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
+
+Currently, for Apple App Store (VPP) apps, if Apple host is running an app version that can’t be updated because the latest App Store version requires a newer OS version, Fleet always shows “Update available.” The update then always fails, since the latest app version is incompatible with the host’s OS.
+
+To find the minimum OS version for the app, visit the [App Store](https://apps.apple.com/), find the app, scroll to the bottom, and look for **Compatibility** under **Information**.
+
+Tips:
+
+- Use the **Software > Library** table to quickly identify and action pending updates.
+- When a software install or uninstall fails, select **Failed** to see error details that can help with troubleshooting.
+- To automatically install software, you can use Fleet's policy automations. [Learn how](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+
+## End user experience
+
+How to update, install, or uninstall self-service software:
+
+**macOS and Windows:**
+
+Find the Fleet icon in your menu bar (macOS) or system tray (Windows) and select **Self-service.** This will open your default web browser to the list of self-service software available to update, install, or uninstall.
+
+**iOS and iPadOS:**
+
+Tap the **Self-service** icon on your home screen. This opens the self-service software catalog where you can install apps.
+
+If updates are available, end users can update one or all available self-service software. They can also view update progress and error details directly.
+
+## API
+
+Fleet provides a REST API for managing software, including self-service software packages. Learn more about Fleet's [REST API](https://fleetdm.com/docs/rest-api/rest-api#software).
+
+## GitOps
+
+To manage self-service software using GitOps, see the `software` key in the [GitOps reference documentation](https://fleetdm.com/docs/using-fleet/gitops#software).
+
+> **Note:** When managing Fleet via GitOps, software packages uploaded using the web UI persist only if they are also defined in GitOps with the `hash_sha256` field.
+
+## Advanced
+
+### How updates work
+
+When Fleet shows **Update** instead of **Install**:
+
+- The software is detected in Fleet's software inventory (software installed on the host).
+- Fleet has a newer version of the software. This version is newer than at least one version of the software in Fleet's software inventory.
+
+Currently, if a host has two versions of the software installed, with each version installed in different locations, Fleet can only upgrade one version. In this scenario, Fleet will still show **Update**. If this happens, the best practice is to run a custom script to uninstall the old version. Here's an example script that removes a copy of Google Chrome present in a macOS host's `Downloads/` folder:
+
+```sh
+rm -r /Users/noahtalerman/Downloads/Google\ Chrome.app
+```
+
+For more technical detail and edge cases, refer to the [software self-service diagram](https://drive.google.com/file/d/1rOR0zRT5DKZfJVPq2WdNpdWkO0ARYbsj/view).
+
+### Statuses
+
+When an install, uninstall, or update is triggered by an IT admin or end user in the Fleet UI or by an end user—Fleet continuously monitors (["polls"](https://en.wikipedia.org/wiki/Polling_(computer_science))) and surfaces a loading status (e.g., "Installing...").
+
+- If the host is online, Fleet will poll automatically every 5 seconds to check for completion. When the install, uninstall, or update completes or fails, the status will update without the IT admin or end user having to reload the page.
+- If the host is offline, IT admins see a pending status. When pending, the action has not started on the host. IT admins can cancel pending actions on **Host details > Activity > Upcoming** tab.
+
+<meta name="articleTitle" value="Self-service">
 <meta name="authorFullName" value="Jahziel Villasana-Espinoza">
 <meta name="authorGitHubUsername" value="jahzielv">
 <meta name="category" value="guides">
-<meta name="publishedOn" value="2024-08-06">
+<meta name="publishedOn" value="2025-06-20">
 <meta name="articleImageUrl" value="../website/assets/images/articles/software-self-service-1600x900@2x.png">
-<meta name="description" value="This guide will walk you through adding apps to Fleet for user self-service.">
+<meta name="description" value="Adding apps and scripts to Fleet for end user self-service.">

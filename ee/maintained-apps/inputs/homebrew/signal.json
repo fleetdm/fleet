@@ -1,0 +1,8 @@
+{
+  "name": "Signal",
+  "unique_identifier": "org.whispersystems.signal-desktop",
+  "token": "signal",
+  "installer_format": "zip",
+  "slug": "signal/darwin",
+  "default_categories": ["Communication"]
+}

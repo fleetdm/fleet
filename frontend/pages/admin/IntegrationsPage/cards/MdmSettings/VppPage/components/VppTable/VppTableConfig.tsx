@@ -8,6 +8,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import { IRenewDateCellStatusConfig } from "../../../components/RenewDateCell/RenewDateCell";
@@ -21,13 +22,27 @@ type ITeamsCellProps = CellProps<IMdmVppToken, IMdmVppToken["teams"]>;
 type ITableHeaderProps = IHeaderProps<IMdmVppToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
 
-const generateActions = () => {
-  return DEFAULT_ACTION_OPTIONS;
+const generateActions = (gitopsModeEnabled: boolean, repoURL: string) => {
+  if (!gitopsModeEnabled) {
+    return DEFAULT_ACTION_OPTIONS;
+  }
+
+  return DEFAULT_ACTION_OPTIONS.map((option) => {
+    if (option.value !== "editTeams") {
+      return option;
+    }
+
+    return {
+      ...option,
+      disabled: true,
+      tooltipContent: getGitOpsModeTipContent(repoURL),
+    };
+  });
 };
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
@@ -52,7 +67,9 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 };
 
 export const generateTableConfig = (
-  actionSelectHandler: (value: string, team: IMdmVppToken) => void
+  actionSelectHandler: (value: string, team: IMdmVppToken) => void,
+  gitopsModeEnabled: boolean,
+  repoURL: string
 ): IAbmTableConfig[] => {
   return [
     {
@@ -91,10 +108,10 @@ export const generateTableConfig = (
 
     {
       accessor: "teams",
-      Header: "Teams",
+      Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {
@@ -105,11 +122,12 @@ export const generateTableConfig = (
       accessor: "id",
       Cell: (cellProps) => (
         <ActionsDropdown
-          options={generateActions()}
+          options={generateActions(gitopsModeEnabled, repoURL)}
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
+          variant="small-button"
         />
       ),
     },

@@ -1,0 +1,8 @@
+{
+  "name": "Podman Desktop",
+  "unique_identifier": "io.podmandesktop.PodmanDesktop",
+  "token": "podman-desktop",
+  "installer_format": "dmg",
+  "slug": "podman-desktop/darwin",
+  "default_categories": ["Developer tools"]
+}

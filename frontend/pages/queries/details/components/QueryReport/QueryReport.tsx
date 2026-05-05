@@ -16,7 +16,7 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
@@ -26,11 +26,12 @@ interface IQueryReportProps {
 }
 
 const baseClass = "query-report";
-const CSV_TITLE = "Query";
+const CSV_TITLE = "Report";
 
 const flattenResults = (results: IQueryReportResultRow[]) => {
   return results.map((result: IQueryReportResultRow) => {
     const hostInfoColumns = {
+      host_id: result.host_id,
       host_display_name: result.host_name,
       last_fetched: result.last_fetched,
     };
@@ -45,7 +46,7 @@ const QueryReport = ({
   queryReport,
   isClipped,
 }: IQueryReportProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
+  const { lastEditedQueryName } = useContext(QueryContext);
 
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
@@ -55,7 +56,8 @@ const QueryReport = ({
   useEffect(() => {
     if (queryReport && queryReport.results && queryReport.results.length > 0) {
       const newColumnConfigs = generateReportColumnConfigsFromResults(
-        flattenResults(queryReport.results)
+        flattenResults(queryReport.results),
+        queryReport.query_id
       );
 
       // Update tableHeaders if new headers are found
@@ -70,9 +72,7 @@ const QueryReport = ({
     FileSaver.saveAs(
       generateCSVQueryResults(
         filteredResults,
-        generateCSVFilename(
-          `${lastEditedQueryName || CSV_TITLE} - Query Report`
-        ),
+        generateCSVFilename(`${lastEditedQueryName || CSV_TITLE} - Report`),
         columnConfigs
       )
     );
@@ -84,11 +84,11 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>
@@ -107,7 +107,7 @@ const QueryReport = ({
                 Fleet has retained a sample of early results for reference.
                 Reporting is paused until existing data is deleted. <br />
                 <br />
-                You can reset this report by updating the query&apos;s SQL, or
+                You can reset this report by updating the report&apos;s SQL, or
                 by temporarily enabling the <b>discard data</b> setting and
                 disabling it again.
               </>
@@ -131,11 +131,10 @@ const QueryReport = ({
           // All empty states are handled in QueryDetailsPage.tsx and returned in lieu of QueryReport.tsx
           emptyComponent={() => {
             return (
-              <EmptyTable
+              <EmptyState
                 className={baseClass}
-                graphicName="empty-software"
                 header="Nothing to report yet"
-                info="This query has returned no data so far."
+                info="This report has returned no data so far."
               />
             );
           }}
@@ -150,6 +149,7 @@ const QueryReport = ({
           customControl={() => renderTableButtons()}
           setExportRows={setFilteredResults}
           renderCount={renderResultsCount}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );

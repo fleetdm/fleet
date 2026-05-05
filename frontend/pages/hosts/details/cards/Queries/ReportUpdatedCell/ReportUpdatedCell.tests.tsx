@@ -1,14 +1,15 @@
 import React from "react";
 
-import { render, screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import ReportUpdatedCell from "./ReportUpdatedCell";
 
 const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/\d{1,2}\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
 
 describe("ReportUpdatedCell component", () => {
-  it("Renders 'No report' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
-    render(
+  it("Renders 'No report' with tooltip and no link when run on an interval with discard data and automations enabled", async () => {
+    const { user } = renderWithSetup(
       <ReportUpdatedCell
         interval={1000}
         discard_data
@@ -18,14 +19,18 @@ describe("ReportUpdatedCell component", () => {
         hostId={4}
       />
     );
+    const noReportText = screen.getByText(/No report/);
+    expect(noReportText).toBeInTheDocument();
+    await user.hover(noReportText);
 
-    expect(screen.getByText(/No report/)).toBeInTheDocument();
-    expect(screen.getByText(/Results from this query/)).toBeInTheDocument();
+    waitFor(() => {
+      expect(screen.getByText(/Results from this report/)).toBeInTheDocument();
+    });
     expect(screen.queryByText(/View report/)).toBeNull();
   });
 
-  it("Renders '---' with tooltip and link to report when run on an interval with discard data off and no last_fetched time", () => {
-    render(
+  it("Renders '---' with tooltip and link to report when run on an interval with discard data off and no last_fetched time", async () => {
+    const { user } = renderWithSetup(
       <ReportUpdatedCell
         interval={1000}
         discard_data={false}
@@ -36,17 +41,22 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(screen.getByText(/---/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/Fleet is collecting query results\./)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Check back later./)).toBeInTheDocument();
+    const noReportText = screen.getByText(/---/);
+    expect(noReportText).toBeInTheDocument();
+    await user.hover(noReportText);
+
+    waitFor(() => {
+      expect(
+        screen.getByText(/Fleet is collecting report results\./)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Check back later./)).toBeInTheDocument();
+    });
   });
 
-  it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present", () => {
+  it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present", async () => {
     const tenDaysAgo = new Date();
     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-    render(
+    const { user } = renderWithSetup(
       <ReportUpdatedCell
         interval={1000}
         discard_data={false}
@@ -57,15 +67,22 @@ describe("ReportUpdatedCell component", () => {
         hostId={4}
       />
     );
+    const timeAgo = screen.getByText(/\d+.+ago/);
 
-    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
-    expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    expect(timeAgo).toBeInTheDocument();
+    await user.hover(timeAgo);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(HUMAN_READABLE_DATETIME_REGEX)
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/View data/)).toBeInTheDocument();
   });
-  it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present but not currently running an interval", () => {
+  it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present but not currently running an interval", async () => {
     const tenDaysAgo = new Date();
     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10);
-    render(
+    const { user } = renderWithSetup(
       <ReportUpdatedCell
         interval={0}
         discard_data={false}
@@ -76,9 +93,15 @@ describe("ReportUpdatedCell component", () => {
         hostId={4}
       />
     );
+    const timeAgo = screen.getByText(/\d+.+ago/);
+    expect(timeAgo).toBeInTheDocument();
+    await user.hover(timeAgo);
 
-    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
-    expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(HUMAN_READABLE_DATETIME_REGEX)
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/View data/)).toBeInTheDocument();
   });
 });

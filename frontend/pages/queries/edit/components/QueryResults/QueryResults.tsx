@@ -18,10 +18,12 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import ShowQueryModal from "components/modals/ShowQueryModal";
-import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
-import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import LiveResultsHeading from "components/queries/LiveResults/LiveResultsHeading";
+import AwaitingResults from "components/queries/LiveResults/AwaitingResults";
+import EmptyState from "components/EmptyState";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
 
@@ -36,11 +38,12 @@ interface IQueryResultsProps {
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   setSelectedTargets: (value: ITarget[]) => void;
   goToQueryEditor: () => void;
+  // set during target selection, persisted through each step of the flow
   targetsTotalCount: number;
 }
 
 const baseClass = "query-results";
-const CSV_TITLE = "New Query";
+const CSV_TITLE = "New Report";
 const NAV_TITLES = {
   RESULTS: "Results",
   ERRORS: "Errors",
@@ -59,7 +62,7 @@ const QueryResults = ({
 }: IQueryResultsProps): JSX.Element => {
   const { lastEditedQueryBody } = useContext(QueryContext);
 
-  const { hosts_count: hostsCount, query_results: queryResults, errors } =
+  const { uiHostCounts, serverHostCounts, queryResults, errors } =
     campaign || {};
 
   const [navTabIndex, setNavTabIndex] = useState(0);
@@ -154,14 +157,12 @@ const QueryResults = ({
 
   const renderNoResults = () => {
     return (
-      <p className="no-results-message">
-        Your live query returned no results.
-        <span>
-          Expecting to see results? Check to see if the host
-          {`${targetsTotalCount > 1 ? "s" : ""}`} you targeted reported
-          &ldquo;Online&rdquo; or check out the &ldquo;Errors&rdquo; table.
-        </span>
-      </p>
+      <EmptyState
+        header="Your live report returned no results"
+        info={`Expecting to see results? Check to see if the host${
+          targetsTotalCount > 1 ? "s" : ""
+        } you targeted reported "Online" or check out the "Errors" table.`}
+      />
     );
   };
 
@@ -183,7 +184,7 @@ const QueryResults = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQueryModal}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -196,11 +197,11 @@ const QueryResults = ({
               ? onExportErrorsResults
               : onExportQueryResults
           }
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export {tableType}
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" />
           </>
         </Button>
       </div>
@@ -232,6 +233,7 @@ const QueryResults = ({
             tableType === "results" ? setFilteredResults : setFilteredErrors
           }
           renderCount={() => renderCount(tableType)}
+          getRowId={(_row, index) => String(index)}
         />
       </div>
     );
@@ -263,11 +265,16 @@ const QueryResults = ({
 
   return (
     <div className={baseClass}>
-      <QueryResultsHeading
-        respondedHosts={hostsCount.total}
-        targetsTotalCount={targetsTotalCount}
-        isQueryFinished={isQueryFinished}
-        onClickDone={onQueryDone}
+      <LiveResultsHeading
+        numHostsTargeted={targetsTotalCount}
+        numHostsResponded={uiHostCounts.total}
+        numHostsRespondedResults={serverHostCounts.countOfHostsWithResults}
+        numHostsRespondedNoErrorsAndNoResults={
+          serverHostCounts.countOfHostsWithNoResults
+        }
+        numHostsRespondedErrors={uiHostCounts.failed}
+        isFinished={isQueryFinished}
+        onClickClose={onQueryDone}
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
@@ -277,31 +284,26 @@ const QueryResults = ({
           cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
         >
           <div>
-            <b>Results clipped.</b> A sample of this query&apos;s results and
+            <b>Results clipped.</b> A sample of this report&apos;s results and
             errors is included below. Please target fewer hosts at once to build
             a full set of results.
           </div>
         </InfoBanner>
       )}
-      <TabsWrapper>
+      <TabNav>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <span>
-                {errors?.length > 0 && (
-                  <span className="count">
-                    {errors.length.toLocaleString()}
-                  </span>
-                )}
+              <TabText count={errors?.length} countVariant="alert">
                 {NAV_TITLES.ERRORS}
-              </span>
+              </TabText>
             </Tab>
           </TabList>
           <TabPanel>{renderResultsTab()}</TabPanel>
           <TabPanel>{renderErrorsTab()}</TabPanel>
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       {showQueryModal && (
         <ShowQueryModal
           query={lastEditedQueryBody}

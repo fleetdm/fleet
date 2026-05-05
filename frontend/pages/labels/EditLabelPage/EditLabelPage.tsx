@@ -1,15 +1,19 @@
 import React, { useContext } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import PATHS from "router/paths";
-import labelsAPI, { IGetLabelResonse } from "services/entities/labels";
-import hostAPI from "services/entities/hosts";
+import labelsAPI, {
+  IGetHostsInLabelResponse,
+  IGetLabelResponse,
+} from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getErrorReason } from "interfaces/errors";
 import { ILabel } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
@@ -19,6 +23,7 @@ import DynamicLabelForm from "../components/DynamicLabelForm";
 import ManualLabelForm from "../components/ManualLabelForm";
 import { IDynamicLabelFormData } from "../components/DynamicLabelForm/DynamicLabelForm";
 import { IManualLabelFormData } from "../components/ManualLabelForm/ManualLabelForm";
+import { hasEditPermission } from "../ManageLabelsPage/LabelsTable/LabelsTableConfig";
 
 const baseClass = "edit-label-page";
 
@@ -33,6 +38,8 @@ type IEditLabelPageProps = RouteComponentProps<
 
 const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   const { renderFlash } = useContext(NotificationContext);
+  const { currentUser } = useContext(AppContext);
+  const queryClient = useQueryClient();
 
   const labelId = parseInt(routeParams.label_id, 10);
 
@@ -40,30 +47,45 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     data: label,
     isLoading: isLoadingLabel,
     isError: isErrorLabel,
-  } = useQuery<IGetLabelResonse, AxiosError, ILabel>(
-    ["label", labelId],
+  } = useQuery<IGetLabelResponse, AxiosError, ILabel>(
+    ["label", labelId, currentUser],
     () => labelsAPI.getLabel(labelId),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (data) => data.label,
+      onSuccess: (data) => {
+        // can't edit host_vitals labels yet
+        if (data.label_membership_type === "host_vitals") {
+          renderFlash(
+            "error",
+            "Host vitals labels are not editable. Delete the label and re-add it to make changes."
+          );
+          router.replace(PATHS.MANAGE_LABELS);
+        }
+
+        if (currentUser && !hasEditPermission(currentUser, data)) {
+          renderFlash(
+            "error",
+            "You do not have permission to edit this label."
+          );
+          router.replace(PATHS.MANAGE_LABELS);
+        }
+      },
     }
   );
 
-  // TODO: clean this up when API allows getting hosts by
-  // host ids in a single request. We need to make another request when
-  // the label is manual to get the host data for the targeted hosts.
   const {
     data: targetedHosts,
     isLoading: isLoadingHosts,
     isError: isErrorHosts,
-  } = useQuery<{ host: IHost }[], AxiosError, IHost[]>(
-    ["hosts"],
+  } = useQuery<IGetHostsInLabelResponse, AxiosError, IHost[]>(
+    ["hosts", labelId],
     () => {
-      return hostAPI.getHosts(label?.host_ids ?? []);
+      return labelsAPI.getHostsInLabel(labelId);
     },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (res) => res.map((host) => host.host),
+      select: (data) => data.hosts,
       enabled: label?.label_membership_type === "manual",
     }
   );
@@ -76,11 +98,24 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
     formData: IDynamicLabelFormData | IManualLabelFormData
   ) => {
     try {
-      const res = await labelsAPI.update(labelId, formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      await labelsAPI.update(labelId, formData);
       renderFlash("success", "Label updated successfully.");
-    } catch {
-      renderFlash("error", "Couldn't edit label. Please try again.");
+      queryClient.invalidateQueries(["label", labelId, currentUser]);
+      queryClient.invalidateQueries(["hosts", labelId]);
+      queryClient.invalidateQueries(["labels"]);
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't edit label. Please try again.";
+      if (status === 409) {
+        errorMessage =
+          "Couldn't edit label: A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't edit label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
     }
   };
 
@@ -110,16 +145,21 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
         defaultDescription={label.description}
         defaultQuery={label.query}
         defaultPlatform={label.platform}
+        teamName={label.team_name || null}
         isEditing
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
       />
     ) : (
       <ManualLabelForm
-        key={targetedHosts?.toString()}
+        key={`${labelId}-${(targetedHosts || [])
+          .map((h) => h.id)
+          .sort((a, b) => a - b)
+          .join(",")}`}
         defaultName={label.name}
         defaultDescription={label.description}
         defaultTargetedHosts={targetedHosts}
+        teamName={label.team_name || null}
         onSave={onUpdateLabel}
         onCancel={onCancelEdit}
       />
@@ -129,7 +169,7 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   return (
     <>
       <MainContent className={baseClass}>
-        <h1>Edit label</h1>
+        <h1 className="page-header">Edit label</h1>
         {renderContent()}
       </MainContent>
     </>

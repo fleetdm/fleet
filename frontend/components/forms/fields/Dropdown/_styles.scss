@@ -7,7 +7,10 @@
 
     &-label {
       line-height: 38px;
-      font-size: $small;
+      font-size: $x-small;
+      // Override react-select's hardcoded `.Select-value { color: #aaa; }` so
+      // the selected value uses themed text color (esp. needed for dark mode).
+      color: $core-fleet-black;
     }
   }
 
@@ -20,7 +23,7 @@
   }
   &__label {
     display: block;
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     color: $core-fleet-black;
     margin-bottom: $pad-xsmall;
@@ -37,7 +40,7 @@
           color: $core-vibrant-red;
           border: 1px solid $core-vibrant-red;
           box-sizing: border-box;
-          border-radius: 4px;
+          border-radius: $border-radius;
         }
 
         .Select-arrow {
@@ -55,9 +58,7 @@
   }
 
   &__help-text {
-    font-size: $xx-small;
-    white-space: normal;
-    color: $ui-fleet-black-50;
+    @include help-text;
     font-style: italic;
   }
 }
@@ -69,26 +70,26 @@
 
     &:hover:not(.is-disabled) {
       box-shadow: none;
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-50;
     }
   }
 
   .Select-control {
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border: 0;
     border-radius: $border-radius;
     cursor: pointer;
 
     .Select-value {
-      font-size: $small;
-      background-color: $ui-light-grey;
+      font-size: $x-small;
+      background-color: $core-fleet-white;
     }
   }
 
   .Select-value {
-    font-size: $small;
+    font-size: $x-small;
     border-radius: $border-radius;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
 
     .Select-value-icon {
       border: 0;
@@ -108,21 +109,21 @@
         top: -5px;
         left: -5px;
         visibility: visible;
-        font-size: $small;
+        font-size: $x-small;
         color: $ui-gray;
         text-indent: 0;
       }
 
       &:hover {
         &::after {
-          content: url("../assets/images/icon-close-vibrant-blue-16x16@2x.png");
+          content: url("../assets/images/icon-close-fleet-black-16x16@2x.png");
           transform: scale(0.5);
         }
       }
     }
 
     .Select-value-label {
-      font-size: $small;
+      font-size: $x-small;
       color: $core-fleet-black;
       vertical-align: middle;
     }
@@ -137,17 +138,22 @@
     }
   }
 
-  &.is-focused {
+  &.is-focused:not(.is-disabled) {
     &.dropdown__select {
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $ui-fleet-black-50;
     }
+  }
 
-    &:not(.is-open) {
-      .Select-control {
-        box-shadow: none;
-        border-color: $core-vibrant-blue;
-      }
-    }
+  // Override react-select's hardcoded white background on focus/open so the
+  // control stays themed (critical for dark mode).
+  &.is-focused > .Select-control {
+    background-color: $core-fleet-white;
+  }
+
+  &.is-focused:not(.is-open) > .Select-control {
+    box-shadow: none;
+    border-color: $ui-fleet-black-75; // Override blue border on focus
+    background-color: $core-fleet-white;
   }
 
   &.is-open {
@@ -156,42 +162,44 @@
         transform: rotate(180deg);
         transition: transform 0.25s ease;
         path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
     .dropdown__custom-value .dropdown__icon {
       svg path {
-        fill: $core-vibrant-blue-over;
+        fill: $ui-fleet-black-75-over;
       }
     }
-    .Select-control {
+    > .Select-control {
       border-radius: $border-radius;
+      // Override react-select's hardcoded white background when open.
+      background-color: $core-fleet-white;
     }
   }
   :hover {
     .dropdown__custom-arrow .dropdown__icon {
       svg {
         path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
     }
     .dropdown__custom-value .dropdown__icon {
       svg path {
-        fill: $core-vibrant-blue-over;
+        fill: $ui-fleet-black-75-over;
       }
     }
 
     &.is-open {
       .dropdown__custom-arrow .dropdown__icon {
         svg path {
-          stroke: $core-vibrant-blue-over;
+          stroke: $ui-fleet-black-75-over;
         }
       }
       .dropdown__custom-value .dropdown__icon {
         svg path {
-          fill: $core-vibrant-blue-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -203,7 +211,7 @@
       .Select-value {
         .Select-value-label {
           color: $core-fleet-black;
-          font-size: $small;
+          font-size: $x-small;
         }
       }
     }
@@ -216,9 +224,11 @@
   }
 
   .Select-menu-outer {
-    box-shadow: 0 4px 10px rgba(52, 59, 96, 0.15);
+    background-color: $core-fleet-white;
+    box-shadow: 0 0 0 1px $ui-fleet-black-10;
     z-index: 6;
     overflow: hidden;
+    max-height: 198px; // Fits 4 options without scrolling
     border: 0;
     margin: 1px 0 0;
     padding: $pad-small;
@@ -226,7 +236,8 @@
   }
 
   .Select-menu {
-    max-height: 190px;
+    max-height: 182px; // Scrollable within .Select-menu-outer
+    overflow-y: auto;
   }
 
   .Select-noresults {
@@ -235,17 +246,28 @@
 
   .Select-option {
     color: $core-fleet-black;
+    background-color: transparent;
     font-size: $x-small;
     margin: 0;
     padding: 10px;
     display: block;
+    border-radius: $border-radius;
+
+    &.is-selected {
+      background-color: transparent;
+      font-weight: bold;
+    }
 
     &.is-focused {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-5;
 
       .Select-icon {
-        color: $ui-vibrant-blue-10;
+        color: $ui-fleet-black-10;
       }
+    }
+
+    &:active {
+      background-color: $ui-fleet-black-75-down;
     }
 
     &:last-child {
@@ -270,15 +292,21 @@
 
   .Select-placeholder {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     line-height: 34px;
     box-sizing: border-box;
   }
   .Select-input {
     color: $core-fleet-blue;
-    font-size: $small;
+    font-size: $x-small;
     box-sizing: border-box;
     height: 34px;
+
+    // Override react-select's hardcoded `.Select-control .Select-input:focus
+    // { background: #fff; }` so the input stays themed when the menu is open.
+    &:focus {
+      background: $core-fleet-white;
+    }
 
     > input {
       line-height: 34px;
@@ -297,8 +325,9 @@
       flex-grow: 1;
 
       .Select-value {
-        border: 1px solid $ui-fleet-black-75;
+        border: 1px solid $ui-fleet-black-50;
         vertical-align: middle;
+        align-items: center;
         margin-top: 0;
         display: inline-flex;
         flex-direction: row-reverse;
@@ -324,8 +353,8 @@
         cursor: default;
 
         &.is-focused {
-          background-color: $ui-vibrant-blue-10;
-          color: $core-white;
+          background-color: $ui-fleet-black-10;
+          color: $core-fleet-white;
         }
       }
     }

@@ -28,6 +28,13 @@ func (gh ghMock) MSRCBulletins(ctx context.Context) (map[io.MetadataFileName]str
 	return gh.TestData.RemoteList, nil
 }
 
+func (gh ghMock) WinOfficeBulletin(ctx context.Context) (io.MetadataFileName, string, error) {
+	for k, v := range gh.TestData.RemoteList {
+		return k, v, nil
+	}
+	return io.MetadataFileName{}, "", nil
+}
+
 func (gh ghMock) MacOfficeReleaseNotes(ctx context.Context) (io.MetadataFileName, string, error) {
 	for k, v := range gh.TestData.RemoteList {
 		return k, v, nil
@@ -43,6 +50,10 @@ func (gh ghMock) Download(url string) (string, error) {
 type fsMock struct{ TestData *testData }
 
 func (fs fsMock) MSRCBulletins() ([]io.MetadataFileName, error) {
+	return fs.TestData.LocalList, nil
+}
+
+func (fs fsMock) WinOfficeBulletin() ([]io.MetadataFileName, error) {
 	return fs.TestData.LocalList, nil
 }
 
@@ -103,6 +114,12 @@ func TestSync(t *testing.T) {
 					Version:       "10.0.19044",
 					Arch:          "64-bit",
 					KernelVersion: "10.0.19044",
+				},
+				{ // multiple versions of the same OS map to one file, should only be downloaded/deleted once
+					Name:          "Microsoft Windows 10 Pro",
+					Version:       "10.0.19045",
+					Arch:          "64-bit",
+					KernelVersion: "10.0.19045",
 				},
 			}
 			t.Run("without remote bulletins", func(t *testing.T) {

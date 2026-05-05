@@ -1,6 +1,11 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const EmptyTeams = () => {
+  const clipPathId = uniqueId("clip-path-");
+  const filterId = uniqueId("filter-");
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -8,12 +13,12 @@ const EmptyTeams = () => {
       height="150"
       fill="none"
     >
-      <g clipPath="url(#emptyteams_clippath)">
+      <g clipPath={`url(#${clipPathId})`}>
         <path
           fill="#F1F0FF"
           d="M162.5 150c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75Z"
         />
-        <g filter="url(#emptyteams_filter)">
+        <g filter={`url(#${filterId})`}>
           <path
             fill="#fff"
             d="M313 35H9a8 8 0 0 0-8 8v64a8 8 0 0 0 8 8h304a8 8 0 0 0 8-8V43a8 8 0 0 0-8-8Z"
@@ -53,11 +58,11 @@ const EmptyTeams = () => {
         />
       </g>
       <defs>
-        <clipPath id="emptyteams_clippath">
+        <clipPath id={clipPathId}>
           <path fill="#fff" d="M0 0h322v150H0z" />
         </clipPath>
         <filter
-          id="emptyteams_filter"
+          id={filterId}
           width={328}
           height={92}
           x={-3}

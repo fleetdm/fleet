@@ -1,0 +1,37 @@
+- calendar_events_enabled: false
+  critical: false
+  description: This is a team policy
+  name: Team Policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+  run_script:
+    path: /path/to/script1.sh
+  type: dynamic
+  conditional_access_enabled: true
+  conditional_access_bypass_enabled: true
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  critical: false
+  description: This is a team patch policy
+  name: Team patch policy
+  platform: linux,windows
+  query: SELECT * FROM team_policy WHERE id = 1
+  resolution: Do a team thing
+  fleet_maintained_app_slug: "foo/darwin"
+  type: patch
+  conditional_access_enabled: true
+  conditional_access_bypass_enabled: false
+  webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a team policy with VPP app automation
+  install_software:
+    app_store_id: "1234567890"
+  name: Team VPP policy
+  platform: darwin
+  query: SELECT * FROM team_policy WHERE id = 3
+  resolution: Install the app
+  type: dynamic
+  webhooks_and_tickets_enabled: false

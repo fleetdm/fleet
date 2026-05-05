@@ -1,15 +1,17 @@
 # Fleet Desktop
 
-Fleet Desktop is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine. This unlocks two key benefits:
+Fleet Desktop is a self-service portal for your end users. It shows up in the menu bar on macOS and system tray on Windows/Linux.
 
-* Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene
+Fleet Desktop unlocks two key benefits:
+
+* Self-remediation: end users can see which policies they are failing and resolution steps, reducing the need for IT and security teams to intervene. Available in Fleet Premium.
 * Scope transparency: end users can see what the Fleet agent can do on their machines, eliminating ambiguity between end users and their IT and security teams
-
-> Self-remediation is only available for users with Fleet Premium
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/cI2vDG3PbVo" allowfullscreen></iframe>
 </div>
+
+If your end users have a hard time finding Fleet Desktop in the macOS menu bar, you can deploy [this Fleet Desktop app](https://github.com/allenhouchins/fleet-desktop/releases). Additionally, to remind end users that they're failing policies, you can deploy [this configuration profile](https://github.com/fleetdm/fleet/blob/8cd2da576b01075db63d0a254ae597291c1d3d96/it-and-security/lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig) to open the app everytime the end user logs in or restarts their Mac. 
 
 ## Install Fleet Desktop
 For information on how to install Fleet Desktop, visit: [Adding Hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#fleet-desktop).
@@ -18,24 +20,26 @@ For information on how to install Fleet Desktop, visit: [Adding Hosts](https://f
 Once installed, Fleet Desktop will be automatically updated via Fleetd. To learn more, visit: [Self-managed agent updates](https://fleetdm.com/docs/deploying/fleetctl-agent-updates#self-managed-agent-updates).
 
 ## Custom transparency link
-For organizations with complex security postures, they can direct end users to a resource of their choice to serve custom content.
+Organizations with complex security postures can direct end users to a resource of their choice to serve custom content.
 
 > The custom transparency link is only available for users with Fleet Premium
 
-To turn on the custom transparency link in the Fleet GUI, click on your profile in the top right and select "Settings."
-On the settings page, go to "Organization Settings" and select "Fleet Desktop." Use the "Custom transparency URL" text input to specify the custom URL.
+To turn on the custom transparency link in the Fleet UI, click on your profile in the top right and select **Settings**.
+On the settings page, go to **Organization Settings > Fleet Desktop > Custom transparency URL**.
 
-For information on how to set the custom transparency link via a YAML configuration file, see the [configuration files](https://fleetdm.com/docs/configuration/fleet-server-configuration#fleet-desktop-settings) documentation.
+For information on setting the custom transparency link via a YAML configuration file, see the [configuration files](https://fleetdm.com/docs/configuration/yaml-files#fleet-desktop) documentation.
 
 ## Secure Fleet Desktop
 
 Requests sent by Fleet Desktop and the web page that opens when clicking on the "My Device" tray item use a [Random (Version 4) UUID](https://www.rfc-editor.org/rfc/rfc4122.html#section-4.4) token to uniquely identify each host.
 
-The server uses this token to authenticate requests that give host information. Fleet uses the following methods to secure access to this information.
+The server uses this token to authenticate requests that give host information. Fleet uses rate limiting and token rotation to secure access to this information.
+
+Successfully brute-forcing this UUID is about [as likely as you getting hit by a meteorite this year](https://pkg.go.dev/github.com/google/uuid#NewRandom).
 
 **Rate limiting**
 
-To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
+To prevent brute-forcing attempts, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 1000 **consecutive** invalid UUIDs in a one-minute interval, Fleet will ban requests from such IP for one minute (fail requests with HTTP error code 429). This rate limit algorithm is used to support deployments of Fleet where all hosts are behind the same NAT (all hosts mapped to the same IP).
 
 **Token rotation**
 

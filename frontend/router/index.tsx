@@ -17,6 +17,9 @@ import {
 import OrgSettingsPage from "pages/admin/OrgSettingsPage";
 import AdminIntegrationsPage from "pages/admin/IntegrationsPage";
 import AdminUserManagementPage from "pages/admin/UserManagementPage";
+import CreateUserPage from "pages/admin/UserManagementPage/CreateUserPage";
+import CreateApiUserPage from "pages/admin/UserManagementPage/CreateApiUserPage";
+import EditUserPage from "pages/admin/UserManagementPage/EditUserPage";
 import AdminTeamManagementPage from "pages/admin/TeamManagementPage";
 import TeamDetailsWrapper from "pages/admin/TeamManagementPage/TeamDetailsWrapper";
 import App from "components/App";
@@ -31,9 +34,8 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
-import DynamicLabel from "pages/labels/NewLabelPage/DynamicLabel";
-import ManualLabel from "pages/labels/NewLabelPage/ManualLabel";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
@@ -43,9 +45,11 @@ import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
-import PolicyPage from "pages/policies/PolicyPage";
+import PolicyDetailsPage from "pages/policies/details/PolicyDetailsPage";
+import EditPolicyPage from "pages/policies/edit";
 import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
 import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import LivePolicyPage from "pages/policies/live/LivePolicyPage";
 import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
@@ -64,16 +68,18 @@ import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
-import ScepPage from "pages/admin/IntegrationsPage/cards/MdmSettings/ScepPage";
+import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
+import Variables from "pages/ManageControlsPage/Variables/Variables";
+import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
-import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
+import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
@@ -82,8 +88,9 @@ import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnera
 import SoftwareAddPage from "pages/SoftwarePage/SoftwareAddPage";
 import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained";
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
-import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
+import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStore";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
+import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -97,6 +104,7 @@ import UnauthenticatedRoutes from "./components/UnauthenticatedRoutes";
 import AuthGlobalAdminMaintainerRoutes from "./components/AuthGlobalAdminMaintainerRoutes";
 import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAdminRoutes";
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
+import AuthAnyMaintainerAdminTechnicianRoutes from "./components/AuthAnyMaintainerAdminTechnicianRoutes/AuthAnyMaintainerAdminTechnicianRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
 
@@ -113,11 +121,12 @@ interface IAppWrapperProps {
   location?: any;
 }
 
+const queryClient = new QueryClient();
+
 // App.tsx needs the context for user and config. We also wrap the application
-// component in the required query client priovider for react-query. This
+// component in the required query client provider for react-query. This
 // will allow us to use react-query hooks in the application component.
 const AppWrapper = ({ children, location }: IAppWrapperProps) => {
-  const queryClient = new QueryClient();
   return (
     <AppProvider>
       <RoutingProvider>
@@ -151,6 +160,10 @@ const routes = (
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
@@ -165,39 +178,54 @@ const routes = (
             <Route path="chrome" component={DashboardPage} />
             <Route path="ios" component={DashboardPage} />
             <Route path="ipados" component={DashboardPage} />
+            <Route path="android" component={DashboardPage} />
           </Route>
           <Route path="settings" component={AuthAnyAdminRoutes}>
             <IndexRedirect to="organization/info" />
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={OrgSettingsPage} />
+                {/* Forward old routes to new */}
+                <Redirect from="organization/sso" to="integrations/sso" />
+                <Redirect
+                  from="organization/host-status-webhook"
+                  to="integrations/host-status-webhook"
+                />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
-                {/* This redirect is used to handle the old URL for these two
-                pages */}
+                {/* Forward old routes to new */}
                 <Redirect
                   from="integrations/automatic-enrollment"
                   to="integrations/mdm"
                 />
                 <Redirect from="integrations/vpp" to="integrations/mdm" />
+                <Redirect
+                  from="integrations/sso"
+                  to="integrations/sso/fleet-users"
+                />
                 <Route
                   path="integrations/:section"
+                  component={AdminIntegrationsPage}
+                />
+                <Route
+                  path="integrations/sso/:subsection"
                   component={AdminIntegrationsPage}
                 />
                 <Route component={ExcludeInSandboxRoutes}>
                   <Route path="users" component={AdminUserManagementPage} />
                 </Route>
                 <Route component={PremiumRoutes}>
-                  <Route path="teams" component={AdminTeamManagementPage} />
+                  <Redirect from="teams" to="fleets" />
+                  <Route path="fleets" component={AdminTeamManagementPage} />
                 </Route>
               </Route>
             </Route>
             <Route path="integrations/mdm/windows" component={WindowsMdmPage} />
             <Route path="integrations/mdm/apple" component={AppleMdmPage} />
-            <Route path="integrations/mdm/scep" component={ScepPage} />
+            <Route path="integrations/mdm/android" component={AndroidMdmPage} />
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
@@ -209,28 +237,40 @@ const routes = (
             />
             <Route
               path="integrations/automatic-enrollment/windows"
-              component={WindowsAutomaticEnrollmentPage}
+              component={WindowsEnrollmentPage}
             />
             {/* This redirect is used to handle old vpp setup page */}
             <Redirect from="integrations/vpp/setup" to="integrations/mdm/vpp" />
             <Route path="integrations/mdm/vpp" component={VppPage} />
+            <Route component={ExcludeInSandboxRoutes}>
+              <Route component={AuthGlobalAdminRoutes}>
+                <Route path="users/new/human" component={CreateUserPage} />
+                <Route path="users/new/api" component={CreateApiUserPage} />
+                <Route path="users/:user_id/edit" component={EditUserPage} />
+              </Route>
+            </Route>
 
-            <Route path="teams" component={TeamDetailsWrapper}>
+            <Redirect from="teams" to="fleets" />
+            <Redirect from="teams/users" to="fleets/users" />
+            <Redirect from="teams/options" to="fleets/options" />
+            <Redirect from="teams/settings" to="fleets/settings" />
+            <Route path="fleets" component={TeamDetailsWrapper}>
               <Redirect from="members" to="users" />
               <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
               <Route path="settings" component={TeamSettings} />
             </Route>
-            <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/users" to="teams" />
-            <Redirect from="teams/:team_id/options" to="teams" />
+            <Redirect from="teams/:team_id" to="fleets" />
+            <Redirect from="teams/:team_id/users" to="fleets" />
+            <Redirect from="teams/:team_id/options" to="fleets" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new/dynamic" />
+            <IndexRedirect to="manage" />
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
-              <IndexRedirect to="dynamic" />
-              <Route path="dynamic" component={DynamicLabel} />
-              <Route path="manual" component={ManualLabel} />
+              {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
+              <Route path="dynamic" component={NewLabelPage} />
+              <Route path="manual" component={NewLabelPage} />
             </Route>
             <Route path=":label_id" component={EditLabelPage} />
           </Route>
@@ -248,71 +288,108 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
-              <Redirect from="schedule" to="queries" />
+              <IndexRedirect to="details" />
+              <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
-              <Route path="software" component={HostDetailsPage} />
-              <Route path="queries" component={HostDetailsPage} />
-              <Route path=":query_id" component={HostQueryReport} />
+              <Route path="software" component={HostDetailsPage}>
+                <IndexRedirect to="inventory" />
+                <Route path="inventory" component={HostDetailsPage} />
+                <Route path="library" component={HostDetailsPage} />
+              </Route>
+              <Route path="reports" component={HostDetailsPage} />
               <Route path="policies" component={HostDetailsPage} />
             </Route>
 
+            <Redirect
+              from=":host_id/queries/:query_id"
+              to=":host_id/reports/:query_id"
+            />
             <Route
               // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
-              path=":host_id/queries/:query_id"
+              path=":host_id/reports/:query_id"
               component={HostQueryReport}
             />
           </Route>
           <Route component={ExcludeInSandboxRoutes}>
-            <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
+            <Route
+              path="controls"
+              component={AuthAnyMaintainerAdminTechnicianRoutes}
+            >
               <IndexRedirect to="os-updates" />
               <Route component={ManageControlsPage}>
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
+                <Redirect
+                  from="os-settings/custom-settings"
+                  to="os-settings/configuration-profiles"
+                />
                 <Route path="os-settings/:section" component={OSSettings} />
+
                 <Route path="setup-experience" component={SetupExperience} />
-                <Route path="scripts" component={Scripts} />
+                <Redirect
+                  from="setup-experience/end-user-auth"
+                  to="setup-experience/users"
+                />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
                 />
+                <Route
+                  path="setup-experience/:section/:platform"
+                  component={SetupExperience}
+                />
+
+                <Route path="scripts">
+                  <IndexRedirect to="library" />
+                  <Route path=":section" component={Scripts} />
+                </Route>
+                <Route path="variables" component={Variables} />
               </Route>
             </Route>
+            <Route
+              path="controls/scripts/progress/:batch_execution_id"
+              component={ScriptBatchDetailsPage}
+            />
           </Route>
           <Route path="software">
-            <IndexRedirect to="titles" />
-            {/* we check the add route first otherwise a route like 'software/add' will be caught
-             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
-            <Route path="add" component={SoftwareAddPage}>
-              <IndexRedirect to="fleet-maintained" />
+            <IndexRedirect to="inventory" />
+            {/* Legacy route redirect */}
+            <Redirect from="titles" to="inventory" />
+            {/* Check the add route first so 'software/add' isn't caught by title/version detail routes */}
+            <Route component={AuthAnyMaintainerAnyAdminRoutes}>
+              <Route path="add" component={SoftwareAddPage}>
+                <IndexRedirect to="fleet-maintained" />
+                <Route
+                  path="fleet-maintained"
+                  component={SoftwareFleetMaintained}
+                />
+                <Route path="app-store" component={SoftwareAppStore} />
+                <Route path="package" component={SoftwareCustomPackage} />
+              </Route>
               <Route
-                path="fleet-maintained"
-                component={SoftwareFleetMaintained}
+                path="add/fleet-maintained/:id"
+                component={FleetMaintainedAppDetailsPage}
               />
-              <Route path="package" component={SoftwareCustomPackage} />
-              <Route path="app-store" component={SoftwareAppStore} />
             </Route>
-            <Route
-              path="add/fleet-maintained/:id"
-              component={FleetMaintainedAppDetailsPage}
-            />
             <Route component={SoftwarePage}>
-              <Route path="titles" component={SoftwareTitles} />
-              <Route path="versions" component={SoftwareTitles} />
+              <Route path="inventory" component={SoftwareInventory} />
+              <Route path="versions" component={SoftwareInventory} />
               <Route path="os" component={SoftwareOS} />
               <Route
                 path="vulnerabilities"
                 component={SoftwareVulnerabilities}
               />
-              {/* This redirect keeps the old software/:id working */}
+              <Route path="library" component={SoftwareLibrary} />
+              {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
             <Route
               path="vulnerabilities/:cve"
               component={SoftwareVulnerabilityDetailsPage}
             />
-            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
-            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
@@ -325,7 +402,14 @@ const routes = (
               </Route>
             </Route>
           </Route>
-          <Route path="queries">
+          <Redirect from="queries" to="reports" />
+          <Redirect from="queries/manage" to="reports/manage" />
+          <Redirect from="queries/new" to="reports/new" />
+          <Redirect from="queries/new/live" to="reports/new/live" />
+          <Redirect from="queries/:id" to="reports/:id" />
+          <Redirect from="queries/:id/edit" to="reports/:id/edit" />
+          <Redirect from="queries/:id/live" to="reports/:id/live" />
+          <Route path="reports">
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
@@ -344,9 +428,16 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManagePoliciesPage} />
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
-              <Route path="new" component={PolicyPage} />
+              <Route path="new">
+                <IndexRoute component={EditPolicyPage} />
+                <Route path="live" component={LivePolicyPage} />
+              </Route>
             </Route>
-            <Route path=":id" component={PolicyPage} />
+            <Route path=":id">
+              <IndexRoute component={PolicyDetailsPage} />
+              <Route path="edit" component={EditPolicyPage} />
+              <Route path="live" component={LivePolicyPage} />
+            </Route>
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
           <Route path="account" component={AccountPage} />

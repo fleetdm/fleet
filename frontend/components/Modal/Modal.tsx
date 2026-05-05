@@ -6,11 +6,15 @@ import Icon from "components/Icon/Icon";
 const baseClass = "modal";
 
 type ModalWidth = "medium" | "large" | "xlarge" | "auto";
+//                  650px    800px      850px      auto
 
 export interface IModalProps {
   title: string | JSX.Element;
-  children: JSX.Element;
+  children: React.ReactNode;
   onExit: () => void;
+  /** Called when the user presses Enter. Avoid using this on modals that
+   * contain forms, reveal/copy controls, or other elements where Enter has
+   * its own meaning — it will conflict with keyboard navigation. */
   onEnter?: () => void;
   /**     medium 650px, large 800px, xlarge 850px, auto auto-width
    * @default "medium"
@@ -83,6 +87,7 @@ const Modal = ({
         document.removeEventListener("keydown", closeOrSaveWithEnterKey);
       };
     }
+    return undefined;
   }, [onEnter]);
 
   const backgroundClasses = classnames(`${baseClass}__background`, {
@@ -108,12 +113,20 @@ const Modal = ({
 
   return (
     <div className={backgroundClasses}>
-      <div className={modalContainerClasses}>
+      <div
+        className={modalContainerClasses}
+        tabIndex={-1} // Make focusable
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           {!disableClosingModal && (
             <div className={`${baseClass}__ex`}>
-              <Button variant="unstyled" onClick={onExit}>
+              <Button
+                variant="icon"
+                onClick={onExit}
+                iconStroke
+                autofocus={isContentDisabled}
+              >
                 <Icon name="close" color="core-fleet-black" size="medium" />
               </Button>
             </div>

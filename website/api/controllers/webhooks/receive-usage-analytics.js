@@ -44,6 +44,13 @@ module.exports = {
     maintenanceWindowsConfigured: {type: 'boolean', defaultsTo: false },
     numHostsFleetDesktopEnabled: {type: 'number', defaultsTo: 0 },
     numQueries: {type: 'number', defaultsTo: 0 },
+    numHostsABMPending: {type: 'number', defaultsTo: 0 },
+    fleetMaintainedAppsWindows: {type: ['string'], defaultsTo: [] },
+    fleetMaintainedAppsMacOS: {type: ['string'], defaultsTo: [] },
+    oktaConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
+    entraConditionalAccessConfigured: {type: 'boolean', defaultsTo: false},
+    conditionalAccessBypassDisabled: {type: 'boolean', defaultsTo: false},
+    conditionalAccessEnabled: {type: 'boolean', defaultsTo: false},
   },
 
 

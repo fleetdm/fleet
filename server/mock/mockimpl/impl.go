@@ -276,7 +276,7 @@ const stub = "func ({{.Recv}}) {{.Name}}" +
 	"{\n" + "{{.RecvShort}}.mu.Lock()" + "\n" +
 	"{{.RecvShort}}.{{.Name}}FuncInvoked = true" + "\n" +
 	"{{.RecvShort}}.mu.Unlock()" + "\n" +
-	"return {{.RecvShort}}.{{.Name}}Func({{range .Params}}{{.CalledArgument}}, {{end}})" +
+	"{{if .Res}}return {{end}}{{.RecvShort}}.{{.Name}}Func({{range .Params}}{{.CalledArgument}}, {{end}})" +
 	"\n" + "}\n\n"
 
 var tmpl = template.Must(template.New("test").Parse(stub))
@@ -376,6 +376,17 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
+
+	// Remove duplicates from fns
+	uniqueFns := make(map[string]Func, len(fns))
+	dedupedFns := make([]Func, 0, len(fns))
+	for _, fn := range fns {
+		if _, exists := uniqueFns[fn.Name]; !exists {
+			uniqueFns[fn.Name] = fn
+			dedupedFns = append(dedupedFns, fn)
+		}
+	}
+	fns = dedupedFns
 
 	src := genStubs(recv, fns)
 	recName := strings.SplitN(recv, " ", 2)

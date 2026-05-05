@@ -1,7 +1,8 @@
 # Fleet osquery extensions without fleetd
 
-If you are interested in getting some of the `fleetd` tables but cannot run `fleetd` natively then its possible
-to utilize this "fleetd_tables" extension with standalone `osqueryd`.
+Fleet adds tables in addition to those available in osquery.
+
+If you're deploying plain osquery, the best practice is to build and deploy this fleetd_tables osquery extension each time you upgrade Fleet.
 
 ### Building the extension
 

@@ -1,10 +1,11 @@
 package mysql
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/go-kit/log"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/ngrok/sqlmw"
 )
 
@@ -14,40 +15,28 @@ const (
 )
 
 // DBOption is used to pass optional arguments to a database connection
-type DBOption func(o *dbOptions) error
+type DBOption func(o *common_mysql.DBOptions) error
 
-type dbOptions struct {
-	// maxAttempts configures the number of retries to connect to the DB
-	maxAttempts         int
-	logger              log.Logger
-	replicaConfig       *config.MysqlConfig
-	interceptor         sqlmw.Interceptor
-	tracingConfig       *config.LoggingConfig
-	minLastOpenedAtDiff time.Duration
-	sqlMode             string
-	privateKey          string
-}
-
-// Logger adds a logger to the datastore.
-func Logger(l log.Logger) DBOption {
-	return func(o *dbOptions) error {
-		o.logger = l
+// Logger adds a Logger to the datastore.
+func Logger(l *slog.Logger) DBOption {
+	return func(o *common_mysql.DBOptions) error {
+		o.Logger = l
 		return nil
 	}
 }
 
-// WithInterceptor adds the sql interceptor to the datastore.
+// WithInterceptor adds the sql Interceptor to the datastore.
 func WithInterceptor(i sqlmw.Interceptor) DBOption {
-	return func(o *dbOptions) error {
-		o.interceptor = i
+	return func(o *common_mysql.DBOptions) error {
+		o.Interceptor = i
 		return nil
 	}
 }
 
 // Replica sets the configuration of the read replica for the datastore.
 func Replica(conf *config.MysqlConfig) DBOption {
-	return func(o *dbOptions) error {
-		o.replicaConfig = conf
+	return func(o *common_mysql.DBOptions) error {
+		o.ReplicaConfig = toCommonMysqlConfig(conf)
 		return nil
 	}
 }
@@ -56,15 +45,15 @@ func Replica(conf *config.MysqlConfig) DBOption {
 // to try establishing a connection to the database backend
 // the default value is 15 attempts
 func LimitAttempts(attempts int) DBOption {
-	return func(o *dbOptions) error {
-		o.maxAttempts = attempts
+	return func(o *common_mysql.DBOptions) error {
+		o.MaxAttempts = attempts
 		return nil
 	}
 }
 
 func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
-	return func(o *dbOptions) error {
-		o.tracingConfig = lconfig
+	return func(o *common_mysql.DBOptions) error {
+		o.TracingConfig = toCommonLoggingConfig(lconfig)
 		return nil
 	}
 }
@@ -72,17 +61,17 @@ func TracingEnabled(lconfig *config.LoggingConfig) DBOption {
 // WithFleetConfig provides the fleet configuration so that any config option
 // that must be used in the datastore layer can be captured here.
 func WithFleetConfig(conf *config.FleetConfig) DBOption {
-	return func(o *dbOptions) error {
-		o.minLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
-		o.privateKey = conf.Server.PrivateKey
+	return func(o *common_mysql.DBOptions) error {
+		o.MinLastOpenedAtDiff = conf.Osquery.MinSoftwareLastOpenedAtDiff
+		o.PrivateKey = conf.Server.PrivateKey
 		return nil
 	}
 }
 
 // SQLMode allows setting a custom sql_mode string.
 func SQLMode(mode string) DBOption {
-	return func(o *dbOptions) error {
-		o.sqlMode = mode
+	return func(o *common_mysql.DBOptions) error {
+		o.SqlMode = mode
 		return nil
 	}
 }

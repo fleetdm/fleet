@@ -34,6 +34,10 @@ func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.C
 	return nil
 }
 
+func (NopStatsStore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+	return nil
+}
+
 func SetupMockLocker(name string, owner string, expiresAt time.Time) *MockLock {
 	return &MockLock{name: name, owner: owner, expiresAt: expiresAt}
 }
@@ -192,6 +196,22 @@ func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fle
 		return errors.New("update failed, id not found")
 	}
 	s.Status = status
+	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
+	m.stats[id] = s
+
+	return nil
+}
+
+func (m *MockStatsStore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+	m.Lock()
+	defer m.Unlock()
+
+	s, ok := m.stats[id]
+	if !ok {
+		return errors.New("claim failed, id not found")
+	}
+	s.Status = status
+	s.Instance = instance
 	s.UpdatedAt = time.Now().Truncate(1 * time.Second)
 	m.stats[id] = s
 

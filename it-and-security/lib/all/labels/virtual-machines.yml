@@ -1,0 +1,4 @@
+- name: Virtual Machines
+  description: Virtualized hosts
+  query: SELECT * FROM system_info WHERE hardware_model LIKE '%virtual%' OR hardware_model LIKE '%VMware%';
+  label_membership_type: dynamic

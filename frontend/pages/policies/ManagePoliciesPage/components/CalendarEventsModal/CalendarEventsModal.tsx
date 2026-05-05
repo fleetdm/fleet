@@ -1,34 +1,32 @@
-import React, { useCallback, useState, useEffect, useContext } from "react";
-
-import { IPolicyStats } from "interfaces/policy";
+import React, { useState, useRef, useContext } from "react";
+import { noop } from "lodash";
 
 import { AppContext } from "context/app";
 import { syntaxHighlight } from "utilities/helpers";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+import classnames from "classnames";
 import validURL from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
 import Slider from "components/forms/fields/Slider";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Modal from "components/Modal";
-import Checkbox from "components/forms/fields/Checkbox";
-import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Icon from "components/Icon";
+import { IPaginatedListHandle } from "components/PaginatedList";
+import paths from "router/paths";
 import CalendarEventPreviewModal from "../CalendarEventPreviewModal";
-import CalendarPreview from "../../../../../../assets/images/calendar-preview-720x436@2x.png";
+import CalendarPreview from "../../../../../../assets/images/calendar-graphic.png";
+import PoliciesPaginatedList, {
+  IFormPolicy,
+} from "../PoliciesPaginatedList/PoliciesPaginatedList";
 
 const baseClass = "calendar-events-modal";
 
-interface IFormPolicy {
-  name: string;
-  id: number;
-  isChecked: boolean;
-}
 export interface ICalendarEventsFormData {
   enabled: boolean;
   url: string;
-  policies: IFormPolicy[];
+  changedPolicies: IFormPolicy[];
 }
 
 interface ICalendarEventsModal {
@@ -38,11 +36,9 @@ interface ICalendarEventsModal {
   configured: boolean;
   enabled: boolean;
   url: string;
-  policies: IPolicyStats[];
+  teamId: number;
+  gitOpsModeEnabled?: boolean;
 }
-
-// allows any policy name to be the name of a form field, one of the checkboxes
-type FormNames = string;
 
 const CalendarEventsModal = ({
   onExit,
@@ -51,8 +47,10 @@ const CalendarEventsModal = ({
   configured,
   enabled,
   url,
-  policies,
+  teamId,
+  gitOpsModeEnabled = false,
 }: ICalendarEventsModal) => {
+  const paginatedListRef = useRef<IPaginatedListHandle<IFormPolicy>>(null);
   const { isGlobalAdmin, isTeamAdmin } = useContext(AppContext);
 
   const isAdmin = isGlobalAdmin || isTeamAdmin;
@@ -60,12 +58,9 @@ const CalendarEventsModal = ({
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
     url,
-    policies: policies.map((policy) => ({
-      name: policy.name,
-      id: policy.id,
-      isChecked: policy.calendar_events_enabled || false,
-    })),
+    changedPolicies: [],
   });
+
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
@@ -74,27 +69,15 @@ const CalendarEventsModal = ({
   );
   const [showExamplePayload, setShowExamplePayload] = useState(false);
   const [selectedPolicyToPreview, setSelectedPolicyToPreview] = useState<
-    IPolicyStats | undefined
+    IFormPolicy | undefined
   >();
-
-  // Eliminate race condition after updating policies
-  useEffect(() => {
-    setFormData({
-      ...formData,
-      policies: policies.map((policy) => ({
-        name: policy.name,
-        id: policy.id,
-        isChecked: policy.calendar_events_enabled || false,
-      })),
-    });
-  }, [policies]);
 
   // Used on URL change only when URL error exists and always on attempting to save
   const validateForm = (newFormData: ICalendarEventsFormData) => {
     const errors: Record<string, string> = {};
     const { url: newUrl } = newFormData;
     if (
-      formData.enabled &&
+      newFormData.enabled &&
       !validURL({ url: newUrl || "", protocols: ["http", "https"] })
     ) {
       const errorPrefix = newUrl ? `${newUrl} is not` : "Please enter";
@@ -133,28 +116,14 @@ const CalendarEventsModal = ({
     setFormData(newFormData);
   };
 
-  const onPolicyEnabledChange = useCallback(
-    (newVal: { name: FormNames; value: boolean }) => {
-      const { name, value } = newVal;
-      const newFormPolicies = formData.policies.map((formPolicy) => {
-        if (formPolicy.name === name) {
-          return { ...formPolicy, isChecked: value };
-        }
-        return formPolicy;
-      });
-      const newFormData = { ...formData, policies: newFormPolicies };
-      setFormData(newFormData);
-    },
-    [formData]
-  );
-
   const onUpdateCalendarEvents = () => {
     const errors = validateForm(formData);
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-    } else {
-      onSubmit(formData);
+    } else if (paginatedListRef.current) {
+      const changedPolicies = paginatedListRef.current.getDirtyItems();
+      onSubmit({ ...formData, changedPolicies });
     }
   };
 
@@ -186,60 +155,14 @@ const CalendarEventsModal = ({
     );
   };
 
-  const renderPolicies = () => {
-    return (
-      <div className="form-field">
-        <div className="form-field__label">Policies:</div>
-        <ul className="automated-policies-section">
-          {formData.policies.map((policy) => {
-            const { isChecked, name, id } = policy;
-            return (
-              <li className="policy-row" id={`policy-row--${id}`} key={id}>
-                <Checkbox
-                  value={isChecked}
-                  name={name}
-                  // can't use parseTarget as value needs to be set to !currentValue
-                  onChange={() => {
-                    onPolicyEnabledChange({ name, value: !isChecked });
-                  }}
-                  disabled={!formData.enabled}
-                >
-                  <TooltipTruncatedText value={name} />
-                </Checkbox>
-                <Button
-                  variant="text-icon"
-                  onClick={() => {
-                    setSelectedPolicyToPreview(
-                      policies.find((p) => p.id === id)
-                    );
-                    togglePreviewCalendarEvent();
-                  }}
-                  className="policy-row__preview-button"
-                >
-                  <Icon name="eye" /> Preview
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-        <span className="form-field__help-text">
-          A calendar event will be created for end users if one of their hosts
-          fail any of these policies.{" "}
-          <CustomLink
-            url="https://www.fleetdm.com/learn-more-about/calendar-events"
-            text="Learn more"
-            newTab
-            disableKeyboardNavigation={!formData.enabled}
-          />
-        </span>
-      </div>
-    );
-  };
-
   const renderPlaceholderModal = () => {
     return (
       <div className="placeholder">
-        <a href="https://www.fleetdm.com/learn-more-about/calendar-events">
+        <a
+          href={`${LEARN_MORE_ABOUT_BASE_LINK}/calendar-events`}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <img src={CalendarPreview} alt="Calendar preview" />
         </a>
         <div>
@@ -247,18 +170,22 @@ const CalendarEventsModal = ({
           you must first connect Fleet to your Google Workspace service account.
         </div>
         <div>
-          This can be configured in <b>Settings</b> &gt; <b>Integrations</b>{" "}
-          &gt; <b>Calendars.</b>
+          This can be configured in{" "}
+          <CustomLink
+            url={paths.ADMIN_INTEGRATIONS_CALENDARS}
+            text="Settings &gt; Integrations &gt; Calendars"
+          />
+          .
         </div>
-        <CustomLink
-          url="https://www.fleetdm.com/learn-more-about/calendar-events"
-          text="Learn more"
-          newTab
-        />
+        <div>
+          <CustomLink
+            url="https://www.fleetdm.com/learn-more-about/calendar-events"
+            text="Learn more"
+            newTab
+          />
+        </div>
         <div className="modal-cta-wrap">
-          <Button onClick={onExit} variant="brand">
-            Done
-          </Button>
+          <Button onClick={onExit}>Close</Button>
         </div>
       </div>
     );
@@ -271,10 +198,12 @@ const CalendarEventsModal = ({
         onChange={onFeatureEnabledChange}
         inactiveText="Disabled"
         activeText="Enabled"
+        disabled={gitOpsModeEnabled}
       />
       <Button
         type="button"
-        variant="text-link"
+        variant="inverse"
+        className={`${baseClass}__preview-button`}
         onClick={() => {
           setSelectedPolicyToPreview(undefined);
           togglePreviewCalendarEvent();
@@ -302,11 +231,10 @@ const CalendarEventsModal = ({
           onClick={() => {
             setShowExamplePayload(!showExamplePayload);
           }}
-          // disabled={!formData.enabled}
         />
         <Button
-          type="button"
-          variant="text-link"
+          variant="inverse"
+          className={`${baseClass}__preview-button`}
           onClick={() => {
             setSelectedPolicyToPreview(undefined);
             togglePreviewCalendarEvent();
@@ -320,7 +248,7 @@ const CalendarEventsModal = ({
   );
 
   const renderConfiguredModal = () => (
-    <div className={`${baseClass} form`}>
+    <div className={`${baseClass}__configured-modal form`}>
       {isAdmin ? renderAdminHeader() : renderMaintainerHeader()}
       <div
         className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
@@ -336,7 +264,7 @@ const CalendarEventsModal = ({
               error={formErrors.url}
               tooltip="Provide a URL to deliver a webhook request to."
               helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remediation."
-              disabled={!formData.enabled}
+              disabled={!formData.enabled || gitOpsModeEnabled}
             />
             <RevealButton
               isShowing={showExamplePayload}
@@ -347,56 +275,86 @@ const CalendarEventsModal = ({
               onClick={() => {
                 setShowExamplePayload(!showExamplePayload);
               }}
-              disabled={!formData.enabled}
+              disabled={!formData.enabled || gitOpsModeEnabled}
             />
             {showExamplePayload && renderExamplePayload()}
           </>
         )}
-        {renderPolicies()}
       </div>
-      <div className="modal-cta-wrap">
-        <Button
-          type="submit"
-          variant="brand"
-          onClick={onUpdateCalendarEvents}
-          className="save-loading"
-          isLoading={isUpdating}
-          disabled={Object.keys(formErrors).length > 0}
-        >
-          Save
-        </Button>
-        <Button onClick={onExit} variant="inverse">
-          Cancel
-        </Button>
+      <div>
+        <PoliciesPaginatedList
+          ref={paginatedListRef}
+          isSelected="calendar_events_enabled"
+          onToggleItem={(item: IFormPolicy) => {
+            item.calendar_events_enabled = !item.calendar_events_enabled;
+            return item;
+          }}
+          renderItemRow={(item: IFormPolicy) => {
+            return (
+              <Button
+                variant="inverse"
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+                  e.stopPropagation();
+                  setSelectedPolicyToPreview(item);
+                  togglePreviewCalendarEvent();
+                }}
+                className="policy-row__preview-button"
+              >
+                <Icon name="eye" /> Preview
+              </Button>
+            );
+          }}
+          helpText={
+            <>
+              A calendar event will be created for end users if one of their
+              hosts fail any of these policies.{" "}
+              <CustomLink
+                url="https://www.fleetdm.com/learn-more-about/calendar-events"
+                text="Learn more"
+                newTab
+                disableKeyboardNavigation={!formData.enabled}
+              />
+            </>
+          }
+          isUpdating={isUpdating}
+          onSubmit={onUpdateCalendarEvents}
+          onCancel={onExit}
+          teamId={teamId}
+          disableList={!formData.enabled}
+        />
       </div>
     </div>
   );
 
-  if (showPreviewCalendarEvent) {
-    return (
-      <CalendarEventPreviewModal
-        onCancel={togglePreviewCalendarEvent}
-        policy={selectedPolicyToPreview}
-      />
-    );
-  }
-
+  const classes = classnames(baseClass, {
+    [`${baseClass}__hide-main`]: showPreviewCalendarEvent,
+  });
   return (
-    <Modal
-      title="Calendar events"
-      onExit={onExit}
-      onEnter={
-        configured
-          ? () => {
-              onUpdateCalendarEvents();
-            }
-          : onExit
-      }
-      className={baseClass}
-      width="large"
-    >
-      {configured ? renderConfiguredModal() : renderPlaceholderModal()}
-    </Modal>
+    <>
+      <Modal
+        title="Calendar events"
+        // Disable exit when preview modal is open, so that escape key
+        // only closes the preview.
+        onExit={showPreviewCalendarEvent ? noop : onExit}
+        onEnter={
+          configured
+            ? () => {
+                onUpdateCalendarEvents();
+              }
+            : onExit
+        }
+        className={classes}
+        width="large"
+      >
+        {configured ? renderConfiguredModal() : renderPlaceholderModal()}
+      </Modal>
+      {showPreviewCalendarEvent && (
+        <CalendarEventPreviewModal
+          onCancel={togglePreviewCalendarEvent}
+          policy={selectedPolicyToPreview}
+        />
+      )}
+    </>
   );
 };
 

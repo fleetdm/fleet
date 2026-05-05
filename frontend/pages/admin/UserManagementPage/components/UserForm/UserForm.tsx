@@ -1,16 +1,14 @@
-import React, {
-  FormEvent,
-  useState,
-  useEffect,
-  useContext,
-  useRef,
-} from "react";
-import { Link } from "react-router";
+import React, { FormEvent, useState, useEffect, useContext } from "react";
 import PATHS from "router/paths";
 
+import { PRIMO_TOOLTIP } from "utilities/constants";
+
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -21,7 +19,6 @@ import validatePresence from "components/forms/validators/validate_presence";
 import validEmail from "components/forms/validators/valid_email";
 // @ts-ignore
 import validPassword from "components/forms/validators/valid_password";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Checkbox from "components/forms/fields/Checkbox";
 import Radio from "components/forms/fields/Radio";
@@ -80,10 +77,54 @@ interface IUserFormProps {
   isApiOnly?: boolean;
   isNewUser?: boolean;
   isInvitePending?: boolean;
-  serverErrors?: { base: string; email: string }; // "server" because this form does its own client validation
-  userFormErrors: IUserFormErrors;
+  ancestorErrors: IUserFormErrors;
   isUpdatingUsers?: boolean;
 }
+
+const validate = (
+  formData: IUserFormData,
+  canUseSso: boolean,
+  isNewUser: boolean,
+  isSsoEnabled: boolean,
+  initiallyPasswordAuth: boolean
+) => {
+  const newErrors: IUserFormErrors = {};
+
+  const { name, email, newUserType, sso_enabled, password } = formData;
+
+  if (!validatePresence(name)) {
+    newErrors.name = "Name field must be completed";
+  }
+  if (!validatePresence(email)) {
+    newErrors.email = "Email field must be completed";
+  } else if (!validEmail(email)) {
+    newErrors.email = "Email is not a valid email";
+  }
+
+  const isNewAdminCreatedUserWithoutSSO =
+    isNewUser && newUserType === NewUserType.AdminCreated && !sso_enabled;
+
+  // force to password auth if SSO is disabled globally but was enabled on the form
+  const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
+
+  // password required when creating a user with SSO disabled and when changing a user from SSO to
+  // password authentication, though not when inviting a user
+  if (
+    isNewAdminCreatedUserWithoutSSO ||
+    isExistingUserForcedToPasswordAuth ||
+    (!initiallyPasswordAuth && !sso_enabled)
+  ) {
+    const { isValid, error } = validPassword(password || "");
+    if (password !== null && !isValid) {
+      newErrors.password = error;
+    }
+    if (!validatePresence(password)) {
+      newErrors.password = "Password field must be completed";
+    }
+  }
+
+  return newErrors;
+};
 
 const UserForm = ({
   availableTeams,
@@ -106,24 +147,14 @@ const UserForm = ({
   isApiOnly,
   isNewUser = false,
   isInvitePending,
-  serverErrors,
-  userFormErrors,
+  ancestorErrors,
   isUpdatingUsers,
 }: IUserFormProps): JSX.Element => {
-  // For scrollable modal
-  const [isTopScrolling, setIsTopScrolling] = useState(false);
-  const topDivRef = useRef<HTMLDivElement>(null);
-  const checkScroll = () => {
-    if (topDivRef.current) {
-      const isScrolling =
-        topDivRef.current.scrollHeight > topDivRef.current.clientHeight;
-      setIsTopScrolling(isScrolling);
-    }
-  };
-
   const { renderFlash } = useContext(NotificationContext);
+  const { config } = useContext(AppContext);
+  const priMode = config?.partnerships?.enable_primo;
 
-  const [errors, setErrors] = useState<IUserFormErrors>(userFormErrors);
+  const [formErrors, setFormErrors] = useState<IUserFormErrors>({});
   const [formData, setFormData] = useState<IUserFormData>({
     email: defaultEmail || "",
     name: defaultName || "",
@@ -136,7 +167,24 @@ const UserForm = ({
     currentUserId,
   });
 
-  const [isGlobalUser, setIsGlobalUser] = useState(!!defaultGlobalRole);
+  const isGlobalUser = formData.global_role !== null;
+
+  // watch for population from context, set state
+  useEffect(() => {
+    if (priMode) {
+      setFormData((prevFormData) => ({
+        ...prevFormData,
+        global_role: "observer",
+        teams: [],
+      }));
+    }
+  }, [priMode]);
+
+  const initiallyPasswordAuth = !isSsoEnabled;
+
+  useEffect(() => {
+    setFormErrors((curErrs) => ({ ...curErrs, ...ancestorErrors }));
+  }, [ancestorErrors]);
 
   useEffect(() => {
     // If SSO is globally disabled but user previously signed in via SSO,
@@ -146,17 +194,46 @@ const UserForm = ({
     }
   }, []);
 
-  // For scrollable modal (re-rerun when formData changes)
-  useEffect(() => {
-    checkScroll();
-    window.addEventListener("resize", checkScroll);
-    return () => window.removeEventListener("resize", checkScroll);
-  }, [formData]);
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+    const newErrs = validate(
+      newFormData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
+    // only set errors that are updates of existing errors
+    // new errors are only set onBlur or submit
+    const errsToSet: Record<string, string> = {};
+    Object.keys(formErrors).forEach((k) => {
+      // @ts-ignore
+      if (newErrs[k]) {
+        // @ts-ignore
+        errsToSet[k] = newErrs[k];
+      }
+    });
+    setFormErrors(errsToSet);
+  };
 
-  const onInputChange = (formField: string): ((value: string) => void) => {
+  const onInputBlur = () => {
+    setFormErrors(
+      validate(
+        formData,
+        canUseSso,
+        isNewUser,
+        !!isSsoEnabled,
+        initiallyPasswordAuth
+      )
+    );
+  };
+
+  const onRadioChange = (formField: string): ((evt: string) => void) => {
+    // TODO - make these work similarly to onInputChange
     return (value: string) => {
-      setErrors({
-        ...errors,
+      setFormErrors({
+        ...formErrors,
         [formField]: null,
       });
       setFormData({
@@ -166,37 +243,10 @@ const UserForm = ({
     };
   };
 
-  // Used to show entire dropdown when a dropdown menu is open in scrollable component of a modal
-  // menuPortalTarget solution not used as scrolling is weird
-  const scrollToFitDropdownMenu = () => {
-    if (topDivRef?.current) {
-      setTimeout(() => {
-        if (topDivRef.current) {
-          topDivRef.current.scrollTop =
-            topDivRef.current.scrollHeight - topDivRef.current.clientHeight;
-        }
-      }, 50); // Delay needed for scrollHeight to update first
-    }
-  };
-
-  const onCheckboxChange = (formField: string): ((evt: string) => void) => {
-    return (evt: string) => {
-      return onInputChange(formField)(evt);
-    };
-  };
-
-  const onRadioChange = (formField: string): ((evt: string) => void) => {
-    return (evt: string) => {
-      return onInputChange(formField)(evt);
-    };
-  };
-
   const onIsGlobalUserChange = (value: string): void => {
-    const isGlobalUserChange = value === UserTeamType.GlobalUser;
-    setIsGlobalUser(isGlobalUserChange);
     setFormData({
       ...formData,
-      global_role: isGlobalUserChange ? "observer" : null,
+      global_role: value === UserTeamType.GlobalUser ? "observer" : null,
     });
   };
 
@@ -208,10 +258,20 @@ const UserForm = ({
   };
 
   const onSsoChange = (value: boolean): void => {
-    setFormData({
-      ...formData,
-      sso_enabled: value,
-    });
+    const newFormData = { ...formData, sso_enabled: value };
+    setFormData(newFormData);
+    if (value) {
+      // clears password error when enabling sso, allowing submission even if password is invalid
+      setFormErrors(
+        validate(
+          newFormData,
+          canUseSso,
+          isNewUser,
+          !!isSsoEnabled,
+          initiallyPasswordAuth
+        )
+      );
+    }
   };
 
   const onSelectedTeamChange = (teams: ITeam[]): void => {
@@ -256,51 +316,27 @@ const UserForm = ({
       : { ...submitData, global_role: null, teams: formData.teams };
   };
 
-  const validate = (): boolean => {
-    const newErrors: IUserFormErrors = {};
-
-    if (!validatePresence(formData.name)) {
-      newErrors.name = "Name field must be completed";
-    }
-    if (!validatePresence(formData.email)) {
-      newErrors.email = "Email field must be completed";
-    } else if (!validEmail(formData.email)) {
-      newErrors.email = `${formData.email} is not a valid email`;
-    }
-
-    // Password auth required for new "create user" (not new "invite user") with SSO disabled
-    const isNewAdminCreatedUserWithoutSSO =
-      isNewUser &&
-      formData.newUserType === NewUserType.AdminCreated &&
-      !formData.sso_enabled;
-    // Force switch existing user to password auth if SSO is disabled globally but was enabled
-    const isExistingUserForcedToPasswordAuth = !canUseSso && isSsoEnabled;
-
-    if (isNewAdminCreatedUserWithoutSSO || isExistingUserForcedToPasswordAuth) {
-      if (formData.password !== null && !validPassword(formData.password)) {
-        newErrors.password = "Password must meet the criteria below";
-      }
-      if (!validatePresence(formData.password)) {
-        newErrors.password = "Password field must be completed";
-      }
-    }
-
-    setErrors(newErrors);
-
-    if (!formData.global_role && !formData.teams.length) {
-      renderFlash("error", `Please select at least one team for this user.`);
-      return false;
-    }
-    return Object.keys(newErrors).length === 0;
-  };
-
   const onFormSubmit = (evt: FormEvent): void => {
     evt.preventDefault();
 
-    const valid = validate();
-    if (valid) {
-      return onSubmit(addSubmitData());
+    // separate from `validate` function as it uses `renderFlash` hook, incompatible with pure
+    // `validate` function
+    if (!formData.global_role && !formData.teams.length) {
+      renderFlash("error", `Please select at least one fleet for this user.`);
+      return;
     }
+    const errs = validate(
+      formData,
+      canUseSso,
+      isNewUser,
+      !!isSsoEnabled,
+      initiallyPasswordAuth
+    );
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+    onSubmit(addSubmitData());
   };
 
   const renderGlobalRoleForm = (): JSX.Element => {
@@ -316,6 +352,7 @@ const UserForm = ({
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               text="Learn more about user permissions"
               newTab
+              variant="banner-link"
             />
           </InfoBanner>
         )}
@@ -331,7 +368,6 @@ const UserForm = ({
             }
           }}
           isSearchable={false}
-          onMenuOpen={scrollToFitDropdownMenu}
         />
       </>
     );
@@ -341,17 +377,16 @@ const UserForm = ({
     return (
       <div>
         <p>
-          <strong>You have no teams.</strong>
+          <strong>You have no fleets.</strong>
         </p>
         <p>
-          Expecting to see teams? Try again in a few seconds as the system
+          Expecting to see fleets? Try again in a few seconds as the system
           catches up or&nbsp;
-          <Link
+          <CustomLink
             className={`${baseClass}__create-team-link`}
-            to={PATHS.ADMIN_TEAMS}
-          >
-            create a team
-          </Link>
+            url={PATHS.ADMIN_FLEETS}
+            text="create a fleet"
+          />
           .
         </p>
       </div>
@@ -364,15 +399,19 @@ const UserForm = ({
         {!!availableTeams.length &&
           (isModifiedByGlobalAdmin ? (
             <>
-              <InfoBanner className={`${baseClass}__user-permissions-info`}>
+              <InfoBanner
+                color="grey"
+                className={`${baseClass}__user-permissions-info`}
+              >
                 <p>
-                  Users can manage or observe team-specific users, entities, and
-                  settings in Fleet.
+                  Users can manage or observe fleet-specific users, entities,
+                  and settings in Fleet.
                 </p>
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
                   text="Learn more about user permissions"
                   newTab
+                  variant="banner-link"
                 />
               </InfoBanner>
               <SelectedTeamsForm
@@ -380,7 +419,6 @@ const UserForm = ({
                 usersCurrentTeams={formData.teams}
                 onFormChange={onSelectedTeamChange}
                 isApiOnly={isApiOnly}
-                onMenuOpen={scrollToFitDropdownMenu}
               />
             </>
           ) : (
@@ -390,7 +428,6 @@ const UserForm = ({
               defaultTeamRole={defaultTeamRole || "Observer"}
               onFormChange={onTeamRoleChange}
               isApiOnly={isApiOnly}
-              onMenuOpen={scrollToFitDropdownMenu}
             />
           ))}
         {!availableTeams.length && renderNoTeamsMessage()}
@@ -400,8 +437,8 @@ const UserForm = ({
 
   if (!isPremiumTier && !isGlobalUser) {
     console.log(
-      `Note: Fleet Free UI does not have teams options.\n
-        User ${formData.name} is already assigned to a team and cannot be reassigned without access to Fleet Premium UI.`
+      `Note: Fleet Free UI does not have fleets options.\n
+        User ${formData.name} is already assigned to a fleet and cannot be reassigned without access to Fleet Premium UI.`
     );
   }
 
@@ -459,21 +496,26 @@ const UserForm = ({
       <InputField
         label="Full name"
         autofocus
-        error={errors.name}
+        error={formErrors.name}
         name="name"
-        onChange={onInputChange("name")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
         placeholder="Full name"
         value={formData.name || ""}
         inputOptions={{
-          maxLength: "80",
+          maxLength: 80,
         }}
         ignore1password
+        parseTarget
       />
       <InputField
         label="Email"
-        error={errors.email || serverErrors?.email}
+        error={formErrors.email}
         name="email"
-        onChange={onInputChange("email")}
+        type="email"
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        parseTarget
         placeholder="Email"
         value={formData.email || ""}
         readOnly={!isNewUser && !(smtpConfigured || sesConfigured)}
@@ -524,7 +566,8 @@ const UserForm = ({
         className={`${baseClass}__radio-input`}
         label="Password"
         id="password-authentication"
-        disabled={!(smtpConfigured || sesConfigured)}
+        // allow the user to change auth back to password if they only changed the form to SSO in
+        // the current session, that is, in the db, the user is still password authenticated
         checked={!formData.sso_enabled}
         value="false"
         name="authentication-type"
@@ -537,9 +580,11 @@ const UserForm = ({
     <div className={`${baseClass}__${isNewUser ? "" : "edit-"}password`}>
       <InputField
         label="Password"
-        error={errors.password}
+        error={formErrors.password}
         name="password"
-        onChange={onInputChange("password")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        parseTarget
         placeholder={isNewUser ? "Password" : "••••••••"}
         value={formData.password || ""}
         type="password"
@@ -570,11 +615,13 @@ const UserForm = ({
       )}
       <Checkbox
         name="mfa_enabled"
-        onChange={onCheckboxChange("mfa_enabled")}
+        onChange={onInputChange}
+        onBlur={onInputBlur}
         value={formData.mfa_enabled}
         wrapperClassName={`${baseClass}__2fa`}
         helpText="User will be asked to authenticate with a magic link that will be sent to their email."
         disabled={!smtpConfigured && !sesConfigured}
+        parseTarget
       >
         {smtpConfigured || sesConfigured ? (
           "Enable two-factor authentication (email)"
@@ -597,32 +644,70 @@ const UserForm = ({
     </div>
   );
 
+  const renderGlobalAdminOptions = () => {
+    if (priMode) {
+      return (
+        <TooltipWrapper
+          tipContent={PRIMO_TOOLTIP}
+          tipOffset={20}
+          position="right"
+          showArrow
+          underline={false}
+        >
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Global user"
+            id="global-user"
+            checked={isGlobalUser}
+            value={UserTeamType.GlobalUser}
+            name="user-team-type"
+            onChange={onIsGlobalUserChange}
+            disabled
+          />
+          <Radio
+            className={`${baseClass}__radio-input`}
+            label="Assign to fleet(s)"
+            id="assign-teams"
+            checked={!isGlobalUser}
+            value={UserTeamType.AssignTeams}
+            name="user-team-type"
+            onChange={onIsGlobalUserChange}
+            disabled
+          />
+        </TooltipWrapper>
+      );
+    }
+    return (
+      <>
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Global user"
+          id="global-user"
+          checked={isGlobalUser}
+          value={UserTeamType.GlobalUser}
+          name="user-team-type"
+          onChange={onIsGlobalUserChange}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label={`Assign to fleet(s)`}
+          id="assign-teams"
+          checked={!isGlobalUser}
+          value={UserTeamType.AssignTeams}
+          name="user-team-type"
+          onChange={onIsGlobalUserChange}
+          disabled={!availableTeams.length}
+        />
+      </>
+    );
+  };
+
   const renderPremiumRoleOptions = () => (
     <>
-      <div className="form-field">
-        <div className="form-field__label">Team</div>
+      <div className="form-field team-field">
+        <div className="form-field__label">Permissions</div>
         {isModifiedByGlobalAdmin ? (
-          <>
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Global user"
-              id="global-user"
-              checked={isGlobalUser}
-              value={UserTeamType.GlobalUser}
-              name="user-team-type"
-              onChange={onIsGlobalUserChange}
-            />
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Assign team(s)"
-              id="assign-teams"
-              checked={!isGlobalUser}
-              value={UserTeamType.AssignTeams}
-              name="user-team-type"
-              onChange={onIsGlobalUserChange}
-              disabled={!availableTeams.length}
-            />
-          </>
+          renderGlobalAdminOptions()
         ) : (
           <>{currentTeam ? currentTeam.name : ""}</>
         )}
@@ -631,20 +716,19 @@ const UserForm = ({
     </>
   );
 
-  const renderScrollableContent = () => {
+  const renderFormContent = () => {
     return (
-      <div className={baseClass} ref={topDivRef}>
+      <div className={baseClass}>
         <form autoComplete="off">
           {isNewUser && renderAccountSection()}
           {renderNameAndEmailSection()}
           {renderAuthenticationSection()}
           {((isNewUser && formData.newUserType !== NewUserType.AdminInvited) ||
-            (!isNewUser && !isInvitePending && isModifiedByGlobalAdmin)) &&
+            (!isNewUser && !isInvitePending)) &&
             !formData.sso_enabled &&
             renderPasswordSection()}
           {(isPremiumTier || isMfaEnabled) &&
             !formData.sso_enabled &&
-            isModifiedByGlobalAdmin &&
             renderTwoFactorAuthenticationOption()}
           {isPremiumTier ? renderPremiumRoleOptions() : renderGlobalRoleForm()}
         </form>
@@ -654,7 +738,6 @@ const UserForm = ({
 
   const renderFooter = () => (
     <ModalFooter
-      isTopScrolling={isTopScrolling}
       primaryButtons={
         <>
           <Button onClick={onCancel} variant="inverse">
@@ -662,11 +745,11 @@ const UserForm = ({
           </Button>
           <Button
             type="submit"
-            variant="brand"
             onClick={onFormSubmit}
             className={`${isNewUser ? "add" : "save"}-loading
           `}
             isLoading={isUpdatingUsers}
+            disabled={Object.keys(formErrors).length > 0}
           >
             {isNewUser ? "Add" : "Save"}
           </Button>
@@ -677,7 +760,7 @@ const UserForm = ({
 
   return (
     <>
-      {renderScrollableContent()}
+      {renderFormContent()}
       {renderFooter()}
     </>
   );

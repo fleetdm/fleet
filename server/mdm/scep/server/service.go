@@ -5,8 +5,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
+	"log/slog"
 
-	"github.com/go-kit/kit/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/smallstep/scep"
 )
 
@@ -33,19 +34,36 @@ type Service interface {
 }
 
 // ServiceWithIdentifier is the interface for all supported SCEP server operations.
+// It extends the core SCEP server with ad hoc, polymorphic "identifier" functionality.
+//
+// FIXME: This seems to have been introduced as workaround to support Fleet-specific features
+// but its usage in practice is non-intuitive. In the context of Fleet's SCEP proxy,
+// the identifier has been implemented as comma-separated string that corresponds to various
+// values used when processing SCEP requests, which vary based on the specific implementation
+// (e.g., NDES vs. custom SCEP proxy). This functionality has been used to support
+// ad hoc validation schemes.
 type ServiceWithIdentifier interface {
 	// GetCACaps returns a list of options
 	// which are supported by the server.
-	GetCACaps(ctx context.Context) ([]byte, error)
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
+	GetCACaps(ctx context.Context, identifier string) ([]byte, error)
 
 	// GetCACert returns CA certificate or
 	// a CA certificate chain with intermediates
 	// in a PKCS#7 Degenerate Certificates format
 	// message is an optional string for the CA
-	GetCACert(ctx context.Context, message string) ([]byte, int, error)
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
+	GetCACert(ctx context.Context, message string, identifier string) ([]byte, int, error)
 
 	// PKIOperation handles incoming SCEP messages such as PKCSReq and
 	// sends back a CertRep PKIMessag.
+	//
+	// NOTE: See type definition of ServiceWithIdentifier
+	// for additional context on identifier usage.
 	PKIOperation(ctx context.Context, msg []byte, identifier string) ([]byte, error)
 
 	// GetNextCACert returns a replacement certificate or certificate chain
@@ -71,7 +89,7 @@ type service struct {
 	signer CSRSignerContext
 
 	/// info logging is implemented in the service middleware layer.
-	debugLogger log.Logger
+	debugLogger *slog.Logger
 }
 
 const DefaultCACaps = "Renewal\nSHA-1\nSHA-256\nAES\nDES3\nSCEPStandard\nPOSTPKIOperation"
@@ -98,7 +116,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 	if len(data) == 0 {
 		return nil, &BadRequestError{Message: "missing data for PKIOperation"}
 	}
-	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(svc.debugLogger))
+	msg, err := scep.ParsePKIMessage(data, scep.WithLogger(kitlogadapter.NewLogger(svc.debugLogger)))
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +129,7 @@ func (svc *service) PKIOperation(ctx context.Context, data []byte) ([]byte, erro
 		err = errors.New("no signed certificate")
 	}
 	if err != nil {
-		svc.debugLogger.Log("msg", "failed to sign CSR", "err", err)
+		svc.debugLogger.ErrorContext(ctx, "failed to sign CSR", "err", err)
 		certRep, err := msg.Fail(svc.crt, svc.key, scep.BadRequest)
 		return certRep.Raw, err
 	}
@@ -129,7 +147,7 @@ type ServiceOption func(*service) error
 
 // WithLogger configures a logger for the SCEP Service.
 // By default, a no-op logger is used.
-func WithLogger(logger log.Logger) ServiceOption {
+func WithLogger(logger *slog.Logger) ServiceOption {
 	return func(s *service) error {
 		s.debugLogger = logger
 		return nil
@@ -150,7 +168,7 @@ func NewService(crt *x509.Certificate, key *rsa.PrivateKey, signer CSRSignerCont
 		crt:         crt,
 		key:         key,
 		signer:      signer,
-		debugLogger: log.NewNopLogger(),
+		debugLogger: slog.New(slog.DiscardHandler),
 	}
 	for _, opt := range opts {
 		if err := opt(s); err != nil {

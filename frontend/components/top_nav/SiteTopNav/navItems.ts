@@ -12,8 +12,8 @@ export interface INavItem {
   };
   exclude?: boolean;
   /** If `true`, this nav item will always navigate to the given `location.pathname`. This
-   * is useful when you want to always naviate to a specific path no matter
-   * which child page you are on (e.g. always navigate to /sofware/titles/ when
+   * is useful when you want to always navigate to a specific path no matter
+   * which child page you are on (e.g. always navigate to /software/inventory/ when
    * clicking on the software nav item even if on /software/versions,
    * software/titles/:id, or /software/versions/:id). Defaults to `undefined`.
    */
@@ -27,17 +27,13 @@ export default (
   isAnyTeamAdmin = false,
   isAnyTeamMaintainer = false,
   isGlobalMaintainer = false,
-  isNoAccess = false
+  isNoAccess = false,
+  isGlobalTechnician = false,
+  isAnyTeamTechnician = false
 ): INavItem[] => {
   if (!user) {
     return [];
   }
-
-  const isMaintainerOrAdmin =
-    isGlobalMaintainer ||
-    isAnyTeamMaintainer ||
-    isGlobalAdmin ||
-    isAnyTeamAdmin;
 
   const logo = [
     {
@@ -58,7 +54,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/hosts/`),
         pathname: PATHS.MANAGE_HOSTS,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Controls",
@@ -66,25 +62,34 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/controls/`),
         pathname: PATHS.CONTROLS,
       },
-      exclude: !isMaintainerOrAdmin,
-      withParams: { type: "query", names: ["team_id"] },
+      exclude: !(
+        isGlobalMaintainer ||
+        isAnyTeamMaintainer ||
+        isGlobalAdmin ||
+        isAnyTeamAdmin ||
+        isGlobalTechnician ||
+        isAnyTeamTechnician
+      ),
+      alwaysToPathname: true,
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Software",
       location: {
         regex: new RegExp(`^${URL_PREFIX}/software/`),
-        pathname: PATHS.SOFTWARE_TITLES,
+        pathname: PATHS.SOFTWARE_INVENTORY,
       },
       alwaysToPathname: true,
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
-      name: "Queries",
+      name: "Reports",
       location: {
-        regex: new RegExp(`^${URL_PREFIX}/queries/`),
-        pathname: PATHS.MANAGE_QUERIES,
+        regex: new RegExp(`^${URL_PREFIX}/reports/`),
+        pathname: PATHS.MANAGE_REPORTS,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      alwaysToPathname: true,
+      withParams: { type: "query", names: ["fleet_id"] },
     },
     {
       name: "Policies",
@@ -92,7 +97,7 @@ export default (
         regex: new RegExp(`^${URL_PREFIX}/(policies)/`),
         pathname: PATHS.MANAGE_POLICIES,
       },
-      withParams: { type: "query", names: ["team_id"] },
+      withParams: { type: "query", names: ["fleet_id"] },
     },
   ];
 

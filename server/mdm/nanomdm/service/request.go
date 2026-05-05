@@ -9,7 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 type HTTPStatusError struct {

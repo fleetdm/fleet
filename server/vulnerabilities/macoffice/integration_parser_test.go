@@ -1,7 +1,6 @@
 package macoffice_test
 
 import (
-	"net/http"
 	"testing"
 	"time"
 
@@ -656,11 +655,7 @@ var expected = []macoffice.ReleaseNote{
 func TestIntegrationsParseReleaseHTML(t *testing.T) {
 	nettest.Run(t)
 
-	res, err := http.Get(macoffice.RelNotesURL)
-	require.NoError(t, err)
-	defer res.Body.Close()
-
-	actual, err := macoffice.ParseReleaseHTML(res.Body)
+	actual, err := macoffice.GetReleaseNotes(true)
 	require.NoError(t, err)
 	require.NotEmpty(t, actual)
 

@@ -6,13 +6,31 @@
   padding-left: 2px;
 }
 
-.site-nav-list {
+.site-nav-left {
   list-style: none;
   height: 50px;
   width: 671px;
   margin: 0;
   padding: 0;
   display: flex;
+}
+
+.site-nav-right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: $pad-large;
+}
+
+.gitops-mode-indicator__content {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+  color: $ui-fleet-black-75;
+  font-weight: $regular;
+  font-size: $xxx-small;
+  cursor: default;
 }
 
 .site-nav-item {
@@ -23,8 +41,12 @@
   align-items: center;
   justify-content: center;
 
+  a {
+    border-bottom: none;
+  }
+
   &:not(.dup-org-logo):hover {
-    background-color: $site-nav-on-hover;
+    background-color: $ui-fleet-black-5;
   }
 
   &--multiple.site-nav-item--active {
@@ -68,7 +90,7 @@
   }
 
   &__link {
-    color: $core-white;
+    color: $ui-fleet-black-75;
     padding: 15px 24px;
     text-decoration: none;
 
@@ -95,20 +117,14 @@
   }
 
   &--active {
-    background-color: $site-nav-on-hover;
-
     &::after {
       content: "";
       position: absolute;
       bottom: 0;
       left: 0;
       width: 100%;
-      height: 3px;
-      background-color: $core-vibrant-blue;
-    }
-
-    &:hover {
-      background-color: $site-nav-on-hover;
+      height: 1px;
+      background-color: $nav-active-underline;
     }
 
     .site-nav-item__name {

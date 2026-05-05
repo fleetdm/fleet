@@ -1,26 +1,68 @@
 # Automations
 
-You can configure Fleet to trigger automations that reserve time in your end users' calendars (maintenance windows), send webhooks, or to create tickets.
+Fleet supports triggering automations across [activities](#activity-automations), [policies](#policy-automations), [reports](#report-automations), [vulnerabilities](#vulnerability-automations), and [host status](#host-status-automations).
 
-To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+You can configure Fleet to automatically [install software](https://fleetdm.com/guides/automatic-software-install-in-fleet), [run scripts](https://fleetdm.com/guides/policy-automation-run-script), trigger or send report results to webhooks, create tickets, and reserve time in your end users' calendars ([maintenance windows](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows)).
 
 ## Activity automations
 
-Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See a list of all activities [here](https://fleetdm.com/docs/using-fleet/audit-logs).
+Activity automations are triggered when an activity happens in Fleet (queries, scripts, logins, etc). See our [Audit logs documentation](https://fleetdm.com/docs/using-fleet/audit-logs) for a list of all activity types.
 
 You can automatically send activites to a webhook URL or a [log destination](https://fleetdm.com/docs/configuration/fleet-server-configuration#external-activity-audit-logging).
 
 ## Policy automations
 
-Policy automations are triggered if a policy is newly failing on at least one host.
+Policy automations are triggered if a policy fails on a host. 
 
-> Note that a policy is "newly failing" if a host updated its response from "no response" to "failing" or from "passing" to "failing."
+Policies run every 1 hour ([configurable](https://fleetdm.com/docs/configuration/fleet-server-configuration#osquery-policy-update-interval)) and run in ascending order by policy ID after the ID is turned into a string ("100" runs before "53", which runs before "7"). 
 
-Fleet checks whether to trigger policy automations once per day by default.
+Automations are fired for scheduled policy runs. Running a live policy doesn't trigger automations.
+
+### Calendar
+
+You can configure Fleet to automatically reserve time in your end users' calendars (maintenance
+windows), trigger or send report results to webhooks, or create tickets.
+
+To learn how to use Fleet's maintenance windows, head to this [article](https://fleetdm.com/announcements/fleet-in-your-calendar-introducing-maintenance-windows). 
+
+### Software and scripts
+
+Automations for [software](https://fleetdm.com/guides/automatic-software-install-in-fleet) and [scripts](https://fleetdm.com/guides/policy-automation-run-script) are attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install or script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+
+### Webhooks and tickets
+
+For webhooks and tickets, automations are only triggered when a policy is newly failing. A policy is "newly failing" if a host updated its response from no response to "fail" or from "pass" to "fail."
+
+Fleet checks whether to trigger webhooks or tickets once per day by default.
 
 For webhooks, if a policy is newly failing on more than one host during the same period, a separate webhook request is triggered for each host by default.
 
-For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not created if a policy is newly failing on more than one host during the same period).
+For tickets, a single ticket is created per newly failed policy (i.e., multiple tickets are not
+created if a policy is newly failing on more than one host during the same period).
+
+## Report automations
+
+Report automations let you send data gathered from macOS, Windows, and Linux hosts to a log
+destination. Data is sent according to a report's interval.
+
+### Webhook
+
+Results from scheduled queries can be written to an arbitrary external webhook of your choosing.
+First, follow the [configuration docs](https://fleetdm.com/docs/deploying/configuration#webhook).
+Then in the UI:
+
+1. Navigate to the **Queries** page, select the relevant fleet, and click **Manage automations**
+2. In the modal that opens, confirm that you see "Log destination: Webhook", and when you hover over
+   "Webhook", you see "Each time a report runs, the data is sent via webhook to:
+   [target_result_url]"
+3. Select the reports that you want to send data to this webhook
+4. Click **Save**
+
+Results from the selected scheduled queries will be sent to the configured results URL. *Not configurable per-report.*
+
+### Amazon Kinesis Data Firehose
+
+See [the log destination guide](https://fleetdm.com/guides/log-destinations#amazon-kinesis-data-firehose)
 
 ## Vulnerability automations
 

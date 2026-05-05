@@ -1,16 +1,22 @@
 import React from "react";
 
+import { TRANSPARENCY_LINK } from "utilities/constants";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import CustomLink from "components/CustomLink";
 
 export interface IInfoModalProps {
   onCancel: () => void;
+  transparencyURL?: string;
 }
 
 const baseClass = "device-user-info";
 
-const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
+const InfoModal = ({
+  onCancel,
+  transparencyURL,
+}: IInfoModalProps): JSX.Element => {
   return (
     <Modal
       title="Welcome to Fleet"
@@ -26,14 +32,14 @@ const InfoModal = ({ onCancel }: IInfoModalProps): JSX.Element => {
         <p>
           Want to know what your organization can see?&nbsp;
           <CustomLink
-            url="https://fleetdm.com/transparency"
+            url={transparencyURL || TRANSPARENCY_LINK}
             text="Read about transparency"
             newTab
             multiline
           />
         </p>
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
+          <Button type="button" onClick={onCancel}>
             OK
           </Button>
         </div>

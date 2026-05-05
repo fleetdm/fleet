@@ -1,6 +1,6 @@
 package main
 
-// This tool builds Orbit binaries with versioninfo information.
+// This tool builds Orbit and Fleet Desktop windows binaries with versioninfo information.
 // https://learn.microsoft.com/en-us/windows/win32/menurc/versioninfo-resource
 
 import (
@@ -28,6 +28,7 @@ func main() {
 	flagIcon := flag.String("icon", "windows_app.ico", "Path to the icon file to embed on the binary")
 	flagOutputBinary := flag.String("output", "output.exe", "Path to the output binary")
 	flagCmdDir := flag.String("input", "", "Path to the directory containing the utility to build")
+	flagArch := flag.String("arch", "amd64", "Target platform architecture (amd64,arm64)")
 
 	flag.Usage = func() {
 		zlog.Fatal().Msgf("Usage: %s -version <version> -input <dir_path> -output <output_binary>\n", os.Args[0])
@@ -42,6 +43,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	info := resourceInfo{
+		productName:     "Fleet osquery",
+		fileDescription: "Orbit osquery runtime and autoupdater",
+		comments:        "Fleet osquery",
+	}
+	if strings.HasSuffix(*flagCmdDir, "desktop") {
+		info.productName = "Fleet Desktop"
+		info.fileDescription = "Fleet Desktop" // shown in Windows taskbar
+		info.comments = "Fleet Desktop"
+	}
+
 	// now we need to create the 'resource_windows.syso' metadata file which contains versioninfo data
 
 	// lets start with sanitizing the version data
@@ -52,7 +64,7 @@ func main() {
 	}
 
 	// then we need to create the manifest.xml file
-	manifestPath, err := writeManifestXML(vParts, *flagCmdDir)
+	manifestPath, err := writeManifestXML(vParts, *flagCmdDir, *flagArch)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("creating manifest.xml")
 		os.Exit(1)
@@ -63,7 +75,7 @@ func main() {
 
 	// now we can create the VersionInfo struct
 	targetIconPath := filepath.Join(*flagCmdDir, *flagIcon)
-	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath)
+	vi, err := createVersionInfo(vParts, targetIconPath, manifestPath, info)
 	if err != nil {
 		zlog.Fatal().Err(err).Msg("parsing versioninfo")
 		os.Exit(1) //nolint:gocritic // ignore exitAfterDefer
@@ -75,7 +87,7 @@ func main() {
 
 	// resource_windows.syso is the resource file that is going to be picked up by golang compiler
 	outPath := filepath.Join(*flagCmdDir, "resource_windows.syso")
-	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
+	if err := vi.WriteSyso(outPath, *flagArch); err != nil {
 		zlog.Fatal().Err(err).Msg("creating syso file")
 		os.Exit(1)
 	}
@@ -87,7 +99,7 @@ func main() {
 
 		defer os.Remove(outPath)
 		// now we can build the binary
-		if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary); err != nil {
+		if err := buildTargetBinary(*flagCmdDir, *flagVersion, *flagOutputBinary, *flagArch); err != nil {
 			zlog.Fatal().Err(err).Msg("error building binary")
 			os.Exit(1)
 		}
@@ -96,9 +108,15 @@ func main() {
 	}
 }
 
+type resourceInfo struct {
+	productName     string
+	fileDescription string
+	comments        string
+}
+
 // createVersionInfo returns a VersionInfo struct pointer to be used to generate the 'resource_windows.syso'
 // metadata file (see writeResourceSyso).
-func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*goversioninfo.VersionInfo, error) {
+func createVersionInfo(vParts []string, iconPath string, manifestPath string, ri resourceInfo) (*goversioninfo.VersionInfo, error) {
 	vIntParts := make([]int, 0, len(vParts))
 	for _, p := range vParts {
 		v, err := strconv.Atoi(p)
@@ -142,16 +160,16 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 			FileSubType:   "00",
 		},
 		StringFileInfo: goversioninfo.StringFileInfo{
-			Comments:         "Fleet osquery",
+			Comments:         ri.comments,
 			CompanyName:      "Fleet Device Management (fleetdm.com)",
-			FileDescription:  "Orbit osquery runtime and autoupdater",
+			FileDescription:  ri.fileDescription,
 			FileVersion:      version,
 			InternalName:     "",
 			LegalCopyright:   copyright,
 			LegalTrademarks:  "",
 			OriginalFilename: "",
 			PrivateBuild:     "",
-			ProductName:      "Fleet osquery",
+			ProductName:      ri.productName,
 			ProductVersion:   version,
 			SpecialBuild:     "",
 		},
@@ -170,13 +188,15 @@ func createVersionInfo(vParts []string, iconPath string, manifestPath string) (*
 
 // writeManifestXML creates the manifest.xml file used when generating the 'resource_windows.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
-func writeManifestXML(vParts []string, orbitPath string) (string, error) {
+func writeManifestXML(vParts []string, orbitPath, arch string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
 
 	tmplOpts := struct {
 		Version string
+		Arch    string
 	}{
 		Version: strings.Join(vParts, "."),
+		Arch:    arch,
 	}
 
 	var contents bytes.Buffer
@@ -193,7 +213,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 }
 
 // Build the target binary for Windows
-func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
+func buildTargetBinary(cmdDir string, version string, binaryPath string, arch string) error {
 	var buildExec *exec.Cmd
 
 	// convert relative to full output path
@@ -205,13 +225,13 @@ func buildTargetBinary(cmdDir string, version string, binaryPath string) error {
 	// check if cmdDir contains desktop
 	// if it does, add -ldflags "-H=windowsgui" to exec.Command
 	if strings.Contains(cmdDir, "desktop") {
-		linkFlags := fmt.Sprintf("-H=windowsgui -X=main.version=%s", version)
+		linkFlags := fmt.Sprintf("-s -w -H=windowsgui -X=main.version=%s", version)
 		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	} else {
-		linkFlags := fmt.Sprintf("-X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
+		linkFlags := fmt.Sprintf("-s -w -X=github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=%s", version)
 		buildExec = exec.Command("go", "build", "-ldflags", linkFlags, "-o", outputBinary)
 	}
-	buildExec.Env = append(os.Environ(), "GOOS=windows", "GOARCH=amd64")
+	buildExec.Env = append(os.Environ(), "GOOS=windows", fmt.Sprintf("GOARCH=%s", arch))
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 	buildExec.Dir = cmdDir

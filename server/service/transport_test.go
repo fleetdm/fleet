@@ -129,6 +129,7 @@ func TestListOptionsFromRequest(t *testing.T) {
 }
 
 func TestHostListOptionsFromRequest(t *testing.T) {
+	verified := fleet.OSSettingsVerified
 	hostListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
@@ -154,11 +155,13 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
-				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
+				"=filter1,filter2&status=new&fleet_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
+				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
+				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -190,6 +193,60 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				LowDiskSpaceFilter:                ptr.Int(99),
 				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
 				PopulatePolicies:                  true,
+				ProfileUUIDFilter:                 ptr.String("123-abc"),
+				ProfileStatusFilter:               &verified,
+				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
+				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
+				DEPProfileErrorFilter:             new(true),
+				DEPAssignProfileResponseFilter:    ptr.T(fleet.DEPAssignProfileResponseFailed),
+			},
+		},
+		"all params defined (deprecated)": {
+			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
+				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
+				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=0&disable_issues=1&macos_settings=verified" +
+				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
+				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887&populate_policies=true&profile_uuid=123-abc&profile_status=verified" +
+				"&script_batch_execution_id=some-cool-batch-script-execution-id&script_batch_execution_status=pending" +
+				"&dep_profile_error=true&dep_assign_profile_response=FAILED",
+			hostListOptions: fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:       "foo",
+					OrderDirection: fleet.OrderAscending,
+					Page:           10,
+					PerPage:        1,
+				},
+				DeviceMapping:                     true,
+				AdditionalFilters:                 []string{"filter1", "filter2"},
+				StatusFilter:                      fleet.StatusNew,
+				TeamFilter:                        ptr.Uint(2),
+				PolicyIDFilter:                    ptr.Uint(3),
+				PolicyResponseFilter:              ptr.Bool(true),
+				SoftwareIDFilter:                  ptr.Uint(4),
+				OSIDFilter:                        ptr.Uint(5),
+				OSVersionIDFilter:                 ptr.Uint(5),
+				OSNameFilter:                      ptr.String("osName"),
+				OSVersionFilter:                   ptr.String("osVersion"),
+				DisableIssues:                     true,
+				MacOSSettingsFilter:               fleet.OSSettingsVerified,
+				MacOSSettingsDiskEncryptionFilter: fleet.DiskEncryptionEnforcing,
+				OSSettingsFilter:                  fleet.OSSettingsPending,
+				OSSettingsDiskEncryptionFilter:    fleet.DiskEncryptionFailed,
+				MDMBootstrapPackageFilter:         (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
+				MDMIDFilter:                       ptr.Uint(6),
+				MDMNameFilter:                     ptr.String("mdmName"),
+				MDMEnrollmentStatusFilter:         fleet.MDMEnrollStatusAutomatic,
+				MunkiIssueIDFilter:                ptr.Uint(7),
+				LowDiskSpaceFilter:                ptr.Int(99),
+				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
+				PopulatePolicies:                  true,
+				ProfileUUIDFilter:                 ptr.String("123-abc"),
+				ProfileStatusFilter:               &verified,
+				BatchScriptExecutionStatusFilter:  fleet.BatchScriptExecutionPending,
+				BatchScriptExecutionIDFilter:      ptr.String("some-cool-batch-script-execution-id"),
+				DEPProfileErrorFilter:             new(true),
+				DEPAssignProfileResponseFilter:    (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
@@ -251,6 +308,43 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 			url:          "/foo?disable_failing_policies=true&order_key=issues",
 			errorMessage: "Invalid order_key",
 		},
+		"error in failing_policies_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=failing_policies_count",
+			errorMessage: "Invalid order_key (failing_policies_count cannot be ordered when they are disabled)",
+		},
+		"error in critical_vulnerabilities_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=critical_vulnerabilities_count",
+			errorMessage: "Invalid order_key (critical_vulnerabilities_count cannot be ordered when they are disabled)",
+		},
+		"error in total_issues_count order key when disable_issues is set": {
+			url:          "/foo?disable_issues=true&order_key=total_issues_count",
+			errorMessage: "Invalid order_key (total_issues_count cannot be ordered when they are disabled)",
+		},
+		"failing_policies_count order key allowed when disable_issues is not set": {
+			url: "/foo?order_key=failing_policies_count",
+			hostListOptions: fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: "failing_policies_count",
+				},
+			},
+		},
+		"error in device_mapping order key when device_mapping is not enabled": {
+			url:          "/foo?order_key=device_mapping",
+			errorMessage: "Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+		},
+		"error in device_mapping order key when device_mapping is explicitly false": {
+			url:          "/foo?device_mapping=false&order_key=device_mapping",
+			errorMessage: "Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+		},
+		"device_mapping order key allowed when device_mapping is enabled": {
+			url: "/foo?device_mapping=true&order_key=device_mapping",
+			hostListOptions: fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey: "device_mapping",
+				},
+				DeviceMapping: true,
+			},
+		},
 		"error in device_mapping": {
 			url:          "/foo?device_mapping=foo",
 			errorMessage: "Invalid device_mapping",
@@ -265,7 +359,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"error in macos_settings (invalid option)": {
 			url:          "/foo?macos_settings=foo",
-			errorMessage: "Invalid macos_settings",
+			errorMessage: "Invalid apple_settings",
 		},
 		"error in macos_settings_disk_encryption (invalid option)": {
 			url:          "/foo?macos_settings_disk_encryption=foo",
@@ -281,7 +375,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		},
 		"error in bootstrap_package (invalid option)": {
 			url:          "/foo?bootstrap_package=foo",
-			errorMessage: "Invalid bootstrap_package",
+			errorMessage: "Invalid macos_bootstrap_package",
 		},
 		"error in munki_issue_id": {
 			url:          "/foo?munki_issue_id=foo",
@@ -306,6 +400,54 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"error in os_name/os_version (os_version missing)": {
 			url:          "/foo?os_name=foo",
 			errorMessage: "Invalid os_version",
+		},
+		"error in script_batch_execution_status": {
+			url:          "/foo?script_batch_execution_id=abc123&script_batch_execution_status=foo",
+			errorMessage: "Invalid script_batch_execution_status: foo",
+		},
+		"dep_profile_error=true": {
+			url: "/foo?dep_profile_error=true",
+			hostListOptions: fleet.HostListOptions{
+				DEPProfileErrorFilter: new(true),
+			},
+		},
+		"dep_profile_error=false": {
+			url: "/foo?dep_profile_error=false",
+			hostListOptions: fleet.HostListOptions{
+				DEPProfileErrorFilter: new(false),
+			},
+		},
+		"error in dep_profile_error (not a boolean)": {
+			url:          "/foo?dep_profile_error=foo",
+			errorMessage: "Invalid dep_profile_error",
+		},
+		"dep_assign_profile_response=SUCCESS": {
+			url: "/foo?dep_assign_profile_response=SUCCESS",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseSuccess))),
+			},
+		},
+		"dep_assign_profile_response=FAILED": {
+			url: "/foo?dep_assign_profile_response=FAILED",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseFailed))),
+			},
+		},
+		"dep_assign_profile_response=THROTTLED": {
+			url: "/foo?dep_assign_profile_response=THROTTLED",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseThrottled))),
+			},
+		},
+		"dep_assign_profile_response=NOT_ACCESSIBLE": {
+			url: "/foo?dep_assign_profile_response=NOT_ACCESSIBLE",
+			hostListOptions: fleet.HostListOptions{
+				DEPAssignProfileResponseFilter: (*fleet.DEPAssignProfileResponseStatus)(ptr.String(string(fleet.DEPAssignProfileResponseNotAccessible))),
+			},
+		},
+		"error in dep_assign_profile_response (invalid value)": {
+			url:          "/foo?dep_assign_profile_response=INVALID",
+			errorMessage: "Invalid dep_assign_profile_response",
 		},
 		"negative software_id": {
 			url:          "/foo?software_id=-10",
@@ -352,6 +494,60 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"invalid populate_policies": {
 			url:          "/foo?populate_policies=foo",
 			errorMessage: "populate_policies",
+		},
+		"invalid combination profile_uuid wihtout profile_status": {
+			url: "/foo?profile_uuid=123-abc",
+			hostListOptions: fleet.HostListOptions{
+				ProfileUUIDFilter: ptr.String("123-abc"),
+			},
+			errorMessage: "Missing profile_status (it must be present when profile_uuid is specified)",
+		},
+		"invalid combination profile_status wihtout profile_uuid": {
+			url: "/foo?profile_status=verified",
+			hostListOptions: fleet.HostListOptions{
+				ProfileStatusFilter: &verified,
+			},
+			errorMessage: "Missing profile_uuid (it must be present when profile_status is specified)",
+		},
+		// New param names (aliases for deprecated params)
+		"fleet_id (new name for team_id)": {
+			url: "/foo?fleet_id=5",
+			hostListOptions: fleet.HostListOptions{
+				TeamFilter: ptr.Uint(5),
+			},
+		},
+		"apple_settings (new name for macos_settings)": {
+			url: "/foo?apple_settings=pending",
+			hostListOptions: fleet.HostListOptions{
+				MacOSSettingsFilter: fleet.OSSettingsPending,
+			},
+		},
+		"macos_bootstrap_package (new name for bootstrap_package)": {
+			url: "/foo?macos_bootstrap_package=installed",
+			hostListOptions: fleet.HostListOptions{
+				MDMBootstrapPackageFilter: (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
+			},
+		},
+		"error in apple_settings (invalid option)": {
+			url:          "/foo?apple_settings=foo",
+			errorMessage: "Invalid apple_settings",
+		},
+		"error in macos_bootstrap_package (invalid option)": {
+			url:          "/foo?macos_bootstrap_package=foo",
+			errorMessage: "Invalid macos_bootstrap_package",
+		},
+		// Conflict: both old and new param names specified
+		"error when both team_id and fleet_id specified": {
+			url:          "/foo?team_id=1&fleet_id=2",
+			errorMessage: "Cannot specify both team_id and fleet_id",
+		},
+		"error when both macos_settings and apple_settings specified": {
+			url:          "/foo?macos_settings=pending&apple_settings=verified",
+			errorMessage: "Cannot specify both macos_settings and apple_settings",
+		},
+		"error when both bootstrap_package and macos_bootstrap_package specified": {
+			url:          "/foo?bootstrap_package=installed&macos_bootstrap_package=pending",
+			errorMessage: "Cannot specify both bootstrap_package and macos_bootstrap_package",
 		},
 	}
 

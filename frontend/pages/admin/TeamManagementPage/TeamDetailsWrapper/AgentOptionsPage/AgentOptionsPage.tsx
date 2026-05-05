@@ -6,6 +6,8 @@ import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
 
 import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IApiError } from "interfaces/errors";
 import { ITeam } from "interfaces/team";
@@ -18,6 +20,8 @@ import validateYaml from "components/forms/validators/validate_yaml";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PageDescription from "components/PageDescription";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
@@ -29,6 +33,8 @@ const AgentOptionsPage = ({
   router,
 }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({
     location,
@@ -40,6 +46,7 @@ const AgentOptionsPage = ({
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -68,6 +75,7 @@ const AgentOptionsPage = ({
         setTeamName(data.name);
       },
       onError: (error) => handlePageError(error),
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -104,7 +112,7 @@ const AgentOptionsPage = ({
       .then(() => {
         renderFlash(
           "success",
-          `Successfully updated ${teamName} team agent options.`
+          `Successfully updated ${teamName} fleet agent options.`
         );
         refetchTeamOptions();
       })
@@ -118,7 +126,7 @@ const AgentOptionsPage = ({
         renderFlash(
           "error",
           <>
-            Couldn&apos;t update {teamName} team agent options:
+            Couldn&apos;t update {teamName} fleet agent options:
             {reason}
             {agentOptionsInvalid && (
               <>
@@ -141,18 +149,23 @@ const AgentOptionsPage = ({
 
   return (
     <div className={`${baseClass}`}>
-      <p className={`${baseClass}__page-description`}>
-        Agent options configure Fleet&apos;s agent (fleetd). When you update
-        agent options, they will be applied the next time a host checks in to
-        Fleet.
-        <br />
-        <CustomLink
-          url="https://fleetdm.com/learn-more-about/agent-options"
-          text="Learn more about agent options"
-          newTab
-          multiline
-        />
-      </p>
+      <PageDescription
+        content={
+          <>
+            Agent options configure Fleet&apos;s agent (fleetd). When you update
+            agent options, they will be applied the next time a host checks in
+            to Fleet.
+            <br />
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/agent-options"
+              text="Learn more about agent options"
+              newTab
+              multiline
+            />
+          </>
+        }
+      />
+
       {isFetchingTeamOptions ? (
         <Spinner />
       ) : (
@@ -169,15 +182,20 @@ const AgentOptionsPage = ({
             parseTarget
             error={formErrors.agent_options}
             label="YAML"
+            disabled={gitOpsModeEnabled}
           />
-          <Button
-            type="submit"
-            variant="brand"
-            className="save-loading"
-            isLoading={isUpdatingAgentOptions}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren}
+                className="save-loading"
+                isLoading={isUpdatingAgentOptions}
+              >
+                Save
+              </Button>
+            )}
+          />
         </form>
       )}
     </div>

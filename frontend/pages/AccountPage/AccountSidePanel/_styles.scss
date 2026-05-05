@@ -1,52 +1,35 @@
 .account-side-panel {
+  @include vertical-card-layout;
+  $gap-data-sets: $pad-medium;
+
   &__change-avatar {
-    position: relative;
-    padding: 0 0 20px;
-
-    a {
-      display: block;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-      text-decoration: none;
-      margin-top: $pad-xsmall;
-    }
-  }
-
-  &__header {
-    font-size: $x-small;
-    font-weight: $bold;
-    margin: $pad-large 0 $pad-xsmall;
-  }
-
-  &__description {
-    font-size: $x-small;
-    font-style: italic;
-    margin: $pad-xsmall 0;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
   }
 
   &__avatar {
     margin: 0 auto;
   }
 
-  &__more-info-detail {
-    color: $core-fleet-black;
-
-    .fleeticon {
-      color: $ui-gray;
-      font-size: 18px;
-      margin-right: 11px;
-    }
-  }
-
   &__button {
     width: 100%;
   }
 
+  &__grey-text {
+    @include grey-text;
+  }
+
+  &__password-info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    width: 100%;
+  }
+
   &__last-updated {
-    font-size: $x-small;
-    font-style: italic;
-    margin: 4px 0 $pad-large;
+    @include help-text;
   }
 
   &__confirm-update {
@@ -63,16 +46,58 @@
     justify-content: flex-end;
   }
 
+  &__theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $pad-small;
+  }
+
+  &__theme-icon {
+    color: $ui-fleet-black-50;
+    flex-shrink: 0;
+  }
+
+  &__toggle {
+    transition: background-color 150ms ease-in-out;
+    background-color: $ui-fleet-black-50;
+    border-radius: 12px;
+    display: inline-block;
+    height: 20px;
+    min-width: 35px;
+    width: 35px;
+    position: relative;
+    flex-shrink: 0;
+    cursor: pointer;
+
+    &--active {
+      background-color: $core-fleet-green;
+    }
+  }
+
+  &__toggle-dot {
+    width: 16px;
+    height: 16px;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: left 150ms ease-in-out;
+    border-radius: 50%;
+    background-color: $core-fleet-white;
+
+    &--active {
+      left: 17px;
+    }
+  }
+
   &__version {
     font-size: $xx-small;
     text-align: center;
     display: block;
-    margin-top: $pad-large;
   }
 
   &__privacy-policy {
     text-align: center;
     display: block;
-    margin-top: $pad-xlarge;
   }
 }

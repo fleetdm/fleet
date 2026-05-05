@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/externalsvc"
-	kitlog "github.com/go-kit/log"
 	zendesk "github.com/nukosuke/go-zendesk/zendesk"
 	"github.com/stretchr/testify/require"
 )
@@ -40,13 +40,13 @@ func TestZendeskRun(t *testing.T) {
 			},
 		}}, nil
 	}
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		if tid != 123 {
 			return nil, errors.New("unexpected team id")
 		}
-		return &fleet.Team{
+		return &fleet.TeamLite{
 			ID: 123,
-			Config: fleet.TeamConfig{
+			Config: fleet.TeamConfigLite{
 				Integrations: fleet.TeamIntegrations{
 					Zendesk: []*fleet.TeamZendeskIntegration{
 						{EnableFailingPolicies: true},
@@ -129,14 +129,14 @@ func TestZendeskRun(t *testing.T) {
 			`{"failing_policy":{"policy_id": 1, "policy_name": "test-policy", "hosts": [{"id": 123, "hostname": "host-123"}]}}`,
 			`"subject":"test-policy policy failed on 1 host(s)"`,
 			[]string{"\\u0026policy_id=1\\u0026policy_response=failing"},
-			"\\u0026team_id=",
+			"\\u0026fleet_id=",
 		},
 		{
 			"failing team policy",
 			fleet.TierPremium,
 			`{"failing_policy":{"policy_id": 2, "policy_name": "test-policy-2", "team_id": 123, "hosts": [{"id": 1, "hostname": "host-1"}, {"id": 2, "hostname": "host-2"}]}}`,
 			`"subject":"test-policy-2 policy failed on 2 host(s)"`,
-			[]string{"\\u0026team_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
+			[]string{"\\u0026fleet_id=123\\u0026policy_id=2\\u0026policy_response=failing"},
 			"",
 		},
 		{
@@ -182,7 +182,7 @@ func TestZendeskRun(t *testing.T) {
 			zendesk := &Zendesk{
 				FleetURL:  "https://fleetdm.com",
 				Datastore: ds,
-				Log:       kitlog.NewNopLogger(),
+				Log:       slog.New(slog.DiscardHandler),
 				NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 					return client, nil
 				},
@@ -200,7 +200,7 @@ func TestZendeskRun(t *testing.T) {
 func TestZendeskQueueVulnJobs(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("same vulnerability on multiple software only queue one job", func(t *testing.T) {
 		var count int
@@ -263,7 +263,7 @@ func TestZendeskQueueVulnJobs(t *testing.T) {
 func TestZendeskQueueFailingPolicyJob(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 
 	t.Run("success global", func(t *testing.T) {
 		ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
@@ -345,9 +345,9 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 		}}, nil
 	}
 
-	teamCfg := &fleet.Team{
+	teamCfg := &fleet.TeamLite{
 		ID: 123,
-		Config: fleet.TeamConfig{
+		Config: fleet.TeamConfigLite{
 			Integrations: fleet.TeamIntegrations{
 				Zendesk: []*fleet.TeamZendeskIntegration{
 					{GroupID: 1, EnableFailingPolicies: true},
@@ -357,7 +357,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	}
 
 	var teamCount int
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
 		teamCount++
 
 		if tid != 123 {
@@ -386,7 +386,7 @@ func TestZendeskRunClientUpdate(t *testing.T) {
 	zendeskJob := &Zendesk{
 		FleetURL:  "http://example.com",
 		Datastore: ds,
-		Log:       kitlog.NewNopLogger(),
+		Log:       slog.New(slog.DiscardHandler),
 		NewClientFunc: func(opts *externalsvc.ZendeskOptions) (ZendeskClient, error) {
 			// keep track of group IDs received in calls to NewClientFunc
 			groupIDs = append(groupIDs, opts.GroupID)

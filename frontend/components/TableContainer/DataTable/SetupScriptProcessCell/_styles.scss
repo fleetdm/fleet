@@ -1,0 +1,10 @@
+.setup-script-process-cell {
+  display: flex;
+  align-items: center;
+  gap: $pad-small;
+
+  .graphic {
+      width: $pad-xlarge;
+      scale: 60%;
+  }
+}

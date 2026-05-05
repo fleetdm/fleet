@@ -1,6 +1,6 @@
 # macOS 13.0 Ventura benchmark
 
-Fleet's policies have been written against v3.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
+Fleet's policies have been written against v3.1.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
 For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
 
@@ -20,7 +20,7 @@ The following CIS benchmarks cannot be checked with a policy in Fleet:
 
 CIS has left the parameters of the following checks up to the benchmark implementer. CIS recommends that an organization make a conscious decision for these benchmarks, but does not make a specific recommendation.
 
-Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy query.
+Fleet has provided both an "enabled" and "disabled" version of these benchmarks. When both policies are added, at least one will fail. Once your organization has made a decision, you can delete one or the other policy.
 The policy will be appended with a `-enabled` or `-disabled` label, such as `2.1.1.1-enabled`.
 
 - 2.1.1.1 Audit iCloud Keychain

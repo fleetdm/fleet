@@ -1,6 +1,10 @@
 import React from "react";
 
+import { uniqueId } from "lodash";
+
 const EmptyIntegrations = () => {
+  const filterId = uniqueId("filter-");
+
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -12,7 +16,7 @@ const EmptyIntegrations = () => {
         fill="#F1F0FF"
         d="M162.5 150c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75Z"
       />
-      <g filter="url(#a)">
+      <g filter={`url(#${filterId})`}>
         <path
           fill="#fff"
           d="M21 43a8 8 0 0 1 8-8h263a8 8 0 0 1 8 8v64a8 8 0 0 1-8 8H29a8.001 8.001 0 0 1-8-8V43Z"
@@ -41,7 +45,7 @@ const EmptyIntegrations = () => {
       />
       <defs>
         <filter
-          id="a"
+          id={filterId}
           width={287}
           height={92}
           x={17}

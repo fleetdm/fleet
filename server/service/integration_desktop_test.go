@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +39,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	}, fleet.DeviceMappingGoogleChromeProfiles))
 	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(context.Background(), hosts[0].ID, "c@b.c", fleet.DeviceMappingCustomInstaller)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", "", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -238,10 +241,25 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
+func clearRedisKey(t *testing.T, redisPool fleet.RedisPool, key string) {
+	conn := redis.ConfigureDoer(redisPool, redisPool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("DEL", key)
+	require.NoError(t, err)
+}
+
 func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	headers := map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
 	}
+
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(s.T(), s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
+	s.T().Cleanup(clearKeys)
 
 	testCases := []struct {
 		endpoint string
@@ -254,16 +272,16 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 1,
+			burst:    forgotPasswordRateLimitMaxBurst + 1,
 			status:   http.StatusAccepted,
 		},
-		{
-			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
-			verb:     "GET",
-			burst:    desktopRateLimitMaxBurst + 1,
-			status:   http.StatusUnauthorized,
-		},
 	}
+
+	// Mock working SMTP for password reset
+	config, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = true
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
 
 	for _, tCase := range testCases {
 		b, err := json.Marshal(tCase.payload)
@@ -274,6 +292,12 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 		}
 		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
 	}
+
+	// Disable it again because integration tests leak state like a sieve
+	config, err = s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	config.SMTPSettings.SMTPConfigured = false
+	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
 }
 
 func (s *integrationTestSuite) TestErrorReporting() {
@@ -295,7 +319,7 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res.Body.Close()
 
 	data := make(map[string]interface{})
-	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+	for i := range (fleet.MaxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value
@@ -440,5 +464,89 @@ func (s *integrationTestSuite) TestErrorReporting() {
 
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 2)
+}
 
+func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
+	createHostAndDeviceToken(s.T(), s.ds, "valid_token")
+
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::banned")
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::count")
+	}
+	clearKeys()
+	s.T().Cleanup(clearKeys)
+
+	allowedConsecutiveFailuresCount := 4
+	allowedConsecutiveFailuresTimeWindow := 2 * time.Second
+	banDuration := 2 * time.Second
+	redis.SetIPBannerTestValues(allowedConsecutiveFailuresCount, allowedConsecutiveFailuresTimeWindow, banDuration)
+	s.T().Cleanup(redis.UnsetIPBannerTestValues)
+
+	// Test that consecutive invalid requests get banned (for IP=127.0.0.1).
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
+
+	// A valid request from another IP does not clear the status of the IP 127.0.0.1 (banned).
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK, map[string]string{
+		"X-Forwarded-For": "1.2.3.4",
+	}).Body.Close()
+	// 127.0.0.1 IP should be banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
+	// Wait for the ban window to finish, which should clear the ban on the IP.
+	time.Sleep(banDuration + 500*time.Millisecond)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+
+	// Clear rate limiting.
+	clearKeys()
+
+	// Test that a successful request clears the failing count.
+	for range allowedConsecutiveFailuresCount - 1 {
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	}
+	// Valid request clears the failing count.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK).Body.Close()
+	// A new failing request is not banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+
+	// Test that consecutive invalid requests in a time window bigger than the configured one does not ban the IP (for IP=127.0.0.1).
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	time.Sleep(allowedConsecutiveFailuresTimeWindow + 500*time.Millisecond)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
+	// A new failing request is not banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+}
+
+func (s *integrationEnterpriseTestSuite) TestAlternativeBrowserHostSetting() {
+	t := s.T()
+
+	token := "valid_token"
+	createHostAndDeviceToken(s.T(), s.ds, token)
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp := fleetDesktopResponse{}
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, acResp.FleetDesktop.AlternativeBrowserHost, getDesktopResp.AlternativeBrowserHost)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{"fleet_desktop": {"alternative_browser_host":"althost"}}`), http.StatusOK, &acResp)
+	require.NotNil(t, acResp)
+
+	getDesktopResp = fleetDesktopResponse{}
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/device/"+token+"/desktop", nil, http.StatusOK)
+	require.NoError(t, json.NewDecoder(res.Body).Decode(&getDesktopResp))
+	require.NoError(t, res.Body.Close())
+	require.Equal(t, "althost", getDesktopResp.AlternativeBrowserHost)
 }

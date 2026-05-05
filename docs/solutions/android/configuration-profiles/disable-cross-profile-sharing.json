@@ -1,0 +1,9 @@
+{
+  "crossProfilePolicies": {
+    "showWorkContactsInPersonalProfile": "SHOW_WORK_CONTACTS_IN_PERSONAL_PROFILE_DISALLOWED_EXCEPT_SYSTEM",
+    "crossProfileCopyPaste": "COPY_FROM_WORK_TO_PERSONAL_DISALLOWED",
+    "crossProfileDataSharing": "DATA_SHARING_FROM_WORK_TO_PERSONAL_DISALLOWED",
+    "workProfileWidgetsDefault": "WORK_PROFILE_WIDGETS_DEFAULT_ALLOWED",
+    "crossProfileAppFunctions": "CROSS_PROFILE_APP_FUNCTIONS_DISALLOWED"
+  }
+}

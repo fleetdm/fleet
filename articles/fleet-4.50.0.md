@@ -19,7 +19,7 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 Fleet enhances the deployment capabilities for IT administrators, particularly concerning security agents. Now available in Fleet Premium, this feature allows administrators to add and deploy security agents directly to macOS, Windows, and Linux hosts through the Software page, the Fleet API, or via GitOps workflows. This deployment functionality requires that the host has a `fleetd` agent with scripts enabled, but notably, it does not necessitate MDM (Mobile Device Management) features to be enabled within Fleet. This new capability supports a more streamlined and efficient approach to enhancing host security across diverse operating environments, allowing IT and security teams to ensure their hosts are protected with the necessary security tools without the complexity of additional infrastructure changes.
 
-For users who self-manage (host) Fleet, this feature requires connecting Fleet with an S3 bucket. See how in the server configuration reference [here](https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3).
+For users who self-manage (host) Fleet, this feature requires [connecting Fleet with an S3 bucket]((https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3).
 
 ## Policy description and resolutions aided by AI
 

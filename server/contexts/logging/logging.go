@@ -3,16 +3,34 @@ package logging
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/fleet"
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
+	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
-	kitlog "github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
+
+// UserEmailer provides the user's email for logging purposes.
+type UserEmailer interface {
+	Email() string
+}
+
+type userEmailerKey struct{}
+
+// WithUserEmailer returns a context with the UserEmailer stored for logging.
+// This should be called by authentication middleware after the user is identified.
+func WithUserEmailer(ctx context.Context, emailer UserEmailer) context.Context {
+	return context.WithValue(ctx, userEmailerKey{}, emailer)
+}
+
+// UserEmailerFromContext retrieves the UserEmailer from the context.
+func UserEmailerFromContext(ctx context.Context) (UserEmailer, bool) {
+	v, ok := ctx.Value(userEmailerKey{}).(UserEmailer)
+	return v, ok
+}
 
 type key int
 
@@ -37,6 +55,15 @@ func WithStartTime(ctx context.Context) context.Context {
 	return ctx
 }
 
+// StartTime returns the start time of the context (if set).
+func StartTime(ctx context.Context) (time.Time, bool) {
+	v, ok := ctx.Value(loggingKey).(*LoggingContext)
+	if !ok {
+		return time.Time{}, false
+	}
+	return v.StartTime, ok
+}
+
 // WithErr returns a context with logging.Err set as the error provided
 func WithErr(ctx context.Context, err ...error) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
@@ -53,14 +80,6 @@ func WithNoUser(ctx context.Context) context.Context {
 	return ctx
 }
 
-// WithNoError returns a context with logging.SkipError set to true so error won't be logged at level=error
-func WithNoError(ctx context.Context) context.Context {
-	if logCtx, ok := FromContext(ctx); ok {
-		logCtx.SetSkipError()
-	}
-	return ctx
-}
-
 // WithExtras returns a context with logging.Extras set as the values provided
 func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
@@ -71,7 +90,7 @@ func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
 
 // WithLevel forces a log level for the current request/context.
 // Level may still be upgraded to Error if an error is present.
-func WithLevel(ctx context.Context, level func(kitlog.Logger) kitlog.Logger) context.Context {
+func WithLevel(ctx context.Context, level slog.Level) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
 		logCtx.SetForceLevel(level)
 	}
@@ -86,14 +105,13 @@ type LoggingContext struct {
 	Errs       []error
 	Extras     []interface{}
 	SkipUser   bool
-	ForceLevel func(kitlog.Logger) kitlog.Logger
-	SkipError  bool
+	ForceLevel *slog.Level
 }
 
-func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) {
+func (l *LoggingContext) SetForceLevel(level slog.Level) {
 	l.l.Lock()
 	defer l.l.Unlock()
-	l.ForceLevel = level
+	l.ForceLevel = &level
 }
 
 func (l *LoggingContext) SetExtras(extras ...interface{}) {
@@ -106,12 +124,6 @@ func (l *LoggingContext) SetSkipUser() {
 	l.l.Lock()
 	defer l.l.Unlock()
 	l.SkipUser = true
-}
-
-func (l *LoggingContext) SetSkipError() {
-	l.l.Lock()
-	defer l.l.Unlock()
-	l.SkipError = true
 }
 
 func (l *LoggingContext) SetStartTime() {
@@ -127,46 +139,53 @@ func (l *LoggingContext) SetErrs(err ...error) {
 }
 
 // Log logs the data within the context
-func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
+func (l *LoggingContext) Log(ctx context.Context, logger *slog.Logger) {
 	l.l.Lock()
 	defer l.l.Unlock()
 
+	var lvl slog.Level
 	switch {
-	case len(l.Errs) > 0 && !l.SkipError:
-		logger = level.Error(logger)
+	case l.setLevelError():
+		lvl = slog.LevelError
 	case l.ForceLevel != nil:
-		logger = l.ForceLevel(logger)
+		lvl = *l.ForceLevel
 	default:
-		logger = level.Debug(logger)
+		lvl = slog.LevelDebug
 	}
 
-	var keyvals []interface{}
+	if !logger.Enabled(ctx, lvl) {
+		return
+	}
+
+	attrs := make([]slog.Attr, 0, 8+len(l.Extras)/2)
 
 	if !l.SkipUser {
 		loggedInUser := "unauthenticated"
-		vc, ok := viewer.FromContext(ctx)
-		if ok {
-			loggedInUser = vc.Email()
+		if emailer, ok := UserEmailerFromContext(ctx); ok {
+			loggedInUser = emailer.Email()
 		}
-		keyvals = append(keyvals, "user", loggedInUser)
+		attrs = append(attrs, slog.String("user", loggedInUser))
 	}
-	requestMethod, ok := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
-	if !ok {
-		requestMethod = ""
-	}
-	requestURI, ok := ctx.Value(kithttp.ContextKeyRequestURI).(string)
-	if !ok {
-		requestURI = ""
-	}
-	keyvals = append(keyvals, "method", requestMethod, "uri", requestURI, "took", time.Since(l.StartTime))
+
+	requestMethod, _ := ctx.Value(kithttp.ContextKeyRequestMethod).(string)
+	requestURI, _ := ctx.Value(kithttp.ContextKeyRequestURI).(string)
+	attrs = append(attrs,
+		slog.String("method", requestMethod),
+		slog.String("uri", requestURI),
+		slog.Duration("took", time.Since(l.StartTime)),
+	)
 
 	if len(l.Extras) > 0 {
-		keyvals = append(keyvals, l.Extras...)
+		for i := 0; i < len(l.Extras)-1; i += 2 {
+			key, ok := l.Extras[i].(string)
+			if !ok {
+				continue
+			}
+			attrs = append(attrs, slog.Any(key, l.Extras[i+1]))
+		}
 	}
 
 	if len(l.Errs) > 0 {
-		// Going for string concatenation here instead of json.Marshal mostly to not have to deal with error handling
-		// within this method. kitlog doesn't support slices of strings
 		var (
 			errs         string
 			internalErrs string
@@ -174,7 +193,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		)
 		separator := " || "
 		for _, err := range l.Errs {
-			var ewi fleet.ErrWithInternal
+			var ewi platform_http.ErrWithInternal
 			if errors.As(err, &ewi) {
 				if internalErrs == "" {
 					internalErrs = ewi.Internal()
@@ -188,7 +207,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 					errs += separator + err.Error()
 				}
 			}
-			var ewuuid fleet.ErrorUUIDer
+			var ewuuid platform_http.ErrorUUIDer
 			if errors.As(err, &ewuuid) {
 				if uuid := ewuuid.UUID(); uuid != "" {
 					uuids = append(uuids, uuid)
@@ -196,15 +215,30 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 			}
 		}
 		if len(errs) > 0 {
-			keyvals = append(keyvals, "err", errs)
+			attrs = append(attrs, slog.String("err", errs))
 		}
 		if len(internalErrs) > 0 {
-			keyvals = append(keyvals, "internal", internalErrs)
+			attrs = append(attrs, slog.String("internal", internalErrs))
 		}
 		if len(uuids) > 0 {
-			keyvals = append(keyvals, "uuid", strings.Join(uuids, ","))
+			attrs = append(attrs, slog.String("uuid", strings.Join(uuids, ",")))
 		}
 	}
 
-	_ = logger.Log(keyvals...)
+	logger.LogAttrs(ctx, lvl, "", attrs...)
+}
+
+func (l *LoggingContext) setLevelError() bool {
+	if len(l.Errs) == 0 {
+		return false
+	}
+
+	if len(l.Errs) == 1 {
+		var ew platform_errors.ErrWithIsClientError
+		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
+			return false
+		}
+	}
+
+	return true
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -22,7 +22,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
-	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -60,9 +59,9 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = kitlog.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
@@ -251,7 +250,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			require.Len(t, liveQueryResp.Results[0].Results, 1)
 			result = liveQueryResp.Results[0].Results[0]
 		} else { // customQueryOneHostId(.*)Endpoint
-			assert.Empty(t, liveQueryOnHostResp.Error)
+			assert.Empty(t, liveQueryOnHostResp.Err)
 			assert.Equal(t, host.ID, liveQueryOnHostResp.HostID)
 			assert.Equal(t, fleet.StatusOnline, liveQueryOnHostResp.Status)
 			assert.Equal(t, query, liveQueryOnHostResp.Query)
@@ -277,7 +276,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 					s.ds, func(q sqlx.ExtContext) error {
 						return sqlx.GetContext(
 							context.Background(), q, &details,
-							`SELECT details FROM activities WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
+							`SELECT details FROM activity_past WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
 						)
 					},
 				)
@@ -773,7 +772,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	require.Len(t, liveQueryResp.Results, 1)
 	assert.Equal(t, 0, liveQueryResp.Summary.RespondedHostCount)
 	require.NotNil(t, liveQueryResp.Results[0].Error)
-	assert.Contains(t, *liveQueryResp.Results[0].Error, "Query 999 was not found in the datastore")
+	assert.Contains(t, *liveQueryResp.Results[0].Error, "Report 999 was not found in the datastore")
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
 		HostIDs: []uint{888},
@@ -798,7 +797,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
 
 	liveQueryRequest := runLiveQueryRequest{
 		QueryIDs: []uint{q1.ID},
-		HostIDs:  []uint{math.MaxUint},
+		HostIDs:  []uint{999999999}, // Use large but valid integer instead of MaxUint
 	}
 	liveQueryResp := runLiveQueryResponse{}
 
@@ -810,7 +809,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
 	assert.True(t, strings.Contains(*liveQueryResp.Results[0].Error, "no hosts targeted"))
 
 	oneLiveQueryRequest := runOneLiveQueryRequest{
-		HostIDs: []uint{math.MaxUint},
+		HostIDs: []uint{999999999}, // Use large but valid integer instead of MaxUint
 	}
 	oneLiveQueryResp := runOneLiveQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), oneLiveQueryRequest, http.StatusBadRequest, &oneLiveQueryResp)
@@ -1102,7 +1101,7 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedReadWithFeatures() {
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_users")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_macos")
 
-	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	err = s.ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team.ID, []uint{host.ID}))
 	require.NoError(t, err)
 	err = s.ds.UpdateHostRefetchRequested(context.Background(), host.ID, true)
 	require.NoError(t, err)

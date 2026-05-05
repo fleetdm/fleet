@@ -6,38 +6,40 @@ import (
 )
 
 type StatisticsPayload struct {
-	AnonymousIdentifier           string `json:"anonymousIdentifier"`
-	FleetVersion                  string `json:"fleetVersion"`
-	LicenseTier                   string `json:"licenseTier"`
-	Organization                  string `json:"organization"`
-	NumHostsEnrolled              int    `json:"numHostsEnrolled"`
-	NumUsers                      int    `json:"numUsers"`
-	NumSoftwareVersions           int    `json:"numSoftwareVersions"`
-	NumHostSoftwares              int    `json:"numHostSoftwares"`
-	NumSoftwareTitles             int    `json:"numSoftwareTitles"`
-	NumHostSoftwareInstalledPaths int    `json:"numHostSoftwareInstalledPaths"`
-	NumSoftwareCPEs               int    `json:"numSoftwareCPEs"`
-	NumSoftwareCVEs               int    `json:"numSoftwareCVEs"`
-	NumTeams                      int    `json:"numTeams"`
-	NumPolicies                   int    `json:"numPolicies"`
-	NumQueries                    int    `json:"numQueries"`
-	NumLabels                     int    `json:"numLabels"`
-	SoftwareInventoryEnabled      bool   `json:"softwareInventoryEnabled"`
-	VulnDetectionEnabled          bool   `json:"vulnDetectionEnabled"`
-	SystemUsersEnabled            bool   `json:"systemUsersEnabled"`
-	HostsStatusWebHookEnabled     bool   `json:"hostsStatusWebHookEnabled"`
-	MDMMacOsEnabled               bool   `json:"mdmMacOsEnabled"`
-	HostExpiryEnabled             bool   `json:"hostExpiryEnabled"`
-	MDMWindowsEnabled             bool   `json:"mdmWindowsEnabled"`
-	LiveQueryDisabled             bool   `json:"liveQueryDisabled"`
-	NumWeeklyActiveUsers          int    `json:"numWeeklyActiveUsers"`
+	AnonymousIdentifier            string `json:"anonymousIdentifier"`
+	FleetVersion                   string `json:"fleetVersion"`
+	LicenseTier                    string `json:"licenseTier"`
+	Organization                   string `json:"organization"`
+	NumHostsEnrolled               int    `json:"numHostsEnrolled"`
+	NumHostsABMPending             int    `json:"numHostsABMPending"`
+	NumUsers                       int    `json:"numUsers"`
+	NumSoftwareVersions            int    `json:"numSoftwareVersions"`
+	NumHostSoftwares               int    `json:"numHostSoftwares"`
+	NumSoftwareTitles              int    `json:"numSoftwareTitles"`
+	NumHostSoftwareInstalledPaths  int    `json:"numHostSoftwareInstalledPaths"`
+	NumSoftwareCPEs                int    `json:"numSoftwareCPEs"`
+	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
+	NumTeams                       int    `json:"numTeams"`
+	NumPolicies                    int    `json:"numPolicies"`
+	NumQueries                     int    `json:"numQueries"`
+	NumLabels                      int    `json:"numLabels"`
+	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
+	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
+	SystemUsersEnabled             bool   `json:"systemUsersEnabled"`
+	HostsStatusWebHookEnabled      bool   `json:"hostsStatusWebHookEnabled"`
+	MDMMacOsEnabled                bool   `json:"mdmMacOsEnabled"`
+	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
+	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
+	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
+	LiveQueryDisabled              bool   `json:"liveQueryDisabled"`
+	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count
 	// is incremented. The count increments once per 24-hour interval and resets each week.
 	NumWeeklyPolicyViolationDaysActual int `json:"numWeeklyPolicyViolationDaysActual"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of possible policy violation
 	// days. The count is incremented by the organization's total number of policies
-	// mulitplied by the total number of hosts as of the time the count is incremented. The count
+	// multiplied by the total number of hosts as of the time the count is incremented. The count
 	// increments once per 24-hour interval and resets each week.
 	NumWeeklyPolicyViolationDaysPossible int                                `json:"numWeeklyPolicyViolationDaysPossible"`
 	HostsEnrolledByOperatingSystem       map[string][]HostsCountByOSVersion `json:"hostsEnrolledByOperatingSystem"`
@@ -58,6 +60,25 @@ type StatisticsPayload struct {
 	MaintenanceWindowsConfigured bool `json:"maintenanceWindowsConfigured"`
 	// The number of hosts with Fleet desktop installed.
 	NumHostsFleetDesktopEnabled int `json:"numHostsFleetDesktopEnabled"`
+	// FleetMaintainedAppsMacOS is an array of Fleet-maintained app slugs being used on macOS
+	FleetMaintainedAppsMacOS []string `json:"fleetMaintainedAppsMacOS,omitempty"`
+	// FleetMaintainedAppsWindows is an array of Fleet-maintained app slugs being used on Windows
+	FleetMaintainedAppsWindows []string `json:"fleetMaintainedAppsWindows,omitempty"`
+
+	// ConditionalAccessEnabled indicates whether any team has conditional access enabled.
+	ConditionalAccessEnabled bool `json:"conditionalAccessEnabled"`
+	// OktaConditionalAccessConfigured indicates if the Okta conditional access integration is configured.
+	OktaConditionalAccessConfigured bool `json:"oktaConditionalAccessConfigured"`
+	// ConditionalAccessBypassDisabled indicates if bypass is disabled for Okta.
+	ConditionalAccessBypassDisabled bool `json:"conditionalAccessBypassDisabled"`
+	// EntraConditionalAccessConfigured indicates if the Entra conditional access integration is configured.
+	EntraConditionalAccessConfigured bool `json:"entraConditionalAccessConfigured"`
+
+	// GitOpsModeEnabled indicates whether GitOps mode is enabled in the app config.
+	GitOpsModeEnabled bool `json:"gitOpsModeEnabled"`
+	// GitOpsModeExceptions lists the configured GitOps mode exceptions (e.g. "labels", "software", "secrets").
+	// Exceptions are persisted independently of GitOpsModeEnabled.
+	GitOpsModeExceptions []string `json:"gitOpsModeExceptions"`
 }
 
 type HostsCountByOrbitVersion struct {
@@ -75,5 +96,5 @@ type HostsCountByOSVersion struct {
 }
 
 const (
-	StatisticsFrequency = time.Hour * 24
+	StatisticsFrequency = time.Hour * 1
 )

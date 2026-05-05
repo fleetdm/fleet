@@ -17,6 +17,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-pkg"
   | "file-p7m"
   | "file-pem"
+  | "file-certificate"
 >;
 
 /**
@@ -25,14 +26,16 @@ export type ISupportedGraphicNames = Extract<
  * details, and actions.
  */
 interface IListItemProps {
-  /** The grahpic you want to display for this list item. */
-  graphic: ISupportedGraphicNames;
+  /** The graphic you want to display for this list item. */
+  graphic?: ISupportedGraphicNames;
   title: string | JSX.Element;
-  details: React.ReactNode;
+  details?: React.ReactNode;
   /** A collection of React Nodes that will render as list item actions. Can be
    * used to render buttons, links, etc.
    */
-  actions: React.ReactNode;
+  actions?: React.ReactNode;
+  /** An optional function to call when the user clicks anywhere in the ListItem */
+  onClick?: () => void;
   className?: string;
 }
 
@@ -41,19 +44,20 @@ const ListItem = ({
   title,
   details,
   actions,
+  onClick,
   className,
 }: IListItemProps) => {
   const classNames = classnames(baseClass, className);
   return (
-    <div className={classNames}>
+    <div className={classNames} onClick={onClick}>
       <div className={`${baseClass}__main-content`}>
-        <Graphic name={graphic} />
+        {graphic && <Graphic name={graphic} />}
         <div className={`${baseClass}__info`}>
           <span className={`${baseClass}__title`}>{title}</span>
-          <div className={`${baseClass}__details`}>{details}</div>
+          {details && <div className={`${baseClass}__details`}>{details}</div>}
         </div>
       </div>
-      <div className={`${baseClass}__actions`}>{actions}</div>
+      {actions && <div className={`${baseClass}__actions`}>{actions}</div>}
     </div>
   );
 };

@@ -1,0 +1,8 @@
+{
+  "name": "Connect Fonts",
+  "unique_identifier": "com.extensis.SuitcaseFusion",
+  "token": "connect-fonts",
+  "installer_format": "dmg",
+  "slug": "connect-fonts/darwin",
+  "default_categories": ["Productivity"]
+}

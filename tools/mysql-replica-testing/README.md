@@ -5,9 +5,11 @@ This directory contains scripts to run/test a local Fleet instance with a MySQL 
 ## Run MySQL Main and Read Replica Docker Images
 
 > Run all commands from fleet's root repository directory.
+>
+>The regular `docker compose up` command should be running for the other services to work.
 
 ```sh
-docker-compose -f ./tools/mysql-replica-testing/docker-compose.yml up
+docker compose -f ./tools/mysql-replica-testing/docker-compose.yml up
 ```
 
 ## Configure MySQL Main and Read Replica

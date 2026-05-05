@@ -3,7 +3,6 @@
 package execuser
 
 import (
-	"io"
 	"time"
 )
 
@@ -12,6 +11,7 @@ type eopts struct {
 	args       [][2]string
 	stderrPath string //nolint:structcheck,unused
 	timeout    time.Duration
+	user       string
 }
 
 // Option allows configuring the application.
@@ -38,6 +38,13 @@ func WithTimeout(duration time.Duration) Option {
 	}
 }
 
+// WithUser sets the user to run the application as. Currently only supported on MacOS.
+func WithUser(user string) Option {
+	return func(a *eopts) {
+		a.user = user
+	}
+}
+
 // Run runs an application as the current login user.
 // It assumes the caller is running with high privileges (root on Unix, SYSTEM on Windows).
 //
@@ -61,12 +68,4 @@ func RunWithOutput(path string, opts ...Option) (output []byte, exitCode int, er
 		fn(&o)
 	}
 	return runWithOutput(path, o)
-}
-
-func RunWithStdin(path string, opts ...Option) (io.WriteCloser, error) {
-	var o eopts
-	for _, fn := range opts {
-		fn(&o)
-	}
-	return runWithStdin(path, o)
 }

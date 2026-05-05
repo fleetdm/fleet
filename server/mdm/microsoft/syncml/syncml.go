@@ -108,6 +108,9 @@ const (
 	// This response code will be generated if you try to access a property that the CSP doesn't support
 	CmdStatusOptionalFeature = "406"
 
+	// This response code will be generated if authentication is required to continue the session
+	CmdStatusAuthenticationRequired = "407"
+
 	// Unsupported type or format
 	// This response code can result from XML parsing or formatting errors
 	CmdStatusUnsupportedType = "415"
@@ -171,10 +174,12 @@ const (
 const (
 	FleetBitLockerTargetLocURI = "/Vendor/MSFT/BitLocker"
 	FleetOSUpdateTargetLocURI  = "/Vendor/MSFT/Policy/Config/Update"
+
+	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include BitLocker settings."
 )
 
 // Supported MS-MDE2 enrollment versions
-var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0"}
+var SupportedEnrollmentVersions = []string{"4.0", "5.0", "6.0", "7.0"}
 
 // MS-MDE2 Message constants
 const (
@@ -292,6 +297,9 @@ const (
 
 	// FleetdWindowsInstallerGUID is the GUID used for fleetd on Windows
 	FleetdWindowsInstallerGUID = "./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall"
+
+	AuthMD5       = "syncml:auth-md5"
+	AuthB64Format = "b64"
 )
 
 // MS-MDM Message constants
@@ -315,18 +323,41 @@ const (
 	SyncMLVerProto = "DM/" + SyncMLSupportedVersion
 )
 
-func ForTestWithData(locURIs map[string]string) []byte {
+type TestCommand struct {
+	Verb   string
+	LocURI string
+	Data   string
+}
+
+// Wraps the commands in an <Atomic> element for testing purposes
+func ForTestWithData(commands []TestCommand) []byte {
 	var syncMLBuf bytes.Buffer
-	for locURI, data := range locURIs {
+	for _, command := range commands {
 		syncMLBuf.WriteString(fmt.Sprintf(`
-<Replace>
+<%s>
   <Item>
     <Target>
       <LocURI>%s</LocURI>
     </Target>
     <Data>%s</Data>
   </Item>
-</Replace>`, locURI, data))
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
+	}
+	return fmt.Appendf([]byte{}, "<Atomic>%s</Atomic>", syncMLBuf.Bytes())
+}
+
+func ForTestWithDataNonAtomic(commands []TestCommand) []byte {
+	var syncMLBuf bytes.Buffer
+	for _, command := range commands {
+		syncMLBuf.WriteString(fmt.Sprintf(`
+<%s>
+  <Item>
+	<Target>
+	  <LocURI>%s</LocURI>
+	</Target>
+	<Data>%s</Data>
+  </Item>
+</%s>`, command.Verb, command.LocURI, command.Data, command.Verb))
 	}
 	return syncMLBuf.Bytes()
 }

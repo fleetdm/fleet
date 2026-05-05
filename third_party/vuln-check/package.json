@@ -1,0 +1,20 @@
+{
+  "name": "fleet-inlined-deps-vuln-check",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dummy package for automated vulnerability scanning of inlined frontend dependencies. This package is NOT used in Fleet builds.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fleetdm/fleet.git",
+    "directory": "third_party/vuln-check"
+  },
+  "dependencies": {
+    "node-sql-parser": "5.3.13"
+  },
+  "devDependencies": {},
+  "scripts": {},
+  "engines": {
+    "node": ">=18"
+  }
+}

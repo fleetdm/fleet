@@ -1,0 +1,48 @@
+<Replace>
+  <!-- Enforce screenlock -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/DevicePasswordEnabled</LocURI>
+    </Target>
+    <Data>0</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enforce screenlock after 15 minutes -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MaxInactivityTimeDeviceLock</LocURI>
+    </Target>
+    <Data>15</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enforce PIN or password length (10 characters) -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordLength</LocURI>
+    </Target>
+    <Data>10</Data>
+  </Item>
+</Replace>
+<Replace>
+  <!-- Enforce PIN or password has at least one lowercase letter and at least one number -->
+  <Item>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/DeviceLock/MinDevicePasswordComplexCharacters</LocURI>
+    </Target>
+    <Data>2</Data>
+  </Item>
+</Replace>

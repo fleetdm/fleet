@@ -1,27 +1,25 @@
 import React, { useState, useContext, useCallback } from "react";
 
 import { NotificationContext } from "context/notification";
-import { getErrorReason } from "interfaces/errors";
+
 import mdmAppleAPI from "services/entities/mdm_apple";
 
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
 import { FileUploader } from "components/FileUploader/FileUploader";
 import Modal from "components/Modal";
-import VppSetupSteps from "../VppSetupSteps";
 import { getErrorMessage } from "./helpers";
 
 const baseClass = "modal renew-vpp-modal";
 
 interface IRenewVppModalProps {
   tokenId: number;
-  orgName: string;
   onCancel: () => void;
   onRenewedToken: () => void;
 }
 
 const RenewVppModal = ({
   tokenId,
-  orgName,
   onCancel,
   onRenewedToken,
 }: IRenewVppModalProps) => {
@@ -67,32 +65,33 @@ const RenewVppModal = ({
       isContentDisabled={isRenewing}
       width="large"
     >
-      <>
-        <p className={`${baseClass}__description`}>
-          Renew Volume Purchasing Program for <b>{orgName}</b> location.
-        </p>
-        <VppSetupSteps />
-        <FileUploader
-          className={`${baseClass}__file-uploader`}
-          accept=".vpptoken"
-          message="Content token (.vpptoken)"
-          graphicName="file-vpp"
-          buttonType="link"
-          buttonMessage="Upload"
-          fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
-          onFileUpload={onSelectFile}
+      <p className={`${baseClass}__description`}>
+        Follow the step-by-step guide to renew.{" "}
+        <CustomLink
+          url="https://fleetdm.com/learn-more-about/renew-vpp"
+          text="Learn how"
+          newTab
         />
-        <div className="modal-cta-wrap">
-          <Button
-            variant="brand"
-            onClick={onRenewToken}
-            isLoading={isRenewing}
-            disabled={!tokenFile}
-          >
-            Renew token
-          </Button>
-        </div>
-      </>
+      </p>
+      <FileUploader
+        className={`${baseClass}__file-uploader`}
+        accept=".vpptoken"
+        message="Content token (.vpptoken)"
+        graphicName="file-vpp"
+        buttonType="brand-inverse-icon"
+        buttonMessage="Upload"
+        fileDetails={tokenFile ? { name: tokenFile.name } : undefined}
+        onFileUpload={onSelectFile}
+      />
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onRenewToken}
+          isLoading={isRenewing}
+          disabled={!tokenFile}
+        >
+          Renew token
+        </Button>
+      </div>
     </Modal>
   );
 };

@@ -1,0 +1,8 @@
+{
+  "name": "Thunderbird",
+  "unique_identifier": "org.mozilla.thunderbird",
+  "token": "thunderbird",
+  "installer_format": "dmg",
+  "slug": "thunderbird/darwin",
+  "default_categories": ["Productivity"]
+}

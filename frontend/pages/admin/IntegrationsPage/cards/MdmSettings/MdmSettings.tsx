@@ -1,34 +1,36 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { InjectedRouter } from "react-router";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { AppContext } from "context/app";
 import { IMdmApple } from "interfaces/mdm";
+import { IConfig } from "interfaces/config";
 import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
-import AutomaticEnrollmentSection from "./components/AutomaticEnrollmentSection";
-import VppSection from "./components/VppSection";
-import IdpSection from "./components/IdpSection";
+import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
-import ScepSection from "./components/ScepSection/ScepSection";
+import MicrosoftEntraSection from "./components/MicrosoftEntraSection";
 
 const baseClass = "mdm-settings";
 
 interface IMdmSettingsProps {
   router: InjectedRouter;
+  appConfig?: IConfig;
+  isPremiumTier?: boolean;
 }
 
-const MdmSettings = ({ router }: IMdmSettingsProps) => {
-  const { isPremiumTier, config } = useContext(AppContext);
-
-  const isMdmEnabled = !!config?.mdm.enabled_and_configured;
+const MdmSettings = ({
+  router,
+  appConfig,
+  isPremiumTier = false,
+}: IMdmSettingsProps) => {
+  const isMdmEnabled = !!appConfig?.mdm.enabled_and_configured;
 
   // Currently the status of this API call is what determines various UI states on
   // this page. Because of this we will not render any of this components UI until this API
@@ -39,17 +41,11 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     isError: isAPNSInfoError,
     error: errorAPNSInfo,
   } = useQuery<IMdmApple, AxiosError, IMdmApple>(
-    ["appleAPNInfo"],
+    ["appleAPNInfo", { isMdmEnabled }],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      retry: (tries, error) =>
-        error.status !== 404 && error.status !== 400 && tries <= 3,
-      // TODO: There is a potential race condition here immediately after MDM is turned off. This
-      // component gets remounted and stale config data is used to determine it this API call is
-      // enabled, resulting in a 400 response. The race really should  be fixed higher up the chain where
-      // we're fetching and setting the config, but for now we'll just assume that any 400 response
-      // means that MDM is not enabled and we'll show the "Turn on MDM" button.
+      retry: (tries, error) => error.status !== 404 && tries <= 3,
       staleTime: 5000,
       enabled: isMdmEnabled,
     }
@@ -61,7 +57,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     isLoading: isLoadingVpp,
     isError: isVppError,
   } = useQuery<IGetVppTokensResponse, AxiosError>(
-    "vppInfo",
+    ["vppInfo", { isMdmEnabled }],
     () => mdmAppleAPI.getVppTokens(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -78,7 +74,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
     error: eulaError,
     refetch: refetchEulaMetadata,
   } = useQuery<IEulaMetadataResponse, AxiosError>(
-    ["eula-metadata"],
+    ["eula-metadata", { isMdmEnabled }],
     () => mdmAPI.getEULAMetadata(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -93,8 +89,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   const noVppTokenUploaded = !vppData || !vppData.vpp_tokens.length;
   const hasVppError = isVppError && !noVppTokenUploaded;
-
-  const noScepCredentials = !config?.integrations.ndes_scep_proxy;
 
   // We are relying on the API to give us a 404 to
   // tell use the user has not uploaded a eula.
@@ -124,32 +118,30 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       />
       {!isLoading && !hasError && hasAllData && (
         <>
-          <AutomaticEnrollmentSection
+          <AppleBusinessManagerSection
             router={router}
-            isPremiumTier={!!isPremiumTier}
-          />
-          <VppSection
-            router={router}
+            isPremiumTier={isPremiumTier}
             isVppOn={!noVppTokenUploaded}
-            isPremiumTier={!!isPremiumTier}
           />
-          <ScepSection
+          <MicrosoftEntraSection
             router={router}
-            isScepOn={!noScepCredentials}
-            isPremiumTier={!!isPremiumTier}
+            windowsMdmEnabled={!!appConfig?.mdm.windows_enabled_and_configured}
+            tenantAdded={!!appConfig?.mdm.windows_entra_tenant_ids?.length}
+            isPremiumTier={isPremiumTier}
           />
-          {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
-            <>
-              <IdpSection />
-              <EulaSection
-                eulaMetadata={eulaMetadata}
-                isEulaUploaded={!noEulaUploaded}
-                onUpload={refetchEulaMetadata}
-                onDelete={refetchEulaMetadata}
-              />
-              <EndUserMigrationSection router={router} />
-            </>
-          )}
+          {isPremiumTier &&
+            !!appConfig?.mdm.apple_bm_enabled_and_configured &&
+            isMdmEnabled && (
+              <>
+                <EulaSection
+                  eulaMetadata={eulaMetadata}
+                  isEulaUploaded={!noEulaUploaded}
+                  onUpload={refetchEulaMetadata}
+                  onDelete={refetchEulaMetadata}
+                />
+                <EndUserMigrationSection router={router} />
+              </>
+            )}
         </>
       )}
     </div>

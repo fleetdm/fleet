@@ -137,7 +137,7 @@ func main() {
 			labelSpecSubset := *labelSpec
 			labelSpecSubset.Hosts = batch
 			printf("Applying label %s to %d hosts...\n", labelSpecSubset.Name, len(labelSpecSubset.Hosts))
-			if err := apiClient.ApplyLabels([]*fleet.LabelSpec{&labelSpecSubset}); err != nil {
+			if err := apiClient.ApplyLabels([]*fleet.LabelSpec{&labelSpecSubset}, nil, nil); err != nil {
 				panic(err)
 			}
 			printf("Applied label %s to %d hosts\n", labelSpecSubset.Name, len(labelSpecSubset.Hosts))

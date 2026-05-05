@@ -1,0 +1,8 @@
+{
+  "name": "Snagit",
+  "unique_identifier": "com.TechSmith.Snagit",
+  "token": "snagit",
+  "installer_format": "dmg",
+  "slug": "snagit/darwin",
+  "default_categories": ["Productivity"]
+}

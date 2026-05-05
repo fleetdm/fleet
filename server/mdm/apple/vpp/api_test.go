@@ -6,16 +6,18 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/stretchr/testify/require"
 )
 
 func setupFakeServer(t *testing.T, handler http.HandlerFunc) {
 	server := httptest.NewServer(handler)
-	os.Setenv("FLEET_DEV_VPP_URL", server.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", server.URL, t)
 	t.Cleanup(server.Close)
 }
 
@@ -153,13 +155,22 @@ func TestAssociateAssets(t *testing.T) {
 }
 
 func TestGetAssets(t *testing.T) {
+	originalClient := client
+	client = fleethttp.NewClient(fleethttp.WithTimeout(time.Second))
+	t.Cleanup(func() {
+		client = originalClient
+	})
+
+	var requestCount atomic.Int64
+
 	tests := []struct {
-		name           string
-		token          string
-		filter         *AssetFilter
-		handler        http.HandlerFunc
-		expectedAssets []Asset
-		expectedErrMsg string
+		name             string
+		token            string
+		filter           *AssetFilter
+		handler          http.HandlerFunc
+		expectedAssets   []Asset
+		expectedErrMsg   string
+		expectedRequests int
 	}{
 		{
 			name:  "valid token and filters",
@@ -191,7 +202,8 @@ func TestGetAssets(t *testing.T) {
 				{AdamID: "12345", PricingParam: "STDQ"},
 				{AdamID: "67890", PricingParam: "PLUS"},
 			},
-			expectedErrMsg: "",
+			expectedErrMsg:   "",
+			expectedRequests: 1,
 		},
 		{
 			name:   "server error",
@@ -201,8 +213,9 @@ func TestGetAssets(t *testing.T) {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintln(w, `Internal Server Error`)
 			},
-			expectedAssets: nil,
-			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
+			expectedAssets:   nil,
+			expectedErrMsg:   "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
+			expectedRequests: 1,
 		},
 		{
 			name:   "client error",
@@ -212,16 +225,73 @@ func TestGetAssets(t *testing.T) {
 				w.WriteHeader(http.StatusBadRequest)
 				fmt.Fprintln(w, `{"errorInfo":{},"errorMessage":"Bad Request","errorNumber":400}`)
 			},
-			expectedAssets: nil,
-			expectedErrMsg: "retrieving assets: Apple VPP endpoint returned error: Bad Request (error number: 400)",
+			expectedAssets:   nil,
+			expectedErrMsg:   "retrieving assets: Apple VPP endpoint returned error: Bad Request (error number: 400)",
+			expectedRequests: 1,
+		},
+		{
+			name:   "always times out",
+			token:  "valid_token",
+			filter: nil,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				time.Sleep(time.Second + 500*time.Millisecond) // longer than the 1s client timeout
+				type resp struct {
+					Assets []Asset `json:"assets"`
+				}
+				assets := resp{
+					Assets: []Asset{
+						{AdamID: "12345", PricingParam: "STDQ"},
+						{AdamID: "67890", PricingParam: "PLUS"},
+					},
+				}
+				w.WriteHeader(http.StatusOK)
+				require.NoError(t, json.NewEncoder(w).Encode(assets))
+			},
+			expectedAssets:   nil,
+			expectedErrMsg:   "exceeded",
+			expectedRequests: 3,
+		},
+		{
+			name:   "times out then valid",
+			token:  "valid_token",
+			filter: nil,
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				if requestCount.Load() < 2 {
+					time.Sleep(time.Second + 500*time.Millisecond) // longer than the 1s client timeout
+				}
+
+				type resp struct {
+					Assets []Asset `json:"assets"`
+				}
+				assets := resp{
+					Assets: []Asset{
+						{AdamID: "12345", PricingParam: "STDQ"},
+						{AdamID: "67890", PricingParam: "PLUS"},
+					},
+				}
+				w.WriteHeader(http.StatusOK)
+				require.NoError(t, json.NewEncoder(w).Encode(assets))
+			},
+			expectedAssets: []Asset{
+				{AdamID: "12345", PricingParam: "STDQ"},
+				{AdamID: "67890", PricingParam: "PLUS"},
+			},
+			expectedErrMsg:   "",
+			expectedRequests: 2,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupFakeServer(t, tt.handler)
+			requestCount.Store(0)
 
-			assets, err := GetAssets(tt.token, tt.filter)
+			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestCount.Add(1)
+				tt.handler(w, r)
+			})
+			setupFakeServer(t, h)
+
+			assets, err := GetAssets(t.Context(), tt.token, tt.filter)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
@@ -229,6 +299,7 @@ func TestGetAssets(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, tt.expectedAssets, assets)
 			}
+			require.EqualValues(t, tt.expectedRequests, requestCount.Load())
 		})
 	}
 }
@@ -285,7 +356,7 @@ func TestDoRetryAfter(t *testing.T) {
 			})
 
 			start := time.Now()
-			req, err := http.NewRequest(http.MethodGet, os.Getenv("FLEET_DEV_VPP_URL"), nil)
+			req, err := http.NewRequest(http.MethodGet, dev_mode.Env("FLEET_DEV_VPP_URL"), nil)
 			require.NoError(t, err)
 			err = do[any](req, "test-token", nil)
 			require.NoError(t, err)
@@ -295,15 +366,101 @@ func TestDoRetryAfter(t *testing.T) {
 	}
 }
 
+func TestDoRetry(t *testing.T) {
+	t.Run("retries after 500 with Retry-After", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+
+			// Verify Authorization header appears exactly once
+			authHeaders := r.Header.Values("Authorization")
+			require.Len(t, authHeaders, 1,
+				"expected exactly 1 Authorization header on attempt %d, got %d: %v",
+				calls, len(authHeaders), authHeaders)
+			require.Equal(t, "Bearer test-token", authHeaders[0])
+
+			// Verify POST body is intact
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.NotEmpty(t, body, "request body should not be empty on attempt %d", calls)
+
+			var reqParams AssociateAssetsRequest
+			err = json.Unmarshal(body, &reqParams)
+			require.NoError(t, err, "request body should be valid JSON on attempt %d, got: %q", calls, string(body))
+			require.Equal(t, "462054704", reqParams.Assets[0].AdamID)
+			require.Equal(t, "GXH409KH7X", reqParams.SerialNumbers[0])
+
+			if calls == 1 {
+				// First call: return 500 with Retry-After to trigger retry
+				w.Header().Set("Retry-After", "1")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("{}"))
+				return
+			}
+
+			// Second call: success
+			_, _ = w.Write([]byte(`{"eventId": "evt-123"}`))
+		})
+
+		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
+			SerialNumbers: []string{"GXH409KH7X"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "evt-123", eventID)
+		require.Equal(t, 2, calls)
+	})
+
+	t.Run("retries after error 9646", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+
+			// Verify Authorization header appears exactly once
+			authHeaders := r.Header.Values("Authorization")
+			require.Len(t, authHeaders, 1,
+				"expected exactly 1 Authorization header on attempt %d, got %d: %v",
+				calls, len(authHeaders), authHeaders)
+
+			// Verify POST body is intact
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			require.NotEmpty(t, body, "request body should not be empty on attempt %d", calls)
+
+			var reqParams AssociateAssetsRequest
+			err = json.Unmarshal(body, &reqParams)
+			require.NoError(t, err, "request body should be valid JSON on attempt %d, got: %q", calls, string(body))
+			require.Equal(t, "462054704", reqParams.Assets[0].AdamID)
+
+			if calls == 1 {
+				// First call: return rate-limit error 9646
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte(`{"errorMessage":"Too many requests","errorNumber":9646}`))
+				return
+			}
+
+			// Second call: success
+			_, _ = w.Write([]byte(`{"eventId": "evt-456"}`))
+		})
+
+		eventID, err := AssociateAssets("test-token", &AssociateAssetsRequest{
+			Assets:        []Asset{{AdamID: "462054704", PricingParam: "STDQ"}},
+			SerialNumbers: []string{"GXH409KH7X"},
+		})
+		require.NoError(t, err)
+		require.Equal(t, "evt-456", eventID)
+		require.GreaterOrEqual(t, calls, 2)
+	})
+}
+
 func TestGetBaseURL(t *testing.T) {
 	t.Run("Default URL", func(t *testing.T) {
-		os.Setenv("FLEET_DEV_VPP_URL", "")
 		require.Equal(t, "https://vpp.itunes.apple.com/mdm/v2", getBaseURL())
 	})
 
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
-		os.Setenv("FLEET_DEV_VPP_URL", customURL)
+		dev_mode.SetOverride("FLEET_DEV_VPP_URL", customURL, t)
 		require.Equal(t, customURL, getBaseURL())
 	})
 }

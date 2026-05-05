@@ -92,8 +92,9 @@ func NewPrivateKey() (*rsa.PrivateKey, error) {
 }
 
 type FleetWebsiteError struct {
-	Status  int
-	message string
+	Status   int
+	message  string
+	ExitType string // populated from x-exit response header
 }
 
 func (e FleetWebsiteError) Error() string {
@@ -142,7 +143,11 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
-		return FleetWebsiteError{Status: resp.StatusCode, message: string(b)}
+		return FleetWebsiteError{
+			Status:   resp.StatusCode,
+			message:  string(b),
+			ExitType: resp.Header.Get("x-exit"),
+		}
 	}
 	return nil
 }
@@ -188,7 +193,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 		return nil, fmt.Errorf("parsing CSR body response from fleetdm api: %w", err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes)}
+		return nil, FleetWebsiteError{Status: resp.StatusCode, message: string(respBytes), ExitType: resp.Header.Get("x-exit")}
 	}
 
 	var csrResp websiteSignCSRResponse
@@ -202,27 +207,7 @@ func GetSignedAPNSCSRNoEmail(client *http.Client, csr *x509.CertificateRequest) 
 // NewSCEPCACertKey creates a self-signed CA certificate for use with SCEP and
 // returns the certificate and its private key.
 func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
-	key, err := newPrivateKey()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	caCert := depot.NewCACert(
-		depot.WithYears(10),
-		depot.WithCommonName("Fleet"),
-	)
-
-	crtBytes, err := caCert.SelfSign(rand.Reader, key.Public(), key)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cert, err := x509.ParseCertificate(crtBytes)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cert, key, nil
+	return depot.NewSCEPCACertKey()
 }
 
 // NEWDEPKeyPairPEM generates a new public key certificate and private key for downloading the Apple DEP token.

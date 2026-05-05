@@ -6,11 +6,12 @@ import {
   IMunkiVersionsAggregate,
 } from "interfaces/macadmins";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import munkiVersionsTableHeaders from "./MunkiVersionsTableConfig";
@@ -58,15 +59,19 @@ const Munki = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav secondary>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>Issues</Tab>
-              <Tab>Versions</Tab>
+              <Tab>
+                <TabText>Issues</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Versions</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {errorMacAdmins ? (
-                <TableDataError card />
+                <TableDataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={tableHeaders}
@@ -76,7 +81,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="No Munki issues detected"
                       info="This report is updated every hour to protect the performance of your
       devices."
@@ -93,7 +98,7 @@ const Munki = ({
             </TabPanel>
             <TabPanel>
               {errorMacAdmins ? (
-                <TableDataError card />
+                <TableDataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   columnConfigs={munkiVersionsTableHeaders}
@@ -103,7 +108,7 @@ const Munki = ({
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
                   resultsTitle="Munki"
                   emptyComponent={() => (
-                    <EmptyTable
+                    <EmptyState
                       header="Unable to detect Munki versions"
                       info={
                         <>
@@ -128,7 +133,7 @@ const Munki = ({
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

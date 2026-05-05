@@ -22,8 +22,9 @@ const validate = (formData) => {
     errors.name = "Full name must be present";
   }
 
-  if (password && passwordConfirmation && !validPassword(password)) {
-    errors.password = "Password must meet the criteria below";
+  const { isValid, error } = validPassword(password);
+  if (password && passwordConfirmation && !isValid) {
+    errors.password = error;
   }
 
   if (

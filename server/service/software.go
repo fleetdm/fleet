@@ -30,10 +30,10 @@ type listSoftwareResponse struct {
 	Err             error            `json:"error,omitempty"`
 }
 
-func (r listSoftwareResponse) error() error { return r.Err }
+func (r listSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: use listSoftwareVersionsEndpoint instead
-func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
@@ -63,9 +63,9 @@ type listSoftwareVersionsResponse struct {
 	Err             error                     `json:"error,omitempty"`
 }
 
-func (r listSoftwareVersionsResponse) error() error { return r.Err }
+func (r listSoftwareVersionsResponse) Error() error { return r.Err }
 
-func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSoftwareRequest)
 
 	// always include pagination for new software versions endpoint (not included by default in
@@ -135,7 +135,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 
 type getSoftwareRequest struct {
 	ID     uint  `url:"id"`
-	TeamID *uint `query:"team_id,optional"`
+	TeamID *uint `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getSoftwareResponse struct {
@@ -143,9 +143,9 @@ type getSoftwareResponse struct {
 	Err      error           `json:"error,omitempty"`
 }
 
-func (r getSoftwareResponse) error() error { return r.Err }
+func (r getSoftwareResponse) Error() error { return r.Err }
 
-func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSoftwareRequest)
 
 	software, err := svc.SoftwareByID(ctx, req.ID, req.TeamID, false)
@@ -170,7 +170,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+			return nil, fleet.NewInvalidArgumentError("team_id/fleet_id", fmt.Sprintf("fleet %d does not exist", *teamID)).
 				WithStatus(http.StatusNotFound)
 		}
 	}
@@ -179,6 +179,11 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		return nil, fleet.ErrNoContext
 	}
 
+	// NOTE: The following logic relaxes the restriction so that software metadata (e.g. id, name)
+	// can be returned even if the requesting user does not have permission to view any hosts where the software
+	// is installed. However, host-specific information remains protected and is only available if the
+	// user is authorized for the relevant teams. This ensures basic metadata visibility across all users
+	// while preserving team-based access control for sensitive, host-linked data.
 	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
@@ -188,18 +193,38 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 			// here we use a global admin as filter because we want
 			// to check if the software version exists
 			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-
-			if _, err = svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &filter); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			sw, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &filter)
+			if err != nil {
+				// Not found anywhere
+				return nil, ctxerr.Wrap(ctx, err, "software not found for any team")
 			}
-
-			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+			// Found, but user has no permission to hosts it's installed on.
+			// Instead of PermissionError, return a stub with the name.
+			stub := &fleet.Software{
+				ID:   id,
+				Name: sw.Name,
+			}
+			return stub, nil
 		}
-
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
 
 	return software, nil
+}
+
+func (svc *Service) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+	swLite, err := svc.ds.SoftwareLiteByID(ctx, id)
+	if err != nil {
+		return fleet.SoftwareLite{}, err
+	}
+
+	return swLite, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -215,11 +240,11 @@ type countSoftwareResponse struct {
 	Err   error `json:"error,omitempty"`
 }
 
-func (r countSoftwareResponse) error() error { return r.Err }
+func (r countSoftwareResponse) Error() error { return r.Err }
 
 // Deprecated: counts are now included directly in the listSoftwareVersionsResponse. This
 // endpoint is retained for backwards compatibility.
-func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func countSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countSoftwareRequest)
 	count, err := svc.CountSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {

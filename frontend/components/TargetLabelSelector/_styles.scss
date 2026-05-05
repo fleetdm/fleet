@@ -1,30 +1,26 @@
 .target-label-selector {
+  width: 100%;
   font-size: $x-small;
 
   &__custom-label-chooser {
-    margin-top: $pad-medium;
-  }
-
-  &__description {
-    margin: $pad-medium 0;
-  }
-
-  &__no-labels {
     display: flex;
-    height: 187px;
     flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-    justify-content: center;
+    gap: $pad-medium;
 
-    span {
-      color: $ui-fleet-black-75;
+    // Hardcoded to fit all 3 custom target options (Exclude any, Include all,
+    // Include any) without scrolling
+    .Select-menu-outer {
+      max-height: 260px;
+    }
+
+    .Select-menu {
+      max-height: 244px;
     }
   }
 
   &__checkboxes {
     display: flex;
-    max-height: 187px;
+    max-height: 189px; // Fits 5 options before scrolling
     flex-direction: column;
     border-radius: $border-radius;
     border: 1px solid $ui-fleet-black-10;
@@ -52,6 +48,6 @@
   }
 
   &__label-name {
-    padding-left: $pad-large;
+    padding-left: $pad-small;
   }
 }

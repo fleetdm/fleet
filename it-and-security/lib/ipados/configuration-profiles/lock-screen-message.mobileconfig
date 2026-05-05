@@ -24,7 +24,7 @@
 		</dict>
 	</array>
 	<key>PayloadDisplayName</key>
-	<string>Lock Screen Message</string>
+	<string>Lock Screen message</string>
 	<key>PayloadIdentifier</key>
 	<string>com.fleetdm.lockscreenmessage</string>
 	<key>PayloadRemovalDisallowed</key>

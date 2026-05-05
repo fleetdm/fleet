@@ -3,36 +3,9 @@ package upgrade
 import (
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
-
-func enrollHost(t *testing.T, f *Fleet) string {
-	client, err := f.Client()
-	require.NoError(t, err)
-
-	// enroll a host
-	hostname, err := f.StartHost()
-	require.NoError(t, err)
-
-	// wait until host is enrolled and software is listed
-	require.Eventually(t, func() bool {
-		host, err := client.HostByIdentifier(hostname)
-		if err != nil {
-			t.Logf("get host: %v", err)
-			return false
-		}
-
-		if len(host.Software) == 0 {
-			return false
-		}
-
-		return true
-	}, 5*time.Minute, 5*time.Second)
-
-	return hostname
-}
 
 func TestUpgradeAToB(t *testing.T) {
 	versionA := os.Getenv("FLEET_VERSION_A")
@@ -47,11 +20,15 @@ func TestUpgradeAToB(t *testing.T) {
 
 	f := NewFleet(t, versionA)
 
-	enrollHost(t, f)
+	hostname, err := enrollHost(t, f)
+	require.NoError(t, err)
+	t.Logf("first host %s enrolled successfully", hostname)
 
-	err := f.Upgrade(versionB)
+	err = f.Upgrade(versionA, versionB)
 	require.NoError(t, err)
 
 	// enroll another host with the new version
-	enrollHost(t, f)
+	hostname, err = enrollHost(t, f)
+	require.NoError(t, err)
+	t.Logf("second host %s enrolled successfully", hostname)
 }

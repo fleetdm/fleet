@@ -1,0 +1,371 @@
+import React, { useState } from "react";
+import classnames from "classnames";
+
+import useGitOpsMode from "hooks/useGitOpsMode";
+
+import { ILabelSummary } from "interfaces/label";
+import { PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { IAppStoreApp, isIpadOrIphoneSoftware } from "interfaces/software";
+import { IVppApp } from "services/entities/mdm_apple";
+
+import CustomLink from "components/CustomLink";
+import Radio from "components/forms/fields/Radio";
+import Button from "components/buttons/Button";
+import FileDetails from "components/FileDetails";
+import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
+import TargetLabelSelector from "components/TargetLabelSelector";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+
+import {
+  CUSTOM_TARGET_OPTIONS,
+  generateHelpText,
+  generateSelectedLabels,
+  getCustomTarget,
+  getTargetType,
+} from "pages/SoftwarePage/helpers";
+
+import { generateFormValidation, getUniqueAppId } from "./helpers";
+import SoftwareDeploySlider from "../SoftwareDeploySelector";
+
+const baseClass = "software-vpp-form";
+
+interface IVppAppListItemProps {
+  app: IVppApp;
+  selected: boolean;
+  uniqueAppId: string;
+  onSelect: (software: IVppApp) => void;
+}
+
+const VppAppListItem = ({
+  app,
+  selected,
+  uniqueAppId,
+  onSelect,
+}: IVppAppListItemProps) => {
+  return (
+    <li className={`${baseClass}__list-item`}>
+      <Radio
+        label={
+          <div className={`${baseClass}__app-info`}>
+            <SoftwareIcon url={app.icon_url} />
+            <span>{app.name}</span>
+          </div>
+        }
+        id={`vppApp-${uniqueAppId}`}
+        checked={selected}
+        value={uniqueAppId}
+        name="vppApp"
+        onChange={() => onSelect(app)}
+      />
+      {app.platform && (
+        <div className="app-platform">
+          {PLATFORM_DISPLAY_NAMES[app.platform]}
+        </div>
+      )}
+    </li>
+  );
+};
+
+interface IVppAppListProps {
+  apps: IVppApp[];
+  selectedApp: IVppApp | null;
+  onSelect: (app: IVppApp) => void;
+}
+
+const VppAppList = ({ apps, selectedApp, onSelect }: IVppAppListProps) => {
+  const uniqueSelectedAppId = selectedApp ? getUniqueAppId(selectedApp) : null;
+  return (
+    <div className={`${baseClass}__list-container`}>
+      <ul className={`${baseClass}__list`}>
+        {apps.map((app) => {
+          const uniqueAppId = getUniqueAppId(app);
+          return (
+            <VppAppListItem
+              key={uniqueAppId}
+              app={app}
+              selected={uniqueSelectedAppId === uniqueAppId}
+              uniqueAppId={uniqueAppId}
+              onSelect={onSelect}
+            />
+          );
+        })}
+      </ul>
+    </div>
+  );
+};
+
+export interface ISoftwareVppFormData {
+  selfService: boolean;
+  automaticInstall: boolean;
+  targetType: string;
+  customTarget: string;
+  labelTargets: Record<string, boolean>;
+  selectedApp?: IVppApp | null;
+  categories: string[];
+}
+
+export interface IFormValidation {
+  isValid: boolean;
+  customTarget?: { isValid: boolean };
+}
+
+interface ISoftwareVppFormProps {
+  labels: ILabelSummary[] | null;
+  vppApps?: IVppApp[];
+  softwareVppForEdit?: IAppStoreApp;
+  onSubmit: (formData: ISoftwareVppFormData) => void;
+  isLoading?: boolean;
+  onCancel: () => void;
+  onClickPreviewEndUserExperience: (isIosOrIpadosApp: boolean) => void;
+}
+
+const SoftwareVppForm = ({
+  labels,
+  vppApps,
+  softwareVppForEdit,
+  onSubmit,
+  isLoading = false,
+  onCancel,
+  onClickPreviewEndUserExperience,
+}: ISoftwareVppFormProps) => {
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
+
+  const [formData, setFormData] = useState<ISoftwareVppFormData>(
+    softwareVppForEdit
+      ? {
+          selfService: softwareVppForEdit.self_service || false,
+          automaticInstall: softwareVppForEdit.automatic_install || false,
+          targetType: getTargetType(softwareVppForEdit),
+          customTarget: getCustomTarget(softwareVppForEdit),
+          labelTargets: generateSelectedLabels(softwareVppForEdit),
+          categories: softwareVppForEdit.categories || [],
+        }
+      : {
+          selectedApp: null,
+          selfService: false,
+          automaticInstall: false,
+          targetType: "All hosts",
+          customTarget: "labelsIncludeAny",
+          labelTargets: {},
+          categories: [],
+        }
+  );
+
+  const [formValidation, setFormValidation] = useState<IFormValidation>({
+    isValid: false, // Disables submit before VPP to add is selected and before edit VPP is edited
+  });
+
+  const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+    onSubmit(formData);
+  };
+
+  const onSelectApp = (app: IVppApp) => {
+    if ("selectedApp" in formData) {
+      const newFormData = {
+        ...formData,
+        selectedApp: app,
+        selfService:
+          app.platform === "ios" || app.platform === "ipados"
+            ? false
+            : formData.selfService,
+        automaticInstall:
+          app.platform === "ios" || app.platform === "ipados"
+            ? false
+            : formData.automaticInstall,
+      };
+      setFormData(newFormData);
+      setFormValidation(generateFormValidation(newFormData));
+    }
+  };
+
+  const onToggleSelfService = () => {
+    const newData = { ...formData, selfService: !formData.selfService };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCategory = ({
+    name,
+    value,
+  }: {
+    name: string;
+    value: boolean;
+  }) => {
+    let newCategories: string[];
+
+    if (value) {
+      // Add the name if not already present
+      newCategories = formData.categories.includes(name)
+        ? formData.categories
+        : [...formData.categories, name];
+    } else {
+      // Remove the name if present
+      newCategories = formData.categories.filter((cat) => cat !== name);
+    }
+
+    const newData = {
+      ...formData,
+      categories: newCategories,
+    };
+
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onToggleAutomaticInstall = () => {
+    const newData = {
+      ...formData,
+      automaticInstall: !formData.automaticInstall,
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectTargetType = (value: string) => {
+    const newData = { ...formData, targetType: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectCustomTargetOption = (value: string) => {
+    const newData = { ...formData, customTarget: value };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const onSelectLabel = ({ name, value }: { name: string; value: boolean }) => {
+    const newData = {
+      ...formData,
+      labelTargets: { ...formData.labelTargets, [name]: value },
+    };
+    setFormData(newData);
+    setFormValidation(generateFormValidation(newData));
+  };
+
+  const isSubmitDisabled = !formValidation.isValid;
+
+  const renderContent = () => {
+    // Edit VPP form
+    if (softwareVppForEdit) {
+      const isAppleMobile = isIpadOrIphoneSoftware(softwareVppForEdit.platform);
+      return (
+        <div className={`${baseClass}__form-fields`}>
+          <FileDetails
+            graphicNames="app-store"
+            fileDetails={{
+              name: softwareVppForEdit.name,
+              description: PLATFORM_DISPLAY_NAMES[softwareVppForEdit.platform],
+            }}
+            canEdit={false}
+          />
+          <div className={`${baseClass}__form-frame`}>
+            <SoftwareOptionsSelector
+              platform={softwareVppForEdit.platform}
+              formData={formData}
+              onToggleSelfService={onToggleSelfService}
+              onSelectCategory={onSelectCategory}
+              isEditingSoftware
+              onClickPreviewEndUserExperience={() =>
+                onClickPreviewEndUserExperience(isAppleMobile)
+              }
+            />
+            <TargetLabelSelector
+              selectedTargetType={formData.targetType}
+              selectedCustomTarget={formData.customTarget}
+              selectedLabels={formData.labelTargets}
+              customTargetOptions={CUSTOM_TARGET_OPTIONS}
+              className={`${baseClass}__target`}
+              onSelectTargetType={onSelectTargetType}
+              onSelectCustomTarget={onSelectCustomTargetOption}
+              onSelectLabel={onSelectLabel}
+              labels={labels || []}
+              dropdownHelpText={
+                generateHelpText(false, formData.customTarget) // maps to !automaticInstall help text
+              }
+              subTitle={
+                isAppleMobile
+                  ? "Changing this will also apply to targets for auto-updates."
+                  : ""
+              }
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // Hides deploy slider until app is selected
+    // Hides deploy slider for iOS/iPadOS apps
+    const showDeploySoftwareSlider =
+      !!formData.selectedApp &&
+      !isIpadOrIphoneSoftware(formData.selectedApp.platform);
+
+    // Add VPP form
+    // 4.83+ has no additional options to select beyond the app
+    if (vppApps) {
+      return (
+        <div className={`${baseClass}__form-fields`}>
+          <VppAppList
+            apps={vppApps}
+            selectedApp={formData.selectedApp || null}
+            onSelect={onSelectApp}
+          />
+          <div className={`${baseClass}__help-text`}>
+            These apps were added in Apple Business (AB). To add more apps, head
+            to <CustomLink url="https://business.apple.com" text="AB" newTab />
+          </div>
+          {showDeploySoftwareSlider && (
+            <SoftwareDeploySlider
+              deploySoftware={formData.automaticInstall}
+              onToggleDeploySoftware={onToggleAutomaticInstall}
+            />
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const contentWrapperClasses = classnames(`${baseClass}__content-wrapper`, {
+    [`${baseClass}__content-disabled`]: isLoading,
+  });
+
+  const formContentClasses = classnames(`${baseClass}__form-content`, {
+    [`${baseClass}__form-content--disabled`]: gitOpsModeEnabled,
+  });
+
+  return (
+    <form className={baseClass} onSubmit={onFormSubmit}>
+      {isLoading && <div className={`${baseClass}__overlay`} />}
+      <div className={contentWrapperClasses}>
+        <div className={formContentClasses}>
+          <>{renderContent()}</>
+        </div>
+        <div className={`${baseClass}__action-buttons`}>
+          <GitOpsModeTooltipWrapper
+            entityType="software"
+            position="bottom"
+            tipOffset={8}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                disabled={disableChildren || isSubmitDisabled}
+                isLoading={isLoading}
+                className={`${baseClass}__add-software-btn`}
+              >
+                {softwareVppForEdit ? "Save" : "Add software"}
+              </Button>
+            )}
+          />
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </form>
+  );
+};
+
+export default SoftwareVppForm;

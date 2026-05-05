@@ -19,7 +19,7 @@ func Up_20210819143446(tx *sql.Tx) error {
 			updated_at timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			FOREIGN KEY fk_policies_query_id (query_id) REFERENCES queries(id) ON DELETE RESTRICT
-		);
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`
 	policyMembershipHistoryTable := `
 		CREATE TABLE IF NOT EXISTS policy_membership_history (

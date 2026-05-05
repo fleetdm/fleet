@@ -1,0 +1,8 @@
+{
+  "name": "Elgato Stream Deck",
+  "unique_identifier": "com.elgato.StreamDeck",
+  "token": "elgato-stream-deck",
+  "installer_format": "pkg",
+  "slug": "elgato-stream-deck/darwin",
+  "default_categories": ["Productivity"]
+}

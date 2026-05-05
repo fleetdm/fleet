@@ -7,16 +7,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/platform/logging/testutils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,23 +35,29 @@ type integrationLoggerTestSuite struct {
 	withServer
 	suite.Suite
 
-	buf *bytes.Buffer
+	handler *testutils.TestHandler
 }
 
 func (s *integrationLoggerTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationLoggerTestSuite")
 
-	s.buf = new(bytes.Buffer)
-	logger := log.NewJSONLogger(s.buf)
-	logger = level.NewFilter(logger, level.AllowDebug())
+	s.handler = testutils.NewTestHandler()
+	logger := slog.New(s.handler)
+	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Logger: logger})
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier: fleet.TierPremium,
+		},
+		Logger: logger,
+		Pool:   redisPool,
+	})
 	s.server = server
 	s.users = users
 }
 
 func (s *integrationLoggerTestSuite) TearDownTest() {
-	s.buf.Reset()
+	s.handler.Clear()
 }
 
 func (s *integrationLoggerTestSuite) TestLogger() {
@@ -58,41 +67,41 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 
 	s.getConfig()
 
-	params := fleet.QueryPayload{
-		Name:        ptr.String("somequery"),
-		Description: ptr.String("desc"),
-		Query:       ptr.String("select 1 from osquery;"),
+	params := map[string]any{
+		"name":        "somequery",
+		"description": "desc",
+		"query":       "select 1 from osquery;",
+		"fleet_id":    nil,
 	}
-	var createResp createQueryResponse
+	var createResp fleet.CreateQueryResponse
 	s.DoJSON("POST", "/api/latest/fleet/queries", params, http.StatusOK, &createResp)
 
-	logs := s.buf.String()
-	parts := strings.Split(strings.TrimSpace(logs), "\n")
-	assert.Len(t, parts, 3)
-	for i, part := range parts {
-		kv := make(map[string]string)
-		err := json.Unmarshal([]byte(part), &kv)
-		require.NoError(t, err)
+	records := s.handler.Records()
+	require.Len(t, records, 3)
+	for i, rec := range records {
+		attrs := testutils.RecordAttrs(&rec)
 
-		assert.NotEqual(t, "", kv["took"])
+		assert.Contains(t, attrs, "took")
 
 		switch i {
 		case 0:
-			assert.Equal(t, "info", kv["level"])
-			assert.Equal(t, "POST", kv["method"])
-			assert.Equal(t, "/api/latest/fleet/login", kv["uri"])
+			assert.Equal(t, slog.LevelInfo, rec.Level)
+			assert.Equal(t, "POST", attrs["method"])
+			assert.Equal(t, "/api/latest/fleet/login", attrs["uri"])
 		case 1:
-			assert.Equal(t, "debug", kv["level"])
-			assert.Equal(t, "GET", kv["method"])
-			assert.Equal(t, "/api/latest/fleet/config", kv["uri"])
-			assert.Equal(t, "admin1@example.com", kv["user"])
+			assert.Equal(t, slog.LevelDebug, rec.Level)
+			assert.Equal(t, "GET", attrs["method"])
+			assert.Equal(t, "/api/latest/fleet/config", attrs["uri"])
+			assert.Equal(t, "admin1@example.com", attrs["user"])
 		case 2:
-			assert.Equal(t, "debug", kv["level"])
-			assert.Equal(t, "POST", kv["method"])
-			assert.Equal(t, "/api/latest/fleet/queries", kv["uri"])
-			assert.Equal(t, "admin1@example.com", kv["user"])
-			assert.Equal(t, "somequery", kv["name"])
-			assert.Equal(t, "select 1 from osquery;", kv["sql"])
+			assert.Equal(t, slog.LevelWarn, rec.Level) // Warn because /queries is a deprecated path
+			assert.Equal(t, "POST", attrs["method"])
+			assert.Equal(t, "/api/latest/fleet/queries", attrs["uri"])
+			assert.Equal(t, "admin1@example.com", attrs["user"])
+			assert.Equal(t, "somequery", attrs["name"])
+			assert.Equal(t, "select 1 from osquery;", attrs["sql"])
+			assert.Equal(t, "/api/_version_/fleet/queries", attrs["deprecated_path"])
+			assert.Contains(t, attrs["deprecation_warning"], "deprecated")
 		default:
 			t.Fail()
 		}
@@ -102,36 +111,38 @@ func (s *integrationLoggerTestSuite) TestLogger() {
 func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	t := s.T()
 
-	type logEntry struct {
+	type expectedAttr struct {
 		key string
-		val string
+		val any
 	}
 
 	testCases := []struct {
-		loginRequest   loginRequest
+		loginRequest   contract.LoginRequest
 		expectedStatus int
-		expectedLogs   []logEntry
+		expectedLevel  slog.Level
+		expectedAttrs  []expectedAttr
 	}{
 		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
+			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: testUsers["admin1"].PlaintextPassword},
 			expectedStatus: http.StatusOK,
-			expectedLogs:   []logEntry{{"email", testUsers["admin1"].Email}},
+			expectedLevel:  slog.LevelInfo,
+			expectedAttrs:  []expectedAttr{{"email", testUsers["admin1"].Email}},
 		},
 		{
-			loginRequest:   loginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
+			loginRequest:   contract.LoginRequest{Email: testUsers["admin1"].Email, Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
-			expectedLogs: []logEntry{
+			expectedLevel:  slog.LevelInfo,
+			expectedAttrs: []expectedAttr{
 				{"email", testUsers["admin1"].Email},
-				{"level", "error"},
 				{"internal", "invalid password"},
 			},
 		},
 		{
-			loginRequest:   loginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
+			loginRequest:   contract.LoginRequest{Email: "h4x0r@3x4mp13.c0m", Password: "n074v411dp455w02d"},
 			expectedStatus: http.StatusUnauthorized,
-			expectedLogs: []logEntry{
+			expectedLevel:  slog.LevelInfo,
+			expectedAttrs: []expectedAttr{
 				{"email", "h4x0r@3x4mp13.c0m"},
-				{"level", "error"},
 				{"internal", "user not found"},
 			},
 		},
@@ -139,18 +150,18 @@ func (s *integrationLoggerTestSuite) TestLoggerLogin() {
 	var resp loginResponse
 	for _, tt := range testCases {
 		s.DoJSON("POST", "/api/latest/fleet/login", tt.loginRequest, tt.expectedStatus, &resp)
-		logString := s.buf.String()
-		parts := strings.Split(strings.TrimSpace(logString), "\n")
-		require.Len(t, parts, 1)
-		logData := make(map[string]string)
-		require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
 
-		require.NotContains(t, logData, "user") // logger context is set to skip user
+		records := s.handler.Records()
+		require.Len(t, records, 1)
+		assert.Equal(t, tt.expectedLevel, records[0].Level)
 
-		for _, e := range tt.expectedLogs {
-			assert.Equal(t, e.val, logData[e.key], fmt.Sprintf("%+v", tt.expectedLogs))
+		attrs := testutils.RecordAttrs(&records[0])
+		require.NotContains(t, attrs, "user") // logger context is set to skip user
+
+		for _, e := range tt.expectedAttrs {
+			assert.Equal(t, e.val, attrs[e.key], fmt.Sprintf("%+v", tt.expectedAttrs))
 		}
-		s.buf.Reset()
+		s.handler.Clear()
 	}
 }
 
@@ -189,8 +200,21 @@ func (s *integrationLoggerTestSuite) TestOsqueryEndpointsLogErrors() {
 	assert.Equal(t, "json decoder error", jsn.Errs[0]["reason"])
 	require.NotEmpty(t, jsn.UUID)
 
-	logString := s.buf.String()
-	assert.Contains(t, logString, `invalid character '}' looking for beginning of value","level":"info","path":"/api/osquery/log","uuid":"`+jsn.UUID+`"}`, logString)
+	records := s.handler.Records()
+	require.NotEmpty(t, records)
+	var foundErrRecord bool
+	for i := range records {
+		attrs := testutils.RecordAttrs(&records[i])
+		if attrs["uuid"] == jsn.UUID {
+			foundErrRecord = true
+			assert.Equal(t, slog.LevelInfo, records[i].Level)
+			assert.Equal(t, "/api/osquery/log", attrs["path"])
+			assert.Contains(t, fmt.Sprint(attrs["internal"]), `invalid character '}' looking for beginning of value`)
+			assert.Contains(t, attrs, "took")
+			break
+		}
+	}
+	require.True(t, foundErrRecord, "expected a log record with uuid %s", jsn.UUID)
 }
 
 func (s *integrationLoggerTestSuite) TestSubmitLog() {
@@ -210,6 +234,22 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	})
 	require.NoError(t, err)
 
+	assertIPAddrLogged := func(records []slog.Record) {
+		t.Helper()
+		var ipAddrCount, xForIPAddrCount int
+		for i := range records {
+			attrs := testutils.RecordAttrs(&records[i])
+			if _, ok := attrs["ip_addr"]; ok {
+				ipAddrCount++
+			}
+			if _, ok := attrs["x_for_ip_addr"]; ok {
+				xForIPAddrCount++
+			}
+		}
+		assert.Equal(t, 1, ipAddrCount)
+		assert.Equal(t, 1, xForIPAddrCount)
+	}
+
 	// submit status logs
 	req := submitLogsRequest{
 		NodeKey: *h.NodeKey,
@@ -219,10 +259,8 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	res := submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
-	logString := s.buf.String()
-	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
-	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
-	s.buf.Reset()
+	assertIPAddrLogged(s.handler.Records())
+	s.handler.Clear()
 
 	// submit results logs
 	req = submitLogsRequest{
@@ -233,10 +271,8 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	res = submitLogsResponse{}
 	s.DoJSON("POST", "/api/osquery/log", req, http.StatusOK, &res)
 
-	logString = s.buf.String()
-	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
-	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
-	s.buf.Reset()
+	assertIPAddrLogged(s.handler.Records())
+	s.handler.Clear()
 
 	// submit invalid type logs
 	req = submitLogsRequest{
@@ -247,7 +283,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	var errRes map[string]string
 	s.DoJSON("POST", "/api/osquery/log", req, http.StatusInternalServerError, &errRes)
 	assert.Contains(t, errRes["error"], "unknown log type")
-	s.buf.Reset()
+	s.handler.Clear()
 
 	// submit gzip-encoded request
 	var body bytes.Buffer
@@ -261,15 +297,13 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	require.NoError(t, gw.Close())
 
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusOK, map[string]string{"Content-Encoding": "gzip"})
-	logString = s.buf.String()
-	assert.Equal(t, 1, strings.Count(logString, `"ip_addr"`))
-	assert.Equal(t, 1, strings.Count(logString, "x_for_ip_addr"))
+	assertIPAddrLogged(s.handler.Records())
 
 	// submit same payload without specifying gzip encoding fails
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
-func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
+func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	t := s.T()
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -284,7 +318,7 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 	})
 	require.NoError(t, err)
 
-	j, err := json.Marshal(&enrollAgentRequest{
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
 		EnrollSecret:   "1234",
 		HostIdentifier: "4321",
 		HostDetails:    nil,
@@ -293,11 +327,90 @@ func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
 
 	s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusUnauthorized)
 
-	parts := strings.Split(strings.TrimSpace(s.buf.String()), "\n")
-	require.Len(t, parts, 1)
-	logData := make(map[string]json.RawMessage)
-	require.NoError(t, json.Unmarshal([]byte(parts[0]), &logData))
-	assert.Equal(t, `"error"`, string(logData["level"]))
-	assert.Contains(t, string(logData["err"]), `"enroll failed:`)
-	assert.Contains(t, string(logData["err"]), `no matching secret found`)
+	records := s.handler.Records()
+	require.Len(t, records, 1)
+	assert.Equal(t, slog.LevelInfo, records[0].Level)
+	attrs := testutils.RecordAttrs(&records[0])
+	errStr := fmt.Sprint(attrs["err"])
+	assert.Contains(t, errStr, "enroll failed:")
+	assert.Contains(t, errStr, "no matching secret found")
+}
+
+func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogErrorIfNotFound() {
+	t := s.T()
+
+	appConf, err := s.ds.AppConfig(context.Background())
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	s.token = getTestAdminToken(t, s.server)
+	s.Do("GET", "/api/v1/fleet/setup_experience/eula/metadata", nil, http.StatusNotFound)
+
+	records := s.handler.Records()
+	require.Len(t, records, 2) // Login and not found
+
+	assert.Equal(t, slog.LevelInfo, records[1].Level)
+	attrs := testutils.RecordAttrs(&records[1])
+	assert.Equal(t, "not found", fmt.Sprint(attrs["err"]))
+}
+
+func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToken() {
+	t := s.T()
+	ctx := t.Context()
+
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsEmptyBinarySecurityToken(s.server.URL, *host.OrbitNodeKey)
+	err = mdmDevice.Enroll()
+	require.Error(t, err)
+
+	records := s.handler.Records()
+
+	var foundDiscovery, foundPolicy, foundEnroll bool
+	for i := range records {
+		attrs := testutils.RecordAttrs(&records[i])
+		uri, _ := attrs["uri"].(string)
+
+		switch uri {
+		case microsoft_mdm.MDE2DiscoveryPath:
+			foundDiscovery = true
+		case microsoft_mdm.MDE2PolicyPath:
+			foundPolicy = true
+			require.Equal(t, slog.LevelInfo, records[i].Level)
+			require.Equal(t, "binarySecurityToken is empty", attrs["soap_fault"])
+		case microsoft_mdm.MDE2EnrollPath:
+			foundEnroll = true
+		}
+	}
+	require.True(t, foundDiscovery)
+	require.True(t, foundPolicy)
+	// Will not enroll due to soap fault on prior request
+	require.False(t, foundEnroll)
 }

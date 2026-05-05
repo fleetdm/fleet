@@ -14,9 +14,9 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -25,7 +25,6 @@ import (
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -129,7 +128,7 @@ func TestAppConfigAuth(t *testing.T) {
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
-			true,
+			false,
 		},
 		{
 			"user without roles",
@@ -227,6 +226,7 @@ func TestEnrollSecretAuth(t *testing.T) {
 	ds.GetEnrollSecretsFunc = func(ctx context.Context, tid *uint) ([]*fleet.EnrollSecret, error) {
 		return nil, nil
 	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	testCases := []struct {
 		name            string
@@ -300,8 +300,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
 	// Dry run
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return true, nil
 	}
@@ -313,8 +313,8 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run fails
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
-		assert.False(t, new)
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		assert.False(t, isNew)
 		assert.Nil(t, teamID)
 		return false, nil
 	}
@@ -326,7 +326,7 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 
 	// Dry run with error
 	ds.IsEnrollSecretAvailableFuncInvoked = false
-	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 		return false, assert.AnError
 	}
 	err = svc.ApplyEnrollSecretSpec(
@@ -334,6 +334,11 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	assert.True(t, ds.IsEnrollSecretAvailableFuncInvoked)
 	assert.Equal(t, assert.AnError, err)
+
+	ds.GetEnrollSecretsFunc = func(ctx context.Context, teamID *uint) ([]*fleet.EnrollSecret, error) {
+		return nil, nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return &fleet.AppConfig{}, nil }
 
 	ds.IsEnrollSecretAvailableFunc = nil
 	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
@@ -344,15 +349,6 @@ func TestApplyEnrollSecretWithGlobalEnrollConfig(t *testing.T) {
 	)
 	require.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	require.NoError(t, err)
-
-	// try to change the enroll secret with the config set
-	ds.ApplyEnrollSecretsFuncInvoked = false
-	cfg.Packaging.GlobalEnrollSecret = "xyz"
-	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil)
-	ctx = test.UserContext(ctx, test.UserAdmin)
-	err = svc.ApplyEnrollSecretSpec(ctx, &fleet.EnrollSecretSpec{Secrets: []*fleet.EnrollSecret{{Secret: "DEF"}}}, fleet.ApplySpecOptions{})
-	require.Error(t, err)
-	require.False(t, ds.ApplyEnrollSecretsFuncInvoked)
 }
 
 func TestCertificateChain(t *testing.T) {
@@ -412,7 +408,6 @@ func TestNeedFieldsPresent(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			},
@@ -429,7 +424,6 @@ func TestShortIDPName(t *testing.T) {
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				// A customer once found the Fleet server erroring when they used "SSO" for their IdP name.
 				IDPName: "SSO",
@@ -446,9 +440,8 @@ func TestMissingMetadata(t *testing.T) {
 		SSOSettings: &fleet.SSOSettings{
 			EnableSSO: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			},
 		},
 	}
@@ -491,7 +484,6 @@ func TestJITProvisioning(t *testing.T) {
 			EnableJITProvisioning: true,
 			SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				IDPName:     "onelogin",
 				MetadataURL: "http://isser.metadata.com",
 			},
@@ -547,7 +539,19 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 					{APIToken: "zendesktoken"},
 				},
 				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{ApiKey: map[string]string{fleet.GoogleCalendarPrivateKey: "google-calendar-private-key"}},
+					{ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						"type":                         "service_account",
+						"project_id":                   "test-project-123",
+						"private_key_id":               "key-id-456",
+						fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----",
+						fleet.GoogleCalendarEmail:      "test@test-project.iam.gserviceaccount.com",
+						"client_id":                    "123456789",
+						"auth_uri":                     "https://accounts.google.com/o/oauth2/auth",
+						"token_uri":                    "https://oauth2.googleapis.com/token",
+						"auth_provider_x509_cert_url":  "https://www.googleapis.com/oauth2/v1/certs",
+						"client_x509_cert_url":         "https://www.googleapis.com/robot/v1/metadata/x509/test",
+						"universe_domain":              "googleapis.com",
+					}}},
 				},
 			},
 		}, nil
@@ -606,7 +610,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		{
 			"team gitops",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			true,
+			false,
 		},
 		{
 			"user without roles",
@@ -626,8 +630,8 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
-				// Google Calendar private key is not obfuscated
-				require.Equal(t, ac.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey], "google-calendar-private-key")
+				// Verify Google Calendar API key is masked (will serialize to "********")
+				require.True(t, ac.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 			}
 		})
 	}
@@ -696,60 +700,63 @@ func TestModifyAppConfigSMTPConfigured(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPConfigured)
 }
 
-// TestTransparencyURL tests that Fleet Premium licensees can use custom transparency urls and Fleet
-// Free licensees are restricted to the default transparency url.
-func TestTransparencyURL(t *testing.T) {
+// TestAppConfigFleetDesktopSettings tests that Fleet Premium licensees can set Fleet Desktop custom settings and that
+// Fleet Free licensees are restricted.
+func TestModifyAppConfigFleetDesktopSettings(t *testing.T) {
 	ds := new(mock.Store)
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	checkLicenseErr := func(t *testing.T, shouldFail bool, err error) {
-		if shouldFail {
-			require.Error(t, err)
-			require.ErrorContains(t, err, "missing or invalid license")
-		} else {
-			require.NoError(t, err)
-		}
-	}
 	testCases := []struct {
 		name             string
 		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		initialSettings  fleet.FleetDesktopSettings
+		newSettings      fleet.FleetDesktopSettings
+		expectedSettings fleet.FleetDesktopSettings
+		invalid          []map[string]string
 	}{
 		{
-			name:             "customURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "",
-			shouldFailModify: true,
+			name:             "modifying Desktop settings on Free Tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "missing or invalid license"},
+				{"name": "alternative_browser_host", "reason": "missing or invalid license"},
+			},
 		},
 		{
-			name:             "customURL",
+			name:             "modifying Desktop settings on Premium Tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "",
-			newURL:           "customURL",
-			expectedURL:      "customURL",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
+			expectedSettings: fleet.FleetDesktopSettings{TransparencyURL: "customURL", AlternativeBrowserHost: "something.com"},
 		},
 		{
-			name:             "emptyURL",
-			licenseTier:      "free",
-			initialURL:       "",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			name:             "empty values on Free tier",
+			licenseTier:      fleet.TierFree,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
 		},
 		{
-			name:             "emptyURL",
+			name:             "empty values on Premium tier",
 			licenseTier:      fleet.TierPremium,
-			initialURL:       "customURL",
-			newURL:           "",
-			expectedURL:      "",
-			shouldFailModify: false,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{},
+			expectedSettings: fleet.FleetDesktopSettings{},
+		},
+		{
+			name:             "using invalid values",
+			licenseTier:      fleet.TierPremium,
+			initialSettings:  fleet.FleetDesktopSettings{},
+			newSettings:      fleet.FleetDesktopSettings{TransparencyURL: "@:13.com", AlternativeBrowserHost: "@:12.com"},
+			expectedSettings: fleet.FleetDesktopSettings{},
+			invalid: []map[string]string{
+				{"name": "transparency_url", "reason": "parse \"@:13.com\": first path segment in URL cannot contain colon"},
+				{"name": "alternative_browser_host", "reason": "must be a valid hostname or IP address"},
+			},
 		},
 	}
 
@@ -765,13 +772,12 @@ func TestTransparencyURL(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					ServerURL: "https://example.org",
 				},
-				FleetDesktop: fleet.FleetDesktopSettings{TransparencyURL: tt.initialURL},
+				FleetDesktop: tt.initialSettings,
 			}
 
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return dsAppConfig, nil
 			}
-
 			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
 				*dsAppConfig = *conf
 				return nil
@@ -780,31 +786,57 @@ func TestTransparencyURL(t *testing.T) {
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 				return nil
 			}
-
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 				return []*fleet.VPPTokenDB{}, nil
 			}
-
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
 				return []*fleet.ABMToken{}, nil
 			}
 
 			ac, err := svc.AppConfigObfuscated(ctx)
 			require.NoError(t, err)
-			require.Equal(t, tt.initialURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+			require.Equal(t, tt.initialSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 
-			raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: tt.newURL})
+			raw, err := json.Marshal(tt.newSettings)
 			require.NoError(t, err)
 			raw = []byte(`{"fleet_desktop":` + string(raw) + `}`)
 			modified, err := svc.ModifyAppConfig(ctx, raw, fleet.ApplySpecOptions{})
-			checkLicenseErr(t, tt.shouldFailModify, err)
 
+			if len(tt.invalid) != 0 {
+				var invalid *fleet.InvalidArgumentError
+				ok := errors.As(err, &invalid)
+				require.True(t, ok)
+				require.Equal(t, tt.invalid, invalid.Invalid())
+			}
 			if modified != nil {
-				require.Equal(t, tt.expectedURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, modified.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, modified.FleetDesktop.AlternativeBrowserHost)
+
 				ac, err = svc.AppConfigObfuscated(ctx)
 				require.NoError(t, err)
-				require.Equal(t, tt.expectedURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.TransparencyURL, ac.FleetDesktop.TransparencyURL)
+				require.Equal(t, tt.expectedSettings.AlternativeBrowserHost, ac.FleetDesktop.AlternativeBrowserHost)
 			}
+
+			expectedURL := fleet.DefaultTransparencyURL
+			expectedSecureframeURL := fleet.SecureframeTransparencyURL
+			if tt.expectedSettings.TransparencyURL != "" {
+				expectedURL = tt.expectedSettings.TransparencyURL
+				expectedSecureframeURL = tt.expectedSettings.TransparencyURL
+			}
+
+			transparencyURL, err := svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedURL, transparencyURL)
+
+			cfg := config.TestConfig()
+			cfg.Partnerships.EnableSecureframe = true
+			svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+			transparencyURL, err = svc.GetTransparencyURL(ctx)
+			require.NoError(t, err)
+			require.Equal(t, expectedSecureframeURL, transparencyURL)
 		})
 	}
 }
@@ -816,7 +848,8 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	cfg := config.TestConfig()
+	svc, ctx := newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 	dsAppConfig := &fleet.AppConfig{
@@ -854,6 +887,19 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/transparency", ac.FleetDesktop.TransparencyURL)
 
+	// delivered URL should be the default one
+	transparencyUrl, err := svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.DefaultTransparencyURL, transparencyUrl)
+
+	// delivered URL should be the Secureframe one if we have that config value set
+	cfg.Partnerships.EnableSecureframe = true
+	svc, ctx = newTestServiceWithConfig(t, ds, cfg, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: "free"}})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+	transparencyUrl, err = svc.GetTransparencyURL(ctx)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SecureframeTransparencyURL, transparencyUrl)
+
 	// setting transparency url fails
 	raw, err := json.Marshal(fleet.FleetDesktopSettings{TransparencyURL: "https://f1337.com/transparency"})
 	require.NoError(t, err)
@@ -876,7 +922,7 @@ func TestTransparencyURLDowngradeLicense(t *testing.T) {
 	require.Equal(t, "", ac.FleetDesktop.TransparencyURL)
 }
 
-func TestMDMAppleConfig(t *testing.T) {
+func TestMDMConfig(t *testing.T) {
 	ds := new(mock.Store)
 	depStorage := new(nanodep_mock.Storage)
 
@@ -913,10 +959,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -924,24 +974,35 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
-		}, {
+		},
+		{
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:          "notFoundNew",
 			licenseTier:   "premium",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:          "notFoundEdit",
 			licenseTier:   "premium",
 			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:        "foundNew",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -953,10 +1014,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -964,8 +1029,16 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
-		}, {
+		},
+		{
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -978,10 +1051,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -989,14 +1066,23 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
-		}, {
+		},
+		{
 			name:          "ssoFree",
 			licenseTier:   "free",
 			findTeam:      true,
 			newMDM:        fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:        "ssoFreeNoChanges",
 			licenseTier: "free",
 			findTeam:    true,
@@ -1009,10 +1095,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1020,14 +1110,21 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
-		}, {
+		},
+		{
 			name:        "ssoAllFields",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
@@ -1035,7 +1132,6 @@ func TestMDMAppleConfig(t *testing.T) {
 				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 					EntityID:    "fleet",
-					IssuerURI:   "http://issuer.idp.com",
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
@@ -1043,10 +1139,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1054,51 +1154,92 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
-		}, {
+		},
+		{
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "f",
-				IssuerURI:   "http://issuer.idp.com",
 				MetadataURL: "http://isser.metadata.com",
 				IDPName:     "onelogin",
 			}}},
-			expectedError: "validation failed: entity_id must be 5 or more characters",
-		}, {
+			expectedMDM: fleet.MDM{
+				AppleBusinessManager: optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{Set: true, Value: []fleet.MDMAppleABMAssignmentInfo{}},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "f",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+				MacOSSetup: fleet.MacOSSetup{
+					BootstrapPackage:            optjson.String{Set: true},
+					MacOSSetupAssistant:         optjson.String{Set: true},
+					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
+					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
+					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
+				},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
+				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
+				WindowsUpdates:          fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
+			},
+		},
+		{
 			name:        "ssoMissingMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				IDPName:   "onelogin",
+				EntityID: "fleet",
+				IDPName:  "onelogin",
 			}}},
 			expectedError: "either metadata or metadata_url must be defined",
-		}, {
+		},
+		{
 			name:        "ssoMultiMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
 				EntityID:    "fleet",
-				IssuerURI:   "http://issuer.idp.com",
 				Metadata:    "not-empty",
 				MetadataURL: "not-empty",
 				IDPName:     "onelogin",
 			}}},
-			expectedError: "metadata both metadata and metadata_url are defined, only one is allowed",
-		}, {
+			expectedError: "invalid URI for request",
+		},
+		{
 			name:        "ssoIdPName",
 			licenseTier: "premium",
 			findTeam:    true,
 			newMDM: fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:  "fleet",
-				IssuerURI: "http://issuer.idp.com",
-				Metadata:  "not-empty",
+				EntityID: "fleet",
+				Metadata: "not-empty",
 			}}},
 			expectedError: "idp_name required",
-		}, {
+		},
+		{
 			name:        "disableDiskEncryption",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
@@ -1111,10 +1252,14 @@ func TestMDMAppleConfig(t *testing.T) {
 					BootstrapPackage:            optjson.String{Set: true},
 					MacOSSetupAssistant:         optjson.String{Set: true},
 					EnableReleaseDeviceManually: optjson.SetBool(false),
+					EnableManagedLocalAccount:   optjson.SetBool(false),
+					EndUserLocalAccountType:     optjson.SetString("admin"),
+					LockEndUserInfo:             optjson.SetBool(false),
 					Software:                    optjson.Slice[*fleet.MacOSSetupSoftware]{Set: true, Value: []*fleet.MacOSSetupSoftware{}},
 					Script:                      optjson.String{Set: true},
+					ManualAgentInstall:          optjson.Bool{Set: true},
 				},
-				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				MacOSUpdates:            fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}, UpdateNewHosts: optjson.Bool{Set: true}},
 				IOSUpdates:              fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				IPadOSUpdates:           fleet.AppleOSUpdateSettings{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				VolumePurchasingProgram: optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{Set: true, Value: []fleet.MDMAppleVolumePurchasingProgramInfo{}},
@@ -1122,7 +1267,116 @@ func TestMDMAppleConfig(t *testing.T) {
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
+				AndroidSettings: fleet.AndroidSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+					Certificates:   optjson.Slice[fleet.CertificateTemplateSpec]{Set: true, Value: []fleet.CertificateTemplateSpec{}},
+				},
+				RequireBitLockerPIN:        optjson.Bool{Set: true, Value: false},
+				EnableRecoveryLockPassword: optjson.Bool{Set: true, Value: false},
+				WindowsEntraTenantIDs:      optjson.Slice[string]{Set: true, Value: []string{}},
 			},
+		},
+		{
+			name:        "try to disable disk encryption with TPM PIN enabled",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				RequireBitLockerPIN:  optjson.SetBool(true),
+			},
+			newMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(true),
+			},
+			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+		{
+			name:        "try to enable disk encryption with TPM PIN enabled",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(false),
+			},
+			newMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(true),
+			},
+			expectedError: fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
+		},
+		{
+			name:        "try to disable disk encryption with TPM PIN enabled when disk encryption prev enabled",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				RequireBitLockerPIN:  optjson.SetBool(false),
+			},
+			newMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+				RequireBitLockerPIN:  optjson.SetBool(true),
+			},
+			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+		{
+			name:        "manual_agent_install enabled without bootstrap package",
+			licenseTier: "premium",
+			oldMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(false),
+				},
+			},
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					ManualAgentInstall: optjson.SetBool(true),
+				},
+			},
+			expectedError: "setup_experience.macos_manual_agent_install Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.",
+		},
+		{
+			name:        "try to disable End User Authentication with Lock End User Info enabled",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				MacOSSetup: fleet.MacOSSetup{
+					LockEndUserInfo:             optjson.SetBool(true),
+					EnableEndUserAuthentication: false,
+				},
+				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{
+					EntityID:    "fleet",
+					MetadataURL: "http://isser.metadata.com",
+					IDPName:     "onelogin",
+				}},
+			},
+			expectedError: `"enable_end_user_authentication" must be set to "true"`,
+		},
+		{
+			name:        "apple MDM server URL no protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL must include a URL scheme",
+		},
+		{
+			name:        "apple MDM server URL invalid protocol",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "ftp://bogus.url.com",
+			},
+			expectedError: "mdmAppleServerURL URL scheme must be http or https",
+		},
+		{
+			name:        "apple MDM server invalid URL",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http://[::1]:namedport",
+			},
+			expectedError: "mdmAppleServerURL must be a valid URL",
+		},
+		{
+			name:        "apple MDM server no host",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				AppleServerURL: "http:///path-only",
+			},
+			expectedError: "mdmAppleServerURL must include a host",
 		},
 	}
 
@@ -1311,11 +1565,6 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 		*dsAppConfig = *conf
 		return nil
 	}
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
@@ -1337,8 +1586,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.True(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending sso_settings or agent settings will not change them, and
 	// sending SMTP settings will change them.
@@ -1350,8 +1599,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.True(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.True(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or agent settings will not change them, and
 	// sending SSO settings will change them.
@@ -1363,8 +1612,8 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, agentOptions, *updatedAppConfig.AgentOptions)
-	require.Equal(t, agentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(agentOptions), string(*updatedAppConfig.AgentOptions))
+	require.JSONEq(t, string(agentOptions), string(*dsAppConfig.AgentOptions))
 
 	// Not sending smtp_settings or sso_settings will not change them, and
 	// sending agent options will change them.
@@ -1392,8 +1641,7 @@ func TestModifyAppConfigSMTPSSOAgentOptions(t *testing.T) {
 	require.False(t, dsAppConfig.SMTPSettings.SMTPEnabled)
 	require.False(t, updatedAppConfig.SSOSettings.EnableSSO)
 	require.False(t, dsAppConfig.SSOSettings.EnableSSO)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
-	require.Equal(t, newAgentOptions, *dsAppConfig.AgentOptions)
+	require.JSONEq(t, string(newAgentOptions), string(*dsAppConfig.AgentOptions))
 }
 
 // TestModifyEnableAnalytics tests that a premium customer cannot set ServerSettings.EnableAnalytics to be false.
@@ -1404,15 +1652,16 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
 	testCases := []struct {
-		name             string
-		expectedEnabled  bool
-		newEnabled       bool
-		initialEnabled   bool
-		licenseTier      string
-		initialURL       string
-		newURL           string
-		expectedURL      string
-		shouldFailModify bool
+		name                  string
+		expectedEnabled       bool
+		newEnabled            bool
+		initialEnabled        bool
+		licenseTier           string
+		allowDisableTelemetry bool
+		initialURL            string
+		newURL                string
+		expectedURL           string
+		shouldFailModify      bool
 	}{
 		{
 			name:            "fleet free",
@@ -1428,11 +1677,19 @@ func TestModifyEnableAnalytics(t *testing.T) {
 			newEnabled:      false,
 			licenseTier:     fleet.TierPremium,
 		},
+		{
+			name:                  "fleet premium with allow disable telemetry",
+			expectedEnabled:       false,
+			initialEnabled:        true,
+			newEnabled:            false,
+			licenseTier:           fleet.TierPremium,
+			allowDisableTelemetry: true,
+		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier}})
+			svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: tt.licenseTier, AllowDisableTelemetry: tt.allowDisableTelemetry}})
 			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
 			dsAppConfig := &fleet.AppConfig{
@@ -1486,256 +1743,439 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	}
 }
 
-func TestModifyAppConfigForNDESSCEPProxy(t *testing.T) {
-	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
-	scepURL := "https://example.com/mscep/mscep.dll"
-	adminURL := "https://example.com/mscep_admin/"
-	username := "user"
-	password := "password"
+func TestValidAddress(t *testing.T) {
+	testCases := []struct {
+		name     string
+		hostname string
+		expected bool
+	}{
+		// Empty and basic cases
+		{name: "empty string", hostname: "", expected: false},
 
-	appConfig := &fleet.AppConfig{
+		// Make sure we don't allow URLs
+		{name: "http prefix", hostname: "http://example.com", expected: false},
+		{name: "https prefix", hostname: "https://example.com", expected: false},
+		{name: "with path", hostname: "example.com/path", expected: false},
+		{name: "with query", hostname: "example.com?query=value", expected: false},
+		{name: "with fragment", hostname: "example.com#fragment", expected: false},
+
+		// Test ports are allowd
+		{name: "with port", hostname: "example.com:9090", expected: true},
+		{name: "port without hostname", hostname: ":9090", expected: false},
+		{name: "port without hostname", hostname: "   :9090", expected: false},
+
+		// Valid IPv4 addresses
+		{name: "IPv4 localhost", hostname: "127.0.0.1", expected: true},
+		{name: "IPv4 address", hostname: "192.168.1.1", expected: true},
+		{name: "IPv4 all zeros", hostname: "0.0.0.0", expected: false},
+		{name: "IPv4 loopback with port", hostname: "127.0.0.1:9090", expected: true},
+
+		// Valid IPv6 addresses
+		{name: "IPv6 localhost", hostname: "::1", expected: true},
+		{name: "IPv6 full", hostname: "2001:0db8:85a3:0000:0000:8a2e:0370:7334", expected: true},
+		{name: "IPv6 compressed", hostname: "2001:db8::1", expected: true},
+		{name: "IPv6 all zeros", hostname: "::", expected: false},
+
+		// IPv6 with brackets
+		{name: "IPv6 localhost with brackets", hostname: "[::1]", expected: true},
+		{name: "IPv6 with brackets", hostname: "[2001:db8::1]", expected: true},
+		{name: "brackets only", hostname: "[]", expected: false},
+		{name: "empty brackets", hostname: "[", expected: false},
+		{name: "IPv6 locahost brackets with port", hostname: "[::1]:8089", expected: true},
+
+		// Valid DNS hostnames
+		{name: "localhostname", hostname: "localhost", expected: true},
+		{name: "hostname with subdomain", hostname: "api.example.com", expected: true},
+		{name: "hostname with multiple subdomains", hostname: "a.b.c.example.com", expected: true},
+		{name: "hostname with numbers", hostname: "server1.example.com", expected: true},
+		{name: "hostname starting with number", hostname: "1server.example.com", expected: true},
+		{name: "all numeric label", hostname: "123.example.com", expected: true},
+		{name: "hostname with hyphen", hostname: "my-server.example.com", expected: true},
+		{name: "hostname with multiple hyphens", hostname: "my-cool-server.example.com", expected: true},
+		{name: "single character label", hostname: "a.b.c", expected: true},
+		{name: "single character hostname", hostname: "a", expected: true},
+
+		// Invalid DNS hostnames - hyphen rules
+		{name: "label starting with hyphen", hostname: "-example.com", expected: false},
+		{name: "label ending with hyphen", hostname: "example-.com", expected: false},
+		{name: "label starting and ending with hyphen", hostname: "-example-.com", expected: false},
+		{name: "only hyphen label", hostname: "-.com", expected: false},
+
+		// Invalid DNS hostnames - special characters
+		{name: "hostname with underscore", hostname: "my_server.example.com", expected: false},
+		{name: "hostname with space", hostname: "my server.example.com", expected: false},
+		{name: "hostname with at symbol", hostname: "user@example.com", expected: false},
+		{name: "hostname with exclamation", hostname: "example!.com", expected: false},
+
+		// Invalid DNS hostnames - empty labels
+		{name: "empty label (double dot)", hostname: "example..com", expected: false},
+		{name: "leading dot", hostname: ".example.com", expected: false},
+		{name: "trailing dot only", hostname: "example.com.", expected: false},
+
+		// Length limits
+		{name: "label exactly 63 chars", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: true},
+		{name: "label 64 chars (too long)", hostname: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.com", expected: false},
+
+		// Real-world examples
+		{name: "fleet server URL", hostname: "fleet.example.com", expected: true},
+		{name: "AWS endpoint", hostname: "s3.us-west-2.amazonaws.com", expected: true},
+		{name: "internal hostname", hostname: "db-primary-01.internal", expected: true},
+		{name: "gibberish", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app", expected: false},
+		{name: "gibberish II", hostname: "asdfasdfasdfashttps://lucas-fleet.ngrok.app:9800", expected: false},
+		{name: "hostname with port", hostname: "example:8080", expected: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := validateAddress(tc.hostname)
+			assert.Equal(t, tc.expected, result, "isValidHostnameAndPort(%q) = %v, want %v", tc.hostname, result, tc.expected)
+		})
+	}
+}
+
+// TestModifyAppConfigGoogleCalendarAPIKey tests that Google Calendar API keys
+// are preserved when omitted from the request, and replaced (not merged) when provided.
+func TestModifyAppConfigGoogleCalendarAPIKey(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// Initial config with Google Calendar integration
+	dsAppConfig := &fleet.AppConfig{
 		OrgInfo: fleet.OrgInfo{
 			OrgName: "Test",
 		},
 		ServerSettings: fleet.ServerSettings{
-			ServerURL: "https://localhost:8080",
+			ServerURL: "https://example.org",
+		},
+		Integrations: fleet.Integrations{
+			GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+				{
+					Domain: "example.com",
+					ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
+						fleet.GoogleCalendarEmail:      "test@example.com",
+						fleet.GoogleCalendarPrivateKey: "original-private-key",
+						"project_id":                   "original-project",
+					}},
+				},
+			},
 		},
 	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		if appConfig.Integrations.NDESSCEPProxy.Valid {
-			appConfig.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
-		}
-		return appConfig, nil
+		return dsAppConfig.Copy(), nil
 	}
 	ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
-		appConfig = conf
+		*dsAppConfig = *conf
 		return nil
 	}
-	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
-		return []*fleet.ABMToken{{ID: 1}}, nil
-	}
-	ds.SaveABMTokenFunc = func(ctx context.Context, token *fleet.ABMToken) error {
+	ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
 		return nil
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
-
-	jsonPayloadBase := `
-{
-	"integrations": {
-		"ndes_scep_proxy": {
-			"url": "%s",
-			"admin_url": "%s",
-			"username": "%s",
-			"password": "%s"
-		}
+	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+		return []*fleet.ABMToken{}, nil
 	}
-}
-`
-	jsonPayload := fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
+
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
-	// SCEP proxy not configured for free users
-	_, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, ErrMissingLicense.Error())
-	assert.ErrorContains(t, err, "integrations.ndes_scep_proxy")
+	t.Run("preserve API key when omitted (no changes)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
 
-	origValidateNDESSCEPURL := validateNDESSCEPURL
-	origValidateNDESSCEPAdminURL := validateNDESSCEPAdminURL
-	t.Cleanup(func() {
-		validateNDESSCEPURL = origValidateNDESSCEPURL
-		validateNDESSCEPAdminURL = origValidateNDESSCEPAdminURL
+		// Update without including api_key_json (simulates frontend sending masked value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved (check datastore, not returned config which is obfuscated)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
 	})
-	validateNDESSCEPURLCalled := false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
-		return nil
-	}
-	validateNDESSCEPAdminURLCalled := false
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
-		return nil
-	}
 
-	fleetConfig := config.TestConfig()
-	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityAddedNDESSCEPProxy{}, activity)
-		return nil
-	}
-	ac, err := svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy := func() {
-		require.NotNil(t, ac.Integrations.NDESSCEPProxy)
-		assert.Equal(t, scepURL, ac.Integrations.NDESSCEPProxy.Value.URL)
-		assert.Equal(t, adminURL, ac.Integrations.NDESSCEPProxy.Value.AdminURL)
-		assert.Equal(t, username, ac.Integrations.NDESSCEPProxy.Value.Username)
-		assert.Equal(t, fleet.MaskedPassword, ac.Integrations.NDESSCEPProxy.Value.Password)
-	}
-	checkSCEPProxy()
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
-	assert.True(t, ds.SaveAppConfigFuncInvoked)
-	ds.SaveAppConfigFuncInvoked = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+	t.Run("preserve API key when updating only domain", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
 
-	// Validation not done if there is no change
-	appConfig = ac
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, " "+scepURL, adminURL+" ", " "+username+" ", fleet.MaskedPassword)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err, jsonPayload)
-	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+		// Update only domain, omit api_key_json
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "newdomain.com"
+				}]
+			}
+		}`
 
-	// Validation not done if there is no change, part 2
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	ac, err = svc.ModifyAppConfig(ctx, []byte(`{"integrations":{}}`), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
 
-	// Validation done for SCEP URL. Password is blank, which is not considered a change.
-	scepURL = "https://new.com/mscep/mscep.dll"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, "")
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityEditedNDESSCEPProxy{}, activity)
-		return nil
-	}
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	appConfig = ac
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+		// Domain should be updated, API key preserved (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "newdomain.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
 
-	// Validation done for SCEP admin URL
-	adminURL = "https://new.com/mscep_admin/"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, fleet.MaskedPassword)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	checkSCEPProxy()
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
 
-	// Validation fails
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
-		return errors.New("**invalid** 1")
-	}
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
-		return errors.New("**invalid** 2")
-	}
-	scepURL = "https://new2.com/mscep/mscep.dll"
-	jsonPayload = fmt.Sprintf(jsonPayloadBase, scepURL, adminURL, username, password)
-	ac, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, "**invalid**")
-	assert.True(t, validateNDESSCEPURLCalled)
-	assert.True(t, validateNDESSCEPAdminURLCalled)
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+	t.Run("replace API key when new one provided (not merge)", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
 
-	// Reset validation
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration, _ log.Logger) error {
-		validateNDESSCEPURLCalled = true
-		return nil
-	}
-	validateNDESSCEPAdminURLCalled = false
-	validateNDESSCEPAdminURL = func(_ context.Context, _ fleet.NDESSCEPProxyIntegration) error {
-		validateNDESSCEPAdminURLCalled = true
-		return nil
-	}
+		// Provide new API key with different fields
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": {
+						"client_email": "new@example.com",
+						"private_key": "new-private-key",
+						"new_field": "new-value"
+					}
+				}]
+			}
+		}`
 
-	// Config cleared with explicit null
-	validateNDESSCEPURLCalled = false
-	validateNDESSCEPAdminURLCalled = false
-	payload := `
-{
-	"integrations": {
-		"ndes_scep_proxy": null
-	}
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be completely replaced (not merged) - check datastore
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "new@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "new-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "new-value", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["new_field"])
+		// Old fields should NOT be present (confirms replacement, not merge)
+		_, hasOldProject := dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"]
+		require.False(t, hasOldProject, "old project_id should not be present after replacement")
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("validation passes with preserved API key", func(t *testing.T) {
+		// Reset to valid state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "valid@example.com",
+			fleet.GoogleCalendarPrivateKey: "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----",
+		}}
+
+		// Update without api_key_json (should preserve valid key and pass validation)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// Should succeed with preserved API key (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "valid@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "-----BEGIN PRIVATE KEY-----\nvalid-key\n-----END PRIVATE KEY-----", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
+
+	t.Run("preserve API key when masked value sent", func(t *testing.T) {
+		// Reset to original state
+		dsAppConfig.Integrations.GoogleCalendar[0].Domain = "example.com"
+		dsAppConfig.Integrations.GoogleCalendar[0].ApiKey = fleet.GoogleCalendarApiKey{Values: map[string]string{
+			fleet.GoogleCalendarEmail:      "test@example.com",
+			fleet.GoogleCalendarPrivateKey: "original-private-key",
+			"project_id":                   "original-project",
+		}}
+
+		// Send masked api_key_json (simulates frontend sending back obfuscated value)
+		updateJSON := `{
+			"integrations": {
+				"google_calendar": [{
+					"domain": "example.com",
+					"api_key_json": "********"
+				}]
+			}
+		}`
+
+		updatedAppConfig, err := svc.ModifyAppConfig(ctx, []byte(updateJSON), fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+
+		// API key should be preserved, not overwritten with masked values (check datastore)
+		require.Len(t, dsAppConfig.Integrations.GoogleCalendar, 1)
+		require.Equal(t, "example.com", dsAppConfig.Integrations.GoogleCalendar[0].Domain)
+		require.Equal(t, "test@example.com", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarEmail])
+		require.Equal(t, "original-private-key", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values[fleet.GoogleCalendarPrivateKey])
+		require.Equal(t, "original-project", dsAppConfig.Integrations.GoogleCalendar[0].ApiKey.Values["project_id"])
+
+		// Returned config should be obfuscated (masked)
+		require.True(t, updatedAppConfig.Integrations.GoogleCalendar[0].ApiKey.IsMasked())
+	})
 }
-`
-	// First, dry run.
-	appConfig.Integrations.NDESSCEPProxy.Valid = true
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{DryRun: true})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	// Also check what was saved.
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked, "DB write should not happen in dry run")
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
 
-	// Second, real run.
-	appConfig.Integrations.NDESSCEPProxy.Valid = true
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte,
-		createdAt time.Time,
-	) error {
-		assert.IsType(t, fleet.ActivityDeletedNDESSCEPProxy{}, activity)
-		return nil
+func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
+	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+
+	type exceptionActivity struct {
+		name      string // activity name: "enabled_gitops_exception" or "disabled_gitops_exception"
+		exception string
 	}
-	ds.HardDeleteMDMConfigAssetFunc = func(ctx context.Context, assetName fleet.MDMAssetName) error {
-		return nil
+
+	testCases := []struct {
+		name        string
+		initial     fleet.GitOpsExceptions
+		patch       string
+		expectFired []exceptionActivity
+	}{
+		{
+			name:        "no change fires no activity",
+			initial:     fleet.GitOpsExceptions{Labels: true, Software: false, Secrets: true},
+			patch:       `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: nil,
+		},
+		{
+			name:    "single field flip fires one activity",
+			initial: fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: true},
+			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: []exceptionActivity{
+				{name: "enabled_gitops_exception", exception: "labels"},
+			},
+		},
+		{
+			name:    "multiple field flips fire one activity each, in order",
+			initial: fleet.GitOpsExceptions{Labels: false, Software: true, Secrets: false},
+			patch:   `{"gitops": {"exceptions": {"labels": true, "software": false, "secrets": true}}}`,
+			expectFired: []exceptionActivity{
+				{name: "enabled_gitops_exception", exception: "labels"},
+				{name: "disabled_gitops_exception", exception: "software"},
+				{name: "enabled_gitops_exception", exception: "secrets"},
+			},
+		},
 	}
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	// Also check what was saved.
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	assert.True(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
-	ds.HardDeleteMDMConfigAssetFuncInvoked = false
-	assert.True(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
 
-	// Deleting again should be a no-op
-	appConfig.Integrations.NDESSCEPProxy.Valid = false
-	ac, err = svc.ModifyAppConfig(ctx, []byte(payload), fleet.ApplySpecOptions{})
-	require.NoError(t, err)
-	assert.False(t, ac.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, appConfig.Integrations.NDESSCEPProxy.Valid)
-	assert.False(t, validateNDESSCEPURLCalled)
-	assert.False(t, validateNDESSCEPAdminURLCalled)
-	assert.False(t, ds.HardDeleteMDMConfigAssetFuncInvoked)
-	ds.HardDeleteMDMConfigAssetFuncInvoked = false
-	assert.False(t, ds.NewActivityFuncInvoked)
-	ds.NewActivityFuncInvoked = false
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+			svc, ctx := newTestService(t, ds, nil, nil, opts)
+			ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
 
-	// Cannot configure NDES without private key
-	fleetConfig.Server.PrivateKey = ""
-	svc, ctx = newTestServiceWithConfig(t, ds, fleetConfig, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
-	_, err = svc.ModifyAppConfig(ctx, []byte(jsonPayload), fleet.ApplySpecOptions{})
-	assert.ErrorContains(t, err, "private key")
+			dsAppConfig := &fleet.AppConfig{
+				OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+				ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+				GitOpsConfig: fleet.GitOpsConfig{
+					GitopsModeEnabled: true,
+					RepositoryURL:     "https://example.com/repo",
+					Exceptions:        tt.initial,
+				},
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return dsAppConfig, nil
+			}
+			ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+				*dsAppConfig = *conf
+				return nil
+			}
+			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
+				return []*fleet.VPPTokenDB{}, nil
+			}
+			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
+				return []*fleet.ABMToken{}, nil
+			}
+
+			var fired []exceptionActivity
+			opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+				switch ex := act.(type) {
+				case fleet.ActivityTypeEnabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+				case fleet.ActivityTypeDisabledGitOpsException:
+					fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+				}
+				return nil
+			}
+
+			_, err := svc.ModifyAppConfig(ctx, []byte(tt.patch), fleet.ApplySpecOptions{})
+			require.NoError(t, err)
+			require.Equal(t, tt.expectFired, fired)
+		})
+	}
+
+	t.Run("no activity is emitted when SaveAppConfig fails", func(t *testing.T) {
+		ds := new(mock.Store)
+		opts := &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}}
+		svc, ctx := newTestService(t, ds, nil, nil, opts)
+		ctx = viewer.NewContext(ctx, viewer.Viewer{User: admin})
+
+		dsAppConfig := &fleet.AppConfig{
+			OrgInfo:        fleet.OrgInfo{OrgName: "Test"},
+			ServerSettings: fleet.ServerSettings{ServerURL: "https://example.org"},
+			GitOpsConfig: fleet.GitOpsConfig{
+				GitopsModeEnabled: true,
+				RepositoryURL:     "https://example.com/repo",
+				Exceptions:        fleet.GitOpsExceptions{Labels: false, Software: false, Secrets: false},
+			},
+		}
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) { return dsAppConfig, nil }
+		ds.SaveAppConfigFunc = func(ctx context.Context, conf *fleet.AppConfig) error {
+			return errors.New("save failed")
+		}
+		ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error { return nil }
+		ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return []*fleet.VPPTokenDB{}, nil }
+		ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) { return []*fleet.ABMToken{}, nil }
+
+		var fired []exceptionActivity
+		opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, act activity_api.ActivityDetails) error {
+			switch ex := act.(type) {
+			case fleet.ActivityTypeEnabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			case fleet.ActivityTypeDisabledGitOpsException:
+				fired = append(fired, exceptionActivity{name: act.ActivityName(), exception: ex.Exception})
+			}
+			return nil
+		}
+
+		_, err := svc.ModifyAppConfig(ctx,
+			[]byte(`{"gitops": {"exceptions": {"labels": true, "software": true, "secrets": true}}}`),
+			fleet.ApplySpecOptions{})
+		require.Error(t, err)
+		require.Empty(t, fired, "no exception activity should be emitted when SaveAppConfig fails")
+	})
 }

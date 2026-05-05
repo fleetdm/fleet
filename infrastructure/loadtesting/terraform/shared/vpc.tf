@@ -1,6 +1,6 @@
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "3.12.0"
+  version = "~> 5.0"
 
   name = "fleet-vpc"
   cidr = "10.12.0.0/16"
@@ -20,6 +20,22 @@ module "vpc" {
   enable_vpn_gateway     = false
   one_nat_gateway_per_az = false
 
-  single_nat_gateway = true
-  enable_nat_gateway = true
+  single_nat_gateway   = true
+  enable_nat_gateway   = true
+  enable_dns_hostnames = true
+
+  # Tags required for EKS - role tags are required on subnets
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = 1
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = 1
+  }
+
+  # Note: Kubernetes cluster-specific tags are added by the signoz module
+  # when creating each EKS cluster, not at the VPC level
+  tags = {
+    "shared" = "true"
+  }
 }

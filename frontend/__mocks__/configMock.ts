@@ -1,13 +1,19 @@
-import { IConfig, IMdmConfig } from "interfaces/config";
+import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  enable_recovery_lock_password: false,
+  windows_require_bitlocker_pin: false,
+  enable_turn_on_windows_mdm_manually: false,
   windows_enabled_and_configured: true,
+  windows_entra_tenant_ids: [],
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
   apple_bm_terms_expired: false,
   enabled_and_configured: true,
+  android_enabled_and_configured: false,
+  apple_require_hardware_attestation: false,
   macos_updates: {
     minimum_version: "",
     deadline: "",
@@ -20,15 +26,19 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     minimum_version: "",
     deadline: "",
   },
-  macos_settings: {
-    custom_settings: null,
+  apple_settings: {
+    configuration_profiles: null,
     enable_disk_encryption: false,
   },
-  macos_setup: {
-    bootstrap_package: "",
+  setup_experience: {
+    macos_bootstrap_package: "",
+    macos_manual_agent_install: false,
     enable_end_user_authentication: false,
-    macos_setup_assistant: null,
-    enable_release_device_manually: false,
+    apple_setup_assistant: null,
+    apple_enable_release_device_manually: false,
+    require_all_software_macos: false,
+    require_all_software_windows: false,
+    lock_end_user_info: false,
   },
   macos_migration: {
     enable: false,
@@ -53,6 +63,16 @@ export const createMockMdmConfig = (
   overrides?: Partial<IMdmConfig>
 ): IMdmConfig => {
   return { ...DEFAULT_CONFIG_MDM_MOCK, ...overrides };
+};
+
+export const DEFAULT_LICENSE_MOCK: ILicense = {
+  tier: "free",
+  expiration: "0001-01-01T00:00:00Z",
+  device_count: 4,
+  note: "",
+  organization: "",
+  managed_cloud: true,
+  allow_disable_telemetry: false,
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
@@ -98,6 +118,14 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_jit_provisioning: false,
     enable_jit_role_sync: false,
   },
+  conditional_access: {
+    microsoft_entra_tenant_id: "123",
+    microsoft_entra_connection_configured: true,
+    okta_idp_id: "",
+    okta_assertion_consumer_service_url: "",
+    okta_audience_uri: "",
+    okta_certificate: "",
+  },
   host_expiry_settings: {
     host_expiry_enabled: false,
     host_expiry_window: 0,
@@ -107,13 +135,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     activity_expiry_window: 90,
   },
   agent_options: "",
-  license: {
-    tier: "free",
-    expiration: "0001-01-01T00:00:00Z",
-    device_count: 4,
-    note: "",
-    organization: "",
-  },
+  license: DEFAULT_LICENSE_MOCK,
   webhook_settings: {
     host_status_webhook: {
       enable_host_status_webhook: true,
@@ -141,7 +163,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,
@@ -190,12 +211,26 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   features: {
     enable_host_users: true,
     enable_software_inventory: true,
+    enable_conditional_access: true,
+    enable_conditional_access_bypass: true,
   },
-  fleet_desktop: { transparency_url: "https://fleetdm.com/transparency" },
+  fleet_desktop: {
+    transparency_url: "https://fleetdm.com/transparency",
+    alternative_browser_host: "",
+  },
   mdm: createMockMdmConfig(),
+  gitops: {
+    gitops_mode_enabled: false,
+    repository_url: "",
+    exceptions: {
+      labels: false,
+      software: false,
+      secrets: true,
+    },
+  },
 };
 
-const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
+export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
   return { ...DEFAULT_CONFIG_MOCK, ...overrides };
 };
 

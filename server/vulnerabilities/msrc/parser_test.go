@@ -1243,7 +1243,7 @@ func TestParser(t *testing.T) {
 				bulletin := bulletins[pName]
 
 				for cve, vuln := range v {
-					sut := bulletin.Vulnerabities[cve]
+					sut := bulletin.Vulnerabilities[cve]
 					require.Equal(t, *vuln.PublishedEpoch, *sut.PublishedEpoch, pName)
 					require.Equal(t, vuln.RemediatedBy, sut.RemediatedBy, pName)
 					require.Equal(t, vuln.ProductIDs, sut.ProductIDs, pName)
@@ -1275,7 +1275,7 @@ func TestParser(t *testing.T) {
 		t.Run("each bulletin should have the right vulnerabilities", func(t *testing.T) {
 			for _, g := range bulletins {
 				var actual []string
-				for v := range g.Vulnerabities {
+				for v := range g.Vulnerabilities {
 					actual = append(actual, v)
 				}
 				require.ElementsMatch(t, actual, expectedCVEs[g.ProductName], g.ProductName)
@@ -1310,7 +1310,7 @@ func TestParser(t *testing.T) {
 				}
 			}
 			actual := make(map[string]bool)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				actual[v.CVE] = true
 			}
 			require.Equal(t, expected, actual)
@@ -1318,7 +1318,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("scores are parsed correctly", func(t *testing.T) {
 			// Check the score of a random CVE (CVE-2022-24466)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-24466" {
 					require.Equal(t, 4.1, v.Score)
 				}
@@ -1327,13 +1327,48 @@ func TestParser(t *testing.T) {
 
 		t.Run("the revision history is parsed correctly", func(t *testing.T) {
 			// Check the revision history of a random CVE (CVE-2022-29114)
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-29114" {
 					require.Len(t, v.Revisions, 1)
 					require.Equal(t, "2022-05-10T08:00:00", v.Revisions[0].Date)
 					require.Equal(t, "<p>Information published.</p>\n", v.Revisions[0].Description)
 				}
 			}
+		})
+
+		t.Run("should include Windows Server 2025 from 2026-Feb feed", func(t *testing.T) {
+			febSrcPath := filepath.Join("..", "testdata", "msrc-2026-feb.xml.bz2")
+			febDstPath := filepath.Join(t.TempDir(), "msrc-2026-feb.xml")
+			extractXMLFixtureFile(t, febSrcPath, febDstPath)
+
+			febF, err := os.Open(febDstPath)
+			require.NoError(t, err)
+			febXML, err := parseXML(febF)
+			febF.Close()
+			require.NoError(t, err)
+
+			febBulletins, err := mapToSecurityBulletins(febXML)
+			require.NoError(t, err)
+
+			// Windows Server 2025 bulletin should exist
+			winServer2025 := febBulletins["Windows Server 2025"]
+			require.NotNil(t, winServer2025, "expected a bulletin for Windows Server 2025")
+			require.Equal(t, "Windows Server 2025", winServer2025.ProductName)
+
+			// Should contain both base and Server Core products
+			require.Contains(t, winServer2025.Products, "12436", "expected product ID 12436 (Windows Server 2025)")
+			require.Contains(t, winServer2025.Products, "12437", "expected product ID 12437 (Windows Server 2025 Server Core)")
+
+			// Product names should be correctly normalized with version string
+			require.Equal(t, parsed.Product("Windows Server 2025 Version 24H2"), winServer2025.Products["12436"])
+			require.Equal(t,
+				parsed.Product("Windows Server 2025 (Server Core installation) Version 24H2"),
+				winServer2025.Products["12437"],
+			)
+
+			// Should have vulnerabilities with vendor fixes
+			require.NotEmpty(t, winServer2025.Vulnerabilities, "expected vulnerabilities for Windows Server 2025")
+			require.NotEmpty(t, winServer2025.VendorFixes, "expected vendor fixes for Windows Server 2025")
 		})
 
 		t.Run("the remediations are parsed correctly", func(t *testing.T) {
@@ -1529,7 +1564,7 @@ func TestParser(t *testing.T) {
 					URL:         "https://support.microsoft.com/help/5014018",
 				},
 			}
-			for _, v := range xmlResult.WinVulnerabities {
+			for _, v := range xmlResult.WinVulnerabilities {
 				if v.CVE == "CVE-2022-29126" {
 					require.Len(t, v.Remediations, len(expectedRemediations))
 					require.ElementsMatch(t, v.Remediations, expectedRemediations)

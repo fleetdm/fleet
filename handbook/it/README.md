@@ -1,0 +1,220 @@
+# 🌐 IT
+
+This page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
+
+
+## Team
+
+| Role                                    | Contributor(s)
+|:----------------------------------------|:----------------------------------------------------------------------|
+| Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
+| Solutions Consultant (SC)               | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
+| IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
+
+
+
+## Contact us
+
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it&projects=&template=1-custom-request.md&title=) and a team member will get back to you within one business day. (If urgent, mention a [team member](#team) in the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel.)
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/69) for this department, including pending tasks and the status of new requests.
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
+
+
+## Responsibilities
+
+The IT department is directly responsible for solutions consulting, dogfooding, internal frameworks and schemas, equipment management, and internal IT support.
+
+
+### Register a domain for Fleet
+
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
+
+
+### Secure company-issued equipment for a team member
+
+As soon as an offer is accepted, Fleet provides laptops for core team members to use while working at Fleet. The IT engineer will work with the new team member to get their equipment requested and shipped to them on time.
+
+- [**Check the "📦 Warehouse" team in dogfood**](https://dogfood.fleetdm.com/dashboard?team_id=279) before purchasing any equipment including laptops, to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+
+- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
+  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
+
+  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business (AB).
+
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
+
+ > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
+
+- Include delivery tracking information when closing the support request so the new employee can be notified.
+
+
+### Process incoming equipment
+
+Upon receiving any device, follow these steps to process incoming equipment.
+1. Find the device in ["🍽️ Dogfood"](https://dogfood.fleetdm.com/dashboard) to confirm the correct equipment was received.
+2. Visibly inspect equipment and all related components (e.g. laptop charger) for damage.
+3. Remove any stickers and clean devices and components.
+4. Using the device's charger, plug in the device.
+5. Using your company laptop, navigate to the host in dogfood, and click `actions` » `Unlock` and copy the unlock code. 
+6. Turn on the device and enter the unlock code.
+7. If the previous user has not wiped the device, navigate to the host in dogfood, and click `actions` » `wipe` and wait until the device is finished and restarts.
+
+**If you need to manually recover a device or reinstall macOS**
+1. Enter recovery mode using the [appropriate method](https://support.apple.com/en-us/HT204904).
+2. Connect the device to WIFI.
+3. Using the "Recovery assistant" tab (In the top left corner), select "Delete this Mac".
+4. Follow the prompts to activate the device and reinstall the appropriate version of macOS.
+
+
+### Ship approved equipment
+
+Once the department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
+2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
+3. Package equipment for shipment.
+4. Change the "host" info to reflect the new user. If you encounter any issues, repeat the [process incoming equipment steps](https://fleetdm.com/handbook/it#process-incoming-equipment).
+6. Ship via FedEx to the address listed in the equipment request.
+7. Add a comment to the equipment request issue, at-mentioning the requestor with the FedEx tracking info and close the issue.
+
+
+### Monitor compliance tests
+
+1. Every Monday, log in to Vanta and create GitHub issues for any tests that are due or need remediation in the next 3 weeks.    
+2. To do this, access "Tests" on the left side menu.  This will provide a status report of the tests, when they are due, and who the DRI is.  
+3. Click on a test, then click on "Tasks".  
+4. Click on "Create task." Then, "Create GitHub issue."
+5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-it" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
+6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
+
+
+### Exclude a host from a screen lock policy
+
+The `macOS - Screen lock after inactivity (15 minutes or less)` and `Windows - Interactive logon screen lock timeout configured` policies, plus their associated configuration profiles (`screen-lock-inactivity.mobileconfig`, `Screen lock timeout.xml`), are deployed to every host on the [💻 Workstations](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml) fleet. To exclude a host (e.g., a kiosk, a conference-room display driver, or a host under approved temporary investigation), add its Fleet host ID to the matching exclusion label.
+
+On macOS, contributors who only need a **temporary** break from the screen saver (without changing MDM) should set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners** first. Use the steps below when a **full host exemption** from the profile and policy is required — not for ordinary short-term personal use.
+
+1. Confirm the request has security approval per the [policy exception process](https://fleetdm.com/handbook/it/security#security-policy-management-policy). Exceptions must include a business justification and an expiration date no longer than one year.
+2. Look up the host's Fleet ID in [dogfood](https://dogfood.fleetdm.com/dashboard) (visible in the host's URL).
+3. Open a **Draft** pull request against the `fleet` repo editing the appropriate label file:
+   * macOS: [`it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml)
+   * Windows: [`it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml)
+4. Add the host ID to the `hosts:` list with a comment identifying the host and the expiration date of the exception. Example:
+   ```
+   hosts:
+     - "1234"  # PR #1234 - exception expires 2026-12-01
+   ```
+5. Wait until all automated checks on the pull request have passed. On the exception or tracking issue (for example the confidential `:help-it` request), add a comment that **links to the pull request**, then convert the draft to **Ready for review**.
+6. Get the PR reviewed and merged. The next `fleetctl gitops` run (on merge to `main`) will:
+   * Add the host to the exclusion label
+   * Remove the configuration profile from that host
+   * Stop counting the host against the screen lock policy
+7. To revoke the exception, remove the host ID line from the label file and merge a follow-up PR. Do not leave `hosts: []` behind on a label that has live exclusions on it — an empty list will wipe **all** members.
+
+
+## Rituals
+
+<rituals :rituals="rituals['handbook/it/it.rituals.yml']"></rituals>
+
+
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Update a company brand front
+Please see [handbook/product-design#update-a-company-brand-front](https://fleetdm.com/handbook/product-design#update-a-company-brand-front)
+
+##### Prepare "Let's get you set up!" meeting notes
+Please see [handbook/marketing#prepare-lets-get-you-set-up-meeting-notes](https://fleetdm.com/handbook/marketing#prepare-lets-get-you-set-up-meeting-notes)
+
+##### Process the CEO's inbox
+Please see [handbook/ceo#process-the-ceos-inbox](https://fleetdm.com/handbook/ceo#process-the-ceos-inbox)
+
+##### Process the CEO's calendar
+Please see [handbook/ceo#process-the-ceos-calendar](https://fleetdm.com/handbook/ceo#process-the-ceos-calendar)
+
+##### Check LinkedIn for new activity 
+Please see [handbook/ceo#check-linkedin-for-new-activity](https://fleetdm.com/handbook/ceo#check-linkedin-for-new-activity)
+
+##### Add LinkedIn connections to CRM
+Please see [handbook/ceo#add-linkedin-connections-to-crm](https://fleetdm.com/handbook/ceo#add-linkedin-connections-to-crm)
+
+##### Connect with active community members
+Please see [handbook/ceo#connect-with-active-community-members](https://fleetdm.com/handbook/ceo#connect-with-active-community-members)
+
+##### Schedule travel for the CEO
+Please see [handbook/ceo#schedule-travel-for-the-ceo](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo)
+
+##### Schedule CEO interview
+Please see [handbook/ceo#schedule-ceo-interview](https://fleetdm.com/handbook/ceo#schedule-ceo-interview)
+
+##### Confirm CEO shadow dates
+Please see [handbook/ceo#confirm-ceo-shadow-dates](https://fleetdm.com/handbook/ceo#confirm-ceo-shadow-dates)
+
+##### Program the CEO to do something
+Please see [handbook/ceo#program-the-ceo-to-do-something](https://fleetdm.com/handbook/ceo#program-the-ceo-to-do-something)
+
+##### Process and backup Sid agenda
+Please see [handbook/ceo#process-and-backup-sid-agenda](https://fleetdm.com/handbook/ceo#process-and-backup-sid-agenda)
+
+##### Process and backup E-group agenda 
+Please see [handbook/ceo#process-and-backup-e-group-agenda](https://fleetdm.com/handbook/ceo#process-and-backup-e-group-agenda)
+
+##### Process the help-being-ceo Slack channel
+Please see [handbook/ceo#process-the-help-being-ceo-slack-channel](https://fleetdm.com/handbook/ceo#process-the-help-being-ceo-slack-channel)
+
+##### Unroll a Slack thread
+Please see [handbook/ceo#unroll-a-slack-thread](https://fleetdm.com/handbook/ceo#unroll-a-slack-thread)
+
+##### Delete an accidental meeting recording
+Please see [handbook/ceo#delete-an-accidental-meeting-recording](https://fleetdm.com/handbook/ceo#delete-an-accidental-meeting-recording)
+
+##### Communicate Fleet's potential energy to stakeholders
+Please see [handbook/ceo#communicate-fleets-potential-energy-to-stakeholders](https://fleetdm.com/handbook/ceo#communicate-fleets-potential-energy-to-stakeholders)
+
+##### Archive a document
+Please see [handbook/ceo#archive-a-document](https://fleetdm.com/handbook/ceo#archive-a-document)
+
+##### Approve a new position
+Please see [handbook/people#approve-a-new-position](https://fleetdm.com/handbook/people#approve-a-new-position)
+
+##### Inform managers about hours worked
+Please see [handbook/people#inform-managers-about-hours-worked](https://fleetdm.com/handbook/people#inform-managers-about-hours-worked)
+
+##### Prepare for the All hands
+Please see [handbook/people#prepare-for-the-all-hands](https://fleetdm.com/handbook/people#prepare-for-the-all-hands)
+
+##### Share recording of all hands meeting
+Please see [handbook/people#share-recording-of-all-hands-meeting](https://fleetdm.com/handbook/people#share-recording-of-all-hands-meeting)
+
+##### Update personnel details
+Please see [handbook/people#update-personnel-details](https://fleetdm.com/handbook/people#update-personnel-details)
+
+##### Change a Fleetie's role
+Please see [handbook/people#change-a-fleeties-role](https://fleetdm.com/handbook/people#change-a-fleeties-role)
+
+##### Change a Fleetie's manager
+Please see [handbook/people#change-a-fleeties-manager](https://fleetdm.com/handbook/people#change-a-fleeties-manager)
+
+##### Prepare salary benchmarking information
+Please see [handbook/people#prepare-salary-benchmarking-information](https://fleetdm.com/handbook/people#prepare-salary-benchmarking-information)
+
+##### Recognize employee workiversaries
+Please see [handbook/people#recognize-employee-workiversaries](https://fleetdm.com/handbook/people#recognize-employee-workiversaries)
+
+##### Update a team member's compensation
+Please see [handbook/people#update-a-team-members-compensation](https://fleetdm.com/handbook/people#update-a-team-members-compensation)
+
+##### Change the DRI of a consultant
+Please see [handbook/people#change-the-dri-of-a-consultant](https://fleetdm.com/handbook/people#change-the-dri-of-a-consultant)
+
+##### Add an advisor
+Please see [handbook/people#add-an-advisor](https://fleetdm.com/handbook/people#add-an-advisor)
+
+##### Convert a Fleetie to a consultant
+Please see [handbook/people#convert-a-fleetie-to-a-consultant](https://fleetdm.com/handbook/people#convert-a-fleetie-to-a-consultant)
+
+##### Review Fleet's US company benefits
+Please see [handbook/people#review-Fleets-us-company-benefits](https://fleetdm.com/handbook/people#review-Fleets-us-company-benefits)
+
+
+<meta name="maintainedBy" value="allenhouchins">
+<meta name="title" value="🌐 IT & Enablement">

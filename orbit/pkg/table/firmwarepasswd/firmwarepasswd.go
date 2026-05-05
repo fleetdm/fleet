@@ -93,7 +93,7 @@ func (t *Table) runFirmwarepasswd(ctx context.Context, subcommand string, output
 	}
 	defer os.RemoveAll(dir)
 
-	if err := os.Chmod(dir, 0o755); err != nil {
+	if err := os.Chmod(dir, 0o755); err != nil { // nolint:gosec // G302
 		return fmt.Errorf("chmod: %w", err)
 	}
 

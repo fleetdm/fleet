@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -13,8 +14,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/igm/sockjs-go/v3/sockjs"
 )
 
@@ -32,9 +31,12 @@ const (
 )
 
 type campaignStatus struct {
-	ExpectedResults uint   `json:"expected_results"`
-	ActualResults   uint   `json:"actual_results"`
-	Status          string `json:"status"`
+	ExpectedResults uint `json:"expected_results"`
+	// ActualResults == CountOfHostsWithResults + CountOfHostsWithNoResults
+	ActualResults             uint   `json:"actual_results"`
+	CountOfHostsWithResults   uint   `json:"count_of_hosts_with_results"`
+	CountOfHostsWithNoResults uint   `json:"count_of_hosts_with_no_results"`
+	Status                    string `json:"status"`
 }
 
 type statsToSave struct {
@@ -52,20 +54,20 @@ type statsTracker struct {
 
 func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint) {
 	logging.WithExtras(ctx, "campaign_id", campaignID)
-	logger := log.With(svc.logger, "campaignID", campaignID)
+	logger := svc.logger.With("campaignID", campaignID)
 
 	// Explicitly set ObserverCanRun: true in this check because we check that the user trying to
 	// read results is the same user that initiated the query. This means the observer check already
 	// happened with the actual value for this query.
 	if err := svc.authz.Authorize(ctx, &fleet.TargetedQuery{Query: &fleet.Query{ObserverCanRun: true}}, fleet.ActionRun); err != nil {
-		level.Info(logger).Log("err", "stream results authorization failed")
+		logger.InfoContext(ctx, "stream results authorization failed")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
 
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		level.Info(logger).Log("err", "stream results viewer missing")
+		logger.InfoContext(ctx, "stream results viewer missing")
 		conn.WriteJSONError(authz.ForbiddenErrorMessage) //nolint:errcheck
 		return
 	}
@@ -110,8 +112,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 	// Ensure the same user is opening to read results as initiated the query
 	if campaign.UserID != vc.User.ID {
-		level.Info(logger).Log(
-			"err", "campaign user ID does not match",
+		logger.InfoContext(ctx, "campaign user ID does not match",
 			"expected", campaign.UserID,
 			"got", vc.User.ID,
 		)
@@ -136,7 +137,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		// to cleanup the campaign.
 		ctx := context.WithoutCancel(ctx)
 		if err := svc.CompleteCampaign(ctx, campaign); err != nil {
-			level.Error(logger).Log("msg", "complete campaign (async)", "err", err)
+			logger.ErrorContext(ctx, "complete campaign (async)", "err", err)
 		}
 	}()
 
@@ -206,7 +207,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	}
 
 	if err := updateStatus(); err != nil {
-		_ = logger.Log("msg", "error updating status", "err", err)
+		logger.ErrorContext(ctx, "error updating status", "err", err)
 		return
 	}
 
@@ -220,7 +221,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	perfStatsTracker := statsTracker{}
 	perfStatsTracker.saveStats, err = svc.ds.IsSavedQuery(ctx, campaign.QueryID)
 	if err != nil {
-		level.Error(logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
+		logger.ErrorContext(ctx, "error checking saved query", "query.id", campaign.QueryID, "err", err)
 		perfStatsTracker.saveStats = false
 	}
 	// We aggregate stats and add activity at the end. Using context without cancel for precaution.
@@ -240,7 +241,8 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 		case res := <-readChan:
 			// Receive a result and push it over the websocket
 			switch res := res.(type) {
-			case fleet.DistributedQueryResult:
+			case fleet.DistributedQueryResult: // includes error host responses, though they don't contribute to the "result" nor "no result" counts reported in status messages
+
 				// Calculate result size for performance stats
 				outputSize := calculateOutputSize(&perfStatsTracker, &res)
 				mapHostnameRows(&res)
@@ -259,13 +261,23 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 					return
 				}
 				if err != nil {
-					_ = level.Error(logger).Log("msg", "error writing to channel", "err", err)
+					logger.ErrorContext(ctx, "error writing to channel", "err", err)
+				}
+				if res.Error == nil {
+					// Fleet considers a host-reported error to be neither a "result" nor "no result"
+					// The Fleet UI currently tracks errors as they stream in, though the server doesn't
+					// report that count here
+					if len(res.Rows) == 0 {
+						status.CountOfHostsWithNoResults++
+					} else {
+						status.CountOfHostsWithResults++
+					}
 				}
 				status.ActualResults++
 			case error:
-				level.Error(logger).Log("msg", "received error from pubsub channel", "err", res)
+				logger.ErrorContext(ctx, "received error from pubsub channel", "err", res)
 				if err := conn.WriteJSONError("pubsub error: " + res.Error()); err != nil {
-					logger.Log("msg", "failed to write pubsub error", "err", err)
+					logger.ErrorContext(ctx, "failed to write pubsub error", "err", err)
 				}
 			}
 
@@ -277,7 +289,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 			}
 			// Update status
 			if err := updateStatus(); err != nil {
-				level.Error(logger).Log("msg", "error updating status", "err", err)
+				logger.ErrorContext(ctx, "error updating status", "err", err)
 				return
 			}
 			if status.ActualResults == status.ExpectedResults {
@@ -291,7 +303,7 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 
 // addLiveQueryActivity adds live query activity to the activity feed, including the updated aggregated stats
 func (svc Service) addLiveQueryActivity(
-	ctx context.Context, targetsCount uint, queryID uint, logger log.Logger,
+	ctx context.Context, targetsCount uint, queryID uint, logger *slog.Logger,
 ) {
 	activityData := fleet.ActivityTypeLiveQuery{
 		TargetsCount: targetsCount,
@@ -299,7 +311,7 @@ func (svc Service) addLiveQueryActivity(
 	// Query returns SQL, name, and aggregated stats
 	q, err := svc.ds.Query(ctx, queryID)
 	if err != nil {
-		level.Error(logger).Log("msg", "error getting query", "id", queryID, "err", err)
+		logger.ErrorContext(ctx, "error getting query", "id", queryID, "err", err)
 	} else {
 		activityData.QuerySQL = q.Query
 		if q.Saved {
@@ -312,7 +324,7 @@ func (svc Service) addLiveQueryActivity(
 		authz.UserFromContext(ctx),
 		activityData,
 	); err != nil {
-		level.Error(logger).Log("msg", "error creating activity for live query", "err", err)
+		logger.ErrorContext(ctx, "error creating activity for live query", "err", err)
 	}
 }
 
@@ -333,11 +345,13 @@ func calculateOutputSize(perfStatsTracker *statsTracker, res *fleet.DistributedQ
 }
 
 // overwriteLastExecuted is used for testing purposes to overwrite the last executed time of the live query stats.
-var overwriteLastExecuted = false
-var overwriteLastExecutedTime time.Time
+var (
+	overwriteLastExecuted     = false
+	overwriteLastExecutedTime time.Time
+)
 
 func (svc Service) updateStats(
-	ctx context.Context, queryID uint, logger log.Logger, tracker *statsTracker, aggregateStats bool,
+	ctx context.Context, queryID uint, logger *slog.Logger, tracker *statsTracker, aggregateStats bool,
 ) {
 	// If we are not saving stats
 	if tracker == nil || !tracker.saveStats ||
@@ -354,7 +368,7 @@ func (svc Service) updateStats(
 		}
 		currentStats, err := svc.ds.GetLiveQueryStats(ctx, queryID, hostIDs)
 		if err != nil {
-			level.Error(logger).Log("msg", "error getting current live query stats", "err", err)
+			logger.ErrorContext(ctx, "error getting current live query stats", "err", err)
 			tracker.saveStats = false
 			return
 		}
@@ -400,7 +414,7 @@ func (svc Service) updateStats(
 		// Insert/overwrite updated stats
 		err = svc.ds.UpdateLiveQueryStats(ctx, queryID, currentStats)
 		if err != nil {
-			level.Error(logger).Log("msg", "error updating live query stats", "err", err)
+			logger.ErrorContext(ctx, "error updating live query stats", "err", err)
 			tracker.saveStats = false
 			return
 		}
@@ -446,20 +460,20 @@ func (svc Service) updateStats(
 			select {
 			case err := <-done:
 				if err != nil {
-					level.Error(logger).Log("msg", "error syncing replica to master", "err", err)
+					logger.ErrorContext(ctx, "error syncing replica to master", "err", err)
 					tracker.saveStats = false
 					return
 				}
 			case <-time.After(5 * time.Second):
 				stop <- struct{}{}
-				level.Error(logger).Log("msg", "replica sync timeout: replica did not catch up to the master in 5 seconds")
+				logger.ErrorContext(ctx, "replica sync timeout: replica did not catch up to the master in 5 seconds")
 				// We proceed with the aggregation even if the replica is not in sync.
 			}
 		}
 
 		err := svc.ds.CalculateAggregatedPerfStatsPercentiles(ctx, fleet.AggregatedStatsTypeScheduledQuery, queryID)
 		if err != nil {
-			level.Error(logger).Log("msg", "error aggregating performance stats", "err", err)
+			logger.ErrorContext(ctx, "error aggregating performance stats", "err", err)
 			tracker.saveStats = false
 			return
 		}

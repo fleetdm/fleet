@@ -131,13 +131,13 @@ func (c *collector) ReadStats() collectorStats {
 }
 
 func (c *collector) addStats(stats *collectorExecStats) {
-	minMaxLastInt := func(min, max, last *int, val int) {
+	minMaxLastInt := func(minVal, maxVal, last *int, val int) {
 		*last = val
-		if val > *max {
-			*max = val
+		if val > *maxVal {
+			*maxVal = val
 		}
-		if val < *min || (val > 0 && (*min == 0)) {
-			*min = val
+		if val < *minVal || (val > 0 && (*minVal == 0)) {
+			*minVal = val
 		}
 	}
 

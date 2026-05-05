@@ -55,7 +55,7 @@ const OSVersionTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       const newQueryParam: Record<string, string | number | undefined> = {
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
@@ -101,12 +101,13 @@ const OSVersionTable = ({
         isAllPagesSelected={false}
         defaultSortHeader={queryParams.order_key}
         defaultSortDirection={queryParams.order_direction}
-        defaultPageIndex={queryParams.page}
+        pageIndex={queryParams.page}
         disableTableHeader
         disableCount
         pageSize={queryParams.per_page}
         onQueryChange={onQueryChange}
         disableNextPage={!hasNextPage}
+        hideFooter={!hasNextPage && queryParams.page === 0}
       />
     </div>
   );

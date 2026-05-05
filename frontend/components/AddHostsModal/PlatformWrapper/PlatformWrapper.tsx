@@ -3,23 +3,23 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-// @ts-ignore
-import { stringToClipboard } from "utilities/copy_text";
 import { IConfig } from "interfaces/config";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
 import RevealButton from "components/buttons/RevealButton";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Checkbox from "components/forms/fields/Checkbox";
 import TooltipWrapper from "components/TooltipWrapper";
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
+import Radio from "components/forms/fields/Radio";
+import TabText from "components/TabText";
 
 import { isValidPemCertificate } from "../../../pages/hosts/ManageHostsPage/helpers";
 import IosIpadosPanel from "./IosIpadosPanel";
+import AndroidPanel from "./AndroidPanel";
 
 interface IPlatformSubNav {
   name: string;
@@ -48,6 +48,10 @@ const platformSubNav: IPlatformSubNav[] = [
     type: "ios-ipados",
   },
   {
+    name: "Android",
+    type: "android",
+  },
+  {
     name: "Advanced",
     type: "advanced",
   },
@@ -74,8 +78,9 @@ const PlatformWrapper = ({
 }: IPlatformWrapperProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [copyMessage, setCopyMessage] = useState<Record<string, string>>({});
-  const [includeFleetDesktop, setIncludeFleetDesktop] = useState(true);
+  const [hostType, setHostType] = useState<"workstation" | "server">(
+    "workstation"
+  );
   const [showPlainOsquery, setShowPlainOsquery] = useState(false);
   const [selectedTabIndex, setSelectedTabIndex] = useState(0); // External link requires control in state
 
@@ -195,12 +200,12 @@ const PlatformWrapper = ({
                 </>
               )}
               <Button
-                variant="text-icon"
+                variant="inverse"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
               >
                 Download
-                <Icon name="download" color="core-fleet-blue" size="small" />
+                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (
@@ -224,103 +229,25 @@ const PlatformWrapper = ({
           config && !config.server_settings.scripts_disabled
             ? "--enable-scripts "
             : ""
-        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
+        }${hostType === "workstation" ? "--fleet-desktop " : ""}--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
 
-  const renderLabel = (packageType: string, installerString: string) => {
-    const onCopyInstaller = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(installerString)
-        .then(() =>
-          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copied!" }))
-        )
-        .catch(() =>
-          setCopyMessage((prev) => ({ ...prev, [packageType]: "Copy failed" }))
-        );
-
-      // Clear message after 1 second
-      setTimeout(
-        () => setCopyMessage((prev) => ({ ...prev, [packageType]: "" })),
-        1000
-      );
-
-      return false;
-    };
-
+  const renderLabel = (packageType: string) => {
     return (
       <>
         {packageType !== "plain-osquery" && (
           <span className={`${baseClass}__cta`}>
-            Run this command with the{" "}
-            <a
+            Use this command to generate Fleet&apos;s agent.{" "}
+            <CustomLink
               className={`${baseClass}__command-line-tool`}
-              href="https://fleetdm.com/learn-more-about/installing-fleetctl"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Fleet command-line tool
-            </a>{" "}
-            :
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/generate-fleets-agent`}
+              text="Learn how"
+              newTab
+            />
           </span>
-        )}{" "}
-        <span className="buttons">
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__installer-copy-icon`}
-            onClick={onCopyInstaller}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage[packageType] && (
-            <span
-              className={`${baseClass}__copy-message`}
-            >{`${copyMessage[packageType]} `}</span>
-          )}
-        </span>
-      </>
-    );
-  };
-
-  const renderChromeOSLabel = (label: string, value: string) => {
-    const onCopyChromeOSLabel = (evt: React.MouseEvent) => {
-      evt.preventDefault();
-
-      stringToClipboard(value)
-        .then(() => setCopyMessage((prev) => ({ ...prev, [label]: "Copied!" })))
-        .catch(() =>
-          setCopyMessage((prev) => ({
-            ...prev,
-            [label]: "Copy failed",
-          }))
-        );
-
-      // Clear message after 1 second
-      setTimeout(
-        () => setCopyMessage((prev) => ({ ...prev, [label]: "" })),
-        1000
-      );
-
-      return false;
-    };
-
-    return (
-      <>
-        {label}
-        <span className="buttons">
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__chromeos-copy-icon`}
-            onClick={onCopyChromeOSLabel}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage[label] && (
-            <span className={`${baseClass}__copy-message`}>Copied!</span>
-          )}
-        </span>
+        )}
       </>
     );
   };
@@ -338,16 +265,31 @@ const PlatformWrapper = ({
   }
 }`,
     };
-    const getHelpTextForPackageType = (): string => {
-      if (packageType === "deb") {
-        return "Install this package to add hosts to Fleet. For CentOS, Red Hat, and Fedora Linux, use --type=rpm.";
-      } else if (packageType === "msi") {
-        return "Install this package to add hosts to Fleet. For Windows, this generates an MSI package.";
-      } else if (packageType === "pkg") {
-        return "Install this package to add hosts to Fleet.";
-      }
-      return "";
-    };
+
+    let packageTypeHelpText;
+    if (packageType === "deb") {
+      packageTypeHelpText = (
+        <>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For CentOS, Red Hat, and Fedora Linux, use{" "}
+          <code>--type=rpm</code>. For Arch Linux, use{" "}
+          <code>--type=pkg.tar.zst</code>. For ARM, use{" "}
+          <code>--arch=arm64</code>.
+        </>
+      );
+    } else if (packageType === "msi") {
+      packageTypeHelpText = (
+        <>
+          Run this on your computer, then deploy the generated package to your
+          hosts. For ARM, use <code>--arch=arm64</code>
+        </>
+      );
+    } else if (packageType === "pkg") {
+      packageTypeHelpText =
+        "Run this on your computer, then deploy the generated package to your hosts.";
+    } else {
+      packageTypeHelpText = "";
+    }
 
     if (packageType === "chromeos") {
       return (
@@ -361,12 +303,13 @@ const PlatformWrapper = ({
               information below.
             </p>
             <InfoBanner className={`${baseClass}__chromeos--instructions`}>
-              For a step-by-step guide, see the documentation page for{" "}
+              For a step-by-step guide, see the documentation page for&nbsp;
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
                 text="adding hosts"
                 newTab
                 multiline
+                variant="banner-link"
               />
             </InfoBanner>
           </div>
@@ -374,30 +317,24 @@ const PlatformWrapper = ({
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-extension-id`}
             name="Extension ID"
-            label={renderChromeOSLabel(
-              "Extension ID",
-              CHROME_OS_INFO.extensionId
-            )}
+            enableCopy
+            label="Extension ID"
             value={CHROME_OS_INFO.extensionId}
           />
           <InputField
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-url`}
             name="Installation URL"
-            label={renderChromeOSLabel(
-              "Installation URL",
-              CHROME_OS_INFO.installationUrl
-            )}
+            enableCopy
+            label="Installation URL"
             value={CHROME_OS_INFO.installationUrl}
           />
           <InputField
             readOnly
             inputWrapperClass={`${baseClass}__installer-input ${baseClass}__chromeos-policy-for-extension`}
             name="Policy for extension"
-            label={renderChromeOSLabel(
-              "Policy for extension",
-              CHROME_OS_INFO.policyForExtension
-            )}
+            enableCopy
+            label="Policy for extension"
             type="textarea"
             value={CHROME_OS_INFO.policyForExtension}
           />
@@ -409,6 +346,10 @@ const PlatformWrapper = ({
       return <IosIpadosPanel enrollSecret={enrollSecret} />;
     }
 
+    if (packageType === "android") {
+      return <AndroidPanel enrollSecret={enrollSecret} />;
+    }
+
     if (packageType === "advanced") {
       return (
         <>
@@ -418,10 +359,8 @@ const PlatformWrapper = ({
               readOnly
               inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
               name="installer"
-              label={renderLabel(
-                packageType,
-                renderInstallerString(packageType)
-              )}
+              enableCopy
+              label={renderLabel(packageType)}
               type="textarea"
               value={renderInstallerString(packageType)}
               helpText="Distribute your package to add hosts to Fleet."
@@ -431,11 +370,8 @@ const PlatformWrapper = ({
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
               Chromebooks,{" "}
-              <Button
-                variant="text-link"
-                onClick={() => setSelectedTabIndex(4)}
-              >
-                click here
+              <Button variant="link" onClick={() => setSelectedTabIndex(3)}>
+                visit the ChromeOS tab
               </Button>
               .
             </InfoBanner>
@@ -458,11 +394,11 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="text-icon" onClick={onDownloadEnrollSecret}>
+                  <Button variant="inverse" onClick={onDownloadEnrollSecret}>
                     Download
                     <Icon
                       name="download"
-                      color="core-fleet-blue"
+                      color="ui-fleet-black-75"
                       size="small"
                     />
                   </Button>
@@ -483,13 +419,9 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="text-icon" onClick={onDownloadFlagfile}>
+                    <Button variant="inverse" onClick={onDownloadFlagfile}>
                       Download
-                      <Icon
-                        name="download"
-                        color="core-fleet-blue"
-                        size="small"
-                      />
+                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>
@@ -497,13 +429,11 @@ const PlatformWrapper = ({
               <div className={`${baseClass}__advanced--osqueryd`}>
                 <p className={`${baseClass}__advanced--heading`}>
                   With{" "}
-                  <a
-                    href="https://www.osquery.io/downloads"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    osquery
-                  </a>{" "}
+                  <CustomLink
+                    url="https://www.osquery.io/downloads"
+                    text="osquery"
+                    newTab
+                  />{" "}
                   installed:
                 </p>
                 <p className={`${baseClass}__advanced--text`}>
@@ -514,10 +444,8 @@ const PlatformWrapper = ({
                   readOnly
                   inputWrapperClass={`${baseClass}__run-osquery-input`}
                   name="run-osquery"
-                  label={renderLabel(
-                    "plain-osquery",
-                    "osqueryd --flagfile=flagfile.txt --verbose"
-                  )}
+                  enableCopy
+                  label={renderLabel("plain-osquery")}
                   type="text"
                   value="osqueryd --flagfile=flagfile.txt --verbose"
                 />
@@ -529,41 +457,49 @@ const PlatformWrapper = ({
     }
 
     return (
-      <>
+      // "form" className applies the global form styling
+      <div className="form">
         {packageType !== "pkg" && (
-          <Checkbox
-            name="include-fleet-desktop"
-            onChange={(value: boolean) => setIncludeFleetDesktop(value)}
-            value={includeFleetDesktop}
-          >
-            <>
-              Include&nbsp;
-              <TooltipWrapper
-                tipContent={
-                  "Include Fleet Desktop if you're adding workstations."
-                }
-              >
-                Fleet Desktop
-              </TooltipWrapper>
-            </>
-          </Checkbox>
+          // Windows & Linux
+          <div className="form-field">
+            <div className="form-field__label">Type</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Workstation"
+              id="workstation-host"
+              checked={hostType === "workstation"}
+              value="workstation"
+              name="host-typ"
+              onChange={() => setHostType("workstation")}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Server"
+              id="server-host"
+              checked={hostType === "server"}
+              value="server"
+              name="host-type"
+              onChange={() => setHostType("server")}
+            />
+          </div>
         )}
         <InputField
           readOnly
           inputWrapperClass={`${baseClass}__installer-input ${baseClass}__installer-input-${packageType}`}
           name="installer"
-          label={renderLabel(packageType, renderInstallerString(packageType))}
+          enableCopy
+          label={renderLabel(packageType)}
           type="textarea"
           value={renderInstallerString(packageType)}
-          helpText={`${getHelpTextForPackageType()}`}
+          helpText={packageTypeHelpText}
         />
-      </>
+      </div>
     );
   };
 
   return (
     <div className={baseClass}>
-      <TabsWrapper>
+      <TabNav>
         <Tabs
           onSelect={(index) => setSelectedTabIndex(index)}
           selectedIndex={selectedTabIndex}
@@ -574,7 +510,7 @@ const PlatformWrapper = ({
               // so we add a hidden pseudo element with the same text string
               return (
                 <Tab key={navItem.name} data-text={navItem.name}>
-                  {navItem.name}
+                  <TabText>{navItem.name}</TabText>
                 </Tab>
               );
             })}
@@ -591,11 +527,9 @@ const PlatformWrapper = ({
             );
           })}
         </Tabs>
-      </TabsWrapper>
+      </TabNav>
       <div className="modal-cta-wrap">
-        <Button onClick={onCancel} variant="brand">
-          Done
-        </Button>
+        <Button onClick={onCancel}>Close</Button>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ parasails.registerPage('basic-article', {
     subtopics: [],
     lastScrollTop: 0,
     scrollDistance: 0,
+    isIpadOS: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -17,6 +18,10 @@ parasails.registerPage('basic-article', {
     //…
   },
   mounted: async function() {
+    // Set a flag to determine whether or not this is an ipad. (Used to show/hide an embeded PDF)
+    if(navigator.maxTouchPoints > 1 && bowser.mac) {
+      this.isIpadOS = true;
+    }
     this.subtopics = (() => {
       let subtopics = $('[purpose="article-content"]').find('h2.markdown-heading').map((_, el) => el);
       subtopics = $.makeArray(subtopics).map((subheading) => {
@@ -37,6 +42,58 @@ parasails.registerPage('basic-article', {
       let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
       ol.style.counterReset = 'custom-counter ' + startValue;
     });
+
+    let headingsOnThisPage = $('[purpose="article-content"]').find(':header');
+    for(let key in Object.values(headingsOnThisPage)){
+      let heading = headingsOnThisPage[key];
+      // Find the child <a> element
+      let linkElementNestedInThisHeading = _.first($(heading).find('a.markdown-link'));
+      $(linkElementNestedInThisHeading).click(()=> {
+        if(typeof navigator.clipboard !== 'undefined') {
+          // If this heading has already been clicked and still has the copied class we'll just ignore this click
+          if(!$(heading).hasClass('copied')){
+            // If the link's href is missing, we'll copy the current url (and remove any hashes) to the clipboard instead
+            if(linkElementNestedInThisHeading.href) {
+              navigator.clipboard.writeText(linkElementNestedInThisHeading.href);
+            } else {
+              navigator.clipboard.writeText(heading.baseURI.split('#')[0]);
+            }
+            // Add the copied class to the header to notify the user that the link has been copied.
+            $(heading).addClass('copied');
+            // Remove the copied class 5 seconds later, so we can notify the user again if they re-cick on this heading
+            setTimeout(()=>{$(heading).removeClass('copied');}, 5000);
+          }
+        }
+      });
+    }
+    // https://github.com/sailshq/sailsjs.com/blob/7a74d4901dcc1e63080b502492b03fc971d3d3b2/assets/js/functions/sails-website-actions.js#L177-L239
+    (function highlightThatSyntax(){
+      $('pre code').each((i, block) => {
+        window.hljs.highlightElement(block);
+      });
+
+      // Make sure the <pre> tags whose code isn't being highlighted
+      // has that nice muted look we like.
+      $('.nohighlight').each(function() {
+        var $codeBlock = $(this);
+        $codeBlock.closest('pre').addClass('muted');
+      });
+      // Also make sure the 'usage' (and 'usage-*') code blocks have special styles.
+      $('.usage,.usage-exec').each(function() {
+        var $codeBlock = $(this);
+        $codeBlock.closest('pre').addClass('usage-wrapper');
+      });
+
+      // Now let's make the `function` keywords blue like in sublime.
+      $('.hljs-keyword').each(function() {
+        var $highlightedKeyword = $(this);
+        if($highlightedKeyword.text() === 'function') {
+          $highlightedKeyword.removeClass('hljs-keyword');
+          $highlightedKeyword.addClass('hljs-function-keyword');
+        }
+      });
+    })();
+
     // Add an event listener to add a class to the right sidebar when the header is hidden.
     window.addEventListener('scroll', this.handleScrollingInArticle);
 

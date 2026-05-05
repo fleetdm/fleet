@@ -32,7 +32,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@629c2de402a417ea7690ca6ce3f33229e27606a5 # v2
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -48,7 +48,7 @@ jobs:
         run: |
           make generate-doc
           if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommited changes"
+            echo "❌ fail: uncommitted changes"
             echo "please run 'make generate-doc' and commit the changes"
             git --no-pager diff
             exit 1
@@ -60,8 +60,18 @@ jobs:
           npm install
           ./node_modules/sails/bin/sails.js run generate-merged-schema
           if [[ $(git diff) ]]; then
-            echo "❌ fail: uncommited changes"
+            echo "❌ fail: uncommitted changes"
             echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
+            exit 1
+          fi
+
+      - name: Verify VEX report is up-to-date
+        run: |
+          make vex-report
+          if [[ $(git diff) ]]; then
+            echo "❌ fail: uncommitted changes"
+            echo "please run 'make vex-report' and commit the changes"
             git --no-pager diff
             exit 1
           fi

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 var (
@@ -20,24 +20,6 @@ const (
 	UUIDSourceWMI      = "UUID_Source_WMI"
 	UUIDSourceHardware = "UUID_Source_Hardware"
 )
-
-// killProcessByName kills a single process by its name.
-func killProcessByName(name string) error {
-	if name == "" {
-		return errors.New("process name should not be empty")
-	}
-
-	foundProcess, err := GetProcessByName(name)
-	if err != nil {
-		return fmt.Errorf("get process: %w", err)
-	}
-
-	if err := foundProcess.Kill(); err != nil {
-		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-	}
-
-	return nil
-}
 
 // getProcessesByName returns all the running processes with the given prefix in their name.
 func getProcessesByName(namePrefix string) ([]*gopsutil_process.Process, error) {

@@ -3,12 +3,12 @@ package launcher
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/service/mock"
-	"github.com/go-kit/log"
 	"github.com/kolide/launcher/pkg/service"
 	"github.com/osquery/osquery-go/plugin/distributed"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +21,7 @@ func TestLauncherEnrollment(t *testing.T) {
 
 	nodeKey, invalid, err := launcher.RequestEnrollment(ctx, "secret", "identifier", service.EnrollmentDetails{})
 	require.Nil(t, err)
-	assert.True(t, tls.EnrollAgentFuncInvoked)
+	assert.True(t, tls.EnrollOsqueryFuncInvoked)
 	assert.False(t, invalid)
 	assert.Equal(t, "noop", nodeKey)
 }
@@ -93,7 +93,7 @@ func newTestService(t *testing.T) (*launcherWrapper, *mock.TLSService) {
 	tls := newTLSService(t)
 	launcher := &launcherWrapper{
 		tls:    tls,
-		logger: log.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 		healthCheckers: map[string]health.Checker{
 			"noop": health.Nop(),
 		},
@@ -105,7 +105,7 @@ func newTestService(t *testing.T) (*launcherWrapper, *mock.TLSService) {
 // To test additional behaviors, override the funcs on the TLSService struct.
 func newTLSService(t *testing.T) *mock.TLSService {
 	return &mock.TLSService{
-		EnrollAgentFunc: func(
+		EnrollOsqueryFunc: func(
 			ctx context.Context,
 			enrollSecret string,
 			hostIdentifier string,

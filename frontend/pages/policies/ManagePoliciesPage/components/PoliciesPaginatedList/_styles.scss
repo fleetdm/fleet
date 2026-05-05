@@ -1,0 +1,25 @@
+.policies-paginated-list {
+    &__header {
+        font-weight: $bold;
+    }
+
+    .paginated-list__row {
+        height: 40px;
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+
+    .platform-cell__wrapper {
+        flex-shrink: 0;
+    }
+
+    .gitops-mode-tooltip-wrapper {
+        display: block
+    }
+
+    .form-fields {
+        &--disabled {
+            @include disabled;
+        }
+    }
+}

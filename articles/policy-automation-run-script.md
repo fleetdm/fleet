@@ -4,7 +4,7 @@
 
 Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 
-Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
+Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails.
 
 ## Prerequisites
 
@@ -12,13 +12,13 @@ Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts
 
 ## Step-by-step instructions
 
-1. **Add a script**: Navigate to **Controls** > **Scripts**, select the team on which you want the script and policy to run, and upload the script you want to run.
-2. **Add a policy**: Navigate to **Policies**, select the team you want the policy to run on, and click **Add policy**. Follow the instructions to set up a custom policy or use one baked into Fleet. You can also add a script automation to an existing policy.
+1. **Add a script**: Navigate to **Controls** > **Scripts**, select the fleet on which you want the script and policy to run, and upload the script you want to run.
+2. **Add a policy**: Navigate to **Policies**, select the fleet you want the policy to run on, and click **Add policy**. Follow the instructions to set up a custom policy or use one baked into Fleet. You can also add a script automation to an existing policy.
 3. **Set the automation**: In the previous step's **Policies** list view you navigated to, click **Manage automations**, then click **Run script**. Check the box beside the policy (or policies) for which you want to run scripts, then select a script in the drop-down that appears next to the policy name. When you're done associating policies to scripts, click **Save**.
 
-The next time a fleetd host fails the policy you added automation for, Fleet will queue up the script you selected and run it on the host as if you had requested a script run manually.
+When a host fails the selected policy, this will trigger the script to run on the host.
 
-> Adding a script to a policy will reset the policy's host counts.
+If the script fails, you can reset a script automation and trigger the script to run on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the script automation.
 
 ## How does it work?
 
@@ -27,7 +27,7 @@ The next time a fleetd host fails the policy you added automation for, Fleet wil
 
 > When script automation on a policy is added or switched to a different script, the policy's status will reset for associated hosts. This allows the newly attached script to run on hosts that had previously failed the policy.
 
-* Scripts are run once regardless of exit code.
+* Policy automation scripts are automatically attempted up to 3 total times. Each time the script exits with a non-zero exit code (i.e., it fails), Fleet triggers the script again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
 * When used in policy automation, Fleet does not run shell scripts on Windows hosts or PowerShell scripts on non-Windows hosts.
 
 ## Via the API
@@ -36,7 +36,7 @@ Script policy automation can be managed by setting the `script_id` field on the 
 
 ## Via GitOps
 
-To configure script policy automation via GitOps, nest a `run_script` entry under the `policy` you want to automate, then make sure you have the same `path` field both there and in the same team's `controls > scripts` section. See the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for an example.
+To configure script policy automation via GitOps, nest a `run_script` entry under the `policy` you want to automate, then make sure you have the same `path` field both there and in the same fleet's `controls > scripts` section. See the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#policies) for an example.
 
 ## Conclusion
 

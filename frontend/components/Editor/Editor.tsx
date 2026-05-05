@@ -1,8 +1,17 @@
+import React, { MouseEvent, ReactNode, useState, useCallback } from "react";
+
 import classnames from "classnames";
-import TooltipWrapper from "components/TooltipWrapper";
-import React, { ReactNode } from "react";
 import AceEditor from "react-ace";
-import { IAceEditor } from "react-ace/lib/types";
+import "ace-builds/src-noconflict/mode-sh";
+import "ace-builds/src-noconflict/mode-powershell";
+import "ace-builds/src-noconflict/mode-python";
+import { Ace } from "ace-builds";
+
+import { stringToClipboard } from "utilities/copy_text";
+
+import TooltipWrapper from "components/TooltipWrapper";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "editor";
 
@@ -22,6 +31,10 @@ interface IEditorProps {
   /** Sets the default value of the input. Use this if you'd like the editor
    * to be an uncontrolled component */
   defaultValue?: string;
+  /** Enable copying the value of the editor.
+   * @default false
+   */
+  enableCopy?: boolean;
   /** Enabled wrapping lines.
    * @default false
    */
@@ -30,18 +43,22 @@ interface IEditorProps {
    * @default "editor"
    */
   name?: string;
+  /** The syntax highlighting mode to use.
+   */
+  mode?: string;
   /** Include correct styles as a form field.
-   * @default false
+   * @default true
    */
   isFormField?: boolean;
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: any) => void;
+  onBlur?: () => void;
 }
 
 /**
  * This component is a generic editor that uses the AceEditor component.
- * TODO: We should move FleetAce and YamlAce into here and deprecate importing
+ * TODO: We should move SQLEditor and YamlAce into here and deprecate importing
  * them directly. This component should be used for all editor components and
  * be configurable from the props. We should look into dynmaic imports for
  * this.
@@ -55,19 +72,57 @@ const Editor = ({
   value,
   defaultValue,
   readOnly = false,
+  enableCopy = false,
   wrapEnabled = false,
   name = "editor",
-  isFormField = false,
+  mode,
+  isFormField = true,
   maxLines = 20,
   className,
   onChange,
+  onBlur,
 }: IEditorProps) => {
   const classNames = classnames(baseClass, className, {
     "form-field": isFormField,
     [`${baseClass}__error`]: !!error,
   });
 
-  const onLoadHandler = (editor: IAceEditor) => {
+  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+
+  const onClickCopy = useCallback(
+    (e: MouseEvent) => {
+      e.preventDefault();
+      stringToClipboard(value).then(() => {
+        setShowCopiedMessage(true);
+        setTimeout(() => {
+          setShowCopiedMessage(false);
+        }, 2000);
+      });
+    },
+    [value]
+  );
+
+  const renderCopyButton = () => {
+    const copyButtonValue = <Icon name="copy" />;
+    const wrapperClasses = classnames(`${baseClass}__copy-wrapper`);
+
+    const copiedConfirmationClasses = classnames(
+      `${baseClass}__copied-confirmation`
+    );
+
+    return (
+      <div className={wrapperClasses}>
+        {showCopiedMessage && (
+          <span className={copiedConfirmationClasses}>Copied!</span>
+        )}
+        <Button variant={"icon"} onClick={onClickCopy} iconStroke>
+          {copyButtonValue}
+        </Button>
+      </div>
+    );
+  };
+
+  const onLoadHandler = (editor: Ace.Editor) => {
     // Lose focus using the Escape key so you can Tab forward (or Shift+Tab backwards) through app
     editor.commands.addCommand({
       name: "escapeToBlur",
@@ -115,7 +170,9 @@ const Editor = ({
   return (
     <div className={classNames}>
       {renderLabel()}
+      {enableCopy && renderCopyButton()}
       <AceEditor
+        mode={mode}
         wrapEnabled={wrapEnabled}
         name={name}
         className={baseClass}
@@ -131,6 +188,7 @@ const Editor = ({
         tabSize={2}
         focus={focus}
         onChange={onChange}
+        onBlur={onBlur}
         onLoad={onLoadHandler}
       />
       {renderHelpText()}

@@ -1,6 +1,6 @@
 .software-os-table {
   &__platform-dropdown {
-    width: 175px;
+    width: 200px;
 
     .Select-menu-outer {
       width: 160px;
@@ -44,12 +44,6 @@
                 // Tooltip does not get cut off
                 .children-wrapper {
                   overflow: initial;
-                }
-
-                // ellipsis for software name
-                .software-name {
-                  overflow: hidden;
-                  text-overflow: ellipsis;
                 }
               }
               .link-cell {

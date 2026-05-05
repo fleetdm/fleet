@@ -1,0 +1,8 @@
+{
+  "name": "Company Portal",
+  "unique_identifier": "com.microsoft.CompanyPortalMac",
+  "token": "intune-company-portal",
+  "installer_format": "pkg",
+  "slug": "intune-company-portal/darwin",
+  "default_categories": ["Productivity"]
+}

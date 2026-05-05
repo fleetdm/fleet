@@ -1,0 +1,8 @@
+{
+  "name": "CotEditor",
+  "unique_identifier": "com.coteditor.CotEditor",
+  "token": "coteditor",
+  "installer_format": "dmg",
+  "slug": "coteditor/darwin",
+  "default_categories": ["Developer tools"]
+}

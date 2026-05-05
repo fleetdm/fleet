@@ -18,7 +18,7 @@ func Up_20230303135738(tx *sql.Tx) error {
       iterations   int unsigned NOT NULL,
     
       PRIMARY KEY (uuid)
-    )`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	return err
 }
 

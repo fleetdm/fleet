@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Package visibility for Android Device Policy (required for targetSdk 30+) -->
+    <!-- Source: https://developers.google.com/android/management/sdk-integration#add_queries -->
+    <queries>
+        <package android:name="com.google.android.apps.work.clouddpc" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
+    <!-- REQUIRED for downloading certificates from remote server -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Permission to receive the boot event -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <application
+        android:name=".AgentApplication"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.MyApplication">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- ACTION_BOOT_COMPLETED Receiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- AMAPI NotificationReceiverService for COMPANION_APP role -->
+        <service
+            android:name=".RoleNotificationReceiverService"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <meta-data
+                android:name="com.google.android.managementapi.notification.NotificationReceiverService.SERVICE_APP_ROLES"
+                android:value="" />
+        </service>
+
+        <!-- Managed configuration schema -->
+        <meta-data android:name="android.content.APP_RESTRICTIONS"
+            android:resource="@xml/app_restrictions" />
+
+    </application>
+
+</manifest>

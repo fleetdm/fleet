@@ -1,22 +1,27 @@
 import React, { useState, useMemo } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import validUrl from "components/forms/validators/valid_url";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import SectionHeader from "components/SectionHeader";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
+import { isPremiumTier } from "utilities/permissions/permissions";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
 
 interface IAdvancedConfigFormData {
+  ssoUserURL: string;
   mdmAppleServerURL: string;
   domain: string;
   verifySSLCerts: boolean;
@@ -29,15 +34,18 @@ interface IAdvancedConfigFormData {
   disableScripts: boolean;
   disableAIFeatures: boolean;
   disableQueryReports: boolean;
+  requireHardwareAttestation: boolean;
 }
 
 interface IAdvancedConfigFormErrors {
+  ssoUserURL?: string | null;
   mdmAppleServerURL?: string | null;
   domain?: string | null;
   hostExpiryWindow?: string | null;
 }
 
 const validateFormData = ({
+  ssoUserURL,
   mdmAppleServerURL,
   domain,
   hostExpiryWindow,
@@ -45,16 +53,32 @@ const validateFormData = ({
 }: IAdvancedConfigFormData) => {
   const errors: Record<string, string> = {};
 
+  if (!ssoUserURL) {
+    delete errors.ssoUserURL;
+  } else if (
+    !validUrl({
+      url: ssoUserURL,
+    })
+  ) {
+    errors.ssoUserURL = "SSO user URL is not a valid URL";
+  }
+
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
-  } else if (!validUrl({ url: mdmAppleServerURL })) {
-    errors.mdmAppleServerURL = `${mdmAppleServerURL} is not a valid URL`;
+  } else if (
+    !validUrl({
+      url: mdmAppleServerURL,
+      allowLocalHost: false,
+      protocols: ["http", "https"],
+    })
+  ) {
+    errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
   if (!domain) {
     delete errors.domain;
   } else if (!validUrl({ url: domain })) {
-    errors.domain = `${domain} is not a valid URL`;
+    errors.domain = "Domain is not a valid URL";
   }
 
   if (
@@ -72,6 +96,7 @@ const Advanced = ({
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
+    ssoUserURL: appConfig.sso_settings?.sso_server_url || "",
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
     domain: appConfig.smtp_settings?.domain || "",
     verifySSLCerts: appConfig.smtp_settings?.verify_ssl_certs || false,
@@ -91,9 +116,12 @@ const Advanced = ({
     disableAIFeatures: appConfig.server_settings.ai_features_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
+    requireHardwareAttestation:
+      appConfig.mdm?.apple_require_hardware_attestation || false,
   });
 
   const {
+    ssoUserURL,
     mdmAppleServerURL,
     domain,
     verifySSLCerts,
@@ -106,6 +134,7 @@ const Advanced = ({
     disableScripts,
     disableAIFeatures,
     disableQueryReports,
+    requireHardwareAttestation,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
@@ -123,7 +152,7 @@ const Advanced = ({
     [deleteActivities]
   );
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);
@@ -154,8 +183,8 @@ const Advanced = ({
     // Formatting of API not UI
     const formDataToSubmit = {
       server_settings: {
-        live_query_disabled: disableLiveQuery,
-        query_reports_disabled: disableQueryReports,
+        live_reporting_disabled: disableLiveQuery,
+        discard_reports_data: disableQueryReports,
         scripts_disabled: disableScripts,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
         ai_features_disabled: disableAIFeatures,
@@ -175,6 +204,10 @@ const Advanced = ({
       },
       mdm: {
         apple_server_url: mdmAppleServerURL,
+        apple_require_hardware_attestation: requireHardwareAttestation,
+      },
+      sso_settings: {
+        sso_server_url: ssoUserURL,
       },
     };
 
@@ -182,242 +215,351 @@ const Advanced = ({
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Advanced options" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
-          <p className={`${baseClass}__section-description`}>
-            Most users do not need to modify these options.
-          </p>
-          {appConfig.mdm.enabled_and_configured && (
+    <SettingsSection title="Advanced options" className={baseClass}>
+      <PageDescription
+        variant="right-panel"
+        content="Most users do not need to modify these options."
+      />
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <GitOpsModeTooltipWrapper
+          position="left"
+          isInputField
+          renderChildren={(disableChildren) => (
             <InputField
-              label="Apple MDM server URL"
+              disabled={disableChildren}
+              label="SSO user URL"
               onChange={onInputChange}
               onBlur={onInputBlur}
-              name="mdmAppleServerURL"
-              value={mdmAppleServerURL}
+              name="ssoUserURL"
+              value={ssoUserURL}
               parseTarget
-              error={formErrors.mdmAppleServerURL}
-              tooltip="Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
-              helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
+              error={formErrors.ssoUserURL}
+              tooltip={
+                !disableChildren &&
+                "Update this URL if you want your Fleet users (admins, maintainers, observers) to login via SSO using a URL that's different than the base URL of your Fleet instance. If not configured, login via SSO will use the base URL of the Fleet instance."
+              }
             />
           )}
-          <InputField
-            label="Domain"
-            onChange={onInputChange}
-            onBlur={onInputBlur}
-            name="domain"
-            value={domain}
-            parseTarget
-            error={formErrors.domain}
-            tooltip={
-              <>
-                If you need to specify a HELO domain, <br />
-                you can do it here{" "}
-                <em>
-                  (Default: <strong>Blank</strong>)
-                </em>
-              </>
-            }
+        />
+        {appConfig.mdm.enabled_and_configured && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            isInputField
+            renderChildren={(disableChildren) => (
+              <InputField
+                disabled={disableChildren}
+                label="Apple MDM server URL"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                name="mdmAppleServerURL"
+                value={mdmAppleServerURL}
+                parseTarget
+                error={formErrors.mdmAppleServerURL}
+                tooltip={
+                  !disableChildren &&
+                  "Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. If not configured, hosts will use the base URL of the Fleet instance."
+                }
+                helpText="If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features."
+              />
+            )}
           />
-          <Checkbox
-            onChange={onInputChange}
-            name="verifySSLCerts"
-            value={verifySSLCerts}
-            parseTarget
-            tooltipContent={
-              <>
-                Turn this off (not recommended) <br />
-                if you use a self-signed certificate{" "}
-                <em>
-                  <br />
-                  (Default: <strong>On</strong>)
-                </em>
-              </>
-            }
-          >
-            Verify SSL certs
-          </Checkbox>
-          <Checkbox
-            onChange={onInputChange}
-            name="enableStartTLS"
-            value={enableStartTLS}
-            parseTarget
-            tooltipContent={
-              <>
-                Detects if STARTTLS is enabled <br />
-                in your SMTP server and starts <br />
-                to use it.{" "}
-                <em>
-                  (Default: <strong>On</strong>)
-                </em>
-              </>
-            }
-          >
-            Enable STARTTLS
-          </Checkbox>
-          <Checkbox
-            onChange={onInputChange}
-            name="enableHostExpiry"
-            value={enableHostExpiry}
-            parseTarget
-            tooltipContent={
-              <>
-                When enabled, allows automatic cleanup of
+        )}
+        <InputField
+          label="Domain"
+          onChange={onInputChange}
+          onBlur={onInputBlur}
+          name="domain"
+          value={domain}
+          parseTarget
+          error={formErrors.domain}
+          tooltip={
+            <>
+              If you need to specify a HELO domain, <br />
+              you can do it here{" "}
+              <em>
+                (Default: <strong>Blank</strong>)
+              </em>
+            </>
+          }
+        />
+        <Checkbox
+          onChange={onInputChange}
+          name="verifySSLCerts"
+          value={verifySSLCerts}
+          parseTarget
+          labelTooltipContent={
+            <>
+              Turn this off (not recommended) <br />
+              if you use a self-signed certificate{" "}
+              <em>
                 <br />
-                hosts that have not communicated with Fleet in
-                <br />
-                the number of days specified in the{" "}
-                <strong>
-                  Host expiry
-                  <br />
-                  window
-                </strong>{" "}
-                setting.{" "}
-                <em>
-                  (Default: <strong>Off</strong>)
-                </em>
-              </>
-            }
-          >
-            Host expiry
-          </Checkbox>
-          {enableHostExpiry && (
-            <InputField
-              label="Host expiry window"
-              type="number"
+                (Default: <strong>On</strong>)
+              </em>
+            </>
+          }
+        >
+          Verify SSL certs
+        </Checkbox>
+        <Checkbox
+          onChange={onInputChange}
+          name="enableStartTLS"
+          value={enableStartTLS}
+          parseTarget
+          labelTooltipContent={
+            <>
+              Detects if STARTTLS is enabled <br />
+              in your SMTP server and starts <br />
+              to use it.{" "}
+              <em>
+                (Default: <strong>On</strong>)
+              </em>
+            </>
+          }
+        >
+          Enable STARTTLS
+        </Checkbox>
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
               onChange={onInputChange}
-              name="hostExpiryWindow"
-              value={hostExpiryWindow}
+              name="enableHostExpiry"
+              value={enableHostExpiry}
               parseTarget
-              error={formErrors.hostExpiryWindow}
-            />
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When enabled, allows automatic cleanup of
+                    <br />
+                    hosts that have not communicated with Fleet in
+                    <br />
+                    the number of days specified in the{" "}
+                    <strong>
+                      Host expiry
+                      <br />
+                      window
+                    </strong>{" "}
+                    setting.{" "}
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
+                )
+              }
+            >
+              Host expiry
+            </Checkbox>
           )}
-          <Checkbox
-            onChange={onInputChange}
-            name="deleteActivities"
-            value={deleteActivities}
-            parseTarget
-            tooltipContent={
-              <>
-                When enabled, allows automatic cleanup of audit logs older than
-                the number of days specified in the{" "}
-                <em>Audit log retention window</em> setting.
-                <em>
-                  (Default: <strong>Off</strong>)
-                </em>
-              </>
-            }
-          >
-            Delete activities
-          </Checkbox>
-          {deleteActivities && (
-            <Dropdown
-              searchable={false}
-              options={activityExpiryWindowOptions}
+        />
+        {enableHostExpiry && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            isInputField
+            renderChildren={(disableChildren) => (
+              <InputField
+                disabled={disableChildren}
+                label="Host expiry window"
+                type="number"
+                onChange={onInputChange}
+                name="hostExpiryWindow"
+                value={hostExpiryWindow}
+                parseTarget
+                error={formErrors.hostExpiryWindow}
+              />
+            )}
+          />
+        )}
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
               onChange={onInputChange}
-              placeholder="Select"
-              value={activityExpiryWindow}
-              label="Max activity age"
-              name="activityExpiryWindow"
+              name="deleteActivities"
+              value={deleteActivities}
               parseTarget
-            />
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When enabled, allows automatic cleanup of audit logs older
+                    than the number of days specified in the{" "}
+                    <em>Audit log retention window</em> setting.
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
+                )
+              }
+            >
+              Delete activities
+            </Checkbox>
           )}
-          <Checkbox
-            onChange={onInputChange}
-            name="disableLiveQuery"
-            value={disableLiveQuery}
-            parseTarget
-            tooltipContent={
-              <>
-                When enabled, disables the ability to run live queries <br />
-                (ad hoc queries executed via the UI or fleetctl).{" "}
-                <em>
-                  (Default: <strong>Off</strong>)
-                </em>
-              </>
-            }
-          >
-            Disable live queries
-          </Checkbox>
-          <Checkbox
-            onChange={onInputChange}
-            name="disableScripts"
-            value={disableScripts}
-            parseTarget
-            tooltipContent={
-              <>
-                Disabling script execution will block access to run scripts.
-                <br />
-                Scripts may still be added and removed in the UI and API.
-                <br />
-                <em>
-                  (Default: <b>Off</b>)
-                </em>
-              </>
-            }
-            helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe) will still be available."
-          >
-            Disable script execution features
-          </Checkbox>
-          <Checkbox
-            onChange={onInputChange}
-            name="disableAIFeatures"
-            value={disableAIFeatures}
-            parseTarget
-            tooltipContent={
-              <>
-                When enabled, disables AI features such as pre-filling forms
-                <br />
-                with descriptions generated by a large language model
-                <br />
-                (LLM).{" "}
-                <em>
-                  (Default: <strong>Off</strong>)
-                </em>
-              </>
-            }
-            helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
-          >
-            Disable generative AI features
-          </Checkbox>
-          <Checkbox
-            onChange={onInputChange}
-            name="disableQueryReports"
-            value={disableQueryReports}
-            parseTarget
-            tooltipContent={
-              <>
-                <>
-                  Disabling query reports will decrease database usage, <br />
-                  but will prevent you from accessing query results in
-                  <br />
-                  Fleet and will delete existing reports. This can also be{" "}
-                  <br />
-                  disabled on a per-query basis by enabling &quot;Discard <br />
-                  data&quot;.{" "}
-                  <em>
-                    (Default: <b>Off</b>)
-                  </em>
-                </>
-              </>
-            }
-            helpText="Enabling this setting will delete all existing query reports in Fleet."
-          >
-            Disable query reports
-          </Checkbox>
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="save-loading button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
-        </form>
-      </div>
-    </div>
+        />
+        {deleteActivities && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            isInputField
+            renderChildren={(disableChildren) => (
+              <Dropdown
+                disabled={disableChildren}
+                searchable={false}
+                options={activityExpiryWindowOptions}
+                onChange={onInputChange}
+                placeholder="Select"
+                value={activityExpiryWindow}
+                label="Max activity age"
+                name="activityExpiryWindow"
+                parseTarget
+              />
+            )}
+          />
+        )}
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableLiveQuery"
+              value={disableLiveQuery}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When enabled, disables the ability to run live reports{" "}
+                    <br />
+                    (ad hoc reports executed via the UI or fleetctl).{" "}
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
+                )
+              }
+            >
+              Disable live reports
+            </Checkbox>
+          )}
+        />
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableQueryReports"
+              value={disableQueryReports}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    <>
+                      Disabling stored results will decrease database usage,{" "}
+                      <br />
+                      but will prevent you from accessing report results in
+                      <br />
+                      Fleet and will delete existing results. This can also be{" "}
+                      <br />
+                      disabled on a per-report basis by enabling &quot;Discard{" "}
+                      <br />
+                      data&quot;.{" "}
+                      <em>
+                        (Default: <b>Off</b>)
+                      </em>
+                    </>
+                  </>
+                )
+              }
+              helpText="Enabling this setting will delete all existing report results in Fleet."
+            >
+              Disable stored results
+            </Checkbox>
+          )}
+        />
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableScripts"
+              value={disableScripts}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    Disabling script execution will block access to run scripts.
+                    <br />
+                    Scripts may still be added and removed in the UI and API.
+                    <br />
+                    <em>
+                      (Default: <b>Off</b>)
+                    </em>
+                  </>
+                )
+              }
+              helpText="Features that run scripts under-the-hood (e.g. software install, lock/wipe, script-only packages) will still be available."
+            >
+              Disable script execution features
+            </Checkbox>
+          )}
+        />
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <Checkbox
+              disabled={disableChildren}
+              onChange={onInputChange}
+              name="disableAIFeatures"
+              value={disableAIFeatures}
+              parseTarget
+              labelTooltipContent={
+                !disableChildren && (
+                  <>
+                    When enabled, disables AI features such as pre-filling forms
+                    <br />
+                    with descriptions generated by a large language model
+                    <br />
+                    (LLM).{" "}
+                    <em>
+                      (Default: <strong>Off</strong>)
+                    </em>
+                  </>
+                )
+              }
+              helpText="If enabled, only policy queries (SQL) are sent to the LLM. Fleet doesn’t use this data to train models."
+            >
+              Disable generative AI features
+            </Checkbox>
+          )}
+        />
+        {isPremiumTier(appConfig) && (
+          <GitOpsModeTooltipWrapper
+            position="left"
+            renderChildren={(disableChildren) => (
+              <Checkbox
+                disabled={disableChildren}
+                onChange={onInputChange}
+                name="requireHardwareAttestation"
+                value={requireHardwareAttestation}
+                parseTarget
+                helpText="Enabling this setting will require macOS hosts with Apple Silicon that automatically enroll (DEP) to use ACME with Managed Device Attestation"
+              >
+                Require hardware attestation
+              </Checkbox>
+            )}
+          />
+        )}
+        <Button
+          type="submit"
+          disabled={Object.keys(formErrors).length > 0}
+          className="save-loading button-wrap"
+          isLoading={isUpdatingSettings}
+        >
+          Save
+        </Button>
+      </form>
+    </SettingsSection>
   );
 };
 

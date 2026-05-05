@@ -1,0 +1,20 @@
+.script-details-modal {
+  &__script-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__script-content-textarea {
+    font-family: "SourceCodePro";
+    min-height: 150px;
+    max-height: 572px;
+    overflow: scroll;
+  }
+}
+
+// show script details without additional animation
+.modal__background:has(.run-script-batch-modal) {
+  transition: none;
+  animation: none;
+}

@@ -1,0 +1,115 @@
+.software-vpp-form {
+  position: relative;
+
+  &__overlay {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    z-index: 1000;
+  }
+
+  &__content-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__content-disabled {
+    transition: opacity 150ms ease-in-out;
+    opacity: 0.5; // this adds a disabled effect to the modal content
+  }
+
+  &__form-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xxlarge;
+    &--disabled {
+      @include disabled;
+    }
+  }
+
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  &__form-frame {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 20px;
+    align-self: stretch;
+
+    .card {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 12px;
+      flex: 1 0 0;
+      align-self: stretch;
+    }
+  }
+
+  &__target {
+    width: 100%;
+  }
+
+  @media (min-width: $break-md) {
+    &__form-frame {
+      flex-direction: row;
+    }
+  }
+
+  // list styles
+  &__list-container {
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius-medium;
+  }
+
+  &__list {
+    max-height: 280px;
+    overflow-y: auto;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__list-item {
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
+    padding: $pad-small $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    .app-platform {
+      font-size: $x-small;
+      color: $ui-fleet-black-50;
+    }
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__app-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+  }
+
+  &__help-text {
+    @include help-text;
+
+    .custom-link {
+      font-size: $xx-small;
+    }
+  }
+
+  // button styles
+  &__action-buttons {
+    display: flex;
+    flex-direction: row-reverse;
+    gap: $pad-medium;
+  }
+}

@@ -135,6 +135,13 @@ module.exports = {
           emailAddress: 'sage@example.com',
         };
         break;
+      case 'email-fleet-premium-trial':
+        // layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       case 'email-deal-registration':
         layout = 'layout-email';
         fakeData = {
@@ -142,17 +149,32 @@ module.exports = {
           submittersLastName: 'Williamson',
           submittersEmailAddress: 'jane@example.com',
           submittersOrganization: 'Fake organization',
-          customersFirstName: 'Sage',
-          customersLastName: 'Scorpion',
+          customersName: 'Sage Scorpion',
           customersEmailAddress: 'sage@example.com',
-          linkedinUrl: 'https://www.linkedin.com/in/sage-scorpion/',
           customersOrganization: 'Fake organization 2',
-          customersCurrentMdm: 'Omnissa',
-          otherMdmEvaluated: 'Jamf protect',
-          preferredHosting: 'Managed cloud',
-          expectedDealSize: '$30,000',
-          expectedCloseDate: '09/28/2024',
+          dealStage: 'Identified',
+          submitterIsExistingPartner: 'yes',
+          expectedClose: '1 - 3 months',
+          numberOfHosts: '1000 - 5000',
+          platforms: `<br> Apple (macOS, iOS/iPadOS) <br> Linux`,
+          useCase: `<br> Device management <br> Security / compliance`,
           notes: 'Fake organization 2 is looking for a managed cloud MDM solution with a name that ends with "eet"',
+        };
+        break;
+      case 'email-partner-registration':
+        layout = 'layout-email';
+        fakeData = {
+          submittersFirstName: 'Jane',
+          submittersLastName: 'Williamson',
+          submittersEmailAddress: 'jane@example.com',
+          submittersOrganization: 'Fake organization',
+          partnerType: 'reseller',
+          partnerWebsite: 'example.com',
+          partnerCountry: 'US',
+          goal: 'Resell or manage devices for customers',
+          notes: 'My organization is looking to resell an MDM solution to our cloud customers',
+          numberOfHosts: '100 - 1000',
+          servicesOffered: '<br> IT services / MSP<br> MDM / endpoint management'
         };
         break;
       case 'email-contact-form':
@@ -163,10 +185,40 @@ module.exports = {
           message: 'Hi, this is a contact form message!',
         };
         break;
+      case 'email-fleet-premium-local-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-local-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-pov-trial-started':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
+      case 'email-fleet-premium-pov-trial-ended':
+        layout = 'layout-nurture-email';
+        fakeData = {
+          firstName: 'Sage',
+          emailAddress: 'sage@example.com',
+        };
+        break;
       default:
         layout = 'layout-email-newsletter';
         fakeData = {
           emailAddress: 'sage@example.com',
+          firstName: 'Sage',
+          lastName: 'Scorpion',
         };
     }
 

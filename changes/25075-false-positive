@@ -1,1 +1,0 @@
-* Fixed CVE-2024-10327 false positive on Fleet-supported platforms (vuln is iOS-only and iOS vuln checking is not supported)

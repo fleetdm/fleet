@@ -29,6 +29,9 @@ func Columns() []table.ColumnDefinition {
 		//
 		// See https://developer.apple.com/help/account/manage-your-team/locate-your-team-id/.
 		table.TextColumn("team_identifier"),
+		// cdhash_sha256 is the SHA256 hash returned by codesign of the code directory for the macOS app or executable.
+		// It is a unique identifier for the code signature of the app.
+		table.TextColumn("cdhash_sha256"),
 	}
 }
 
@@ -60,7 +63,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 			// it just parses and displays signature information read from the `Contents` folder.
 			"--display",
 			// If we don't set verbose it only prints the executable path.
-			"--verbose",
+			"--verbose=3",
 			path,
 		).CombinedOutput() // using CombinedOutput because output is in stderr and stdout is empty.
 		if err != nil {
@@ -71,6 +74,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		}
 		info := parseCodesignOutput(output)
 		row["team_identifier"] = info.teamIdentifier
+		row["cdhash_sha256"] = info.cdHash
 		rows = append(rows, row)
 	}
 
@@ -79,10 +83,12 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 
 type parsedInfo struct {
 	teamIdentifier string
+	cdHash         string
 }
 
 func parseCodesignOutput(output []byte) parsedInfo {
 	const teamIdentifierPrefix = "TeamIdentifier="
+	const cdHashPrefix = "CDHash="
 
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	var info parsedInfo
@@ -94,6 +100,8 @@ func parseCodesignOutput(output []byte) parsedInfo {
 			if info.teamIdentifier == "not set" {
 				info.teamIdentifier = ""
 			}
+		} else if strings.HasPrefix(line, cdHashPrefix) {
+			info.cdHash = strings.TrimSpace(strings.TrimPrefix(line, cdHashPrefix))
 		}
 	}
 	return info

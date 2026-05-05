@@ -5,9 +5,11 @@ import (
 	"testing"
 	"time"
 
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,6 +17,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testSSOMetadata returns a valid SAML metadata XML for testing
+func testSSOMetadata() string {
+	return `<?xml version="1.0"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="test-idp">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMTYxMjMxMTQzNDQ3WhcNNDgwNjI1MTQzNDQ3WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzUCFozgNb1h1M0jzNRSCjhOBnR+uVbVpaWfXYIR+AhWDdEe5ryY+CgavOg8bfLybyzFdehlYdDRgkedEB/GjG8aJw06l0qF4jDOAw0kEygWCu2mcH7XOxRt+YAH3TVHa/Hu1W3WjzkobqqqLQ8gkKWWM27fOgAZ6GieaJBN6VBSMMcPey3HWLBmc+TYJmv1dbaO2jHhKh8pfKw0W12VM8P1PIO8gv4Phu/uuJYieBWKixBEyy0lHjyixYFCR12xdh4CA47q958ZRGnnDUGFVE1QhgRacJCOZ9bd5t9mr8KLaVBYTCJo5ERE8jymab5dPqe5qKfJsCZiqWglbjUo9twIDAQABo1AwTjAdBgNVHQ4EFgQUxpuwcs/CYQOyui+r1G+3KxBNhxkwHwYDVR0jBBgwFoAUxpuwcs/CYQOyui+r1G+3KxBNhxkwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAiWUKs/2x/viNCKi3Y6blEuCtAGhzOOZ9EjrvJ8+COH3Rag3tVBWrcBZ3/uhhPq5gy9lqw4OkvEws99/5jFsX1FJ6MKBgqfuy7yh5s1YfM0ANHYczMmYpZeAcQf2CGAaVfwTTfSlzNLsF2lW/ly7yapFzlYSJLGoVE+OHEu8g5SlNACUEfkXw+5Eghh+KzlIN7R6Q7r2ixWNFBC/jWf7NKUfJyX8qIG5md1YUeT6GBW9Bm2/1/RiO24JTaYlfLdKK9TYb8sG5B+OLab2DImG99CJ25RkAcSobWNF5zD0O6lgOo3cEdB/ksCq3hmtlC/DlLZ/D8CJ+7VuZnS1rR2naQ==</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+}
 
 func TestSessionAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -136,7 +155,8 @@ func TestAuthenticate(t *testing.T) {
 
 func TestMFA(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
 
 	user := &fleet.User{MFAEnabled: true, Name: "Bob Smith", Email: "foo@example.com"}
 	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
@@ -174,23 +194,23 @@ func TestMFA(t *testing.T) {
 		if token == mfaToken {
 			return session, mfaUser, nil
 		}
-		return nil, nil, notFoundErr{}
+		return nil, nil, &notFoundErr{}
 	}
 	resp, err := sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: "foo"}, svc)
 	require.NoError(t, err)
-	require.NotNil(t, resp.error())
+	require.NotNil(t, resp.Error())
 
 	session = &fleet.Session{}
 	mfaUser = user
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time) error {
-		require.Equal(t, mfaUser, user)
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		require.Equal(t, mfaUser.Email, user.Email)
 		require.Equal(t, fleet.ActivityTypeUserLoggedIn{}.ActivityName(), activity.ActivityName())
 		return nil
 	}
 	resp, err = sessionCreateEndpoint(ctx, &sessionCreateRequest{Token: mfaToken}, svc)
 	require.NoError(t, err)
-	require.Nil(t, resp.error())
-	require.True(t, ds.NewActivityFuncInvoked)
+	require.Nil(t, resp.Error())
+	require.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
 func TestGetSessionByKey(t *testing.T) {
@@ -270,6 +290,10 @@ func (a *testAuth) AssertionAttributes() []fleet.SAMLAttribute {
 	return a.assertionAttributes
 }
 
+func (a *testAuth) RawResponse() []byte {
+	return nil
+}
+
 func TestGetSSOUser(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{
@@ -277,12 +301,6 @@ func TestGetSSOUser(t *testing.T) {
 			Tier: fleet.TierPremium,
 		},
 	})
-
-	ds.NewActivityFunc = func(
-		ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
-	) error {
-		return nil
-	}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
@@ -352,7 +370,7 @@ func TestGetSSOUser(t *testing.T) {
 		return nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return &fleet.Team{ID: tid}, nil
 	}
 
@@ -416,7 +434,7 @@ func TestGetSSOUser(t *testing.T) {
 		}, nil
 	}
 
-	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		return nil, newNotFoundError()
 	}
 
@@ -431,4 +449,206 @@ func TestGetSSOUser(t *testing.T) {
 
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.Error(t, err)
+
+	// (5) Test JIT provisioning with global technician role.
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			SSOSettings: &fleet.SSOSettings{
+				EnableSSO:             true,
+				EnableSSOIdPLogin:     true,
+				EnableJITProvisioning: true,
+			},
+		}, nil
+	}
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_GLOBAL",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.NotNil(t, newUser.GlobalRole)
+	require.Equal(t, fleet.RoleTechnician, *newUser.GlobalRole)
+	require.Empty(t, newUser.Teams)
+
+	// (6) Test JIT provisioning with team technician role.
+
+	newUser = nil
+	ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
+		return nil, newNotFoundError()
+	}
+	ds.NewUserFuncInvoked = false
+
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: tid}, nil
+	}
+
+	auth.assertionAttributes = []fleet.SAMLAttribute{
+		{
+			Name: "FLEET_JIT_USER_ROLE_TEAM_1",
+			Values: []fleet.SAMLAttributeValue{
+				{Value: "technician"},
+			},
+		},
+	}
+
+	_, err = svc.GetSSOUser(ctx, auth)
+	require.NoError(t, err)
+
+	require.NotNil(t, newUser)
+	require.Nil(t, newUser.GlobalRole)
+	require.Len(t, newUser.Teams, 1)
+	require.Equal(t, uint(1), newUser.Teams[0].ID)
+	require.Equal(t, fleet.RoleTechnician, newUser.Teams[0].Role)
+}
+
+func TestInitiateSSOWithSSOServerURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	// Mock app config with SSO server URL
+	appConfig := &fleet.AppConfig{
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://fleet.example.com",
+		},
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO:    true,
+			SSOServerURL: "https://admin.fleet.example.com",
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID: "fleet",
+				IDPName:  "TestIDP",
+				Metadata: testSSOMetadata(),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	// Test that ACS URL uses SSO URL
+	sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+	require.NoError(t, err)
+	require.NotEmpty(t, sessionID)
+	require.NotEmpty(t, idpURL)
+
+	// The ACS URL should use the SSO server URL
+	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
+	// but the integration test verifies this works correctly
+}
+
+func TestInitiateSSOWithTrailingSlash(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	testCases := []struct {
+		name         string
+		serverURL    string
+		ssoServerURL string
+	}{
+		{
+			name:         "server URL with trailing slash",
+			serverURL:    "https://fleet.example.com/",
+			ssoServerURL: "",
+		},
+		{
+			name:         "SSO server URL with trailing slash",
+			serverURL:    "https://fleet.example.com",
+			ssoServerURL: "https://admin.fleet.example.com/",
+		},
+		{
+			name:         "both URLs with trailing slash",
+			serverURL:    "https://fleet.example.com/",
+			ssoServerURL: "https://admin.fleet.example.com/",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Mock app config
+			appConfig := &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: tc.serverURL,
+				},
+				SSOSettings: &fleet.SSOSettings{
+					EnableSSO:    true,
+					SSOServerURL: tc.ssoServerURL,
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "fleet",
+						IDPName:  "TestIDP",
+						Metadata: testSSOMetadata(),
+					},
+				},
+			}
+
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return appConfig, nil
+			}
+
+			// Test that InitiateSSO works
+			sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+			require.NoError(t, err)
+			require.NotEmpty(t, sessionID)
+			require.NotEmpty(t, idpURL)
+		})
+	}
+}
+
+func TestInitiateSSOWithInvalidURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	// Mock app config with invalid URL
+	appConfig := &fleet.AppConfig{
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "not-a-valid-url://%%%",
+		},
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID: "fleet",
+				IDPName:  "TestIDP",
+				Metadata: testSSOMetadata(),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	// Test that invalid URL returns bad request error
+	_, _, _, err := svc.InitiateSSO(ctx, "/dashboard")
+	require.Error(t, err)
+
+	// Verify it's a bad request error
+	var badReqErr *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReqErr)
+	require.Contains(t, badReqErr.Message, "invalid SSO URL")
 }

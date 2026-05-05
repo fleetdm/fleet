@@ -8,6 +8,7 @@ import { IHost } from "interfaces/host";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import Icon from "components/Icon/Icon";
+import Button from "components/buttons/Button";
 
 export type ITargestInputHostTableConfig = Column<IHost>;
 type ITableStringCellProps = IStringCellProps<IHost>;
@@ -23,9 +24,12 @@ export const generateTableHeaders = (
           id: "delete",
           Header: "",
           Cell: (cellProps: ITableStringCellProps) => (
-            <div onClick={() => handleRowRemove(cellProps.row)}>
+            <Button
+              onClick={() => handleRowRemove(cellProps.row)}
+              variant="icon"
+            >
               <Icon name="close-filled" />
-            </div>
+            </Button>
           ),
           disableHidden: true,
         },

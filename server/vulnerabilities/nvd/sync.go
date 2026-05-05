@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,52 +14,50 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
-
 	"github.com/fleetdm/fleet/v4/pkg/download"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type SyncOptions struct {
-	VulnPath           string
-	CPEDBURL           string
-	CPETranslationsURL string
-	CVEFeedPrefixURL   string
-	Debug              bool
+	VulnPath             string
+	CPEDBURL             string
+	CPETranslationsURL   string
+	CVEFeedPrefixURL     string
+	CISAKnownExploitsURL string
+	Debug                bool
 }
 
 // Sync downloads all the vulnerability data sources.
-func Sync(opts SyncOptions, logger log.Logger) error {
-	level.Debug(logger).Log("msg", "syncing CPE sqlite")
+func Sync(ctx context.Context, opts SyncOptions, logger *slog.Logger) error {
+	logger.DebugContext(ctx, "syncing CPE sqlite")
 	start := time.Now()
 	if err := DownloadCPEDBFromGithub(opts.VulnPath, opts.CPEDBURL); err != nil {
 		return fmt.Errorf("sync CPE database: %w", err)
 	}
-	level.Debug(logger).Log("msg", "CPE sqlite synced", "duration", time.Since(start))
+	logger.DebugContext(ctx, "CPE sqlite synced", "duration", time.Since(start))
 
-	level.Debug(logger).Log("msg", "downloading CPE translations", "url", opts.CPETranslationsURL)
+	logger.DebugContext(ctx, "downloading CPE translations", "url", opts.CPETranslationsURL)
 	if err := DownloadCPETranslationsFromGithub(opts.VulnPath, opts.CPETranslationsURL); err != nil {
 		return fmt.Errorf("sync CPE translations: %w", err)
 	}
 
-	level.Debug(logger).Log("msg", "syncing CVEs")
+	logger.DebugContext(ctx, "syncing CVEs")
 	start = time.Now()
 	if err := DownloadCVEFeed(opts.VulnPath, opts.CVEFeedPrefixURL, opts.Debug, logger); err != nil {
 		return fmt.Errorf("sync NVD CVE feed: %w", err)
 	}
-	level.Debug(logger).Log("msg", "CVEs synced", "duration", time.Since(start))
+	logger.DebugContext(ctx, "CVEs synced", "duration", time.Since(start))
 
 	if err := DownloadEPSSFeed(opts.VulnPath); err != nil {
 		return fmt.Errorf("sync EPSS CVE feed: %w", err)
 	}
 
-	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath); err != nil {
+	if err := DownloadCISAKnownExploitsFeed(opts.VulnPath, opts.CISAKnownExploitsURL); err != nil {
 		return fmt.Errorf("sync CISA known exploits feed: %w", err)
 	}
 
@@ -141,8 +140,8 @@ func parseEPSSScoresFile(path string) ([]epssScore, error) {
 }
 
 const (
-	cisaKnownExploitsURL      = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-	cisaKnownExploitsFilename = "known_exploited_vulnerabilities.json"
+	defaultCisaKnownExploitsURL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+	cisaKnownExploitsFilename   = "known_exploited_vulnerabilities.json"
 )
 
 // knownExploitedVulnerabilitiesCatalog represents the CISA Catalog of Known Exploited Vulnerabilities.
@@ -168,8 +167,12 @@ type knownExploitedVulnerability struct {
 }
 
 // DownloadCISAKnownExploitsFeed downloads the CISA known exploited vulnerabilities feed.
-func DownloadCISAKnownExploitsFeed(vulnPath string) error {
+func DownloadCISAKnownExploitsFeed(vulnPath string, cisaKnownExploitsURL string) error {
 	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
+
+	if cisaKnownExploitsURL == "" {
+		cisaKnownExploitsURL = defaultCisaKnownExploitsURL
+	}
 
 	u, err := url.Parse(cisaKnownExploitsURL)
 	if err != nil {
@@ -185,20 +188,12 @@ func DownloadCISAKnownExploitsFeed(vulnPath string) error {
 	return nil
 }
 
-// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
-// them to the database.
-func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fleet.Datastore) error {
-	if !license.IsPremium(ctx) {
-		level.Info(logger).Log("msg", "skipping cve_meta parsing due to license check")
-		return nil
-	}
+func CVEMetaFromNVDFeedFiles(ctx context.Context, metaMap map[string]fleet.CVEMeta, vulnPath string, logger *slog.Logger) error {
 	// load cvss scores
 	files, err := getNVDCVEFeedFiles(vulnPath)
 	if err != nil {
 		return fmt.Errorf("get nvd cve feeds: %w", err)
 	}
-
-	metaMap := make(map[string]fleet.CVEMeta)
 
 	for _, file := range files {
 
@@ -211,7 +206,7 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		for cve := range dict {
 			vuln, ok := dict[cve].(*feednvd.Vuln)
 			if !ok {
-				level.Error(logger).Log("msg", "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve]))
+				logger.ErrorContext(ctx, "unexpected type for Vuln interface", "cve", cve, "type", fmt.Sprintf("%T", dict[cve]))
 				continue
 			}
 			schema := vuln.Schema()
@@ -227,7 +222,7 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			}
 
 			if published, err := time.Parse(publishedDateFmt, schema.PublishedDate); err != nil {
-				level.Error(logger).Log("msg", "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
+				logger.ErrorContext(ctx, "failed to parse published data", "cve", cve, "published_date", schema.PublishedDate, "err", err)
 			} else {
 				meta.Published = &published
 			}
@@ -236,6 +231,10 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		}
 	}
 
+	return nil
+}
+
+func CVEMetaFromEPSSFeedFiles(metaMap map[string]fleet.CVEMeta, vulnPath string, logger *slog.Logger) error {
 	// load epss scores
 	path := filepath.Join(vulnPath, strings.TrimSuffix(epssFilename, ".gz"))
 
@@ -254,8 +253,12 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 		metaMap[epssScore.CVE] = score
 	}
 
+	return nil
+}
+
+func CVEMetaFromCISAFeedFiles(metaMap map[string]fleet.CVEMeta, vulnPath string, logger *slog.Logger) error {
 	// load known exploits
-	path = filepath.Join(vulnPath, cisaKnownExploitsFilename)
+	path := filepath.Join(vulnPath, cisaKnownExploitsFilename)
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -281,6 +284,43 @@ func LoadCVEMeta(ctx context.Context, logger log.Logger, vulnPath string, ds fle
 			meta.CISAKnownExploit = ptr.Bool(false)
 		}
 		metaMap[cve] = meta
+	}
+
+	return nil
+}
+
+func CVEMetaFromFiles(ctx context.Context, vulnPath string, logger *slog.Logger) (map[string]fleet.CVEMeta, error) {
+	metaMap := make(map[string]fleet.CVEMeta)
+
+	err := CVEMetaFromNVDFeedFiles(ctx, metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("nvd meta: %w", err)
+	}
+
+	err = CVEMetaFromEPSSFeedFiles(metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("epss meta: %w", err)
+	}
+
+	err = CVEMetaFromCISAFeedFiles(metaMap, vulnPath, logger)
+	if err != nil {
+		return nil, fmt.Errorf("cisa meta: %w", err)
+	}
+
+	return metaMap, nil
+}
+
+// LoadCVEMeta loads the cvss scores, epss scores, and known exploits from the previously downloaded feeds and saves
+// them to the database.
+func LoadCVEMeta(ctx context.Context, logger *slog.Logger, vulnPath string, ds fleet.Datastore) error {
+	if !license.IsPremium(ctx) {
+		logger.InfoContext(ctx, "skipping cve_meta parsing due to license check")
+		return nil
+	}
+
+	metaMap, err := CVEMetaFromFiles(ctx, vulnPath, logger)
+	if err != nil {
+		return err
 	}
 
 	if len(metaMap) == 0 {

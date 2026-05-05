@@ -5,48 +5,54 @@ import { ILabel } from "interfaces/label";
 import classnames from "classnames";
 
 import Card from "components/Card";
-import { LABEL_DISPLAY_MAP } from "utilities/constants";
+import CardHeader from "components/CardHeader";
 
-const baseClass = "labels-card";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+
+const baseClass = "host-labels-card";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
   labels: ILabel[];
+  className?: string;
 }
 
-const Labels = ({ onLabelClick, labels }: ILabelsProps): JSX.Element => {
-  const classNames = classnames(baseClass, "card", "labels");
+const Labels = ({
+  onLabelClick,
+  labels,
+  className,
+}: ILabelsProps): JSX.Element => {
+  const classNames = classnames(baseClass, className);
 
-  const labelItems = labels.map((label: ILabel) => {
-    return (
-      <li className="list__item" key={label.id}>
-        <Button
-          onClick={() => onLabelClick(label)}
-          variant="label"
-          className="list__button"
-        >
-          {label.label_type === "builtin" && label.name in LABEL_DISPLAY_MAP
-            ? LABEL_DISPLAY_MAP[label.name as keyof typeof LABEL_DISPLAY_MAP]
-            : label.name}
-        </Button>
-      </li>
-    );
-  });
+  const labelItems = labels
+    .filter((label: ILabel) => label.label_type !== "builtin")
+    .map((label: ILabel) => {
+      return (
+        <li className={`${baseClass}__list-item`} key={label.id}>
+          <Button
+            onClick={() => onLabelClick(label)}
+            variant="pill"
+            className={`${baseClass}__list-button`}
+          >
+            <TooltipTruncatedText value={label.name} />
+          </Button>
+        </li>
+      );
+    });
 
   return (
     <Card
       borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
+      paddingSize="xlarge"
       className={classNames}
     >
-      <p className="card__header">Labels</p>
-      {labels.length === 0 ? (
+      <CardHeader header="Labels" />
+      {labelItems.length === 0 ? (
         <p className="info-flex__item">
           No labels are associated with this host.
         </p>
       ) : (
-        <ul className="list">{labelItems}</ul>
+        <ul className={`${baseClass}__list`}>{labelItems}</ul>
       )}
     </Card>
   );

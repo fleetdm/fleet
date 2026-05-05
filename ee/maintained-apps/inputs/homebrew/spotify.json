@@ -1,0 +1,8 @@
+{
+  "name": "Spotify",
+  "unique_identifier": "com.spotify.client",
+  "token": "spotify",
+  "installer_format": "dmg",
+  "slug": "spotify/darwin",
+  "default_categories": ["Productivity"]
+}

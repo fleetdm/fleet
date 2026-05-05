@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -28,21 +29,19 @@ func TestIntegrationsSync(t *testing.T) {
 
 	require.NoError(t, err)
 
-	// Checking for the presence of the file for today or yesterday
-	// in case the NVD repo is having delays publishing the data
-	todayFilename := io.MacOfficeRelNotesFileName(time.Now())
-	yesterdayFilename := io.MacOfficeRelNotesFileName(time.Now().AddDate(0, 0, -1))
+	// Checking for the presence of the file from the last 7 days
+	// in case the NVD repo is having delays publishing the data (weekends, holidays, infra issues, etc.)
+	var expectedFilenames []string
+	for i := range 7 {
+		expectedFilenames = append(expectedFilenames, io.MacOfficeRelNotesFileName(time.Now().AddDate(0, 0, -i)))
+	}
 
 	require.Condition(t, func() bool {
-		return contains(filesInVulnPath, todayFilename) || contains(filesInVulnPath, yesterdayFilename)
-	}, "Expected to find %s or %s in %s", todayFilename, yesterdayFilename, vulnPath)
-}
-
-func contains(slice []string, str string) bool {
-	for _, v := range slice {
-		if v == str {
-			return true
+		for _, expectedFilename := range expectedFilenames {
+			if slices.Contains(filesInVulnPath, expectedFilename) {
+				return true
+			}
 		}
-	}
-	return false
+		return false
+	}, "Expected to find one of %v in %s", expectedFilenames, vulnPath)
 }

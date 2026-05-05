@@ -1,0 +1,29 @@
+.hash-cell {
+  display: flex;
+  flex-direction: row;
+  gap: $pad-xsmall;
+  position: relative;
+
+  &__sha256 {
+    display: flex;
+    align-items: center;
+    width: 70px; // Consistent to align copy icons
+  }
+
+  &__copy-overlay {
+    display: flex;
+    position: absolute;
+    right: 0;
+    height: 25px; // diff from installer details widget
+    align-self: center; // diff from installer details widget
+  }
+
+  &__sha-copy-button {
+    display: flex;
+    align-items: center;
+  }
+
+  &__copy-message {
+    @include copy-message;
+  }
+}

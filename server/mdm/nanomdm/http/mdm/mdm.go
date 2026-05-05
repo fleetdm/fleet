@@ -20,9 +20,10 @@ func mdmReqFromHTTPReq(r *http.Request) *mdm.Request {
 		params[k] = v[0]
 	}
 	return &mdm.Request{
-		Context:     r.Context(),
-		Certificate: GetCert(r.Context()),
-		Params:      params,
+		Context:       r.Context(),
+		Certificate:   GetCert(r.Context()),
+		Params:        params,
+		Authorization: r.Header.Get("Authorization"),
 	}
 }
 

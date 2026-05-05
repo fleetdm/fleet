@@ -4,11 +4,12 @@ import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSummaryMdmSolution } from "interfaces/mdm";
 
-import TabsWrapper from "components/TabsWrapper";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 import TableContainer from "components/TableContainer";
 import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
+import DataError from "components/DataError";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 import {
@@ -47,7 +48,7 @@ const PAGE_SIZE = 8;
 const baseClass = "home-mdm";
 
 const EmptyMdmStatus = (): JSX.Element => (
-  <EmptyTable
+  <EmptyState
     header="Unable to detect MDM enrollment"
     info={
       <>
@@ -63,7 +64,7 @@ const EmptyMdmStatus = (): JSX.Element => (
 );
 
 const EmptyMdmSolutions = (): JSX.Element => (
-  <EmptyTable
+  <EmptyState
     header="No MDM solutions detected"
     info="This report is updated every hour to protect the performance of your
       devices."
@@ -95,7 +96,7 @@ const Mdm = ({
   selectedPlatformLabelId,
   selectedTeamId,
   onClickMdmSolution,
-}: IMdmCardProps): JSX.Element => {
+}: IMdmCardProps) => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   const onTabChange = (index: number) => {
@@ -139,15 +140,19 @@ const Mdm = ({
         </div>
       )}
       <div style={opacity}>
-        <TabsWrapper>
+        <TabNav secondary>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
-              <Tab>Solutions</Tab>
-              <Tab>Status</Tab>
+              <Tab>
+                <TabText>Solutions</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Status</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               {error ? (
-                <TableDataError card />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer<IRowProps>
                   className={`${baseClass}__mdm-solutions-table`}
@@ -162,14 +167,16 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
+                  keyboardSelectableRows
                 />
               )}
             </TabPanel>
             <TabPanel>
               {error ? (
-                <TableDataError card />
+                <DataError verticalPaddingSize="pad-large" />
               ) : (
                 <TableContainer
                   className={`${baseClass}__mdm-status-table`}
@@ -184,12 +191,13 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   pageSize={PAGE_SIZE}
                 />
               )}
             </TabPanel>
           </Tabs>
-        </TabsWrapper>
+        </TabNav>
       </div>
     </div>
   );

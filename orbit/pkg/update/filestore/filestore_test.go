@@ -27,7 +27,7 @@ func TestFileStore(t *testing.T) {
 	t.Parallel()
 
 	tmpDir := t.TempDir()
-	require.NoError(t, os.Chmod(tmpDir, 0700))
+	require.NoError(t, os.Chmod(tmpDir, 0700)) // nolint:gosec // G302
 
 	store, err := New(filepath.Join(tmpDir, "metadata.json"))
 	require.NoError(t, err)

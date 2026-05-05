@@ -1,7 +1,8 @@
 import Checkbox from "components/forms/fields/Checkbox";
 import Icon from "components/Icon";
 import React from "react";
-import { Link } from "react-router";
+
+import Button from "components/buttons/Button";
 
 const baseClass = "team-host-expiry-toggle";
 
@@ -10,6 +11,7 @@ interface ITeamHostExpiryToggle {
   globalHostExpiryWindow?: number;
   teamExpiryEnabled: boolean;
   setTeamExpiryEnabled: (value: boolean) => void;
+  gitopsModeEnabled?: boolean;
 }
 
 const TeamHostExpiryToggle = ({
@@ -17,6 +19,7 @@ const TeamHostExpiryToggle = ({
   globalHostExpiryWindow,
   teamExpiryEnabled,
   setTeamExpiryEnabled,
+  gitopsModeEnabled,
 }: ITeamHostExpiryToggle) => {
   const renderHelpText = () =>
     // this will never be rendered while globalHostExpiryWindow is undefined
@@ -25,19 +28,25 @@ const TeamHostExpiryToggle = ({
         Host expiry is globally enabled in organization settings. By default,
         hosts expire after {globalHostExpiryWindow} days.{" "}
         {!teamExpiryEnabled && (
-          <Link
-            to=""
+          <Button
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setTeamExpiryEnabled(true);
             }}
             className={`${baseClass}__add-custom-window`}
+            variant="text-icon"
+            size="small"
+            iconStroke
           >
             <>
               Add custom expiry window
-              <Icon name="chevron-right" color="core-fleet-blue" size="small" />
+              <Icon
+                name="chevron-right"
+                color="ui-fleet-black-75"
+                size="small"
+              />
             </>
-          </Link>
+          </Button>
         )}
       </div>
     ) : (
@@ -49,9 +58,9 @@ const TeamHostExpiryToggle = ({
         name="enableHostExpiry"
         onChange={setTeamExpiryEnabled}
         value={teamExpiryEnabled || globalHostExpiryEnabled} // Still shows checkmark if global expiry is enabled though the checkbox will be disabled.
-        disabled={globalHostExpiryEnabled}
+        disabled={globalHostExpiryEnabled || gitopsModeEnabled}
         helpText={renderHelpText()}
-        tooltipContent={
+        labelTooltipContent={
           <>
             When enabled, allows automatic cleanup of
             <br />

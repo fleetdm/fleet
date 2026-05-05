@@ -1,15 +1,16 @@
 import React, { useCallback } from "react";
-import { InjectedRouter } from "react-router";
-import { Row } from "react-table";
-import { noop } from "lodash";
 
+import { Row } from "react-table";
+
+import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
-import { PolicyResponse, SUPPORT_LINK } from "utilities/constants";
-import { createHostsByPolicyPath } from "utilities/helpers";
+import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
+import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
+import InfoBanner from "components/InfoBanner";
+import IconStatusMessage from "components/IconStatusMessage";
 
 import {
   generatePolicyTableHeaders,
@@ -17,7 +18,7 @@ import {
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 
-const baseClass = "policies-card";
+const baseClass = "host-policies-card";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -25,15 +26,14 @@ interface IPoliciesProps {
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
   hostPlatform: string;
-  router: InjectedRouter;
+
   currentTeamId?: number;
+  conditionalAccessEnabled?: boolean;
+  conditionalAccessBypassed?: boolean;
 }
 
 interface IHostPoliciesRowProps extends Row {
-  original: {
-    id: number;
-    response: "pass" | "fail";
-  };
+  original: IHostPolicy;
 }
 
 const Policies = ({
@@ -42,13 +42,12 @@ const Policies = ({
   deviceUser,
   togglePolicyDetailsModal,
   hostPlatform,
-  router,
+
   currentTeamId,
+  conditionalAccessEnabled,
+  conditionalAccessBypassed,
 }: IPoliciesProps): JSX.Element => {
-  const tableHeaders = generatePolicyTableHeaders(
-    togglePolicyDetailsModal,
-    currentTeamId
-  );
+  const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
     // Remove view all hosts link
     tableHeaders.pop();
@@ -58,25 +57,47 @@ const Policies = ({
 
   const onClickRow = useCallback(
     (row: IHostPoliciesRowProps) => {
-      const { id: policyId, response: policyResponse } = row.original;
-
-      const viewAllHostPath = createHostsByPolicyPath(
-        policyId,
-        policyResponse === "pass"
-          ? PolicyResponse.PASSING
-          : PolicyResponse.FAILING,
-        currentTeamId
-      );
-
-      router.push(viewAllHostPath);
+      togglePolicyDetailsModal(row.original);
     },
-    [router]
+    [togglePolicyDetailsModal]
   );
+
+  const renderBanner = () => {
+    if (!failingResponses?.length) {
+      return null;
+    }
+    if (conditionalAccessBypassed) {
+      return (
+        <InfoBanner borderRadius="xlarge">
+          <IconStatusMessage
+            iconName="clock"
+            iconColor="ui-fleet-black-50"
+            message={
+              <span>
+                <strong>Access restored for next Okta login</strong>
+                <br />
+                To fully restore access, click on the policies marked
+                &apos;Action required&apos; and follow the resolution steps.
+                Once resolved, click &apos;Refetch&apos; to check status.
+              </span>
+            }
+          />
+        </InfoBanner>
+      );
+    }
+    return (
+      <PolicyFailingCount
+        policyList={policies}
+        deviceUser={deviceUser}
+        conditionalAccessEnabled={conditionalAccessEnabled}
+      />
+    );
+  };
 
   const renderHostPolicies = () => {
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
-        <EmptyTable
+        <EmptyState
           header={<>Policies are not supported for this host</>}
           info={
             <>
@@ -89,9 +110,23 @@ const Policies = ({
       );
     }
 
+    if (isAndroid(hostPlatform)) {
+      return (
+        <EmptyState
+          header={<>Policies are not supported for this host</>}
+          info={
+            <>
+              Interested in detecting device health issues on Android hosts?{" "}
+              <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+            </>
+          }
+        />
+      );
+    }
+
     if (policies.length === 0) {
       return (
-        <EmptyTable
+        <EmptyState
           header={
             <>
               No policies are checked{" "}
@@ -111,38 +146,31 @@ const Policies = ({
 
     return (
       <>
-        {failingResponses?.length > 0 && (
-          <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
-        )}
+        {renderBanner()}
         <TableContainer
           columnConfigs={tableHeaders}
-          data={generatePolicyDataSet(policies)}
+          data={generatePolicyDataSet(policies, !!conditionalAccessEnabled)}
           isLoading={isLoading}
-          defaultSortHeader="response"
-          defaultSortDirection="asc"
+          defaultSortHeader="status"
           resultsTitle="policies"
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           disableCount
-          disableMultiRowSelect={!deviceUser} // Removes hover/click state if deviceUser
+          disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
-          onClickRow={deviceUser ? noop : onClickRow}
+          onClickRow={onClickRow}
+          keyboardSelectableRows
         />
       </>
     );
   };
 
   return (
-    <Card
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
-      className={baseClass}
-    >
-      <p className="card__header">Policies</p>
+    <div className={baseClass}>
+      <CardHeader header="Policies" />
       {renderHostPolicies()}
-    </Card>
+    </div>
   );
 };
 

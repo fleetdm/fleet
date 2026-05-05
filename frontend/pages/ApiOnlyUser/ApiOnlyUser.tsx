@@ -4,9 +4,9 @@ import { InjectedRouter } from "react-router";
 import paths from "router/paths";
 import usersAPI from "services/entities/users";
 
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 
 interface IApiOnlyUserProps {
   router: InjectedRouter;
@@ -38,25 +38,27 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
   }, []);
 
   return (
-    <div className={baseClass}>
-      <AuthenticationFormWrapper>
-        <StackedWhiteBoxes router={router}>
-          <>
-            <p>You attempted to access Fleet with an API only user.</p>
-            <p className={`${baseClass}__sub-lead-text`}>
-              This user doesn&apos;t have access to the Fleet UI.
-            </p>
-            <Button
-              onClick={handleClick}
-              variant="brand"
-              className={`${baseClass}__login-button`}
-            >
-              Back to login
-            </Button>
-          </>
-        </StackedWhiteBoxes>
-      </AuthenticationFormWrapper>
-    </div>
+    <AuthenticationFormWrapper header="Access denied" className={baseClass}>
+      <>
+        <div>
+          <p>
+            You attempted to access Fleet with an{" "}
+            <CustomLink
+              text="API only user"
+              newTab
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
+            />
+            .
+          </p>
+          <p className={`${baseClass}__sub-lead-text`}>
+            This user doesn&apos;t have access to the Fleet UI.
+          </p>
+        </div>
+        <Button onClick={handleClick} className={`${baseClass}__login-button`}>
+          Back to login
+        </Button>
+      </>
+    </AuthenticationFormWrapper>
   );
 };
 

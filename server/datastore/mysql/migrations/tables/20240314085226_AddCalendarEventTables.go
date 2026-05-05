@@ -24,7 +24,7 @@ func Up_20240314085226(tx *sql.Tx) error {
 		updated_at TIMESTAMP NOT NULL NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 		UNIQUE KEY idx_one_calendar_event_per_email (email)
-	);
+	) DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 `); err != nil {
 		return fmt.Errorf("create calendar_events table: %w", err)
 	}

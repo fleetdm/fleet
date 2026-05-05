@@ -33,7 +33,7 @@ func CopyLenses(installPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		dest, err := os.OpenFile(filepath.Join(outPath, entry.Name()), os.O_CREATE|os.O_WRONLY, 0o644)
+		dest, err := os.OpenFile(filepath.Join(outPath, entry.Name()), os.O_CREATE|os.O_WRONLY, 0o644) // nolint:gosec // G302
 		if err != nil {
 			return "", err
 		}

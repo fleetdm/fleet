@@ -1,21 +1,25 @@
-import BackLink from "components/BackLink";
-import Icon from "components/Icon";
-import MainContent from "components/MainContent";
-import ShowQueryModal from "components/modals/ShowQueryModal";
-import Spinner from "components/Spinner";
+import React, { useCallback, useContext, useState } from "react";
+import { useQuery } from "react-query";
+import { browserHistory, InjectedRouter } from "react-router";
+import { Params } from "react-router/lib/Router";
+import PATHS from "router/paths";
 import { AppContext } from "context/app";
+
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
+import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
+import queryAPI from "services/entities/queries";
 import {
   IGetQueryResponse,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
-import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
-import { browserHistory, InjectedRouter, Link } from "react-router";
-import { Params } from "react-router/lib/Router";
-import PATHS from "router/paths";
-import hqrAPI, { IGetHQRResponse } from "services/entities/host_query_report";
-import queryAPI from "services/entities/queries";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+
+import Button from "components/buttons/Button";
+import BackButton from "components/BackButton";
+import Icon from "components/Icon";
+import MainContent from "components/MainContent";
+import ShowQueryModal from "components/modals/ShowQueryModal";
+import Spinner from "components/Spinner";
 import HQRTable from "./HQRTable";
 
 const baseClass = "host-query-report";
@@ -29,13 +33,13 @@ const HostQueryReport = ({
   router,
   params: { host_id, query_id },
 }: IHostQueryReportProps) => {
-  const { config } = useContext(AppContext);
+  const { config, currentTeam } = useContext(AppContext);
   const globalReportsDisabled = config?.server_settings.query_reports_disabled;
   const hostId = Number(host_id);
   const queryId = Number(query_id);
 
   if (globalReportsDisabled) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   const [showQuery, setShowQuery] = useState(false);
@@ -88,11 +92,12 @@ const HostQueryReport = ({
     description: queryDescription,
     query: querySQL,
     discard_data: queryDiscardData,
+    stats,
   } = queryResponse || {};
 
   // previous reroute can be done before API call, not this one, hence 2
   if (queryDiscardData) {
-    router.push(PATHS.HOST_QUERIES(hostId));
+    router.push(PATHS.HOST_REPORTS(hostId));
   }
 
   // Updates title that shows up on browser tabs
@@ -105,30 +110,32 @@ const HostQueryReport = ({
   }
 
   const HQRHeader = useCallback(() => {
-    const fullReportPath = PATHS.QUERY_DETAILS(queryId);
+    const fullReportPath = getPathWithQueryParams(
+      PATHS.REPORT_DETAILS(queryId),
+      { fleet_id: currentTeam?.id }
+    );
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>
-          <BackLink
+          <BackButton
             text="Back to host details"
-            path={PATHS.HOST_QUERIES(hostId)}
+            path={PATHS.HOST_DETAILS(hostId)}
           />
         </div>
         <div className={`${baseClass}__header__row2`}>
           {!hqrError && <h1 className="host-name">{hostName}</h1>}
-          <Link
-            // to and onClick seem redundant
-            to={fullReportPath}
+          <Button
+            variant="brand-inverse-icon"
             onClick={() => {
               browserHistory.push(fullReportPath);
             }}
-            className={`${baseClass}__direction-link`}
+            iconStroke
           >
             <>
-              <span>View full query report</span>
-              <Icon name="chevron-right" color="core-fleet-blue" />
+              View data for all hosts
+              <Icon name="chevron-right" color="core-fleet-green" />
             </>
-          </Link>
+          </Button>
         </div>
       </div>
     );
@@ -142,8 +149,10 @@ const HostQueryReport = ({
         <>
           <HQRHeader />
           <HQRTable
+            queryId={queryId}
             queryName={queryName}
             queryDescription={queryDescription}
+            queryStats={stats}
             hostName={hostName}
             rows={rows}
             reportClipped={reportClipped}

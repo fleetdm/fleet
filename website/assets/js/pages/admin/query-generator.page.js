@@ -15,20 +15,31 @@ parasails.registerPage('query-generator', {
     },
     // Syncing / loading state
     syncing: false,
-    queryResult: '',
     // Server error state
     cloudError: '',
     showGeneratedQuery: false,
+    generatedQueries: {
+      macOSQuery: undefined,
+      windowsQuery: undefined,
+      linuxQuery: undefined,
+      chromeOSQuery: undefined,
+      macOSCaveats: undefined,
+      windowsCaveats: undefined,
+      linuxCaveats: undefined,
+      chromeOSCaveats: undefined,
+    },
+    selectedTab: 'macos',
+    tablesUsedInQueries: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    //
   },
   mounted: async function() {
-    //…
+    //
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -36,21 +47,57 @@ parasails.registerPage('query-generator', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
     handleSubmittingForm: async function() {
-      let argins = this.formData.naturalLanguageQuestion;
-      this.queryResult = await Cloud.getLlmGeneratedSql(argins)
-      .tolerate((err)=>{
-        this.cloudError = err;
-        this.syncing = false;
-      });
-    },
-    submittedQueryForm: function() {
-      if(!this.cloudError){
-        this.showGeneratedQuery = true;
-      }
+      this.syncing = true;
+      io.socket.get('/api/v1/query-generator/get-llm-generated-sql', {naturalLanguageQuestion: this.formData.naturalLanguageQuestion}, ()=>{});
+      io.socket.on('queryGenerated', this._onQueryResultsReturned);
+      io.socket.on('error', this._onQueryGenerationError);
     },
     clickResetQueryGenerator: function() {
       this.showGeneratedQuery = false;
+      this.generatedQueries = {
+        macOSQuery: undefined,
+        windowsQuery: undefined,
+        linuxQuery: undefined,
+        chromeOSQuery: undefined,
+        macOSCaveats: undefined,
+        windowsCaveats: undefined,
+        linuxCaveats: undefined,
+        chromeOSCaveats: undefined,
+      };
       this.formData.naturalLanguageQuestion = '';
+    },
+    _onQueryResultsReturned: function(response) {
+      this.generatedQueries = response.result;
+      if(response.result.macOSQuery) {
+        this.selectedTab = 'macos';
+      } else if(!response.result.macOSQuery && response.result.windowsQuery){
+        this.selectedTab = 'windows';
+      } else if(!response.result.windowsQuery && response.result.linuxQuery){
+        this.selectedTab = 'linux';
+      } else if(!response.result.linuxQuery && response.result.chromeOSQuery) {
+        this.selectedTab = 'chromeos';
+      }
+      this.syncing = false;
+      this.showGeneratedQuery = true;
+      this._setupCopyButtonEventListener();
+      // Disable the socket event listener after we display the results.
+      io.socket.off('queryGenerated', this._onQueryResultsReturned);
+    },
+    _onQueryGenerationError: function(response) {
+      this.cloudError = response.error;
+      this.syncing = false;
+      io.socket.off('error', this._onQueryGenerationError);
+    },
+    _setupCopyButtonEventListener: function() {
+      $('[purpose="copy-button"]').on('click', async function() {
+        let code = $(this).closest('[purpose="codeblock"]').find('pre:visible code').text();
+        $(this).addClass('copied');
+        await setTimeout(()=>{
+          $(this).removeClass('copied');
+        }, 2000);
+        navigator.clipboard.writeText(code);
+      });
     }
+
   }
 });

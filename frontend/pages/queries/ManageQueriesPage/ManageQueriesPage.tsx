@@ -2,8 +2,8 @@ import React, {
   useContext,
   useCallback,
   useEffect,
-  useState,
   useMemo,
+  useState,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
@@ -13,7 +13,10 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { getPerformanceImpactDescription } from "utilities/helpers";
+import { getPathWithQueryParams } from "utilities/url";
+
 import {
   isQueryablePlatform,
   QueryablePlatform,
@@ -28,15 +31,19 @@ import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
-import { DEFAULT_QUERY } from "utilities/constants";
+
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import TooltipWrapper from "components/TooltipWrapper";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
+import ManageQueryAutomationsModal, {
+  IQueryAutomationsSubmitData,
+} from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
 const DEFAULT_PAGE_SIZE = 20;
@@ -53,7 +60,7 @@ interface IManageQueriesPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
-      team_id?: string;
+      fleet_id?: string;
     };
     search: string;
   };
@@ -160,26 +167,10 @@ const ManageQueriesPage = ({
     }
   );
 
-  const enhancedQueries = queriesResponse?.queries.map(enhanceQuery);
-
-  const queriesAvailableToAutomate =
-    (teamIdForApi
-      ? enhancedQueries?.filter(
-          (query: IEnhancedQuery) => query.team_id === currentTeamId
-        )
-      : enhancedQueries) ?? [];
-
-  const onlyInheritedQueries = useMemo(() => {
-    if (teamIdForApi === API_ALL_TEAMS_ID) {
-      // global scope
-      return false;
-    }
-    return !enhancedQueries?.some((query) => query.team_id === teamIdForApi);
-  }, [teamIdForApi, enhancedQueries]);
-
-  const automatedQueryIds = queriesAvailableToAutomate
-    .filter((query) => query.automations_enabled)
-    .map((query) => query.id);
+  // Enhance the queries from the response when they are changed.
+  const enhancedQueries = useMemo(() => {
+    return queriesResponse?.queries.map(enhanceQuery) || [];
+  }, [queriesResponse]);
 
   useEffect(() => {
     const path = location.pathname + location.search;
@@ -193,9 +184,18 @@ const ManageQueriesPage = ({
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
   }, []);
 
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
+  );
+
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
-    router.push(PATHS.NEW_QUERY(currentTeamId));
+    router.push(
+      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId })
+    );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
   const toggleDeleteQueryModal = useCallback(() => {
@@ -233,18 +233,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash(
-        "success",
-        `Successfully deleted ${bulk ? "queries" : "query"}.`
-      );
+      renderFlash("success", "Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error deleting your ${
-          bulk ? "queries" : "query"
-        }. Please try again later.`
+        "There was an error deleting your reports. Please try again later."
       );
     } finally {
       toggleDeleteQueryModal();
@@ -253,36 +248,38 @@ const ManageQueriesPage = ({
   }, [refetchQueries, selectedQueryIds, toggleDeleteQueryModal]);
 
   const renderHeader = () => {
-    if (isPremiumTier) {
-      if (userTeams) {
-        if (userTeams.length > 1 || isOnGlobalTeam) {
-          return (
-            <TeamsDropdown
-              currentUserTeams={userTeams}
-              selectedTeamId={currentTeamId}
-              onChange={handleTeamChange}
-            />
-          );
-        } else if (!isOnGlobalTeam && userTeams.length === 1) {
-          return <h1>{userTeams[0].name}</h1>;
-        }
+    if (isPremiumTier && userTeams && !config?.partnerships?.enable_primo) {
+      if (userTeams.length > 1 || isOnGlobalTeam) {
+        return (
+          <TeamsDropdown
+            currentUserTeams={userTeams}
+            selectedTeamId={currentTeamId}
+            onChange={onTeamChange}
+          />
+        );
+      }
+      if (userTeams.length === 1 && !isOnGlobalTeam) {
+        return <h1>{userTeams[0].name}</h1>;
       }
     }
-    return <h1>Queries</h1>;
+    return <h1>Reports</h1>;
   };
 
   const renderQueriesTable = () => {
     if (queriesError) {
-      return <TableDataError />;
+      return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
     }
     return (
       <QueriesTable
         queries={enhancedQueries || []}
         totalQueriesCount={queriesResponse?.count}
         hasNextResults={!!queriesResponse?.meta.has_next_results}
-        onlyInheritedQueries={onlyInheritedQueries}
+        curTeamScopeQueriesPresent={
+          teamIdForApi !== API_ALL_TEAMS_ID
+            ? enhancedQueries.some((q) => q.team_id === currentTeamId)
+            : enhancedQueries.length > 0
+        }
         isLoading={isLoadingQueries || isFetchingQueries}
-        onCreateQueryClick={onCreateQueryClick}
         onDeleteQueryClick={onDeleteQueryClick}
         isOnlyObserver={isOnlyObserver}
         isObserverPlus={isObserverPlus}
@@ -291,31 +288,35 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={location.query}
         currentTeamId={teamIdForApi}
+        isPremiumTier={isPremiumTier}
       />
     );
   };
 
   const onSaveQueryAutomations = useCallback(
-    async (newAutomatedQueryIds: any) => {
+    async ({
+      newAutomatedQueryIds,
+      previousAutomatedQueryIds,
+    }: IQueryAutomationsSubmitData) => {
       setIsUpdatingAutomations(true);
 
       // Query ids added to turn on automations
       const turnOnAutomations = newAutomatedQueryIds.filter(
-        (query: number) => !automatedQueryIds.includes(query)
+        (id) => !previousAutomatedQueryIds.includes(id)
       );
       // Query ids removed to turn off automations
-      const turnOffAutomations = automatedQueryIds.filter(
-        (query: number) => !newAutomatedQueryIds.includes(query)
+      const turnOffAutomations = previousAutomatedQueryIds.filter(
+        (id) => !newAutomatedQueryIds.includes(id)
       );
 
       // Update query automations using queries/{id} manage_automations parameter
       const updateAutomatedQueries: Promise<any>[] = [];
-      turnOnAutomations.map((id: number) =>
+      turnOnAutomations.map((id) =>
         updateAutomatedQueries.push(
           queriesAPI.update(id, { automations_enabled: true })
         )
       );
-      turnOffAutomations.map((id: number) =>
+      turnOffAutomations.map((id) =>
         updateAutomatedQueries.push(
           queriesAPI.update(id, { automations_enabled: false })
         )
@@ -323,25 +324,20 @@ const ManageQueriesPage = ({
 
       try {
         await Promise.all(updateAutomatedQueries).then(() => {
-          renderFlash("success", `Successfully updated query automations.`);
+          renderFlash("success", `Successfully updated report automations.`);
           refetchQueries();
         });
       } catch (errorResponse) {
         renderFlash(
           "error",
-          `There was an error updating your query automations. Please try again later.`
+          `There was an error updating your report automations. Please try again later.`
         );
       } finally {
         toggleManageAutomationsModal();
         setIsUpdatingAutomations(false);
       }
     },
-    [
-      automatedQueryIds,
-      renderFlash,
-      refetchQueries,
-      toggleManageAutomationsModal,
-    ]
+    [renderFlash, refetchQueries, toggleManageAutomationsModal]
   );
 
   const renderModals = () => {
@@ -361,9 +357,12 @@ const ManageQueriesPage = ({
             onCancel={toggleManageAutomationsModal}
             isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
-            availableQueries={queriesAvailableToAutomate}
-            automatedQueryIds={automatedQueryIds}
+            teamId={teamIdForApi}
             logDestination={config?.logging.result.plugin || ""}
+            webhookDestination={config?.logging.result.config?.result_url}
+            filesystemDestination={
+              config?.logging.result.config?.result_log_file
+            }
           />
         )}
         {showPreviewDataModal && (
@@ -381,56 +380,80 @@ const ManageQueriesPage = ({
     isTeamMaintainer ||
     isObserverPlus; // isObserverPlus checks global and selected team
 
-  const hideQueryActions =
-    // there are no filters and no returned queries, indicating there are no global/team queries at all
-    !(!!location.query.query || !!location.query.platform) &&
-    !queriesResponse?.count &&
-    // the user has permission
-    (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus);
+  const canManageAutomations = isGlobalAdmin || isTeamAdmin;
+  const isManageAutomationsEnabled = isAnyTeamSelected
+    ? (queriesResponse?.count ?? 0) >
+      (queriesResponse?.inherited_query_count ?? 0)
+    : (queriesResponse?.count ?? 0) > 0;
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
+            {canCustomQuery && (
+              <div className={`${baseClass}__action-button-container`}>
+                {canManageAutomations &&
+                  (isManageAutomationsEnabled ? (
+                    <Button
+                      onClick={onManageAutomationsClick}
+                      className={`${baseClass}__manage-automations button`}
+                      variant="inverse"
+                    >
+                      Manage automations
+                    </Button>
+                  ) : (
+                    <TooltipWrapper
+                      tipContent={
+                        <div
+                          className={`${baseClass}__manage-automations-tooltip`}
+                        >
+                          {isAnyTeamSelected &&
+                          (queriesResponse?.count ?? 0) > 0 ? (
+                            <>
+                              To manage automations add a report to this fleet.
+                              <br />
+                              For inherited reports select &ldquo;All
+                              fleets&rdquo;.
+                            </>
+                          ) : (
+                            "To manage automations add a report."
+                          )}
+                        </div>
+                      }
+                      underline={false}
+                      position="top"
+                      showArrow
+                    >
+                      <Button
+                        disabled
+                        className={`${baseClass}__manage-automations button`}
+                        variant="inverse"
+                      >
+                        Manage automations
+                      </Button>
+                    </TooltipWrapper>
+                  ))}
+                {canCustomQuery && (
+                  <Button
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateQueryClick}
+                  >
+                    {isObserverPlus ? "Live report" : "Add report"}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
-          {!hideQueryActions && (
-            <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) && !onlyInheritedQueries && (
-                <Button
-                  onClick={onManageAutomationsClick}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                >
-                  Manage automations
-                </Button>
-              )}
-              {canCustomQuery && (
-                <Button
-                  variant="brand"
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  {isObserverPlus ? "Live query" : "Add query"}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-        <div className={`${baseClass}__description`}>
-          <p>
-            {isAnyTeamSelected
-              ? "Gather data about all hosts assigned to this team."
-              : "Gather data about all hosts."}
-          </p>
+          <PageDescription content={"Gather data about your hosts."} />
         </div>
         {renderQueriesTable()}
         {renderModals()}
-      </div>
+      </>
     </MainContent>
   );
 };

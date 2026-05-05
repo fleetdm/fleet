@@ -1,0 +1,28 @@
+.add-profile-card {
+  font-size: $x-small;
+
+  &__card--content-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
+
+  &__profile-graphic {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+
+    &--message {
+      text-align: center;
+      line-height: 20px;
+      color: $ui-fleet-black-50;
+    }
+
+    &--title {
+        color: $ui-fleet-black-75;
+        font-weight: $bold;
+    }
+  }
+}

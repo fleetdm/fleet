@@ -1,5 +1,5 @@
 $shadow-width: 40px;
-$shadow-transition-width: 10px;
+$shadow-transition-width: 16px;
 
 .data-table-block {
   position: relative;
@@ -11,7 +11,6 @@ $shadow-transition-width: 10px;
       position: relative;
       border: 1px solid $ui-fleet-black-10;
       border-radius: 6px;
-      margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
 
@@ -19,17 +18,25 @@ $shadow-transition-width: 10px;
       background-image:
       /* Shadows */ linear-gradient(
           to right,
-          white,
+          $core-fleet-white,
           $transparent
         ),
-        linear-gradient(to left, white, $transparent),
+        linear-gradient(to left, $core-fleet-white, $transparent),
         /* Shadow covers */
-          linear-gradient(to right, $ui-shadow, white $shadow-transition-width),
-        linear-gradient(to left, $ui-shadow, white $shadow-transition-width);
+          linear-gradient(
+            to right,
+            $ui-shadow,
+            $core-fleet-white $shadow-transition-width
+          ),
+        linear-gradient(
+          to left,
+          $ui-shadow,
+          $core-fleet-white $shadow-transition-width
+        );
 
       background-position: left center, right center, left center, right center;
       background-repeat: no-repeat;
-      background-color: white;
+      background-color: $core-fleet-white;
       background-size: $shadow-width 100%, $shadow-width 100%, 50% 100%,
         50% 100%;
 
@@ -47,7 +54,7 @@ $shadow-transition-width: 10px;
       position: relative;
       width: 100%;
       border-collapse: collapse;
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       font-size: $x-small;
     }
 
@@ -99,30 +106,76 @@ $shadow-transition-width: 10px;
       }
 
       th {
-        padding: $pad-medium $pad-large;
+        padding: 0 $table-cell-padding;
         white-space: nowrap;
-        border-right: 1px solid $ui-fleet-black-10;
+        border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
+        font-size: $xx-small;
+        height: 40px; // Match body row height
 
         &:first-child {
           border-top-left-radius: 6px;
+          border-left: none;
         }
 
-        &.selection__header {
-          width: 22px;
-          padding: $pad-medium;
+        &.selection__header,
+        &.active-selection__checkbox {
+          width: 16px;
+          padding: 0 $pad-medium;
         }
 
         &:last-child {
-          border-right: none;
           border-top-right-radius: 6px;
         }
 
+        &.actions__header {
+          border-left: none;
+          width: 99px;
+        }
+
+        &.linkToFilteredHosts__header,
+        &.view-all-hosts__header // Same as linkToFilteredHosts__header on some pages
+        {
+          border-left: none;
+          width: 120px;
+        }
+
         .column-header {
+          display: flex;
+          flex-direction: column; // Filters under header name
+          min-width: max-content;
+          font-weight: $bold;
+
           span {
             display: flex;
             align-items: center;
             gap: 3px;
+          }
+        }
+
+        .header-cell {
+          font-weight: $bold;
+        }
+
+        // Sort arrows change color on hover
+        .sortable-header {
+          .column-header {
+            .header-cell {
+              min-height: 32px; // Leave room for outline on keyboard focus
+            }
+          }
+
+          &:hover {
+            .header-cell:not(.ascending) {
+              .ascending-arrow {
+                border-bottom-color: $ui-fleet-black-50;
+              }
+            }
+            .header-cell.ascending {
+              .descending-arrow {
+                border-top-color: $ui-fleet-black-50;
+              }
+            }
           }
         }
       }
@@ -154,12 +207,11 @@ $shadow-transition-width: 10px;
       border-radius: 6px;
 
       &__checkbox {
-        padding: 16px;
-        width: 20px;
+        width: 16px;
       }
 
       &__container {
-        padding: 0 24px;
+        padding: 0 $table-cell-padding;
       }
 
       &__inner {
@@ -204,8 +256,9 @@ $shadow-transition-width: 10px;
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-focused-outline;
           background: $ui-off-white;
+          border-radius: $border-radius;
         }
       }
 
@@ -218,14 +271,31 @@ $shadow-transition-width: 10px;
         }
       }
 
+      .clickable-row {
+        &:hover {
+          cursor: pointer;
+        }
+      }
+
       td {
         height: 40px;
-        padding: 0 $pad-large;
+        padding: 0 $table-cell-padding;
         max-width: 500px;
         word-wrap: break-word;
 
-        &.linkToFilteredHosts__cell {
+        &.actions__cell {
+          display: flex;
+          justify-content: end; // Aligns actions dropdown to right of table
+          max-width: 99px;
+        }
+
+        &.linkToFilteredHosts__cell,
+        &.view-all-hosts__cell // Same as linkToFilteredHosts__cell on some pages
+        {
           text-align: right;
+          max-width: 140px;
+          // display: flex causes layout issues on /software/vulnerabilities table
+          align-items: center;
         }
 
         &.selection__cell {
@@ -243,19 +313,65 @@ $shadow-transition-width: 10px;
             white-space: normal;
           }
         }
+
+        // Caution: LinkCell depends on this to have animation only under text and not icons etc
         .link-cell {
-          padding: $pad-small 0; // larger clickable area
+          display: inline-block; // Underline only words
+          overflow: visible;
+          @include link;
+
+          &:not(.link-cell--tooltip-truncate) {
+            @include animated-bottom-border;
+          }
+
+          &.link-cell--tooltip-truncate {
+            min-width: 100%; // Take up as much of cell as possible
+
+            .data-table__tooltip-truncated-text-container {
+              position: relative;
+              @include bottom-border;
+            }
+
+            &:hover,
+            &:focus {
+              margin-bottom: 0; // Undo margin-bottom of animated bottom border
+
+              .data-table__tooltip-truncated-text::after,
+              .data-table__tooltip-truncated-text::after {
+                transform: scaleX(1);
+              }
+            }
+          }
 
           &:hover {
-            text-decoration: underline;
+            .data-table__tooltip-truncated-text-container {
+              @include animated-bottom-border;
+              margin-bottom: 0; // Undo margin-bottom of animated bottom border
+
+              &:hover {
+                margin-bottom: 0; // Undo margin-bottom of animated bottom border
+              }
+
+              &::after {
+                transform: scaleX(
+                  1
+                ); // This gets the animation on the text only when hovering over the whole link-cell
+              }
+            }
           }
+
           > div {
-            display: block;
-            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: $pad-small;
             white-space: nowrap;
             text-overflow: ellipsis;
           }
+          .truncated-tooltip {
+            font-weight: $regular;
+          }
         }
+
         // css to properly style link-cell with tooltip
         .link-cell-tooltip-wrapper {
           overflow: visible; // fixes tooltip overflow cut off by cell
@@ -280,18 +396,27 @@ $shadow-transition-width: 10px;
           }
         }
         .w400 {
-          max-width: calc(400px - 48px);
+          max-width: 352px; // 400px - 48px padding
           min-width: 100%;
           text-align: left;
         }
         .w250 {
-          max-width: calc(250px - 48px);
+          max-width: 202px; //  250px - 48px padding
+          min-width: 100%;
+          text-align: left;
+        }
+        .w150 {
+          max-width: 102px; //  250px - 48px padding
           min-width: 100%;
           text-align: left;
         }
         .italic-cell {
           font-style: italic;
-          .__react_component_tooltip {
+
+          // old react tooltip version
+          .__react_component_tooltip,
+          // new react tooltip version
+          .react-tooltip {
             font-style: normal;
           }
         }
@@ -314,64 +439,14 @@ $shadow-transition-width: 10px;
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: rgba(255, 255, 255, 0.8);
+    background-color: $loading-overlay;
     z-index: 1;
-  }
-
-  &__pagination {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: $pad-small;
-    margin-bottom: $pad-small;
-    margin-left: auto;
-    text-align: right;
-
-    button {
-      color: $core-vibrant-blue;
-      padding: 6px;
-      font-weight: $bold;
-
-      .fleeticon-chevronleft {
-        margin-right: $pad-small;
-
-        &:before {
-          font-size: 0.6rem;
-          font-weight: $bold;
-          position: relative;
-          top: -1px;
-        }
-      }
-
-      .fleeticon-chevronright {
-        margin-left: $pad-small;
-
-        &:before {
-          font-size: 0.6rem;
-          font-weight: $bold;
-          position: relative;
-          top: -1px;
-        }
-      }
-    }
-
-    button:hover,
-    button:focus {
-      background-color: $ui-vibrant-blue-10;
-    }
-
-    .button--disabled:hover,
-    .button--disabled:focus {
-      background-color: transparent;
-    }
-
-    button:last-child {
-      margin-left: $pad-large;
-    }
   }
 
   &__footer {
     display: flex;
     align-items: center;
+    height: 50px; // Match pagination height as pagination is optionally rendered
   }
 
   &__table-help-text {

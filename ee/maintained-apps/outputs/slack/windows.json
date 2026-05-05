@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "4.49.89",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Slack' AND publisher = 'Slack Technologies Inc.' AND version_compare(version, '4.49.89') < 0);"
+      },
+      "installer_url": "https://downloads.slack-edge.com/desktop-releases/windows/x64/4.49.89/Slack.msix",
+      "install_script_ref": "1d82bbc6",
+      "uninstall_script_ref": "ae79ce28",
+      "sha256": "f2ae0041b05f919e19a660dc9e83f9857b483f3eabbdbbfbd1a29b0e80095d24",
+      "default_categories": [
+        "Communication"
+      ]
+    }
+  ],
+  "refs": {
+    "1d82bbc6": "# MSIX: provision machine-wide, then register for the current user when possible so inventory\n# (osquery programs) and FMA validation are more likely to see the app immediately.\n\ntry {\n\n  $msixPath = $env:INSTALLER_PATH\n  if (-not $msixPath) {\n    throw \"INSTALLER_PATH is not set\"\n  }\n\n  Write-Host \"Provisioning MSIX for all users...\"\n  $result = Add-AppxProvisionedPackage -Online -PackagePath $msixPath -SkipLicense -ErrorAction Stop\n  $result | Out-String | Write-Host\n\n  # Per-user registration helps ARP/programs visibility on hosts where validation runs with a user session.\n  try {\n    Write-Host \"Registering MSIX for current user (best-effort)...\"\n    Add-AppxPackage -Path $msixPath -ErrorAction Stop | Out-String | Write-Host\n  } catch {\n    Write-Host \"Add-AppxPackage skipped or failed (provisioned install may still be valid): $($_.Exception.Message)\"\n  }\n\n  Start-Sleep -Seconds 5\n  Exit 0\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1\n}\n",
+    "ae79ce28": "$packageFamilyName = 'com.tinyspeck.slackdesktop_8yrtsj140pw4g'\n$timeoutSeconds = 300  # 5 minute timeout\n\ntry {\n\n  $start = Get-Date\n  $provisioned = Get-AppxProvisionedPackage -Online -ErrorAction Stop |\n    Where-Object { $_.PackageFamilyName -eq $packageFamilyName }\n  foreach ($pkg in $provisioned) {\n    Remove-AppxProvisionedPackage -Online -PackageName $pkg.PackageName -AllUsers -ErrorAction Stop\n    $elapsed = (New-TimeSpan -Start $start).TotalSeconds\n    if ($elapsed -gt $timeoutSeconds) {\n      Exit 1603\n    }\n  }\n\n  $installed = Get-AppxPackage -AllUsers -PackageTypeFilter Main -ErrorAction SilentlyContinue |\n    Where-Object { $_.PackageFamilyName -eq $packageFamilyName }\n  foreach ($app in $installed) {\n    Remove-AppxPackage -Package $app.PackageFullName -AllUsers -ErrorAction Stop\n    $elapsed = (New-TimeSpan -Start $start).TotalSeconds\n    if ($elapsed -gt $timeoutSeconds) {\n      Exit 1603\n    }\n  }\n\n  Exit 0\n\n} catch {\n  Write-Host \"Error: $_\"\n  Exit 1603\n}\n"
+  }
+}

@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
@@ -25,9 +25,15 @@ interface ICellProps {
   };
 }
 
-interface ITextCellProps extends ICellProps {
+interface ITextCellProps {
   cell: {
     value: string | number;
+  };
+}
+
+interface ITextCellPropsWithRow extends ITextCellProps {
+  row: {
+    original: IVulnerability;
   };
 }
 
@@ -42,7 +48,10 @@ interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
   accessor: string;
-  Cell: (props: ITextCellProps) => JSX.Element;
+  Cell:
+    | ((props: ITextCellProps) => JSX.Element)
+    | ((props: ITextCellPropsWithRow) => JSX.Element)
+    | ((props: ICellProps) => JSX.Element);
   disableHidden?: boolean;
   disableSortBy?: boolean;
   sortType?: string;
@@ -66,7 +75,7 @@ const generateTableHeaders = (
       Header: "Vulnerability",
       disableSortBy: true,
       accessor: "cve",
-      Cell: (cellProps: ITextCellProps) => {
+      Cell: (cellProps: ITextCellPropsWithRow) => {
         if (!configOptions?.includeIcon) {
           return (
             <TextCell
@@ -78,10 +87,10 @@ const generateTableHeaders = (
 
         const { cve } = cellProps.row.original;
 
-        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
-        const softwareVulnerabilitiesDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
-          cve
-        )}?${teamQueryParam}`;
+        const softwareVulnerabilitiesDetailsPath = getPathWithQueryParams(
+          PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve),
+          { fleet_id: teamId }
+        );
 
         const onClickVulnerability = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
@@ -246,7 +255,7 @@ const generateTableHeaders = (
       ),
       disableSortBy: false,
       accessor: "hosts_count",
-      Cell: (cellProps: ITextCellProps): JSX.Element => {
+      Cell: (cellProps: ITextCellPropsWithRow): JSX.Element => {
         const { hosts_count } = cellProps.row.original;
         return <TextCell value={hosts_count} />;
       },
@@ -263,7 +272,7 @@ const generateTableHeaders = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
-                  team_id: teamId,
+                  fleet_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

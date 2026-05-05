@@ -13,17 +13,16 @@ These are set via [variables](https://github.com/fleetdm/fleet/blob/main/infrast
 # When first applying.  Assuming tag exists
 terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small
 
-# When adding loadtest containers. 
-terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
-
+# When adding loadtest containers.
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10
 ```
 
 ### Deploying your code to the loadtesting environment
 
 > IMPORTANT:
-> - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
+> - We advise to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
 > - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
-> - These scripts were tested with terraform 1.5.X.
+> - These scripts were tested with terraform 1.10.4.
 
 1. Push your `$BRANCH_NAME` branch to https://github.com/fleetdm/fleet and trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch).
 1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
@@ -65,7 +64,7 @@ export TF_VAR_fleet_config='{"FLEET_DEV_MDM_APPLE_DISABLE_PUSH":"1","FLEET_DEV_M
 ```
 
 - The above is needed because the newline characters in the certificate/key/token files.
-- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument. 
+- The value set in `FLEET_MDM_APPLE_SCEP_CHALLENGE` must match whatever you set in `osquery-perf`'s `mdm_scep_challenge` argument.
 - The above `export TF_VAR_fleet_config=...` command was tested on `bash`. It did not work in `zsh`.
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_PUSH=1`. We don't want to generate push notifications against fake UUIDs (otherwise it may cause Apple to rate limit due to invalid requests).
 - Note that we are also setting `FLEET_DEV_MDM_APPLE_DISABLE_DEVICE_INFO_CERT_VERIFY=1` to skip verification of Apple certificates for OTA enrollments.
@@ -74,6 +73,135 @@ This has an impact on real devices because they will not be notified of any comm
 3. Add the following `osquery-perf` arguments to [loadtesting.tf](./loadtesting.tf)
 - `-mdm_prob 1.0`
 - `-mdm_scep_challenge` set to the same value as `FLEET_MDM_APPLE_SCEP_CHALLENGE` above.
+
+### Enabling Cloudfront
+
+> Do not commit your `BRANCH_NAME` if any files exist in `resources/TERRAFORM_WORKSPACE/` without a .encrypted extension.
+> This step assumes that you've already successfully executed terraform apply and have a `kms_key_id` from the output of the terraform apply command.
+
+1. Under the terraform directory, create directory `resources/TERRAFORM_WORKSPACE/`. Your `TERRAFORM_WORKSPACE` value can be retrieved with `terraform workspace show`.
+
+2. Change directory to `resources/TERRAFORM_WORKSPACE/`
+
+3. Create your keys
+
+```
+openssl genrsa -out cloudfront.key 2048
+openssl rsa -pubout -in cloudfront.key -out cloudfront.pem
+```
+
+4. Create `encrypt.sh` (store the script in in the terraform directory, two directories up `../..`)
+
+```
+#!/bin/bash
+
+set -e
+
+function usage() {
+	cat <<-EOUSAGE
+	
+	Usage: $(basename ${0}) <KMS_KEY_ID> <SOURCE> <DESTINATION> [AWS_PROFILE]
+	
+		This script encrypts an plaintext file from SOURCE into an
+		AWS KMS encrypted DESTINATION file.  Optionally you
+		may provide the AWS_PROFILE you wish to use to run the aws kms
+		commands.
+
+	EOUSAGE
+	exit 1
+}
+
+[ $# -lt 3 ] && usage
+
+if [ -n "${4}" ]; then
+	export AWS_PROFILE=${4}
+fi
+
+aws kms encrypt --key-id "${1:?}" --plaintext fileb://<(cat "${2:?}") --output text --query CiphertextBlob > "${3:?}"
+```
+
+5. Make the script executable by running `chmod +x ../../encrypt.sh`
+6. Encrypt the objects using `encrypt.sh`
+
+```
+for i in *; do ../../encrypt.sh <KMS_KEY_ID> $i $i.encrypted; done
+for i in *.encrypted; do rm ${i/.encrypted/}; done
+```
+
+6. Change back to the terraform directory (two directories up ../..)
+
+7. If the name of your public/private cloudfront key is not `cloudfront.pem|.key`, update `locals.tf`
+
+```
+# Set the following variable value to the base name of your cloudfront key, no extension.
+cloudfront_key_basename = cloudfront
+```
+
+8. Copy and make `cloudfront.tf`
+
+```
+cp template/cloudfront.tf.disabled cloudfront.tf
+```
+
+9. In `locals.tf` uncomment the following line, under `extra_secrets`
+
+```
+module.cloudfront-software-installers.extra_secrets,
+```
+
+Example: You should end up with something that looks like the following block
+
+```
+  extra_secrets = merge(
+    module.cloudfront-software-installers.extra_secrets
+  )
+```
+
+10. Initialize terraform and upgrade any necessary dependencies
+
+```
+terraform init -upgrade
+```
+
+11. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+12. In `locals.tf` uncomment the following line, under `extra_execution_iam_policies`.
+
+```
+module.cloudfront-software-installers.extra_execution_iam_policies,
+```
+
+You should end up with something that looks like this.
+
+```
+  extra_execution_iam_policies = concat(
+    module.cloudfront-software-installers.extra_execution_iam_policies,
+    []
+  )
+```
+
+13. Apply the terraform
+
+```
+terraform apply -var tag=BRANCH_NAME
+```
+
+14. Cloudfront should now be enabled.
+
+15. If you had previously uploaded any software installers, they need to be re-encrypted by finding and targeting your bucket with the following commands.
+
+```
+# List buckets matching your BRANCH_NAME
+aws s3 ls | grep BRANCH_NAME
+
+# Replace <bucket-name> with the software_instalelrs bucket name.
+aws s3 cp s3://<bucket-name>/ s3://<bucket-name>/ --recursive
+```
+
 
 ### Running a loadtest
 
@@ -86,6 +214,8 @@ With the variable `loadtest_containers` you can specify how many containers of 5
 `terraform apply -var tag=BRANCH_NAME -var loadtest_containers=8 -var='fleet_config={"FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING":"host_last_seen=true","FLEET_OSQUERY_ASYNC_HOST_COLLECT_INTERVAL":"host_last_seen=10s"}'`
 
 ### Monitoring the infrastructure
+
+This [document](https://docs.google.com/document/d/1V6QtFzcGDsLnn2PIvGin74DAxdAN_3likjxSssOMMQI/edit?tab=t.0) covers the load test key metrics to capture or keep an eye on. Results are collected in [this spreadsheet](https://docs.google.com/spreadsheets/d/1FOF0ykFVoZ7DJSTfrveip0olfyRQsY9oT1uXCCZmuKc/edit?gid=0#gid=0) for release-specific load tests.
 
 There are a few main places of interest to monitor the load and resource usage:
 
@@ -111,6 +241,21 @@ docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 # you will end up with twice the hosts enrolled (half online, half offline).
 terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet
 ```
+
+NOTE: When performing a migration test, set `-var fleet_containers=0` and `-var loadtest_containers=XXX` where `XXX` is the current number of loadtest containers, when running the above command. This will bring down any running fleet containers during the migration, while leaving the loadtest containers up and running. 
+Once the re-deploy on the new branch is finished, you will need to run migrations again:
+
+```sh
+aws ecs run-task --region us-east-2 --cluster fleet-"$(terraform workspace show)"-backend --task-definition fleet-"$(terraform workspace show)"-migrate:"$(terraform output -raw fleet_migration_revision)" --launch-type FARGATE --network-configuration "awsvpcConfiguration={subnets="$(terraform output -raw fleet_migration_subnets)",securityGroups="$(terraform output -raw fleet_migration_security_groups)"}"
+```
+
+Once the migrations have completed, run the following command to bring the fleet containers back up (substituing in the correct `BRANCH_NAME`, `loadtest_containers` and `fleet_containers` values):
+
+```sh
+terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -var fleet_containers=XX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet -target=aws_appautoscaling_target.ecs_target
+```
+
+Using `-target=aws_appautoscaling_target.ecs_target` will prevent your instance from shutting down prematurely if there are performance issues, to allow for further investigation.
 
 ### Deploying code changes to osquery-perf
 
@@ -150,3 +295,54 @@ See https://www.terraform.io/internals/debugging for more details.
 In a few instances, it is possible for an ECR repository to still have images left, preventing a full `terraform destroy` of a Loadtesting instance.  Use the following one-liner to clean these up before re-running `terraform destroy`:
 
 `REPOSITORY_NAME=fleet-$(terraform workspace show); aws ecr list-images --repository-name ${REPOSITORY_NAME} --query 'imageIds[*]' --output text | while read digest tag; do aws ecr batch-delete-image --repository-name ${REPOSITORY_NAME} --image-ids imageDigest=${digest}; done`
+
+#### Errors with macOS Docker Desktop
+
+If you are getting the following error when running `terraform apply`:
+```sh
+│ Error: Error pinging Docker server: Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+│
+│   with provider["registry.terraform.io/kreuzwerker/docker"],
+│   on init.tf line 45, in provider "docker":
+│   45: provider "docker" {
+```
+Run:
+```sh
+$ docker context ls
+NAME              DESCRIPTION                               DOCKER ENDPOINT                             ERROR
+default           Current DOCKER_HOST based configuration   unix:///var/run/docker.sock
+desktop-linux *   Docker Desktop                            unix:///Users/foobar/.docker/run/docker.sock
+```
+Then add the entry with `*`, in this case `host = unix:///Users/foobar/.docker/run/docker.sock` to `infrastructure/loadtesting/terraform/init.tf`:
+```sh
+[...]
+provider "docker" {
+  # Configuration options
+  registry_auth {
+    address  = "${data.aws_caller_identity.current.account_id}.dkr.ecr.us-east-2.amazonaws.com"
+    username = data.aws_ecr_authorization_token.token.user_name
+    password = data.aws_ecr_authorization_token.token.password
+  }
+  host = "unix:///Users/foobar/.docker/run/docker.sock"
+}
+[...]
+```
+
+If you are getting the following error when running `terraform apply`:
+
+```sh
+│ Error: Error building docker image: 1: The command '/bin/sh -c git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .' returned a non-zero code: 1
+│
+│   with docker_registry_image.loadtest,
+│   on ecr.tf line 46, in resource "docker_registry_image" "loadtest":
+│   46: resource "docker_registry_image" "loadtest" {
+```
+
+1. Check your Docker virtual machine settings. Open Docker Desktop, then open the settings (`cmd-,`
+   or the gear in the top right of the screen). Scroll down to the "Virtual Machine Options"
+   section.
+
+2. If you currently have the "Apple virtualization framework" setting selected, select the "Docker
+   VMM" option instead. Click "Apply & restart" in the bottom right.
+
+Once Docker has restarted, re-run `terraform apply` and you should be good to go!

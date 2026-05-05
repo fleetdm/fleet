@@ -10,9 +10,12 @@ import FilePy from "./FilePy";
 import FileScript from "./FileScript";
 import FilePdf from "./FilePdf";
 import FilePkg from "./FilePkg";
+import FilePng from "./FilePng";
 import FileP7m from "./FileP7m";
 import FilePem from "./FilePem";
 import FileVpp from "./FileVpp";
+import FileCertificate from "./FileCertificate";
+import AppStore from "./AppStore";
 import EmptyHosts from "./EmptyHosts";
 import EmptyTeams from "./EmptyTeams";
 import EmptyPacks from "./EmptyPacks";
@@ -22,6 +25,9 @@ import EmptySearchCheck from "./EmptySearchCheck";
 import EmptySearchQuestion from "./EmptySearchQuestion";
 import CollectingResults from "./CollectingResults";
 import DataError from "./DataError";
+import Calendar from "./Calendar";
+import Lock from "./Lock";
+import Settings from "./Settings";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -45,12 +51,18 @@ export const GRAPHIC_MAP = {
   "file-script": FileScript,
   "file-pdf": FilePdf,
   "file-pkg": FilePkg,
+  "file-png": FilePng,
   "file-p7m": FileP7m,
   "file-pem": FilePem,
   "file-vpp": FileVpp,
+  "file-certificate": FileCertificate,
+  "app-store": AppStore, // Used in non-editable file uploader for vpp apps edit modal
   // Other graphics
   "collecting-results": CollectingResults,
   "data-error": DataError,
+  calendar: Calendar,
+  lock: Lock,
+  settings: Settings,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

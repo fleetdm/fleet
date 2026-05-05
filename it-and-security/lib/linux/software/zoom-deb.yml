@@ -1,4 +1,2 @@
-url: https://zoom.us/client/6.2.11.5069/zoom_amd64.deb
-self-service: true
-pre_install_query:
-  path: ../queries/all-deb-hosts.yml
+url: https://cdn.zoom.us/prod/6.7.5.6891/zoom_amd64.deb
+display_name: Zoom

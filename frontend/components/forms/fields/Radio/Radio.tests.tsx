@@ -1,7 +1,8 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithSetup } from "test/test-utils";
 
 import Radio from "./Radio";
 
@@ -77,7 +78,7 @@ describe("Radio - component", () => {
   });
 
   it("render a tooltip from the tooltip prop", async () => {
-    render(
+    const { user } = renderWithSetup(
       <Radio
         disabled
         label="Radio Label"
@@ -88,9 +89,11 @@ describe("Radio - component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText("Radio Label"));
-    const tooltip = screen.getByText("A Test Radio Tooltip");
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(screen.getByText("Radio Label"));
+    await waitFor(() => {
+      const tooltip = screen.getByText("A Test Radio Tooltip");
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it("adds the custom class name from the className prop", () => {

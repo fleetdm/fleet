@@ -11,8 +11,8 @@ import (
 	"github.com/google/go-github/v37/github"
 )
 
-// bulletinsDelta returns what bulletins should be download from GH and what bulletins should be removed
-// from the local file system based what OS are installed, what local bulletins we have and what
+// bulletinsDelta returns what bulletins should be downloaded from GH and what bulletins should be removed
+// from the local file system based what OSes are installed, what local bulletins we have and what
 // remote bulletins exist.
 func bulletinsDelta(
 	os []fleet.OperatingSystem,
@@ -36,8 +36,8 @@ func bulletinsDelta(
 		}
 	}
 
-	var toDownload []io.MetadataFileName
-	var toDelete []io.MetadataFileName
+	downloadSet := map[io.MetadataFileName]struct{}{}
+	deleteSet := map[io.MetadataFileName]struct{}{}
 	for _, m := range matching {
 		var found bool
 		for _, l := range local {
@@ -45,16 +45,26 @@ func bulletinsDelta(
 				found = true
 				// out of date
 				if l.Before(m) {
-					toDownload = append(toDownload, m)
-					toDelete = append(toDelete, l)
+					downloadSet[m] = struct{}{}
+					deleteSet[l] = struct{}{}
 				}
 				break
 			}
 		}
 		if !found {
-			toDownload = append(toDownload, m)
+			downloadSet[m] = struct{}{}
 		}
 	}
+
+	var toDownload []io.MetadataFileName
+	var toDelete []io.MetadataFileName
+	for filename := range downloadSet {
+		toDownload = append(toDownload, filename)
+	}
+	for filename := range deleteSet {
+		toDelete = append(toDelete, filename)
+	}
+
 	return toDownload, toDelete
 }
 

@@ -1,0 +1,8 @@
+{
+  "name": "Sourcetree",
+  "unique_identifier": "com.torusknot.SourceTreeNotMAS",
+  "token": "sourcetree",
+  "installer_format": "zip",
+  "slug": "sourcetree/darwin",
+  "default_categories": ["Developer tools"]
+}

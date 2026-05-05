@@ -4,13 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log/level"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -22,7 +24,7 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 // the server/webhooks one because it is a Fleet Premium only feature and for
 // licensing reasons this needs to live under this package.
 func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Host) error {
-	level.Debug(svc.logger).Log("msg", "trigger migration webhook", "host_id", host.ID,
+	svc.logger.DebugContext(ctx, "trigger migration webhook", "host_id", host.ID,
 		"refetch_critical_queries_until", host.RefetchCriticalQueriesUntil)
 
 	ac, err := svc.ds.AppConfig(ctx)
@@ -37,7 +39,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 		// the webhook has already been triggered successfully recently (within the
 		// refetch critical queries delay), so return as if it did send it successfully
 		// but do not re-send.
-		level.Debug(svc.logger).Log("msg", "waiting for critical queries refetch, skip sending webhook",
+		svc.logger.DebugContext(ctx, "waiting for critical queries refetch, skip sending webhook",
 			"host_id", host.ID)
 		return nil
 	}
@@ -79,7 +81,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	p.Host.UUID = host.UUID
 	p.Host.HardwareSerial = host.HardwareSerial
 
-	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p); err != nil {
+	if err := server.PostJSONWithTimeout(ctx, ac.MDM.MacOSMigration.WebhookURL, p, svc.logger); err != nil {
 		return ctxerr.Wrap(ctx, err, "posting macOS migration webhook")
 	}
 
@@ -90,6 +92,43 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	host.RefetchCriticalQueriesUntil = &refetchUntil
 	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
+	}
+
+	return nil
+}
+
+func (svc *Service) BypassConditionalAccess(ctx context.Context, host *fleet.Host) error {
+	// this is not a user-authenticated endpoint
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting device config")
+	}
+
+	if ac.ConditionalAccess != nil && !ac.ConditionalAccess.BypassEnabled() {
+		return fleet.NewUserMessageError(errors.New("conditional access bypass disabled"), http.StatusForbidden)
+	}
+
+	if err := svc.ds.ConditionalAccessBypassDevice(ctx, host.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "setting conditional access bypass")
+	}
+
+	idpFullName, err := fleet.GetEndUserIdpFullName(ctx, svc.ds, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting end users for bypass activity")
+	}
+
+	if idpFullName == "" {
+		idpFullName = "An end user"
+	}
+
+	if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeHostBypassedConditionalAccess{
+		HostID:          host.ID,
+		HostDisplayName: host.DisplayName(),
+		IdPFullName:     idpFullName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating host bypass activity")
 	}
 
 	return nil
@@ -162,12 +201,18 @@ func (svc *Service) GetFleetDesktopSummary(ctx context.Context) (fleet.DesktopSu
 	// mdm information
 	sum.Config.MDM.MacOSMigration.Mode = appCfg.MDM.MacOSMigration.Mode
 
+	sum.AlternativeBrowserHost = appCfg.FleetDesktop.AlternativeBrowserHost
+
 	return sum, nil
 }
 
 func (svc *Service) TriggerLinuxDiskEncryptionEscrow(ctx context.Context, host *fleet.Host) error {
 	if svc.ds.IsHostPendingEscrow(ctx, host.ID) {
 		return nil
+	}
+
+	if err := svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID); err != nil {
+		return err
 	}
 
 	if err := svc.validateReadyForLinuxEscrow(ctx, host); err != nil {
@@ -190,7 +235,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 
 	if host.TeamID == nil {
 		if !ac.MDM.EnableDiskEncryption.Value {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for hosts not assigned to a fleet."}
 		}
 	} else {
 		tc, err := svc.ds.TeamMDMConfig(ctx, *host.TeamID)
@@ -198,7 +243,7 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 			return err
 		}
 		if !tc.EnableDiskEncryption {
-			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's team."}
+			return &fleet.BadRequestError{Message: "Disk encryption is not enabled for this host's fleet."}
 		}
 	}
 
@@ -216,5 +261,88 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 		return &fleet.BadRequestError{Message: "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again."}
 	}
 
-	return svc.ds.AssertHasNoEncryptionKeyStored(ctx, host.ID)
+	return nil
+}
+
+func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
+	// can't call the already made GetSoftwareTitleIcon(ctx, teamID, titleID) method
+	// because svc is the concrete open source service implementation despite it being in the ee/directory
+	var err error
+
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+	if icon == nil {
+		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		if vppApp != nil && vppApp.IconURL != nil {
+			return nil, 0, "", &fleet.VPPIconAvailable{IconURL: *vppApp.IconURL}
+		}
+
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+
+	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)
+	if err != nil {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon data")
+	}
+	defer iconData.Close()
+	imageBytes, err := io.ReadAll(iconData)
+	if err != nil {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "reading icon data")
+	}
+
+	return imageBytes, size, icon.Filename, nil
+}
+
+func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error) {
+	// This is a device endpoint, not a user-authenticated endpoint.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
+	}
+
+	return svc.getHostSetupExperienceStatus(ctx, host)
+}
+
+func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *fleet.Host) (*fleet.DeviceSetupExperienceStatusPayload, error) {
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
+
+	// Get current status of the setup experience.
+	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, ptr.ValOrZero(host.TeamID))
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+	}
+
+	// Add activities for canceled installs + setup experience run
+	err = svc.recordCanceledSetupExperienceSoftwareActivities(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "recording cancelled setup experience installs")
+	}
+
+	var software []*fleet.SetupExperienceStatusResult
+	var scripts []*fleet.SetupExperienceStatusResult
+	for _, result := range results {
+		if result.IsForSoftware() {
+			software = append(software, result)
+		}
+		if result.IsForScript() {
+			scripts = append(scripts, result)
+		}
+	}
+
+	// Continue with next step in setup experience.
+	if _, err = svc.SetupExperienceNextStep(ctx, host); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+	}
+
+	return &fleet.DeviceSetupExperienceStatusPayload{
+		Software: software,
+		Scripts:  scripts,
+	}, nil
 }

@@ -39,6 +39,8 @@ controls:
   scripts:
     - path: ./lib/collect-fleetd-logs.sh
   enable_disk_encryption: true
+  enable_recovery_lock_password: true
+  windows_require_bitlocker_pin: true
   macos_setup:
     bootstrap_package: null
     enable_end_user_authentication: false
@@ -61,6 +63,14 @@ controls:
     webhook_url: ""
   windows_enabled_and_configured: true
   windows_migration_enabled: false
+  enable_turn_on_windows_mdm_manually: false
+  windows_entra_tenant_ids: []
+  apple_require_hardware_attestation: false
+labels:
+  - name: a
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
 queries:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery
@@ -121,6 +131,11 @@ policies:
     query: SELECT 1 FROM apps WHERE name = 'Microsoft Teams.app' AND version_compare(bundle_short_version, '24193.1707.3028.4282') >= 0;
     install_software:
       package_path: ./microsoft-teams.pkg.software.yml
+  - name: Slack on macOS is installed
+    platform: darwin
+    query: SELECT 1 FROM apps WHERE name = 'Slack.app';
+    install_software:
+      app_store_id: "123456"
   - name: Script run policy
     platform: linux
     description: This should run a script on failure
@@ -135,7 +150,36 @@ policies:
     run_script:
       path: ./lib/collect-fleetd-logs.sh
 software:
+  app_store_apps:
+    - app_store_id: "123456"
   packages:
     - path: ./microsoft-teams.pkg.software.yml
+      labels_include_any:
+        - a
+      categories:
+        - Communication
+        - Productivity
     - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
       self_service: true
+      labels_exclude_any:
+        - a
+  fleet_maintained_apps:
+    - slug: slack/darwin
+      version: "4.47.65"
+      self_service: true
+      categories:
+        - Productivity
+        - Communication
+    - slug: box-drive/windows
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml
+      self_service: true
+      categories:
+        - Productivity
+        - Developer tools

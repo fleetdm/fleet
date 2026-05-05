@@ -1,0 +1,12 @@
+{
+  "name": "Brave",
+  "slug": "brave-browser/windows",
+  "package_identifier": "Brave.Brave",
+  "unique_identifier": "Brave",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/brave_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/brave_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Browsers"]
+}

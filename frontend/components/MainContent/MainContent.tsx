@@ -1,17 +1,23 @@
 import React, { ReactNode, useContext } from "react";
 import classnames from "classnames";
+
 import { hasLicenseExpired } from "utilities/helpers";
+import { AppContext } from "context/app";
 
 import AppleBMTermsMessage from "components/MDM/AppleBMTermsMessage";
-
-import { AppContext } from "context/app";
 import LicenseExpirationBanner from "components/LicenseExpirationBanner";
 import ApplePNCertRenewalMessage from "components/MDM/ApplePNCertRenewalMessage";
 import AppleBMRenewalMessage from "components/MDM/AppleBMRenewalMessage";
+import AndroidEnterpriseDeletedMessage from "components/MDM/AndroidEnterpriseDeletedMessage";
+
 import VppRenewalMessage from "./banners/VppRenewalMessage";
 
+export interface IMainContentConfig {
+  renderedBanner: boolean;
+}
+
 interface IMainContentProps {
-  children: ReactNode;
+  children: ReactNode | ((mainContentConfig: IMainContentConfig) => ReactNode);
   /** An optional classname to pass to the main content component.
    * This can be used to apply styles directly onto the main content div
    */
@@ -32,6 +38,7 @@ const MainContent = ({
   const {
     config,
     isPremiumTier,
+    isAndroidEnterpriseDeleted,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
@@ -48,9 +55,15 @@ const MainContent = ({
 
     let banner: JSX.Element | null = null;
 
-    if (isPremiumTier) {
-      if (isApplePnsExpired || willApplePnsExpire) {
-        banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+    // the order of these checks is important. This is the priority order
+    // for showing banners and only one banner is shown at a time.
+    if (isApplePnsExpired || willApplePnsExpire) {
+      // APNs expiration banner will show for either premium or free tiers
+      // but all other banners are only for premium tiers
+      banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
+    } else if (isPremiumTier) {
+      if (isAndroidEnterpriseDeleted) {
+        banner = <AndroidEnterpriseDeletedMessage />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
       } else if (needsAbmTermsRenewal) {
@@ -72,10 +85,16 @@ const MainContent = ({
 
     return null;
   };
+
+  const appWideBanner = renderAppWideBanner();
+  const mainContentConfig: IMainContentConfig = {
+    renderedBanner: !!appWideBanner,
+  };
+
   return (
     <div className={classes}>
-      {renderAppWideBanner()}
-      {children}
+      {appWideBanner}
+      {typeof children === "function" ? children(mainContentConfig) : children}
     </div>
   );
 };

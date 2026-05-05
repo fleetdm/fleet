@@ -1,0 +1,216 @@
+---
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    features:
+      enable_host_users: true
+      enable_software_inventory: true
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
+    integrations:
+      google_calendar: null
+      conditional_access_enabled: null
+    mdm:
+      enable_disk_encryption: false
+      enable_recovery_lock_password: false
+      windows_require_bitlocker_pin: null
+      apple_settings:
+        configuration_profiles: null
+      windows_settings:
+        configuration_profiles: null
+      android_settings:
+        configuration_profiles: null
+        certificates: null
+      setup_experience:
+        macos_bootstrap_package: %s
+        enable_create_local_admin_account: false
+        enable_end_user_authentication: false
+        end_user_local_account_type: "admin"
+        lock_end_user_info: false
+        apple_setup_assistant: %s
+        macos_manual_agent_install: null
+        apple_enable_release_device_manually: false
+        require_all_software_macos: false
+        require_all_software_windows: false
+        macos_script: null
+        software: null
+      macos_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
+      failing_policies_webhook: null
+    name: tm1
+  team:
+    features:
+      enable_host_users: true
+      enable_software_inventory: true
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
+    integrations:
+      google_calendar: null
+      conditional_access_enabled: null
+    mdm:
+      enable_disk_encryption: false
+      enable_recovery_lock_password: false
+      windows_require_bitlocker_pin: null
+      macos_settings:
+        custom_settings: null
+      windows_settings:
+        custom_settings: null
+      android_settings:
+        custom_settings: null
+        certificates: null
+      macos_setup:
+        bootstrap_package: %s
+        enable_end_user_authentication: false
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
+        lock_end_user_info: false
+        macos_setup_assistant: %s
+        manual_agent_install: null
+        enable_release_device_manually: false
+        require_all_software_macos: false
+        require_all_software_windows: false
+        script: null
+        software: null
+      macos_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
+        update_new_hosts: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
+      failing_policies_webhook: null
+    name: tm1
+---
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    features:
+      enable_host_users: false
+      enable_software_inventory: false
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
+    integrations:
+      google_calendar: null
+      conditional_access_enabled: null
+    mdm:
+      enable_disk_encryption: false
+      enable_recovery_lock_password: false
+      windows_require_bitlocker_pin: null
+      apple_settings:
+        configuration_profiles: null
+      windows_settings:
+        configuration_profiles: null
+      android_settings:
+        configuration_profiles: null
+        certificates: null
+      setup_experience:
+        macos_bootstrap_package: %s
+        apple_setup_assistant: %s
+        macos_manual_agent_install: null
+        enable_create_local_admin_account: false
+        end_user_local_account_type: "admin"
+        apple_enable_release_device_manually: false
+        lock_end_user_info: false
+        macos_script: null
+        software: null
+      macos_updates:
+        deadline: null
+        minimum_version: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
+      failing_policies_webhook: null
+    name: tm2
+  team:
+    features:
+      enable_host_users: false
+      enable_software_inventory: false
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
+    integrations:
+      google_calendar: null
+      conditional_access_enabled: null
+    mdm:
+      enable_disk_encryption: false
+      enable_recovery_lock_password: false
+      windows_require_bitlocker_pin: null
+      macos_settings:
+        custom_settings: null
+      windows_settings:
+        custom_settings: null
+      android_settings:
+        custom_settings: null
+        certificates: null
+      macos_setup:
+        bootstrap_package: %s
+        macos_setup_assistant: %s
+        manual_agent_install: null
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
+        enable_release_device_manually: false
+        lock_end_user_info: false
+        script: null
+        software: null
+      macos_updates:
+        deadline: null
+        minimum_version: null
+      ios_updates:
+        deadline: null
+        minimum_version: null
+      ipados_updates:
+        deadline: null
+        minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
+    scripts: null
+    secrets: null
+    webhook_settings:
+      host_status_webhook: null
+      failing_policies_webhook: null
+    name: tm2

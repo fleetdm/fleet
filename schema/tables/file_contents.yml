@@ -1,0 +1,23 @@
+name: file_contents
+notes: See also `file_lines` for reading a file line by line.
+description: Allows reading an arbitrary file. The entire contents of the file are returned as a single row.
+platforms: 
+  - darwin
+  - windows
+  - linux
+evented: false
+examples: |-
+  Output the content of `/etc/hosts`. 
+  
+  ```
+  SELECT * FROM file_contents WHERE path='/etc/hosts';
+  ```
+columns:
+  - name: path
+    description: Path of the file to read.
+    required: true
+    type: text
+  - name: contents
+    description: Contents of the file
+    required: false
+    type: text

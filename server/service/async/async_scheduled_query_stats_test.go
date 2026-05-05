@@ -144,13 +144,15 @@ func testCollectScheduledQueryStats(t *testing.T, ds *mysql.Datastore, pool flee
 		func() {
 			t.Log("test name: ", c.name)
 
-			task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
-				EnableAsyncHostProcessing:   "true",
-				AsyncHostInsertBatch:        batchSizes,
-				AsyncHostUpdateBatch:        batchSizes,
-				AsyncHostDeleteBatch:        batchSizes,
-				AsyncHostRedisPopCount:      batchSizes,
-				AsyncHostRedisScanKeysCount: 10,
+			task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+				Osquery: config.OsqueryConfig{
+					EnableAsyncHostProcessing:   "true",
+					AsyncHostInsertBatch:        batchSizes,
+					AsyncHostUpdateBatch:        batchSizes,
+					AsyncHostDeleteBatch:        batchSizes,
+					AsyncHostRedisPopCount:      batchSizes,
+					AsyncHostRedisScanKeysCount: 10,
+				},
 			})
 			wantStats := setupTest(t, task, c.hostStats)
 
@@ -175,7 +177,7 @@ func testRecordScheduledQueryStatsSync(t *testing.T, ds *mock.Store, pool fleet.
 	stats := []fleet.PackStats{{PackName: "p1", QueryStats: []fleet.ScheduledQueryStats{{ScheduledQueryName: "sq1"}}}}
 	hashKey := fmt.Sprintf(scheduledQueryStatsHostQueriesKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
+	task := NewTask(ds, pool, clock.C, nil)
 
 	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)
 	require.NoError(t, err)
@@ -215,11 +217,13 @@ func testRecordScheduledQueryStatsAsync(t *testing.T, ds *mock.Store, pool fleet
 	}
 	hashKey := fmt.Sprintf(scheduledQueryStatsHostQueriesKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
-		EnableAsyncHostProcessing:   "true",
-		AsyncHostInsertBatch:        3,
-		AsyncHostRedisPopCount:      3,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 
 	err := task.RecordScheduledQueryStats(ctx, host.TeamID, host.ID, stats, now)

@@ -1,7 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "context/app";
-
-import { hasLicenseExpired } from "utilities/helpers";
+import { addHours, isPast } from "date-fns";
 
 import { DiskEncryptionStatus, MdmEnrollmentStatus } from "interfaces/mdm";
 import { IOSSettings } from "interfaces/host";
@@ -29,6 +28,8 @@ export interface IHostBannersBaseProps {
   diskIsEncrypted?: boolean;
   /** Whether or not Fleet has escrowed the host's disk encryption key */
   diskEncryptionKeyAvailable?: boolean;
+  /** The timestamp of the last MDM enrollment */
+  lastMdmEnrolledAt?: string;
 }
 /**
  * Handles the displaying of banners on the host details page
@@ -42,50 +43,39 @@ const HostDetailsBanners = ({
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
+  lastMdmEnrolledAt,
 }: IHostBannersBaseProps) => {
-  const {
-    config,
-    isPremiumTier,
-    isAppleBmExpired,
-    isApplePnsExpired,
-    isVppExpired,
-    needsAbmTermsRenewal,
-    willAppleBmExpire,
-    willApplePnsExpire,
-    willVppExpire,
-  } = useContext(AppContext);
-
-  // Checks to see if an app-wide banner is being shown (the ABM terms, ABM expiry,
-  // or APNs expiry banner) in a parent component. App-wide banners found in parent
-  // component take priority over host details page-level banners.
-  const isFleetLicenseExpired = hasLicenseExpired(
-    config?.license.expiration || ""
-  );
-
-  const showingAppWideBanner =
-    isPremiumTier &&
-    (needsAbmTermsRenewal ||
-      isApplePnsExpired ||
-      willApplePnsExpire ||
-      isAppleBmExpired ||
-      willAppleBmExpire ||
-      isVppExpired ||
-      willVppExpire ||
-      isFleetLicenseExpired);
+  const { config } = useContext(AppContext);
 
   const isMdmUnenrolled = mdmEnrollmentStatus === "Off" || !mdmEnrollmentStatus;
+  const isNewMdmEnrollment =
+    !isMdmUnenrolled &&
+    !!lastMdmEnrolledAt &&
+    // if less than an hour has passed since the last MDM enrollment, we consider it a new
+    // enrollment and won't show the disk encryption action required banner, as it's possible the
+    // host just hasn't sent its disk encryption status to Fleet yet
+    !isPast(addHours(lastMdmEnrolledAt, 1));
 
   const showTurnOnMdmInfoBanner =
-    !showingAppWideBanner &&
     hostPlatform === "darwin" &&
     isMdmUnenrolled &&
     config?.mdm.enabled_and_configured;
 
   const showMacDiskEncryptionUserActionRequired =
-    !showingAppWideBanner &&
     config?.mdm.enabled_and_configured &&
     connectedToFleetMdm &&
-    macDiskEncryptionStatus === "action_required";
+    macDiskEncryptionStatus === "action_required" &&
+    !isNewMdmEnrollment;
+
+  const actionRequiredBanner = (
+    <div className={baseClass}>
+      <InfoBanner color="yellow">
+        Disk encryption: Requires action from the end user. Ask the user to
+        follow <b>Disk encryption</b> instructions on their <b>My device</b>{" "}
+        page.
+      </InfoBanner>
+    </div>
+  );
 
   if (showTurnOnMdmInfoBanner) {
     return (
@@ -124,8 +114,7 @@ const HostDetailsBanners = ({
               <CustomLink
                 url={`${LEARN_MORE_ABOUT_BASE_LINK}/mdm-disk-encryption`}
                 text="Guide"
-                color="core-fleet-black"
-                iconColor="core-fleet-black"
+                variant="banner-link"
                 newTab
               />
             }
@@ -141,17 +130,16 @@ const HostDetailsBanners = ({
       // linux host's disk is encrypted, but Fleet doesn't yet have a disk
       // encryption key escrowed (note that this state is also possible for Windows hosts, which we
       // don't show this banner for currently)
-      return (
-        <div className={baseClass}>
-          <InfoBanner color="yellow">
-            Disk encryption: Requires action from the end user. Ask the user to
-            follow <b>Disk encryption</b> instructions on their <b>My device</b>{" "}
-            page.
-          </InfoBanner>
-        </div>
-      );
+      return actionRequiredBanner;
     }
   }
+  if (
+    hostPlatform === "windows" &&
+    diskEncryptionOSSetting?.status === "action_required"
+  ) {
+    return actionRequiredBanner;
+  }
+
   return null;
 };
 

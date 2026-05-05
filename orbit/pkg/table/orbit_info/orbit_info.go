@@ -5,30 +5,32 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
 // Extension implements an extension table that provides info about Orbit.
 type Extension struct {
 	startTime       time.Time
-	orbitClient     *service.OrbitClient
+	orbitClient     *client.OrbitClient
 	orbitChannel    string
 	osquerydChannel string
 	desktopChannel  string
-	dektopVersion   string
+	desktopVersion  string
 	trw             *token.ReadWriter
 	scriptsEnabled  func() bool
+	updateURL       string
 }
 
 var _ orbit_table.Extension = (*Extension)(nil)
 
 func New(
-	orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
+	orbitClient *client.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, desktopVersion string, trw *token.ReadWriter,
 	startTime time.Time, scriptsEnabled func() bool,
+	updateURL string,
 ) *Extension {
 	return &Extension{
 		startTime:       startTime,
@@ -36,9 +38,10 @@ func New(
 		orbitChannel:    orbitChannel,
 		osquerydChannel: osquerydChannel,
 		desktopChannel:  desktopChannel,
-		dektopVersion:   desktopVersion,
+		desktopVersion:  desktopVersion,
 		trw:             trw,
 		scriptsEnabled:  scriptsEnabled,
+		updateURL:       updateURL,
 	}
 }
 
@@ -60,6 +63,7 @@ func (o Extension) Columns() []table.ColumnDefinition {
 		table.TextColumn("desktop_version"),
 		table.BigIntColumn("uptime"),
 		table.IntegerColumn("scripts_enabled"),
+		table.TextColumn("update_url"),
 	}
 }
 
@@ -101,8 +105,9 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"orbit_channel":       o.orbitChannel,
 		"osqueryd_channel":    o.osquerydChannel,
 		"desktop_channel":     o.desktopChannel,
-		"desktop_version":     o.dektopVersion,
+		"desktop_version":     o.desktopVersion,
 		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
 		"scripts_enabled":     strconv.FormatInt(boolToInt(o.scriptsEnabled()), 10),
+		"update_url":          o.updateURL,
 	}}, nil
 }

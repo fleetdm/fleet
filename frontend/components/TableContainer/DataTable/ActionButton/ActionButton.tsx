@@ -1,30 +1,37 @@
 import React, { useCallback } from "react";
 import { kebabCase, noop } from "lodash";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import classnames from "classnames";
 
 import { ButtonVariant } from "components/buttons/Button/Button";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import TooltipWrapper from "components/TooltipWrapper";
+
+import { Colors } from "styles/var/colors";
+
 import Button from "../../../buttons/Button";
 
 const baseClass = "action-button";
 export interface IActionButtonProps {
   name: string;
   buttonText: string | ((targetIds: number[]) => string);
-  onActionButtonClick?: (ids: number[]) => void;
+  onClick?: (ids: number[]) => void;
   targetIds?: number[]; // TODO figure out undefined case
   variant?: ButtonVariant;
   hideButton?: boolean | ((targetIds: number[]) => boolean);
   iconSvg?: IconNames;
+  iconStroke?: boolean;
+  iconColor?: Colors;
   iconPosition?: string;
-  indicatePremiumFeature?: boolean;
+  isDisabled?: boolean;
+  tooltipContent?: React.ReactNode;
 }
 
 function useActionCallback(
   callbackFn: (targetIds: number[]) => void | undefined
 ) {
   return useCallback(
-    (targetIds: any) => {
+    (targetIds: number[]) => {
       callbackFn(targetIds);
     },
     [callbackFn]
@@ -35,15 +42,20 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
   const {
     name,
     buttonText,
-    onActionButtonClick,
+    onClick,
     targetIds = [],
-    variant = "brand",
+    variant = "default",
     hideButton,
     iconSvg,
+    iconStroke = false,
+    iconColor,
     iconPosition,
-    indicatePremiumFeature,
+    isDisabled,
+    tooltipContent,
   } = buttonProps;
-  const onButtonClick = useActionCallback(onActionButtonClick || noop);
+  const resolvedButtonText =
+    typeof buttonText === "function" ? buttonText(targetIds) : buttonText;
+  const onButtonClick = useActionCallback(onClick || noop);
 
   // hideButton is intended to provide a flexible way to specify show/hide conditions via a boolean or a function that evaluates to a boolean
   // currently it is typed to accept an array of targetIds but this typing could easily be expanded to include other use cases
@@ -60,24 +72,50 @@ const ActionButton = (buttonProps: IActionButtonProps): JSX.Element | null => {
     return null;
   }
 
-  return (
-    <div className={`${baseClass} ${baseClass}__${kebabCase(name)}`}>
-      {indicatePremiumFeature && (
-        <PremiumFeatureIconWithTooltip tooltipDelayHide={500} />
-      )}
+  const buttonClasses = classnames(
+    baseClass,
+    `${baseClass}__${kebabCase(name)}`,
+    { [`${baseClass}__disabled`]: isDisabled }
+  );
+
+  const renderButton = () => (
+    <div className={buttonClasses}>
       <Button
-        disabled={indicatePremiumFeature}
         onClick={() => onButtonClick(targetIds)}
         variant={variant}
+        iconStroke={iconStroke}
+        size="small"
       >
         <>
-          {iconPosition === "left" && iconSvg && <Icon name={iconSvg} />}
-          {buttonText}
-          {iconPosition !== "left" && iconSvg && <Icon name={iconSvg} />}
+          {iconPosition === "left" && iconSvg && (
+            <Icon name={iconSvg} color={iconColor} />
+          )}
+          {resolvedButtonText}
+          {iconPosition !== "left" && iconSvg && (
+            <Icon name={iconSvg} color={iconColor} />
+          )}
         </>
       </Button>
     </div>
   );
+
+  if (tooltipContent) {
+    return (
+      <div className={baseClass}>
+        <TooltipWrapper
+          tipContent={tooltipContent}
+          position="top"
+          fixedPositionStrategy
+          underline={false}
+          clickable={false}
+          showArrow
+        >
+          {renderButton()}
+        </TooltipWrapper>
+      </div>
+    );
+  }
+  return renderButton();
 };
 
 export default ActionButton;

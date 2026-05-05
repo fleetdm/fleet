@@ -1,0 +1,8 @@
+{
+  "name": "NordVPN",
+  "unique_identifier": "com.nordvpn.macos",
+  "token": "nordvpn",
+  "installer_format": "pkg",
+  "slug": "nordvpn/darwin",
+  "default_categories": ["Productivity"]
+}

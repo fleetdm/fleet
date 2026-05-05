@@ -204,11 +204,16 @@ func vendorVariations(s *fleet.Software) []string {
 	return r
 }
 
-// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces.
+// sanitizeMatch sanitizes the search string for sqlite fts queries. Replaces all non alpha numeric characters with spaces
+// and quotes each token to prevent FTS5 reserved keywords (AND, OR, NOT) from being interpreted as operators.
 func sanitizeMatch(s string) string {
 	s = strings.TrimSuffix(s, ".app")
 	s = nonAlphaNumeric.ReplaceAllString(s, " ")
-	return s
+	tokens := strings.Fields(s)
+	for i, t := range tokens {
+		tokens[i] = `"` + t + `"`
+	}
+	return strings.Join(tokens, " ")
 }
 
 // sanitizeVersion attempts to sanitize versions and attempt to make it dot separated.
@@ -238,6 +243,8 @@ func targetSW(s *fleet.Software) string {
 		return "windows"
 	case "vscode_extensions":
 		return "visual_studio_code"
+	case "jetbrains_plugins":
+		return "intellij"
 	}
 	return "*"
 }

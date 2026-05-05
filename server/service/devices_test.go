@@ -26,6 +26,57 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 		require.Empty(t, sum)
 	})
 
+	t.Run("alternative browser host URL gets mapped from app config", func(t *testing.T) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, nil
+		}
+		ds.HasSelfServiceSoftwareInstallersFunc = func(ctx context.Context, platform string, teamID *uint) (bool, error) {
+			return false, nil
+		}
+		ds.FailingPoliciesCountFunc = func(ctx context.Context, host *fleet.Host) (uint, error) {
+			return uint(0), nil
+		}
+
+		testCases := []struct {
+			name                   string
+			appCfg                 fleet.AppConfig
+			expectedBrowserHostURL string
+		}{
+			{
+				name:                   "empty app config",
+				appCfg:                 fleet.AppConfig{},
+				expectedBrowserHostURL: "",
+			},
+			{
+				name: "with some value stored",
+				appCfg: fleet.AppConfig{FleetDesktop: fleet.FleetDesktopSettings{
+					AlternativeBrowserHost: "https://example.com",
+				}},
+				expectedBrowserHostURL: "https://example.com",
+			},
+		}
+		for _, tc := range testCases {
+			c := tc
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &c.appCfg, nil
+			}
+
+			ctx := test.HostContext(ctx, &fleet.Host{
+				OsqueryHostID: ptr.String("test"),
+			})
+			sum, err := svc.GetFleetDesktopSummary(ctx)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedBrowserHostURL, sum.AlternativeBrowserHost)
+		}
+	})
+
 	t.Run("different app config values for managed host", func(t *testing.T) {
 		ds := new(mock.Store)
 		license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
@@ -143,7 +194,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			require.EqualValues(t, 1, *sum.FailingPolicies)
 			assert.Equal(t, ptr.Bool(true), sum.SelfService)
 		}
-
 	})
 
 	t.Run("different app config values for unmanaged host", func(t *testing.T) {
@@ -247,7 +297,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 			require.Equal(t, c.out, sum.Notifications, fmt.Sprintf("enabled_and_configured: %t | macos_migration.enable: %t", c.mdm.EnabledAndConfigured, c.mdm.MacOSMigration.Enable))
 			require.EqualValues(t, 1, *sum.FailingPolicies)
 		}
-
 	})
 
 	t.Run("different host attributes", func(t *testing.T) {
@@ -369,6 +418,25 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				},
 			},
 			{
+				name: "throttled ADE assignment status",
+				host: &fleet.Host{
+					DEPAssignedToFleet: ptr.Bool(true),
+					OsqueryHostID:      ptr.String("test"),
+				},
+				hostMDM: &fleet.HostMDM{
+					IsServer:               false,
+					InstalledFromDep:       true,
+					Enrolled:               true,
+					Name:                   fleet.WellKnownMDMIntune,
+					DEPProfileAssignStatus: ptr.String(string(fleet.DEPAssignProfileResponseThrottled)),
+				},
+				err: nil,
+				out: fleet.DesktopNotifications{
+					NeedsMDMMigration:      false,
+					RenewEnrollmentProfile: false,
+				},
+			},
+			{
 				name: "not accessible ADE assignment status",
 				host: &fleet.Host{
 					DEPAssignedToFleet: ptr.Bool(true),
@@ -474,7 +542,6 @@ func TestGetFleetDesktopSummary(t *testing.T) {
 				}
 			})
 		}
-
 	})
 }
 
@@ -498,6 +565,34 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		require.True(t, ds.IsHostPendingEscrowFuncInvoked)
 	})
 
+	t.Run("encryption key is already escrowed", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
+		var reportedErrors []string
+		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
+
+		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
+			require.Equal(t, hostID, host.ID)
+			reportedErrors = append(reportedErrors, err)
+			return nil
+		}
+
+		orbitInfo := &fleet.HostOrbitInfo{Version: fleet.MinOrbitLUKSVersion}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostOrbitInfoFunc = func(ctx context.Context, id uint) (*fleet.HostOrbitInfo, error) {
+			return orbitInfo, nil
+		}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
+			return errors.New("encryption key is already escrowed")
+		}
+
+		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
+		require.ErrorContains(t, err, "encryption key is already escrowed")
+		require.Len(t, reportedErrors, 0, "No error should be reported when key is already escrowed")
+	})
+
 	t.Run("validation failures", func(t *testing.T) {
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}, SkipCreateTestUsers: true})
@@ -506,6 +601,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		}
 		var reportedErrors []string
 		host := &fleet.Host{ID: 1, Platform: "rhel", OSVersion: "Red Hat Enterprise Linux 9.0.0"}
+		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error { return nil }
 		ds.ReportEscrowErrorFunc = func(ctx context.Context, hostID uint, err string) error {
 			require.Equal(t, hostID, host.ID)
 			reportedErrors = append(reportedErrors, err)
@@ -524,7 +620,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return appConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for hosts not assigned to a fleet.")
 
 		// valid platform, team, encryption not enabled
 		host.TeamID = ptr.Uint(1)
@@ -534,7 +630,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 			return teamConfig, nil
 		}
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's team.")
+		require.ErrorContains(t, err, "Disk encryption is not enabled for this host's fleet.")
 
 		// valid platform, team, host disk is not encrypted or unknown encryption state
 		teamConfig = &fleet.TeamMDM{EnableDiskEncryption: true}
@@ -553,15 +649,7 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.ErrorContains(t, err, "Your version of fleetd does not support creating disk encryption keys on Linux. Please upgrade fleetd, then click Refetch, then try again.")
 
-		// Encryption key is already escrowed
-		orbitInfo.Version = fleet.MinOrbitLUKSVersion
-		ds.AssertHasNoEncryptionKeyStoredFunc = func(ctx context.Context, hostID uint) error {
-			return errors.New("encryption key is already escrowed")
-		}
-		err = svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
-		require.ErrorContains(t, err, "encryption key is already escrowed")
-
-		require.Len(t, reportedErrors, 7)
+		require.Len(t, reportedErrors, 6)
 	})
 
 	t.Run("validation success", func(t *testing.T) {
@@ -588,5 +676,371 @@ func TestTriggerLinuxDiskEncryptionEscrow(t *testing.T) {
 		err := svc.TriggerLinuxDiskEncryptionEscrow(ctx, host)
 		require.NoError(t, err)
 		require.True(t, ds.QueueEscrowFuncInvoked)
+	})
+}
+
+func TestAuthenticateDeviceByCertificate(t *testing.T) {
+	t.Run("success - valid certificate for iOS device", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-ios"
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			require.Equal(t, certSerial, serialNumber)
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			require.Equal(t, hostUUID, identifier)
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "ios",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(1), host.ID)
+		require.Equal(t, "ios", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - valid certificate for iPadOS device", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(67890)
+		hostUUID := "test-uuid-ipados"
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			require.Equal(t, certSerial, serialNumber)
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       2,
+				UUID:     hostUUID,
+				Platform: "ipados",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(2), host.ID)
+		require.Equal(t, "ipados", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("error - missing certificate serial", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, 0, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - missing host UUID", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, 12345, "")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - certificate not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(99999)
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "", &mock.Error{Message: "certificate not found"}
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - device UUID mismatch", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid"
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "different-uuid", nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host not found", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "nonexistent-uuid"
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, &mock.Error{Message: "host not found"}
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host platform is not iOS or iPadOS (macOS)", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-macos"
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "darwin",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - host platform is not iOS or iPadOS (Windows)", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid-windows"
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     hostUUID,
+				Platform: "windows",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+	})
+
+	t.Run("error - database error on certificate lookup", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return "", errors.New("database connection error")
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, "test-uuid")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		require.Contains(t, err.Error(), "lookup certificate by serial")
+	})
+
+	t.Run("error - database error on host lookup", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		certSerial := uint64(12345)
+		hostUUID := "test-uuid"
+
+		ds.GetMDMSCEPCertBySerialFunc = func(ctx context.Context, serialNumber uint64) (string, error) {
+			return hostUUID, nil
+		}
+
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, errors.New("database connection error")
+		}
+
+		host, debug, err := svc.AuthenticateDeviceByCertificate(ctx, certSerial, hostUUID)
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		require.Contains(t, err.Error(), "lookup host by UUID")
+	})
+}
+
+func TestAuthenticateDeviceRejectsIOSIPadOS(t *testing.T) {
+	t.Run("error - iOS device attempting token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       1,
+				UUID:     "ios-device-uuid",
+				Platform: "ios",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+	})
+
+	t.Run("error - iPadOS device attempting token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       2,
+				UUID:     "ipados-device-uuid",
+				Platform: "ipados",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.Error(t, err)
+		require.Nil(t, host)
+		require.False(t, debug)
+		var authErr *fleet.AuthRequiredError
+		require.ErrorAs(t, err, &authErr)
+		require.Contains(t, authErr.Internal(), "iOS and iPadOS devices must use certificate authentication")
+	})
+
+	t.Run("success - macOS device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       3,
+				UUID:     "macos-device-uuid",
+				Platform: "darwin",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(3), host.ID)
+		require.Equal(t, "darwin", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - Windows device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       4,
+				UUID:     "windows-device-uuid",
+				Platform: "windows",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(4), host.ID)
+		require.Equal(t, "windows", host.Platform)
+		require.False(t, debug)
+	})
+
+	t.Run("success - Linux device with token auth", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{}, nil
+		}
+
+		ds.LoadHostByDeviceAuthTokenFunc = func(ctx context.Context, authToken string, tokenTTL time.Duration) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID:       5,
+				UUID:     "linux-device-uuid",
+				Platform: "ubuntu",
+			}, nil
+		}
+
+		host, debug, err := svc.AuthenticateDevice(ctx, "some-token")
+		require.NoError(t, err)
+		require.NotNil(t, host)
+		require.Equal(t, uint(5), host.ID)
+		require.Equal(t, "ubuntu", host.Platform)
+		require.False(t, debug)
 	})
 }

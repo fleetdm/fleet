@@ -27,7 +27,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
+const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip"
 
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
@@ -52,7 +52,11 @@ func BuildMSI(opt Options) (string, error) {
 	updateOpt := update.DefaultOptions
 
 	updateOpt.RootDirectory = orbitRoot
-	updateOpt.Targets = update.WindowsTargets
+	if opt.Architecture == ArchAmd64 {
+		updateOpt.Targets = update.WindowsTargets
+	} else {
+		updateOpt.Targets = update.WindowsArm64Targets
+	}
 	updateOpt.ServerCertificatePath = opt.UpdateTLSServerCertificate
 
 	if opt.UpdateTLSClientCertificate != "" {
@@ -64,7 +68,11 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	if opt.Desktop {
-		updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		if opt.Architecture == ArchArm64 {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsArm64Target
+		} else {
+			updateOpt.Targets[constant.DesktopTUFTargetName] = update.DesktopWindowsTarget
+		}
 		// Override default channel with the provided value.
 		updateOpt.Targets.SetTargetChannel(constant.DesktopTUFTargetName, opt.DesktopChannel)
 	}
@@ -95,6 +103,10 @@ func BuildMSI(opt Options) (string, error) {
 	// v1.28.0 introduced configurable END_USER_EMAIL property for MSI package: https://github.com/fleetdm/fleet/issues/19219
 	if semver.Compare(orbitVersion, "v1.28.0") >= 0 {
 		opt.EnableEndUserEmailProperty = true
+	}
+	// v1.55.0 introduced EUA_TOKEN property for MSI package: https://github.com/fleetdm/fleet/issues/41379
+	if semver.Compare(orbitVersion, "v1.55.0") >= 0 {
+		opt.EnableEUATokenProperty = true
 	}
 
 	// Write files
@@ -168,24 +180,29 @@ func BuildMSI(opt Options) (string, error) {
 	absWixDir := opt.LocalWixDir
 	wineChecked := false
 
-	// Download wix for macOS running on arm64, unless a local-wix-dir is provided.
-	// We are using native MSI build on macOS arm64, instead of Docker, because the current fleetdm/wix Docker image is unreliable on macOS arm64.
-	// We are looking into creating a new Docker image for macOS arm64.
-	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
-		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
+	// On macOS without --local-wix-dir, the default path uses Docker.
+	// For backwards compatibility with existing pipelines that rely
+	// on the legacy Wine + auto-downloaded WiX flow, fall back to that
+	// path if Docker isn't available — but warn that it's deprecated.
+	if runtime.GOOS == "darwin" && !opt.NativeTooling && absWixDir == "" {
+		if dockerErr := checkDockerAvailable(); dockerErr != nil {
+			fmt.Printf("\nWARNING: Docker is not available (%s).\n", dockerErr)
+			fmt.Println("Falling back to Wine + auto-downloaded WiX toolset. This path is deprecated")
+			fmt.Println("and will be removed in a future release. Install Docker Desktop to use the")
+			fmt.Println("supported path: https://docs.docker.com/get-docker")
+			fmt.Println()
 
-		// Ensure wine is installed before downloading wix
-		if err = checkWine(false); err != nil {
-			return "", err
-		}
-		wineChecked = true
+			if err = checkWine(false); err != nil {
+				return "", err
+			}
+			wineChecked = true
 
-		fmt.Printf("Downloading wix from %s\n", wixDownload)
-		client := fleethttp.NewClient()
-		absWixDir = filepath.Join(tmpDir, "wix")
-		err = downloadAndExtractZip(client, wixDownload, absWixDir)
-		if err != nil {
-			return "", err
+			fmt.Printf("Downloading wix from %s\n", wixDownload)
+			client := fleethttp.NewClient()
+			absWixDir = filepath.Join(tmpDir, "wix")
+			if err = downloadAndExtractZip(client, wixDownload, absWixDir); err != nil {
+				return "", err
+			}
 		}
 	}
 
@@ -206,7 +223,7 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
-	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir); err != nil {
+	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir, opt.Architecture); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
@@ -215,6 +232,12 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	filename := "fleet-osquery.msi"
+	if opt.CustomOutfile != "" {
+		filename = opt.CustomOutfile
+	}
+	if opt.Architecture == ArchArm64 {
+		filename = "fleet-osquery-arm64.msi"
+	}
 	if opt.NativeTooling {
 		filename = filepath.Join("build", filename)
 	}
@@ -232,10 +255,21 @@ func checkWine(wineChecked bool) error {
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
+				"%s failed. Is Wine installed? %w",
 				wix.WineCmd, err,
 			)
 		}
+	}
+	return nil
+}
+
+// checkDockerAvailable returns nil if the docker CLI is on PATH and the Docker
+// daemon is reachable. Otherwise it returns an error summarizing what went
+// wrong, which callers can use to decide whether to fall back to another path.
+func checkDockerAvailable() error {
+	cmd := exec.Command("docker", "version")
+	if err := cmd.Run(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -299,13 +333,15 @@ func writePowershellInstallerUtilsFile(opt Options, rootPath string) error {
 
 // writeManifestXML creates the manifest.xml file used when generating the 'resource_windows.syso' metadata
 // (see writeResourceSyso). Returns the path of the newly created file.
-func writeManifestXML(vParts []string, orbitPath string) (string, error) {
+func writeManifestXML(vParts []string, orbitPath string, arch string) (string, error) {
 	filePath := filepath.Join(orbitPath, "manifest.xml")
 
 	tmplOpts := struct {
 		Version string
+		Arch    string
 	}{
 		Version: strings.Join(vParts, "."),
+		Arch:    arch,
 	}
 
 	var contents bytes.Buffer
@@ -429,7 +465,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 		return fmt.Errorf("invalid version %s: %w", opt.Version, err)
 	}
 
-	manifestPath, err := writeManifestXML(vParts, orbitPath)
+	manifestPath, err := writeManifestXML(vParts, orbitPath, opt.Architecture)
 	if err != nil {
 		return fmt.Errorf("creating manifest.xml: %w", err)
 	}
@@ -444,7 +480,7 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 	vi.Walk()
 
 	outPath := filepath.Join(orbitPath, "resource_windows.syso")
-	if err := vi.WriteSyso(outPath, "amd64"); err != nil {
+	if err := vi.WriteSyso(outPath, opt.Architecture); err != nil {
 		return fmt.Errorf("creating syso file: %w", err)
 	}
 
@@ -530,7 +566,7 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
+		if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 

@@ -5,39 +5,48 @@ package table
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/disk_space"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/executable_hashes"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_prk"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_status"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pwd_policy"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/santa"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tcc_access"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
-	"github.com/rs/zerolog/log"
-
+	"github.com/macadmins/osquery-extension/tables/crowdstrike_falcon"
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
+	"github.com/macadmins/osquery-extension/tables/localnetworkpermissions"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
+	"github.com/macadmins/osquery-extension/tables/networkquality"
+	"github.com/macadmins/osquery-extension/tables/socpower"
 	"github.com/macadmins/osquery-extension/tables/sofa"
+	"github.com/macadmins/osquery-extension/tables/thermalthrottling"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
-
+	"github.com/macadmins/osquery-extension/tables/wifi_network"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
+	"github.com/rs/zerolog/log"
 )
 
 func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
@@ -61,6 +70,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
+		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
+		table.NewPlugin("disk_space", disk_space.Columns(), disk_space.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
@@ -69,6 +80,11 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("munki_info", munki.MunkiInfoColumns(), munki.MunkiInfoGenerate),
 		table.NewPlugin("munki_installs", munki.MunkiInstallsColumns(), munki.MunkiInstallsGenerate),
 		table.NewPlugin("macos_rsr", macosrsr.MacOSRsrColumns(), macosrsr.MacOSRsrGenerate),
+		table.NewPlugin("crowdstrike_falcon", crowdstrike_falcon.CrowdstrikeFalconColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return crowdstrike_falcon.CrowdstrikeFalconGenerate(ctx, queryContext, opts.Socket)
+			},
+		),
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
@@ -84,6 +100,15 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 				return sofa.SofaUnpatchedCVEsGenerate(ctx, queryContext, opts.Socket, sofa.WithUserAgent("fleetd"))
 			},
 		),
+		table.NewPlugin("local_network_permissions", localnetworkpermissions.LocalNetworkPermissionsColumns(), localnetworkpermissions.LocalNetworkPermissionsGenerate),
+		table.NewPlugin("macadmins_wifi_network", wifi_network.WifiNetworkColumns(),
+			func(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+				return wifi_network.WifiNetworkGenerate(ctx, queryContext, opts.Socket)
+			},
+		),
+		table.NewPlugin("macos_thermal_pressure", thermalthrottling.ThermalPressureColumns(), thermalthrottling.ThermalPressureGenerate),
+		table.NewPlugin("macos_soc_power", socpower.SocPowerColumns(), socpower.SocPowerGenerate),
+		table.NewPlugin("network_quality", networkquality.NetworkQualityColumns(), networkquality.NetworkQualityGenerate),
 
 		filevault_status.TablePlugin(log.Logger), // table name is "filevault_status"
 		ioreg.TablePlugin(log.Logger),            // table name is "ioreg"
@@ -95,6 +120,13 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.PlistType), // table name is "parse_plist"
 
 		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
+
+		table.NewPlugin("app_sso_platform", app_sso_platform.Columns(), app_sso_platform.Generate),
+
+		table.NewPlugin("santa_status", santa.StatusColumns(), santa.GenerateStatus),
+		table.NewPlugin("santa_allowed", santa.LogColumns(), santa.GenerateAllowed),
+		table.NewPlugin("santa_denied", santa.LogColumns(), santa.GenerateDenied),
+		table.NewPlugin("executable_hashes", executable_hashes.Columns(), executable_hashes.Generate),
 	}
 
 	// append platform specific tables

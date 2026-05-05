@@ -19,13 +19,6 @@ export interface IVppApp {
   platform: ApplePlatform;
 }
 
-interface IAddVppAppPostBody {
-  app_store_id: string;
-  team_id: number;
-  platform: ApplePlatform;
-  self_service?: boolean;
-}
-
 export interface IGetVppAppsResponse {
   app_store_apps: IVppApp[];
 }
@@ -70,29 +63,9 @@ export default {
   },
 
   getVppApps: (teamId: number): Promise<IGetVppAppsResponse> => {
-    const { MDM_APPLE_VPP_APPS } = endpoints;
-    const path = `${MDM_APPLE_VPP_APPS}?team_id=${teamId}`;
+    const { SOFTWARE_APP_STORE_APPS } = endpoints;
+    const path = `${SOFTWARE_APP_STORE_APPS}?fleet_id=${teamId}`;
     return sendRequest("GET", path);
-  },
-
-  addVppApp: (
-    teamId: number,
-    appStoreId: string,
-    platform: ApplePlatform,
-    isSelfService: boolean
-  ) => {
-    const { MDM_APPLE_VPP_APPS } = endpoints;
-    const postBody: IAddVppAppPostBody = {
-      app_store_id: appStoreId,
-      team_id: teamId,
-      platform,
-    };
-
-    if (isSelfService) {
-      postBody.self_service = isSelfService;
-    }
-
-    return sendRequest("POST", MDM_APPLE_VPP_APPS, postBody);
   },
 
   getVppTokens: (): Promise<IGetVppTokensResponse> => {
@@ -127,6 +100,6 @@ export default {
   }) => {
     const { MDM_VPP_TOKEN_TEAMS } = endpoints;
     const path = MDM_VPP_TOKEN_TEAMS(params.tokenId);
-    return sendRequest("PATCH", path, { teams: params.teamIds });
+    return sendRequest("PATCH", path, { fleets: params.teamIds });
   },
 };

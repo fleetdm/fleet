@@ -13,10 +13,12 @@ on:
     paths:
       - "orbit/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
+      - "Dockerfile-desktop-linux"
   pull_request:
     paths:
       - "orbit/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
+      - "Dockerfile-desktop-linux"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs
@@ -45,7 +47,7 @@ jobs:
       enroll_secret: ${{ steps.gen.outputs.enroll_secret }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -62,12 +64,12 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        mysql: ["mysql:8.0.36"]
+        mysql: ["mysql:8.0.44"]
     runs-on: ubuntu-latest
     needs: gen
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -75,7 +77,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -97,8 +99,12 @@ jobs:
           sudo sysctl -w net.core.rmem_max=2500000
 
           # Install cloudflared
-          wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          #
+          # We pin to version 2025.5.0 because something broke with 2025.6.1.
+          # 2025.6.1 fails with "failed to create tunnel: Unknown output format 'default'"
+          wget https://github.com/cloudflare/cloudflared/releases/download/2025.5.0/cloudflared-linux-amd64.deb
           sudo dpkg -i cloudflared-linux-amd64.deb
+
           # Add secret
           echo "$CERT_PEM" | base64 -d > cert.pem
           # Start tunnel
@@ -177,7 +183,7 @@ jobs:
     needs: gen
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -185,7 +191,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -213,11 +219,11 @@ jobs:
   # Here we generate the Fleet Desktop and osqueryd targets for
   # macOS which can only be generated from a macOS host.
   build-macos-targets:
-    # Set macOS version to '13' for building the binary as Fleet's minimum supported macOS version.
-    runs-on: macos-13
+    # Set macOS version to '14' for building the binary as Fleet's minimum supported macOS version.
+    runs-on: macos-14
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -225,7 +231,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -260,7 +266,7 @@ jobs:
     needs: [gen, build-macos-targets]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -268,7 +274,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
 
@@ -310,9 +316,9 @@ jobs:
       - name: Upload DEB installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
           path: |
-            fleet-osquery_42.0.0_amd64.deb
+            fleet-osquery_*_amd64.deb
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
@@ -327,7 +333,7 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -339,6 +345,14 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.pkg
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install pkg
         run: |
@@ -373,7 +387,7 @@ jobs:
 
       - name: Uninstall pkg
         run: |
-          sudo ./orbit/tools/cleanup/cleanup_macos.sh
+          sudo ./it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh
 
   orbit-ubuntu:
     timeout-minutes: 60
@@ -381,7 +395,7 @@ jobs:
     needs: [gen, run-tuf-and-gen-pkgs]
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -389,12 +403,20 @@ jobs:
         id: download
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: fleet-osquery_42.0.0_amd64.deb
+          name: fleet-osquery_amd64.deb
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install deb
         run: |
           sudo hostname orbit-ubuntu
-          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_42.0.0_amd64.deb
+          sudo dpkg --install ${{ steps.download.outputs.download-path }}/fleet-osquery_*_amd64.deb
 
       - name: Wait enroll
         run: |
@@ -432,7 +454,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -441,6 +463,14 @@ jobs:
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: fleet-osquery.msi
+
+      - name: Wait until fleet address is reachable and fleet responds
+        run: |
+          until curl -v -fail ${{ needs.gen.outputs.address }}/version;
+          do
+            echo "Awaiting until fleet server responds..."
+            sleep 10
+          done
 
       - name: Install msi
         shell: pwsh

@@ -27,8 +27,17 @@ version_gt() {
 # Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
 
+# Determine architecture (amd64 or arm64)
+if uname -m | grep -qE '^(arm|aarch64)';
+then
+  ARCH="arm64";
+else
+  ARCH="amd64";
+fi
+
+# Standardize OS name for file download
 case "${OS}" in
-    Linux*)     OS='linux' OS_DISPLAY_NAME='Linux';;
+    Linux*)     OS="linux_${ARCH}" OS_DISPLAY_NAME='Linux';;
     Darwin*)    OS='macos' OS_DISPLAY_NAME='macOS';;
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac
@@ -44,11 +53,6 @@ DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest
 echo "Downloading fleetctl ${latest_strippedVersion} for ${OS_DISPLAY_NAME}..."
 curl -sSL "$DOWNLOAD_URL" | tar -xz -C "$FLEETCTL_INSTALL_DIR" --strip-components=1 fleetctl_v"${latest_strippedVersion}"_${OS}/
 echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-echo
-echo "To start the local demo:"
-echo
-echo "1. Start Docker Desktop"
-echo "2. To access your Fleet Premium trial, head to fleetdm.com/try-fleet and run the command in step 2."
 
 # Verify if the binary is executable
 if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then

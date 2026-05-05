@@ -4,17 +4,18 @@
     text-decoration: none;
   }
 
-  pre,
-  code {
-    background-color: $ui-off-white;
-    color: $core-fleet-blue;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
-    padding: 7px $pad-medium;
-    margin: $pad-large 0 0 44px;
-  }
-
   &__error {
     color: $ui-error;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .empty-table__container {
+    margin: $pad-large auto $pad-medium;
+    gap: $pad-medium;
   }
 }

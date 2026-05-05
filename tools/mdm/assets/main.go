@@ -38,15 +38,16 @@ var (
 	flagExportName  string
 
 	validNames = map[fleet.MDMAssetName]struct{}{
-		fleet.MDMAssetABMCert:            {},
-		fleet.MDMAssetABMTokenDeprecated: {},
-		fleet.MDMAssetABMKey:             {},
-		fleet.MDMAssetAPNSCert:           {},
-		fleet.MDMAssetAPNSKey:            {},
-		fleet.MDMAssetCACert:             {},
-		fleet.MDMAssetCAKey:              {},
-		fleet.MDMAssetSCEPChallenge:      {},
-		fleet.MDMAssetVPPTokenDeprecated: {},
+		fleet.MDMAssetABMCert:                  {},
+		fleet.MDMAssetABMTokenDeprecated:       {},
+		fleet.MDMAssetABMKey:                   {},
+		fleet.MDMAssetAPNSCert:                 {},
+		fleet.MDMAssetAPNSKey:                  {},
+		fleet.MDMAssetCACert:                   {},
+		fleet.MDMAssetCAKey:                    {},
+		fleet.MDMAssetSCEPChallenge:            {},
+		fleet.MDMAssetVPPTokenDeprecated:       {},
+		fleet.MDMAssetAndroidFleetServerSecret: {},
 	}
 )
 
@@ -64,7 +65,7 @@ func setupSharedFlags() {
 func setupDS(privateKey, userName, password, address, name string) *mysql.Datastore {
 	db, err := sql.Open(
 		"mysql",
-		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true", testUsername, testPassword, testAddress),
+		fmt.Sprintf("%s:%s@tcp(%s)/?multiStatements=true&tls=skip-verify", testUsername, testPassword, testAddress),
 	)
 	if err != nil {
 		log.Fatal("opening MySQL connection:", err)
@@ -72,10 +73,11 @@ func setupDS(privateKey, userName, password, address, name string) *mysql.Datast
 	defer db.Close()
 
 	mysqlCfg := config.MysqlConfig{
-		Username: userName,
-		Password: password,
-		Address:  address,
-		Database: name,
+		Username:  userName,
+		Password:  password,
+		Address:   address,
+		Database:  name,
+		TLSConfig: "skip-verify",
 	}
 	ds, err := mysql.New(
 		mysqlCfg,

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,6 +38,26 @@ func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaign
 
 func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	return nil, nil
+}
+
+func (q nopLiveQuery) GetQueryResultsCounts([]uint) (map[uint]int, error) {
+	return make(map[uint]int), nil
+}
+
+func (q nopLiveQuery) IncrQueryResultsCounts(map[uint]int) error {
+	return nil
+}
+
+func (q nopLiveQuery) SetQueryResultsCount(uint, int) error {
+	return nil
+}
+
+func (q nopLiveQuery) DeleteQueryResultsCount(uint) error {
+	return nil
+}
+
+func (q nopLiveQuery) LiveQueryStore() fleet.LiveQueryStore {
+	return q
 }
 
 func TestLiveQueryAuth(t *testing.T) {
@@ -86,7 +107,7 @@ func TestLiveQueryAuth(t *testing.T) {
 	ds.HostIDsByIdentifierFunc = func(ctx context.Context, filter fleet.TeamFilter, identifiers []string) ([]uint, error) {
 		return nil, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.CountHostsInTargetsFunc = func(ctx context.Context, filters fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error) {
@@ -277,7 +298,7 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 		return query, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string) (map[string]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{"label1": uint(1)}, nil
 	}
 
@@ -314,6 +335,89 @@ func TestLiveQueryLabelValidation(t *testing.T) {
 				require.NotNil(t, err)
 				require.Contains(t, err.Error(), tt.expectedError)
 			}
+		})
+	}
+}
+
+// TestLiveQueryLabelBypassPrevented verifies that when a user is observer on team 1 and
+// maintainer on team 2, running a team-2 query via a label target:
+//   - observer_can_run=false: HostIDsInTargets sees IncludeObserver=false, so team-1 observer
+//     hosts are excluded (label bypass prevented).
+//   - observer_can_run=true: HostIDsInTargets sees IncludeObserver=true but ObserverTeamID=2,
+//     so team-1 observer hosts are still excluded — observer_can_run is scoped to the query's
+//     own team (team 2), not to all teams the user observes.
+func TestLiveQueryLabelBypassPrevented(t *testing.T) {
+	ds := new(mock.Store)
+	qr := pubsub.NewInmemQueryResults()
+	svc, ctx := newTestService(t, ds, qr, nopLiveQuery{})
+
+	user := &fleet.User{
+		ID: 99,
+		Teams: []fleet.UserTeam{
+			{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver},
+			{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false}}, nil
+	}
+	ds.NewDistributedQueryCampaignFunc = func(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+		return camp, nil
+	}
+	ds.NewDistributedQueryCampaignTargetFunc = func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error) {
+		return target, nil
+	}
+
+	testCases := []struct {
+		name                 string
+		observerCanRun       bool
+		expectIncludeObs     bool
+		expectObserverTeamID *uint
+	}{
+		{
+			name:                 "observer_can_run=false: label expansion excludes observer-only team hosts",
+			observerCanRun:       false,
+			expectIncludeObs:     false,
+			expectObserverTeamID: ptr.Uint(2), // always set to query's team; harmless no-op when IncludeObserver=false
+		},
+		{
+			name:                 "observer_can_run=true: label expansion scoped to query's team only",
+			observerCanRun:       true,
+			expectIncludeObs:     true,
+			expectObserverTeamID: ptr.Uint(2), // query's team — team-1 observer hosts remain excluded
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			query := &fleet.Query{
+				ID:             10,
+				AuthorID:       ptr.Uint(user.ID),
+				Name:           "q",
+				Query:          "SELECT 1",
+				ObserverCanRun: tt.observerCanRun,
+				TeamID:         ptr.Uint(2),
+			}
+			ds.QueryFunc = func(_ context.Context, _ uint) (*fleet.Query, error) {
+				return query, nil
+			}
+
+			var capturedFilter fleet.TeamFilter
+			ds.HostIDsInTargetsFunc = func(_ context.Context, filter fleet.TeamFilter, _ fleet.HostTargets) ([]uint, error) {
+				capturedFilter = filter
+				return []uint{20}, nil
+			}
+			ds.CountHostsInTargetsFunc = func(_ context.Context, _ fleet.TeamFilter, _ fleet.HostTargets, _ time.Time) (fleet.TargetMetrics, error) {
+				return fleet.TargetMetrics{TotalHosts: 1}, nil
+			}
+
+			userCtx := viewer.NewContext(ctx, viewer.Viewer{User: user})
+			_, err := svc.NewDistributedQueryCampaign(userCtx, query.Query, ptr.Uint(query.ID), fleet.HostTargets{LabelIDs: []uint{5}})
+			require.NoError(t, err)
+			assert.Equal(t, tt.expectIncludeObs, capturedFilter.IncludeObserver, "IncludeObserver mismatch for observer_can_run=%v", tt.observerCanRun)
+			assert.Equal(t, tt.expectObserverTeamID, capturedFilter.ObserverTeamID, "ObserverTeamID mismatch for observer_can_run=%v", tt.observerCanRun)
+			assert.Equal(t, user, capturedFilter.User)
 		})
 	}
 }

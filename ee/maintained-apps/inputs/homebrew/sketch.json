@@ -1,0 +1,8 @@
+{
+  "name": "Sketch",
+  "unique_identifier": "com.bohemiancoding.sketch3",
+  "token": "sketch",
+  "installer_format": "zip",
+  "slug": "sketch/darwin",
+  "default_categories": ["Productivity"]
+}

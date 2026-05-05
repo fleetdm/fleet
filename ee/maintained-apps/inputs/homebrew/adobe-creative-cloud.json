@@ -1,0 +1,10 @@
+{
+  "name": "Adobe Creative Cloud",
+  "slug": "adobe-creative-cloud/darwin",
+  "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+  "token": "adobe-creative-cloud",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/adobe-cc-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/adobe-cc-uninstall.sh"
+}

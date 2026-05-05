@@ -6,15 +6,18 @@ import { ButtonVariant } from "components/buttons/Button/Button";
 import DropdownButton from "components/buttons/DropdownButton";
 import Icon from "components/Icon/Icon";
 import { IconNames } from "components/icons";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
+// TODO - there are two `IActionButtonProps` in the codebase, one specifically used in
+// TableContainer. Disambiguate these names or combine into a single abstraction.
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
-  buttonVariant?: ButtonVariant;
-  icon?: string;
-  iconSvg?: IconNames;
-  hideAction?: boolean;
   onClick: () => void;
+  buttonVariant?: ButtonVariant;
+  iconName?: IconNames;
+  hideAction?: boolean;
+  gitOpsModeCompatible?: boolean;
 }
 
 interface IProps {
@@ -52,22 +55,56 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
         <div
           className={`${baseClass}__action-buttons--secondary-buttons action-buttons__secondary-buttons`}
         >
-          {secondaryActions.map(
-            (action) =>
-              !action.hideAction &&
-              (action.buttonVariant !== "text-icon" ? (
+          {secondaryActions.map((action) => {
+            if (!action.hideAction && action.buttonVariant !== "text-icon") {
+              if (action.gitOpsModeCompatible) {
+                return (
+                  <GitOpsModeTooltipWrapper
+                    renderChildren={(disableChildren) => (
+                      <Button
+                        variant={action.buttonVariant}
+                        onClick={action.onClick}
+                        disabled={disableChildren}
+                      >
+                        {action.label}
+                      </Button>
+                    )}
+                  />
+                );
+              }
+              return (
                 <Button variant={action.buttonVariant} onClick={action.onClick}>
                   {action.label}
                 </Button>
-              ) : (
-                <Button variant="text-icon" onClick={action.onClick}>
-                  <>
-                    {action.label}
-                    {action.iconSvg && <Icon name={action.iconSvg} />}
-                  </>
-                </Button>
-              ))
-          )}
+              );
+            }
+            if (action.gitOpsModeCompatible) {
+              return (
+                <GitOpsModeTooltipWrapper
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      variant="inverse"
+                      onClick={action.onClick}
+                      disabled={disableChildren}
+                    >
+                      <>
+                        {action.label}
+                        {action.iconName && <Icon name={action.iconName} />}
+                      </>
+                    </Button>
+                  )}
+                />
+              );
+            }
+            return (
+              <Button variant="inverse" onClick={action.onClick}>
+                <>
+                  {action.label}
+                  {action.iconName && <Icon name={action.iconName} />}
+                </>
+              </Button>
+            );
+          })}
         </div>
         <div
           className={`${baseClass}__action-buttons--secondary-dropdown action-buttons__secondary-dropdown`}
@@ -75,7 +112,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           <DropdownButton
             showCaret={false}
             options={secondaryActions}
-            variant="text-icon"
+            variant="inverse"
           >
             More options <Icon name="more" />
           </DropdownButton>

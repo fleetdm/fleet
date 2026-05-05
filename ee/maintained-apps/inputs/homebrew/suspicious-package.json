@@ -1,0 +1,8 @@
+{
+  "name": "Suspicious Package",
+  "unique_identifier": "com.mothersruin.SuspiciousPackage",
+  "token": "suspicious-package",
+  "installer_format": "dmg",
+  "slug": "suspicious-package/darwin",
+  "default_categories": ["Developer tools"]
+}

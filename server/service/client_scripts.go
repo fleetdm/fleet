@@ -138,7 +138,7 @@ func (c *Client) pollForResult(id string) (*fleet.HostScriptResult, error) {
 // no team.
 func (c *Client) ApplyNoTeamScripts(scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) ([]fleet.ScriptResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/scripts/batch"
-	var resp batchSetScriptsResponse
+	var resp fleet.BatchSetScriptsResponse
 	err := c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, opts.RawQuery())
 
 	return resp.Scripts, err
@@ -159,7 +159,7 @@ func (c *Client) validateMacOSSetupScript(fileName string) ([]byte, error) {
 func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
 	var query string
 	if teamID != nil {
-		query = fmt.Sprintf("team_id=%d", *teamID)
+		query = fmt.Sprintf("fleet_id=%d", *teamID)
 	}
 
 	verb, path := "DELETE", "/api/latest/fleet/setup_experience/script"
@@ -168,15 +168,6 @@ func (c *Client) deleteMacOSSetupScript(teamID *uint) error {
 }
 
 func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *uint) error {
-	// there is no "replace setup experience script" endpoint, and none was
-	// planned, so to avoid delaying the feature I'm doing DELETE then SET, but
-	// that's not ideal (will always re-create the script when apply/gitops is
-	// run with the same yaml). Note though that we also redo software installers
-	// downloads on each run, so the churn of this one is minor in comparison.
-	if err := c.deleteMacOSSetupScript(teamID); err != nil {
-		return err
-	}
-
 	verb, path := "POST", "/api/latest/fleet/setup_experience/script"
 
 	var b bytes.Buffer
@@ -190,9 +181,9 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 		return err
 	}
 
-	// add the team_id field
+	// add the fleet_id field
 	if teamID != nil {
-		if err := w.WriteField("team_id", fmt.Sprint(*teamID)); err != nil {
+		if err := w.WriteField("fleet_id", fmt.Sprint(*teamID)); err != nil {
 			return err
 		}
 	}
@@ -212,9 +203,61 @@ func (c *Client) uploadMacOSSetupScript(filename string, data []byte, teamID *ui
 	defer response.Body.Close()
 
 	var resp setSetupExperienceScriptResponse
-	if err := c.parseResponse(verb, path, response, &resp); err != nil {
+	if err := c.ParseResponse(verb, path, response, &resp); err != nil {
 		return fmt.Errorf("parse response: %w", err)
 	}
 
 	return nil
+}
+
+// ListScripts retrieves the saved scripts.
+func (c *Client) ListScripts(query string) ([]*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts"
+	var responseBody fleet.ListScriptsResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		return nil, err
+	}
+	return responseBody.Scripts, nil
+}
+
+// Get the contents of a saved script.
+func (c *Client) GetScriptContents(scriptID uint) ([]byte, error) {
+	verb, path := "GET", "/api/latest/fleet/scripts/"+fmt.Sprint(scriptID)
+	response, err := c.AuthenticatedDo(verb, path, "alt=media", nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.ParseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing script response: %w", err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}
+
+// GetSetupExperienceScript retrieves the setup script for the given team, if any.
+func (c *Client) GetSetupExperienceScript(teamID uint) (*fleet.Script, error) {
+	verb, path := "GET", "/api/latest/fleet/setup_experience/script"
+	var query string
+	if teamID != 0 {
+		query = fmt.Sprintf("fleet_id=%d", teamID)
+	}
+	var responseBody getSetupExperienceScriptResponse
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
+	if err != nil {
+		if isNotFoundErr(err) {
+			// If the script is not found, we return nil instead of an error.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return responseBody.Script, nil
 }

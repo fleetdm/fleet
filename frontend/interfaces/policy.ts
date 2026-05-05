@@ -1,6 +1,7 @@
 import PropTypes from "prop-types";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { IScript } from "./script";
+import { ILabelPolicy } from "./label";
 
 // Legacy PropTypes used on host interface
 export default PropTypes.shape({
@@ -12,7 +13,7 @@ export default PropTypes.shape({
   id: PropTypes.number.isRequired,
   name: PropTypes.string.isRequired,
   query: PropTypes.string.isRequired,
-  resoluton: PropTypes.string.isRequired,
+  resolution: PropTypes.string.isRequired,
   critical: PropTypes.bool,
   response: PropTypes.string,
   team_id: PropTypes.number,
@@ -25,6 +26,7 @@ export interface IStoredPolicyResponse {
 
 export interface IPoliciesCountResponse {
   count: number;
+  inherited_policy_count?: number;
 }
 
 export interface IPolicy {
@@ -40,13 +42,20 @@ export interface IPolicy {
   team_id: number | null;
   created_at: string;
   updated_at: string;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical: boolean;
   calendar_events_enabled: boolean;
+  conditional_access_enabled: boolean;
+  type: string;
   install_software?: IPolicySoftwareToInstall;
   run_script?: Pick<IScript, "id" | "name">;
+  patch_software?: IPolicySoftwareToInstall;
+  labels_include_any?: ILabelPolicy[];
+  labels_exclude_any?: ILabelPolicy[];
 }
 export interface IPolicySoftwareToInstall {
   name: string;
+  display_name?: string;
   software_title_id: number;
 }
 
@@ -98,6 +107,7 @@ export interface ILoadTeamPolicyResponse {
 export interface IPolicyFormData {
   description?: string | number | boolean | undefined;
   resolution?: string | number | boolean | undefined;
+  // A critical policy cannot be "resolved later" if Okta conditional access is enabled for it
   critical?: boolean;
   platform?: CommaSeparatedPlatformString;
   name?: string | number | boolean | undefined;
@@ -105,9 +115,16 @@ export interface IPolicyFormData {
   team_id?: number | null;
   id?: number;
   calendar_events_enabled?: boolean;
+  conditional_access_enabled?: boolean;
   software_title_id?: number | null;
   // null for PATCH to unset - note asymmetry with GET/LIST - see IPolicy.run_script
   script_id?: number | null;
+  labels_include_any?: string[];
+  labels_exclude_any?: string[];
+  /** Required for creating patch policy */
+  type?: "dynamic" | "patch";
+  /** Required for creating patch policy */
+  patch_software_title_id?: number;
 }
 
 export interface IPolicyNew {

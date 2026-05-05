@@ -36,11 +36,10 @@ the account verification message.)`,
     },
 
     organization: {
-      required: true,
       type: 'string',
       maxLength: 120,
       example: 'The Sails company',
-      description: 'The organization the user works for'
+      description: 'The organization the user works for',
     },
 
     firstName:  {
@@ -106,20 +105,11 @@ the account verification message.)`,
       throw 'invalidEmailDomain';
     }
 
-
-    if (!sails.config.custom.enableBillingFeatures) {
-      throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
+    // If organization was not provided (e.g., The user signed up with the signup modal), use their email domain as their organization.
+    if(!organization) {
+      organization = emailDomain;
     }
 
-    // Create a new customer entry in the Stripe API for this user before we send a request to the cloud provisioner.
-    let stripeCustomerId = await sails.helpers.stripe.saveBillingInfo.with({
-      emailAddress: newEmailAddress
-    })
-    .timeout(5000)
-    .retry()
-    .intercept((error)=>{
-      return new Error(`An error occurred when trying to create a Stripe Customer for a new user with the using the email address ${newEmailAddress}. The incomplete user record has not been saved in the database, and the user will be asked to try signing up again. Full error: ${error.raw}`);
-    });
     let newUserRecord = await User.create(_.extend({
       firstName,
       lastName,
@@ -127,7 +117,6 @@ the account verification message.)`,
       emailAddress: newEmailAddress,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
-      stripeCustomerId,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
@@ -138,6 +127,91 @@ the account verification message.)`,
     .intercept({name: 'UsageError'}, 'invalid')
     .fetch();
 
+
+    // Enrich the information provided.
+    let enrichmentInformation = await sails.helpers.iq.getEnriched.with({
+      firstName,
+      lastName,
+      emailAddress: newEmailAddress,
+    }).tolerate((err)=>{
+      sails.log.warn(`When a new user signed up for an account, enrichment information could not be obtained with the information provided. Full error: ${require('util').inspect(err)}`);
+      return { employer: undefined, person: undefined};
+    });
+
+
+    let fleetPremiumTrialType = 'local trial';
+    if(enrichmentInformation.employer && enrichmentInformation.employer.numberOfEmployees > 700) {
+      fleetPremiumTrialType = 'render trial';
+    }//ﬁ
+
+    if(emailDomain === 'fleetdm.com') {
+      fleetPremiumTrialType = 'render trial';
+    }//ﬁ
+
+    let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+    let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
+      numberOfHosts: 10,
+      organization,
+      expiresAt: thirtyDaysFromNowAt,
+    });
+
+    await User.updateOne({id: newUserRecord.id}).set({
+      fleetPremiumTrialLicenseKeyExpiresAt: thirtyDaysFromNowAt,
+      fleetPremiumTrialLicenseKey: trialLicenseKeyForThisUser,
+      fleetPremiumTrialType,
+    });
+
+
+
+    if(fleetPremiumTrialType === 'render trial') {
+      // If this user is eligable for a Render POV, we'll
+      let renderInstancesThatCanBeAssignedToThisUser = await RenderProofOfValue.find({
+        where: {status: 'ready for assignment', user: null},
+        sort: 'createdAt ASC',
+        limit: 1,
+      });
+
+      if(renderInstancesThatCanBeAssignedToThisUser.length < 1){
+        throw new Error(`When a new user (email: ${newEmailAddress}) signed up, no Fleet premium trial instances in Render were available to assign to the user.`);
+      } else {
+        let instanceToAssign = renderInstancesThatCanBeAssignedToThisUser[0];
+
+        await RenderProofOfValue.updateOne({id: instanceToAssign.id}).set({
+          status: 'in use',
+          renderTrialEndsAt: thirtyDaysFromNowAt,
+          user: newUserRecord.id,
+        });
+
+        await sails.helpers.sendTemplateEmail.with({
+          to: newEmailAddress,
+          from: sails.config.custom.fromEmailAddress,
+          fromName: sails.config.custom.fromName,
+          subject: 'Your Fleet trial is ready',
+          template: 'email-fleet-premium-pov-trial-started',
+          layout: 'layout-nurture-email',
+          templateData: {
+            firstName,
+          }
+        });
+      }
+    } else {
+      await sails.helpers.sendTemplateEmail.with({
+        to: newEmailAddress,
+        from: sails.config.custom.fromEmailAddress,
+        fromName: sails.config.custom.fromName,
+        subject: 'Your 30-day Fleet Premium trial key',
+        template: 'email-fleet-premium-local-trial-started',
+        layout: 'layout-nurture-email',
+        templateData: {
+          firstName,
+        }
+      });
+    }
+
+
+
+
+
     let psychologicalStageChangeReason;
     if(this.req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
       let sevenDaysAgoAt = Date.now() - (1000 * 60 * 60 * 24 * 7);
@@ -146,19 +220,41 @@ the account verification message.)`,
         psychologicalStageChangeReason = this.req.session.adAttributionString;
       }
     }
-    sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-      emailAddress: newEmailAddress,
-      firstName: firstName,
-      lastName: lastName,
-      organization: organization,
-      contactSource: 'Website - Sign up',
-      psychologicalStageChangeReason,
+
+    let attributionCookieOrUndefined = this.req.cookies.marketingAttribution;// Will be undefined if this is not set.
+
+
+    sails.helpers.flow.build(async ()=>{
+      let recordIds = await sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
+        emailAddress: newEmailAddress,
+        firstName: firstName,
+        lastName: lastName,
+        contactSource: 'Website - Sign up',
+        description: `Signed up for a fleetdm.com account and was given a 30-day ${fleetPremiumTrialType}`,
+        psychologicalStageChangeReason,
+        marketingAttributionCookie: attributionCookieOrUndefined
+      });
+
+      // Throw an error to stop the build() helper if a contact is missing a parent account record.
+      if(!recordIds.salesforceAccountId) {
+        throw new Error(`Could not create historical event. The contact record (ID: ${recordIds.salesforceContactId}) returned by the updateOrCreateContactAndAccount helper is missing a parent account record.`);
+      }
+
+      await sails.helpers.salesforce.createHistoricalEvent.with({
+        salesforceAccountId: recordIds.salesforceAccountId,
+        salesforceContactId: recordIds.salesforceContactId,
+        eventType: 'Intent signal',
+        intentSignal: 'Signed up for a fleetdm.com account',
+      }).intercept((err)=>{
+        return new Error(`Could not create an historical event. Full error: ${require('util').inspect(err)}`);
+      });
+
     }).exec((err)=>{
       if(err){
-        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact and Account record could not be created/updated in the CRM.`, err);
+        sails.log.warn(`Background task failed: When a user (email: ${newEmailAddress} signed up for a fleetdm.com account, a Contact/Account/Historical event record could not be created/updated in the CRM.`, err);
       }
       return;
-    });
+    });//_∏_
 
 
     // Store the user's new id in their session.

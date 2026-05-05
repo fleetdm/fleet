@@ -11,7 +11,7 @@ In today's mobile-driven workplace, the health of a device's battery plays a cru
 - osquery v.5.12.0+ on Windows
 - osquery v3.2.7+ on macOS
 
-## Step-by-Step Instructions
+## Step-by-step instructions
 
 ### Accessing battery health
 
@@ -37,7 +37,7 @@ Battery health will be reported as **Normal** or **Service recommended**, follow
 
 ### Getting more details on a specific battery
 
-If you need more detailed information about a specific battery, you can run a live query on the device using the following osquery command:
+If you need more detailed information about a specific battery, you can run a live report on the device using the following osquery command:
 
 
 ```sql

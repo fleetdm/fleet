@@ -1,0 +1,70 @@
+Name            : xxhash
+Version         : 0.8.3-1
+Description     : Extremely fast non-cryptographic hash algorithm
+Architecture    : x86_64
+URL             : https://cyan4973.github.io/xxHash/
+Licenses        : GPL2  BSD
+Groups          : None
+Provides        : libxxhash.so=0-64
+Depends On      : glibc
+Optional Deps   : None
+Required By     : debugedit  libplacebo
+Optional For    : limine-snapper-sync
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 400.10 KiB
+Packager        : Christian Hesse <eworm@archlinux.org>
+Build Date      : Mon 06 Jan 2025 02:26:25 AM EST
+Install Date    : Tue 16 Sep 2025 01:55:37 PM EDT
+Install Reason  : Installed as a dependency for another package
+Install Script  : Yes
+Validated By    : Signature
+
+Name            : xz
+Version         : 5.8.1-1
+Description     : Library and command line tools for XZ and LZMA compressed files
+Architecture    : x86_64
+URL             : https://tukaani.org/xz/
+Licenses        : GPL  LGPL  custom
+Groups          : None
+Provides        : liblzma.so=5-64
+Depends On      : sh
+Optional Deps   : None
+Required By     : base  ffmpeg  file  imagemagick  karchive  kmod  libarchive  libelf  libtiff  libunwind  libxml2  libxmlb  libxslt  systemd  systemd-libs  zstd
+Optional For    : mkinitcpio  python
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 2.92 MiB
+Packager        : Levente Polyak <anthraxx@archlinux.org>
+Build Date      : Thu 03 Apr 2025 12:43:12 PM EDT
+Install Date    : Tue 16 Sep 2025 01:55:31 PM EDT
+Install Reason  : Installed as a dependency for another package
+Install Script  : No
+Validated By    : Signature
+
+Name            : zeromq
+Version         : 4.3.5-2
+Description     : Fast messaging system built on sockets. C and C++ bindings. aka 0MQ, ZMQ.
+Architecture    : x86_64
+URL             : http://www.zeromq.org
+Licenses        : MPL2
+Groups          : None
+Provides        : libzmq.so=5-64
+Depends On      : glibc  gnutls  gcc-libs  util-linux  libsodium  libpgm
+Optional Deps   : cppzmq: C++ binding for libzmq
+Required By     : ffmpeg
+Optional For    : None
+Conflicts With  : None
+Replaces        : None
+Installed Size  : 3.05 MiB
+Packager        : George Rawlinson <grawlinson@archlinux.org>
+Build Date      : Mon 23 Oct 2023 07:48:59 PM EDT
+Install Date    : Tue 16 Sep 2025 01:57:33 PM EDT
+Install Reason  : Explicitly installed
+Install Script  : No
+Validated By    : Signature
+
+
+Name            : incomplete
+Version         : 3
+Architecture    : any

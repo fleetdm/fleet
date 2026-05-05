@@ -8,17 +8,19 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/variables"
 
-	// we are using this package as we were having issues with pasrsing signed apple
-	// mobileconfig profiles with the pcks7 package we were using before.
-	cms "github.com/github/smimesign/ietf-cms"
 	"howett.net/plist"
 )
 
 const (
 	// FleetFileVaultPayloadIdentifier is the value for the PayloadIdentifier
 	// used by Fleet to configure FileVault and FileVault Escrow.
-	FleetFileVaultPayloadIdentifier = "com.fleetdm.fleet.mdm.filevault"
+	FleetFileVaultPayloadIdentifier        = "com.fleetdm.fleet.mdm.filevault"
+	FleetFileVaultPayloadType              = "com.apple.MCX.FileVault2"
+	FleetCustomSettingsPayloadType         = "com.apple.MCX"
+	FleetRecoveryKeyEscrowPayloadType      = "com.apple.security.FDERecoveryKeyEscrow"
+	DiskEncryptionProfileRestrictionErrMsg = "Couldn't add. The configuration profile can't include FileVault settings."
 
 	// FleetdConfigPayloadIdentifier is the value for the PayloadIdentifier used
 	// by fleetd to read configuration values from the system.
@@ -57,16 +59,13 @@ func FleetPayloadIdentifiers() map[string]struct{} {
 }
 
 // FleetPayloadTypes returns a map of PayloadType strings
-// that are handled and delivered by Fleet.
-//
-// TODO(roperzh): when I was refactoring this, I noticed that the strings are
-// not constants, we should refactor that and use the constant in the templates
-// we use to generate the FileVault mobileconfig.
+// that are fully or partially handled and delivered by Fleet.
 func FleetPayloadTypes() map[string]struct{} {
 	return map[string]struct{}{
-		"com.apple.security.FDERecoveryKeyEscrow": {},
-		"com.apple.MCX.FileVault2":                {},
-		"com.apple.security.FDERecoveryRedirect":  {},
+		FleetRecoveryKeyEscrowPayloadType:        {},
+		FleetFileVaultPayloadType:                {},
+		FleetCustomSettingsPayloadType:           {},
+		"com.apple.security.FDERecoveryRedirect": {}, // no longer supported in macOS 10.13 and later
 	}
 }
 
@@ -81,24 +80,15 @@ type Parsed struct {
 	PayloadIdentifier  string
 	PayloadDisplayName string
 	PayloadType        string
+	PayloadScope       string
 }
 
-func (mc Mobileconfig) isSignedProfile() bool {
+func (mc Mobileconfig) IsSignedProfile() bool {
+	trimmed := bytes.TrimSpace(mc)
+	if bytes.HasPrefix(trimmed, []byte("${FLEET_")) || bytes.HasPrefix(trimmed, []byte("$FLEET_")) {
+		return false // Not a signed profile since it only contains secret variable.
+	}
 	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
-}
-
-// getSignedProfileData attempts to parse the signed mobileconfig and extract the
-// profile byte data from it.
-func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
-	signedData, err := cms.ParseSignedData(mc)
-	if err != nil {
-		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-	}
-	data, err := signedData.GetData()
-	if err != nil {
-		return nil, fmt.Errorf("could not get profile data from the signed mobileconfig: %w", err)
-	}
-	return Mobileconfig(data), nil
 }
 
 // ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
@@ -109,12 +99,10 @@ func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
 // Adapted from https://github.com/micromdm/micromdm/blob/main/platform/profile/profile.go
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
-	if mc.isSignedProfile() {
-		profileData, err := getSignedProfileData(mc)
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = profileData
+	// Remove Fleet variables expected in <data> section.
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	if mc.IsSignedProfile() {
+		return nil, errors.New("signed profiles are not supported")
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
@@ -128,6 +116,17 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	}
 	if p.PayloadDisplayName == "" {
 		return nil, errors.New("empty PayloadDisplayName in profile")
+	}
+	// PayloadScope is optional and according to
+	// Apple(https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf
+	// p6) defaults to "User". We've always sent them to the Device channel but now we're saying
+	// "User" means use the user channel. For backwards compatibility we are maintaining existing
+	// behavior of defaulting to device channel below but we should consider whether this is correct.
+	if p.PayloadScope == "" {
+		p.PayloadScope = "System"
+	}
+	if p.PayloadScope != "System" && p.PayloadScope != "User" {
+		return nil, fmt.Errorf("invalid PayloadScope: %s", p.PayloadScope)
 	}
 
 	return &p, nil
@@ -145,12 +144,10 @@ type payloadSummary struct {
 // See also https://developer.apple.com/documentation/devicemanagement/toplevel
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
-	if mc.isSignedProfile() {
-		profileData, err := getSignedProfileData(mc)
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = profileData
+	// Remove Fleet variables expected in <data> section.
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	if mc.IsSignedProfile() {
+		return nil, errors.New("signed profiles are not supported")
 	}
 
 	// unmarshal the values we need from the top-level object
@@ -211,7 +208,7 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	return result, nil
 }
 
-func (mc *Mobileconfig) ScreenPayloads() error {
+func (mc *Mobileconfig) ScreenPayloads(allowCustomOSUpdatesAndFileVault bool) error {
 	pct, err := mc.payloadSummary()
 	if err != nil {
 		// don't error if there's nothing for us to screen.
@@ -239,7 +236,28 @@ func (mc *Mobileconfig) ScreenPayloads() error {
 	}
 
 	if len(screenedTypes) > 0 {
-		return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
+		var unsupportedTypes []string
+		for _, t := range screenedTypes {
+			switch t {
+			case FleetFileVaultPayloadType, FleetRecoveryKeyEscrowPayloadType:
+				if !allowCustomOSUpdatesAndFileVault {
+					return errors.New(DiskEncryptionProfileRestrictionErrMsg)
+				}
+			case FleetCustomSettingsPayloadType:
+				contains, err := ContainsFDEFileVaultOptionsPayload(*mc)
+				if err != nil {
+					return fmt.Errorf("checking for FDEVileVaultOptions payload: %w", err)
+				}
+				if contains && !allowCustomOSUpdatesAndFileVault {
+					return errors.New(DiskEncryptionProfileRestrictionErrMsg)
+				}
+			default:
+				unsupportedTypes = append(unsupportedTypes, t)
+			}
+		}
+		if len(unsupportedTypes) > 0 {
+			return fmt.Errorf("unsupported PayloadType(s): %s", strings.Join(screenedTypes, ", "))
+		}
 	}
 
 	if len(screenedIdentifiers) > 0 {

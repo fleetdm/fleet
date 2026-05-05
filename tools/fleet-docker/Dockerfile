@@ -1,4 +1,4 @@
-FROM alpine:3.21@sha256:2c43f33bd1502ec7818bce9eea60e062d04eeadc4aa31cad9dabecb1e48b647b
+FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 LABEL maintainer="Fleet Developers"
 
 RUN apk --update add ca-certificates
@@ -10,6 +10,5 @@ RUN addgroup -S fleet && adduser -S fleet -G fleet
 USER fleet
 
 COPY fleet /usr/bin/
-COPY fleetctl /usr/bin/
 
 CMD ["fleet", "serve"]

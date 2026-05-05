@@ -1,0 +1,41 @@
+.updates-card {
+  @include vertical-card-layout;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $pad-medium;
+
+    .button {
+      margin-bottom: $pad-large;
+    }
+  }
+
+  &__items {
+    display: grid;
+
+    // Small screens (default)
+    grid-template-columns: repeat(
+      2,
+      minmax(250px, 1fr)
+    ); // 2 cards, max ensures long name truncation
+    gap: $pad-large;
+
+    // Medium screens
+    @media (min-width: $break-sm) {
+      grid-template-columns: repeat(
+        3,
+        minmax(220px, 1fr)
+      ); // 3 cards, max ensures long name truncation
+    }
+
+    // Large screens
+    @media (min-width: $break-lg) {
+      grid-template-columns: repeat(
+        4,
+        minmax(250px, 1fr)
+      ); // 4 cards, max ensures long name truncation
+    }
+  }
+}

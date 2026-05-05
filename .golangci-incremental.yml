@@ -1,0 +1,61 @@
+# This configuration is for incremental linting of new/experimental linters.
+# It is used with --new-from-rev to only lint changed code.
+# See .golangci.yml for the main linter configuration.
+version: "2"
+
+issues:
+  max-issues-per-linter: 0 # show all issues
+  max-same-issues: 0 # show all issues
+
+linters:
+  default: none
+  enable:
+    - gosec
+    - modernize
+    - testifylint
+    - nilaway
+    - setboolcheck
+    - depguard
+  settings:
+    gosec:
+      # Only enable rules that are too noisy on existing code but valuable for new code.
+      # Existing violations were audited during the v2.7.1 -> v2.11.3 upgrade and found
+      # to be false positives or safe patterns, but we want to catch real issues going forward.
+      includes:
+        - G101 # Potential hardcoded credentials.
+        - G115 # Integer overflow conversion.
+        - G117 # Marshaled struct field matches secret pattern.
+        - G118 # Goroutine uses context.Background/TODO while request-scoped context is available.
+        - G122 # Filesystem race in filepath.Walk/WalkDir callback.
+        - G202 # SQL string concatenation.
+        - G602 # Slice index out of range.
+        - G704 # SSRF via taint analysis.
+        - G705 # XSS via taint analysis.
+        - G706 # Log injection via taint analysis.
+    depguard:
+      rules:
+        no-old-rand:
+          list-mode: lax
+          deny:
+            - pkg: math/rand$
+              desc: Use math/rand/v2 instead
+    custom:
+      nilaway:
+        type: module
+        description: Static analysis tool to detect potential nil panics in Go code.
+        settings:
+          # Settings must be a "map from string to string" to mimic command line flags: the keys are
+          # flag names and the values are the values to the particular flags.
+          include-pkgs: "github.com/fleetdm/fleet/v4"
+      setboolcheck:
+        type: module
+        description: Flags map[T]bool used as sets; suggests map[T]struct{} instead.
+  exclusions:
+    generated: strict
+    rules:
+      # nilaway has a hardcoded 500 CFG block limit (_maxFuncSizeInCFGBlocks). Functions exceeding
+      # it produce an INTERNAL ERROR with a bogus $GOROOT path that crashes golangci-lint's
+      # generated_file_filter processor. These are informational skip messages, not real findings.
+      - linters:
+          - nilaway
+        text: "INTERNAL ERROR"

@@ -1,0 +1,189 @@
+name: Tag aging bugs
+
+# This action will tag bugs based on their age:
+# - Bugs >= 180 days old get tagged with ~old bug (and ~aging bug is removed)
+# - Bugs >= 90 days old (but < 180 days) get tagged with ~aging bug
+
+on:
+  schedule:
+    # Daily at 8:06am UTC
+    - cron: "6 8 * * *"
+  workflow_dispatch: # Manual
+    inputs:
+      dry_run:
+        description: 'Dry run mode (log only, do not modify labels)'
+        required: false
+        type: boolean
+        default: false
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  tag-bugs:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Tag aging bugs
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const dryRun = ${{ github.event.inputs.dry_run || false }};
+            console.log(`Dry run mode: ${dryRun}`);
+
+            // Calculate date thresholds
+            const now = new Date();
+            const oldBugDate = new Date(now);
+            oldBugDate.setDate(oldBugDate.getDate() - 180);
+            const agingBugDate = new Date(now);
+            agingBugDate.setDate(agingBugDate.getDate() - 90);
+
+            console.log(`Old bug threshold: ${oldBugDate.toISOString()}`);
+            console.log(`Aging bug threshold: ${agingBugDate.toISOString()}`);
+
+            // Process old bugs (>= 180 days)
+            console.log('\n=== Processing old bugs (>= 180 days) ===');
+            let page = 1;
+            let oldBugsProcessed = 0;
+
+            while (true) {
+              const { data: oldBugs } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'bug',
+                state: 'open',
+                per_page: 100,
+                page: page,
+                sort: 'created',
+                direction: 'asc'
+              });
+
+              if (oldBugs.length === 0) break;
+
+              for (const issue of oldBugs) {
+                const createdDate = new Date(issue.created_at);
+
+                // Stop if we've passed the old bug threshold
+                if (createdDate > oldBugDate) {
+                  page = Infinity; // Signal to stop pagination
+                  break;
+                }
+
+                const labels = issue.labels.map(label => label.name);
+                const hasOldBugLabel = labels.includes('~old bug');
+
+                if (!hasOldBugLabel) {
+                  oldBugsProcessed++;
+                  console.log(`Issue #${issue.number}: Created ${createdDate.toISOString()}`);
+
+                  if (dryRun) {
+                    console.log(`  [DRY RUN] Would add ~old bug label`);
+                    if (labels.includes('~aging bug')) {
+                      console.log(`  [DRY RUN] Would remove ~aging bug label`);
+                    }
+                  } else {
+                    // Add ~old bug label
+                    await github.rest.issues.addLabels({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issue.number,
+                      labels: ['~old bug']
+                    });
+                    console.log(`  Added ~old bug label`);
+
+                    // Remove ~aging bug if present
+                    if (labels.includes('~aging bug')) {
+                      await github.rest.issues.removeLabel({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: issue.number,
+                        name: '~aging bug'
+                      });
+                      console.log(`  Removed ~aging bug label`);
+                    }
+                  }
+                }
+              }
+
+              if (page === Infinity) break;
+              page++;
+            }
+
+            console.log(`\nProcessed ${oldBugsProcessed} old bugs`);
+
+            // Process aging bugs (>= 90 days but < 180 days)
+            console.log('\n=== Processing aging bugs (>= 90 days) ===');
+            page = 1;
+            let agingBugsProcessed = 0;
+
+            while (true) {
+              const { data: agingBugs } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                labels: 'bug',
+                state: 'open',
+                per_page: 100,
+                page: page,
+                sort: 'created',
+                direction: 'asc'
+              });
+
+              if (agingBugs.length === 0) break;
+
+              for (const issue of agingBugs) {
+                const createdDate = new Date(issue.created_at);
+
+                // Skip if newer than aging threshold
+                if (createdDate > agingBugDate) {
+                  page = Infinity; // Signal to stop pagination
+                  break;
+                }
+
+                const labels = issue.labels.map(label => label.name);
+                const hasAgingBugLabel = labels.includes('~aging bug');
+                const hasOldBugLabel = labels.includes('~old bug');
+
+                // Only tag if it doesn't have either label
+                // (hasOldBugLabel check handles issues that became old since last run)
+                if (!hasAgingBugLabel && !hasOldBugLabel) {
+                  agingBugsProcessed++;
+                  console.log(`Issue #${issue.number}: Created ${createdDate.toISOString()}`);
+
+                  if (dryRun) {
+                    console.log(`  [DRY RUN] Would add ~aging bug label`);
+                  } else {
+                    await github.rest.issues.addLabels({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issue.number,
+                      labels: ['~aging bug']
+                    });
+                    console.log(`  Added ~aging bug label`);
+                  }
+                }
+              }
+
+              if (page === Infinity) break;
+              page++;
+            }
+
+            console.log(`\nProcessed ${agingBugsProcessed} aging bugs`);
+            console.log(`\n=== Summary ===`);
+            console.log(`Total old bugs tagged: ${oldBugsProcessed}`);
+            console.log(`Total aging bugs tagged: ${agingBugsProcessed}`);

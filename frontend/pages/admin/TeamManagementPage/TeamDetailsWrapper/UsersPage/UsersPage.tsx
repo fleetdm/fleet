@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -13,11 +12,12 @@ import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import { DEFAULT_USER_FORM_ERRORS } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import PageDescription from "components/PageDescription";
+import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
 import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -55,6 +55,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
       maintainer: false,
       observer: false,
       observer_plus: false,
+      technician: false,
     },
   });
 
@@ -69,12 +70,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
-  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
-  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
-    DEFAULT_USER_FORM_ERRORS
-  );
+  const [addUserErrors, setAddUserErrors] = useState<IUserFormErrors>({});
+  const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>({});
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -129,7 +126,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
-      setEditUserErrors(DEFAULT_USER_FORM_ERRORS);
+      setEditUserErrors({});
     },
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
@@ -391,18 +388,23 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
 
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__page-description`}>
-        Manage users with access to this team.{" "}
-        {isGlobalAdmin && (
-          <Link to={PATHS.ADMIN_USERS}>
-            Manage users with global access here
-          </Link>
-        )}
-      </p>
+      <PageDescription
+        content={
+          <>
+            Manage users with access to this fleet.{" "}
+            {isGlobalAdmin && (
+              <CustomLink
+                url={PATHS.ADMIN_USERS}
+                text="Manage users with global access here"
+              />
+            )}
+          </>
+        }
+      />
       {loadingUsersError ||
       loadingTeamsError ||
       (!currentTeamDetails && !isLoadingTeams && !isLoadingUsers) ? (
-        <TableDataError />
+        <TableDataError verticalPaddingSize="pad-xxxlarge" />
       ) : (
         <TableContainer
           resultsTitle="users"
@@ -414,10 +416,8 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           actionButton={{
             name: isGlobalAdmin ? "add user" : "create user",
             buttonText: isGlobalAdmin ? "Add users" : "Create user",
-            variant: "brand",
-            onActionButtonClick: isGlobalAdmin
-              ? toggleAddUserModal
-              : toggleCreateUserModal,
+            variant: "default",
+            onClick: isGlobalAdmin ? toggleAddUserModal : toggleCreateUserModal,
             hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}

@@ -5,22 +5,29 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
+	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	pkgscripts "github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/osquery/osquery-go"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -33,7 +40,8 @@ type (
 // fleet.OrbitClient type satisfies this interface.
 type Client interface {
 	GetInstallerDetails(installID string) (*fleet.SoftwareInstallDetails, error)
-	DownloadSoftwareInstaller(installerID uint, downloadDir string) (string, error)
+	DownloadSoftwareInstaller(installerID uint, downloadDir string, progressFunc func(int)) (string, error)
+	DownloadSoftwareInstallerFromURL(url string, filename string, downloadDir string, progressFunc func(int)) (string, error)
 	SaveInstallerResult(payload *fleet.HostSoftwareInstallResultPayload) error
 }
 
@@ -62,9 +70,15 @@ type Runner struct {
 	// and non-Windows platforms.
 	execCmdFn func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error)
 
+	// extractTarGzFn is the function to call to extract a tarball. If nil, the
+	// implementation in the updates package, wrapped with an OS file open, will be used.
+	extractTarGzFn func(path string, destDir string) error
+
 	// can be set for tests to replace os.RemoveAll, which is called to remove
 	// the script's temporary directory after execution.
 	removeAllFn func(string) error
+
+	nowFn func() time.Time
 
 	connectOsquery func(*Runner) error
 
@@ -73,15 +87,35 @@ type Runner struct {
 	osqueryConnectionMutex sync.Mutex
 
 	rootDirPath string
+
+	retryOpts []retry.Option
+
+	logger zerolog.Logger
+
+	// installerNotFoundFirstSeen records, per execution_id, when we first saw
+	// a "not found" response from GetInstallerDetails (#44084). Guarded by
+	// installerNotFoundMu.
+	installerNotFoundFirstSeen map[string]time.Time
+	installerNotFoundMu        sync.Mutex
 }
+
+const extractionDirectoryName = "extracted"
+
+// installerNotFoundRetryWindow bounds how long orbit silently retries a 404
+// from GetInstallerDetails before it reports a synthetic failure (#44084).
+var installerNotFoundRetryWindow = 5 * time.Minute
 
 func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, rootDirPath string) *Runner {
 	r := &Runner{
-		OrbitClient:               client,
-		osquerySocketPath:         socketPath,
-		scriptsEnabled:            scriptsEnabled,
-		installerExecutionTimeout: pkgscripts.MaxHostSoftwareInstallExecutionTime,
-		rootDirPath:               rootDirPath,
+		OrbitClient:                client,
+		osquerySocketPath:          socketPath,
+		scriptsEnabled:             scriptsEnabled,
+		installerExecutionTimeout:  pkgscripts.MaxHostSoftwareInstallExecutionTime,
+		rootDirPath:                rootDirPath,
+		retryOpts:                  []retry.Option{retry.WithMaxAttempts(5)},
+		logger:                     log.With().Str("runner", "installer").Logger(),
+		nowFn:                      time.Now,
+		installerNotFoundFirstSeen: make(map[string]time.Time),
 	}
 
 	return r
@@ -90,7 +124,7 @@ func NewRunner(client Client, socketPath string, scriptsEnabled func() bool, roo
 func (r *Runner) Run(config *fleet.OrbitConfig) error {
 	if runtime.GOOS == "darwin" {
 		if config.Notifications.RunSetupExperience && !update.CanRun(r.rootDirPath, "swiftDialog", update.SwiftDialogMacOSTarget) {
-			log.Debug().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
+			log.Info().Msg("exiting software installer config runner early during setup experience: swiftDialog is not installed")
 			return nil
 		}
 	}
@@ -113,7 +147,7 @@ func connectOsquery(r *Runner) error {
 	if r.OsqueryClient == nil {
 		osqueryClient, err := osquery.NewClient(r.osquerySocketPath, 10*time.Second)
 		if err != nil {
-			log.Err(err).Msg("establishing osquery connection for software install runner")
+			log.Error().Err(err).Msg("establishing osquery connection for software install runner")
 			return err
 		}
 
@@ -124,29 +158,90 @@ func connectOsquery(r *Runner) error {
 }
 
 func (r *Runner) run(ctx context.Context, config *fleet.OrbitConfig) error {
-	log.Debug().Msg("starting software installers run")
+	if len(config.Notifications.PendingSoftwareInstallerIDs) > 0 {
+		r.logger.Info().Msgf("received notification for software installers: %v", config.Notifications.PendingSoftwareInstallerIDs)
+	} else {
+		r.logger.Debug().Msg("starting software installers run")
+	}
+
 	var errs []error
 	for _, installerID := range config.Notifications.PendingSoftwareInstallerIDs {
+		logger := r.logger.With().Str("installerID", installerID).Logger()
+
+		logger.Info().Msg("processing")
 		if ctx.Err() != nil {
 			errs = append(errs, ctx.Err())
 			break
 		}
-		payload, err := r.installSoftware(ctx, installerID)
+		payload, err := r.installSoftware(ctx, installerID, logger)
 		if err != nil {
 			errs = append(errs, err)
-			if payload == nil {
-				continue
-			}
 		}
-		if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+		if payload == nil {
+			continue
+		}
+		attemptNum := 1
+		err = retry.Do(func() error {
+			if err := r.OrbitClient.SaveInstallerResult(payload); err != nil {
+				logger.Info().Err(err).Msgf("failed to save installer result, attempt #%d", attemptNum)
+				attemptNum++
+				return err
+			}
+			return nil
+		}, r.retryOpts...)
+		if err != nil {
 			errs = append(errs, fmt.Errorf("saving software install results: %w", err))
 		}
+
 	}
 	if len(errs) != 0 {
+		r.logger.Error().Errs("errs", errs).Msg("failures found when processing installers")
 		return errors.Join(errs...)
 	}
 
 	return nil
+}
+
+// handleInstallerNotFound returns a synthetic failure payload once
+// installerNotFoundRetryWindow has elapsed for execID, nil otherwise (#44084).
+func (r *Runner) handleInstallerNotFound(execID string, logger zerolog.Logger) *fleet.HostSoftwareInstallResultPayload {
+	r.installerNotFoundMu.Lock()
+	defer r.installerNotFoundMu.Unlock()
+
+	nowFn := r.nowFn
+	if nowFn == nil {
+		nowFn = time.Now
+	}
+	if r.installerNotFoundFirstSeen == nil {
+		r.installerNotFoundFirstSeen = make(map[string]time.Time)
+	}
+
+	now := nowFn()
+	firstSeen, ok := r.installerNotFoundFirstSeen[execID]
+	if !ok {
+		r.installerNotFoundFirstSeen[execID] = now
+		return nil
+	}
+	if now.Sub(firstSeen) < installerNotFoundRetryWindow {
+		return nil
+	}
+
+	logger.Warn().
+		Dur("retry_window", installerNotFoundRetryWindow).
+		Msg("installer not found for longer than retry window; reporting failure to server")
+
+	delete(r.installerNotFoundFirstSeen, execID)
+	return &fleet.HostSoftwareInstallResultPayload{
+		InstallUUID:           execID,
+		InstallScriptExitCode: ptr.Int(fleet.ExitCodeInstallerNotFound),
+		InstallScriptOutput:   ptr.String("Installer no longer exists on the server. Abandoning install after retry window."),
+	}
+}
+
+func (r *Runner) clearInstallerNotFound(execID string) {
+	r.installerNotFoundMu.Lock()
+	defer r.installerNotFoundMu.Unlock()
+	delete(r.installerNotFoundFirstSeen, execID)
 }
 
 func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, string, error) {
@@ -179,51 +274,138 @@ func (r *Runner) preConditionCheck(ctx context.Context, query string) (bool, str
 	return true, string(response), nil
 }
 
-func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.HostSoftwareInstallResultPayload, error) {
-	log.Debug().Msgf("about to install software with installer id: %s", installID)
+func (r *Runner) installSoftware(ctx context.Context, installID string, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
+	logger.Info().Msg("fetching installer details")
 	installer, err := r.OrbitClient.GetInstallerDetails(installID)
 	if err != nil {
+		if client.IsNotFoundErr(err) {
+			if payload := r.handleInstallerNotFound(installID, logger); payload != nil {
+				logger.Err(err).Msg("fetch installer details")
+				return payload, nil
+			}
+			logger.Debug().Err(err).Msg("installer not found, within retry window")
+			return nil, nil
+		}
+		logger.Err(err).Msg("fetch installer details")
+		r.clearInstallerNotFound(installID)
 		return nil, fmt.Errorf("fetching software installer details: %w", err)
 	}
+
+	r.clearInstallerNotFound(installID)
 
 	payload := &fleet.HostSoftwareInstallResultPayload{}
 	payload.InstallUUID = installID
 
 	if installer.PreInstallCondition != "" {
-		log.Debug().Msgf("pre-condition is not empty, about to run the query")
+		logger.Info().Msg("pre-condition is not empty, about to run the query")
 		shouldInstall, output, err := r.preConditionCheck(ctx, installer.PreInstallCondition)
 		payload.PreInstallConditionOutput = &output
 		if err != nil {
+			logger.Err(err).Msg("pre-condition check failed")
 			return payload, err
 		}
 
 		if !shouldInstall {
-			log.Debug().Msgf("pre-condition didn't pass, stopping installation")
+			logger.Info().Msg("pre-condition didn't pass, stopping installation")
 			return payload, nil
 		}
 	}
 
 	if !r.scriptsEnabled() {
-		// fleetctl knows that -2 means script was disabled on host
-		log.Debug().Msgf("scripts are disabled for this host, stopping installation")
-		payload.InstallScriptExitCode = ptr.Int(-2)
+		// Fleet knows that -2 means script was disabled on host
+		logger.Info().Msg("scripts are disabled for this host, stopping installation")
+		payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeScriptsDisabled)
 		payload.InstallScriptOutput = ptr.String("Scripts are disabled")
 		return payload, nil
 	}
 
+	// Perform the installation with retry logic if MaxRetries > 0
+	if installer.MaxRetries > 0 {
+		logger.Info().Msgf("Installation configured with %d retries", installer.MaxRetries)
+		return r.installWithRetry(ctx, installer, payload, logger)
+	}
+
+	// No retries configured, perform single installation attempt
+	return r.attemptInstall(ctx, installer, payload, logger)
+}
+
+// installWithRetry attempts installation with retry logic for setup experience
+func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.SoftwareInstallDetails, payload *fleet.HostSoftwareInstallResultPayload, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
+	// MaxRetries is the number of retry attempts (0 means no retries, just one attempt)
+	// maxAttempts is the total number of attempts (initial + retries)
+	maxAttempts := installer.MaxRetries + 1
+
+	var lastErr error
+
+	for attempt := uint(1); attempt <= maxAttempts; attempt++ {
+		logger.Debug().Msgf("Installation attempt %d of %d", attempt, maxAttempts)
+
+		// Attempt installation
+		resultPayload, err := r.attemptInstall(ctx, installer, payload, logger)
+
+		if err == nil && resultPayload.Status() == fleet.SoftwareInstalled {
+			// Success
+			logger.Debug().Msgf("Installation succeeded on attempt %d", attempt)
+			return resultPayload, nil
+		}
+
+		lastErr = err
+
+		if attempt < maxAttempts {
+			// Report intermediate failure to server with retries remaining
+			resultPayload.RetriesRemaining = maxAttempts - attempt
+			if saveErr := r.OrbitClient.SaveInstallerResult(resultPayload); saveErr != nil {
+				// Log error but continue with retries
+				logger.Err(saveErr).Msg("Failed to report intermediate installation failure to server, continuing with retry")
+			} else {
+				logger.Debug().Msgf("Reported intermediate failure to server with %d retries remaining", resultPayload.RetriesRemaining)
+			}
+
+			// Calculate delay: 10s * 2^(attempt-1) for network/transient errors, immediate retry otherwise
+			var delay time.Duration
+			if isNetworkOrTransientError(err) {
+				// Exponential backoff: 10s, 20s, etc.
+				delay = time.Duration(10*(1<<(attempt-1))) * time.Second
+				logger.Info().Msgf(
+					"Network or transient error detected, waiting %v before retry (attempt %d failed)",
+					delay,
+					attempt,
+				)
+			} else {
+				// Non-transient error, retry immediately
+				logger.Info().Msgf(
+					"Retrying software install immediately (attempt %d failed)",
+					attempt,
+				)
+			}
+
+			if delay > 0 && attempt < maxAttempts {
+				// Wait before retry
+				select {
+				case <-ctx.Done():
+					return resultPayload, ctx.Err()
+				case <-time.After(delay):
+				}
+			}
+		}
+	}
+
+	// All retries exhausted
+	payload.RetriesRemaining = 0
+	logger.Err(lastErr).Msgf("Installation failed after %d attempts", maxAttempts)
+	return payload, lastErr
+}
+
+// attemptInstall performs a single installation attempt (download + install)
+func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareInstallDetails, payload *fleet.HostSoftwareInstallResultPayload, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
 	tmpDirFn := r.tempDirFn
 	if tmpDirFn == nil {
 		tmpDirFn = os.MkdirTemp
 	}
 	tmpDir, err := tmpDirFn("", "")
 	if err != nil {
+		logger.Err(err).Msg("creating temporary directory")
 		return payload, fmt.Errorf("creating temporary directory: %w", err)
-	}
-
-	log.Debug().Str("install_id", installID).Msgf("about to download software installer")
-	installerPath, err := r.OrbitClient.DownloadSoftwareInstaller(installer.InstallerID, tmpDir)
-	if err != nil {
-		return payload, err
 	}
 
 	// remove tmp directory and installer
@@ -234,30 +416,117 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 		}
 		err := removeAllFn(tmpDir)
 		if err != nil {
-			log.Err(err)
+			log.Error().Err(err).Msg("failed to remove tmp dir")
 		}
 	}()
+
+	progressFn := func() func(n int) {
+		chunk := 0
+		return func(n int) {
+			if n == 0 {
+				logger.Info().Msg("done downloading")
+				return
+			}
+			chunk += n
+			if chunk >= 10*units.MB {
+				logger.Debug().Msgf("downloaded %d bytes", chunk)
+				chunk = 0
+			}
+		}
+	}
+
+	var installerPath string
+	if installer.SoftwareInstallerURL != nil && installer.SoftwareInstallerURL.URL != "" {
+		logger.Info().Msg("about to download software installer from URL")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstallerFromURL(
+			installer.SoftwareInstallerURL.URL,
+			installer.SoftwareInstallerURL.Filename,
+			tmpDir,
+			progressFn(),
+		)
+		if err != nil {
+			logger.Err(err).Msg("downloading software installer from URL")
+			// If download fails, we will fall back to downloading the installer directly from Fleet server
+			installerPath = ""
+		}
+	}
+
+	if installerPath == "" {
+		logger.Info().Msg("about to download software installer from Fleet")
+		installerPath, err = r.OrbitClient.DownloadSoftwareInstaller(
+			installer.InstallerID,
+			tmpDir,
+			progressFn(),
+		)
+		if err != nil {
+			logger.Err(err).Msg("failed to download software installer")
+			// Set a special exit code to indicate that the installer download failed, so that Fleet
+			// will mark this installation as failed.
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer download failed")
+			return payload, err
+		}
+		logger.Info().Str("installerPath", installerPath).Msg("software installer downloaded")
+	}
+
+	if strings.HasSuffix(installerPath, ".tgz") || strings.HasSuffix(installerPath, ".tar.gz") {
+		logger.Info().Msg("detected tar.gz archive, extracting to subdirectory")
+		extractDestination := filepath.Join(tmpDir, extractionDirectoryName)
+		err := os.Mkdir(extractDestination, 0o700)
+		if err != nil {
+			logger.Err(err).Msg("failed to create directory for .tar.gz extraction")
+			// Using download failed exit code here to indicate that installer extraction failed
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		extractFn := r.extractTarGzFn
+		if extractFn == nil {
+			extractFn = func(path string, destDir string) error {
+				return file.ExtractTarGz(path, destDir, 2*1024*1024*1024*1024, logger) // 2 TiB limit per extracted file
+			}
+		}
+
+		if err = extractFn(installerPath, extractDestination); err != nil {
+			logger.Err(err).Msg("failed extract .tar.gz archive")
+			payload.InstallScriptExitCode = ptr.Int(fleet.ExitCodeInstallerDownloadFailed)
+			payload.InstallScriptOutput = ptr.String("Installer extraction failed")
+			return payload, err
+		}
+
+		// install script will be run inside extracted dir rather than in parent; both dirs
+		// will be cleaned up when we're done
+		installerPath = extractDestination
+	}
 
 	scriptExtension := ".sh"
 	if runtime.GOOS == "windows" {
 		scriptExtension = ".ps1"
 	}
-	log.Debug().Msgf("about to run install script")
+
+	logger.Info().Msg("about to run install script")
 	installOutput, installExitCode, err := r.runInstallerScript(ctx, installer.InstallScript, installerPath, "install-script"+scriptExtension)
 	payload.InstallScriptOutput = &installOutput
 	payload.InstallScriptExitCode = &installExitCode
 	if err != nil {
+		logger.Err(err).Msg("install script")
 		return payload, err
 	}
+	logger.Info().Int("exitCode", installExitCode).Msgf("install script")
 
 	if installer.PostInstallScript != "" {
-		log.Debug().Msgf("about to run post-install script for %s", installerPath)
+		logger.Info().Str("installerPath", installerPath).Msg("about to run post-install script")
 		postOutput, postExitCode, postErr := r.runInstallerScript(ctx, installer.PostInstallScript, installerPath, "post-install-script"+scriptExtension)
 		payload.PostInstallScriptOutput = &postOutput
 		payload.PostInstallScriptExitCode = &postExitCode
 
 		if postErr != nil || postExitCode != 0 {
-			log.Info().Msgf("installation of %s failed, attempting rollback. Exit code: %d, error: %s", installerPath, postExitCode, postErr)
+			logger.Info().Str(
+				"installerPath", installerPath,
+			).Int(
+				"exitCode", postExitCode,
+			).Err(postErr).Msg("installation failed, attempting rollback")
 			ext := filepath.Ext(installerPath)
 			ext = strings.TrimPrefix(ext, ".")
 			uninstallScript := installer.UninstallScript
@@ -271,8 +540,8 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 			}
 			uninstallOutput, uninstallExitCode, uninstallErr := r.runInstallerScript(ctx, uninstallScript, installerPath,
 				"rollback-script"+scriptExtension)
-			log.Info().Msgf(
-				"rollback staus: exit code: %d, error: %s, output: %s",
+			logger.Info().Msgf(
+				"rollback status: exit code: %d, error: %s, output: %s",
 				uninstallExitCode, uninstallErr, uninstallOutput,
 			)
 			builder.WriteString(fmt.Sprintf("Uninstall script exit code: %d\n", uninstallExitCode))
@@ -283,6 +552,93 @@ func (r *Runner) installSoftware(ctx context.Context, installID string) (*fleet.
 	}
 
 	return payload, nil
+}
+
+// isNetworkOrTransientError determines if an error is network-related or otherwise transient
+// and would benefit from waiting before retry
+func isNetworkOrTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check standard library errors using errors.Is
+	// These are errors that the client creates directly
+	if errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.ENETUNREACH) ||
+		errors.Is(err, syscall.ETIMEDOUT) {
+		return true
+	}
+
+	// Check if it's a net.Error with Timeout() method
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() {
+			return true
+		}
+	}
+
+	// Check for DNS errors (these implement net.Error but we can also check the type)
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true // DNS errors are transient
+	}
+
+	type statusCodeError interface {
+		StatusCode() int
+	}
+	var scErr statusCodeError
+	if errors.As(err, &scErr) {
+		code := scErr.StatusCode()
+		switch code {
+		case 429, // Too Many Requests
+			500, // Internal Server Error
+			502, // Bad Gateway
+			503, // Service Unavailable
+			504: // Gateway Timeout
+			return true
+		}
+	}
+
+	// Fall back to string matching only for error messages that come from the server
+	// or from libraries that don't expose typed errors
+	errStr := err.Error()
+
+	// TLS handshake errors (crypto/tls doesn't expose typed errors for all cases)
+	if strings.Contains(errStr, "TLS") && strings.Contains(errStr, "handshake") ||
+		// Additional timeout patterns not caught by net.Error.Timeout()
+		strings.Contains(errStr, "timeout") ||
+		// Network errors that might be string-wrapped or come from server messages
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "unexpected EOF") ||
+		strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "context canceled") ||
+		// Fall back to string matching for HTTP status errors that might come from
+		// other sources (e.g., proxy servers) that don't use our statusCodeErr type
+		strings.Contains(errStr, "status 429") || strings.Contains(errStr, "too many requests") ||
+		strings.Contains(errStr, "status 503") || strings.Contains(errStr, "service unavailable") ||
+		strings.Contains(errStr, "status 502") || strings.Contains(errStr, "bad gateway") ||
+		strings.Contains(errStr, "status 504") || strings.Contains(errStr, "gateway timeout") ||
+		strings.Contains(errStr, "status 500") || strings.Contains(errStr, "internal server error") ||
+		// "resource busy" - file locks, device busy errors
+		strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "device or resource busy") ||
+		// "file is locked" - file system lock contention
+		strings.Contains(errStr, "file is locked") || strings.Contains(errStr, "locked by another process") ||
+		// "no space left" - disk full, might resolve if something else cleans up
+		strings.Contains(errStr, "no space left") ||
+		// "input/output error" - transient I/O errors
+		strings.Contains(errStr, "input/output error") {
+		return true
+	}
+
+	return false
 }
 
 func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {

@@ -48,6 +48,23 @@ type PolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID *uint
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
+	LabelsIncludeAny []string
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
+	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
+	//
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -80,20 +97,63 @@ type NewTeamPolicyPayload struct {
 	SoftwareTitleID *uint
 	// ScriptID is the ID of the script that will be executed if the policy fails.
 	ScriptID *uint
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
+	LabelsIncludeAny []string
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
+	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	ConditionalAccessEnabled bool
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type *string
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app checked by a patch policy.
+	PatchSoftwareTitleID *uint
 }
 
 var (
-	errPolicyEmptyName       = errors.New("policy name cannot be empty")
-	errPolicyEmptyQuery      = errors.New("policy query cannot be empty")
-	errPolicyIDAndQuerySet   = errors.New("both fields \"queryID\" and \"query\" cannot be set")
-	errPolicyInvalidPlatform = errors.New("invalid policy platform")
+	errPolicyEmptyName                               = errors.New("policy name cannot be empty")
+	errPolicyEmptyQuery                              = errors.New("policy query cannot be empty")
+	errPolicyIDAndQuerySet                           = errors.New("both fields \"queryID\" and \"query\" cannot be set")
+	errPolicyInvalidPlatform                         = errors.New("invalid policy platform")
+	ErrPolicyConflictingLabels                       = errors.New("policy can include at most one of labels_include_any, labels_include_all, or labels_exclude_any")
+	errPolicyPatchAndQuerySet                        = errors.New("If the \"type\" is \"patch\", the \"query\" field is not supported.")
+	errPolicyPatchAndPlatformSet                     = errors.New("If the \"type\" is \"patch\", the \"platform\" field is not supported.")
+	errPolicyPatchNoTitleID                          = errors.New("If the \"type\" is \"patch\", the \"patch_software_title_id\" field is required.")
+	errPatchPolicyRequiresTeam                       = errors.New("If the \"type\" is \"patch\", the \"team\" field is required.")
+	errPolicyQueryUpdated                            = errors.New("\"query\" can't be updated")
+	errPolicyPlatformUpdated                         = errors.New("\"platform\" can't be updated")
+	errPolicyConditionalAccessEnabledInvalidPlatform = errors.New("\"conditional_access_enabled\" is only valid on \"darwin\" and \"windows\" policies")
 )
 
 // PolicyNoTeamID is the team ID of "No team" policies.
 const PolicyNoTeamID = uint(0)
 
+// Max times a policy automation will be retried on failure.
+const MaxPolicyAutomationRetries = 3
+
 // Verify verifies the policy payload is valid.
 func (p PolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.QueryID != nil {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Query) {
+			return errPolicyPatchAndQuerySet
+		}
+		if !emptyString(p.Platform) {
+			return errPolicyPatchAndPlatformSet
+		}
+		if p.PatchSoftwareTitleID == nil {
+			return errPolicyPatchNoTitleID
+		}
+		if err := verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny); err != nil {
+			return err
+		}
+		return nil
+	}
+
 	if p.QueryID != nil {
 		if p.Query != "" {
 			return errPolicyIDAndQuerySet
@@ -102,12 +162,36 @@ func (p PolicyPayload) Verify() error {
 		if err := verifyPolicyName(p.Name); err != nil {
 			return err
 		}
-		if err := verifyPolicyQuery(p.Query); err != nil {
+		if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 			return err
 		}
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
+	}
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+
+	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+}
+
+// verifyLabelScopeMutualExclusion enforces that at most one of the three label
+// scope slices carries values. Empty slices ([]) are treated as "no value" and
+// are ignored, so e.g. {LabelsIncludeAny: [], LabelsIncludeAll: [A]} is valid.
+func verifyLabelScopeMutualExclusion(includeAny, includeAll, excludeAny []string) error {
+	specified := 0
+	if len(includeAny) > 0 {
+		specified++
+	}
+	if len(includeAll) > 0 {
+		specified++
+	}
+	if len(excludeAny) > 0 {
+		specified++
+	}
+	if specified > 1 {
+		return ErrPolicyConflictingLabels
 	}
 	return nil
 }
@@ -123,8 +207,8 @@ func emptyString(s string) bool {
 	return len(strings.TrimSpace(s)) == 0
 }
 
-func verifyPolicyQuery(query string) error {
-	if emptyString(query) {
+func verifyPolicyQuery(query string, typ string) error {
+	if emptyString(query) && typ != PolicyTypePatch {
 		return errPolicyEmptyQuery
 	}
 	return nil
@@ -141,6 +225,20 @@ func verifyPolicyPlatforms(platforms string) error {
 		default:
 			return errPolicyInvalidPlatform
 		}
+	}
+	return nil
+}
+
+func verifyPatchPolicy(team string, typ string) error {
+	if typ == PolicyTypePatch && emptyString(team) {
+		return errPatchPolicyRequiresTeam
+	}
+	return nil
+}
+
+func PolicyVerifyConditionalAccess(conditionalAccessEnabled bool, platform string) error {
+	if conditionalAccessEnabled && !strings.Contains(platform, "darwin") && !strings.Contains(platform, "windows") {
+		return errPolicyConditionalAccessEnabledInvalidPlatform
 	}
 	return nil
 }
@@ -174,17 +272,45 @@ type ModifyPolicyPayload struct {
 	//
 	// Only applies to team policies.
 	ScriptID optjson.Any[uint] `json:"script_id" premium:"true"`
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
+	LabelsIncludeAny []string `json:"labels_include_any"`
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
+	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"-"`
 }
 
 // Verify verifies the policy payload is valid.
 func (p ModifyPolicyPayload) Verify() error {
+	if p.Type == PolicyTypePatch {
+		if p.Name != nil {
+			if err := verifyPolicyName(*p.Name); err != nil {
+				return err
+			}
+		}
+		if p.Query != nil {
+			return errPolicyQueryUpdated
+		}
+		if p.Platform != nil {
+			return errPolicyPlatformUpdated
+		}
+		return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
+	}
+
 	if p.Name != nil {
 		if err := verifyPolicyName(*p.Name); err != nil {
 			return err
 		}
 	}
 	if p.Query != nil {
-		if err := verifyPolicyQuery(*p.Query); err != nil {
+		if err := verifyPolicyQuery(*p.Query, PolicyTypeDynamic); err != nil {
 			return err
 		}
 	}
@@ -193,7 +319,7 @@ func (p ModifyPolicyPayload) Verify() error {
 			return err
 		}
 	}
-	return nil
+	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny)
 }
 
 // PolicyData holds data of a fleet policy.
@@ -218,7 +344,7 @@ type PolicyData struct {
 	AuthorEmail string `json:"author_email" db:"author_email"`
 	// TeamID is the ID of the team the policy belongs to.
 	// If TeamID is nil, then this is a global policy.
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// Resolution describes how to solve a failing policy.
 	Resolution *string `json:"resolution,omitempty" db:"resolution"`
 	// Platform is a comma-separated string to indicate the target platforms.
@@ -226,10 +352,32 @@ type PolicyData struct {
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
 
+	// LabelsIncludeAny scopes the policy to hosts that are members of ANY of the listed labels.
+	LabelsIncludeAny []LabelIdent `json:"labels_include_any,omitempty"`
+	// LabelsIncludeAll scopes the policy to hosts that are members of ALL of the listed labels.
+	LabelsIncludeAll []LabelIdent `json:"labels_include_all,omitempty"`
+	// LabelsExcludeAny scopes the policy to hosts that are NOT members of ANY of the listed labels.
+	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
+
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
 	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
 	ScriptID              *uint `json:"-" db:"script_id"`
+
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
+
+	// Type is the policy type. It is 'dynamic' by default and 'patch' for patch policies.
+	Type string `json:"type" db:"type"`
+	// PatchSoftwareTitleID is the title id of the Fleet maintained app chcked by a patch policy.
+	//
+	// Only applies to team policies with the patch type.
+	PatchSoftwareTitleID *uint `json:"-" db:"patch_software_title_id"`
 
 	UpdateCreateTimestamps
 }
@@ -258,6 +406,14 @@ type Policy struct {
 	//
 	// This field is populated from PolicyData.ScriptID
 	RunScript *PolicyScript `json:"run_script,omitempty"`
+
+	// PatchSoftware is used to check the installed version of a Fleet
+	// maintaind app.
+	//
+	// Only applies to team policies with the patch type.
+	//
+	// This field is populated from PolicyData.PatchSoftwareTitleID
+	PatchSoftware *PolicySoftwareTitle `json:"patch_software,omitempty"`
 }
 
 type PolicyCalendarData struct {
@@ -271,9 +427,9 @@ type PolicySoftwareInstallerData struct {
 }
 
 type PolicyVPPData struct {
-	ID       uint                `db:"id"`
-	AdamID   string              `db:"adam_id"`
-	Platform AppleDevicePlatform `db:"platform"`
+	ID       uint                      `db:"id"`
+	AdamID   string                    `db:"adam_id"`
+	Platform InstallableDevicePlatform `db:"platform"`
 }
 
 type PolicyScriptData struct {
@@ -326,7 +482,7 @@ type PolicySpec struct {
 	// Resolution describes how to solve a failing policy.
 	Resolution string `json:"resolution,omitempty"`
 	// Team is the name of the team.
-	Team string `json:"team,omitempty"`
+	Team string `json:"team,omitempty" renameto:"fleet"`
 	// Platform is a comma-separated string to indicate the target platforms.
 	//
 	// Empty string targets all platforms.
@@ -340,7 +496,17 @@ type PolicySpec struct {
 	SoftwareTitleID *uint `json:"software_title_id"`
 	// ScriptID is the ID of the script associated with this policy (team policies only).
 	// When editing a policy, if this is nil or 0 then the script ID is unset from the policy.
-	ScriptID *uint `json:"script_id"`
+	ScriptID         *uint    `json:"script_id"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
+
+	Type                   string `json:"type"`
+	FleetMaintainedAppSlug string `json:"fleet_maintained_app_slug"`
+	PatchSoftwareTitleID   uint   `json:"-"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.
@@ -349,7 +515,8 @@ type PolicySoftwareTitle struct {
 	SoftwareTitleID uint `json:"software_title_id" db:"title_id"`
 	// Name is the associated installer title name
 	// (not the package name, but the installed software title).
-	Name string `json:"name" db:"name"`
+	Name        string `json:"name" db:"name"`
+	DisplayName string `json:"display_name" db:"display_name"`
 }
 
 // PolicyScript contains script data for policies.
@@ -365,13 +532,19 @@ func (p PolicySpec) Verify() error {
 	if err := verifyPolicyName(p.Name); err != nil {
 		return err
 	}
-	if err := verifyPolicyQuery(p.Query); err != nil {
+	if err := verifyPolicyQuery(p.Query, p.Type); err != nil {
 		return err
 	}
 	if err := verifyPolicyPlatforms(p.Platform); err != nil {
 		return err
 	}
-	return nil
+	if err := PolicyVerifyConditionalAccess(p.ConditionalAccessEnabled, p.Platform); err != nil {
+		return err
+	}
+	if err := verifyPatchPolicy(p.Team, p.Type); err != nil {
+		return err
+	}
+	return verifyLabelScopeMutualExclusion(p.LabelsIncludeAny, nil, p.LabelsExcludeAny)
 }
 
 // FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
@@ -419,3 +592,8 @@ type PolicyMembershipResult struct {
 	PolicyID uint
 	Passes   *bool
 }
+
+const (
+	PolicyTypeDynamic = "dynamic"
+	PolicyTypePatch   = "patch"
+)

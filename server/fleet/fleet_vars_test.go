@@ -33,19 +33,51 @@ This is $OTHER_VAR, $ $$ $* ${} in a sentence with${ALSO_OTHER_VAR}in the middle
 We want to remember BREAD and alsoSHORTCAKEare important.
 `
 
-	mapping := map[string]string{
+	envVars := map[string]string{
 		"BANANA":     "BREAD",
 		"STRAWBERRY": "SHORTCAKE",
 	}
 
-	mapper := func(s string) (string, bool) {
+	expectedPositions := [][]int{
+		{9, 19},
+		{23, 25},
+		{26, 28},
+		{51, 68},
+		{103, 123},
+		{132, 158},
+	}
+
+	mapper := func(s string, startPos, endPos int) (string, bool) {
+		require.Contains(t, expectedPositions, []int{startPos, endPos}, script[startPos:endPos])
+
 		if strings.HasPrefix(s, ServerSecretPrefix) {
-			return mapping[strings.TrimPrefix(s, ServerSecretPrefix)], true
+			return envVars[strings.TrimPrefix(s, ServerSecretPrefix)], true
 		}
+
 		return "", false
 	}
 
 	expanded := MaybeExpand(script, mapper)
 
 	require.Equal(t, expected, expanded)
+}
+
+func TestContainsVar(t *testing.T) {
+	script := `
+#!/bin/sh
+
+echo $FLEET_SECRET_FOO is the secret ${FLEET_SECRET_ZOO}
+echo words${FLEET_SECRET_BAR}words
+$FLEET_SECRET_BAZ
+${FLEET_SECRET_END}
+`
+	require.True(t, ContainsVar(script, "FLEET_SECRET_FOO"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_ZOO"))
+	require.False(t, ContainsVar(script, "FLEET_SECRET_ZO"))
+	require.False(t, ContainsVar(script, "FLEET_SECRET_FO"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_BAR"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_BAZ"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_END"))
+	require.False(t, ContainsVar(script, "OTHER"))
+	require.False(t, ContainsVar(script, ""))
 }

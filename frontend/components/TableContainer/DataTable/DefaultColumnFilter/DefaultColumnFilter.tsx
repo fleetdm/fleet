@@ -1,5 +1,5 @@
 import React from "react";
-import { FilterProps, TableInstance } from "react-table";
+import { FilterProps } from "react-table";
 
 import SearchField from "components/forms/fields/SearchField";
 

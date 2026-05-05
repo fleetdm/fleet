@@ -2,13 +2,15 @@ package calendar
 
 import (
 	"context"
+	"errors"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/calendar/v3"
@@ -24,7 +26,7 @@ const (
 
 var (
 	baseCtx = context.Background()
-	logger  = log.NewLogfmtLogger(log.NewSyncWriter(os.Stdout))
+	logger  = slog.New(slog.NewTextHandler(os.Stdout, nil))
 )
 
 type MockGoogleCalendarLowLevelAPI struct {
@@ -135,10 +137,10 @@ func makeConfig(mockAPI *MockGoogleCalendarLowLevelAPI) *GoogleCalendarConfig {
 	config := &GoogleCalendarConfig{
 		Context: context.Background(),
 		IntegrationConfig: &fleet.GoogleCalendarIntegration{
-			ApiKey: map[string]string{
+			ApiKey: fleet.GoogleCalendarApiKey{Values: map[string]string{
 				fleet.GoogleCalendarEmail:      baseServiceEmail,
 				fleet.GoogleCalendarPrivateKey: basePrivateKey,
-			},
+			}},
 		},
 		Logger:    logger,
 		API:       mockAPI,
@@ -163,15 +165,26 @@ func TestGoogleCalendar_DeleteEvent(t *testing.T) {
 	assert.NoError(t, err)
 
 	// API error test
-	mockAPI.DeleteEventFunc = func(id string) error {
+	mockAPI.DeleteEventFunc = func(_ string) error {
 		return assert.AnError
 	}
 	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
 	assert.ErrorIs(t, err, assert.AnError)
 
 	// Event already deleted
-	mockAPI.DeleteEventFunc = func(id string) error {
+	mockAPI.DeleteEventFunc = func(_ string) error {
 		return &googleapi.Error{Code: http.StatusGone}
+	}
+	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
+	assert.NoError(t, err)
+
+	// Invalid grant (i.e., user was deleted). We ignore this error.
+	mockAPI.DeleteEventFunc = func(_ string) error {
+		return &url.Error{
+			Op:  "Delete",
+			URL: "https://www.googleapis.com/calendar/v3/calendars/primary/events/8kof698stgkche95kqcn16g4h0?alt=json&prettyPrint=false",
+			Err: errors.New("oauth2: cannot fetch token: 400 Bad Request\nResponse: {\n  \"error\": \"invalid_grant\",\n  \"error_description\": \"Invalid email or User ID\"\n}"),
+		}
 	}
 	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
 	assert.NoError(t, err)

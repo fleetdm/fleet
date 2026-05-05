@@ -1,9 +1,27 @@
-FROM golang:1.23.4-alpine3.21@sha256:052793ea3143a235a5b2d815ccead8910cfe547b36a1f4c8b070015b89da5eab
+FROM golang:1.26.2-alpine3.23@sha256:80fbb8f9b2fa541a7d34378f1ad10f4f1c433817c4ed39ddb3e2f3ec3e961271
 ARG TAG
-RUN apk add git
+RUN apk add git sqlite gcc musl-dev sqlite-dev
 RUN git clone -b $TAG --depth=1 --no-tags --progress --no-recurse-submodules https://github.com/fleetdm/fleet.git && cd /go/fleet/cmd/osquery-perf/ && go build .
 
-FROM alpine:3.21@sha256:2c43f33bd1502ec7818bce9eea60e062d04eeadc4aa31cad9dabecb1e48b647b
+# Generate software database from SQL file
+RUN cd /go/fleet/cmd/osquery-perf/software-library && \
+    ls -lh && \
+    if [ ! -f software.sql ]; then \
+        echo "ERROR: software.sql not found in software-library directory"; \
+        exit 1; \
+    fi && \
+    echo "Generating software.db from software.sql..." && \
+    rm -f software.db && \
+    sqlite3 software.db < software.sql && \
+    if [ ! -f software.db ]; then \
+        echo "ERROR: Failed to generate software.db"; \
+        exit 1; \
+    fi && \
+    echo "Validating database..." && \
+    sqlite3 software.db "SELECT COUNT(*) FROM software;" && \
+    echo "Successfully generated software.db ($(du -h software.db | cut -f1))"
+
+FROM alpine:3.23.4@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
 LABEL maintainer="Fleet Developers"
 
 # Create FleetDM group and user
@@ -11,8 +29,8 @@ RUN addgroup -S osquery-perf && adduser -S osquery-perf -G osquery-perf
 
 COPY --from=0 /go/fleet/cmd/osquery-perf/osquery-perf /go/osquery-perf
 COPY --from=0 /go/fleet/server/vulnerabilities/testdata/ /go/fleet/server/vulnerabilities/testdata/
-RUN set -eux; \
-        apk update; \
-        apk upgrade
-
+# Copy software database (generated in builder stage)
+COPY --from=0 /go/fleet/cmd/osquery-perf/software-library/ /go/software-library/
+RUN apk update && apk upgrade && apk add --no-cache sqlite-libs
+WORKDIR /go
 USER osquery-perf

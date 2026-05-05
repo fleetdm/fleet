@@ -1,13 +1,3 @@
-.wrapper {
-  > div {
-    &.flash-message {
-      height: 50px;
-      min-height: 50px;
-      max-height: 50px;
-    }
-  }
-}
-
 // Allows for centering flash message for short and long, wrapped messages
 .flash-message-container {
   @include position(fixed);
@@ -15,7 +5,10 @@
   left: 0;
   right: 0;
   display: flex;
+  flex-direction: column;
+  gap: $pad-small;
   justify-content: center;
+  align-items: center;
   z-index: 999;
   pointer-events: none;
 }
@@ -24,7 +17,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: $core-white;
+  // Use static (un-themed) white: the flash toast is always a colored
+  // surface, so foreground should stay light regardless of dark mode.
+  color: $static-white;
   padding: $pad-small $pad-medium;
   z-index: 999;
   background-color: $core-vibrant-blue;
@@ -45,12 +40,24 @@
 
   &--warning-filled {
     background-color: $ui-warning;
+    // Yellow is light enough that foreground should be dark in BOTH modes.
+    // Use static (un-themed) tokens so dark mode doesn't flip to light text.
+    color: $static-black;
 
     span {
       margin-left: 15px;
       margin-right: 15px;
       font-size: $x-small;
-      color: $core-fleet-black;
+      color: $static-black;
+    }
+
+    .flash-message__remove .fleeticon,
+    .flash-message__remove .fleeticon:hover {
+      color: $static-black;
+    }
+
+    .flash-message__undo {
+      color: $static-black;
     }
   }
 
@@ -79,7 +86,7 @@
   }
 
   &__undo {
-    color: $core-white;
+    color: $static-white;
     cursor: pointer;
     font-size: $small;
     text-decoration: underline;
@@ -93,11 +100,11 @@
 
     .fleeticon {
       transition: color 150ms ease-in-out;
-      color: $core-white;
+      color: $static-white;
       font-size: $small;
 
       &:hover {
-        color: $core-white;
+        color: $static-white;
       }
     }
   }

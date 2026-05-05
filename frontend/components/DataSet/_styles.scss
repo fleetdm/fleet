@@ -1,25 +1,24 @@
 .data-set {
+  display: flex;
+  flex-direction: column;
   font-size: $x-small;
-  min-width: max-content;
-
-  // ff only
-  @-moz-document url-prefix() {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  gap: $pad-xsmall;
 
   dt {
     font-weight: $bold;
     display: flex;
-    gap: $pad-xsmall; // For deprecated sandbox icons
+    color: $core-fleet-black;
+    line-height: $line-height;
   }
 
   dd {
     display: flex;
-    gap: $pad-small;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  &__horizontal {
+    flex-direction: row;
   }
 }

@@ -18,7 +18,7 @@ func Up_20200512120000(tx *sql.Tx) error {
 			"`secret` VARCHAR(255) NOT NULL," +
 			"`active` TINYINT(1) DEFAULT TRUE," +
 			"PRIMARY KEY (`name`)" +
-			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
 	)
 	if err != nil {
 		return errors.Wrap(err, "create enroll_secrets table")
@@ -34,7 +34,7 @@ func Up_20200512120000(tx *sql.Tx) error {
 
 	_, err = tx.Exec(
 		"ALTER TABLE `hosts`" +
-			"ADD COLUMN `enroll_secret_name` VARCHAR(255) NOT NULL DEFAULT ''",
+			"ADD COLUMN `enroll_secret_name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''",
 	)
 	if err != nil {
 		return errors.Wrap(err, "drop old secret column")

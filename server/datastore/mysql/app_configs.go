@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -23,6 +24,15 @@ func (ds *Datastore) NewAppConfig(ctx context.Context, info *fleet.AppConfig) (*
 	}
 
 	return info, nil
+}
+
+func (ds *Datastore) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	now := time.Now() // fall back to server time if we get an error
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &now, `SELECT NOW()`)
+	if err != nil {
+		return now, ctxerr.Wrap(ctx, err, "getting current time")
+	}
+	return now, nil
 }
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
@@ -49,24 +59,26 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 	return info, nil
 }
 
+func (ds *Datastore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	info := &fleet.AppConfigUrls{}
+	var bytes []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &bytes, `SELECT json_value FROM app_config_json LIMIT 1`)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "selecting app config urls")
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return &fleet.AppConfigUrls{}, nil
+	}
+
+	err = json.Unmarshal(bytes, info)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling config urls")
+	}
+	return info, nil
+}
+
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		// Check if passwords need to be encrypted
-		if info.Integrations.NDESSCEPProxy.Valid {
-			if info.Integrations.NDESSCEPProxy.Set &&
-				info.Integrations.NDESSCEPProxy.Value.Password != "" &&
-				info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
-				err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
-					Name:  fleet.MDMAssetNDESPassword,
-					Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
-				})
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
-				}
-			}
-			info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
-		}
-
 		configBytes, err := json.Marshal(info)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling config")
@@ -82,6 +94,10 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
+}
+
+func (ds *Datastore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {
+	return ds.insertOrReplaceConfigAsset(ctx, ds.writer(ctx), asset)
 }
 
 func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.ExtContext, asset fleet.MDMConfigAsset) error {
@@ -108,6 +124,16 @@ func (ds *Datastore) insertOrReplaceConfigAsset(ctx context.Context, tx sqlx.Ext
 	return nil
 }
 
+func (ds *Datastore) SetAndroidEnabledAndConfigured(ctx context.Context, configured bool) error {
+	ctx = ctxdb.RequirePrimary(ctx, true)
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return err
+	}
+	appConfig.MDM.AndroidEnabledAndConfigured = configured
+	return ds.SaveAppConfig(ctx, appConfig)
+}
+
 func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 	var s fleet.EnrollSecret
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &s, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
@@ -121,7 +147,7 @@ func (ds *Datastore) VerifyEnrollSecret(ctx context.Context, secret string) (*fl
 	return &s, nil
 }
 
-func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, new bool, teamID *uint) (bool, error) {
+func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
 	secretTeamID := sql.NullInt64{}
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &secretTeamID, "SELECT team_id FROM enroll_secrets WHERE secret = ?", secret)
 	if err != nil {
@@ -130,7 +156,7 @@ func (ds *Datastore) IsEnrollSecretAvailable(ctx context.Context, secret string,
 		}
 		return false, ctxerr.Wrap(ctx, err, "check enroll secret availability")
 	}
-	if new {
+	if isNew {
 		// Secret is already in use, so a new team can't use it
 		return false, nil
 	}
@@ -207,6 +233,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			if ts := secretsCreatedAt[s.Secret]; ts != nil {
 				secretCreatedAt = *ts
 			}
+			s.CreatedAt = secretCreatedAt.UTC()
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
@@ -234,6 +261,7 @@ func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint
 		sql += "team_id = ?"
 		args = append(args, teamID)
 	}
+	sql += " ORDER BY secret" // secret is the primary key
 	var secrets []*fleet.EnrollSecret
 	if err := sqlx.SelectContext(ctx, q, &secrets, sql, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")
@@ -274,19 +302,25 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 	return secrets, nil
 }
 
-func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+func (ds *Datastore) GetConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 	if teamID != nil && *teamID > 0 {
 		tc, err := ds.TeamMDMConfig(ctx, *teamID)
 		if err != nil {
-			return false, err
+			return fleet.DiskEncryptionConfig{}, err
 		}
-		return tc.EnableDiskEncryption, nil
+		return fleet.DiskEncryptionConfig{
+			Enabled:              tc.EnableDiskEncryption,
+			BitLockerPINRequired: tc.RequireBitLockerPIN,
+		}, nil
 	}
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
-		return false, err
+		return fleet.DiskEncryptionConfig{}, err
 	}
-	return ac.MDM.EnableDiskEncryption.Value, nil
+	return fleet.DiskEncryptionConfig{
+		Enabled:              ac.MDM.EnableDiskEncryption.Value,
+		BitLockerPINRequired: ac.MDM.RequireBitLockerPIN.Value,
+	}, nil
 }
 
 func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
@@ -296,16 +330,69 @@ func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule)
 }
 
 func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.YaraRule) error {
-	const delStmt = "DELETE FROM yara_rules"
-	if _, err := q.ExecContext(ctx, delStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "clear before insert")
+	// First, load existing rules to check if there are any changes
+	existingRules, err := getYaraRulesDB(ctx, q)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing yara rules")
 	}
 
-	if len(rules) > 0 {
+	// Create maps for efficient comparison
+	existingMap := make(map[string]string, len(existingRules))
+	for _, rule := range existingRules {
+		existingMap[rule.Name] = rule.Contents
+	}
+
+	newMap := make(map[string]string, len(rules))
+	for _, rule := range rules {
+		if _, exists := newMap[rule.Name]; exists {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("duplicate YARA rule name: %s", rule.Name)}, "duplicate rule name")
+		}
+		newMap[rule.Name] = rule.Contents
+	}
+
+	// Determine which rules to delete (removed or need updating)
+	var toDelete []string
+
+	// Rules that exist in DB but not in new rules (removed)
+	for name := range existingMap {
+		if _, exists := newMap[name]; !exists {
+			toDelete = append(toDelete, name)
+		}
+	}
+
+	// Determine which rules to insert (new or updated)
+	var toInsert []fleet.YaraRule
+	for _, rule := range rules {
+		existingContent, exists := existingMap[rule.Name]
+		if !exists || existingContent != rule.Contents {
+			// Rule is new or has been modified
+			toInsert = append(toInsert, rule)
+
+			// If it exists but content changed, we need to delete it first
+			if exists {
+				toDelete = append(toDelete, rule.Name)
+			}
+		}
+	}
+
+	// Single DELETE for both removed rules and rules that need updating
+	if len(toDelete) > 0 {
+		stmt := fmt.Sprintf("DELETE FROM yara_rules WHERE name IN (%s)", strings.TrimSuffix(strings.Repeat("?,", len(toDelete)), ","))
+		args := make([]any, len(toDelete))
+		for i, name := range toDelete {
+			args[i] = name
+		}
+		if _, err := q.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete yara rules")
+		}
+	}
+
+	// Insert new and updated rules
+	if len(toInsert) > 0 {
 		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
-		var args []interface{}
-		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(rules)), ","))
-		for _, r := range rules {
+		args := make([]any, 0, len(toInsert)*2)
+		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(toInsert)), ","))
+		for _, r := range toInsert {
 			args = append(args, r.Name, r.Contents)
 		}
 
@@ -318,9 +405,14 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 }
 
 func (ds *Datastore) GetYaraRules(ctx context.Context) ([]fleet.YaraRule, error) {
+	return getYaraRulesDB(ctx, ds.reader(ctx))
+}
+
+// getYaraRulesDB is a helper to get YARA rules using a specific database connection/transaction
+func getYaraRulesDB(ctx context.Context, q sqlx.QueryerContext) ([]fleet.YaraRule, error) {
 	sql := "SELECT name, contents FROM yara_rules"
 	rules := []fleet.YaraRule{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rules, sql); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &rules, sql); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get yara rules")
 	}
 	return rules, nil

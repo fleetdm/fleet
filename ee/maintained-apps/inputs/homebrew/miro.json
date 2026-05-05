@@ -1,0 +1,8 @@
+{
+  "name": "Miro",
+  "slug": "miro/darwin",
+  "unique_identifier": "com.electron.realtimeboard",
+  "token": "miro",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

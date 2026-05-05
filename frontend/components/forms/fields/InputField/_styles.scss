@@ -1,14 +1,14 @@
 .input-field {
   line-height: 1.5;
-  background-color: $ui-light-grey;
+  background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
-  border-radius: 4px;
-  font-size: $small;
-  padding: 7px 12px;
+  border-radius: $border-radius;
+  font-size: $x-small;
+  padding: $pad-small $pad-medium;
   color: $core-fleet-blue;
   font-family: "Inter", sans-serif;
   box-sizing: border-box;
-  height: 40px;
+  height: 36px;
   transition: border-color 100ms;
   width: 100%;
 
@@ -16,14 +16,17 @@
     color: $ui-fleet-black-50;
   }
 
-  &:focus {
-    outline: none;
-    border-color: $core-vibrant-blue;
+  &:hover:not(.input-field--read-only) {
+    box-shadow: none;
+    border: 1px solid $ui-fleet-black-75-over;
   }
 
-  &:hover &:not(.input-field--read-only) {
+  &:active:not(.input-field--read-only),
+  &:focus:not(.input-field--read-only),
+  &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
-    border: 1px solid $core-vibrant-blue;
+    outline: 0;
+    border: 1px solid $ui-fleet-black-75-down;
   }
 
   &--disabled {
@@ -39,17 +42,18 @@
     color: $core-vibrant-red;
     border: 1px solid $core-vibrant-red;
     box-sizing: border-box;
-    border-radius: 4px;
+    border-radius: $border-radius;
 
     &:focus {
       border-color: $ui-error;
-      background-color: $core-white;
+      background-color: $core-fleet-white;
       color: $core-fleet-black;
     }
   }
 
   &__textarea {
     min-height: 100px;
+    min-width: 100%;
     max-width: 100%;
     display: block;
   }
@@ -71,6 +75,7 @@
     margin-bottom: $pad-medium;
   }
 
+  // Same styling as .form-field__help-text TODO: consider consolidating
   &__help-text {
     font-size: $x-small;
     font-weight: $regular;
@@ -79,54 +84,77 @@
     color: $core-fleet-blue;
 
     code {
-      color: $core-vibrant-blue;
-      background-color: $ui-gray;
+      color: $ui-fleet-black-75;
+      background-color: $ui-light-grey;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
   }
 
-  &__copy-wrapper-outside {
+  // Old-style textarea copy button (absolute positioned icon above textarea)
+  &__copy-wrapper {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    position: absolute;
+    top: 3px; // vertically center
+    right: 0;
+    margin: 1px 4px;
+    background-color: $core-fleet-white;
+
+    &--text-area {
+      top: -30px;
+    }
+  }
+
+  &__input-container.copy-enabled {
     position: relative;
   }
 
-  &__copy-wrapper-inside {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    right: 12px;
+  // New input action buttons (bordered boxes beside input)
+  &__input-container--has-actions {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+
+    .input-field {
+      flex: 1;
+      min-width: 0;
+    }
   }
 
+  &__action-buttons {
+    display: flex;
+    gap: $pad-xsmall;
+    flex-shrink: 0;
+  }
 
-  &__input-container.copy-enabled {
-    &.copy-outside {
-      display: flex;
-      align-items: center;
-      gap: $pad-medium;
-    }
+  &__action-button-wrapper {
+    position: relative;
+  }
 
-    &.copy-inside {
-      position: relative;
+  &__action-button {
+    @include bordered-icon-button;
+
+    .fleeticon {
+      width: 16px;
+      height: 16px;
     }
   }
 
   &__copied-confirmation {
-    font-size: $x-small;
+    @include copy-message;
+  }
+
+  // Positioning for new bordered action buttons — float to the left of the button
+  &__action-button-wrapper &__copied-confirmation {
     position: absolute;
-    background-color: $ui-light-grey;
-    border: solid 1px $ui-fleet-black-10;
-    border-radius: $border-radius-xlarge;
-    padding: $pad-xxsmall 6px;
     top: 50%;
+    right: calc(100% + $pad-xsmall);
     transform: translateY(-50%);
-  }
-
-  &__copied-confirmation-inside {
-    right: 24px;
-  }
-
-  &__copied-confirmation-outside {
-    left: -90px;
+    margin: 0;
+    white-space: nowrap;
+    pointer-events: none;
   }
 }
 

@@ -9,13 +9,27 @@ import (
 
 // Enrollment represents the various enrollment-related data sent with requests.
 type Enrollment struct {
-	AwaitingConfiguration bool   `plist:",omitempty"`
-	UDID                  string `plist:",omitempty"`
-	UserID                string `plist:",omitempty"`
-	UserShortName         string `plist:",omitempty"`
-	UserLongName          string `plist:",omitempty"`
-	EnrollmentID          string `plist:",omitempty"`
-	EnrollmentUserID      string `plist:",omitempty"`
+	UDID             string `plist:",omitempty"`
+	UserID           string `plist:",omitempty"`
+	UserShortName    string `plist:",omitempty"`
+	UserLongName     string `plist:",omitempty"`
+	EnrollmentID     string `plist:",omitempty"`
+	EnrollmentUserID string `plist:",omitempty"`
+}
+
+type TokenUpdateEnrollment struct {
+	Enrollment
+	AwaitingConfiguration bool `plist:",omitempty"`
+}
+
+// Identifier returns the unique identifier for the device for a given enrollment. UDID
+// should be preferred if it exists however for User (Device) enrollments we will never
+// have the UDID and must use the randomly generated EnrollmentID.
+func (e Enrollment) Identifier() string {
+	if e.UDID != "" {
+		return e.UDID
+	}
+	return e.EnrollmentID
 }
 
 // EnrollID contains the custom enrollment IDs derived from enrollment
@@ -52,6 +66,9 @@ type Request struct {
 	Certificate *x509.Certificate
 	Context     context.Context
 	Params      map[string]string
+	// Authorization header value, if any. Note that this is an optional value used only for
+	// certain enrollment types like User (Device) enrollment.
+	Authorization string
 }
 
 // Clone returns a shallow copy of r

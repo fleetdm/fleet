@@ -3,127 +3,42 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
 
-// errBadRoute is used for mux errors
-var errBadRoute = errors.New("bad route")
-
 func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
-	// The has to happen first, if an error happens we'll redirect to an error
-	// page and the error will be logged
-	if page, ok := response.(htmlPage); ok {
-		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		writeBrowserSecurityHeaders(w)
-		if coder, ok := page.error().(kithttp.StatusCoder); ok {
-			w.WriteHeader(coder.StatusCode())
-		}
-		_, err := io.WriteString(w, page.html())
-		return err
-	}
+	return endpointer.EncodeCommonResponse(ctx, w, response, jsonMarshal, FleetErrorEncoder)
+}
 
-	if e, ok := response.(errorer); ok && e.error() != nil {
-		encodeError(ctx, e.error(), w)
-		return nil
-	}
-
-	if render, ok := response.(renderHijacker); ok {
-		render.hijackRender(ctx, w)
-		return nil
-	}
-
-	if e, ok := response.(statuser); ok {
-		w.WriteHeader(e.Status())
-		if e.Status() == http.StatusNoContent {
-			return nil
-		}
-	}
-
+func jsonMarshal(w http.ResponseWriter, response interface{}) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)
-}
-
-// statuser allows response types to implement a custom
-// http success status - default is 200 OK
-type statuser interface {
-	Status() int
-}
-
-// loads a html page
-type htmlPage interface {
-	html() string
-	error() error
-}
-
-// renderHijacker can be implemented by response values to take control of
-// their own rendering.
-type renderHijacker interface {
-	hijackRender(ctx context.Context, w http.ResponseWriter)
-}
-
-func uintFromRequest(r *http.Request, name string) (uint64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "uintFromRequest")
-	}
-	return u, nil
 }
 
 func uint32FromRequest(r *http.Request, name string) (uint32, error) {
 	vars := mux.Vars(r)
 	s, ok := vars[name]
 	if !ok {
-		return 0, errBadRoute
+		return 0, endpointer.ErrBadRoute
 	}
 	u, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
 		return 0, ctxerr.Wrap(r.Context(), err, "uint32FromRequest")
 	}
 	return uint32(u), nil
-}
-
-func intFromRequest(r *http.Request, name string) (int64, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return 0, errBadRoute
-	}
-	u, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, ctxerr.Wrap(r.Context(), err, "intFromRequest")
-	}
-	return u, nil
-}
-
-func stringFromRequest(r *http.Request, name string) (string, error) {
-	vars := mux.Vars(r)
-	s, ok := vars[name]
-	if !ok {
-		return "", errBadRoute
-	}
-	unescaped, err := url.PathUnescape(s)
-	if err != nil {
-		return "", ctxerr.Wrap(r.Context(), err, "unescape value in path")
-	}
-	return unescaped, nil
 }
 
 // default number of items to include per page
@@ -228,7 +143,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.AdditionalFilters = strings.Split(additionalInfoFiltersString, ",")
 	}
 
-	teamID := r.URL.Query().Get("team_id")
+	teamID, err := handleDeprecatedParams(r, "team_id", "fleet_id")
+	if err != nil {
+		return hopt, err
+	}
 	if teamID != "" {
 		id, err := strconv.ParseUint(teamID, 10, 32)
 		if err != nil {
@@ -412,12 +330,33 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		hopt.DisableIssues = boolVal
 	}
-	if hopt.DisableIssues && r.URL.Query().Get("order_key") == "issues" {
-		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(
-				"Invalid order_key (issues cannot be ordered when they are disabled)",
-			),
-		)
+	if hopt.DisableIssues {
+		switch {
+		case r.URL.Query().Get("order_key") == "issues":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (issues cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "failing_policies_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (failing_policies_count cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "critical_vulnerabilities_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (critical_vulnerabilities_count cannot be ordered when they are disabled)",
+				),
+			)
+		case r.URL.Query().Get("order_key") == "total_issues_count":
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					"Invalid order_key (total_issues_count cannot be ordered when they are disabled)",
+				),
+			)
+		}
 	}
 
 	deviceMapping := r.URL.Query().Get("device_mapping")
@@ -427,6 +366,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid device_mapping: %s", deviceMapping)))
 		}
 		hopt.DeviceMapping = boolVal
+	}
+
+	if !hopt.DeviceMapping && r.URL.Query().Get("order_key") == "device_mapping" {
+		return hopt, ctxerr.Wrap(
+			r.Context(), badRequest(
+				"Invalid order_key (device_mapping cannot be ordered when they are disabled)",
+			),
+		)
 	}
 
 	mdmID := r.URL.Query().Get("mdm_id")
@@ -445,7 +392,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
-	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic,
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusPersonal,
 		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
@@ -461,7 +408,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.ConnectedToFleetFilter = ptr.Bool(true)
 	}
 
-	macOSSettingsStatus := r.URL.Query().Get("macos_settings")
+	macOSSettingsStatus, err := handleDeprecatedParams(r, "macos_settings", "apple_settings")
+	if err != nil {
+		return hopt, err
+	}
 	switch fleet.OSSettingsStatus(macOSSettingsStatus) {
 	case fleet.OSSettingsFailed, fleet.OSSettingsPending, fleet.OSSettingsVerifying, fleet.OSSettingsVerified:
 		hopt.MacOSSettingsFilter = fleet.OSSettingsStatus(macOSSettingsStatus)
@@ -469,7 +419,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid macos_settings: %s", macOSSettingsStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid apple_settings: %s", macOSSettingsStatus)),
 		)
 	}
 
@@ -523,7 +473,10 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		)
 	}
 
-	mdmBootstrapPackageStatus := r.URL.Query().Get("bootstrap_package")
+	mdmBootstrapPackageStatus, err := handleDeprecatedParams(r, "bootstrap_package", "macos_bootstrap_package")
+	if err != nil {
+		return hopt, err
+	}
 	switch fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus) {
 	case fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, fleet.MDMBootstrapPackageInstalled:
 		bpf := fleet.MDMBootstrapPackageStatus(mdmBootstrapPackageStatus)
@@ -532,8 +485,25 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		// No error when unset
 	default:
 		return hopt, ctxerr.Wrap(
-			r.Context(), badRequest(fmt.Sprintf("Invalid bootstrap_package: %s", mdmBootstrapPackageStatus)),
+			r.Context(), badRequest(fmt.Sprintf("Invalid macos_bootstrap_package: %s", mdmBootstrapPackageStatus)),
 		)
+	}
+
+	profileUUID := r.URL.Query().Get("profile_uuid")
+	profileStatus := r.URL.Query().Get("profile_status")
+	switch {
+	case profileUUID != "" && profileStatus != "":
+		hopt.ProfileUUIDFilter = &profileUUID
+		if fleet.OSSettingsStatus(profileStatus).IsValid() {
+			psf := fleet.OSSettingsStatus(profileStatus)
+			hopt.ProfileStatusFilter = &psf
+		} else {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid profile_status: %s", profileStatus)))
+		}
+	case profileUUID != "" && profileStatus == "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_status (it must be present when profile_uuid is specified)"))
+	case profileUUID == "" && profileStatus != "":
+		return hopt, ctxerr.Wrap(r.Context(), badRequest("Missing profile_uuid (it must be present when profile_status is specified)"))
 	}
 
 	munkiIssueID := r.URL.Query().Get("munki_issue_id")
@@ -563,6 +533,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		hopt.LowDiskSpaceFilter = &v
 	}
+
+	batchScriptExecutionID := r.URL.Query().Get("script_batch_execution_id")
+	if batchScriptExecutionID != "" {
+		hopt.BatchScriptExecutionIDFilter = &batchScriptExecutionID
+		batchScriptExecutionStatus := r.URL.Query().Get("script_batch_execution_status")
+		if batchScriptExecutionStatus != "" {
+			if fleet.BatchScriptExecutionStatus(batchScriptExecutionStatus).IsValid() {
+				bsef := fleet.BatchScriptExecutionStatus(batchScriptExecutionStatus)
+				hopt.BatchScriptExecutionStatusFilter = bsef
+			} else {
+				return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid script_batch_execution_status: %s", batchScriptExecutionStatus)))
+			}
+		}
+	}
+
 	populateSoftware := r.URL.Query().Get("populate_software")
 	if populateSoftware == "without_vulnerability_details" {
 		hopt.PopulateSoftware = true
@@ -587,6 +572,39 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.PopulatePolicies = pp
 	}
 
+	populateUsers := r.URL.Query().Get("populate_users")
+	if populateUsers != "" {
+		pu, err := strconv.ParseBool(populateUsers)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_users: %s", populateUsers)),
+			)
+		}
+		hopt.PopulateUsers = pu
+	}
+
+	populateLabels := r.URL.Query().Get("populate_labels")
+	if populateLabels != "" {
+		pl, err := strconv.ParseBool(populateLabels)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter populate_labels: %s", populateLabels)),
+			)
+		}
+		hopt.PopulateLabels = pl
+	}
+
+	includeDeviceStatus := r.URL.Query().Get("include_device_status")
+	if includeDeviceStatus != "" {
+		ids, err := strconv.ParseBool(includeDeviceStatus)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(fmt.Sprintf("Invalid boolean parameter include_device_status: %s", includeDeviceStatus)),
+			)
+		}
+		hopt.IncludeDeviceStatus = ids
+	}
+
 	// cannot combine software_id, software_version_id, and software_title_id
 	var softwareErrorLabel []string
 	if hopt.SoftwareIDFilter != nil {
@@ -600,6 +618,47 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	}
 	if len(softwareErrorLabel) > 1 {
 		return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid parameters. The combination of %s is not allowed.", strings.Join(softwareErrorLabel, " and "))))
+	}
+
+	depProfileError := r.URL.Query().Get("dep_profile_error")
+	if depProfileError != "" {
+		boolVal, err := strconv.ParseBool(depProfileError)
+		if err != nil {
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_profile_error: %s",
+						depProfileError,
+					),
+				),
+			)
+		}
+		hopt.DEPProfileErrorFilter = &boolVal
+	}
+
+	depAssignProfileResponse := r.URL.Query().Get("dep_assign_profile_response")
+	if depAssignProfileResponse != "" {
+		switch fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse) {
+		case fleet.DEPAssignProfileResponseSuccess,
+			fleet.DEPAssignProfileResponseFailed,
+			fleet.DEPAssignProfileResponseThrottled,
+			fleet.DEPAssignProfileResponseNotAccessible:
+			resp := fleet.DEPAssignProfileResponseStatus(depAssignProfileResponse)
+			hopt.DEPAssignProfileResponseFilter = &resp
+		default:
+			return hopt, ctxerr.Wrap(
+				r.Context(), badRequest(
+					fmt.Sprintf(
+						"Invalid dep_assign_profile_response: %s. Valid options are '%s', '%s', '%s', or '%s'.",
+						depAssignProfileResponse,
+						fleet.DEPAssignProfileResponseSuccess,
+						fleet.DEPAssignProfileResponseFailed,
+						fleet.DEPAssignProfileResponseThrottled,
+						fleet.DEPAssignProfileResponseNotAccessible,
+					),
+				),
+			)
+		}
 	}
 
 	return hopt, nil
@@ -637,8 +696,11 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 	}
 
 	userOpts := fleet.UserListOptions{ListOptions: opt}
-
-	if tid := r.URL.Query().Get("team_id"); tid != "" {
+	tid, err := handleDeprecatedParams(r, "team_id", "fleet_id")
+	if err != nil {
+		return userOpts, err
+	}
+	if tid != "" {
 		teamID, err := strconv.ParseUint(tid, 10, 64)
 		if err != nil {
 			return userOpts, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid team_id: %s", tid)))
@@ -652,4 +714,29 @@ func userListOptionsFromRequest(r *http.Request) (fleet.UserListOptions, error) 
 
 type getGenericSpecRequest struct {
 	Name string `url:"name"`
+}
+
+func handleDeprecatedParams(r *http.Request, deprecatedParam, newParam string) (string, error) {
+	ctx := r.Context()
+	query := r.URL.Query()
+	hasOld := query.Has(deprecatedParam)
+	hasNew := query.Has(newParam)
+
+	if hasOld && hasNew {
+		return "", ctxerr.Wrap(
+			ctx,
+			badRequest(fmt.Sprintf("Cannot specify both %s and %s parameters", deprecatedParam, newParam)),
+		)
+	}
+	if hasOld {
+		if platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			logging.WithLevel(ctx, slog.LevelWarn)
+			logging.WithExtras(ctx,
+				"deprecated_param", deprecatedParam,
+				"deprecation_warning", fmt.Sprintf("'%s' is deprecated, use '%s' instead", deprecatedParam, newParam),
+			)
+		}
+		return query.Get(deprecatedParam), nil
+	}
+	return query.Get(newParam), nil
 }

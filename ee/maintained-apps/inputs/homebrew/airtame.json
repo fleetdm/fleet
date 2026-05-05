@@ -1,0 +1,8 @@
+{
+  "name": "Airtame",
+  "unique_identifier": "com.airtame.airtame-application",
+  "token": "airtame",
+  "installer_format": "dmg",
+  "slug": "airtame/darwin",
+  "default_categories": ["Productivity"]
+}

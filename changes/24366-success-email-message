@@ -1,1 +1,0 @@
-- Improve readability of success message on email update by never including the sender address.

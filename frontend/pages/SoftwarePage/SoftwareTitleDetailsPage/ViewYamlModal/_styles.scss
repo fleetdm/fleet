@@ -1,0 +1,13 @@
+.view-yaml-modal {
+  overflow-wrap: anywhere; // Prevent long overflow
+
+  .editor__label {
+    color: $core-fleet-black;
+  }
+
+  &__form-fields {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+}

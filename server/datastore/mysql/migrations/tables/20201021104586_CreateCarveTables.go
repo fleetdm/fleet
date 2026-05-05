@@ -27,7 +27,7 @@ func Up_20201021104586(tx *sql.Tx) error {
 		UNIQUE KEY idx_session_id (session_id),
 		UNIQUE KEY idx_name (name),
 		FOREIGN KEY (host_id) REFERENCES hosts (id) ON DELETE CASCADE
-	)`); err != nil {
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`); err != nil {
 		return errors.Wrap(err, "create carve_metadata")
 	}
 

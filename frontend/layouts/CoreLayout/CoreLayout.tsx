@@ -6,12 +6,15 @@ import UnsupportedScreenSize from "layouts/UnsupportedScreenSize";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { TableContext } from "context/table";
+import { INotification } from "interfaces/notification";
+import classNames from "classnames";
 
 import paths from "router/paths";
 import useDeepEffect from "hooks/useDeepEffect";
 import FlashMessage from "components/FlashMessage";
 import SiteTopNav from "components/top_nav/SiteTopNav";
 import { QueryParams } from "utilities/url";
+import shouldShowUnsupportedScreen from "layouts/UnsupportedScreenSize/helpers";
 
 interface ICoreLayoutProps {
   children: React.ReactNode;
@@ -34,7 +37,10 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
   // setTimeout is to help with race conditions as table reloads
   // in some instances (i.e. Manage Hosts)
   useDeepEffect(() => {
-    if (notification?.alertType === "success") {
+    if (
+      notification &&
+      (notification as INotification).alertType === "success"
+    ) {
       setTimeout(() => {
         setResetSelectedRows(true);
         setTimeout(() => {
@@ -59,9 +65,15 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
     return null;
   }
 
+  const coreWrapperClassnames = classNames("core-wrapper", {
+    "low-width-supported": !shouldShowUnsupportedScreen(location.pathname),
+  });
+
   return (
     <div className="app-wrap">
-      <UnsupportedScreenSize />
+      {shouldShowUnsupportedScreen(location.pathname) && (
+        <UnsupportedScreenSize />
+      )}
       <nav className="site-nav-container">
         <SiteTopNav
           config={config}
@@ -71,7 +83,7 @@ const CoreLayout = ({ children, router, location }: ICoreLayoutProps) => {
           onUserMenuItemClick={onUserMenuItemClick}
         />
       </nav>
-      <div className="core-wrapper">
+      <div className={coreWrapperClassnames}>
         <FlashMessage
           fullWidth={fullWidthFlash}
           notification={notification}

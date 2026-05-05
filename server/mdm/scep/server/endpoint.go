@@ -3,8 +3,13 @@ package scepserver
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"fmt"
+	"log/slog"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -12,7 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
-	"github.com/go-kit/log"
 )
 
 // possible SCEP operations
@@ -46,7 +50,7 @@ func (e *Endpoints) GetCACaps(ctx context.Context) ([]byte, error) {
 	return resp.Data, resp.Err
 }
 
-func (e *Endpoints) Supports(cap string) bool {
+func (e *Endpoints) Supports(capacity string) bool {
 	e.mtx.RLock()
 	defer e.mtx.RUnlock()
 
@@ -55,7 +59,7 @@ func (e *Endpoints) Supports(cap string) bool {
 		_, _ = e.GetCACaps(context.Background())
 		e.mtx.RLock()
 	}
-	return bytes.Contains(e.capabilities, []byte(cap))
+	return bytes.Contains(e.capabilities, []byte(capacity))
 }
 
 func (e *Endpoints) GetCACert(ctx context.Context, message string) ([]byte, int, error) {
@@ -111,10 +115,46 @@ func MakeServerEndpointsWithIdentifier(svc ServiceWithIdentifier) *Endpoints {
 	}
 }
 
+type clientOpts struct {
+	timeout  *time.Duration
+	rootCA   string
+	insecure bool
+}
+
+// ClientOption is a functional option for configuring a SCEP Client
+type ClientOption func(*clientOpts)
+
+// WithClientRootCA sets the root CA file to use when connecting to the SCEP server.
+func WithClientRootCA(rootCA string) ClientOption {
+	return func(c *clientOpts) {
+		c.rootCA = rootCA
+	}
+}
+
+// ClientInsecure configures the client to not verify server certificates.
+// Only used for tests.
+func ClientInsecure() ClientOption {
+	return func(c *clientOpts) {
+		c.insecure = true
+	}
+}
+
+// WithClientTimeout configures the timeout for SCEP client requests.
+func WithClientTimeout(timeout *time.Duration) ClientOption {
+	return func(c *clientOpts) {
+		c.timeout = timeout
+	}
+}
+
 // MakeClientEndpoints returns an Endpoints struct where each endpoint invokes
 // the corresponding method on the remote instance, via a transport/http.Client.
 // Useful in a SCEP client.
-func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, error) {
+func MakeClientEndpoints(instance string, opts ...ClientOption) (*Endpoints, error) {
+	var co clientOpts
+	for _, fn := range opts {
+		fn(&co)
+	}
+
 	if !strings.HasPrefix(instance, "http") {
 		instance = "http://" + instance
 	}
@@ -124,9 +164,32 @@ func MakeClientEndpoints(instance string, timeout *time.Duration) (*Endpoints, e
 	}
 
 	var fleetOpts []fleethttp.ClientOpt
-	if timeout != nil {
-		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*timeout))
+	if co.timeout != nil {
+		fleetOpts = append(fleetOpts, fleethttp.WithTimeout(*co.timeout))
 	}
+
+	if co.rootCA != "" || co.insecure {
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+		switch {
+		case co.rootCA != "":
+			certs, err := os.ReadFile(co.rootCA)
+			if err != nil {
+				return nil, fmt.Errorf("reading root CA: %w", err)
+			}
+			rootCAPool := x509.NewCertPool()
+			if ok := rootCAPool.AppendCertsFromPEM(certs); !ok {
+				return nil, errors.New("failed to add certificates to root CA pool")
+			}
+			tlsConfig.RootCAs = rootCAPool
+		case co.insecure:
+			// Ignoring "G402: TLS InsecureSkipVerify set true", needed for development/testing.
+			tlsConfig.InsecureSkipVerify = true //nolint:gosec
+		}
+		fleetOpts = append(fleetOpts, fleethttp.WithTLSClientConfig(tlsConfig))
+	}
+
 	options := []httptransport.ClientOption{httptransport.SetClient(fleethttp.NewClient(fleetOpts...))}
 
 	return &Endpoints{
@@ -177,9 +240,9 @@ func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
 		case "GetCACaps":
-			resp.Data, resp.Err = svc.GetCACaps(ctx)
+			resp.Data, resp.Err = svc.GetCACaps(ctx, req.Identifier)
 		case "GetCACert":
-			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message))
+			resp.Data, resp.CACertNum, resp.Err = svc.GetCACert(ctx, string(req.Message), req.Identifier)
 		case "PKIOperation":
 			resp.Data, resp.Err = svc.PKIOperation(ctx, req.Message, req.Identifier)
 		default:
@@ -212,21 +275,20 @@ func (r SCEPResponse) scepOperation() string { return r.operation }
 
 // EndpointLoggingMiddleware returns an endpoint middleware that logs the
 // duration of each invocation, and the resulting error, if any.
-func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
+func EndpointLoggingMiddleware(logger *slog.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			var keyvals []interface{}
-			// check if this is a scep endpoint, if it is, append the method to the log.
+		return func(ctx context.Context, request any) (response any, err error) {
+			var attrs []slog.Attr
 			if oper, ok := request.(interface {
 				scepOperation() string
 			}); ok {
-				keyvals = append(keyvals, "op", oper.scepOperation())
+				attrs = append(attrs, slog.String("op", oper.scepOperation()))
 			}
 			defer func(begin time.Time) {
-				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
+				attrs = append(attrs, slog.Any("error", err), slog.Duration("took", time.Since(begin)))
+				logger.LogAttrs(ctx, slog.LevelInfo, "scep endpoint", attrs...)
 			}(time.Now())
 			return next(ctx, request)
-
 		}
 	}
 }

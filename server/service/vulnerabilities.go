@@ -31,6 +31,10 @@ func (p cveNotFoundError) IsNotFound() bool {
 	return true
 }
 
+func (p cveNotFoundError) IsClientError() bool {
+	return true
+}
+
 type listVulnerabilitiesRequest struct {
 	fleet.VulnListOptions
 }
@@ -46,9 +50,9 @@ type listVulnerabilitiesResponse struct {
 // Allow formats like: CVE-2017-12345, cve-2017-12345
 var cveRegex = regexp.MustCompile(`(?i)^CVE-\d{4}-\d{4}\d*$`)
 
-func (r listVulnerabilitiesResponse) error() error { return r.Err }
+func (r listVulnerabilitiesResponse) Error() error { return r.Err }
 
-func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
+func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	request := req.(*listVulnerabilitiesRequest)
 	vulns, meta, err := svc.ListVulnerabilities(ctx, request.VulnListOptions)
 	if err != nil {
@@ -122,7 +126,7 @@ func (svc *Service) IsCVEKnownToFleet(ctx context.Context, cve string) (bool, er
 
 type getVulnerabilityRequest struct {
 	CVE    string `url:"cve"`
-	TeamID *uint  `query:"team_id,optional"`
+	TeamID *uint  `query:"team_id,optional" renameto:"fleet_id"`
 }
 
 type getVulnerabilityResponse struct {
@@ -133,7 +137,7 @@ type getVulnerabilityResponse struct {
 	statusCode    int
 }
 
-func (r getVulnerabilityResponse) error() error { return r.Err }
+func (r getVulnerabilityResponse) Error() error { return r.Err }
 
 func (r getVulnerabilityResponse) Status() int {
 	if r.statusCode == 0 {
@@ -142,7 +146,7 @@ func (r getVulnerabilityResponse) Status() int {
 	return r.statusCode
 }
 
-func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
+func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	request := req.(*getVulnerabilityRequest)
 
 	vuln, known, err := svc.Vulnerability(ctx, request.CVE, request.TeamID, false)
@@ -193,7 +197,7 @@ func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint,
 		if err != nil {
 			return nil, false, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, false, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+			return nil, false, authz.ForbiddenWithInternal("fleet does not exist", nil, nil, nil)
 		}
 	}
 

@@ -19,6 +19,7 @@ var testFunctions = [...]func(*testing.T, fleet.LiveQueryStore){
 	testLiveQueryExpiredQuery,
 	testLiveQueryOnlyExpired,
 	testLiveQueryCleanupInactive,
+	testLiveQuerySetBitOnlyIfKeyExists,
 }
 
 func testLiveQuery(t *testing.T, store fleet.LiveQueryStore) {
@@ -220,4 +221,46 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	m, err = store.QueriesForHost(4)
 	require.NoError(t, err)
 	require.Empty(t, m)
+}
+
+func testLiveQuerySetBitOnlyIfKeyExists(t *testing.T, store fleet.LiveQueryStore) {
+	// Create a live query campaign.
+	err := store.RunQuery("test", "SELECT 1;", []uint{1})
+	require.NoError(t, err)
+
+	// Get the query for the host.
+	queries, err := store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Equal(t,
+		map[string]string{
+			"test": "SELECT 1;",
+		},
+		queries,
+	)
+
+	// Mark query as completed by host.
+	err = store.QueryCompletedByHost("test", 1)
+	require.NoError(t, err)
+
+	// Query should not be returned anymore as it was marked as completed for this host.
+	queries, err = store.QueriesForHost(1)
+	require.NoError(t, err)
+	require.Empty(t, queries)
+
+	// A host could be attempting to write a result for a query that was already deleted.
+	err = store.QueryCompletedByHost("test-2", 1)
+	require.NoError(t, err)
+
+	// Let's test that such key was not created.
+
+	// get a raw Redis connection to make direct checks
+	pool := store.(*redisLiveQuery).pool
+	conn := redis.ConfigureDoer(pool, pool.Get())
+	t.Cleanup(func() {
+		conn.Close()
+	})
+
+	n, err := redigo.Int(conn.Do("EXISTS", queryKeyPrefix+"{test-2}"))
+	require.NoError(t, err)
+	require.Zero(t, n)
 }

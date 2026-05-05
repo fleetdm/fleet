@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
@@ -140,8 +141,16 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
+				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -274,8 +283,18 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
+				// Legacy fleetctl apply
 				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-				require.Equal(t, c.want, got)
+				assert.Equal(t, c.want, got)
+
+				// GitOps
+				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				require.True(t, ok)
+				windowsSettings := fleet.WindowsSettings{}
+				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
+				mdm["windows_settings"] = windowsSettings
+				got = extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				assert.Equal(t, c.want, got)
 			}
 		})
 	}
@@ -333,6 +352,8 @@ spec:
         custom_settings:
       windows_settings:
         custom_settings:
+      android_settings:
+        custom_settings:
 ---
 apiVersion: v1
 kind: team
@@ -344,8 +365,10 @@ spec:
         custom_settings:
       windows_settings:
         custom_settings:
+      android_settings:
+        custom_settings:
 `,
-			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}},
+			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}},
 		},
 		{
 			"custom settings specified",
@@ -356,6 +379,12 @@ spec:
   team:
     name: "Fleet"
     mdm:
+      android_settings:
+        custom_settings:
+          - path: "e"
+            labels:
+              - "foo"
+          - path: "f"
       macos_settings:
         custom_settings:
           - path: "a"
@@ -379,6 +408,10 @@ spec:
 				windows: []fleet.MDMProfileSpec{
 					{Path: "c"},
 					{Path: "d", Labels: []string{"foo", "baz"}},
+				},
+				android: []fleet.MDMProfileSpec{
+					{Path: "e", Labels: []string{"foo"}},
+					{Path: "f"},
 				},
 			}},
 		},
@@ -417,6 +450,12 @@ spec:
   team:
     name: "Fleet"
     mdm:
+      android_settings:
+        custom_settings:
+          - path: "e"
+            labels:
+              - "y"
+          - path: ""
       macos_settings:
         custom_settings:
           - path: "a"
@@ -474,6 +513,7 @@ spec:
 					require.True(t, ok)
 					require.Equal(t, wantProfs.macos, gotProfs.macos)
 					require.Equal(t, wantProfs.windows, gotProfs.windows)
+					require.Equal(t, wantProfs.android, gotProfs.android)
 				}
 			}
 		})
@@ -518,18 +558,29 @@ func TestGetProfilesContents(t *testing.T) {
     </Target>
   </Item>
 </Replace>`
+	androidProfile := []byte(`{
+		"name": "My Profile",
+		"modifyAccountsDisabled": true,
+		"maximumTimeToLock": "1234567",
+		"something": {"else": true},
+		"anotherThing": null,
+		"numeric": 12345,
+		"decimal": 1.23,
+		"aList": ["1", "2"]
+	}`)
 
 	tests := []struct {
-		name          string
-		baseDir       string
-		macSetupFiles [][2]string
-		winSetupFiles [][2]string
-		labels        []string
-		environment   map[string]string
-		expandEnv     bool
-		expectError   bool
-		want          []fleet.MDMProfileBatchPayload
-		wantErr       string
+		name              string
+		baseDir           string
+		macSetupFiles     [][2]string
+		winSetupFiles     [][2]string
+		androidSetupFiles [][2]string
+		labels            []string
+		environment       map[string]string
+		expandEnv         bool
+		expectError       bool
+		want              []fleet.MDMProfileBatchPayload
+		wantErr           string
 	}{
 		{
 			name:    "invalid darwin xml",
@@ -541,34 +592,42 @@ func TestGetProfilesContents(t *testing.T) {
 			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}},
 		},
 		{
-			name:    "windows and darwin files",
+			name:    "windows, darwin and android files",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			winSetupFiles: [][2]string{
 				{"foo.xml", string(windowsProfile)},
+			},
+			androidSetupFiles: [][2]string{
+				{"android.json", string(androidProfile)},
 			},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
 				{Name: "foo", Contents: windowsProfile},
 				{Name: "bar", Contents: darwinProfile},
+				{Name: "android", Contents: androidProfile},
 			},
 		},
 		{
-			name:    "windows and darwin files with labels",
+			name:    "windows, darwin and android files with labels",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			winSetupFiles: [][2]string{
 				{"foo.xml", string(windowsProfile)},
+			},
+			androidSetupFiles: [][2]string{
+				{"android.json", string(androidProfile)},
 			},
 			labels:      []string{"foo", "bar"},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
 				{Name: "foo", Contents: windowsProfile, Labels: []string{"foo", "bar"}},
 				{Name: "bar", Contents: darwinProfile, Labels: []string{"foo", "bar"}},
+				{Name: "android", Contents: androidProfile, Labels: []string{"foo", "bar"}},
 			},
 		},
 		{
@@ -587,7 +646,7 @@ func TestGetProfilesContents(t *testing.T) {
 			},
 		},
 		{
-			name:    "duplicate names across windows and darwin",
+			name:    "duplicate names across windows, darwin and android",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(mobileconfigForTest("baz", "I"))},
@@ -595,14 +654,26 @@ func TestGetProfilesContents(t *testing.T) {
 			winSetupFiles: [][2]string{
 				{"baz.xml", string(windowsProfile)},
 			},
+			androidSetupFiles: [][2]string{
+				{"baz.json", string(androidProfile)},
+			},
 			expectError: true,
 		},
 		{
-			name:    "duplicate file names",
+			name:    "duplicate windows file names",
 			baseDir: tempDir,
 			winSetupFiles: [][2]string{
 				{"baz.xml", string(windowsProfile)},
 				{"baz.xml", string(windowsProfile)},
+			},
+			expectError: true,
+		},
+		{
+			name:    "duplicate android file names",
+			baseDir: tempDir,
+			androidSetupFiles: [][2]string{
+				{"baz.json", string(androidProfile)},
+				{"baz.json", string(androidProfile)},
 			},
 			expectError: true,
 		},
@@ -701,6 +772,182 @@ func TestGetProfilesContents(t *testing.T) {
 			expectError: true,
 			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.cfg): macOS configuration profiles must be .mobileconfig or .json files",
 		},
+		{
+			name:    "with FLEET_SECRET in data tag",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"cert.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.root</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.example.cert</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadDisplayName</key>
+			<string>Test Certificate</string>
+			<key>PayloadContent</key>
+			<data>$FLEET_SECRET_CERT_DATA</data>
+		</dict>
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Certificate Profile</string>
+</dict>
+</plist>`},
+			},
+			environment: map[string]string{
+				"FLEET_SECRET_CERT_DATA": "VGVzdENlcnREYXRhQmFzZTY0", // "TestCertDataBase64" in base64
+			},
+			expandEnv:   true,
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "Certificate Profile",
+					Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.root</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.example.cert</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadDisplayName</key>
+			<string>Test Certificate</string>
+			<key>PayloadContent</key>
+			<data>$FLEET_SECRET_CERT_DATA</data>
+		</dict>
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Certificate Profile</string>
+</dict>
+</plist>`),
+				},
+			},
+		},
+		{
+			name:    "with FLEET_SECRET in PayloadDisplayName - should reject",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"secret_name.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile $FLEET_SECRET_NAME</string>
+</dict>
+</plist>`},
+			},
+			environment: map[string]string{
+				"FLEET_SECRET_NAME": "SecretProfileName",
+			},
+			expandEnv:   true,
+			expectError: true,
+			wantErr:     "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name:    "with FLEET_VAR in profile - should not expand",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"fleet_var.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile with FLEET_VAR</string>
+	<key>SomeValue</key>
+	<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+</dict>
+</plist>`},
+			},
+			expandEnv:   true,
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "Profile with FLEET_VAR",
+					Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile with FLEET_VAR</string>
+	<key>SomeValue</key>
+	<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+</dict>
+</plist>`),
+				},
+			},
+		},
+		{
+			name:    "android files with env var should expand",
+			baseDir: tempDir,
+			androidSetupFiles: [][2]string{
+				{"env_secrets.json", `{"name": "env secrets", "testKey": "$FOO"}`},
+			},
+			environment: map[string]string{
+				"FOO": "testValue",
+			},
+			expandEnv: true,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name:     "env_secrets",
+					Contents: []byte(`{"name": "env secrets", "testKey": "testValue"}`),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -731,7 +978,14 @@ func TestGetProfilesContents(t *testing.T) {
 				winPaths = append(winPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
 			}
 
-			profileContents, err := getProfilesContents(tt.baseDir, macPaths, winPaths, tt.expandEnv)
+			androidPaths := []fleet.MDMProfileSpec{}
+			for _, fileSpec := range tt.androidSetupFiles {
+				filePath := filepath.Join(tempDir, fileSpec[0])
+				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0o644))
+				androidPaths = append(androidPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
+			}
+
+			profileContents, err := getProfilesContents(tt.baseDir, macPaths, winPaths, androidPaths, tt.expandEnv)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -765,22 +1019,158 @@ func TestGitOpsErrors(t *testing.T) {
 			wantErr: "org_settings.integrations",
 		},
 		{
-			name:    "invalid ndes_scep_proxy value",
+			name:    "invalid integrations.ndes_scep_proxy key",
 			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
-			wantErr: "org_settings.integrations.ndes_scep_proxy",
+			wantErr: "org_settings.integrations.ndes_scep_proxy is not supported",
 		},
+		{
+			name:    "invalid certificate_authorities.ndes_scep_proxy value",
+			rawJSON: `{ "integrations": null, "certificate_authorities": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.certificate_authorities.ndes_scep_proxy config is not a map",
+		},
+		// TODO(hca): add more tests for other certificate authority types
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &spec.GitOps{}
 			config.OrgSettings = make(map[string]interface{})
+			// Signal that we don't want to send any labels.
+			// This avoids this test attempting to make a request to the GetLabels endpoint.
+			config.Labels = make([]*fleet.LabelSpec, 0)
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil)
+			settings := fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
+			_, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &settings)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
 
+func TestResolvePolicySoftwareTitleID(t *testing.T) {
+	byURL := map[string]uint{
+		"https://example.com/pkg.pkg": 100,
+	}
+	byAppStoreID := map[string]uint{
+		"com.example.app": 200,
+	}
+	byHash := map[string]uint{
+		"abc123hash":     100, // same title as the URL entry
+		"different-hash": 999, // different title — used to test URL-over-hash precedence
+	}
+	bySlug := map[string]uint{
+		"some-fma-slug": 300,
+	}
+
+	tests := []struct {
+		name         string
+		policy       *spec.GitOpsPolicySpec
+		wantTitleID  uint
+		wantResolved bool
+	}{
+		{
+			name: "URL lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/pkg.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+		{
+			name: "URL takes precedence over hash when both match different titles",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/pkg.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "different-hash",
+					},
+				},
+			},
+			wantTitleID:  100, // URL's title (100), not hash's title (999)
+			wantResolved: true,
+		},
+		{
+			name: "URL lookup fails, hash fallback succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/DIFFERENT-url.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+		{
+			name: "App Store ID lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						AppStoreID: "com.example.app",
+					},
+				},
+			},
+			wantTitleID:  200,
+			wantResolved: true,
+		},
+		{
+			name: "FMA slug lookup succeeds",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						FleetMaintainedAppSlug: "some-fma-slug",
+					},
+				},
+			},
+			wantTitleID:  300,
+			wantResolved: true,
+		},
+		{
+			name: "all lookups fail",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftwareURL: "https://example.com/nonexistent.pkg",
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "nonexistent-hash",
+					},
+				},
+			},
+			wantTitleID:  0,
+			wantResolved: false,
+		},
+		{
+			name: "hash-only policy (no URL)",
+			policy: &spec.GitOpsPolicySpec{
+				InstallSoftware: optjson.BoolOr[*spec.PolicyInstallSoftware]{
+					IsOther: true,
+					Other: &spec.PolicyInstallSoftware{
+						HashSHA256: "abc123hash",
+					},
+				},
+			},
+			wantTitleID:  100,
+			wantResolved: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			titleID, resolved := resolvePolicySoftwareTitleID(tt.policy, byURL, byAppStoreID, byHash, bySlug)
+			require.Equal(t, tt.wantResolved, resolved)
+			require.Equal(t, tt.wantTitleID, titleID)
+		})
+	}
 }

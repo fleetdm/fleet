@@ -22,6 +22,8 @@ func panicif(err error) {
 	}
 }
 
+const cleanEnvVar = "MSRC_CLEAN"
+
 func main() {
 	wd, err := os.Getwd()
 	panicif(err)
@@ -47,9 +49,8 @@ func main() {
 	fmt.Println("Downloading existing MSRC bulletins...")
 	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
-
 	var bulletins []*parsed.SecurityBulletin
-	if len(eBulletins) == 0 {
+	if len(eBulletins) == 0 || os.Getenv(cleanEnvVar) != "false" {
 		fmt.Println("None found, backfilling...")
 		bulletins, err = backfill(now.Month(), now.Year(), msrcAPI)
 		panicif(err)
@@ -70,11 +71,11 @@ func main() {
 
 // windowsBulletinGracePeriod returns whether we are within the grace period for a MSRC monthly feed to exist.
 //
-// E.g. September 2024 bulletin was released on the 2nd, thus we add some grace period (5 days)
-// for Microsoft to publish the current month bulletin.
+// MSRC monthly feeds are typically published early in the month, but the exact date varies.
+// We use a 15-day grace period to account for this variability.
 func windowsBulletinGracePeriod(month time.Month, year int) bool {
 	now := time.Now()
-	return month == now.Month() && year == now.Year() && now.Day() <= 5
+	return month == now.Month() && year == now.Year() && now.Day() <= 15
 }
 
 func update(

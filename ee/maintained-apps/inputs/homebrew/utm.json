@@ -1,0 +1,8 @@
+{
+  "name": "UTM",
+  "unique_identifier": "com.utmapp.UTM",
+  "token": "utm",
+  "installer_format": "dmg",
+  "slug": "utm/darwin",
+  "default_categories": ["Productivity"]
+}

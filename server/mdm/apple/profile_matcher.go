@@ -54,12 +54,12 @@ func (p *profileMatcher) PreassignProfile(ctx context.Context, payload fleet.MDM
 		// team ID is not relevant at this stage, this is just for validation
 		if cp, err := fleet.NewMDMAppleConfigProfile(payload.Profile, nil); err != nil {
 			invArg.Append("profile", err.Error())
-		} else if err := cp.ValidateUserProvided(); err != nil {
+		} else if err := cp.ValidateUserProvided(false); err != nil {
 			invArg.Append("profile", err.Error())
 		}
 	}
 	if invArg.HasErrors() {
-		return ctxerr.Wrap(ctx, invArg)
+		return ctxerr.Wrap(ctx, &invArg)
 	}
 
 	md5Hash := payload.HexMD5Hash()

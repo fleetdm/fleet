@@ -9,7 +9,7 @@ import TeamsDropdown from "./TeamsDropdown";
 
 describe("TeamsDropdown - component", () => {
   const USER_TEAMS = [
-    { id: -1, name: "All teams" },
+    { id: -1, name: "All fleets" },
     { id: 1, name: "Team 1" },
     { id: 2, name: "Team 2" },
   ];
@@ -27,11 +27,11 @@ describe("TeamsDropdown - component", () => {
     expect(selectedTeam).toBeInTheDocument();
   });
 
-  it("renders the first team option when includeAll is false and when no selectedTeamId is given", () => {
+  it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
     render(
       <TeamsDropdown
         currentUserTeams={USER_TEAMS}
-        includeAll={false}
+        includeAllTeams={false}
         onChange={noop}
       />
     );
@@ -45,21 +45,21 @@ describe("TeamsDropdown - component", () => {
       isOnGlobalTeam: true,
     };
 
-    it("renders 'All teams' when no selectedTeamId is given", () => {
+    it("renders 'All fleets' when no selectedTeamId is given", () => {
       renderWithAppContext(
         <TeamsDropdown currentUserTeams={USER_TEAMS} onChange={noop} />,
         { contextValue }
       );
 
-      const selectedTeam = screen.getByText("All teams");
+      const selectedTeam = screen.getByText("All fleets");
       expect(selectedTeam).toBeInTheDocument();
     });
 
-    it("renders the first team option when includeAll is false and when no selectedTeamId is given", () => {
+    it("renders the first team option when includeAllTeams is false and when no selectedTeamId is given", () => {
       renderWithAppContext(
         <TeamsDropdown
           currentUserTeams={USER_TEAMS}
-          includeAll={false}
+          includeAllTeams={false}
           onChange={noop}
         />,
         { contextValue }

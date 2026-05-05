@@ -2,6 +2,8 @@ package nvd
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/wfn"
 )
@@ -197,6 +199,21 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
+		// When we're inventorying the Steam launcher for Dota, version recorded is 1.0,
+		// which shows a bunch of false positive CVEs. See #34323.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2020-7949": {},
+				"CVE-2020-7950": {},
+				"CVE-2020-7951": {},
+				"CVE-2020-7952": {},
+				"CVE-2020-9005": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "valvesoftware" && cpeMeta.Product == "dota_2" &&
+					cpeMeta.TargetSW == "macos" && (cpeMeta.Version == "1\\.0" || cpeMeta.Version == "1\\.0\\.0")
+			},
+		},
 		// Issue #18733 incorrect CPEs that should be matching
 		// visual studio code extensions
 		CPEMatchingRule{
@@ -207,6 +224,16 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.Product == "visual_studio_code" && cpeMeta.TargetSW == wfn.Any
+			},
+		},
+		// CVE-2023-48795 in NVD incorrectly mentions PowerShell as vulnerable when the issue is actually with OpenSSH,
+		// which is packaged separately. It also includes a bogus resolved-in version number. See #26073.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-48795": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "microsoft" && cpeMeta.Product == "powershell"
 			},
 		},
 		// Old macos CPEs without version constraints that should be ignored
@@ -240,13 +267,32 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 			},
 			IgnoreAll: true,
 		},
-		// CVE-2024-4030 only targets windows operating systems
+		// CVE-2024-4030 and CVE-2024-6286 only target windows operating systems
 		CPEMatchingRule{
 			CVEs: map[string]struct{}{
 				"CVE-2024-4030": {},
+				"CVE-2024-6286": {},
 			},
 			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
 				return cpeMeta.TargetSW != "windows"
+			},
+		},
+		// CVE-2024-12254 only targets Mac/Linux operating systems
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-12254": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW == "windows"
+			},
+		},
+		// CVE-2024-7006 only targets Linux operating systems (libtiff vulnerability)
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2024-7006": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "linux"
 			},
 		},
 		// these CVEs only target iOS, and we don't yet support iOS vuln scanning (and can't tell iOS/Mac CPEs apart yet)
@@ -256,6 +302,121 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2024-10327": {}, // also missing a CPE as of 2025-01-01
 			},
 			IgnoreAll: true,
+		},
+		// Gitk and Git GUI CVEs should not match the base git package
+		// These CVEs affect gitk/git-gui which is git-gui on Homebrew
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2025-27613": {}, // Gitk file creation/truncation via OS command injection
+				"CVE-2025-27614": {}, // Gitk arbitrary command execution
+				"CVE-2025-46835": {}, // Git GUI arbitrary file overwrite
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.Vendor == "git" && cpeMeta.Product == "git"
+			},
+		},
+		// CVE-2019-17201 and CVE-2019-17202 are Windows-only privilege escalation vulnerabilities
+		// in Admin By Request (named pipe bypass and PIN challenge-response bypass).
+		// The NVD CPE data uses target_sw=* with no platform differentiation, causing false positives
+		// on macOS and Linux where the software uses independent version numbering. See #41586.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2019-17201": {},
+				"CVE-2019-17202": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW != "windows"
+			},
+		},
+		// CVE-2023-28205 WebKit vulnerability
+		// Apple released fixes via:
+		// - Safari 16.4.1 standalone update for Big Sur/Monterey (HT213722)
+		// - macOS Ventura 13.3.1 system update (HT213721)
+		//
+		// - Safari 16.0-16.4.0 are vulnerable
+		// - Safari < 16.0 not vulnerable
+		// - macOS Ventura < 13.3.1 is vulnerable
+		// - macOS < 13.0 ignore for macOS matches, no system-level fix, rely on Safari version matching
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2023-28205": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				// For Safari CPE matches, only match versions 16.x
+				if cpeMeta.Vendor == "apple" && cpeMeta.Product == "safari" {
+					version := wfn.StripSlashes(cpeMeta.Version)
+					parts := strings.Split(version, ".")
+
+					if len(parts) > 0 {
+						majorVer, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return false
+						}
+
+						if majorVer < 16 || majorVer > 16 {
+							return true
+						}
+
+						if majorVer == 16 && len(parts) >= 2 {
+							minorVer, _ := strconv.Atoi(parts[1])
+
+							// Safari 16.5+
+							if minorVer > 4 {
+								return true
+							}
+
+							// Safari 16.4.x
+							if minorVer == 4 && len(parts) >= 3 {
+								patchVer, _ := strconv.Atoi(parts[2])
+								if patchVer >= 1 {
+									return true
+								}
+							}
+						}
+					}
+				}
+
+				// For macOS CPE matches, only match Ventura < 13.3.1
+				if cpeMeta.Vendor == "apple" && cpeMeta.Product == "macos" {
+					version := wfn.StripSlashes(cpeMeta.Version)
+					parts := strings.Split(version, ".")
+
+					if len(parts) > 0 {
+						majorVer, err := strconv.Atoi(parts[0])
+						if err != nil {
+							return false
+						}
+
+						// Ignore non-Ventura
+						if majorVer != 13 {
+							return true
+						}
+
+						// For Ventura, check if >= 13.3.1
+						if len(parts) >= 2 {
+							minorVer, _ := strconv.Atoi(parts[1])
+
+							if minorVer > 3 {
+								return true
+							}
+
+							if minorVer == 3 {
+								if len(parts) == 2 {
+									return false
+								}
+								if len(parts) >= 3 {
+									patchVer, _ := strconv.Atoi(parts[2])
+									if patchVer >= 1 {
+										return true
+									}
+								}
+							}
+						}
+					}
+				}
+
+				return false
+			},
 		},
 	}
 

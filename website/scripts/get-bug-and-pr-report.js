@@ -29,14 +29,11 @@ module.exports = {
     const NUMBER_OF_RESULTS_REQUESTED = 100;
 
     let daysSinceBugsWereOpened = [];
-    let daysSinceUnreleasedBugsWereOpened = [];
-    let daysSinceReleasedBugsWereOpened = [];
-    let allBugsWithUnreleasedLabel = [];
-    let allBugsWithReleasedLabel = [];
     let allBugs32DaysOrOlder = [];
     let allBugsCreatedInPastWeek = [];
     let allBugsClosedInPastWeek = [];
     let allBugsReportedByCustomersInPastWeek = [];
+    let daysSinceUnprioritizedBugsWereOpened = [];
     let daysSincePullRequestsWereOpened = [];
     let daysSinceContributorPullRequestsWereOpened = [];
     let commitToMergeTimesInDays = [];
@@ -45,22 +42,6 @@ module.exports = {
     let publicPrsMergedInThePastThreeWeeks = [];
     let allNonPublicOpenPrs = [];
     let nonPublicPrsClosedInThePastThreeWeeks = [];
-
-
-
-    // Endpoint operations
-    let allBugsCreatedInPastWeekEndpointOps = [];
-    let allBugsCreatedInPastWeekEndpointOpsUnreleased = [];
-    let allBugsCreatedInPastWeekEndpointOpsReleased = [];
-    let allBugsCreatedInPastWeekEndpointOpsCustomerImpacting = [];
-
-    // Mobile Device Management
-    let allBugsCreatedInPastWeekMobileDeviceManagement = [];
-
-    let allBugsCreatedInPastWeekMobileDeviceManagementUnreleased = [];
-    let allBugsCreatedInPastWeekMobileDeviceManagementReleased = [];
-    let allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting = [];
-
 
     await sails.helpers.flow.simultaneously([
 
@@ -95,7 +76,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // If we received less results than we requested, we've reached the last page of the results.
           return issuesWithBugLabel.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -115,47 +96,11 @@ module.exports = {
             if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
               allBugsReportedByCustomersInPastWeek.push(issue);
             }
-            // Get Endpoint Ops KPIs
-            if (issue.labels.some(label => label.name === '#g-endpoint-ops')) {
-              allBugsCreatedInPastWeekEndpointOps.push(issue);
-              if (issue.labels.some(label => label.name === '~unreleased bug')) {
-                allBugsCreatedInPastWeekEndpointOpsUnreleased.push(issue);
-              }
-              else if (issue.labels.some(label => label.name === '~released bug')) {
-                allBugsCreatedInPastWeekEndpointOpsReleased.push(issue);
-              }
-              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
-                allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.push(issue);
-              }
-            }
-            // Get MDM KPIs
-            if (issue.labels.some(label => label.name === '#g-mdm')) {
-              allBugsCreatedInPastWeekMobileDeviceManagement.push(issue);
-              if (issue.labels.some(label => label.name === '~unreleased bug')) {
-                allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.push(issue);
-              }
-              else if (issue.labels.some(label => label.name === '~released bug')) {
-                allBugsCreatedInPastWeekMobileDeviceManagementReleased.push(issue);
-              }
-              if (issue.labels.some(label => label.name.indexOf('customer-') >= 0)) {
-                allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.push(issue);
-              }
-            }
           }
-
           daysSinceBugsWereOpened.push(timeOpenInDays);
-          // Send to released or unreleased bugs array
-          if (issue.labels.some(label => label.name === '~unreleased bug')) {
-            allBugsWithUnreleasedLabel.push(issue);
-            daysSinceUnreleasedBugsWereOpened.push(timeOpenInDays);
-          } else if (issue.labels.some(label => label.name === '~released bug')) {
-            allBugsWithReleasedLabel.push(issue);
-            daysSinceReleasedBugsWereOpened.push(timeOpenInDays);
-          } else {
-            // If not labeled as a released or unreleased bug, log a warning.
-            sails.log.warn('Issue #'+issue.number+' is labeled as a bug but is not labeled as released or unreleased.');
+          if (!issue.labels.some(label => label.name === ':release')) {
+            daysSinceUnprioritizedBugsWereOpened.push(timeOpenInDays);
           }
-
         }
 
       },
@@ -192,7 +137,7 @@ module.exports = {
           allIssuesWithBugLabel = allIssuesWithBugLabel.concat(issuesWithBugLabel);
           // Stop when we've received results from the third page.
           return pageNumberForPaginatedResults === 3;
-        }, 10000);
+        }, 30000);
 
         // iterate through the allIssuesWithBugLabel array, adding the number
         for (let issue of allIssuesWithBugLabel) {
@@ -256,7 +201,10 @@ module.exports = {
           // Get commits on this PR.
           // [?] https://docs.github.com/en/rest/commits/commits#list-commits
           let commitsOnThisPullRequest = await sails.helpers.http.get(pullRequest.commits_url, {}, baseHeaders).retry();
-
+          if(commitsOnThisPullRequest.length === 0) {
+            sails.log.warn(`A pull request #${pullRequest.number} (${pullRequest.html_url}) was found that has no commits. This PR will be not counted in the commit to merge time metric.`);
+            return;
+          }
           // Create a new Date from the timestamp of the first commit on this pull request.
           let firstCommitAt = new Date(commitsOnThisPullRequest[0].commit.author.date); // https://docs.github.com/en/rest/commits/commits#list-commits--code-samples
           // Get the amount of time this issue has been open in milliseconds.
@@ -296,9 +244,9 @@ module.exports = {
           allPublicOpenPrs = allPublicOpenPrs.concat(pullRequests);
           // If we received less results than we requested, we've reached the last page of the results.
           return pullRequests.length !== NUMBER_OF_RESULTS_REQUESTED;
-        }, 10000);
+        }, 30000);
 
-        for(let pullRequest of allPublicOpenPrs) {
+        for (let pullRequest of allPublicOpenPrs) {
           // Create a date object from the PR's created_at timestamp.
           let pullRequestOpenedOn = new Date(pullRequest.created_at);
           // Get the amount of time this issue has been open in milliseconds.
@@ -359,9 +307,7 @@ module.exports = {
 
     // Get the averages from the arrays of results.
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
-    let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
-    let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
-    let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
+    let averageDaysUnprioritizedBugsAreOpenFor = Math.round(_.sum(daysSinceUnprioritizedBugsWereOpened) / daysSinceUnprioritizedBugsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
 
@@ -391,12 +337,11 @@ module.exports = {
     // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
     kpiResults.push(
       averageDaysContributorPullRequestsAreOpenFor,
+      averageNumberOfDaysBugsAreOpenFor,
       allBugs32DaysOrOlder.length,
       allBugsReportedByCustomersInPastWeek.length,
-      averageNumberOfDaysReleasedBugsAreOpenFor,
-      averageNumberOfDaysUnreleasedBugsAreOpenFor,
       allBugsCreatedInPastWeek.length,
-      allBugsClosedInPastWeek.length,);
+      allBugsClosedInPastWeek.length);
 
     // Log the results
     sails.log(`
@@ -409,51 +354,25 @@ module.exports = {
 
     Pull requests:
     ---------------------------
-    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+    Average open time: ${averageDaysContributorPullRequestsAreOpenFor} days.
 
-    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
-
-    Average open time (all PRs): ${averageDaysPullRequestsAreOpenFor} days.
-
-    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSinceContributorPullRequestsWereOpened.length}
 
     Bugs:
     ---------------------------
-    Average open time (released bugs): ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
-
-    Average open time (unreleased bugs): ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
-
-    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
-
     Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
 
-    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+    Average open time (unprioritized bugs): ${averageDaysUnprioritizedBugsAreOpenFor} days.
 
     Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
 
-    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
+    Bugs older than 32 days: ${allBugs32DaysOrOlder.length}
 
-    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
+    Bugs reported by customers in the past week: ${allBugsReportedByCustomersInPastWeek.length}
 
-    Endpoint Operations:
-    ---------------------------
-    Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
+    Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
 
-    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
-
-    Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
-
-    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
-
-    MDM:
-    ---------------------------
-    Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
-
-    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
-
-    Number of issues with the "#g-mdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
-
-    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
+    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
 
     Handbook Pull requests
     ---------------------------------------
@@ -465,4 +384,5 @@ module.exports = {
   }
 
 };
+
 

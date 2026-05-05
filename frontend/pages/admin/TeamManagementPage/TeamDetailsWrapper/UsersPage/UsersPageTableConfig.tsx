@@ -1,14 +1,17 @@
 import React from "react";
-import ReactTooltip from "react-tooltip";
-import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
-import ActionsDropdown from "components/ActionsDropdown";
-import CustomLink from "components/CustomLink";
+
+import stringUtils from "utilities/strings";
 import { IUser, UserRole } from "interfaces/user";
 import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import stringUtils from "utilities/strings";
+
+import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import ActionsDropdown from "components/ActionsDropdown";
+import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
-import { COLORS } from "styles/var/colors";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import PillBadge from "components/PillBadge";
 
 interface IHeaderProps {
   column: {
@@ -56,6 +59,27 @@ export interface ITeamUsersTableData {
   id: number;
 }
 
+export const renderApiUserIndicator = () => {
+  return (
+    <PillBadge
+      tipContent={
+        <>
+          This user was created using fleetctl and
+          <br /> only has API access.{" "}
+          <CustomLink
+            text="Learn more"
+            newTab
+            url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
+            variant="tooltip-link"
+          />
+        </>
+      }
+    >
+      API
+    </PillBadge>
+  );
+};
+
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateColumnConfigs = (
@@ -69,52 +93,17 @@ const generateColumnConfigs = (
       sortType: "caseInsensitive",
       accessor: "name",
       Cell: (cellProps: ICellProps) => {
-        const formatter = (val: string) => {
-          const apiOnlyUser =
-            "api_only" in cellProps.row.original
-              ? cellProps.row.original.api_only
-              : false;
+        const apiOnlyUser =
+          "api_only" in cellProps.row.original
+            ? cellProps.row.original.api_only
+            : false;
 
-          return (
-            <>
-              {val}
-              {apiOnlyUser && (
-                <>
-                  <span
-                    className="team-users__api-only-user"
-                    data-tip
-                    data-for={`api-only-tooltip-${cellProps.row.original.id}`}
-                  >
-                    API
-                  </span>
-                  <ReactTooltip
-                    className="api-only-tooltip"
-                    place="top"
-                    type="dark"
-                    effect="solid"
-                    id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor={COLORS["tooltip-bg"]}
-                    clickable
-                    delayHide={200} // need delay set to hover using clickable
-                  >
-                    <>
-                      This user was created using fleetctl and
-                      <br /> only has API access.{" "}
-                      <CustomLink
-                        text="Learn more"
-                        newTab
-                        url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user"
-                        iconColor="core-fleet-white"
-                      />
-                    </>
-                  </ReactTooltip>
-                </>
-              )}
-            </>
-          );
-        };
-
-        return <TextCell value={cellProps.cell.value} formatter={formatter} />;
+        return (
+          <TooltipTruncatedTextCell
+            value={cellProps.cell.value}
+            suffix={apiOnlyUser && renderApiUserIndicator()}
+          />
+        );
       },
     },
     {
@@ -149,7 +138,7 @@ const generateColumnConfigs = (
                   <br />
                   the same functions as an Observer, with the added
                   <br />
-                  ability to run any live query against all hosts.
+                  ability to run any live report against all hosts.
                 </>
               }
             >
@@ -181,6 +170,7 @@ const generateColumnConfigs = (
             actionSelectHandler(value, cellProps.row.original)
           }
           placeholder="Actions"
+          variant="small-button"
         />
       ),
     },
@@ -217,6 +207,7 @@ const enhanceUsersData = (
       role: generateRole(teamId, user.teams),
       teams: user.teams,
       sso_enabled: user.sso_enabled,
+      mfa_enabled: user.mfa_enabled,
       global_role: user.global_role,
       actions: generateActionDropdownOptions(),
       id: user.id,

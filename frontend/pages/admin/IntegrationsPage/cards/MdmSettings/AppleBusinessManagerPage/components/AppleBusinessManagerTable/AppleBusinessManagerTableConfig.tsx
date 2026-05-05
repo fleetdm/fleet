@@ -3,12 +3,14 @@ import { CellProps, Column } from "react-table";
 
 import { IMdmAbmToken } from "interfaces/mdm";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+import { getTeamDisplayName } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
@@ -21,20 +23,39 @@ type IRenewDateCellProps = CellProps<IMdmAbmToken, IMdmAbmToken["renew_date"]>;
 type ITableHeaderProps = IHeaderProps<IMdmAbmToken>;
 
 const DEFAULT_ACTION_OPTIONS: IDropdownOption[] = [
-  { value: "editTeams", label: "Edit teams", disabled: false },
+  { value: "editTeams", label: "Edit fleets", disabled: false },
   { value: "renew", label: "Renew", disabled: false },
   { value: "delete", label: "Delete", disabled: false },
 ];
 
-const generateActions = () => {
-  return DEFAULT_ACTION_OPTIONS;
+const generateActions = (gitopsModeEnabled: boolean, repoURL?: string) => {
+  if (!gitopsModeEnabled) {
+    return DEFAULT_ACTION_OPTIONS;
+  }
+
+  return DEFAULT_ACTION_OPTIONS.map((option) => {
+    if (option.value !== "editTeams") {
+      return option;
+    }
+
+    return {
+      ...option,
+      disabled: true,
+      ...(repoURL
+        ? {
+            tooltip: true,
+            tooltipContent: getGitOpsModeTipContent(repoURL),
+          }
+        : {}),
+    };
+  });
 };
 
 const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   warning: {
     tooltipText: (
       <>
-        ABM server token is less than 30 days from expiration.
+        AB server token is less than 30 days from expiration.
         <br /> To renew, go to <b>Actions {">"} Renew.</b>
       </>
     ),
@@ -42,7 +63,7 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
   error: {
     tooltipText: (
       <>
-        ABM server token is expired.
+        AB server token is expired.
         <br /> To renew, go to <b>Actions {">"} Renew</b>.
       </>
     ),
@@ -50,7 +71,9 @@ const RENEW_DATE_CELL_STATUS_CONFIG: IRenewDateCellStatusConfig = {
 };
 
 export const generateTableConfig = (
-  actionSelectHandler: (value: string, team: IMdmAbmToken) => void
+  actionSelectHandler: (value: string, team: IMdmAbmToken) => void,
+  gitopsModeEnabled: boolean,
+  repoURL?: string
 ): IAbmTableConfig[] => {
   return [
     {
@@ -89,18 +112,20 @@ export const generateTableConfig = (
     },
     {
       id: "macos_team",
-      accessor: (originalRow) => originalRow.macos_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.macos_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                macOS hosts are automatically added to this team in Fleet when
-                they appear in Apple Business Manager.
+                macOS hosts are automatically added to this fleet on initial
+                sync from AB. If a host is manually assigned to a different
+                fleet before enrollment, it will enroll to the newly assigned
+                fleet and not the default.
               </>
             }
           >
-            macOS team
+            macOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -112,18 +137,20 @@ export const generateTableConfig = (
     },
     {
       id: "ios_team",
-      accessor: (originalRow) => originalRow.ios_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ios_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                iOS hosts are automatically added to this team in Fleet when
-                they appear in Apple Business Manager.
+                iOS hosts are automatically added to this fleet on initial sync
+                from AB. If a host is manually assigned to a different fleet
+                before enrollment, it will enroll to the newly assigned fleet
+                and not the default.
               </>
             }
           >
-            iOS team
+            iOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -135,18 +162,20 @@ export const generateTableConfig = (
     },
     {
       id: "ipados_team",
-      accessor: (originalRow) => originalRow.ipados_team.name,
+      accessor: (originalRow) => getTeamDisplayName(originalRow.ipados_team),
       Header: () => {
         const titleWithToolTip = (
           <TooltipWrapper
             tipContent={
               <>
-                iPadOS hosts are automatically added to this team in Fleet when
-                they appear in Apple Business Manager.
+                iPadOS hosts are automatically added to this fleet on initial
+                sync from AB. If a host is manually assigned to a different
+                fleet before enrollment, it will enroll to the newly assigned
+                fleet and not the default.
               </>
             }
           >
-            iPadOS team
+            iPadOS fleet
           </TooltipWrapper>
         );
         return <HeaderCell value={titleWithToolTip} disableSortBy />;
@@ -163,13 +192,17 @@ export const generateTableConfig = (
       // but we don't use it.
       accessor: "id",
       Cell: (cellProps) => (
-        <ActionsDropdown
-          options={generateActions()}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
-        />
+        <div className="abm-actions-wrapper">
+          <ActionsDropdown
+            options={generateActions(gitopsModeEnabled, repoURL)}
+            onChange={(value: string) =>
+              actionSelectHandler(value, cellProps.row.original)
+            }
+            placeholder="Actions"
+            disabled={false}
+            variant="small-button"
+          />
+        </div>
       ),
     },
   ];

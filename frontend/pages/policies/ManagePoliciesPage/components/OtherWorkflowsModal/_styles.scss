@@ -19,8 +19,4 @@
   &__no-integrations a {
     display: block;
   }
-
-  &__help-text {
-    @include help-text;
-  }
 }

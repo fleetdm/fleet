@@ -1,5 +1,5 @@
 .edit-query-page {
-  @include page;
+  @include vertical-page-layout;
 
   .ace_content {
     min-height: 500px !important;

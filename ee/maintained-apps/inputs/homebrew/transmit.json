@@ -1,0 +1,8 @@
+{
+  "name": "Transmit",
+  "unique_identifier": "com.panic.Transmit",
+  "token": "transmit",
+  "installer_format": "zip",
+  "slug": "transmit/darwin",
+  "default_categories": ["Productivity"]
+}

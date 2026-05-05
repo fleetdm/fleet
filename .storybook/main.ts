@@ -7,6 +7,19 @@ import type { StorybookConfig } from "@storybook/react-webpack5";
 
 const config: StorybookConfig = {
   webpackFinal: async (config) => {
+    if (!config.resolve) {
+      config.resolve = {};
+    }
+    if (!config.resolve.alias) {
+      config.resolve.alias = {};
+    }
+    (config.resolve.alias as Record<string, string>)[
+      "node-sql-parser"
+    ] = path.resolve(
+      __dirname,
+      "../node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
+    );
+
     config.module?.rules?.push({
       test: /\.scss$/,
       use: [
@@ -45,14 +58,15 @@ const config: StorybookConfig = {
   stories: [
     "../frontend/components/**/*.stories.mdx",
     "../frontend/components/**/*.stories.@(js|jsx|ts|tsx)",
+    "../frontend/pages/SoftwarePage/components/**/*.stories.@(js|jsx|ts|tsx)",
+    "../frontend/pages/admin/IntegrationsPage/**/*.stories.@(js|jsx|ts|tsx)",
   ],
   addons: [
     "@storybook/addon-links",
     "@storybook/addon-essentials",
-    "@storybook/addon-mdx-gfm",
     "@storybook/addon-a11y",
-    "@storybook/test-runner",
     "@storybook/addon-designs",
+    "@storybook/addon-webpack5-compiler-babel",
   ],
   typescript: {
     check: false,
@@ -68,9 +82,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-webpack5",
     options: {},
   },
-  docs: {
-    autodocs: true,
-  },
+  docs: {},
 };
 
 export default config;

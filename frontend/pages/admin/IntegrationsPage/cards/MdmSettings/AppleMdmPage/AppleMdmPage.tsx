@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter } from "react-router";
 
 import { AxiosError } from "axios";
@@ -10,7 +10,7 @@ import { IMdmApple, getMdmServerUrl } from "interfaces/mdm";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
@@ -24,6 +24,7 @@ import TurnOffAppleMdmModal from "./components/modals/TurnOffAppleMdmModal";
 export const baseClass = "apple-mdm-page";
 
 const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
+  const queryClient = useQueryClient();
   const { config } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -41,7 +42,10 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     refetch,
     error: errorMdmApple,
   } = useQuery<IMdmApple, AxiosError, IMdmApple>(
-    ["appleAPNInfo"],
+    [
+      "apppleMDMPage-appleAPNInfo",
+      { isMdmEnabled: config?.mdm.enabled_and_configured ?? false },
+    ],
     () => mdmAppleAPI.getAppleAPNInfo(),
     {
       retry: (tries, error) => error.status !== 404 && tries <= 3,
@@ -65,13 +69,14 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
     toggleTurnOffMdmModal();
     try {
       await mdmAppleAPI.deleteApplePushCertificate();
+      await queryClient.invalidateQueries(["config"]);
       router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
       renderFlash("success", "MDM turned off successfully.");
     } catch (e) {
       renderFlash("error", "Couldn't turn off MDM. Please try again.");
       setIsUpdating(false);
     }
-  }, [renderFlash, router]);
+  }, [queryClient, renderFlash, router]);
 
   const onRenewCert = useCallback(() => {
     refetch();
@@ -93,14 +98,16 @@ const AppleMdmPage = ({ router }: { router: InjectedRouter }) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <h1>Apple Push Certificate Portal</h1>
         {showSpinner && <Spinner />}
-        {showError && <DataError />}
+        {showError && <DataError verticalPaddingSize="pad-xxxlarge" />}
         {showContent &&
           (!appleAPNInfo ? (
             <ApplePushCertSetup

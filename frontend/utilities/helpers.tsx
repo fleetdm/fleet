@@ -2,16 +2,15 @@ import React from "react";
 import {
   isEmpty,
   flatMap,
-  find,
   omit,
   pick,
-  size,
   memoize,
   reduce,
   trim,
   trimEnd,
   union,
   uniqueId,
+  upperFirst,
 } from "lodash";
 import md5 from "js-md5";
 import {
@@ -22,13 +21,16 @@ import {
   isAfter,
   addDays,
 } from "date-fns";
-import yaml from "js-yaml";
 
 import { QueryParams, buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
-import { IQueryTableColumn } from "interfaces/osquery_table";
+import type { PerformanceImpactIndicator } from "interfaces/schedulable_query";
+import {
+  PerformanceImpactIndicatorValue,
+  ISchedulableQueryStats,
+} from "interfaces/schedulable_query";
 import {
   IScheduledQuery,
   IPackQueryFormData,
@@ -41,11 +43,8 @@ import {
 import { ITeam } from "interfaces/team";
 import { UserRole } from "interfaces/user";
 
-import PATHS from "router/paths";
 import stringUtils from "utilities/strings";
 import sortUtils from "utilities/sort";
-import { checkTable } from "utilities/sql_tools";
-import { osqueryTables } from "utilities/osquery_tables";
 import {
   DEFAULT_EMPTY_CELL_VALUE,
   DEFAULT_GRAVATAR_LINK,
@@ -55,11 +54,10 @@ import {
   INITIAL_FLEET_DATE,
   PLATFORM_LABEL_DISPLAY_TYPES,
   isPlatformLabelNameFromAPI,
-  PolicyResponse,
 } from "utilities/constants";
-import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IActivityDetails } from "interfaces/activity";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
+import CustomLink from "components/CustomLink";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -91,18 +89,6 @@ export const addGravatarUrlToResource = (resource: any): any => {
     gravatar_url,
     gravatar_url_dark,
   };
-};
-
-export const createHostsByPolicyPath = (
-  policyId: number,
-  policyResponse: PolicyResponse,
-  teamId?: number | null
-) => {
-  return `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams({
-    policy_id: policyId,
-    policy_response: policyResponse,
-    team_id: teamId,
-  })}`;
 };
 
 /** Removes Apple OS Prefix from host.os_version. */
@@ -173,87 +159,6 @@ const filterTarget = (targetType: string) => {
   };
 };
 
-export const formatConfigDataForServer = (config: any): any => {
-  const orgInfoAttrs = pick(config, ["org_logo_url", "org_name"]);
-  const serverSettingsAttrs = pick(config, [
-    "server_url",
-    "osquery_enroll_secret",
-    "live_query_disabled",
-    "enable_analytics",
-  ]);
-  const smtpSettingsAttrs = pick(config, [
-    "authentication_method",
-    "authentication_type",
-    "domain",
-    "enable_ssl_tls",
-    "enable_start_tls",
-    "password",
-    "port",
-    "sender_address",
-    "server",
-    "user_name",
-    "verify_ssl_certs",
-    "enable_smtp",
-  ]);
-  const ssoSettingsAttrs = pick(config, [
-    "entity_id",
-    "idp_image_url",
-    "metadata",
-    "metadata_url",
-    "idp_name",
-    "enable_sso",
-    "enable_sso_idp_login",
-  ]);
-  const hostExpirySettingsAttrs = pick(config, [
-    "host_expiry_enabled",
-    "host_expiry_window",
-  ]);
-  const webhookSettingsAttrs = pick(config, [
-    "enable_host_status_webhook",
-    "destination_url",
-    "host_percentage",
-    "days_count",
-  ]);
-  // because agent_options is already an object
-  const agentOptionsSettingsAttrs = config.agent_options;
-
-  const orgInfo = size(orgInfoAttrs) && { org_info: orgInfoAttrs };
-  const serverSettings = size(serverSettingsAttrs) && {
-    server_settings: serverSettingsAttrs,
-  };
-  const smtpSettings = size(smtpSettingsAttrs) && {
-    smtp_settings: smtpSettingsAttrs,
-  };
-  const ssoSettings = size(ssoSettingsAttrs) && {
-    sso_settings: ssoSettingsAttrs,
-  };
-  const hostExpirySettings = size(hostExpirySettingsAttrs) && {
-    host_expiry_settings: hostExpirySettingsAttrs,
-  };
-  const agentOptionsSettings = size(agentOptionsSettingsAttrs) && {
-    agent_options: yaml.load(agentOptionsSettingsAttrs),
-  };
-  const webhookSettings = size(webhookSettingsAttrs) && {
-    webhook_settings: { host_status_webhook: webhookSettingsAttrs }, // nested to server
-  };
-
-  if (hostExpirySettings) {
-    hostExpirySettings.host_expiry_settings.host_expiry_window = Number(
-      hostExpirySettings.host_expiry_settings.host_expiry_window
-    );
-  }
-
-  return {
-    ...orgInfo,
-    ...serverSettings,
-    ...smtpSettings,
-    ...ssoSettings,
-    ...hostExpirySettings,
-    ...agentOptionsSettings,
-    ...webhookSettings,
-  };
-};
-
 export const formatFloatAsPercentage = (float?: number): string => {
   if (float === undefined) {
     return DEFAULT_EMPTY_CELL_VALUE;
@@ -318,7 +223,7 @@ export const formatScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -338,7 +243,7 @@ export const formatScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -376,7 +281,7 @@ export const formatScheduledQueryForClient = (
 
 export const formatGlobalScheduledQueryForServer = (
   scheduledQuery: IScheduledQuery
-): IScheduledQuery => {
+) => {
   const {
     interval,
     logging_type: loggingType,
@@ -384,7 +289,7 @@ export const formatGlobalScheduledQueryForServer = (
     query_id: queryID,
     shard,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -400,7 +305,7 @@ export const formatGlobalScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -447,7 +352,7 @@ export const formatTeamScheduledQueryForServer = (
     shard,
     team_id: teamID,
   } = scheduledQuery;
-  const result = omit(scheduledQuery, ["logging_type"]);
+  const result = omit(scheduledQuery, ["logging_type", "query_id", "team_id"]);
 
   if (platform === "all") {
     result.platform = "";
@@ -463,7 +368,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (queryID) {
-    result.query_id = Number(queryID);
+    (result as any).report_id = Number(queryID);
   }
 
   if (shard) {
@@ -471,7 +376,7 @@ export const formatTeamScheduledQueryForServer = (
   }
 
   if (teamID) {
-    result.query_id = Number(teamID);
+    (result as any).fleet_id = Number(teamID);
   }
 
   return result;
@@ -568,6 +473,9 @@ export const generateRole = (
     } else if (listOfRoles.every((role): boolean => role === "observer_plus")) {
       // only team observers plus
       return "Observer+";
+    } else if (listOfRoles.every((role): boolean => role === "technician")) {
+      // only team technicians
+      return "Technician";
     }
 
     return "Various"; // no global role and multiple teams
@@ -587,30 +495,30 @@ export const generateTeam = (
   if (globalRole === null) {
     if (teams.length === 0) {
       // no global role and no teams
-      return "No team";
+      return "Unassigned";
     } else if (teams.length === 1) {
       // no global role and only one team
       return teams[0].name;
     }
-    return `${teams.length} teams`; // no global role and multiple teams
+    return `${teams.length} fleets`; // no global role and multiple teams
   }
 
   if (teams.length === 0) {
     // global role and no teams
     return "Global";
   }
-  return `${teams.length + 1} teams`; // global role and one or more teams
+  return `${teams.length + 1} fleets`; // global role and one or more teams
 };
 
 export const greyCell = (roleOrTeamText: string): boolean => {
   const GREYED_TEXT = ["Global", "Unassigned", "Various", "No team", "Unknown"];
 
   return (
-    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" teams")
+    GREYED_TEXT.includes(roleOrTeamText) || roleOrTeamText.includes(" fleets")
   );
 };
 
-const setupData = (formData: any) => {
+const setupData = (formData: IRegistrationFormData) => {
   const orgInfo = pick(formData, ORG_INFO_ATTRS);
   const adminInfo = pick(formData, ADMIN_ATTRS);
 
@@ -618,6 +526,7 @@ const setupData = (formData: any) => {
     server_url: formData.server_url,
     org_info: {
       ...orgInfo,
+      org_logo_url_light_background: orgInfo.org_logo_url || "",
     },
     admin: {
       admin: true,
@@ -698,9 +607,13 @@ export const internationalTimeFormat = (date: number | Date): string => {
   );
 };
 
+export const internationalNumberFormat = (number: number): string => {
+  return new Intl.NumberFormat(navigator.language).format(number);
+};
+
 export const hostTeamName = (teamName: string | null): string => {
   if (!teamName) {
-    return "No team";
+    return "Unassigned";
   }
 
   return teamName;
@@ -722,6 +635,13 @@ export const humanQueryLastRun = (lastRun: string): string => {
 export const hasLicenseExpired = (expiration: string): boolean => {
   return isAfter(new Date(), new Date(expiration));
 };
+
+// just a rename of hasLicenseExpired so that it can be used in other contexts.
+// TODO: change hasLicenseExpired instances to hasExpired
+/**
+ * determines if a date has expired. This will check against the current date and time.
+ */
+export const hasExpired = hasLicenseExpired;
 
 /**
  * determines if a date will expire within "x" number of days. If the date has
@@ -748,13 +668,13 @@ export const readableDate = (date: string) => {
 
 export const getPerformanceImpactDescription = (
   scheduledQueryStats: ISchedulableQueryStats
-) => {
+): PerformanceImpactIndicator => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
     scheduledQueryStats.total_executions === null
   ) {
-    return "Undetermined";
+    return PerformanceImpactIndicatorValue.UNDETERMINED;
   }
 
   if (
@@ -765,13 +685,59 @@ export const getPerformanceImpactDescription = (
       scheduledQueryStats.user_time_p50 + scheduledQueryStats.system_time_p50;
 
     if (indicator < 2000) {
-      return "Minimal";
+      return PerformanceImpactIndicatorValue.MINIMAL;
     }
     if (indicator < 4000) {
-      return "Considerable";
+      return PerformanceImpactIndicatorValue.CONSIDERABLE;
     }
   }
-  return "Excessive";
+  return PerformanceImpactIndicatorValue.EXCESSIVE;
+};
+
+export const getPerformanceImpactIndicatorTooltip = (
+  indicator: PerformanceImpactIndicator,
+  isHostSpecific = false
+) => {
+  switch (indicator) {
+    case PerformanceImpactIndicatorValue.MINIMAL:
+      return (
+        <>
+          Running this report very frequently has little to no <br /> impact on
+          your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.CONSIDERABLE:
+      return (
+        <>
+          Running this report frequently can have a noticeable <br />
+          impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.EXCESSIVE:
+      return (
+        <>
+          Running this report, even infrequently, can have a <br />
+          significant impact on your device&apos;s performance.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.DENYLISTED:
+      return (
+        <>
+          This report has been <br /> stopped from running <br /> because of
+          excessive <br /> resource consumption.
+        </>
+      );
+    case PerformanceImpactIndicatorValue.UNDETERMINED:
+      return (
+        <>
+          Performance impact will be available
+          <br /> when {isHostSpecific ? "the" : "this"} report runs
+          {isHostSpecific && " on this host"}.
+        </>
+      );
+    default:
+      return null;
+  }
 };
 
 export const secondsToDhms = (s: number): string => {
@@ -932,17 +898,6 @@ export const getSoftwareBundleTooltipJSX = (bundle: string) => (
   </span>
 );
 
-export const TAGGED_TEMPLATES = {
-  queryByHostRoute: (hostId?: number | null, teamId?: number | null) => {
-    const queryString = buildQueryStringFromParams({
-      host_id: hostId || undefined,
-      team_id: teamId,
-    });
-
-    return queryString && `?${queryString}`;
-  },
-};
-
 export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
@@ -997,12 +952,36 @@ export function getCustomDropdownOptions(
       ];
 }
 
+export const getGitOpsModeTipContent = (repoURL: string) => {
+  let url = "";
+  try {
+    url = new URL(repoURL).toString();
+  } catch {
+    // Invalid URL submitted before validation was required, missing protocol
+    url = `https://${repoURL}`;
+  }
+  return (
+    <>
+      <span>
+        Manage in{" "}
+        <CustomLink newTab text="YAML" variant="tooltip-link" url={url} />
+        <br />
+      </span>
+      <span>(GitOps mode enabled)</span>
+    </>
+  );
+};
+
+/** Returns true if the passed in ISO 8601 date-time string represents a date and time in the past,
+ * false otherwise */
+export const isDateTimePast = (dt: string) => {
+  return new Date(dt) < new Date();
+};
+
 export default {
   addGravatarUrlToResource,
   removeOSPrefix,
   compareVersions,
-  createHostsByPolicyPath,
-  formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
   formatSeverity,
@@ -1041,5 +1020,5 @@ export default {
   normalizeEmptyValues,
   wait,
   wrapFleetHelper,
-  TAGGED_TEMPLATES,
+  isDateTimePast,
 };

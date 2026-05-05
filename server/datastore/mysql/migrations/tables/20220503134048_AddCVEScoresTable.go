@@ -17,7 +17,7 @@ CREATE TABLE cve_scores (
     cvss_score double,
     epss_probability double,
     cisa_known_exploit boolean
-)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")

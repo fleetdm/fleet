@@ -6,7 +6,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { IHost } from "interfaces/host";
 import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
 
-import TargetsInput from "components/LiveQuery/TargetsInput";
+import TargetsInput from "components/TargetsInput";
 
 import LabelForm from "../LabelForm";
 import { ILabelFormData } from "../LabelForm/LabelForm";
@@ -35,6 +35,7 @@ interface IManualLabelFormProps {
   defaultName?: string;
   defaultDescription?: string;
   defaultTargetedHosts?: IHost[];
+  teamName: string | null;
   onSave: (formData: IManualLabelFormData) => void;
   onCancel: () => void;
 }
@@ -43,6 +44,7 @@ const ManualLabelForm = ({
   defaultName = "",
   defaultDescription = "",
   defaultTargetedHosts = [],
+  teamName,
   onSave,
   onCancel,
 }: IManualLabelFormProps) => {
@@ -71,7 +73,7 @@ const ManualLabelForm = ({
   }, [debounceSearch, searchQuery]);
 
   const {
-    data: hostTargets,
+    data: searchResults,
     isLoading: isLoadingSearchResults,
     isError: isErrorSearchResults,
   } = useQuery<ITargetsSearchResponse, Error, IHost[], ITargetsQueryKey[]>(
@@ -128,8 +130,10 @@ const ManualLabelForm = ({
       <LabelForm
         defaultName={defaultName}
         defaultDescription={defaultDescription}
+        teamName={teamName}
         onCancel={onCancel}
         onSave={onSaveNewLabel}
+        immutableFields={teamName ? ["teams"] : []}
         additionalFields={
           <TargetsInput
             label={LABEL_TARGET_HOSTS_INPUT_LABEL}
@@ -139,7 +143,7 @@ const ManualLabelForm = ({
             selectedHostsTableConifg={selectedHostsTableConfig}
             isTargetsLoading={isLoadingSearchResults || isDebouncing}
             hasFetchError={isErrorSearchResults}
-            searchResults={hostTargets ?? []}
+            searchResults={searchResults ?? []}
             targetedHosts={targetedHosts}
             setSearchText={onChangeSearchQuery}
             handleRowSelect={onHostSelect}

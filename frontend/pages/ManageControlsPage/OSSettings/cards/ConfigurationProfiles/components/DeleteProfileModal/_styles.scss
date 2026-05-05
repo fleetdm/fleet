@@ -1,0 +1,15 @@
+.delete-profile-modal {
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__profile-name {
+    font-weight: $bold;
+  }
+}

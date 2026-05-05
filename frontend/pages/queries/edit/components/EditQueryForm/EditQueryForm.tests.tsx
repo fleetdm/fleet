@@ -1,6 +1,14 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+
+import { screen, waitFor, within } from "@testing-library/react";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  createMockLocation,
+} from "test/test-utils";
+import { http, HttpResponse } from "msw";
+import mockServer from "test/mock-server";
+import userEvent from "@testing-library/user-event";
 
 import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
@@ -8,22 +16,41 @@ import createMockConfig from "__mocks__/configMock";
 
 import EditQueryForm from "./EditQueryForm";
 
-const mockQuery = createMockQuery();
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
+jest.mock("services/entities/queries");
+
+const baseUrl = (path: string) => {
+  return `/api/latest/fleet${path}`;
 };
+
+const mockLabels = [
+  {
+    id: 1,
+    name: "Fun",
+    description: "Computers that like to have a good time",
+    label_type: "regular",
+  },
+  {
+    id: 2,
+    name: "Fresh",
+    description: "Laptops with dirty mouths",
+    label_type: "regular",
+  },
+];
+
+const labelSummariesHandler = http.get(baseUrl("/labels/summary"), () => {
+  return HttpResponse.json({
+    labels: mockLabels,
+  });
+});
+
+const mockQuery = createMockQuery();
+const mockRouter = createMockRouter();
+const mockLocation = createMockLocation();
 
 describe("EditQueryForm - component", () => {
   it("disables save button for missing query name", async () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         query: {
           lastEditedQueryId: mockQuery.id,
@@ -52,7 +79,7 @@ describe("EditQueryForm - component", () => {
           isGlobalAdmin: true,
           isGlobalMaintainer: false,
           isOnGlobalTeam: true,
-          isPremiumTier: true,
+          isPremiumTier: false,
           isSandboxMode: false,
           config: createMockConfig(),
         },
@@ -62,9 +89,9 @@ describe("EditQueryForm - component", () => {
     render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "" })} // empty name
         isStoredQueryLoading={false}
@@ -86,6 +113,7 @@ describe("EditQueryForm - component", () => {
 
   it("disables live query button for globally disabled live queries", async () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         query: {
           lastEditedQueryId: mockQuery.id,
@@ -114,7 +142,7 @@ describe("EditQueryForm - component", () => {
           isGlobalAdmin: true,
           isGlobalMaintainer: false,
           isOnGlobalTeam: true,
-          isPremiumTier: true,
+          isPremiumTier: false,
           isSandboxMode: false,
           config: createMockConfig({
             server_settings: {
@@ -126,12 +154,12 @@ describe("EditQueryForm - component", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ name: "Mock query" })}
         isStoredQueryLoading={false}
@@ -148,17 +176,20 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    expect(screen.getByRole("button", { name: "Live query" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Live report" })).toBeDisabled();
 
-    await user.hover(screen.getByRole("button", { name: "Live query" }));
+    await user.hover(screen.getByRole("button", { name: "Live report" }));
 
-    expect(container.querySelector("#live-query-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+    expect(
+      await screen.findByText(
+        /live reports are disabled in organization settings/i
+      )
+    ).toBeInTheDocument();
   });
 
   it("shows automations warning icon when query frequency is set to 0", async () => {
     const render = createCustomRenderer({
+      withBackendMock: true,
       context: {
         query: {
           lastEditedQueryId: mockQuery.id,
@@ -187,19 +218,19 @@ describe("EditQueryForm - component", () => {
           isGlobalAdmin: true,
           isGlobalMaintainer: false,
           isOnGlobalTeam: true,
-          isPremiumTier: true,
+          isPremiumTier: false,
           isSandboxMode: false,
           config: createMockConfig(),
         },
       },
     });
 
-    const { user } = render(
+    render(
       <EditQueryForm
         router={mockRouter}
+        location={mockLocation}
         queryIdForEdit={1}
         apiTeamIdForQuery={1}
-        teamNameForQuery="Apples"
         showOpenSchemaActionText
         storedQuery={createMockQuery({ interval: 0 })}
         isStoredQueryLoading={false}
@@ -216,15 +247,15 @@ describe("EditQueryForm - component", () => {
       />
     );
 
-    // Find the frequency dropdown
-    const frequencyDropdown = screen
-      .getByText("Frequency")
+    // Find the interval dropdown
+    const intervalDropdown = screen
+      .getByText("Interval")
       .closest(".form-field--dropdown") as HTMLElement;
-    expect(frequencyDropdown).toBeInTheDocument();
+    expect(intervalDropdown).toBeInTheDocument();
 
-    // Check if the frequency is set to "Never"
-    const selectedFrequency = within(frequencyDropdown).getByText("Never");
-    expect(selectedFrequency).toBeInTheDocument();
+    // Check if the interval is set to "Never"
+    const selectedInterval = within(intervalDropdown).getByText("Never");
+    expect(selectedInterval).toBeInTheDocument();
 
     // Find the automations slider
     const automationsSlider = screen
@@ -233,7 +264,7 @@ describe("EditQueryForm - component", () => {
     expect(automationsSlider).toBeInTheDocument();
 
     // Check if the automations are enabled
-    const automationsButton = within(automationsSlider).getByRole("button");
+    const automationsButton = within(automationsSlider).getByRole("switch");
     expect(automationsButton).toHaveClass("fleet-slider--active");
 
     // Check if the warning icon is present
@@ -241,6 +272,517 @@ describe("EditQueryForm - component", () => {
     expect(warningIcon).toBeInTheDocument();
   });
 
+  it("should not show the target selector in the free tier", async () => {
+    mockServer.use(labelSummariesHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: "", // missing query name
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: mockQuery.query,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: false,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    render(
+      <EditQueryForm
+        router={mockRouter}
+        location={mockLocation}
+        queryIdForEdit={1}
+        apiTeamIdForQuery={1}
+        showOpenSchemaActionText
+        storedQuery={createMockQuery({ name: "" })} // empty name
+        isStoredQueryLoading={false}
+        isQuerySaving={false}
+        isQueryUpdating={false}
+        onSubmitNewQuery={jest.fn()}
+        onOsqueryTableSelect={jest.fn()}
+        onUpdate={jest.fn()}
+        onOpenSchemaSidebar={jest.fn()}
+        renderLiveQueryWarning={jest.fn()}
+        backendValidators={{}}
+        showConfirmSaveChangesModal={false}
+        setShowConfirmSaveChangesModal={jest.fn()}
+      />
+    );
+
+    // Wait for any queries (that should not be happening) to finish.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Check that the target selector is not present.
+    expect(screen.queryByText("All hosts")).not.toBeInTheDocument();
+  });
+
   // TODO: Consider testing save button is disabled for a sql error
   // Trickiness is in modifying react-ace using react-testing library
+
+  describe("in premium tier", () => {
+    const onUpdate = jest.fn();
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        query: {
+          lastEditedQueryId: mockQuery.id,
+          lastEditedQueryName: "Some query", // missing query name
+          lastEditedQueryDescription: mockQuery.description,
+          lastEditedQueryBody: mockQuery.query,
+          lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+          lastEditedQueryFrequency: mockQuery.interval,
+          lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+          lastEditedQueryPlatforms: mockQuery.platform,
+          lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+          lastEditedQueryLoggingType: mockQuery.logging,
+          setLastEditedQueryName: jest.fn(),
+          setLastEditedQueryDescription: jest.fn(),
+          setLastEditedQueryBody: jest.fn(),
+          setLastEditedQueryObserverCanRun: jest.fn(),
+          setLastEditedQueryFrequency: jest.fn(),
+          setLastEditedQueryAutomationsEnabled: jest.fn(),
+          setLastEditedQueryPlatforms: jest.fn(),
+          setLastEditedQueryMinOsqueryVersion: jest.fn(),
+          setLastEditedQueryLoggingType: jest.fn(),
+        },
+        app: {
+          currentUser: createMockUser(),
+          isGlobalObserver: false,
+          isGlobalAdmin: true,
+          isGlobalMaintainer: false,
+          isOnGlobalTeam: true,
+          isPremiumTier: true,
+          isSandboxMode: false,
+          config: createMockConfig(),
+        },
+      },
+    });
+
+    const props = {
+      router: mockRouter,
+      location: mockLocation,
+      queryIdForEdit: 1,
+      apiTeamIdForQuery: 1,
+      showOpenSchemaActionText: true,
+      storedQuery: createMockQuery(),
+      isStoredQueryLoading: false,
+      isQuerySaving: false,
+      isQueryUpdating: false,
+      onSubmitNewQuery: jest.fn(),
+      onOsqueryTableSelect: jest.fn(),
+      onUpdate,
+      onOpenSchemaSidebar: jest.fn(),
+      renderLiveQueryWarning: jest.fn(),
+      backendValidators: {},
+      showConfirmSaveChangesModal: false,
+      setShowConfirmSaveChangesModal: jest.fn(),
+    };
+
+    beforeEach(() => {
+      onUpdate.mockClear();
+      mockServer.use(labelSummariesHandler);
+    });
+
+    it("should show the target selector in All hosts target mode when the query has no labels", async () => {
+      render(<EditQueryForm {...props} />);
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+        expect(screen.getByLabelText("All hosts")).toBeChecked();
+      });
+    });
+
+    it("should show the target selector in Custom target mode when the query has labels", async () => {
+      const testProps = {
+        ...props,
+        storedQuery: createMockQuery({
+          name: "Some query",
+          labels_include_any: [{ name: "Fun", id: 1 }],
+        }),
+      };
+      render(<EditQueryForm {...testProps} />);
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Fun" })).toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
+        expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+      });
+    });
+
+    it("should disable the save button in Custom target mode when no labels are selected", async () => {
+      const testProps = {
+        ...props,
+        storedQuery: createMockQuery({
+          labels_include_any: [{ name: "Fun", id: 1 }],
+        }),
+      };
+      render(<EditQueryForm {...testProps} />);
+      let saveButton;
+      let funButton;
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeInTheDocument();
+        expect(screen.getByLabelText("Custom")).toBeChecked();
+        funButton = screen.getByRole("checkbox", { name: "Fun" });
+        expect(funButton).toBeChecked();
+        expect(
+          screen.getByRole("checkbox", { name: "Fresh" })
+        ).not.toBeChecked();
+        saveButton = screen.getByRole("button", { name: "Save" });
+        expect(saveButton).toBeEnabled();
+      });
+
+      // Unchecking the only selected label should disable the save button.
+      funButton && (await userEvent.click(funButton));
+      expect(saveButton).toBeDisabled();
+
+      // Re-checking it should enable it.
+      funButton && (await userEvent.click(funButton));
+      expect(saveButton).toBeEnabled();
+    });
+
+    it("should send labels when updating a query in Custom target mode", async () => {
+      const testProps = {
+        ...props,
+        storedQuery: createMockQuery({
+          labels_include_any: [{ name: "Fun", id: 1 }],
+        }),
+      };
+      render(<EditQueryForm {...testProps} />);
+      await waitFor(() => {
+        expect(screen.getByLabelText("All hosts")).toBeInTheDocument();
+      });
+
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual(["Fun"]);
+    });
+
+    it("should clear labels when updating a query in All hosts target mode", async () => {
+      const testProps = {
+        ...props,
+        storedQuery: createMockQuery({
+          labels_include_any: [{ name: "Fun", id: 1 }],
+        }),
+      };
+      render(<EditQueryForm {...testProps} />);
+      let allHosts;
+      await waitFor(() => {
+        allHosts = screen.getByLabelText("All hosts");
+        expect(allHosts).toBeInTheDocument();
+      });
+      allHosts && (await userEvent.click(allHosts));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(onUpdate.mock.calls[0][0].labels_include_any).toEqual([]);
+    });
+  });
+  describe("renderQueryTeam", () => {
+    const baseQueryContext = {
+      lastEditedQueryId: mockQuery.id,
+      lastEditedQueryName: mockQuery.name,
+      lastEditedQueryDescription: mockQuery.description,
+      lastEditedQueryBody: mockQuery.query,
+      lastEditedQueryObserverCanRun: mockQuery.observer_can_run,
+      lastEditedQueryFrequency: mockQuery.interval,
+      lastEditedQueryAutomationsEnabled: mockQuery.automations_enabled,
+      lastEditedQueryPlatforms: mockQuery.platform,
+      lastEditedQueryMinOsqueryVersion: mockQuery.min_osquery_version,
+      lastEditedQueryLoggingType: mockQuery.logging,
+      lastEditedQueryDiscardData: mockQuery.discard_data,
+      setLastEditedQueryName: jest.fn(),
+      setLastEditedQueryDescription: jest.fn(),
+      setLastEditedQueryBody: jest.fn(),
+      setLastEditedQueryObserverCanRun: jest.fn(),
+      setLastEditedQueryFrequency: jest.fn(),
+      setLastEditedQueryAutomationsEnabled: jest.fn(),
+      setLastEditedQueryMinOsqueryVersion: jest.fn(),
+      setLastEditedQueryLoggingType: jest.fn(),
+      setLastEditedQueryDiscardData: jest.fn(),
+      setLastEditedQueryPlatforms: jest.fn(),
+      setEditingExistingQuery: jest.fn(),
+    };
+
+    const baseProps = {
+      router: mockRouter,
+      location: mockLocation,
+      queryIdForEdit: mockQuery.id,
+      apiTeamIdForQuery: 1,
+      currentTeamId: 1,
+      currentTeamName: "Engineering team",
+      showOpenSchemaActionText: true,
+      storedQuery: createMockQuery(),
+      isStoredQueryLoading: false,
+      isQuerySaving: false,
+      isQueryUpdating: false,
+      onSubmitNewQuery: jest.fn(),
+      onOsqueryTableSelect: jest.fn(),
+      onUpdate: jest.fn(),
+      onOpenSchemaSidebar: jest.fn(),
+      renderLiveQueryWarning: jest.fn(),
+      backendValidators: {},
+      showConfirmSaveChangesModal: false,
+      setShowConfirmSaveChangesModal: jest.fn(),
+    };
+
+    beforeEach(() => {
+      mockServer.use(labelSummariesHandler);
+    });
+
+    it("does not render anything on free tier", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: false,
+            isFreeTier: true,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/report for/i)).not.toBeInTheDocument();
+    });
+
+    it("does not render anything when currentTeamName is missing", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(<EditQueryForm {...baseProps} currentTeamName={undefined} />);
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(/report for/i)).not.toBeInTheDocument();
+    });
+
+    it("shows 'Editing report' when existing query and user has save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Editing report for/i)).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Viewing report' when existing query and user has no save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: baseQueryContext,
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: true,
+            isTeamMaintainerOrTeamAdmin: false,
+            isAnyTeamMaintainerOrTeamAdmin: false,
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm {...baseProps} currentTeamName="Engineering team" />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(screen.getByText(/Viewing report for/i)).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Creating a new report' when there is no existing query and user has save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: {
+            ...baseQueryContext,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+          },
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: false,
+            isTeamMaintainerOrTeamAdmin: true,
+            isAnyTeamMaintainerOrTeamAdmin: true,
+            isGlobalAdmin: true,
+            isGlobalMaintainer: false,
+            isObserverPlus: false,
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm
+          {...baseProps}
+          queryIdForEdit={null}
+          storedQuery={undefined}
+          currentTeamName="Engineering team"
+        />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(
+        await screen.findByText(/Creating a new report for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+
+    it("shows 'Running a new report' when there is no existing query and user has no save permissions", async () => {
+      const render = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          query: {
+            ...baseQueryContext,
+            lastEditedQueryId: null,
+            lastEditedQueryName: "",
+          },
+          app: {
+            currentUser: createMockUser(),
+            isOnlyObserver: false,
+            isGlobalObserver: true,
+            isTeamMaintainerOrTeamAdmin: false,
+            isAnyTeamMaintainerOrTeamAdmin: false,
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+            isObserverPlus: true, // can run, but no save perms
+            isAnyTeamObserverPlus: false,
+            isPremiumTier: true,
+            isFreeTier: false,
+            config: createMockConfig(),
+          },
+        },
+      });
+
+      render(
+        <EditQueryForm
+          {...baseProps}
+          queryIdForEdit={null}
+          storedQuery={undefined}
+          currentTeamName="Engineering team"
+        />
+      );
+
+      // wait for spinner to go away
+      await waitFor(() => {
+        expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      });
+
+      expect(
+        await screen.findByText(/Running a new report for/i)
+      ).toBeInTheDocument();
+      expect(screen.getByText("Engineering team")).toBeInTheDocument();
+    });
+  });
 });

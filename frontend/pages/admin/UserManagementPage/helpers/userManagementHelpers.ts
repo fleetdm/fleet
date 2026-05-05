@@ -32,6 +32,7 @@ const generateUpdateData = (
     "name",
     "email",
     "sso_enabled",
+    "mfa_enabled",
   ];
   return Object.keys(formData).reduce<IUserUpdateBody | any>(
     (updatedAttributes, attr) => {
@@ -78,6 +79,11 @@ export const roleOptions = ({
     roles.splice(1, 0, {
       label: "Observer+",
       value: "observer_plus",
+    });
+
+    roles.splice(2, 0, {
+      label: "Technician",
+      value: "technician",
     });
 
     if (isApiOnly) {

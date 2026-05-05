@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>PayloadContent</key>
+        <array>
+            <dict>
+                <key>Password</key>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_my_CA</string>
+                <key>PayloadContent</key>
+                <data>${FLEET_VAR_DIGICERT_DATA_my_CA}</data>
+                <key>PayloadDisplayName</key>
+                <string>CertificatePKCS12</string>
+                <key>PayloadIdentifier</key>
+                <string>com.fleetdm.pkcs12</string>
+                <key>PayloadType</key>
+                <string>com.apple.security.pkcs12</string>
+                <key>PayloadUUID</key>
+                <string>ee86cfcb-1</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+            <dict>
+                <key>Password</key>
+                <string>$FLEET_VAR_DIGICERT_PASSWORD_FleetVars</string>
+                <key>PayloadContent</key>
+                <data>
+                    ${FLEET_VAR_DIGICERT_DATA_FleetVars}
+                </data>
+                <key>PayloadDisplayName</key>
+                <string>CertificatePKCS12 2</string>
+                <key>PayloadIdentifier</key>
+                <string>com.fleetdm.pkcs12.2</string>
+                <key>PayloadType</key>
+                <string>com.apple.security.pkcs12</string>
+                <key>PayloadUUID</key>
+                <string>ee86cfcb-2</string>
+                <key>PayloadVersion</key>
+                <integer>1</integer>
+            </dict>
+        </array>
+        <key>PayloadDisplayName</key>
+        <string>DigiCert2</string>
+        <key>PayloadIdentifier</key>
+        <string>DigiCert2</string>
+        <key>PayloadType</key>
+        <string>Configuration</string>
+        <key>PayloadUUID</key>
+        <string>DigiCert2</string>
+        <key>PayloadVersion</key>
+        <integer>1</integer>
+    </dict>
+</plist>

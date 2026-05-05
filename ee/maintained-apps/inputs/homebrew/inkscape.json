@@ -1,0 +1,8 @@
+{
+  "name": "Inkscape",
+  "unique_identifier": "org.inkscape.Inkscape",
+  "token": "inkscape",
+  "installer_format": "dmg",
+  "slug": "inkscape/darwin",
+  "default_categories": ["Productivity"]
+}

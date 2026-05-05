@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useContext } from "react";
+
+import { AppContext } from "context/app";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -16,6 +18,7 @@ const DeleteLabelModal = ({
   onCancel,
   isUpdatingLabel,
 }: IDeleteLabelModalProps): JSX.Element => {
+  const { isPremiumTier } = useContext(AppContext);
   return (
     <Modal
       title="Delete label"
@@ -23,31 +26,32 @@ const DeleteLabelModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        <p>
-          If a configuration profile uses this label as a custom target, the
-          profile will break. After deleting the label, remove broken profiles
-          and upload new profiles in their place.
-        </p>
-        <p>
-          If software uses this label as a custom target, the label will not be
-          able to be deleted. Please remove the label from the software target
-          first before deleting.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            onClick={onSubmit}
-            variant="alert"
-            className="delete-loading"
-            isLoading={isUpdatingLabel}
-          >
-            Delete
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>Are you sure you wish to delete this label?</p>
+      {isPremiumTier && (
+        <ul>
+          <li>
+            Configuration profiles that target this label will not be applied to
+            new hosts.
+          </li>
+          <li>
+            Reports and policies that target this label will continue to run,
+            but may target different hosts.
+          </li>
+        </ul>
+      )}
+      <div className="modal-cta-wrap">
+        <Button
+          onClick={onSubmit}
+          variant="alert"
+          className="delete-loading"
+          isLoading={isUpdatingLabel}
+        >
+          Delete
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/require"
 )
 
@@ -53,7 +53,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 			tokID = tok2.ID
 		}
 
-		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tokID)
+		err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, tokID, make(map[uint]time.Time))
 		require.NoError(t, err)
 		hosts[i] = h
 		t.Logf("host [%d]: %s - %s - %d", i, h.UUID, h.HardwareSerial, tokID)
@@ -68,12 +68,12 @@ func TestMacosSetupAssistant(t *testing.T) {
 	require.NoError(t, err)
 
 	// hosts[0, 1] are no-team, hosts[2, 3] are team1, hosts[4, 5] are team2
-	err = ds.AddHostsToTeam(ctx, &tm1.ID, []uint{hosts[2].ID, hosts[3].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm1.ID, []uint{hosts[2].ID, hosts[3].ID}))
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &tm2.ID, []uint{hosts[4].ID, hosts[5].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm2.ID, []uint{hosts[4].ID, hosts[5].ID}))
 	require.NoError(t, err)
 
-	logger := kitlog.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
 	macosJob := &MacosSetupAssistant{
@@ -314,7 +314,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 	}, serialsToProfile)
 
 	// move hosts[2,4] to team 3, delete team 2
-	err = ds.AddHostsToTeam(ctx, &tm3.ID, []uint{hosts[2].ID, hosts[4].ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm3.ID, []uint{hosts[2].ID, hosts[4].ID}))
 	require.NoError(t, err)
 	err = ds.DeleteTeam(ctx, tm2.ID)
 	require.NoError(t, err)

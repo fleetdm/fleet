@@ -1,0 +1,781 @@
+package condaccess
+
+import (
+	"context"
+	"crypto"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
+	"errors"
+	"fmt"
+	"log/slog"
+	"maps"
+	"net/http"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/crewjam/saml"
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/fleetdm/fleet/v4/server/platform/middleware/ratelimit"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
+	"github.com/google/uuid"
+	dsig "github.com/russellhaering/goxmldsig"
+	"github.com/throttled/throttled/v2"
+)
+
+const (
+	idpMetadataPath = "/api/fleet/conditional_access/idp/metadata"
+	idpSSOPath      = "/api/fleet/conditional_access/idp/sso"
+	idpSSOPrefix    = "okta."
+
+	// URL to redirect users when they have failing conditional access policies and need to remediate their device
+	remediateURL = "https://fleetdm.com/remediate"
+	// URL to redirect users when there's a certificate error during Okta conditional access authentication
+	certificateErrorURL = "https://fleetdm.com/okta-conditional-access-error"
+
+	// SAML constants
+	samlBindingHTTPPost = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+	samlKeyUseSigning   = "signing"
+
+	// Policy response values
+	policyResponseFail = "fail"
+
+	// Metadata cache TTL (for DDoS protection). Keep this short because the cached response
+	// depends on the server URL from AppConfig; a URL change will serve stale data until expiry.
+	metadataCacheTTL = 1 * time.Minute
+)
+
+// notFoundError implements fleet.NotFoundError interface for conditional access IdP errors.
+type notFoundError struct {
+	msg string
+}
+
+func (e *notFoundError) Error() string {
+	return e.msg
+}
+
+func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+// metadataCache caches the SAML IdP metadata XML response (body + headers). Unlike authenticated
+// endpoints that rely on the datastore's AppConfig cache, this unauthenticated endpoint uses its own
+// cache to avoid hitting the database entirely, even the datastore cache lookup is skipped, providing
+// an extra layer of protection against DDoS-driven load.
+type metadataCache struct {
+	mu        sync.RWMutex
+	data      []byte
+	headers   http.Header
+	expiresAt time.Time
+}
+
+// get returns the cached metadata and headers if the cache hasn't expired.
+func (c *metadataCache) get() ([]byte, http.Header, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.data == nil || time.Now().After(c.expiresAt) {
+		return nil, nil, false
+	}
+	return c.data, c.headers, true
+}
+
+// set stores the metadata and headers in the cache with the given TTL.
+func (c *metadataCache) set(data []byte, headers http.Header, ttl time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.data = data
+	c.headers = headers.Clone()
+	c.expiresAt = time.Now().Add(ttl)
+}
+
+// idpService implements the Okta conditional access IdP functionality.
+type idpService struct {
+	ds               fleet.Datastore
+	logger           *slog.Logger
+	certSerialFormat string
+	mdCache          *metadataCache
+}
+
+// RegisterIdP registers the HTTP handlers for Okta conditional access IdP endpoints.
+func RegisterIdP(
+	mux *http.ServeMux,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	fleetConfig *config.FleetConfig,
+	limitStore throttled.GCRAStore,
+) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
+
+	svc := &idpService{
+		ds:               ds,
+		logger:           logger.With("component", "conditional-access-idp"),
+		certSerialFormat: fleetConfig.ConditionalAccess.CertSerialFormat,
+		mdCache:          &metadataCache{},
+	}
+
+	// Create IP extraction strategy for real client IP behind load balancers.
+	// This reuses the same trusted_proxies configuration as the main API handler.
+	ipStrategy, err := endpointer.NewClientIPStrategy(fleetConfig.Server.TrustedProxies)
+	if err != nil {
+		return fmt.Errorf("create ip strategy: %w", err)
+	}
+
+	// Create per-IP rate limiter for unauthenticated IdP endpoints.
+	// These endpoints are publicly accessible (required by SAML standard),
+	// so rate limiting prevents DDoS-driven database overload.
+	rateLimiter, err := ratelimit.NewHTTPRateLimiter(limitStore, ratelimit.DefaultHTTPRateQuota(), ipStrategy)
+	if err != nil {
+		return fmt.Errorf("create idp rate limiter: %w", err)
+	}
+
+	// Create logging middleware
+	loggingMiddleware := log.NewLoggingMiddleware(svc.logger)
+
+	// Register handlers with logging, rate limiting, and OpenTelemetry middleware.
+	// Order (outermost first): OTEL -> logging -> rate limit -> handler
+	// Logging wraps rate limiting so that 429 responses are also logged.
+	metadataHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveMetadata))
+	metadataHandler = loggingMiddleware(metadataHandler)
+	metadataHandler = otel.WrapHandler(metadataHandler, idpMetadataPath, *fleetConfig)
+
+	ssoHandler := rateLimiter.RateLimit(http.HandlerFunc(svc.serveSSO))
+	ssoHandler = loggingMiddleware(ssoHandler)
+	ssoHandler = otel.WrapHandler(ssoHandler, idpSSOPath, *fleetConfig)
+
+	mux.Handle(idpMetadataPath, metadataHandler)
+	mux.Handle(idpSSOPath, ssoHandler)
+
+	return nil
+}
+
+// handleInternalServerError logs the error, records it in context, and returns HTTP 500.
+// This function should be used whenever returning StatusInternalServerError to ensure
+// consistent error handling across the IdP service.
+// Additional key-value pairs can be passed for logging context (e.g., "host_id", hostID).
+func handleInternalServerError(ctx context.Context, w http.ResponseWriter, logger *slog.Logger, msg string, err error, keyvals ...any) {
+	logKeyvals := append([]any{"err", err}, keyvals...)
+	logger.ErrorContext(ctx, msg, logKeyvals...)
+	ctxerr.Handle(ctx, err)
+	http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+}
+
+// serveMetadata handles GET /api/fleet/conditional_access/idp/metadata
+// Returns SAML IdP metadata for Okta to consume.
+// Responses are cached in memory to avoid repeated database queries.
+func (s *idpService) serveMetadata(w http.ResponseWriter, r *http.Request) {
+	// Return cached response if available
+	if cached, cachedHeaders, ok := s.mdCache.get(); ok {
+		maps.Copy(w.Header(), cachedHeaders)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(cached)
+		return
+	}
+
+	ctx := r.Context()
+
+	// Load AppConfig to get Okta settings
+	appConfig, err := s.ds.AppConfig(ctx)
+	if err != nil {
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
+		return
+	}
+
+	// Get Fleet server URL from config
+	serverURL := appConfig.ServerSettings.ServerURL
+	if serverURL == "" {
+		s.logger.ErrorContext(ctx, "server URL not configured")
+		http.Error(w, "Server URL not configured", http.StatusNotFound)
+		return
+	}
+
+	// Build IdP
+	idp, err := s.buildIdentityProvider(ctx, serverURL)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			s.logger.ErrorContext(ctx, "IdP certificate or key not found", "err", err)
+			http.Error(w, "IdP not configured", http.StatusNotFound)
+			return
+		}
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
+		return
+	}
+
+	// Capture the metadata response so we can cache it
+	rec := &responseRecorder{header: make(http.Header)}
+	idp.ServeMetadata(rec, r)
+
+	// Only cache successful responses
+	if rec.statusCode == http.StatusOK || rec.statusCode == 0 {
+		s.mdCache.set(rec.body, rec.header, metadataCacheTTL)
+	}
+
+	// Write the captured response to the actual client
+	maps.Copy(w.Header(), rec.header)
+	if rec.statusCode > 0 {
+		w.WriteHeader(rec.statusCode)
+	}
+	_, _ = w.Write(rec.body)
+}
+
+// responseRecorder captures an HTTP response for caching purposes.
+type responseRecorder struct {
+	header     http.Header
+	body       []byte
+	statusCode int
+}
+
+func (r *responseRecorder) Header() http.Header {
+	return r.header
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	r.body = append(r.body, b...)
+	return len(b), nil
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.statusCode = statusCode
+}
+
+// serveSSO handles POST /api/fleet/conditional_access/idp/sso
+// Handles SAML AuthnRequest from Okta, verifies device certificate and health.
+func (s *idpService) serveSSO(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	s.logger.InfoContext(ctx, "received SSO request",
+		"method", r.Method,
+		"remote_addr", r.RemoteAddr,
+	)
+
+	// Extract certificate serial number from header (set by load balancer)
+	serialStr := r.Header.Get("X-Client-Cert-Serial")
+	if serialStr == "" {
+		s.logger.ErrorContext(ctx, "missing client certificate serial", "remote_addr", r.RemoteAddr)
+		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
+		return
+	}
+
+	// Parse serial number (hex or decimal string to uint64, based on config)
+	serial, err := parseSerialNumber(serialStr, s.certSerialFormat)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "invalid certificate serial format",
+			"serial", serialStr, "format", s.certSerialFormat, "err", err,
+		)
+		http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
+		return
+	}
+
+	// Look up host by certificate serial number
+	hostID, err := s.ds.GetConditionalAccessCertHostIDBySerialNumber(ctx, serial)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			s.logger.ErrorContext(ctx, "certificate not recognized", "serial", serial, "err", err)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
+			return
+		}
+		handleInternalServerError(ctx, w, s.logger, "failed to lookup host by certificate serial", err, "serial", serial)
+		return
+	}
+
+	s.logger.DebugContext(ctx, "found host for certificate", "host_id", hostID, "serial", serial)
+
+	// Load AppConfig for IdP configuration
+	appConfig, err := s.ds.AppConfig(ctx)
+	if err != nil {
+		handleInternalServerError(ctx, w, s.logger, "failed to load app config", err)
+		return
+	}
+
+	// Get Fleet server URL from config
+	serverURL := appConfig.ServerSettings.ServerURL
+	if serverURL == "" {
+		handleInternalServerError(ctx, w, s.logger, "server URL not configured", errors.New("server URL not configured"))
+		return
+	}
+
+	// Build IdP
+	idp, err := s.buildIdentityProvider(ctx, serverURL)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			s.logger.ErrorContext(ctx, "IdP certificate or key not found", "err", err)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
+			return
+		}
+		handleInternalServerError(ctx, w, s.logger, "failed to build identity provider", err)
+		return
+	}
+
+	// Set session provider to handle device health checks
+	idp.SessionProvider = &deviceHealthSessionProvider{
+		ds:     s.ds,
+		logger: s.logger,
+		hostID: hostID,
+	}
+
+	// ServeSSO handles SAML AuthnRequest parsing, generates assertion, and returns response
+	s.logger.DebugContext(ctx, "calling SAML IdP ServeSSO", "host_id", hostID)
+
+	// Wrap response writer to intercept 400 errors and redirect to certificate error page
+	wrappedWriter := &statusInterceptingWriter{
+		ResponseWriter: w,
+		ctx:            ctx,
+		logger:         s.logger,
+		r:              r,
+		redirectURL:    certificateErrorURL,
+	}
+	idp.ServeSSO(wrappedWriter, r)
+}
+
+// statusInterceptingWriter wraps http.ResponseWriter to intercept 400 Bad Request responses
+// and redirect to a certificate error page instead.
+type statusInterceptingWriter struct {
+	http.ResponseWriter
+	ctx           context.Context
+	logger        *slog.Logger
+	r             *http.Request
+	redirectURL   string
+	headerWritten bool
+}
+
+func (w *statusInterceptingWriter) WriteHeader(statusCode int) {
+	if w.headerWritten {
+		return
+	}
+	w.headerWritten = true
+	if statusCode == http.StatusBadRequest {
+		w.logger.ErrorContext(w.ctx, "SAML IdP returned bad request, redirecting to error page", "status", statusCode)
+		http.Redirect(w.ResponseWriter, w.r, w.redirectURL, http.StatusSeeOther)
+		return
+	}
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+// parseSerialNumber parses a certificate serial number from hex or decimal string to uint64.
+// The serial number is provided by the load balancer in the X-Client-Cert-Serial header.
+//
+// SECURITY NOTE: This function only supports certificate serial numbers up to uint64 max
+// (18,446,744,073,709,551,615). While X.509 allows serial numbers up to 160 bits, this
+// limitation is acceptable because Fleet controls the Certificate Authority and generates
+// all certificates via SCEP
+func parseSerialNumber(serialStr string, format string) (uint64, error) {
+	// Remove any colons or spaces that might be in the serial number (common in hex format)
+	serialStr = strings.ReplaceAll(serialStr, ":", "")
+	serialStr = strings.ReplaceAll(serialStr, " ", "")
+
+	base := 16 // default to hex
+	if format == config.CertSerialFormatDecimal {
+		base = 10
+	}
+
+	serial, err := strconv.ParseUint(serialStr, base, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parse serial number (format=%s): %w", format, err)
+	}
+
+	return serial, nil
+}
+
+// extractNameID extracts the NameID (user identifier) from a SAML AuthnRequest.
+// Okta sends the NameID in the request to identify which user is authenticating.
+// Returns empty string if the NameID cannot be extracted.
+func extractNameID(req *saml.IdpAuthnRequest) string {
+	if req != nil && req.Request.Subject != nil && req.Request.Subject.NameID != nil {
+		return req.Request.Subject.NameID.Value
+	}
+	return ""
+}
+
+// deviceHealthSessionProvider implements saml.SessionProvider interface to handle
+// device health verification during SAML SSO flow.
+type deviceHealthSessionProvider struct {
+	ds     fleet.Datastore
+	logger *slog.Logger
+	hostID uint
+}
+
+// GetSession is called by the SAML library to get session information for the SAML assertion.
+// It performs device health checks and returns appropriate session data or error.
+func (p *deviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) *saml.Session {
+	ctx := r.Context()
+
+	// Extract NameID (email/username) from the SAML AuthnRequest
+	// Okta sends this to identify which user is authenticating
+	nameID := extractNameID(req)
+
+	p.logger.DebugContext(ctx, "processing SAML session", "host_id", p.hostID)
+
+	// Load host to get team ID
+	hostLite, err := p.ds.HostLite(ctx, p.hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			p.logger.ErrorContext(ctx, "host not found", "host_id", p.hostID, "err", err)
+			http.Redirect(w, r, certificateErrorURL, http.StatusSeeOther)
+			return nil
+		}
+		handleInternalServerError(ctx, w, p.logger, "failed to load host", err, "host_id", p.hostID)
+		return nil
+	}
+
+	// Get policies configured for conditional access
+	teamID := uint(0)
+	if hostLite.TeamID != nil {
+		teamID = *hostLite.TeamID
+	}
+	conditionalAccessPolicyIDs, err := p.ds.GetPoliciesForConditionalAccess(ctx, teamID, hostLite.Platform)
+	if err != nil {
+		handleInternalServerError(ctx, w, p.logger, "failed to get conditional access policies", err, "host_id", p.hostID)
+		return nil
+	}
+
+	// Create a set of conditional access policy IDs for fast lookup
+	conditionalAccessPolicyIDsSet := make(map[uint]struct{}, len(conditionalAccessPolicyIDs))
+	for _, policyID := range conditionalAccessPolicyIDs {
+		conditionalAccessPolicyIDsSet[policyID] = struct{}{}
+	}
+
+	// Create a minimal Host for ListPoliciesForHost
+	// Platform is required for policy filtering
+	host := &fleet.Host{
+		ID:       p.hostID,
+		Platform: hostLite.Platform,
+	}
+
+	// Get all policies for the host
+	policies, err := p.ds.ListPoliciesForHost(ctx, host)
+	if err != nil {
+		handleInternalServerError(ctx, w, p.logger, "failed to list policies for host", err, "host_id", p.hostID)
+		return nil
+	}
+
+	// Check if device has failing conditional access policies
+	failingConditionalAccessCount := 0
+	failingCritical := 0
+	for _, policy := range policies {
+		// Only check policies that are marked for conditional access
+		if _, isConditionalAccessPolicy := conditionalAccessPolicyIDsSet[policy.ID]; !isConditionalAccessPolicy {
+			continue
+		}
+		// Check if policy is failing
+		if policy.Response == policyResponseFail {
+			failingConditionalAccessCount++
+			if policy.Critical {
+				failingCritical++
+			}
+		}
+	}
+
+	if failingConditionalAccessCount > 0 {
+		p.logger.DebugContext(ctx, "device has failing conditional access policies",
+			"host_id", p.hostID,
+			"failing_conditional_access_policies_count", failingConditionalAccessCount,
+		)
+		authToken, getErr := p.ds.GetDeviceAuthToken(ctx, host.ID)
+
+		var needNewToken bool
+		switch {
+		case getErr == nil:
+			// Token exists. Check if it's expired. Use the same TTL as device authentication.
+			// In practice, Orbit rotates tokens proactively (before expiration), so an expired
+			// token here means Orbit is not running (crashed, not installed, or can't reach the
+			// server). Even if Orbit rotates concurrently, the previous_token mechanism ensures
+			// the old token remains valid after rotation.
+			const deviceAuthTokenTTL = time.Hour
+			if _, loadErr := p.ds.LoadHostByDeviceAuthToken(ctx, authToken, deviceAuthTokenTTL); loadErr != nil {
+				if fleet.IsNotFound(loadErr) {
+					needNewToken = true // Case 1: token exists but is expired
+				} else {
+					p.logger.ErrorContext(ctx, "failed to validate device auth token", "err", loadErr, "host_id", p.hostID)
+					ctxerr.Handle(ctx, loadErr)
+					http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+					return nil
+				}
+			}
+		case fleet.IsNotFound(getErr):
+			needNewToken = true // Case 2: no token exists (e.g. fresh install without Fleet Desktop)
+		default:
+			// Unexpected error. Log and redirect to generic remediation page.
+			p.logger.ErrorContext(ctx, "failed to get device auth token",
+				"err", getErr,
+				"host_id", p.hostID,
+			)
+			ctxerr.Handle(ctx, getErr)
+			http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+			return nil
+		}
+
+		if needNewToken {
+			// Create a server-side token so the redirect URL works.
+			// If Fleet Desktop is running, Orbit will overwrite this with a client-generated
+			// token on its next rotation, but this token will remain valid as
+			// previous_token for one rotation cycle.
+			authToken = uuid.NewString()
+			if setErr := p.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, authToken); setErr != nil {
+				p.logger.ErrorContext(ctx, "failed to create device auth token",
+					"err", setErr,
+					"host_id", p.hostID,
+				)
+				http.Redirect(w, r, remediateURL, http.StatusSeeOther)
+				return nil
+			}
+		}
+
+		config, err := p.ds.AppConfig(ctx)
+		if err != nil {
+			handleInternalServerError(ctx, w, p.logger, "failed to get app config", err, "host_id", p.hostID)
+			return nil
+		}
+
+		hostRemediationUrl := fmt.Sprintf("%s/device/%s/policies", config.ServerSettings.ServerURL, authToken)
+
+		bypassEnabled := config.ConditionalAccess == nil || config.ConditionalAccess.BypassEnabled()
+
+		var bypassedAt *time.Time
+		if bypassEnabled && failingCritical == 0 {
+			bypassedAt, err = p.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+			if err != nil {
+				ctxerr.Handle(ctx, fmt.Errorf("failed to check conditional access host bypass for host %d: %w", p.hostID, err))
+				http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+				return nil
+			}
+		}
+
+		if bypassedAt == nil {
+			// No bypass, fail as usual
+			http.Redirect(w, r, hostRemediationUrl, http.StatusSeeOther)
+			return nil
+		}
+
+		// Host has clicked "bypass" for this check, we have consumed it and will let them through
+		p.logger.InfoContext(ctx, "device has bypassed conditional access checks",
+			"host_id", p.hostID,
+		)
+	}
+
+	// Device is compliant - return session for SAML assertion
+	// The NameID must match what Okta sent in the AuthnRequest (typically user email)
+	// If no NameID was provided in the request, fall back to host-based identifier
+	if nameID == "" {
+		nameID = fmt.Sprintf("host-%d", p.hostID)
+		p.logger.DebugContext(ctx, "no NameID in request, using host-based identifier", "name_id", nameID)
+	}
+
+	p.logger.InfoContext(ctx, "device is compliant, generating SAML assertion",
+		"host_id", p.hostID,
+	)
+
+	return &saml.Session{
+		NameID: nameID,
+	}
+}
+
+// oktaServiceProviderProvider implements saml.ServiceProviderProvider to provide
+// Okta service provider metadata to the IdP.
+type oktaServiceProviderProvider struct {
+	ds     fleet.Datastore
+	logger *slog.Logger
+}
+
+// GetServiceProvider returns the Okta service provider metadata.
+// The serviceProviderID parameter is the entityID from the SAML AuthnRequest,
+// which should match the Okta Audience URI from the configuration.
+func (p *oktaServiceProviderProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
+	ctx := r.Context()
+
+	// Load AppConfig to get Okta settings
+	appConfig, err := p.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load app config: %w", err)
+	}
+
+	// Validate Okta configuration exists
+	if appConfig.ConditionalAccess == nil ||
+		appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value == "" ||
+		appConfig.ConditionalAccess.OktaAudienceURI.Value == "" {
+		return nil, os.ErrNotExist
+	}
+
+	// Check if the requested service provider ID (entityID) matches our configured Okta Audience URI
+	if serviceProviderID != appConfig.ConditionalAccess.OktaAudienceURI.Value {
+		p.logger.DebugContext(ctx, "service provider ID mismatch",
+			"requested", serviceProviderID,
+			"configured", appConfig.ConditionalAccess.OktaAudienceURI.Value,
+		)
+		return nil, os.ErrNotExist
+	}
+
+	// Build EntityDescriptor for Okta service provider
+	acsURL, err := url.Parse(appConfig.ConditionalAccess.OktaAssertionConsumerServiceURL.Value)
+	if err != nil {
+		return nil, fmt.Errorf("parse assertion consumer service URL: %w", err)
+	}
+
+	descriptor := saml.SPSSODescriptor{
+		AssertionConsumerServices: []saml.IndexedEndpoint{
+			{
+				Binding:  samlBindingHTTPPost,
+				Location: acsURL.String(),
+				Index:    0,
+			},
+		},
+	}
+
+	// Parse Okta's certificate if provided (for validating signed AuthnRequests)
+	if appConfig.ConditionalAccess.OktaCertificate.Value != "" {
+		oktaCert, err := parseCertificateBytes([]byte(appConfig.ConditionalAccess.OktaCertificate.Value))
+		if err != nil {
+			return nil, fmt.Errorf("parse okta certificate: %w", err)
+		}
+
+		descriptor.SSODescriptor.RoleDescriptor.KeyDescriptors = []saml.KeyDescriptor{
+			{
+				Use: samlKeyUseSigning,
+				KeyInfo: saml.KeyInfo{
+					X509Data: saml.X509Data{
+						X509Certificates: []saml.X509Certificate{
+							{Data: base64.StdEncoding.EncodeToString(oktaCert.Raw)},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	entityDescriptor := &saml.EntityDescriptor{
+		EntityID:         appConfig.ConditionalAccess.OktaAudienceURI.Value,
+		SPSSODescriptors: []saml.SPSSODescriptor{descriptor},
+	}
+
+	return entityDescriptor, nil
+}
+
+// buildIdentityProvider creates a SAML IdentityProvider using the Fleet server URL.
+func (s *idpService) buildIdentityProvider(ctx context.Context, serverURL string) (*saml.IdentityProvider, error) {
+	// Load Fleet's IdP certificate and key from mdm_config_assets
+	assets, err := s.ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		fleet.MDMAssetConditionalAccessIDPCert,
+		fleet.MDMAssetConditionalAccessIDPKey,
+	}, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load conditional access idp assets")
+	}
+
+	certAsset, certOK := assets[fleet.MDMAssetConditionalAccessIDPCert]
+	keyAsset, keyOK := assets[fleet.MDMAssetConditionalAccessIDPKey]
+	if !certOK || !keyOK {
+		// Return NotFoundError so it can be properly handled as a configuration issue
+		// (redirect to error page) rather than an infrastructure error (500)
+		return nil, &notFoundError{msg: "conditional access idp certificate or key not found in mdm_config_assets"}
+	}
+
+	// Parse certificate and key
+	cert, key, err := parseCertAndKeyBytes(certAsset.Value, keyAsset.Value)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse okta idp certificate")
+	}
+
+	// Build metadata URL
+	metadataURL, err := url.Parse(serverURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse server URL for metadata")
+	}
+	metadataURL = metadataURL.JoinPath(idpMetadataPath)
+
+	// Build SSO URL (uses okta.* subdomain or dev override)
+	ssoServerURL, err := s.buildSSOServerURL(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build SSO server URL")
+	}
+	ssoURL, err := url.Parse(ssoServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parse SSO server URL")
+	}
+	ssoURL = ssoURL.JoinPath(idpSSOPath)
+
+	samlLogger := &slogAdapter{ctx: ctx, logger: s.logger.With("component", "saml-idp")}
+
+	// Build IdentityProvider
+	// Note: SessionProvider is set dynamically in serveSSO based on the authenticated device
+	idp := &saml.IdentityProvider{
+		Key:                     key,
+		SignatureMethod:         dsig.RSASHA256SignatureMethod,
+		Logger:                  samlLogger,
+		Certificate:             cert,
+		MetadataURL:             *metadataURL,
+		SSOURL:                  *ssoURL,
+		ServiceProviderProvider: &oktaServiceProviderProvider{ds: s.ds, logger: s.logger},
+	}
+
+	return idp, nil
+}
+
+// buildSSOServerURL builds the SSO server base URL from the app config.
+// It delegates to AppConfig.ConditionalAccessIdPSSOURL() for the URL construction logic.
+func (s *idpService) buildSSOServerURL(ctx context.Context) (string, error) {
+	// Load app config
+	appConfig, err := s.ds.AppConfig(ctx)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "load app config")
+	}
+
+	// Use the AppConfig method to build the SSO URL
+	ssoURL, err := appConfig.ConditionalAccessIdPSSOURL(dev_mode.Env)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "build conditional access SSO URL")
+	}
+
+	return ssoURL, nil
+}
+
+// parseCertAndKeyBytes parses PEM-encoded certificate and private key from separate byte slices.
+func parseCertAndKeyBytes(certPEM, keyPEM []byte) (*x509.Certificate, crypto.PrivateKey, error) {
+	var cert *x509.Certificate
+	var key crypto.PrivateKey
+
+	// Parse certificate
+	block, _ := pem.Decode(certPEM)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, nil, errors.New("failed to decode certificate PEM")
+	}
+	var err error
+	cert, err = x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse certificate: %w", err)
+	}
+
+	// Parse private key (we always generate RSA PRIVATE KEY format via certificate.EncodePrivateKeyPEM)
+	block, _ = pem.Decode(keyPEM)
+	if block == nil || block.Type != "RSA PRIVATE KEY" {
+		return nil, nil, errors.New("failed to decode RSA private key PEM")
+	}
+
+	key, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parse RSA private key: %w", err)
+	}
+
+	return cert, key, nil
+}
+
+// parseCertificateBytes parses a PEM-encoded certificate.
+func parseCertificateBytes(certPEM []byte) (*x509.Certificate, error) {
+	block, _ := pem.Decode(certPEM)
+	if block == nil || block.Type != "CERTIFICATE" {
+		return nil, errors.New("failed to decode certificate PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse certificate: %w", err)
+	}
+	return cert, nil
+}

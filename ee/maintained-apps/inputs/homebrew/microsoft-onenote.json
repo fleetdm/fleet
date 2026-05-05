@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft OneNote",
+  "unique_identifier": "com.microsoft.onenote.mac",
+  "token": "microsoft-onenote",
+  "installer_format": "pkg",
+  "slug": "microsoft-onenote/darwin",
+  "default_categories": ["Productivity"]
+}

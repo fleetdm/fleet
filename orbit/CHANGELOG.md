@@ -1,3 +1,300 @@
+## Orbit 1.54.0 (Apr 07, 2026)
+
+* Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
+
+* Improved initial loading state of macOS setup experience when displaying web view UI.
+
+* Fixed an issue where the automatic migration preview would show when the device was not MDM-enrolled and not enrolled via DEP.
+
+* Fixed a case where `app_sso_platform` does not return any data if Platform SSO is configured but the user has not yet completed registration.
+
+* Added `registration_completed` and `login_type` columns to `app_sso_platform` table.
+
+* Updated script validation to support python interpreters on macOS and Linux.
+
+* Added a new `disk_space` fleetd table for macOS that reports accurate available disk space including purgeable storage.
+
+* Added `macos_thermal_pressure`, `macos_soc_power`, `macadmins_wifi_network`, and `local_network_permissions` tables from https://github.com/macadmins/osquery-extension.
+
+* Fixed BitLocker encryption failing with `E_INVALIDARG` after migrating Windows devices from another MDM. Fleet now reads the `OSEncryptionType` registry policy to use the correct encryption mode and cleans up stale key protectors from previous failed attempts.
+
+* Fixed a bug where the fleetd `executable_hashes` table failed to compute hashes for app bundles with emoji characters in their names.
+
+* Updated go to 1.26.1.
+
+* Added `go_binaries` table to detect Go binaries installed via `go install` in user directories.
+
+## Orbit 1.53.1 (Mar 18, 2026)
+
+* Updated github.com/shirou/gopsutil from v3 to v4 to fix a crash in Apple M5 hardware.
+
+## Orbit 1.53.0 (Mar 03, 2026)
+
+* Improved GUI user detection in orbit to use the correct active GUI session when starting Fleet Desktop.
+
+* Fixed a COM deadlock on Windows that could cause orbit to become unresponsive during BitLocker encryption enforcement. BitLocker operations now run on a dedicated COM thread instead of sharing the global comshim singleton with other subsystems.
+
+* Fixed the "app_sso_platform" table to return empty result set if Kerberos status is not available.
+
+* Fixed icon size on KDE environments.
+
+* Fixed old escrow method on macOS to use environment variables on the TCL script.
+
+* Improved detection of `DISPLAY` variable in X11 sessions.
+
+* Added a system tray title to Fleet Desktop to make sure that the system tray ID is static, not dynamic.
+
+## Orbit 1.52.1 (Feb 20, 2026)
+
+* Fixed panic in `orbit` when auto-updates are disabled.
+
+## Orbit 1.52.0 (Feb 16, 2026)
+
+* Updated `macadmins/osquery-extensions` to v1.3.2.
+
+* Updated `Migrate to Fleet` webhook to always send when device is seen as unmanaged.
+
+* Harden `app_sso_platform` table command execution to prevent command injection.
+
+* Added 'AlternativeBrowserHost' to Desktop Summary payload and updated Fleet Desktop to use it over the alternative browser host set via the env.
+
+* Updated fleetd to ignore the `gdm-greeter` user in GNOME 49 sessions when starting Fleet Desktop.
+
+* Added `musl-tools` to fleet-desktop build process to fix GLIBC incompatibility that caused orbit agent to fail when updating fleet-desktop on Ubuntu 20.04.
+
+* Added `containerd_mounts` table on Linux to query container mount information from containerd.
+
+* Added dummy implementation of `orbit_info` table to the orbit shell.
+
+* Set `--tls_accept_gzip=true` when connecting osquery to Fleet. This should have no effect until gzip is also enabled on the Fleet server (a new Fleet server configuration `FLEET_SERVER_GZIP_RESPONSES=true` is coming in v4.81.0).
+
+## Orbit 1.51.1 (Jan 28, 2026)
+
+* Improved "Fleet Desktop" description in Windows' system tray.
+
+* Updated Orbit CA certs.
+
+* Switched Fleet logo in macOS Desktop from a PNG to an SVG.
+
+* Fixed bugs in auto-update of `.tar.gz` components ("Fleet Desktop" and osqueryd) in orbit.
+
+* Updated go to 1.25.5.
+
+* Fixed macOS `fleet-desktop` that was being displayed as dirty by `go version -m`.
+
+* Updated github.com/shoenig/go-m1cpu to v0.1.7 to fix a build warning on Apple silicon.
+
+* Implemented the `executable_hashes` `fleetd` table, providing easy access to the SHA-256 hash and absolute path of the main executable for macOS app bundles matching the `path` in the query’s WHERE clause. Supports exact matches or multiple bundles via LIKE.
+
+## Orbit 1.50.2 (Dec 12, 2025)
+
+* Fixed an issue where macOS devices would fail to enroll when end-user authentication was configured.
+
+## Orbit 1.50.1 (Nov 27, 2025)
+
+* Upgraded macadmins osquery-extension to v1.2.7.
+
+* Exposed `crowdstrike_falcon` osquery table from macadmins extension.
+
+* Added support for requiring end-user authentication before enrolling Windows and Linux devices.
+
+* Added `yaml_to_json` table for converting YAML in input to JSON in output.  
+
+* Added `file_contents` table for retrieving contents of a file. This table is like `file_lines` but returns the full file contents in a single row rather than a separate row for each line.
+
+* Fixed handling of various parsing bugs that caused the falconctl_options table to fail to load in some circumsatances.
+
+## Orbit 1.49.1 (Oct 27, 2025)
+
+* Added `mcp_listening_servers` table to find MCP servers listening over HTTP.
+
+* Added `santa_status`, `santa_allowed`, and `santa_denied` tables for Santa support.
+
+* Added windows support for web setup experience.
+
+* Setup experience for macOS hosts may now be configured to halt if any software install fails (requires Fleet server 4.76.0)
+
+* Added Contact IT button when MDM migration fails and Organization support URL is set up on Fleet server.
+
+* Improved orbit debug logs when HTTP response contains a large HTML page.
+
+## Orbit 1.48.1 (Sep 24, 2025)
+
+* During setup experience, try software installs up to 3 times by default in case of intermittent failures.
+
+* Added agent support for setup experience on Linux
+
+* Add `fleetd_pacman_packages` table for `pacman` package manager
+
+* Fixed desktop app launch on some Linux systems by reverting to using sudo.
+
+* Fixed Fleet Desktop failing to launch the browser, or launching the wrong browser, in Wayland sessions and/or when the browser is installed as a Flatpak or Snap.
+
+* Added logic to detect OpenSUSE to address emoji rendering issues in Fleet Desktop system tray menu
+
+* Fixed duplicate enrolled macOS UUIDs/SNs: for macOS, orbit saves hardware UUID to a file and forces a re-enrollment if the hardware UUID has changed. Existing duplicate hosts on the server are unaffected by this agent change.
+
+* Fixed issue with `orbit shell` ignoring disable updates flag.
+
+* Since new macOS/Linux packages built with `fleetctl 4.75.0` or higher do not have embedded osqueryd.app.tar.gz and desktop.tar.gz, orbit can now use osqueryd.app.tar.gz.sha512 and desktop.tar.gz.sha512/desktop.app.tar.gz.sha512 hash caches to check if an update is needed.
+
+* Updated go to 1.25.1
+
+* Updated httpsig-go library to 1.2.0 (for host identity certificates and HTTP message signatures).
+
+## Orbit 1.47.4 (Sep 11, 2025)
+
+* Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
+
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
+## Orbit 1.47.2 (Sep 04, 2025)
+
+* Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
+
+* Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
+
+* Updated go to 1.24.6
+
+* Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
+
+## Orbit 1.46.0 (Aug 15, 2025)
+
+* Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.
+
+* Fixed Fleet Desktop offline indicator to be less sensitive to transient network failures and faster recovery when connectivity is restored.
+
+* Fixed bug on Fleet Desktop, 'About Fleet' menu item was not showing after the host is back online.
+
+* Switched to `runuser` and `runcon` to launch fleet desktop with the correct SELinux context and user.
+
+* Added support to generate a TPM 2.0 private key and issue a SCEP certificate for signing of HTTP requests (via new environment variable `ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE`).
+
+* Added new Orbit config flag, set if Disk Encryption is enforced enabled and the require BitLocker PIN flag is set.
+
+* Added new fleetd table 'bitlocker_key_protectors' that returns what key protectors are setup on the system.
+
+* Fixed an issue where Fleet Desktop would stop showing "Migrate to Fleet" for several minutes every hour after a device token refresh.
+
+* Fixed tarball extraction failures due to unknown TAR headers.
+
+* Fixed tarball extraction failures on archives that don't include a parent directory header before files in that directory.
+
+* Updated go to 1.24.5.
+
+* Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
+
+## Orbit 1.45.1 (Jul 14th, 2025)
+
+* Added feature for showing an informational message on Fleet Desktop if the host cannot connect to Fleet.
+
+* Added new flag `--fleet-certificate` to `sudo orbit shell` command (which sets osquery's `--tls_server_certs` flag).
+
+* Fixed issue with macOS MDM migration where fleetd did not fallback to parsing the `ConfigurationURL` when `ConfigurationWebURL` was not set in the MDM enrollment profile.
+
+* Added the `macos_user_profiles` osquery extension table on darwin.
+
+* Fixed an issue where Orbit would attempt to launch Fleet Desktop on Linux systems without a logged-in GUI user.
+
+## Orbit 1.44.0 (Jun 26, 2025)
+
+* Added `app_sso_platform` table to get Platform SSO extensions state information.
+
+* Updated go to 1.24.4
+
+## Orbit 1.43.0 (Jun 10, 2025)
+
+* Fixed an issue where the setup experience window would never finish and close if a software installer was deleted while it was running.
+
+* Add `containerd_containers` table on Linux.
+
+* Revised "Migrate to Fleet" link anchor text.
+
+* Added two new Linux tables:
+  * `lsblk`: populated from the output of running `lsblk -n -O`.
+  * `cryptsetup_luks_salt`: given a device path it returns all the key_slots and salts of said device.
+
+* Added new column `cdhash_sha256` to `codesign` table.
+
+## Orbit 1.42.0 (May 15, 2025)
+
+* Made the macOS Setup Experience dialog more reliable by preventing system sleep while it is shown, changing the key combo to cmd+shift+x to exit, keeping it on top of all other windows and making sure it closes once it completes.
+
+* Fixed "concurrent map writes" crashes in orbit when both `EscrowBuddy` and `swiftDialog` components are updated/fetched.
+
+* Removed popup loading indicator for LUKS key escrow.
+
+* Fixed an issue causing Nudge launch failures.
+
+* Improved support for wide aspect ratio icons in the MDM setup experience and migration dialogs for
+  Apple devices.
+
+* When fleetd on a Windows host installs an update it detects from TUF, also update the corresponding `DisplayVersion` in the Registry.
+
+* Added automatic extraction of .tar.gz/.tgz archives prior to running the associated install script.
+
+* Updated Fleet Desktop's "My device" menu item to route to the policies tab on the "My device" web page.
+
+* Updated go to 1.24.2.
+
+* Updated the `windows_updates` Orbit table so that results are only returned iff there are non-installed windows updates.
+
+* Updated orbit linux CI builders to build (musl) static executable. (The main reason for this move was the deprecation of Ubuntu 20.04 runners by Github.)
+
+## Orbit 1.41.0 (Apr 14, 2025)
+
+* Fixed osquery flag parsing when the argument contained `=`.
+
+* Added `dconf_read` table to get configuration information from GNOME.
+
+* Added more logging to installation of software packages.
+
+* Updated fleetd to report software installer download errors back to Fleet.
+
+* Changed the way macos opens the fleet desktop app to better ensure successful launch.
+
+* Added support for Windows ARM64 platform in fleetd (`fleetctl package --arch=arm64 --type=msi`).
+
+* Updated Go to v1.24.1.
+
+* Added a timeout so the desktop app retries if not displayed after 1 minute.
+
+## Orbit 1.40.1 (Mar 14, 2025)
+
+* Fixed LUKS key escrow in non-English system locales.
+
+* Added logic to ensure only one instance of Fleet Desktop is running at a time.
+
+* Fixed an issue where restarting the desktop manager on Ubuntu would cause the Fleet Desktop tray icon to disappear and not return.
+
+## Orbit 1.39.1 (Feb 12, 2025)
+
+* Fixed a bug where fleetd could not install software from an old fleet server.
+
+## Orbit 1.39.0 (Feb 07, 2025)
+
+* Fixed a bug where the `SystemDrive` environment variable was not being passed to osqueryd.
+
+* Removed rollback to connect to Fleet's old TUF server (added in case 1.38.0 had an emergency bug).
+
+* Added bash interpreter support for script execution.
+
+* Fixed a bug where fleetd was not properly cleaning up temporary directories during software installation.
+
+* Added support to download software installers from signed CDN URLs.
+
+* Added retry logic to orbit's call to `POST /orbit/software_install/result` to account for momentary network failures causing an install to appear failed (e.g. when installing network extensions as part of an EDR).
+
+* Added support for Wayland display sessions. Thanks @pboushy for [this](https://github.com/fleetdm/fleet/issues/19043#issuecomment-2625719309) contribution to fixing this issue.
+
+* Added more client-side logging for software installs, scripts, and MDM setup experience.
+
+## Orbit 1.38.0 (Jan 24, 2025), 1.38.1 (Jan 27, 2025)
+
+* Added changes to migrate to new TUF repository from https://tuf.fleetctl.com to https://updates.fleetdm.com.
+
 ## Orbit 1.37.0 (Dec 13, 2024)
 
 * Added support for key escrow on Ubuntu 20.04.

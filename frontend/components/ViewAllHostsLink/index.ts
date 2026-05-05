@@ -1,1 +1,1 @@
-export { default } from "./ViewAllHostsLink";
+export { default } from "./ViewAllHostsButton";

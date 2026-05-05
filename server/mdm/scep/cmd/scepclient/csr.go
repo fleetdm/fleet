@@ -23,7 +23,7 @@ type csrOptions struct {
 }
 
 func loadOrMakeCSR(path string, opts *csrOptions) (*x509.CertificateRequest, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666) // nolint:gosec // G302
 	if err != nil {
 		if os.IsExist(err) {
 			return loadCSRfromFile(path)

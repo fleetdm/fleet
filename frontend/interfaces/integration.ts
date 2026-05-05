@@ -1,4 +1,5 @@
 export type IIntegrationType = "jira" | "zendesk";
+
 export interface IJiraIntegration {
   url: string;
   username: string;
@@ -15,13 +16,6 @@ export interface IZendeskIntegration {
   group_id: number;
   enable_failing_policies?: boolean;
   enable_software_vulnerabilities?: boolean;
-}
-
-export interface IScepIntegration {
-  url: string;
-  admin_url: string;
-  username: string;
-  password: string;
 }
 
 export interface IIntegration {
@@ -69,7 +63,7 @@ export interface IIntegrationFormErrors {
 
 export interface IGlobalCalendarIntegration {
   domain: string;
-  api_key_json: string;
+  api_key_json: Record<string, string>;
 }
 
 interface ITeamCalendarSettings {
@@ -81,7 +75,6 @@ interface ITeamCalendarSettings {
 // one is present and the other is null/missing, the other will be nullified. google_calendar is
 // separated – it can be present without the other 2 without nullifying them.
 // TODO:  Update these types to reflect this.
-
 export interface IZendeskJiraIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
@@ -91,9 +84,12 @@ export interface IZendeskJiraIntegrations {
 // Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
 export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
-  ndes_scep_proxy?: IScepIntegration | null;
+  // whether or not conditional access is enabled for "No team"
+  conditional_access_enabled?: boolean;
 }
 
 export interface ITeamIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: ITeamCalendarSettings | null;
+  // whether or not conditional access is enabled for each team other than "No team" (see `IGlobalIntegrations.conditional_access_enabled`)
+  conditional_access_enabled?: boolean;
 }

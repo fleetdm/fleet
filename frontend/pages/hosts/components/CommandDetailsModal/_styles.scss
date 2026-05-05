@@ -1,0 +1,19 @@
+.command-details-modal {
+  &__modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+    padding-bottom: $pad-small;
+  }
+
+  .input-field__textarea {
+    // shortening the height of the textarea
+    // so the modal height stays within the viewport
+    max-height: 200px;
+    height: auto;
+    field-sizing: content;
+    overflow-y: auto;
+    background-color: $ui-off-white;
+    font-family: "SourceCodePro", $monospace;
+  }
+}

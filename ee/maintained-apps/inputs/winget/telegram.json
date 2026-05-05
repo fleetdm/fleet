@@ -1,0 +1,12 @@
+{
+  "name": "Telegram",
+  "slug": "telegram/windows",
+  "package_identifier": "Telegram.TelegramDesktop",
+  "unique_identifier": "Telegram Desktop",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/telegram_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/telegram_uninstall.ps1",
+  "installer_arch": "x64",
+  "installer_type": "exe",
+  "installer_scope": "user",
+  "default_categories": ["Communication"]
+}

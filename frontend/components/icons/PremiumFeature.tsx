@@ -1,4 +1,6 @@
 import React from "react";
+
+import { uniqueId } from "lodash";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IPremiumFeatureProps {
@@ -6,6 +8,10 @@ interface IPremiumFeatureProps {
 }
 
 const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
+  const clipPathId = uniqueId("clip-path-");
+  const maskIdA = uniqueId("mask-");
+  const maskIdB = uniqueId("mask-");
+
   return (
     <svg
       width={ICON_SIZES[size]}
@@ -27,8 +33,8 @@ const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
         transform="translate(-664 -351)"
         fill="none"
       />
-      <g clipPath="url(#clip0_11687_321888)">
-        <mask id="path-1-inside-1_11687_321888" fill="white">
+      <g clipPath={`url(#${clipPathId})`}>
+        <mask id={maskIdA} fill="white">
           <path d="M8.5 16.5C12.9183 16.5 16.5 12.9183 16.5 8.5C16.5 4.08172 12.9183 0.5 8.5 0.5C4.08172 0.5 0.5 4.08172 0.5 8.5C0.5 12.9183 4.08172 16.5 8.5 16.5Z" />
         </mask>
         <path
@@ -36,10 +42,10 @@ const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
           fill="#C98DEF"
           stroke="#B17FF0"
           strokeWidth="2"
-          mask="url(#path-1-inside-1_11687_321888)"
+          mask={`url(#${maskIdA})`}
         />
         <mask
-          id="path-2-outside-2_11687_321888"
+          id={maskIdB}
           maskUnits="userSpaceOnUse"
           x="2.2002"
           y="3"
@@ -58,11 +64,11 @@ const PremiumFeature = ({ size = "medium" }: IPremiumFeatureProps) => {
           d="M12.5334 6.99092L9.97518 6.69946C9.91026 6.69256 9.85501 6.6525 9.826 6.59448L8.62148 4.10671C8.55241 3.96443 8.34936 3.96443 8.28029 4.10671L7.07577 6.59448C7.04815 6.6525 6.99151 6.69256 6.92659 6.69946L4.36837 6.99092C4.20261 7.01026 4.14045 7.21746 4.26891 7.3252L6.28151 8.99938C6.33538 9.04496 6.36024 9.11679 6.34505 9.18586L5.74832 11.9319C5.7124 12.0936 5.88921 12.2193 6.03149 12.135L8.3535 10.7412C8.4129 10.7053 8.48887 10.7053 8.54827 10.7412L10.8703 12.135C11.0126 12.2206 11.188 12.0949 11.1521 11.9319L10.5553 9.18586C10.5401 9.11679 10.565 9.04496 10.6189 8.99938L12.6315 7.3252C12.7599 7.21884 12.6978 7.01026 12.532 6.99092H12.5334Z"
           stroke="#B17FF0"
           strokeWidth="2"
-          mask="url(#path-2-outside-2_11687_321888)"
+          mask={`url(#${maskIdB})`}
         />
       </g>
       <defs>
-        <clipPath id="clip0_11687_321888">
+        <clipPath id={clipPathId}>
           <rect
             width="16"
             height="16"

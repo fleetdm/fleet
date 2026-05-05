@@ -1,7 +1,7 @@
 import React, { KeyboardEvent, useEffect, useRef } from "react";
 import classnames from "classnames";
 
-interface IAutoSizeInputFieldProps {
+export interface IAutoSizeInputFieldProps {
   name: string;
   placeholder: string;
   value: string;
@@ -14,6 +14,7 @@ interface IAutoSizeInputFieldProps {
   onBlur?: () => void;
   onChange: (newSelectedValue: string) => void;
   onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  disableTabability?: boolean;
 }
 
 const baseClass = "component__auto-size-input-field";
@@ -31,6 +32,7 @@ const AutoSizeInputField = ({
   onBlur = () => null,
   onChange,
   onKeyPress,
+  disableTabability = false,
 }: IAutoSizeInputFieldProps): JSX.Element => {
   const inputClasses = classnames(baseClass, inputClassName, "no-hover", {
     [`${baseClass}--disabled`]: isDisabled,
@@ -38,14 +40,16 @@ const AutoSizeInputField = ({
     [`${baseClass}__textarea`]: true,
   });
 
-  const inputElement = useRef<any>(null);
+  const inputElement = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (isFocused && inputElement.current) {
       inputElement.current.focus();
-      inputElement.current.selectionStart = value.length;
-      inputElement.current.selectionEnd = value.length;
+      const end = inputElement.current.value.length;
+      inputElement.current.selectionStart = end;
+      inputElement.current.selectionEnd = end;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused]);
 
   const onInputFocus = () => {
@@ -79,7 +83,7 @@ const AutoSizeInputField = ({
           className={inputClasses}
           cols={1}
           rows={1}
-          tabIndex={0}
+          tabIndex={disableTabability ? -1 : 0}
           onFocus={onInputFocus}
           onBlur={onInputBlur}
           onKeyPress={onInputKeyPress}

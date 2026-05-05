@@ -9,9 +9,7 @@
   }
 
   .modal__content {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+    @include vertical-modal-layout;
     height: 100%;
   }
 
@@ -20,13 +18,6 @@
     .children-wrapper {
       width: 680px;
     }
-  }
-
-  &__no-queries {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
-    margin: $pad-large 0;
   }
 
   .info {

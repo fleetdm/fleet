@@ -1,5 +1,5 @@
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Icon from "components/Icon";
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
@@ -12,13 +12,57 @@ import {
 import FileSaver from "file-saver";
 import Spinner from "components/Spinner";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import TooltipWrapper from "components/TooltipWrapper";
+import {
+  getPerformanceImpactDescription,
+  getPerformanceImpactIndicatorTooltip,
+} from "utilities/helpers";
+import { ISchedulableQueryStats } from "interfaces/schedulable_query";
 import generateColumnConfigs from "./HQRTableConfig";
 
 const baseClass = "hqr-table";
+const DEFAULT_CSV_TITLE = "Host-Specific Report";
+
+type PerformanceImpactProps = {
+  queryStats?: ISchedulableQueryStats;
+  queryId: number;
+};
+
+const PerformanceImpact = ({ queryStats, queryId }: PerformanceImpactProps) => {
+  const { total_executions = 0, user_time_p50 = 0, system_time_p50 = 0 } =
+    queryStats || {};
+
+  const scheduledQueryPerformance = {
+    user_time_p50:
+      total_executions > 0 ? Number(user_time_p50) / total_executions : 0,
+    system_time_p50:
+      total_executions > 0 ? Number(system_time_p50) / total_executions : 0,
+    total_executions,
+  };
+
+  const performanceImpact = {
+    indicator: getPerformanceImpactDescription(scheduledQueryPerformance),
+    id: queryId,
+  };
+
+  return (
+    <TooltipWrapper
+      tipContent={getPerformanceImpactIndicatorTooltip(
+        performanceImpact.indicator
+      )}
+    >
+      <span className="performance-impact">
+        <strong>Performance impact</strong>: {performanceImpact.indicator}
+      </span>
+    </TooltipWrapper>
+  );
+};
 
 export interface IHQRTable {
+  queryId: number;
   queryName?: string;
   queryDescription?: string;
+  queryStats?: ISchedulableQueryStats;
   hostName?: string;
   rows: Record<string, string>[];
   reportClipped?: boolean;
@@ -27,11 +71,11 @@ export interface IHQRTable {
   isLoading: boolean;
 }
 
-const DEFAULT_CSV_TITLE = "Host-Specific Query Report";
-
 const HQRTable = ({
+  queryId,
   queryName,
   queryDescription,
+  queryStats,
   hostName,
   rows,
   reportClipped,
@@ -64,7 +108,7 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__show-query-btn`}
           onClick={onShowQuery}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Show query <Icon name="eye" />
@@ -73,11 +117,11 @@ const HQRTable = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" />
           </>
         </Button>
       </div>
@@ -85,36 +129,31 @@ const HQRTable = ({
   }, [onShowQuery, filteredResults, queryName, hostName, columnConfigs]);
 
   const renderEmptyState = useCallback(() => {
-    // rows.length === 0
-
-    if (!lastFetched) {
-      // collecting results
+    if (reportClipped) {
       return (
-        <EmptyTable
-          className={`${baseClass}__collecting-results`}
-          graphicName="collecting-results"
-          header="Collecting results..."
-          info={`Fleet is collecting query results from ${hostName}. Check back later.`}
+        <EmptyState
+          className={`${baseClass}__report-clipped`}
+          header="Report clipped"
+          info="This report has paused reporting in Fleet, and no results were saved for this host."
         />
       );
     }
-    if (reportClipped) {
+    if (!lastFetched) {
+      // collecting results
       return (
-        <EmptyTable
-          className={`${baseClass}__report-clipped`}
-          graphicName="empty-software"
-          header="Report clipped"
-          info="This query has paused reporting in Fleet, and no results were saved for this host."
+        <EmptyState
+          className={`${baseClass}__collecting-results`}
+          header="Collecting results..."
+          info={`Fleet is collecting report results from ${hostName}. Check back later.`}
         />
       );
     }
     return (
       // nothing to report
-      <EmptyTable
+      <EmptyState
         className={`${baseClass}__nothing-to-report`}
-        graphicName="empty-software"
         header="Nothing to report"
-        info={`This query has run on ${hostName}, but returned no data for this host.`}
+        info={`This report has run on ${hostName}, but returned no data for this host.`}
       />
     );
   }, [lastFetched, hostName, reportClipped]);
@@ -134,11 +173,14 @@ const HQRTable = ({
   const renderTableInfo = useCallback(
     () => (
       <div className={`${baseClass}__query-info`}>
-        <h2>{queryName}</h2>
-        <h3>{queryDescription}</h3>
+        <div>
+          <h2>{queryName}</h2>
+          <h3>{queryDescription}</h3>
+        </div>
+        <PerformanceImpact queryStats={queryStats} queryId={queryId} />
       </div>
     ),
-    [queryDescription, queryName]
+    [queryDescription, queryName, queryStats, queryId]
   );
 
   if (isLoading) {
@@ -166,6 +208,7 @@ const HQRTable = ({
           emptyComponent={() => null}
           defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
+          getRowId={(_row, index) => String(index)}
         />
       )}
     </div>

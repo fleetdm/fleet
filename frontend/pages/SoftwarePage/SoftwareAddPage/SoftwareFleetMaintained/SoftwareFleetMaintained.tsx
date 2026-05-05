@@ -40,7 +40,12 @@ interface ISoftwareFleetMaintainedProps {
 // default values for query params used on this page if not provided
 const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
-const DEFAULT_PAGE_SIZE = 20;
+/** Team decision to avoid UI pagination because API needs revamp to properly
+ * handle pagination serverside, so rather break API than add more helper logic to
+ * handle clientside pagination when we know API will be revamped and would need
+ * to convert back to serverside after API fix.
+ */
+const DEFAULT_PAGE_SIZE = 999;
 const DEFAULT_PAGE = 0;
 
 const SoftwareFleetMaintained = ({
@@ -55,6 +60,8 @@ const SoftwareFleetMaintained = ({
     order_direction = DEFAULT_SORT_DIRECTION,
     query = "",
     page,
+    platform,
+    status,
   } = location.query;
   const currentPage = page ? parseInt(page, 10) : DEFAULT_PAGE;
 
@@ -95,7 +102,7 @@ const SoftwareFleetMaintained = ({
   }
 
   if (isError) {
-    return <DataError className={`${baseClass}__table-error`} />;
+    return <DataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -110,6 +117,8 @@ const SoftwareFleetMaintained = ({
         orderKey={order_key}
         perPage={DEFAULT_PAGE_SIZE}
         currentPage={currentPage}
+        platformParam={platform}
+        statusParam={status}
       />
     </div>
   );

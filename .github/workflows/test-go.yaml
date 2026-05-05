@@ -11,16 +11,28 @@ on:
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
+      - '.github/workflows/test-go-suite.yaml'
+      - 'tools/osquery/in-a-box/docker-compose.yml'
+      - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
+      - 'server/api_endpoints/api_endpoints.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   pull_request:
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
+      - '.github/workflows/test-go-suite.yaml'
+      - 'tools/osquery/in-a-box/docker-compose.yml'
+      - 'tools/osquery/in-a-box/osquery/docker-compose.yml'
+      - 'server/api_endpoints/api_endpoints.yml'
       - 'server/authz/policy.rego'
       - 'docker-compose.yml'
+      - 'frontend/templates/enroll-ota.html'
+      - 'frontend/templates/windowsTOS.html'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'
@@ -39,175 +51,58 @@ permissions:
   contents: read
 
 jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Suites that do NOT need MySQL: run once with no database dimension.
+  # ──────────────────────────────────────────────────────────────────────────────
+  test-go-no-db:
+    strategy:
+      matrix:
+        suite: ["fast", "scripts"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      is_cron: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Suites that need MySQL: always-run versions (every push/PR + cron).
+  # make sure to update supported versions docs when MySQL versions change
+  # ──────────────────────────────────────────────────────────────────────────
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "core", "mysql", "fleetctl", "vuln"]
-        os: [ubuntu-latest]
-        mysql: ["mysql:8.0.36", "mysql:8.4.3", "mysql:9.1.0"] # make sure to update supported versions docs when this changes
-        isCron:
-          - ${{ github.event_name == 'schedule' }}
-        # Only run MySQL 9 tests on cron schedule
-        exclude:
-          - isCron: false
-            mysql: "mysql:9.1.0"
-    continue-on-error: ${{ matrix.suite == 'integration' }} # Since integration tests have a higher chance of failing, often for unrelated reasons, we don't want to fail the whole job if they fail
-    runs-on: ${{ matrix.os }}
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        mysql: ["mysql:8.0.44", "mysql:9.5.0"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      mysql: ${{ matrix.mysql }}
+      is_cron: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
 
-    env:
-      RACE_ENABLED: false
-      GO_TEST_TIMEOUT: 20m
-
-    steps:
-    - name: Harden Runner
-      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
-      with:
-        egress-policy: audit
-
-    - name: Checkout Code
-      uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-
-    - name: Install Go
-      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
-      with:
-        go-version-file: 'go.mod'
-
-    # Pre-starting dependencies here means they are ready to go when we need them.
-    - name: Start Infra Dependencies
-      # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker compose -f docker-compose.yml -f docker-compose-redis-cluster.yml up -d mysql_test mysql_replica_test redis redis-cluster-1 redis-cluster-2 redis-cluster-3 redis-cluster-4 redis-cluster-5 redis-cluster-6 redis-cluster-setup minio saml_idp mailhog mailpit smtp4dev_test &
-
-    - name: Add TLS certificate for SMTP Tests
-      run: |
-        sudo cp tools/smtp4dev/fleet.crt /usr/local/share/ca-certificates/
-        sudo update-ca-certificates
-
-    # It seems faster not to cache Go dependencies
-    - name: Install Go Dependencies
-      run: make deps-go
-
-    - name: Install ZSH
-      run: sudo apt update && sudo apt install -y zsh
-
-    - name: Generate static files
-      run: |
-        export PATH=$PATH:~/go/bin
-        make generate-go
-
-    - name: Set Go race setting on schedule
-      if: github.event.schedule == '0 4 * * *'
-      run: |
-        echo "RACE_ENABLED=true" >> $GITHUB_ENV
-        echo "GO_TEST_TIMEOUT=1h" >> $GITHUB_ENV
-
-    - name: Wait for mysql
-      run: |
-        echo "waiting for mysql..."
-        until docker compose exec -T mysql_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
-            echo "."
-            sleep 1
-        done
-        echo "mysql is ready"
-        echo "waiting for mysql replica..."
-        until docker compose exec -T mysql_replica_test sh -c "mysql -uroot -p\"\${MYSQL_ROOT_PASSWORD}\" -e \"SELECT 1=1\" fleet" &> /dev/null; do
-            echo "."
-            sleep 1
-        done
-        echo "mysql replica is ready"
-
-    - name: Run Go Tests
-      run: |
-        if [[ "${{ matrix.suite }}" == "core" ]]; then
-          CI_TEST_PKG=main
-          RUN_TESTS_ARG='-skip=^TestIntegrations'
-        elif [[ "${{ matrix.suite }}" == "integration-core" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrations -skip "^(TestIntegrationsMDM|TestIntegrationsEnterprise)"'
-        elif [[ "${{ matrix.suite }}" == "integration-mdm" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrationsMDM'
-        elif [[ "${{ matrix.suite }}" == "integration-enterprise" ]]; then
-          CI_TEST_PKG=integration
-          RUN_TESTS_ARG='-run=^TestIntegrationsEnterprise'
-        else
-          CI_TEST_PKG="${{ matrix.suite }}"
-          RUN_TESTS_ARG=''
-        fi
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT $RUN_TESTS_ARG" \
-          TEST_LOCK_FILE_PATH=$(pwd)/lock \
-          TEST_CRON_NO_RECOVER=1 \
-          NETWORK_TEST=1 \
-          REDIS_TEST=1 \
-          MYSQL_TEST=1 \
-          MYSQL_REPLICA_TEST=1 \
-          MINIO_STORAGE_TEST=1 \
-          SAML_IDP_TEST=1 \
-          MAIL_TEST=1 \
-          NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
-          CI_TEST_PKG="${CI_TEST_PKG}" \
-          make test-go 2>&1 | tee /tmp/gotest.log
-
-    - name: Create mysql identifier without colon
-      if: always()
-      run: |
-        echo "MATRIX_MYSQL_ID=$(echo ${{ matrix.mysql }} | tr -d ':')" >> $GITHUB_ENV
-
-    - name: Save coverage
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
-      with:
-        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-coverage
-        path: ./coverage.txt
-        if-no-files-found: error
-
-    - name: Generate summary of errors
-      if: failure()
-      run: |
-        c1grep() { grep "$@" || test $? = 1; }
-        c1grep -oP 'FAIL: .*$' /tmp/gotest.log > /tmp/summary.txt
-        c1grep 'test timed out after' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep 'fatal error:' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep -A 10 'panic: runtime error: ' /tmp/gotest.log >> /tmp/summary.txt
-        c1grep ' FAIL\t' /tmp/gotest.log >> /tmp/summary.txt
-        GO_FAIL_SUMMARY=$(head -n 5 /tmp/summary.txt | sed ':a;N;$!ba;s/\n/\\n/g')
-        echo "GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY"
-        if [[ -z "$GO_FAIL_SUMMARY" ]]; then
-          GO_FAIL_SUMMARY="unknown, please check the build URL"
-        fi
-        GO_FAIL_SUMMARY=$GO_FAIL_SUMMARY envsubst < .github/workflows/config/slack_payload_template.json > ./payload.json
-
-    - name: Slack Notification
-      if: github.event.schedule == '0 4 * * *' && failure()
-      uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
-      with:
-        payload-file-path: ./payload.json
-      env:
-        JOB_STATUS: ${{ job.status }}
-        EVENT_URL: ${{ github.event.pull_request.html_url || github.event.head.html_url }}
-        RUN_URL: https://github.com/fleetdm/fleet/actions/runs/${{ github.run_id }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_G_HELP_ENGINEERING_WEBHOOK_URL }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
-
-    - name: Upload test log
-      if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
-      with:
-        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-test-log
-        path: /tmp/gotest.log
-        if-no-files-found: error
-
-    - name: Upload summary test log
-      if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
-      with:
-        name: ${{ matrix.suite }}-${{ env.MATRIX_MYSQL_ID }}-summary-test-log
-        path: /tmp/summary.txt
+  # ──────────────────────────────────────────────────────────────────────────
+  # Extended MySQL coverage: only on the nightly cron schedule.
+  # Tests the same DB-dependent suites against older/intermediate versions.
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-extended-mysql:
+    if: github.event_name == 'schedule'
+    strategy:
+      matrix:
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        mysql: ["mysql:8.0.42", "mysql:8.4.8"]
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: ${{ matrix.suite }}
+      mysql: ${{ matrix.mysql }}
+      is_cron: true
+    secrets: inherit
 
   # Based on https://github.com/micromdm/nanomdm/blob/main/.github/workflows/on-push-pr.yml#L87
   test-go-nanomdm:
     runs-on: 'ubuntu-latest'
     services:
       mysql:
-        image: mysql:8.0.36
+        image: mysql:8.0.44
         env:
           MYSQL_RANDOM_ROOT_PASSWORD: yes
           MYSQL_DATABASE: testdb
@@ -223,7 +118,7 @@ jobs:
       GO_TEST_TIMEOUT: 20m
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
         with:
           egress-policy: audit
 
@@ -231,9 +126,12 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Install Go
-        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
         with:
           go-version-file: 'go.mod'
+
+      - name: Install gotestsum
+        run: go install gotest.tools/gotestsum@latest
 
       - name: verify mysql
         run: |
@@ -251,9 +149,10 @@ jobs:
 
       - name: Run Go tests
         run: |
-          go test -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
+          gotestsum --format=testdox --jsonfile=/tmp/test-output.json -- \
+            -v -parallel 8 -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT \
             -coverprofile=coverage.txt -covermode=atomic -coverpkg=github.com/fleetdm/fleet/v4/server/mdm/nanomdm/... \
-          ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
+            ./server/mdm/nanomdm/storage/mysql 2>&1 | tee /tmp/gotest.log
 
       - name: Save coverage
         uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
@@ -305,11 +204,26 @@ jobs:
           name: nanomdm-summary-test-log
           path: /tmp/summary.txt
 
+      - name: Upload JSON test output
+        if: always()
+        uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+        with:
+          name: nanomdm-test-json
+          path: /tmp/test-output.json
+          if-no-files-found: warn
+
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go, test-go-nanomdm]
+    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-nanomdm]
+    # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
+    if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
       - name: Checkout Code
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
       - name: Download artifacts
@@ -321,3 +235,51 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: backend
+
+  # Our Go test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
+  # This job explicitly checks if any Go test suites have failed and marks the overall workflow with the proper pass/fail status.
+  aggregate-result:
+    needs: [test-go-no-db, test-go, test-go-extended-mysql]
+    # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Download artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        with:
+          pattern: '*-status'
+
+      - name: Check for failures
+        run: |
+          failed_tests=""
+          status_count=0
+          # Find all status files (they are in directories like 'fleetctl-mysql8.0.44-status/status')
+          for status_file in $(find ./ -type f -name 'status'); do
+            status_count=$((status_count + 1))
+            # Extract test name from parent directory (e.g., 'fleetctl-mysql8.0.44-status')
+            test_dir=$(basename $(dirname "$status_file"))
+            # Remove '-status' suffix to get the test name
+            test_name="${test_dir%-status}"
+            status_content=$(cat "$status_file")
+            echo "Processing: $status_file (Test: $test_name) with status content: $status_content"
+            if grep -q "fail" "$status_file"; then
+              echo "  ❌ Test failed: $test_name"
+              failed_tests="${failed_tests}${test_name}, "
+            else
+              echo "  ✅ Test passed: $test_name"
+            fi
+          done
+          if [[ $status_count -eq 0 ]]; then
+            echo "❌ ERROR: No status files found! This indicates a workflow issue."
+            exit 1
+          fi
+          if [[ -n "$failed_tests" ]]; then
+            echo "❌ One or more test jobs failed: ${failed_tests%, }"
+            exit 1
+          fi
+          echo "✅ All test jobs succeeded."

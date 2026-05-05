@@ -24,6 +24,9 @@ let plugins = [
   new WebpackNotifierPlugin({
     excludeWarnings: true,
   }),
+  new webpack.DefinePlugin({
+    featureFlags: {},
+  }),
 ];
 
 if (process.env.NODE_ENV === "production") {
@@ -81,7 +84,6 @@ const config = {
         use: {
           loader: "esbuild-loader",
           options: {
-            loader: "tsx", // Or 'ts' if you don't need tsx
             target: "es2016",
           },
         },
@@ -105,6 +107,14 @@ const config = {
               sassOptions: {
                 includePaths: bourbon,
                 importer: globImporter(),
+                silenceDeprecations: [
+                  "import",
+                  "global-builtin",
+                  "slash-div",
+                  "color-functions",
+                  "mixed-decls",
+                  "legacy-js-api",
+                ],
               },
             },
           },
@@ -128,10 +138,19 @@ const config = {
       },
     ],
   },
+  performance: {
+    hints: false,
+  },
   resolve: {
     extensions: [".tsx", ".ts", ".js", ".jsx", ".json"],
     modules: [path.resolve(path.join(repo, "./frontend")), "node_modules"],
     fallback: { path: require.resolve("path-browserify") },
+    alias: {
+      "node-sql-parser": path.resolve(
+        __dirname,
+        "node_modules/@sgress454/node-sql-parser/umd/sqlite.umd.js"
+      ),
+    },
   },
 };
 

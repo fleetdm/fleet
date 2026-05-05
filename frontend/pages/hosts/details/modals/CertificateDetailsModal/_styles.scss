@@ -1,0 +1,32 @@
+.certificate-details-modal {
+  &__content {
+    @include vertical-card-layout;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  h3 {
+    margin: 0 0 $pad-small;
+    font-size: $small;
+  }
+
+  dl {
+    gap: $pad-xsmall;
+  }
+
+  .component__tooltip-wrapper__element {
+    line-height: inherit;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    padding-top: $gap-modal-component;
+    border-top: 1px solid $ui-fleet-black-10;
+
+    &:first-child {
+      padding-top: 0;
+      border-top: none;
+    }
+  }
+}

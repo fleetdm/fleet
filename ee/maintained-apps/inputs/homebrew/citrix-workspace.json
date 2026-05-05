@@ -1,0 +1,8 @@
+{
+  "name": "Citrix Workspace",
+  "slug": "citrix-workspace/darwin",
+  "unique_identifier": "com.citrix.receiver.nomas",
+  "token": "citrix-workspace",
+  "installer_format": "pkg",
+  "default_categories": ["Productivity"]
+}

@@ -1,8 +1,0 @@
-<Get>
-	<CmdID>xxcmdidxx</CmdID>
-	<Item>
-		<Target>
-			<LocURI>./Device/Vendor/MSFT/DeviceManageability/Capabilities/CSPVersions</LocURI>
-		</Target>
-	</Item>
-</Get>

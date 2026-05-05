@@ -1,0 +1,9 @@
+{
+  "name": "CleanMyMac",
+  "unique_identifier": "com.macpaw.CleanMyMac5",
+  "token": "cleanmymac",
+  "installer_format": "zip",
+  "slug": "cleanmymac/darwin",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/cleanmymac-uninstall.sh",
+  "default_categories": ["Productivity"]
+}

@@ -1,6 +1,7 @@
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
   ProfileOperationType,
+  RecoveryLockPasswordStatus,
 } from "interfaces/mdm";
 
 import { IconNames } from "components/icons";
@@ -22,10 +23,14 @@ export type ProfileDisplayOption = {
   tooltip: TooltipInnerContentOption | null;
 } | null;
 
-type OperationTypeOption = Record<
+type MacProfileSpecificStatus = "success" | "acknowledged";
+type AndroidCertSpecificStatus = "delivered" | "delivering";
+
+export type ProfileStatus = Exclude<
   OsSettingsTableStatusValue,
-  ProfileDisplayOption
+  AndroidCertSpecificStatus
 >;
+type OperationTypeOption = Record<ProfileStatus, ProfileDisplayOption>;
 
 type ProfileDisplayConfig = Record<ProfileOperationType, OperationTypeOption>;
 
@@ -59,17 +64,17 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
     verifying: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     acknowledged: MAC_PROFILE_VERIFYING_DISPLAY_CONFIG,
     pending: {
-      statusText: "Enforcing (pending)",
+      statusText: "Enforcing",
       iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The hosts will receive the MDM command to turn on disk encryption " +
             "when the hosts come online."
-          : "The host will receive the MDM command to apply the setting when the " +
-            "host comes online.",
+          : "The host is running the MDM command to apply settings or will run it " +
+            "when the host comes online.",
     },
     action_required: {
-      statusText: "Action required (pending)",
+      statusText: "Action required",
       iconName: "pending-outline",
       tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
     },
@@ -81,14 +86,14 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   },
   remove: {
     pending: {
-      statusText: "Removing enforcement (pending)",
+      statusText: "Removing enforcement",
       iconName: "pending-outline",
       tooltip: (innerProps) =>
         innerProps.isDiskEncryptionProfile
           ? "The host will receive the MDM command to remove the disk encryption profile when the " +
             "host comes online."
-          : "The host will receive the MDM command to remove the setting when the host " +
-            "comes online.",
+          : "The host is running the MDM command to remove settings or will run " +
+            "it when the host comes online.",
     },
     action_required: null, // should not be reached
     verified: null, // should not be reached
@@ -103,10 +108,14 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   },
 };
 
-type WindowsDiskEncryptionDisplayConfig = Omit<
+export type WindowsDiskEncryptionDisplayStatus = Exclude<
+  ProfileStatus,
+  MacProfileSpecificStatus | AndroidCertSpecificStatus
+>;
+
+type WindowsDiskEncryptionDisplayConfig = Pick<
   OperationTypeOption,
-  // windows disk encryption does not have these states
-  "action_required" | "success" | "acknowledged"
+  WindowsDiskEncryptionDisplayStatus
 >;
 
 export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDisplayConfig = {
@@ -124,10 +133,16 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
       "osquery and retrieving the disk encryption key. This may take up to one hour.",
   },
   pending: {
-    statusText: "Enforcing (pending)",
+    statusText: "Enforcing",
     iconName: "pending-outline",
     tooltip: () =>
       "The host will receive the MDM command to turn on disk encryption when the host comes online.",
+  },
+  action_required: {
+    statusText: "Action required",
+    iconName: "pending-outline",
+    tooltip: () =>
+      "Disk encryption is on, but the user has not set a BitLocker PIN yet.",
   },
   failed: {
     statusText: "Failed",
@@ -138,7 +153,7 @@ export const WINDOWS_DISK_ENCRYPTION_DISPLAY_CONFIG: WindowsDiskEncryptionDispla
 
 type LinuxDiskEncryptionDisplayConfig = Omit<
   OperationTypeOption,
-  "success" | "pending" | "acknowledged" | "verifying"
+  MacProfileSpecificStatus | AndroidCertSpecificStatus | "pending" | "verifying"
 >;
 
 export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayConfig = {
@@ -154,8 +169,34 @@ export const LINUX_DISK_ENCRYPTION_DISPLAY_CONFIG: LinuxDiskEncryptionDisplayCon
     tooltip: null,
   },
   action_required: {
-    statusText: "Action required (pending)",
+    statusText: "Action required",
     iconName: "pending-outline",
     tooltip: TooltipInnerContentActionRequired as TooltipInnerContentFunc,
+  },
+};
+
+export const RECOVERY_LOCK_PASSWORD_DISPLAY_CONFIG: Record<
+  RecoveryLockPasswordStatus,
+  ProfileDisplayOption
+> = {
+  verified: {
+    statusText: "Verified",
+    iconName: "success",
+    tooltip: "Fleet set a recovery lock password for the host.",
+  },
+  pending: {
+    statusText: "Enforcing",
+    iconName: "pending-outline",
+    tooltip: "Fleet is setting a recovery lock password for the host.",
+  },
+  removing_enforcement: {
+    statusText: "Removing enforcement",
+    iconName: "pending-outline",
+    tooltip: "Fleet is unsetting the recovery lock password for the host.",
+  },
+  failed: {
+    statusText: "Failed",
+    iconName: "error",
+    tooltip: "Fleet failed to set a recovery lock password for the host.",
   },
 };

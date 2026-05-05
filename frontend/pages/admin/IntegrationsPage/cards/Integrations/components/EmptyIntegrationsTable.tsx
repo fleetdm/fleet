@@ -1,7 +1,7 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 
 const EmptyIntegrationsTable = ({
@@ -12,9 +12,8 @@ const EmptyIntegrationsTable = ({
   onActionButtonClick: () => void;
 }) => {
   return (
-    <EmptyTable
-      graphicName="empty-integrations"
-      header="Set up integrations"
+    <EmptyState
+      header="Ticket destinations"
       info="Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies."
       additionalInfo={
         <>
@@ -28,11 +27,10 @@ const EmptyIntegrationsTable = ({
       }
       primaryButton={
         <Button
-          variant="brand"
           className={`${className}__add-button`}
           onClick={onActionButtonClick}
         >
-          Add integration
+          Add
         </Button>
       }
     />

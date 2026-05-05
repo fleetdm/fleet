@@ -24,7 +24,8 @@ parasails.registerComponent('animatedArrowButton', {
   data: function (){
     return {
       type: 'secondary',
-      strokeColor: this.arrowColor ? this.arrowColor : '#FF5C83',
+      strokeColor: this.arrowColor ? this.arrowColor : '#009A7D',
+      // strokeColor: this.arrowColor ? this.arrowColor : '#FF5C83',
       fontColor: this.textColor ? this.textColor : '#192147'
       // FUTURE: support more button types (primary and secondary)
       // type: this.buttonType && this.buttonType === 'primary' ? 'primary' : 'secondary',
@@ -35,7 +36,7 @@ parasails.registerComponent('animatedArrowButton', {
   //  ╠═╣ ║ ║║║║
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
-  <a :class="type" style="text-decoration: none;">
+  <a :class="type" style="text-decoration: none;" no-icon>
     <span purpose="button-text" :style="'color: '+fontColor+';'"><slot name="default"></slot></span>
     <svg purpose="animated-arrow" :style="'stroke: '+strokeColor+';'" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
       <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>

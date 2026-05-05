@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,38 +25,25 @@ import (
 // Add
 /////////////////////////////////////////////////////////////////////////////////
 
-type globalPolicyRequest struct {
-	QueryID     *uint  `json:"query_id"`
-	Query       string `json:"query"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Platform    string `json:"platform"`
-	Critical    bool   `json:"critical" premium:"true"`
-}
-
-type globalPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r globalPolicyResponse) error() error { return r.Err }
-
-func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*globalPolicyRequest)
+func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.GlobalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
-		QueryID:     req.QueryID,
-		Query:       req.Query,
-		Name:        req.Name,
-		Description: req.Description,
-		Resolution:  req.Resolution,
-		Platform:    req.Platform,
-		Critical:    req.Critical,
+		QueryID:          req.QueryID,
+		Query:            req.Query,
+		Name:             req.Name,
+		Description:      req.Description,
+		Resolution:       req.Resolution,
+		Platform:         req.Platform,
+		Critical:         req.Critical,
+		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
+		LabelsExcludeAny: req.LabelsExcludeAny,
+		Type:             fleet.PolicyTypeDynamic,
 	})
 	if err != nil {
-		return globalPolicyResponse{Err: err}, nil
+		return fleet.GlobalPolicyResponse{Err: err}, nil
 	}
-	return globalPolicyResponse{Policy: resp}, nil
+	return fleet.GlobalPolicyResponse{Policy: resp}, nil
 }
 
 func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (*fleet.Policy, error) {
@@ -64,25 +52,38 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
-		return nil, errors.New("user must be authenticated to create team policies")
+		return nil, errors.New("user must be authenticated to create fleet policies")
 	}
+
 	if err := p.Verify(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 			Message: fmt.Sprintf("policy payload verification: %s", err),
 		})
 	}
+
+	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), vc.User); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
+	}
+
 	policy, err := svc.ds.NewGlobalPolicy(ctx, ptr.Uint(vc.UserID()), p)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "storing policy")
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+	globalTeamID := int64(-1)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
-			ID:   policy.ID,
-			Name: policy.Name,
+			ID:       policy.ID,
+			Name:     policy.Name,
+			TeamID:   &globalTeamID,
+			TeamName: nil,
 		},
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for global policy creation")
@@ -94,24 +95,13 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 // List
 /////////////////////////////////////////////////////////////////////////////////
 
-type listGlobalPoliciesRequest struct {
-	Opts fleet.ListOptions `url:"list_options"`
-}
-
-type listGlobalPoliciesResponse struct {
-	Policies []*fleet.Policy `json:"policies,omitempty"`
-	Err      error           `json:"error,omitempty"`
-}
-
-func (r listGlobalPoliciesResponse) error() error { return r.Err }
-
-func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*listGlobalPoliciesRequest)
+func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ListGlobalPoliciesRequest)
 	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
-		return listGlobalPoliciesResponse{Err: err}, nil
+		return fleet.ListGlobalPoliciesResponse{Err: err}, nil
 	}
-	return listGlobalPoliciesResponse{Policies: resp}, nil
+	return fleet.ListGlobalPoliciesResponse{Policies: resp}, nil
 }
 
 func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
@@ -126,24 +116,13 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 // Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
-type getPolicyByIDRequest struct {
-	PolicyID uint `url:"policy_id"`
-}
-
-type getPolicyByIDResponse struct {
-	Policy *fleet.Policy `json:"policy"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r getPolicyByIDResponse) error() error { return r.Err }
-
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getPolicyByIDRequest)
+func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.GetPolicyByIDRequest)
 	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
 	if err != nil {
-		return getPolicyByIDResponse{Err: err}, nil
+		return fleet.GetPolicyByIDResponse{Err: err}, nil
 	}
-	return getPolicyByIDResponse{Policy: policy}, nil
+	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
 }
 
 func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
@@ -169,23 +148,13 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 // Count
 // ///////////////////////////////////////////////////////////////////////////////
 
-type countGlobalPoliciesRequest struct {
-	ListOptions fleet.ListOptions `url:"list_options"`
-}
-type countGlobalPoliciesResponse struct {
-	Count int   `json:"count"`
-	Err   error `json:"error,omitempty"`
-}
-
-func (r countGlobalPoliciesResponse) error() error { return r.Err }
-
-func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*countGlobalPoliciesRequest)
+func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.CountGlobalPoliciesRequest)
 	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
 	if err != nil {
-		return countGlobalPoliciesResponse{Err: err}, nil
+		return fleet.CountGlobalPoliciesResponse{Err: err}, nil
 	}
-	return countGlobalPoliciesResponse{Count: resp}, nil
+	return fleet.CountGlobalPoliciesResponse{Count: resp}, nil
 }
 
 func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (int, error) {
@@ -193,7 +162,7 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 		return 0, err
 	}
 
-	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery)
+	count, err := svc.ds.CountPolicies(ctx, nil, matchQuery, "")
 	if err != nil {
 		return 0, err
 	}
@@ -205,24 +174,13 @@ func (svc Service) CountGlobalPolicies(ctx context.Context, matchQuery string) (
 // Delete
 /////////////////////////////////////////////////////////////////////////////////
 
-type deleteGlobalPoliciesRequest struct {
-	IDs []uint `json:"ids"`
-}
-
-type deleteGlobalPoliciesResponse struct {
-	Deleted []uint `json:"deleted,omitempty"`
-	Err     error  `json:"error,omitempty"`
-}
-
-func (r deleteGlobalPoliciesResponse) error() error { return r.Err }
-
-func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*deleteGlobalPoliciesRequest)
+func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.DeleteGlobalPoliciesRequest)
 	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
 	if err != nil {
-		return deleteGlobalPoliciesResponse{Err: err}, nil
+		return fleet.DeleteGlobalPoliciesResponse{Err: err}, nil
 	}
-	return deleteGlobalPoliciesResponse{Deleted: resp}, nil
+	return fleet.DeleteGlobalPoliciesResponse{Deleted: resp}, nil
 }
 
 // DeleteGlobalPolicies deletes the given policies from the database.
@@ -259,12 +217,15 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
+		globalTeamID := int64(-1)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
-				ID:   id,
-				Name: policiesByID[id].Name,
+				ID:       id,
+				Name:     policiesByID[id].Name,
+				TeamID:   &globalTeamID,
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for policy deletion")
@@ -305,25 +266,15 @@ func (svc Service) removeGlobalPoliciesFromWebhookConfig(ctx context.Context, id
 // Modify
 /////////////////////////////////////////////////////////////////////////////////
 
-type modifyGlobalPolicyRequest struct {
-	PolicyID uint `url:"policy_id"`
-	fleet.ModifyPolicyPayload
-}
+const errPolicyAllFleetsForConditionalAccess = "\"All fleets\" policy cannot have conditional_access_enabled set"
 
-type modifyGlobalPolicyResponse struct {
-	Policy *fleet.Policy `json:"policy,omitempty"`
-	Err    error         `json:"error,omitempty"`
-}
-
-func (r modifyGlobalPolicyResponse) error() error { return r.Err }
-
-func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*modifyGlobalPolicyRequest)
+func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ModifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
-		return modifyGlobalPolicyResponse{Err: err}, nil
+		return fleet.ModifyGlobalPolicyResponse{Err: err}, nil
 	}
-	return modifyGlobalPolicyResponse{Policy: resp}, nil
+	return fleet.ModifyGlobalPolicyResponse{Policy: resp}, nil
 }
 
 func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error) {
@@ -334,21 +285,10 @@ func (svc *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Mod
 // Reset automation
 /////////////////////////////////////////////////////////////////////////////////
 
-type resetAutomationRequest struct {
-	TeamIDs   []uint `json:"team_ids" premium:"true"`
-	PolicyIDs []uint `json:"policy_ids"`
-}
-
-type resetAutomationResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r resetAutomationResponse) error() error { return r.Err }
-
-func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*resetAutomationRequest)
+func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ResetAutomationRequest)
 	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
-	return resetAutomationResponse{Err: err}, nil
+	return fleet.ResetAutomationResponse{Err: err}, nil
 }
 
 func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []uint) error {
@@ -362,7 +302,7 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		pIDs[id] = struct{}{}
 	}
 	for _, teamID := range teamIDs {
-		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{})
+		p1, p2, err := svc.ds.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, "")
 		if err != nil {
 			return err
 		}
@@ -387,14 +327,29 @@ func (svc *Service) ResetAutomation(ctx context.Context, teamIDs, policyIDs []ui
 		}
 	}
 	for id := range tIDs {
-		if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
-			return err
+		var teamConfig fleet.TeamConfigLite
+		if id == 0 {
+			// Handle "No Team" (team ID 0) - use AppConfig authorization
+			if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			defaultConfig, err := svc.ds.DefaultTeamConfig(ctx)
+			if err != nil {
+				return err
+			}
+			teamConfig = defaultConfig.ToLite()
+		} else {
+			// Handle regular teams
+			if err := svc.authz.Authorize(ctx, &fleet.Team{ID: id}, fleet.ActionWrite); err != nil {
+				return err
+			}
+			t, err := svc.ds.TeamLite(ctx, id)
+			if err != nil {
+				return err
+			}
+			teamConfig = t.Config
 		}
-		t, err := svc.ds.Team(ctx, id)
-		if err != nil {
-			return err
-		}
-		for pID := range teamAutomationPolicies(t.Config.WebhookSettings.FailingPoliciesWebhook, t.Config.Integrations.Jira, t.Config.Integrations.Zendesk) {
+		for pID := range teamAutomationPolicies(teamConfig.WebhookSettings.FailingPoliciesWebhook, teamConfig.Integrations.Jira, teamConfig.Integrations.Zendesk) {
 			allAutoPolicies[pID] = struct{}{}
 		}
 	}
@@ -466,69 +421,100 @@ func teamAutomationPolicies(wh fleet.FailingPoliciesWebhookSettings, ji []*fleet
 // Apply Spec
 /////////////////////////////////////////////////////////////////////////////////
 
-type applyPolicySpecsRequest struct {
-	Specs []*fleet.PolicySpec `json:"specs"`
-}
-
-type applyPolicySpecsResponse struct {
-	Err error `json:"error,omitempty"`
-}
-
-func (r applyPolicySpecsResponse) error() error { return r.Err }
-
-func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*applyPolicySpecsRequest)
+func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.ApplyPolicySpecsRequest)
 	err := svc.ApplyPolicySpecs(ctx, req.Specs)
 	if err != nil {
-		return applyPolicySpecsResponse{Err: err}, nil
+		return fleet.ApplyPolicySpecsResponse{Err: err}, nil
 	}
-	return applyPolicySpecsResponse{}, nil
+	return fleet.ApplyPolicySpecsResponse{}, nil
 }
 
 // checkPolicySpecAuthorization verifies that the user is authorized to modify the
-// policies defined in the spec.
-func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) error {
+// policies defined in the spec, and returns a map from team names to team IDs if successful
+func (svc *Service) checkPolicySpecAuthorization(ctx context.Context, policies []*fleet.PolicySpec) (map[string]uint, error) {
 	checkGlobalPolicyAuth := false
+	teamIDsByName := make(map[string]uint)
 	for _, policy := range policies {
 		if policy.Team != "" && policy.Team != "No team" {
 			team, err := svc.ds.TeamByName(ctx, policy.Team)
 			if err != nil {
 				// This is so that the proper HTTP status code is returned
 				svc.authz.SkipAuthorization(ctx)
-				return ctxerr.Wrap(ctx, err, "getting team by name")
+				return nil, ctxerr.Wrap(ctx, err, "getting team by name")
 			}
 			if err := svc.authz.Authorize(ctx, &fleet.Policy{
 				PolicyData: fleet.PolicyData{
 					TeamID: &team.ID,
 				},
 			}, fleet.ActionWrite); err != nil {
-				return err
+				return nil, err
 			}
+
+			teamIDsByName[policy.Team] = team.ID
 		} else {
 			checkGlobalPolicyAuth = true
 		}
 	}
 	if checkGlobalPolicyAuth {
 		if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionWrite); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return teamIDsByName, nil
 }
 
 func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
 	// Check authorization first.
-	if err := svc.checkPolicySpecAuthorization(ctx, policies); err != nil {
+	teamIDsByName, err := svc.checkPolicySpecAuthorization(ctx, policies)
+	if err != nil {
 		return err
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return errors.New("user must be authenticated to apply policies")
 	}
 
 	// After the authorization check, check the policy fields.
 	for _, policy := range policies {
+		if policy.Type == "" {
+			policy.Type = fleet.PolicyTypeDynamic
+		}
+
+		if policy.Team == "" && policy.ConditionalAccessEnabled {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("policy spec payload verification: %s", errPolicyAllFleetsForConditionalAccess),
+			})
+		}
+
 		if err := policy.Verify(); err != nil {
 			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message: fmt.Sprintf("policy spec payload verification: %s", err),
 			})
 		}
+
+		// Make sure any applied labels exist.
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsExcludeAny)
+		if len(labels) > 0 {
+			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
+			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine
+				teamID = ptr.Uint(teamIDsByName[policy.Team])
+			}
+
+			labelsMap, err := svc.ds.LabelsByName(ctx, labels, fleet.TeamFilter{User: vc.User, TeamID: teamID})
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting labels by name")
+			}
+			for _, label := range labels {
+				if _, ok := labelsMap[label]; !ok {
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("label %q does not exist, or cannot be applied to this policy", label),
+					})
+				}
+			}
+		}
+
 	}
 
 	// An empty string indicates there are no duplicate names.
@@ -538,15 +524,12 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 		})
 	}
 
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return errors.New("user must be authenticated to apply policies")
-	}
 	if !license.IsPremium(ctx) {
 		for i := range policies {
 			policies[i].Critical = false
 		}
 	}
+
 	if err := svc.ds.ApplyPolicySpecs(ctx, vc.UserID(), policies); err != nil {
 		return ctxerr.Wrap(ctx, err, "applying policy specs")
 	}
@@ -568,24 +551,10 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 // Autofill
 /////////////////////////////////////////////////////////////////////////////////
 
-type autofillPoliciesRequest struct {
-	SQL string `json:"sql"`
-}
-
-type autofillPoliciesResponse struct {
-	Description string `json:"description"`
-	Resolution  string `json:"resolution"`
-	Err         error  `json:"error,omitempty"`
-}
-
-func (a autofillPoliciesResponse) error() error {
-	return a.Err
-}
-
-func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*autofillPoliciesRequest)
+func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.AutofillPoliciesRequest)
 	description, resolution, err := svc.AutofillPolicySql(ctx, req.SQL)
-	return autofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil
+	return fleet.AutofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil
 }
 
 // Exposing external URL and timeout for testing purposes

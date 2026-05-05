@@ -3,8 +3,8 @@ import React from "react";
 import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
+import Button from "components/buttons/Button";
 
 const baseClass = "os-settings-indicator";
 
@@ -47,7 +47,15 @@ const countHostProfilesByStatus = (
     (acc, { status }) => {
       if (status === "failed") {
         acc.failed += 1;
-      } else if (status === "pending" || status === "action_required") {
+      } else if (
+        [
+          "pending",
+          "action_required",
+          "delivering",
+          "delivered",
+          "removing_enforcement",
+        ].includes(status)
+      ) {
         acc.pending += 1;
       } else if (status === "verifying") {
         acc.verifying += 1;
@@ -67,7 +75,7 @@ const countHostProfilesByStatus = (
 };
 
 /**
- * Returns the displayed status of the macOS settings field based on the
+ * Returns the displayed status of the apple settings field based on the
  * profile statuses.
  * If any profile has a status of "failed", the status will be displayed as "Failed" and
  * continues to fall through to "Pending" and "Verifying" if any profiles have those statuses.
@@ -77,9 +85,9 @@ const countHostProfilesByStatus = (
  * https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks
  */
 const getHostProfilesStatusForDisplay = (
-  hostMacSettings: IHostMdmProfile[]
+  hostProfiles: IHostMdmProfile[]
 ): MdmProfileStatusForDisplay => {
-  const counts = countHostProfilesByStatus(hostMacSettings);
+  const counts = countHostProfilesByStatus(hostProfiles);
   switch (true) {
     case !!counts.failed:
       return "Failed";
@@ -87,7 +95,7 @@ const getHostProfilesStatusForDisplay = (
       return "Pending";
     case !!counts.verifying:
       return "Verifying";
-    case counts.verified === hostMacSettings.length:
+    case counts.verified === hostProfiles.length:
       return "Verified";
     default:
       // something is broken
@@ -118,8 +126,8 @@ const OSSettingsIndicator = ({
     <span className={`${baseClass} info-flex__data`}>
       <Icon name={statusDisplayOption.iconName} />
       <Button
+        variant="link"
         onClick={onClick}
-        variant="text-link"
         className={`${baseClass}__button`}
       >
         {displayStatus}

@@ -6,7 +6,7 @@
     position: relative;
   }
 
-  .button--text-link {
+  .button--link {
     font-weight: $regular;
   }
 
@@ -21,6 +21,13 @@
       top: -1px;
       left: 1px;
     }
+  }
+
+  &__disabled {
+    @include disabled;
+  }
+  .component__tooltip-wrapper__tip-text {
+    text-align: center;
   }
 
   .premium-icon-tip {

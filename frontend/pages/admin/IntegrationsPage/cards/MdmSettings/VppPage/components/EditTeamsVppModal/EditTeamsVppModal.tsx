@@ -24,7 +24,8 @@ interface IEditTeamsVppModalProps {
 }
 
 /**
- * Returns an array of team ids from a token. It includes special handling for "All teams".
+ * Returns a string of comma-separated team ids from a token.
+ * Special handling for "All teams".
  */
 export const selectedValueFromToken = (token: IMdmVppToken) => {
   if (!token.teams) {
@@ -47,60 +48,54 @@ export const teamIdsFromSelectedValue = (selectedValue: string) => {
   if (selectedValue === APP_CONTEXT_ALL_TEAMS_ID.toString()) {
     return [];
   }
-  const ids = selectedValue.split(",").map((str) => parseInt(str, 10));
-  // NOTE: We could do some extra frontend validation here like filtering out -1 (to ensure that
-  // we're not trying to send all teams and other teams at the same time) and checking for isNaN,
-  // but instead we're relying on the API to return an error if the request is invalid.
+  const ids = selectedValue
+    .split(",")
+    .map((str) => parseInt(str, 10))
+    .filter((id) => !isNaN(id));
   return ids;
 };
 
 /**
- * Compare two comma-separated strings of team names and returns an updated value. It includes
- * special handling for "All teams".
+ * Compare two comma-separated strings of team ids and returns an updated value.
+ * Includes special handling for "All teams".
  */
 export const updateSelectedValue = (prev: string, next: string) => {
   // react-select uses a string of comma-separated values for multi-select so we split it
   // fo get an array of selected team ids
   const nextParts = next.split(",").map((p) => p.trim());
   if (nextParts.length === 1) {
-    // if only one team is selected, no need for other checks
     return next;
   }
 
-  // we need to do some special handling for "All teams"
   const allTeamsId = APP_CONTEXT_ALL_TEAMS_ID.toString();
-  // split the previous value to get an array of team ids
   const prevParts = prev.split(",").map((p) => p.trim());
   if (prevParts.includes(allTeamsId)) {
     // if "All teams" was previously selected, we need to remove it from the next selections
-    return nextParts.filter((p) => p !== allTeamsId).join(", ");
+    return nextParts.filter((p) => p !== allTeamsId).join(",");
   }
 
-  // if "All teams" is newly selected, we need to remove any other selections
+  // If "All teams" is newly selected, remove other selections
   if (nextParts.includes(allTeamsId)) {
     return allTeamsId;
   }
 
-  // otherwise, just return the next selections
+  // Otherwise, just return the next selections
   return next;
 };
 
 const isTokenAllTeams = (token: IMdmVppToken) => token.teams?.length === 0;
-
 const isTokenUnassigned = (token: IMdmVppToken) => token.teams === null;
 
 /**
- * Returns a dictionary of team ids that are already assigned tokens other than the current token.
+ * Returns a dictionary of team ids already assigned (other than current token).
  */
 const getUnavailableTeamIds = (
   currentTokenId: number,
   tokens: IMdmVppToken[]
 ) => {
-  const unavailableTeamIds = {} as Record<string, boolean>;
+  const unavailableTeamIds: Record<string, boolean> = {};
   tokens.forEach((token) => {
-    if (token.id === currentTokenId) {
-      return;
-    }
+    if (token.id === currentTokenId) return;
     token.teams?.forEach((team) => {
       unavailableTeamIds[team.team_id.toString()] = true;
     });
@@ -114,32 +109,67 @@ const getUnavailableTeamIds = (
 export const getOptions = (
   availableTeams: ITeamSummary[],
   tokens: IMdmVppToken[],
-  currentToken: IMdmVppToken
+  currentToken: IMdmVppToken,
+  pendingTeamIds: string[]
 ) => {
-  const allOptions =
-    availableTeams?.map((t) => ({
-      label: t.name,
-      value: t.id,
-    })) || [];
+  const allTeamsOption = {
+    label: "All fleets",
+    value: APP_CONTEXT_ALL_TEAMS_ID,
+  };
 
+  // Filter for actual team options, add "All teams" to the front
+  const allOptions = [
+    allTeamsOption,
+    ...availableTeams
+      .filter((t) => t.id !== APP_CONTEXT_ALL_TEAMS_ID)
+      .map((t) => ({
+        label: t.name,
+        value: t.id,
+      })),
+  ];
+
+  // Determine state of pending assignment
+  const isPendingAllTeams = pendingTeamIds?.includes(
+    APP_CONTEXT_ALL_TEAMS_ID.toString()
+  );
+
+  // Case 1: All tokens are unassigned → show all options, including "All teams"
   if (tokens.every(isTokenUnassigned)) {
-    // if all tokens are unassigned, we can include all options
     return allOptions;
   }
 
-  if (tokens.some(isTokenAllTeams) && !isTokenAllTeams(currentToken)) {
-    // if another token is assigned to all teams, we can't assign this token to any team
+  // Case 2: If another token (not current) is assigned "All teams", restrict everything unless current/pending choosing "all teams"
+  if (
+    tokens.some(
+      (token) => isTokenAllTeams(token) && token.id !== currentToken.id
+    ) &&
+    !isPendingAllTeams
+  ) {
     return [];
   }
 
-  // if other tokens are assigned to specific teams, we'll filter out those team options
-  const unavailableTeamIds = getUnavailableTeamIds(currentToken.id, tokens);
-  if (!isTokenAllTeams(currentToken)) {
-    // if current token isn't already assigned to all teams, we'll exclude that option too
-    unavailableTeamIds[APP_CONTEXT_ALL_TEAMS_ID] = true;
+  // Case 3: If ANY other token is assigned real teams (not all teams/not unassigned)...
+  const anotherAssigned = tokens
+    .filter((t) => t.id !== currentToken.id)
+    .some((t) => !isTokenAllTeams(t) && !isTokenUnassigned(t));
+
+  // If so, and we're not actively changing this token to "All teams", REMOVE "All teams" option
+  let filteredOptions = allOptions;
+  if (anotherAssigned && !isPendingAllTeams) {
+    filteredOptions = allOptions.filter(
+      (o) => o.value !== APP_CONTEXT_ALL_TEAMS_ID
+    );
   }
 
-  return allOptions.filter((o) => !unavailableTeamIds[o.value]);
+  // Get teams unavailable due to assignment to other tokens
+  const unavailableTeamIds = getUnavailableTeamIds(currentToken.id, tokens);
+
+  // Return options not assigned, or that are in the pending selection
+  return filteredOptions.filter(
+    (o) =>
+      !unavailableTeamIds[o.value.toString()] ||
+      pendingTeamIds.includes(o.value.toString())
+  );
 };
 
 const EditTeamsVppModal = ({
@@ -158,9 +188,25 @@ const EditTeamsVppModal = ({
   );
   const [isSaving, setIsSaving] = useState(false);
 
+  const selectedValueArr = useMemo(
+    () =>
+      selectedValue
+        ? selectedValue
+            .split(",")
+            .map((v) => v.trim())
+            .filter(Boolean)
+        : [],
+    [selectedValue]
+  );
+
   const options = useMemo(() => {
-    return getOptions(availableTeams || [], tokens, currentToken);
-  }, [availableTeams, tokens, currentToken]);
+    return getOptions(
+      availableTeams || [],
+      tokens,
+      currentToken,
+      selectedValueArr
+    );
+  }, [availableTeams, tokens, currentToken, selectedValueArr]);
 
   const isAnyTokenAllTeams = useMemo(() => tokens.some(isTokenAllTeams), [
     tokens,
@@ -183,6 +229,8 @@ const EditTeamsVppModal = ({
         onSuccess();
       } catch (e) {
         renderFlash("error", "Couldn’t edit. Please try again.");
+      } finally {
+        setIsSaving(false);
       }
     },
     [currentToken.id, selectedValue, renderFlash, onSuccess]
@@ -193,69 +241,66 @@ const EditTeamsVppModal = ({
   return (
     <Modal
       className={baseClass}
-      title="Edit teams"
+      title="Edit fleets"
       onExit={onCancel}
       width="large"
       isContentDisabled={isSaving}
     >
-      <>
-        <p>
-          Edit teams for <b>{currentToken.org_name}</b>.
-        </p>
-        <p>
-          If you remove a team, the App Store apps will be removed from that
-          team. They won&apos;t be uninstalled from hosts.
-        </p>
-        <form onSubmit={onSave} className={baseClass} autoComplete="off">
-          <TooltipWrapper
-            position="top"
-            underline={false}
-            showArrow
-            tipContent={
-              <div className={`${baseClass}__tooltip--all-teams`}>
-                You can&apos;t choose teams because you already have a VPP token
-                assigned to all teams. First, edit teams for that VPP token to
-                choose teams here.
-              </div>
+      <p>
+        Edit fleets for <b>{currentToken.org_name}</b>.
+      </p>
+      <p>
+        If you delete a fleet, App Store apps will be deleted from that fleet.
+        Installed apps won&apos;t be uninstalled from hosts.
+      </p>
+      <form onSubmit={onSave} className={baseClass} autoComplete="off">
+        <TooltipWrapper
+          position="top"
+          underline={false}
+          showArrow
+          tipContent={
+            <div className={`${baseClass}__tooltip--all-teams`}>
+              You can&apos;t choose fleets because you already have a VPP token
+              assigned to all fleets. First, edit fleets for that VPP token to
+              choose fleets here.
+            </div>
+          }
+          disableTooltip={!isDropdownDisabled}
+        >
+          <Dropdown
+            options={options}
+            multi
+            onChange={onChange}
+            placeholder="Search fleets"
+            value={selectedValue}
+            label="Fleets"
+            className={`${baseClass}__vpp-dropdown`}
+            wrapperClassName={`${baseClass}__form-field--vpp-teams ${
+              isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
+            }`}
+            tooltip={
+              isDropdownDisabled ? undefined : (
+                <>
+                  Each fleet can have only one VPP token. Fleets that already
+                  have a VPP token won&apos;t show up here.
+                </>
+              )
             }
-            disableTooltip={!isDropdownDisabled}
+            helpText="App Store apps in this VPP token's Apple Business (AB) will only be available to install on hosts in these fleets."
+            disabled={isDropdownDisabled}
+          />
+        </TooltipWrapper>
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            className="save-vpp-teams-loading"
+            isLoading={isSaving}
+            disabled={isDropdownDisabled}
           >
-            <Dropdown
-              options={options}
-              multi
-              onChange={onChange}
-              placeholder="Search teams"
-              value={selectedValue}
-              label="Teams"
-              className={`${baseClass}__vpp-dropdown`}
-              wrapperClassName={`${baseClass}__form-field--vpp-teams ${
-                isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
-              }`}
-              tooltip={
-                isDropdownDisabled ? undefined : (
-                  <>
-                    Each team can have only one VPP token. Teams that already
-                    have a VPP token won&apos;t show up here.
-                  </>
-                )
-              }
-              helpText="App Store apps in this VPP token’s Apple Business Manager (ABM) will only be available to install on hosts in these teams."
-              disabled={isDropdownDisabled}
-            />
-          </TooltipWrapper>
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              variant="brand"
-              className="save-vpp-teams-loading"
-              isLoading={isSaving}
-              disabled={isDropdownDisabled}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </>
+            Save
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

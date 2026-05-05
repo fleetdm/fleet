@@ -6,6 +6,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import {
+  DepAssignProfileResponse,
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
@@ -46,6 +47,12 @@ interface IMutuallyExclusiveHostParams {
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
+  configProfileStatus?: string;
+  configProfileUUID?: string;
+  scriptBatchExecutionStatus?: string;
+  scriptBatchExecutionId?: string;
+  depProfileError?: boolean;
+  depAssignProfileResponse?: DepAssignProfileResponse;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -92,6 +99,7 @@ const filterEmptyParams = (queryParams: QueryParams) => {
  * creates a query string from a query params object. If a value is undefined, null,
  * or an empty string on the queryParams object, that key-value pair will be
  * excluded from the query string.
+ * TODO: For UI elements, replace all instances of buildQueryStringFromParams with getPathWithQueryParams
  */
 export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
   const filteredParams = filterEmptyParams(queryParams);
@@ -105,6 +113,24 @@ export const buildQueryStringFromParams = <T>(queryParams: QueryParams2<T>) => {
     ).join("&");
   }
   return queryString;
+};
+
+/**
+ * creates a path string from the root path and optional query params
+ * @param endpoint
+ * @param queryParams
+ * @returns string
+ */
+export const getPathWithQueryParams = <T>(
+  endpoint: string,
+  queryParams?: QueryParams2<T>
+) => {
+  if (!queryParams) {
+    return endpoint;
+  }
+
+  const queryString = buildQueryStringFromParams(queryParams);
+  return queryString ? `${endpoint}?${queryString}` : endpoint;
 };
 
 export const reconcileSoftwareParams = ({
@@ -129,7 +155,7 @@ export const reconcileSoftwareParams = ({
     return {
       software_title_id: softwareTitleId,
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: softwareStatus,
-      team_id: teamId,
+      fleet_id: teamId,
     };
   }
 
@@ -154,7 +180,7 @@ export const reconcileMutuallyInclusiveHostParams = ({
   macSettingsStatus,
   osSettings,
 }: IMutuallyInclusiveHostParams) => {
-  const reconciled: Record<string, unknown> = { team_id: teamId };
+  const reconciled: Record<string, unknown> = { fleet_id: teamId };
 
   if (label) {
     // if label is present, include team_id in the query but exclude others
@@ -162,16 +188,16 @@ export const reconcileMutuallyInclusiveHostParams = ({
   }
 
   if (macSettingsStatus) {
-    // ensure macos_settings filter is always applied in
-    // conjuction with a team_id, 0 (no teams) by default
-    reconciled.macos_settings = macSettingsStatus;
-    reconciled.team_id = teamId ?? 0;
+    // ensure apple_settings filter is always applied in
+    // conjunction with a fleet_id, 0 (no fleets) by default
+    reconciled.apple_settings = macSettingsStatus;
+    reconciled.fleet_id = teamId ?? 0;
   }
   if (osSettings) {
     // ensure os_settings filter is always applied in
-    // conjuction with a team_id, 0 (no teams) by default
+    // conjunction with a fleet_id, 0 (no fleets) by default
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
-    reconciled.team_id = teamId ?? 0;
+    reconciled.fleet_id = teamId ?? 0;
   }
 
   return reconciled;
@@ -197,6 +223,12 @@ export const reconcileMutuallyExclusiveHostParams = ({
   vulnerability,
   diskEncryptionStatus,
   bootstrapPackageStatus,
+  configProfileStatus,
+  configProfileUUID,
+  scriptBatchExecutionStatus,
+  scriptBatchExecutionId,
+  depProfileError,
+  depAssignProfileResponse,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -209,6 +241,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
     }
     if (lowDiskSpaceHosts) {
       return { low_disk_space: lowDiskSpaceHosts };
+    }
+    if (osSettings) {
+      return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
     }
     return {};
   }
@@ -225,18 +260,24 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!softwareStatus ||
       !!softwareTitleId ||
       !!softwareVersionId ||
-      !!softwareId:
-      return reconcileSoftwareParams({
+      !!softwareId: {
+      const params: Record<string, unknown> = reconcileSoftwareParams({
         teamId,
         softwareId,
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
       });
-    case !!softwareVersionId:
-      return { software_version_id: softwareVersionId };
-    case !!softwareId:
-      return { software_id: softwareId };
+      // Software version can be combined with os name and os version
+      // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+      if (osVersionId) {
+        params.os_version_id = osVersionId;
+      } else if (osName && osVersion) {
+        params.os_name = osName;
+        params.os_version = osVersion;
+      }
+      return params;
+    }
     case !!osVersionId:
       return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
@@ -250,7 +291,21 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
-      return { bootstrap_package: bootstrapPackageStatus };
+      return { macos_bootstrap_package: bootstrapPackageStatus };
+    case !!configProfileUUID:
+      return {
+        profile_status: configProfileStatus,
+        profile_uuid: configProfileUUID,
+      };
+    case !!scriptBatchExecutionId:
+      return {
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
+      };
+    case !!depProfileError:
+      return { dep_profile_error: true };
+    case !!depAssignProfileResponse:
+      return { dep_assign_profile_response: depAssignProfileResponse };
     default:
       return {};
   }

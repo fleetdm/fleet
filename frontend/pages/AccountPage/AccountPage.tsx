@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import { IUser } from "interfaces/user";
 import usersAPI from "services/entities/users";
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 import deepDifference from "utilities/deep_difference";
 import formatErrorResponse from "utilities/format_error_response";
 
@@ -17,6 +17,7 @@ import ChangePasswordForm from "components/forms/ChangePasswordForm";
 // @ts-ignore
 import Modal from "components/Modal";
 
+import SidePanelPage from "components/SidePanelPage";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
@@ -24,7 +25,7 @@ import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
-import SecretField from "./APITokenModal/TokenSecretField/SecretField";
+import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import AccountSidePanel from "./AccountSidePanel";
 import { getErrorMessage } from "./helpers";
 
@@ -76,7 +77,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     return false;
   };
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Partial<IUser>) => {
     if (!currentUser) {
       return false;
     }
@@ -116,7 +117,10 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
     }
   };
 
-  const handleSubmitPasswordForm = async (formData: any) => {
+  const handleSubmitPasswordForm = async (formData: {
+    old_password: string;
+    new_password: string;
+  }) => {
     try {
       await usersAPI.changePassword(formData);
       renderFlash("success", "Password changed successfully");
@@ -127,7 +131,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   };
 
   const renderEmailModal = () => {
-    const emailSubmit = (formData: any) => {
+    const emailSubmit = (formData: Partial<IUser>) => {
       handleSubmit(formData).then((r?: boolean) => {
         return r ? onToggleEmailModal() : false;
       });
@@ -176,37 +180,38 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         onExit={onToggleApiTokenModal}
         onEnter={onToggleApiTokenModal}
       >
-        <>
-          <InfoBanner>
-            <p>
-              <strong>This token expires.</strong> If you want an API key for a
-              permanent integration, create an&nbsp;
+        <InfoBanner>
+          <p>
+            <strong>This token expires.</strong> If you want an API key for a
+            permanent integration, create an&nbsp;
+            <CustomLink
+              url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
+              text="API-only user"
+              newTab
+              variant="banner-link"
+            />
+            &nbsp;instead.
+          </p>
+        </InfoBanner>
+        <InputFieldHiddenContent
+          value={authToken.get() || ""}
+          helpText={
+            <>
+              This token is intended for SSO users to authenticate in the
+              fleetctl CLI. It expires based on the{" "}
               <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
-                text="API-only user"
+                url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
+                text="session duration configuration"
                 newTab
               />
-              &nbsp;instead.
-            </p>
-          </InfoBanner>
-          <div className={`${baseClass}__secret-wrapper`}>
-            <SecretField secret={authToken()} />
-          </div>
-          <p className="token-message">
-            This token is intended for SSO users to authenticate in the fleetctl
-            CLI. It expires based on the{" "}
-            <CustomLink
-              url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
-              text="session duration configuration"
-              newTab
-            />
-          </p>
-          <div className="modal-cta-wrap">
-            <Button onClick={onToggleApiTokenModal} type="button">
-              Done
-            </Button>
-          </div>
-        </>
+            </>
+          }
+        />
+        <div className="modal-cta-wrap">
+          <Button onClick={onToggleApiTokenModal} type="button">
+            Close
+          </Button>
+        </div>
       </Modal>
     );
   };
@@ -216,33 +221,35 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   }
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>
-          <div className={`${baseClass}__manage`}>
-            <h1>My account</h1>
-            <UserSettingsForm
-              formData={currentUser}
-              handleSubmit={handleSubmit}
-              onCancel={onCancel}
-              pendingEmail={pendingEmail}
-              serverErrors={errors}
-              smtpConfigured={config?.smtp_settings?.configured || false}
-            />
-          </div>
-          {renderEmailModal()}
-          {renderPasswordModal()}
-          {renderApiTokenModal()}
-        </>
-      </MainContent>
-      <SidePanelContent>
-        <AccountSidePanel
-          currentUser={currentUser}
-          onChangePassword={onShowPasswordModal}
-          onGetApiToken={onShowApiTokenModal}
-        />
-      </SidePanelContent>
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>
+            <div className={`${baseClass}__manage`}>
+              <h1>My account</h1>
+              <UserSettingsForm
+                formData={currentUser}
+                handleSubmit={handleSubmit}
+                onCancel={onCancel}
+                pendingEmail={pendingEmail}
+                serverErrors={errors}
+                smtpConfigured={config?.smtp_settings?.configured || false}
+              />
+            </div>
+            {renderEmailModal()}
+            {renderPasswordModal()}
+            {renderApiTokenModal()}
+          </>
+        </MainContent>
+        <SidePanelContent>
+          <AccountSidePanel
+            currentUser={currentUser}
+            onChangePassword={onShowPasswordModal}
+            onGetApiToken={onShowApiTokenModal}
+          />
+        </SidePanelContent>
+      </>
+    </SidePanelPage>
   );
 };
 

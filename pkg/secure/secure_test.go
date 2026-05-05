@@ -44,13 +44,16 @@ func TestOpenFile(t *testing.T) {
 	require.NotNil(t, fd)
 	require.NoError(t, fd.Close())
 
-	_, err = OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0677)
-	require.Error(t, err)
-	expectedFileErr := fmt.Sprintf(
-		"File %s already exists with mode 755 instead of the expected %o", filePath, 0677)
-	require.Equal(t, expectedFileErr, err.Error())
+	// Opening with a different perm should self-heal via chmod rather than error.
+	fd, err = OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
+	require.NoError(t, err)
+	fd.Close()
+	info, err := os.Stat(filePath)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0600), info.Mode())
 
-	fd, err = OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0755)
+	// Re-open with the now-correct mode still works.
+	fd, err = OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0600)
 	require.NoError(t, err)
 	fd.Close()
 }

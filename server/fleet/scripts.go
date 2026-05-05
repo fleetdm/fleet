@@ -16,7 +16,7 @@ import (
 // Script represents a saved script that can be executed on a host.
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
-	TeamID *uint  `json:"team_id" db:"team_id"`
+	TeamID *uint  `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	Name   string `json:"name" db:"name"`
 	// ScriptContents is not returned in payloads nor is it returned
 	// from reading from the database, it is only used as payload to
@@ -39,13 +39,40 @@ func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
-	if filepath.Ext(s.Name) != ".sh" && filepath.Ext(s.Name) != ".ps1" {
-		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
+
+	ext := strings.ToLower(filepath.Ext(s.Name))
+	switch ext {
+	case ".sh", ".ps1", ".py":
+		// ok
+	default:
+		return errors.New("File type not supported. Only .sh, .py, and .ps1 file types are allowed.")
 	}
 
 	// validate the script contents as if it were already a saved script
 	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
+	}
+
+	kind, directExecute, err := shebangInfo(s.ScriptContents)
+	if err != nil {
+		return err
+	}
+	switch ext {
+	case ".sh":
+		// allow no shebang (defaults to /bin/sh), or a supported shell shebang.
+		if directExecute && kind != shebangShell {
+			return errors.New(`Shell scripts must use a shell shebang (for example, "#!/bin/sh") or no shebang. For Python, use a ".py" script.`)
+		}
+	case ".py":
+		// python scripts must be directly executable (via a python shebang).
+		if !directExecute || kind != shebangPython {
+			return errors.New(`Python scripts must start with a python shebang (for example, "#!/usr/bin/env python3").`)
+		}
+	case ".ps1":
+		// PowerShell scripts are executed via powershell.exe, shebangs are not supported.
+		if directExecute {
+			return errors.New(`PowerShell scripts must not start with a shebang ("#!").`)
+		}
 	}
 
 	return nil
@@ -97,15 +124,17 @@ type HostScriptExecution struct {
 // SetLastExecution updates the LastExecution field of the HostScriptDetail if the provided details
 // are more recent than the current LastExecution. It returns true if the LastExecution was updated.
 func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *time.Time, exitCode *int64, hsrID *uint) bool {
-	if hsrID == nil || executionID == nil || executedAt == nil {
+	if executionID == nil || executedAt == nil {
 		// no new execution, nothing to do
 		return false
 	}
 
 	newHSE := &HostScriptExecution{
-		HSRID:       *hsrID,
 		ExecutionID: *executionID,
 		ExecutedAt:  *executedAt,
+	}
+	if hsrID != nil {
+		newHSE.HSRID = *hsrID
 	}
 	switch {
 	case exitCode == nil:
@@ -142,7 +171,7 @@ type HostScriptRequestPayload struct {
 	ScriptContents  string `json:"script_contents"`
 	ScriptContentID uint   `json:"-"`
 	ScriptName      string `json:"script_name"`
-	TeamID          uint   `json:"team_id,omitempty"`
+	TeamID          uint   `json:"team_id,omitempty" renameto:"fleet_id"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -152,6 +181,16 @@ type HostScriptRequestPayload struct {
 	// SetupExperienceScriptID is the ID of the setup experience script related to this request
 	// payload, if such a script exists.
 	SetupExperienceScriptID *uint `json:"-"`
+}
+
+// Priority returns the priority to assign to this activity in the upcoming
+// activities queue. It is the default priority except when the script is part
+// of the setup experience flow.
+func (r HostScriptRequestPayload) Priority() int {
+	if r.SetupExperienceScriptID != nil {
+		return 100
+	}
+	return 0
 }
 
 func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
@@ -200,6 +239,8 @@ type HostScriptResult struct {
 	HostID uint `json:"host_id" db:"host_id"`
 	// ExecutionID is a unique identifier for a single execution of the script.
 	ExecutionID string `json:"execution_id" db:"execution_id"`
+	// BatchExecutionID is an identifier that links this execution to a larger batch job
+	BatchExecutionID *string `json:"batch_execution_id" db:"batch_execution_id"`
 	// ScriptContents is the content of the script to execute.
 	ScriptContents string `json:"script_contents" db:"script_contents"`
 	// Output is the combined stdout/stderr output of the script. It is empty
@@ -236,7 +277,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -258,10 +299,39 @@ type HostScriptResult struct {
 	// SetupExperienceScriptID is the ID of the setup experience script, if this script execution
 	// was part of setup experience.
 	SetupExperienceScriptID *uint `json:"-" db:"setup_experience_script_id"`
+
+	// Canceled indicates if that script execution request was canceled by a
+	// user.
+	Canceled bool `json:"-" db:"canceled"`
+
+	// AttemptNumber tracks which retry attempt this is for policy automation executions.
+	// nil = not triggered by a policy failure
+	// 1,2,3 attempt, 3 being max retries
+	AttemptNumber *int `json:"attempt_number,omitempty" db:"attempt_number"`
 }
 
 func (hsr HostScriptResult) AuthzType() string {
 	return "host_script_result"
+}
+
+type BatchScriptHost struct {
+	// ID is the host on which the script was executed.
+	ID             uint   `json:"id" db:"id"`
+	ComputerName   string `json:"-" db:"computer_name"`
+	HostName       string `json:"-" db:"hostname"`
+	HardwareModel  string `json:"-" db:"hardware_model"`
+	HardwareSerial string `json:"-" db:"hardware_serial"`
+	// Display name is the host's display name.
+	DisplayName string `json:"display_name" db:"display_name"`
+	// ExecutionID is a unique identifier for a single execution of the script.
+	ScriptExecutionID string `json:"script_execution_id" db:"execution_id"`
+	// Output is the combined stdout/stderr output of the script. It is empty
+	// if no result was received yet.
+	ScriptOutput string `json:"script_output_preview,omitempty" db:"output"`
+	// Executed at is the time the script was executed on the host (if at all).
+	ScriptExecutedAt *time.Time `json:"script_executed_at,omitempty" db:"updated_at"`
+	// Status is the status of the host's batch script run.
+	Status BatchScriptExecutionStatus `json:"script_status" db:"status"`
 }
 
 // UserMessage returns the user-friendly message to associate with the current
@@ -317,23 +387,126 @@ const (
 
 // anchored, so that it matches to the end of the line
 var (
-	scriptHashbangValidation  = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/z?sh(?:\s*|\s+.*)$`)
-	ErrUnsupportedInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh" or "#!/bin/zsh."`)
+	scriptHashbangValidation       = regexp.MustCompile(`^#!\s*(:?/usr)?/bin/(ba|z)?sh(?:\s*|\s+.*)$`)
+	ErrUnsupportedInterpreter      = errors.New(`Interpreter not supported. Supported interpreters are "#!/bin/sh", "#!/bin/bash", "#!/bin/zsh", "#!/usr/bin/env python3", or an absolute path to "python" / "python3".`)
+	ErrUnsupportedShellInterpreter = errors.New(`Interpreter not supported. Shell scripts must run in "#!/bin/sh", "#!/bin/bash", or "#!/bin/zsh."`)
 )
+
+type ShebangKind int
+
+const (
+	ShebangNone ShebangKind = iota
+	ShebangShell
+	ShebangPython
+)
+
+// shebangKind is kept for internal use to maintain backwards compatibility
+type shebangKind = ShebangKind
+
+const (
+	shebangNone   = ShebangNone
+	shebangShell  = ShebangShell
+	shebangPython = ShebangPython
+)
+
+// ShebangInfo inspects the script contents and returns whether it should be
+// executed directly (via the kernel's shebang support), and what kind of
+// interpreter it declares.
+//
+// Note: for backwards compatibility, scripts without a shebang are allowed and
+// will be executed using /bin/sh.
+func ShebangInfo(contents string) (kind ShebangKind, directExecute bool, err error) {
+	return shebangInfo(contents)
+}
+
+// shebangInfo inspects the script contents and returns whether it should be
+// executed directly (via the kernel's shebang support), and what kind of
+// interpreter it declares.
+//
+// Note: for backwards compatibility, scripts without a shebang are allowed and
+// will be executed using /bin/sh.
+func shebangInfo(contents string) (kind shebangKind, directExecute bool, err error) {
+	if !strings.HasPrefix(contents, "#!") {
+		return shebangNone, false, nil
+	}
+
+	// read the first line in a portable way
+	sc := bufio.NewScanner(strings.NewReader(contents))
+	if !sc.Scan() {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+	line := strings.TrimSpace(sc.Text())
+	if !strings.HasPrefix(line, "#!") {
+		// should not happen given the prefix check, but be defensive
+		return shebangNone, false, nil
+	}
+
+	// tokenize the shebang: "#! <interpreter> [args...]"
+	rest := strings.TrimSpace(strings.TrimPrefix(line, "#!"))
+	fields := strings.Fields(rest)
+	if len(fields) == 0 {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+
+	interp := fields[0]
+	base := filepath.Base(interp)
+
+	// Support env-based shebangs like "#!/usr/bin/env python3"
+	if base == "env" {
+		// Require env to be in /bin or /usr/bin (common, predictable locations)
+		if !strings.HasPrefix(interp, "/bin/") && !strings.HasPrefix(interp, "/usr/bin/") {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+
+		// Skip env options (e.g. -S, -i) until we find the command.
+		i := 1
+		for i < len(fields) && strings.HasPrefix(fields[i], "-") {
+			i++
+		}
+		if i >= len(fields) {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+		cmd := fields[i]
+		switch {
+		case cmd == "sh" || cmd == "bash" || cmd == "zsh":
+			return shebangShell, true, nil
+		case cmd == "python" || cmd == "python3" || strings.HasPrefix(cmd, "python3."):
+			return shebangPython, true, nil
+		default:
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+	}
+
+	// For direct interpreter paths, require an absolute path. For shell scripts,
+	// we keep the historical restriction to /bin or /usr/bin. For Python, allow
+	// any absolute path (e.g. /usr/local/bin/python3, /opt/homebrew/bin/python3).
+	if !strings.HasPrefix(interp, "/") {
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+
+	switch {
+	case base == "sh" || base == "bash" || base == "zsh":
+		if !strings.HasPrefix(interp, "/bin/") && !strings.HasPrefix(interp, "/usr/bin/") {
+			return shebangNone, false, ErrUnsupportedInterpreter
+		}
+		return shebangShell, true, nil
+	case base == "python" || base == "python3" || strings.HasPrefix(base, "python3."):
+		return shebangPython, true, nil
+	default:
+		// preserve backwards-compatibility with prior behavior for shell scripts
+		// that relied on the regex validator (primarily for /usr/bin/(ba|z)?sh).
+		if scriptHashbangValidation.MatchString(line) {
+			return shebangShell, true, nil
+		}
+		return shebangNone, false, ErrUnsupportedInterpreter
+	}
+}
 
 // ValidateShebang validates if we support a script, and whether we
 // can execute it directly, or need to pass it to a shell interpreter.
 func ValidateShebang(s string) (directExecute bool, err error) {
-	if strings.HasPrefix(s, "#!") {
-		// read the first line in a portable way
-		s := bufio.NewScanner(strings.NewReader(s))
-		// if a hashbang is present, it can only be `/bin/sh` or `(/usr)/bin/zsh` for now
-		if s.Scan() && !scriptHashbangValidation.MatchString(s.Text()) {
-			return false, ErrUnsupportedInterpreter
-		}
-		return true, nil
-	}
-	return false, nil
+	_, directExecute, err = shebangInfo(s)
+	return directExecute, err
 }
 
 func ValidateHostScriptContents(s string, isSavedScript bool) error {
@@ -342,7 +515,7 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	}
 
 	maxLen := SavedScriptMaxRuneLen
-	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	maxLenErrMsg := RunScriptSavedMaxLenErrMsg
 	if !isSavedScript {
 		maxLen = UnsavedScriptMaxRuneLen
 		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
@@ -374,14 +547,62 @@ func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	return nil
 }
 
+// ValidateSoftwareInstallerScript validates the content of a software installer
+// script (install, post-install, or uninstall). Unlike ValidateHostScriptContents,
+// empty scripts are valid (meaning "no script"). The platform parameter determines
+// whether shebang validation is applied (only for "darwin" and "linux"; skipped
+// for "windows" since those use PowerShell).
+func ValidateSoftwareInstallerScript(s, platform string) error {
+	// Empty scripts are valid — they mean "no script provided".
+	if s == "" {
+		return nil
+	}
+
+	// Size check: use the saved-script limit (500,000 runes).
+	if len(s) > utf8.UTFMax*SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+	if utf8.RuneCountInString(s) > SavedScriptMaxRuneLen {
+		return errors.New(RunScriptSavedMaxLenErrMsg)
+	}
+
+	// Binary check: must be valid UTF-8.
+	if !utf8.ValidString(s) {
+		return errors.New("Wrong data format. Only plain text allowed.")
+	}
+
+	// Shebang/interpreter check: only for darwin and linux (shell scripts).
+	// Windows uses PowerShell, which doesn't use shebangs.
+	if platform != "windows" {
+		kind, _, err := ShebangInfo(s)
+		if err != nil {
+			// Return a shell-specific error message for software installer scripts,
+			// since they only support shell interpreters (not python).
+			return ErrUnsupportedShellInterpreter
+		}
+		// Software installer scripts must use a shell interpreter (or no shebang,
+		// which defaults to /bin/sh). Python shebangs are not supported here.
+		if kind == ShebangPython {
+			return ErrUnsupportedShellInterpreter
+		}
+	}
+
+	return nil
+}
+
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
 }
 
 type SoftwareInstallerPayload struct {
-	URL                string   `json:"url"`
-	PreInstallQuery    string   `json:"pre_install_query"`
+	// URL is the download URL for the installer. For script packages specified via
+	// the path field, this uses "script://filename" to pass the filename; in that
+	// case InstallScript contains the script content directly.
+	URL             string `json:"url"`
+	PreInstallQuery string `json:"pre_install_query"`
+	// InstallScript is the script to run after downloading the installer. For script
+	// packages via "script://" URL, this contains the package content itself.
 	InstallScript      string   `json:"install_script"`
 	UninstallScript    string   `json:"uninstall_script"`
 	PostInstallScript  string   `json:"post_install_script"`
@@ -391,9 +612,22 @@ type SoftwareInstallerPayload struct {
 	InstallDuringSetup *bool    `json:"install_during_setup"` // if nil, do not change saved value, otherwise set it
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	LabelsExcludeAny   []string `json:"labels_exclude_any"`
+	LabelsIncludeAll   []string `json:"labels_include_all"`
 	// ValidatedLabels is a struct that contains the validated labels for the
 	// software installer. It is nil if the labels have not been validated.
 	ValidatedLabels *LabelIdentsWithScope
+	SHA256          string   `json:"sha256"`
+	Categories      []string `json:"categories"`
+	DisplayName     string   `json:"display_name"`
+	// This is to support FMAs
+	Slug            *string        `json:"slug"`
+	MaintainedApp   *MaintainedApp `json:"-"`
+	RollbackVersion string         `json:"fleet_maintained_app_version"`
+
+	IconPath string `json:"-"`
+	IconHash string `json:"-"`
+	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
+	AlwaysDownload bool `json:"always_download"`
 }
 
 type HostLockWipeStatus struct {
@@ -414,6 +648,9 @@ type HostLockWipeStatus struct {
 	// macOS records the timestamp of the unlock request in the "unlock_ref",
 	// which is then stored here.
 	UnlockRequestedAt time.Time
+	// iOS/iPadOS hosts use an MDM command to unlock
+	UnlockMDMCommand       *MDMCommand
+	UnlockMDMCommandResult *MDMCommandResult
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
@@ -423,17 +660,63 @@ type HostLockWipeStatus struct {
 
 	// Linux uses a script for Wipe
 	WipeScript *HostScriptResult
+
+	LocationPending bool
 }
 
 // ScriptResponse is the response type used when applying scripts by batch.
 type ScriptResponse struct {
 	// TeamID is the id of the team.
 	// A value of nil means it is scoped to hosts that are assigned to "No team".
-	TeamID *uint `json:"team_id" db:"team_id"`
+	TeamID *uint `json:"team_id" renameto:"fleet_id" db:"team_id"`
 	// ID is the id of the script
 	ID uint `json:"id" db:"id"`
 	// Name is the name of the script
 	Name string `json:"name" db:"name"`
+}
+
+type DeviceStatus string
+
+const (
+	DeviceStatusWiped    DeviceStatus = "wiped"
+	DeviceStatusLocked   DeviceStatus = "locked"
+	DeviceStatusUnlocked DeviceStatus = "unlocked"
+)
+
+func (s HostLockWipeStatus) DeviceStatus() DeviceStatus {
+	switch {
+	case s.IsWiped():
+		return DeviceStatusWiped
+	case s.IsLocked():
+		return DeviceStatusLocked
+	default:
+		return DeviceStatusUnlocked
+	}
+}
+
+type PendingDeviceAction string
+
+const (
+	PendingActionLock     PendingDeviceAction = "lock"
+	PendingActionUnlock   PendingDeviceAction = "unlock"
+	PendingActionWipe     PendingDeviceAction = "wipe"
+	PendingActionLocation PendingDeviceAction = "location"
+	PendingActionNone     PendingDeviceAction = ""
+)
+
+func (s HostLockWipeStatus) PendingAction() PendingDeviceAction {
+	switch {
+	case s.LocationPending:
+		return PendingActionLocation
+	case s.IsPendingLock():
+		return PendingActionLock
+	case s.IsPendingUnlock():
+		return PendingActionUnlock
+	case s.IsPendingWipe():
+		return PendingActionWipe
+	default:
+		return PendingActionNone
+	}
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
@@ -441,23 +724,29 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
 	}
-	// pending lock if script execution request is queued but no result yet
-	return s.LockScript != nil && s.LockScript.ExitCode == nil
+	// pending lock if script execution request is queued but no result yet and not canceled
+	return s.LockScript != nil && s.LockScript.ExitCode == nil && !s.LockScript.Canceled
 }
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
-		// Apple MDM does not have a concept of pending unlock.
+	if s.HostFleetPlatform == "darwin" {
+		// MacOS does not have a concept of pending unlock.
 		return false
 	}
-	// pending unlock if script execution request is queued but no result yet
-	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		// pending unlock if an MDM command is queued but no result received yet
+		// since for mobile apple devices we use lost mode.
+		return s.UnlockMDMCommand != nil && s.UnlockMDMCommandResult == nil
+	}
+
+	// pending unlock if script execution request is queued but no result yet and not canceled
+	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil && !s.UnlockScript.Canceled
 }
 
 func (s HostLockWipeStatus) IsPendingWipe() bool {
 	if s.HostFleetPlatform == "linux" {
-		// pending wipe if script execution request is queued but no result yet
-		return s.WipeScript != nil && s.WipeScript.ExitCode == nil
+		// pending wipe if script execution request is queued but no result yet and not canceled
+		return s.WipeScript != nil && s.WipeScript.ExitCode == nil && !s.WipeScript.Canceled
 	}
 	// pending wipe if an MDM command is queued but no result received yet
 	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
@@ -467,11 +756,17 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// this state is regardless of pending unlock/wipe (it reports whether the
 	// host is locked *now*).
 
-	if s.HostFleetPlatform == "darwin" || s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+	if s.HostFleetPlatform == "darwin" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
 			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
 	}
+
+	if s.HostFleetPlatform == "ios" || s.HostFleetPlatform == "ipados" {
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged && !s.LocationPending
+	}
+
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0
@@ -497,6 +792,97 @@ func (s HostLockWipeStatus) IsWiped() bool {
 		// wiped if an MDM command was sent and succeeded
 		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
 			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
+}
+
+var (
+	BatchExecuteIncompatiblePlatform = "incompatible-platform"
+	BatchExecuteIncompatibleFleetd   = "incompatible-fleetd"
+	BatchExecuteInvalidHost          = "invalid-host"
+)
+
+type BatchExecutionStatusFilter struct {
+	ScriptID *uint   `json:"script_id,omitempty"`
+	TeamID   *uint   `json:"team_id,omitempty" renameto:"fleet_id"` // if nil, it is scoped to hosts that are assigned to "No team"
+	Status   *string `json:"status,omitempty"`                      // e.g. "pending", "ran", "errored", "canceled", "incompatible-platform", "incompatible-fleetd"
+	// ExecutionID is the unique identifier for a single execution of the script.
+	ExecutionID *string `json:"execution_id,omitempty"`
+	// Limit is the maximum number of results to return.
+	// If not set, it defaults to 100.
+	Limit *uint `json:"limit,omitempty"`
+	// Offset is the number of results to skip before returning results.
+	// If not set, it defaults to 0.
+	Offset *uint `json:"offset,omitempty"`
+}
+
+type BatchExecutionHost struct {
+	HostID          uint    `json:"host_id" db:"host_id"`
+	HostDisplayName string  `json:"host_display_name" db:"hostname"`
+	ExecutionID     *string `json:"execution_id,omitempty" db:"execution_id"`
+	Error           *string `json:"error,omitempty" db:"error"`
+}
+
+type BatchActivity struct {
+	ID               uint                          `json:"id" db:"id"`
+	BatchExecutionID string                        `json:"batch_execution_id" db:"execution_id"`
+	UserID           *uint                         `json:"user_id" db:"user_id"`
+	JobID            *uint                         `json:"-" db:"job_id"`
+	ActivityType     BatchExecutionActivityType    `json:"-" db:"activity_type"`
+	ScriptID         *uint                         `json:"script_id" db:"script_id"`
+	ScriptName       string                        `json:"script_name" db:"script_name"`
+	TeamID           *uint                         `json:"team_id" renameto:"fleet_id" db:"team_id"`
+	CreatedAt        time.Time                     `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time                     `json:"updated_at" db:"updated_at"`
+	NotBefore        *time.Time                    `json:"not_before,omitempty" db:"not_before"`
+	StartedAt        *time.Time                    `json:"started_at,omitempty" db:"started_at"`
+	FinishedAt       *time.Time                    `json:"finished_at,omitempty" db:"finished_at"`
+	Canceled         bool                          `json:"canceled" db:"canceled"`
+	Status           ScheduledBatchExecutionStatus `json:"status" db:"status"`
+	NumTargeted      *uint                         `json:"targeted_host_count" db:"num_targeted"`
+	NumPending       *uint                         `json:"pending_host_count" db:"num_pending"`
+	NumRan           *uint                         `json:"ran_host_count" db:"num_ran"`
+	NumErrored       *uint                         `json:"errored_host_count" db:"num_errored"`
+	NumCanceled      *uint                         `json:"canceled_host_count" db:"num_canceled"`
+	NumIncompatible  *uint                         `json:"incompatible_host_count" db:"num_incompatible"`
+}
+
+type BatchActivityHostResult struct {
+	ID               uint    `db:"id"`
+	BatchExecutionID string  `db:"batch_execution_id"`
+	HostID           uint    `db:"host_id"`
+	HostExecutionID  *string `db:"host_execution_id"`
+	Error            *string `db:"error"`
+}
+
+type BatchActivityScriptJobArgs struct {
+	ExecutionID string `json:"execution_id"`
+}
+
+type ScheduledBatchExecutionStatus string
+
+var (
+	ScheduledBatchExecutionStarted   ScheduledBatchExecutionStatus = "started"
+	ScheduledBatchExecutionScheduled ScheduledBatchExecutionStatus = "scheduled"
+	ScheduledBatchExecutionFinished  ScheduledBatchExecutionStatus = "finished"
+)
+
+type BatchExecutionActivityType string
+
+var BatchExecutionActivityScript BatchExecutionActivityType = "script"
+
+const BatchActivityScriptsJobName = "batch_scripts"
+
+// ValidateScriptPlatform returns whether a script can run on a host based on its host.Platform
+func ValidateScriptPlatform(scriptName, platform string) bool {
+	switch filepath.Ext(scriptName) {
+	case ".sh":
+		return IsUnixLike(platform)
+	case ".py":
+		return IsUnixLike(platform)
+	case ".ps1":
+		return platform == "windows"
 	default:
 		return false
 	}

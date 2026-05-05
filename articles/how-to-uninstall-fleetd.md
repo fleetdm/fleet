@@ -1,30 +1,53 @@
 # How to uninstall Fleet's agent (fleetd)
 
-This guide walks you through the steps to remove fleetd from your device. After performing these steps, the device will display as an offline host in the Fleet UI until you manually remove it.
+You can uninstall fleetd directly on a device or remotely through Fleet.
 
-## On macOS:
-Run the [cleanup script](https://github.com/fleetdm/fleet/blob/main/orbit/tools/cleanup/cleanup_macos.sh) found in Fleet's GitHub 
 
----
+## Uninstall fleetd on macOS
 
-## On Windows:
-Use the "Add or remove programs" dialog to remove Fleet osquery.
+To remove fleetd from a Mac:
 
-![windows_uninstall](https://github.com/user-attachments/assets/4140e62b-f67a-4df6-85b0-430c2c624881)
+1. Download the [macOS uninstall script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh).
+2. Open the **Terminal** app.
+3. Navigate to where you saved the script: `cd /path/to/your/script`
+4. Make the script executable: `chmod +x uninstall-fleetd-macos.sh`
+5. Run the script: `sudo ./uninstall-fleetd-macos.sh`
 
----
 
-## On Linux:
+## Uninstall fleetd on Windows
 
-Using Debian package manager (Debian, Ubuntu, etc.) :
+To remove fleetd from a Windows device:
 
-Run ```sudo apt remove fleet-osquery -y```
+1. Download the [Windows uninstall script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1).
+2. Open **PowerShell** as administrator (right-click and select **Run as administrator**).
+3. Navigate to where you saved the script: `cd C:\path\to\your\script`
+4. Run the script: `.\uninstall-fleetd-windows.ps1`
 
-Using yum Package Manager (RHEL, CentOS, etc.) :
+> Note: When running unsigned PowerShell scripts, you are likely to receive a warning, and will need to adjust the [Execution Policy](https://learn.microsoft.com/en-gb/powershell/module/microsoft.powershell.security/set-executionpolicy?view=powershell-7.5). One example is: `Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process`. This will bypass all warnings and prompts for the current PowerShell session. 
 
-Run ```sudo rpm -e fleet-osquery-X.Y.Z.x86_64```
 
-Are you having trouble uninstalling Fleetd on macOS, Windows, or Linux? Get help on Slack in the [#fleet channel](https://fleetdm.com/slack).
+## Uninstall fleetd on Linux
+
+To remove fleetd from a Linux device:
+
+1. Download the [Linux uninstall script](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh).
+2. Open your terminal.
+3. Navigate to where you saved the script: `cd /path/to/your/script`
+4. Make the script executable: `chmod +x uninstall-fleetd-linux.sh`
+5. Run the script: `sudo ./uninstall-fleetd-linux.sh`
+
+
+## Uninstall fleetd remotely
+
+To remove fleetd from a device through Fleet:
+
+1. Add the uninstall script for [macOS](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/uninstall-fleetd-macos.sh), [Windows](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/windows/scripts/uninstall-fleetd-windows.ps1), or [Linux](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/linux/scripts/uninstall-fleetd-linux.sh) to Fleet as a script.
+2. Go to the device's **Host details** page.
+3. Select **Actions > Run script** and choose the uninstall script.
+
+After uninstalling, the device will show as offline in Fleet until you delete it.
+
+Need help? Contact us through one of our [support channels](https://fleetdm.com/support).
 
 <meta name="category" value="guides">
 <meta name="authorFullName" value="Eric Shaw">

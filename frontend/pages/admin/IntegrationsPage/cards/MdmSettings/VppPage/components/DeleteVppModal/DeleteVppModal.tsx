@@ -46,35 +46,34 @@ const DeleteVppModal = ({
       onExit={onCancel}
       isContentDisabled={isDeleting}
     >
-      <>
-        <p>
-          Apps purchased for the <b>{orgName}</b> location won&apos;t appear in
-          Fleet. Apps won&apos;t be uninstalled from hosts.
-        </p>
-        <p>
-          If you want to enable VPP integration again, you&apos;ll have to
-          upload a new token.
-        </p>
+      <p>
+        Apps purchased for the <b>{orgName}</b> location won&apos;t appear in
+        Fleet, and policies that trigger automatic install of these apps will be
+        deleted. Apps won&apos;t be uninstalled from hosts.
+      </p>
+      <p>
+        If you want to enable VPP integration again, you&apos;ll have to upload
+        a new token.
+      </p>
 
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={onDeleteToken}
-            disabled={isDeleting}
-            isLoading={isDeleting}
-          >
-            Delete
-          </Button>
-          <Button
-            onClick={onCancel}
-            disabled={isDeleting}
-            variant="inverse-alert"
-          >
-            Cancel
-          </Button>
-        </div>
-      </>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={onDeleteToken}
+          disabled={isDeleting}
+          isLoading={isDeleting}
+        >
+          Delete
+        </Button>
+        <Button
+          onClick={onCancel}
+          disabled={isDeleting}
+          variant="inverse-alert"
+        >
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

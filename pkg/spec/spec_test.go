@@ -1,12 +1,16 @@
 package spec
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -161,8 +165,11 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
 		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, "environment variable \"bar\" not set")},
-		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``,
-			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
+		{
+			map[string]string{"bar": "1"},
+			`$foo $bar $zoo`, ``,
+			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set"),
+		},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
 		{map[string]string{}, `$$`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
@@ -180,9 +187,26 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
 		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
-		{map[string]string{"foo": "BAR"}, `\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
-			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil}, // nested variables
+		{
+			map[string]string{"foo": "BAR"},
+			`\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
+			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
+		}, // nested variables
+		{
+			map[string]string{},
+			"$fleet_var_test", // Somehow, variables can be lowercased when coming in from time to time
+			"$fleet_var_test", // Should not be replaced
+			nil,
+		},
+		{
+			map[string]string{"custom_secret": "test&123"},
+			"<Add>$custom_secret</Add>",
+			"<Add>test&amp;123</Add>",
+			nil,
+		},
 	} {
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -206,9 +230,16 @@ func TestLookupEnvSecrets(t *testing.T) {
 	}{
 		{map[string]string{"foo": "1"}, `$foo`, map[string]string{}, nil},
 		{map[string]string{"FLEET_SECRET_foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{"FLEET_SECRET_foo": "1"}, nil},
-		{map[string]string{"foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{},
-			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set")},
+		{
+			map[string]string{"foo": "1"},
+			`$FLEET_SECRET_foo`,
+			map[string]string{},
+			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
+		},
+		{map[string]string{"FLEET_SECRET_foo": "test&123"}, `<Add>$FLEET_SECRET_foo</Add>`, map[string]string{"FLEET_SECRET_foo": "test&123"}, nil},
 	} {
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -222,4 +253,210 @@ func TestLookupEnvSecrets(t *testing.T) {
 		}
 		require.Equal(t, tc.expResult, secretsMap)
 	}
+}
+
+// TestExpandEnvBytesIncludingSecrets tests that FLEET_SECRET_ variables are expanded when using ExpandEnvBytesIncludingSecrets
+func TestExpandEnvBytesIncludingSecrets(t *testing.T) {
+	t.Setenv("FLEET_SECRET_API_KEY", "secret123")
+	t.Setenv("NORMAL_VAR", "normalvalue")
+	t.Setenv("FLEET_VAR_HOST", "hostname")
+	t.Setenv("FLEET_SECRET_XML", "secret&123")
+
+	input := []byte(`API Key: $FLEET_SECRET_API_KEY
+Normal: $NORMAL_VAR  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`)
+
+	result, err := ExpandEnvBytesIncludingSecrets(input)
+	require.NoError(t, err)
+
+	expected := `API Key: secret123
+Normal: normalvalue  
+Fleet Var: $FLEET_VAR_HOST
+Missing: $FLEET_SECRET_MISSING`
+
+	assert.Equal(t, expected, string(result))
+
+	// Verify that FLEET_VAR_ is not expanded (reserved for server)
+	assert.Contains(t, string(result), "$FLEET_VAR_HOST")
+	// Verify that FLEET_SECRET_ is expanded
+	assert.Contains(t, string(result), "secret123")
+	assert.NotContains(t, string(result), "$FLEET_SECRET_API_KEY")
+	// Verify that missing secrets are left as-is
+	assert.Contains(t, string(result), "$FLEET_SECRET_MISSING")
+
+	xmlInput := []byte(`<Add>$FLEET_SECRET_XML</Add>`)
+	xmlResult, err := ExpandEnvBytesIncludingSecrets(xmlInput)
+	require.NoError(t, err)
+
+	expectedXML := `<Add>secret&amp;123</Add>`
+	assert.Equal(t, expectedXML, string(xmlResult))
+}
+
+// TestExpandEnvJSONDocument verifies that env vars and FLEET_SECRET_ vars
+// expanded inside JSON documents are JSON-string-escaped, not XML-escaped.
+func TestExpandEnvJSONDocument(t *testing.T) {
+	testutils.SaveEnv(t)
+
+	t.Run("env var JSON-escaped", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a"b\c`)
+		input := `{"key":"$API_KEY"}`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal([]byte(got), &parsed))
+		assert.Equal(t, `a"b\c`, parsed["key"])
+	})
+
+	t.Run("FLEET_SECRET_ JSON-escaped when expanded", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("FLEET_SECRET_PWD", `p"<&'d`)
+		input := []byte(`{"pwd":"$FLEET_SECRET_PWD"}`)
+		got, err := ExpandEnvBytesIncludingSecrets(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal(got, &parsed))
+		assert.Equal(t, `p"<&'d`, parsed["pwd"])
+	})
+
+	t.Run("FLEET_SECRET_ left as placeholder when ignored", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("FLEET_SECRET_PWD", `whatever`)
+		input := []byte(`{"pwd":"$FLEET_SECRET_PWD"}`)
+		got, err := ExpandEnvBytesIgnoreSecrets(input)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"pwd":"$FLEET_SECRET_PWD"}`, string(got))
+	})
+
+	t.Run("FLEET_VAR_ left for server regardless of format", func(t *testing.T) {
+		os.Clearenv()
+		input := []byte(`{"v":"$FLEET_VAR_HOST_HARDWARE_SERIAL"}`)
+		got, err := ExpandEnvBytesIgnoreSecrets(input)
+		require.NoError(t, err)
+		assert.JSONEq(t, `{"v":"$FLEET_VAR_HOST_HARDWARE_SERIAL"}`, string(got))
+	})
+
+	t.Run("leading whitespace still detected as JSON", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `"quoted"`)
+		input := "\n  " + `{"key":"$API_KEY"}`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+
+		var parsed map[string]string
+		require.NoError(t, json.Unmarshal([]byte(got), &parsed))
+		assert.Equal(t, `"quoted"`, parsed["key"])
+	})
+
+	t.Run("XML still XML-escapes (regression guard)", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a&b<c`)
+		input := `<Add>$API_KEY</Add>`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+		assert.Equal(t, `<Add>a&amp;b&lt;c</Add>`, got)
+	})
+
+	t.Run("plain text neither escapes nor corrupts", func(t *testing.T) {
+		os.Clearenv()
+		t.Setenv("API_KEY", `a"b&c<d>`)
+		input := `hello $API_KEY world`
+		got, err := ExpandEnv(input)
+		require.NoError(t, err)
+		assert.Equal(t, `hello a"b&c<d> world`, got)
+	})
+}
+
+func TestGetExclusionZones(t *testing.T) {
+	// Test with a small dedicated fixture where exact byte positions are stable
+	t.Run("testdata/policies/policies.yml", func(t *testing.T) {
+		fContents, err := os.ReadFile(filepath.Join("testdata", "policies", "policies.yml"))
+		require.NoError(t, err)
+
+		contents := string(fContents)
+		actual := getExclusionZones(contents)
+
+		expected := map[[2]int]string{
+			{46, 106}:  "  description: This policy should always fail.\n  resolution:",
+			{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
+			{268, 328}: "  description: This policy should always pass.\n  resolution:",
+			{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+		}
+		require.Equal(t, len(expected), len(actual))
+
+		for pos, text := range expected {
+			assert.Contains(t, actual, pos)
+			assert.Equal(t, contents[pos[0]:pos[1]], text, pos)
+		}
+	})
+
+	// Test with a larger config file - verify expected text strings are found within zones
+	// without hardcoding byte positions (which shift when the file is modified)
+	t.Run("testdata/global_config_no_paths.yml", func(t *testing.T) {
+		fContents, err := os.ReadFile(filepath.Join("testdata", "global_config_no_paths.yml"))
+		require.NoError(t, err)
+
+		contents := string(fContents)
+		actual := getExclusionZones(contents)
+
+		// Expected text strings that should be found within exclusion zones
+		expectedTexts := []string{
+			"    description: Collect osquery performance stats directly from osquery\n    query:",
+			"    description: This policy should always fail.\n    resolution:",
+			"    resolution: There is no resolution for this policy.\n    query:",
+			"    description: This policy should always pass.\n    resolution:",
+			"    resolution: |\n      Automated method:",
+			"    description: A cool global label\n    query:",
+			"    description: A fly global label\n    hosts:",
+		}
+
+		for _, expectedText := range expectedTexts {
+			found := false
+			for _, zone := range actual {
+				zoneText := contents[zone[0]:zone[1]]
+				if zoneText == expectedText || strings.Contains(zoneText, strings.TrimPrefix(expectedText, "    ")) {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "expected text not found in any exclusion zone: %q", expectedText)
+		}
+	})
+}
+
+func TestRewriteNewToOldKeys(t *testing.T) {
+	t.Run("accepts old keys", func(t *testing.T) {
+		raw := json.RawMessage(`{"name":"test","team":"myteam"}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		require.NoError(t, err)
+
+		var qs fleet.QuerySpec
+		require.NoError(t, json.Unmarshal(result, &qs))
+		assert.Equal(t, "test", qs.Name)
+		assert.Equal(t, "myteam", qs.TeamName)
+	})
+
+	t.Run("accepts new keys", func(t *testing.T) {
+		raw := json.RawMessage(`{"name":"test","fleet":"myteam"}`)
+		result, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		require.NoError(t, err)
+
+		var qs fleet.QuerySpec
+		require.NoError(t, json.Unmarshal(result, &qs))
+		assert.Equal(t, "test", qs.Name)
+		assert.Equal(t, "myteam", qs.TeamName)
+	})
+
+	t.Run("errors if both old and new keys provided", func(t *testing.T) {
+		raw := json.RawMessage(`{"name":"test","team":"old","fleet":"new"}`)
+		_, _, err := rewriteNewToOldKeys(raw, fleet.QuerySpec{})
+		require.Error(t, err)
+		var conflictErr *endpointer.AliasConflictError
+		require.ErrorAs(t, err, &conflictErr)
+		assert.Equal(t, "team", conflictErr.Old)
+		assert.Equal(t, "fleet", conflictErr.New)
+	})
 }

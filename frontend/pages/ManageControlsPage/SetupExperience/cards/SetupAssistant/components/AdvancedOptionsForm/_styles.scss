@@ -4,7 +4,9 @@
   gap: $pad-large;
 
   &__accordion-title {
-    // use this so we dont center the text.
-    justify-content: normal;
+    // Immediate children of a flexbox, which this element is, stretch content by default. There are a few ways to
+    // cancel that behavior (another would be to set width: fit-content), but we need one of them here to make sure
+    // the reveal button isn't wider than it needs to be.
+    align-self: flex-start;
   }
 }

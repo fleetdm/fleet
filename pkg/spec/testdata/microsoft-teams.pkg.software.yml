@@ -1,4 +1,5 @@
 url: https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg
-self_service: false
+hash_sha256: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 uninstall_script:
   path: ./lib/uninstall.sh
+

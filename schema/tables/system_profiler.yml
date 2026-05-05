@@ -1,0 +1,96 @@
+name: system_profiler
+description: |-
+  The system_profiler osquery table collects data from the macOS system profiler utility and returns it in JSON format.
+examples: |- 
+  
+  Collect Mac Activation Lock Status:
+
+  ```
+  SELECT json_extract (value,'$[0].activation_lock_status') AS activation_lock_status
+  FROM system_profiler
+  WHERE data_type='SPHardwareDataType';
+  ```
+  
+  Collect Mac Hardware UUID (platform_uuid):
+
+  ```
+  SELECT json_extract (value,'$[0].platform_UUID') AS hardware_uuid
+  FROM system_profiler
+  WHERE data_type='SPHardwareDataType';
+  ```
+  
+  Collect Mac Serial Number:
+
+  ```
+  SELECT json_extract (value,'$[0].serial_number') AS serial_number
+  FROM system_profiler
+  WHERE data_type='SPHardwareDataType';
+  ```
+
+  Collect Audio Devices:
+
+  ```
+  SELECT each.value->>'_name' AS name, each.value->>'coreaudio_device_manufacturer' AS manufacturer
+  FROM system_profiler sp, JSON_EACH(sp.value->'[0]._items') each
+  WHERE data_type = 'SPAudioDataType';
+  ```
+  
+notes: |-
+  The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It generates detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on "data types". 
+  
+  The system_profiler output is a rich source of data containing unique, per device hardware and software attributes which have many uses for enhancing Mac management.
+  
+  The following data types are available from the system_profiler binary as of macOS 26:
+  
+  - SPParallelATADataType
+  - SPUniversalAccessDataType
+  - SPSecureElementDataType
+  - SPApplicationsDataType
+  - SPAudioDataType
+  - SPBluetoothDataType
+  - SPCameraDataType
+  - SPCardReaderDataType
+  - SPiBridgeDataType
+  - SPDeveloperToolsDataType
+  - SPDiagnosticsDataType
+  - SPDisabledSoftwareDataType
+  - SPDiscBurningDataType
+  - SPEthernetDataType
+  - SPExtensionsDataType
+  - SPFibreChannelDataType
+  - SPFirewallDataType
+  - SPFontsDataType
+  - SPFrameworksDataType
+  - SPDisplaysDataType
+  - SPHardwareDataType
+  - SPInstallHistoryDataType
+  - SPInternationalDataType
+  - SPNetworkLocationDataType
+  - SPLogsDataType
+  - SPManagedClientDataType
+  - SPMemoryDataType
+  - SPNVMeDataType
+  - SPNetworkDataType
+  - SPPCIDataType
+  - SPParallelSCSIDataType
+  - SPPowerDataType
+  - SPPrefPaneDataType
+  - SPPrintersSoftwareDataType
+  - SPPrintersDataType
+  - SPConfigurationProfileDataType
+  - SPRawCameraDataType
+  - SPLegacySoftwareDataType
+  - SPSASDataType
+  - SPSerialATADataType
+  - SPSPIDataType
+  - SPSmartCardsDataType
+  - SPSoftwareDataType
+  - SPStartupItemDataType
+  - SPStorageDataType
+  - SPSyncServicesDataType
+  - SPThunderboltDataType
+  - SPUSBHostDataType
+  - SPNetworkVolumeDataType
+  - SPAirPortDataType
+
+  Because this table returns JSON values, the [SQLite JSON functions](https://sqlite.org/json1.html) are useful for parsing and transforming results.

@@ -1,0 +1,35 @@
+.tab-text {
+  display: flex;
+  flex-direction: row;
+  gap: $pad-small;
+  align-items: center;
+  height: 21px;
+
+  &__count {
+    display: flex;
+    padding: 1px 12px;
+    justify-content: center;
+    align-items: center;
+    background-color: $core-fleet-green;
+    border-radius: 29px;
+    color: $core-fleet-white;
+    font-weight: $bold;
+    font-size: $xx-small;
+
+    &__alert {
+      background-color: $core-vibrant-red;
+    }
+    &__pending {
+      background-color: $ui-fleet-black-50;
+    }
+  }
+
+  &__dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 100%;
+    background-color: $ui-success;
+  }
+}

@@ -1,2 +1,0 @@
-- Implement user-level settings, use them to persist a user's selection of which columns to display
-  on the hosts table.

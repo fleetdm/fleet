@@ -7,6 +7,7 @@ package schedule
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"sync"
@@ -14,8 +15,9 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ReloadInterval reloads and returns a new interval.
@@ -30,7 +32,7 @@ type Schedule struct {
 	ctx        context.Context
 	name       string
 	instanceID string
-	logger     log.Logger
+	logger     *slog.Logger
 
 	defaultPrevRunCreatedAt time.Time // default timestamp of previous run for the schedule if none exists, time.Now if not set
 
@@ -38,7 +40,7 @@ type Schedule struct {
 	schedInterval     time.Duration
 	intervalStartedAt time.Time // start time of the most recent run of the scheduled jobs
 
-	trigger chan struct{}
+	trigger chan int // 0 for in-process trigger, >0 for claimed stats ID from DB poll
 	done    chan struct{}
 
 	configReloadInterval   time.Duration
@@ -52,6 +54,8 @@ type Schedule struct {
 	errors fleet.CronScheduleErrors
 
 	statsStore CronStatsStore
+
+	triggerPollInterval time.Duration
 
 	runOnce bool
 }
@@ -83,15 +87,18 @@ type CronStatsStore interface {
 	InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error)
 	// UpdateCronStats updates the status of the identified cron stats record
 	UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error
+	// ClaimCronStats transitions a queued cron stats record to the given status
+	// and updates the instance to the worker that is claiming it.
+	ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error
 }
 
 // Option allows configuring a Schedule.
 type Option func(*Schedule)
 
 // WithLogger sets a logger for the Schedule.
-func WithLogger(l log.Logger) Option {
+func WithLogger(l *slog.Logger) Option {
 	return func(s *Schedule) {
-		s.logger = log.With(l, "schedule", s.name)
+		s.logger = l.With("schedule", s.name)
 	}
 }
 
@@ -145,6 +152,16 @@ func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
 	}
 }
 
+// WithTriggerPollInterval enables polling for externally-queued trigger requests.
+// When set, the schedule periodically checks the stats store for records with
+// "queued" status and executes them. This enables cross-server triggering when
+// the schedule runs on a different server than the one receiving the API request.
+func WithTriggerPollInterval(interval time.Duration) Option {
+	return func(s *Schedule) {
+		s.triggerPollInterval = interval
+	}
+}
+
 // New creates and returns a Schedule.
 // Jobs are added with the WithJob Option.
 //
@@ -165,8 +182,8 @@ func New(
 		ctx:                  ctx,
 		name:                 name,
 		instanceID:           instanceID,
-		logger:               log.NewNopLogger(),
-		trigger:              make(chan struct{}),
+		logger:               slog.New(slog.DiscardHandler),
+		trigger:              make(chan int),
 		done:                 make(chan struct{}),
 		configReloadInterval: 1 * time.Hour, // by default we will check for updated config once per hour
 		schedInterval:        truncateSecondsWithFloor(interval),
@@ -177,9 +194,9 @@ func New(
 		fn(sch)
 	}
 	if sch.logger == nil {
-		sch.logger = log.NewNopLogger()
+		sch.logger = slog.New(slog.DiscardHandler)
 	}
-	sch.logger = log.With(sch.logger, "instanceID", instanceID)
+	sch.logger = sch.logger.With("instanceID", instanceID)
 	sch.errors = make(fleet.CronScheduleErrors)
 	return sch
 }
@@ -188,9 +205,9 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	prevScheduledRun, _, err := s.GetLatestStats()
+	prevScheduledRun, _, err := s.GetLatestStats(s.ctx)
 	if err != nil {
-		level.Error(s.logger).Log("err", "start schedule", "details", err)
+		s.logger.ErrorContext(s.ctx, "start schedule", "err", err)
 		ctxerr.Handle(s.ctx, err)
 	}
 
@@ -218,34 +235,53 @@ func (s *Schedule) Start() {
 	g.Add(+1)
 	go func() {
 		defer func() {
-			s.releaseLock()
+			s.releaseLock(s.ctx)
 			g.Done()
 		}()
 
 		for {
-			level.Debug(s.logger).Log("msg", fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
+			s.logger.DebugContext(s.ctx, fmt.Sprintf("%v remaining until next tick", s.getRemainingInterval(s.intervalStartedAt)))
 
 			select {
 			case <-s.ctx.Done():
-				close(s.trigger)
 				schedTicker.Stop()
 				return
 
-			case <-s.trigger:
-				level.Debug(s.logger).Log("msg", "done, trigger received")
+			case claimedStatsID := <-s.trigger:
+				// Create a root span for the entire triggered execution
+				ctx, span := startRootSpan(s.ctx, "cron.triggered."+s.name,
+					attribute.String("cron.name", s.name),
+					attribute.String("cron.instance", s.instanceID),
+					attribute.String("cron.type", "triggered"),
+				)
 
-				ok, cancelHold := s.holdLock()
+				s.logger.DebugContext(ctx, "done, trigger received")
+
+				ok, cancelHold := s.holdLock(ctx)
 				if !ok {
-					level.Debug(s.logger).Log("msg", "unable to acquire lock")
+					s.logger.DebugContext(ctx, "unable to acquire lock")
+					span.End()
 					continue
 				}
 
-				s.runWithStats(fleet.CronStatsTypeTriggered)
+				// If this is a DB-polled trigger, claim the queued record now
+				// that we hold the lock and are ready to run. This updates the
+				// instance to the actual worker instance ID.
+				if claimedStatsID > 0 {
+					if err := s.statsStore.ClaimCronStats(ctx, claimedStatsID, s.instanceID, fleet.CronStatsStatusPending); err != nil {
+						s.logger.ErrorContext(ctx, "claiming queued trigger", "err", err)
+						ctxerr.Handle(ctx, err)
+						// there is an issue with this stats record; fall through to create a new stats record
+						claimedStatsID = 0
+					}
+				}
 
-				prevScheduledRun, _, err := s.GetLatestStats()
+				s.runWithStats(ctx, fleet.CronStatsTypeTriggered, claimedStatsID)
+
+				prevScheduledRun, _, err := s.GetLatestStats(ctx)
 				if err != nil {
-					level.Error(s.logger).Log("err", "trigger get cron stats", "details", err)
-					ctxerr.Handle(s.ctx, err)
+					s.logger.ErrorContext(ctx, "trigger get cron stats", "err", err)
+					ctxerr.Handle(ctx, err)
 				}
 
 				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
@@ -264,29 +300,39 @@ func (s *Schedule) Start() {
 					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					s.logger.DebugContext(ctx, fmt.Sprintf("triggered run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
 				}
 
 				cancelHold()
+				span.End()
 
 			case <-schedTicker.C:
-				level.Debug(s.logger).Log("msg", "done, tick received")
+				// Create a root span for the entire scheduled tick processing
+				ctx, span := startRootSpan(s.ctx, "cron.scheduled_tick."+s.name,
+					attribute.String("cron.name", s.name),
+					attribute.String("cron.instance", s.instanceID),
+					attribute.String("cron.type", "scheduled_tick"),
+				)
+
+				s.logger.DebugContext(ctx, "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
-				prevScheduledRun, prevTriggeredRun, err := s.GetLatestStats()
+				prevScheduledRun, prevTriggeredRun, err := s.GetLatestStats(ctx)
 				if err != nil {
-					level.Error(s.logger).Log("err", "get cron stats", "details", err)
-					ctxerr.Handle(s.ctx, err)
+					s.logger.ErrorContext(ctx, "get cron stats", "err", err)
+					ctxerr.Handle(ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
 				if prevScheduledRun.Status == fleet.CronStatsStatusPending || prevTriggeredRun.Status == fleet.CronStatsStatusPending {
 					// skip ahead to the next interval
-					level.Info(s.logger).Log("msg", fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
+					s.logger.InfoContext(ctx, fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -301,8 +347,9 @@ func (s *Schedule) Start() {
 				if time.Since(intervalStartedAt) < schedInterval {
 					// wait for the remaining interval plus a small buffer
 					newWait := s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond
-					level.Info(s.logger).Log("msg", fmt.Sprintf("wait remaining interval %v", newWait))
+					s.logger.InfoContext(ctx, fmt.Sprintf("wait remaining interval %v", newWait))
 					schedTicker.Reset(newWait)
+					span.End()
 					continue
 				}
 
@@ -311,21 +358,23 @@ func (s *Schedule) Start() {
 					newStart := intervalStartedAt.Add(time.Since(intervalStartedAt).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					s.logger.DebugContext(ctx, fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					span.End()
 					continue
 				}
 
-				ok, cancelHold := s.holdLock()
+				ok, cancelHold := s.holdLock(ctx)
 				if !ok {
-					level.Debug(s.logger).Log("msg", "unable to acquire lock")
+					s.logger.DebugContext(ctx, "unable to acquire lock")
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
 				newStart := time.Now()
 				s.setIntervalStartedAt(newStart)
 
-				s.runWithStats(fleet.CronStatsTypeScheduled)
+				s.runWithStats(ctx, fleet.CronStatsTypeScheduled, 0)
 
 				// we need to re-synchronize this schedule instance so that the next scheduled run
 				// starts at the beginning of the next full interval
@@ -336,7 +385,7 @@ func (s *Schedule) Start() {
 				// tick that would have overlapped with the 1.5hrs running time)
 				schedInterval = s.getSchedInterval()
 				if time.Since(newStart) > schedInterval {
-					level.Info(s.logger).Log("msg", fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
+					s.logger.InfoContext(ctx, fmt.Sprintf("total runtime (%v) exceeded schedule interval (%v)", time.Since(newStart), schedInterval))
 					newStart = newStart.Add(time.Since(newStart).Truncate(schedInterval)) // advances start time by the number of full interval elasped
 					s.setIntervalStartedAt(newStart)
 				}
@@ -344,6 +393,7 @@ func (s *Schedule) Start() {
 
 				schedTicker.Reset(s.getRemainingInterval(newStart))
 				cancelHold()
+				span.End()
 			}
 		}
 	}()
@@ -365,14 +415,14 @@ func (s *Schedule) Start() {
 					prevInterval := s.getSchedInterval()
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
 					if err != nil {
-						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
+						s.logger.ErrorContext(s.ctx, "schedule interval config reload failed", "err", err)
 						ctxerr.Handle(s.ctx, err)
 						continue
 					}
 
 					newInterval = truncateSecondsWithFloor(newInterval)
 					if newInterval <= 0 {
-						level.Debug(s.logger).Log("msg", "config reload interval method returned invalid interval")
+						s.logger.DebugContext(s.ctx, "config reload interval method returned invalid interval")
 						continue
 					}
 					if prevInterval == newInterval {
@@ -389,16 +439,31 @@ func (s *Schedule) Start() {
 					clearScheduleChannels(s.trigger, schedTicker.C)
 					schedTicker.Reset(newWait)
 
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("new schedule interval %v", newInterval))
-					level.Debug(s.logger).Log("msg", fmt.Sprintf("time until next schedule tick %v", newWait))
+					s.logger.DebugContext(s.ctx, fmt.Sprintf("new schedule interval %v", newInterval))
+					s.logger.DebugContext(s.ctx, fmt.Sprintf("time until next schedule tick %v", newWait))
 				}
 			}
 		}()
 	}
 
+	if s.triggerPollInterval > 0 {
+		g.Go(func() {
+			pollTicker := time.NewTicker(s.triggerPollInterval)
+			for {
+				select {
+				case <-s.ctx.Done():
+					pollTicker.Stop()
+					return
+				case <-pollTicker.C:
+					s.pollForQueuedTrigger()
+				}
+			}
+		})
+	}
+
 	go func() {
 		g.Wait()
-		level.Debug(s.logger).Log("msg", "close schedule")
+		s.logger.DebugContext(s.ctx, "close schedule")
 		close(s.done) // communicates that the scheduler has finished running its goroutines
 		schedTicker.Stop()
 	}()
@@ -412,26 +477,26 @@ func (s *Schedule) Start() {
 // case where the signal is published to the trigger channel and the case where the trigger channel
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
-func (s *Schedule) Trigger() (*fleet.CronStats, error) {
-	sched, trig, err := s.GetLatestStats()
+func (s *Schedule) Trigger(ctx context.Context) (stats *fleet.CronStats, didTrigger bool, err error) {
+	sched, trig, err := s.GetLatestStats(ctx)
 	switch {
 	case err != nil:
-		return nil, err
+		return nil, false, err
 	case sched.Status == fleet.CronStatsStatusPending:
-		return &sched, nil
-	case trig.Status == fleet.CronStatsStatusPending:
-		return &trig, nil
+		return &sched, false, nil
+	case trig.Status == fleet.CronStatsStatusPending || trig.Status == fleet.CronStatsStatusQueued:
+		return &trig, false, nil
 	default:
 		// ok
 	}
 
 	select {
-	case s.trigger <- struct{}{}:
-		// ok
+	case s.trigger <- 0:
+		didTrigger = true
 	default:
-		level.Debug(s.logger).Log("msg", "trigger channel not available")
+		s.logger.DebugContext(ctx, "trigger channel not available")
 	}
-	return nil, nil
+	return nil, didTrigger, nil
 }
 
 // Name returns the name of the schedule.
@@ -439,34 +504,68 @@ func (s *Schedule) Name() string {
 	return s.name
 }
 
-// runWithStats runs all jobs in the schedule. Prior to starting the run, it creates a
-// record in the database for the provided stats type with "pending" status. After completing the
-// run, the stats record is updated to "completed" status.
-func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
-	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
-	if err != nil {
-		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-		ctxerr.Handle(s.ctx, err)
+// runWithStats runs all jobs in the schedule. If existingStatsID is > 0, it
+// uses that record (already claimed by the poll goroutine). Otherwise, it
+// creates a new record with "pending" status. After completing the run, the
+// stats record is updated to "completed" status.
+func (s *Schedule) runWithStats(ctx context.Context, statsType fleet.CronStatsType, existingStatsID int) {
+	statsID := existingStatsID
+	if statsID == 0 {
+		var err error
+		statsID, err = s.insertStats(ctx, statsType, fleet.CronStatsStatusPending)
+		if err != nil {
+			s.logger.ErrorContext(ctx, fmt.Sprintf("insert cron stats %s", s.name), "err", err)
+			ctxerr.Handle(ctx, err)
+		}
+		s.logger.InfoContext(ctx, "pending")
 	}
-	level.Info(s.logger).Log("status", "pending")
 
-	s.runAllJobs()
+	s.runAllJobs(ctx)
 
-	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
-		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
-		ctxerr.Handle(s.ctx, err)
+	if err := s.updateStats(ctx, statsID, fleet.CronStatsStatusCompleted); err != nil {
+		s.logger.ErrorContext(ctx, fmt.Sprintf("update cron stats %s", s.name), "err", err)
+		ctxerr.Handle(ctx, err)
 	}
-	level.Info(s.logger).Log("status", "completed")
+	s.logger.InfoContext(ctx, "completed")
 }
 
-// runAllJobs runs all jobs in the schedule.
-func (s *Schedule) runAllJobs() {
+// runAllJobs runs all jobs in the schedule with tracing context.
+func (s *Schedule) runAllJobs(ctx context.Context) {
+	// Clear errors from the schedule before each run.
+	s.errors = make(fleet.CronScheduleErrors)
 	for _, job := range s.jobs {
-		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
-		if err := runJob(s.ctx, job.Fn); err != nil {
+		s.logger.DebugContext(ctx, "starting", "jobID", job.ID)
+		if err := runJob(ctx, job.Fn); err != nil {
 			s.errors[job.ID] = err
-			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
-			ctxerr.Handle(s.ctx, err)
+			s.logger.ErrorContext(ctx, "running job", "err", err, "jobID", job.ID)
+			ctxerr.Handle(ctx, err)
+		}
+	}
+}
+
+// pollForQueuedTrigger checks for a queued trigger record and signals the
+// trigger handler if one is found.
+func (s *Schedule) pollForQueuedTrigger() {
+	ctx, span := startRootSpan(s.ctx, "cron.trigger_poll."+s.name,
+		attribute.String("cron.name", s.name),
+		attribute.String("cron.instance", s.instanceID),
+		attribute.String("cron.type", "trigger_poll"),
+	)
+	defer span.End()
+
+	_, trig, err := s.GetLatestStats(ctx)
+	if err != nil {
+		s.logger.ErrorContext(ctx, "trigger poll get cron stats", "err", err)
+		ctxerr.Handle(ctx, err)
+		return
+	}
+	if trig.Status == fleet.CronStatsStatusQueued {
+		// Signal the trigger handler; it will claim the record when ready.
+		// Non-blocking: if the handler is busy, the record stays queued and the next poll will try again.
+		select {
+		case s.trigger <- trig.ID:
+			s.logger.InfoContext(ctx, "picked up queued trigger", "stats_id", trig.ID)
+		default:
 		}
 	}
 }
@@ -538,51 +637,51 @@ func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
 	return interval - (time.Since(start) % interval)
 }
 
-func (s *Schedule) acquireLock() bool {
-	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
+func (s *Schedule) acquireLock(ctx context.Context) bool {
+	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
-		level.Error(s.logger).Log("msg", "lock failed", "err", err)
-		ctxerr.Handle(s.ctx, err)
+		s.logger.ErrorContext(ctx, "lock failed", "err", err)
+		ctxerr.Handle(ctx, err)
 		return false
 	}
 	if !ok {
-		level.Debug(s.logger).Log("msg", "not the lock leader, skipping")
+		s.logger.DebugContext(ctx, "not the lock leader, skipping")
 		return false
 	}
 	return true
 }
 
-func (s *Schedule) releaseLock() {
-	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
+func (s *Schedule) releaseLock(ctx context.Context) {
+	err := s.locker.Unlock(ctx, s.getLockName(), s.instanceID)
 	if err != nil {
-		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
-		ctxerr.Handle(s.ctx, err)
+		s.logger.ErrorContext(ctx, "unlock failed", "err", err)
+		ctxerr.Handle(ctx, err)
 	}
 }
 
 // holdLock attempts to acquire a schedule lock. If it successfully acquires the lock, it starts a
 // goroutine that periodically extends the lock, and it returns `true` along with a
 // context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
-// acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
-func (s *Schedule) holdLock() (bool, context.CancelFunc) {
-	if ok := s.acquireLock(); !ok {
+// acquire a lock, it returns `false, nil`.
+func (s *Schedule) holdLock(ctx context.Context) (bool, context.CancelFunc) {
+	if ok := s.acquireLock(ctx); !ok {
 		return false, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(s.ctx)
+	ctxWithCancel, cancelFn := context.WithCancel(ctx)
 
 	go func() {
 		t := time.NewTimer(s.getSchedInterval() * 8 / 10) // hold timer is 80% of schedule interval
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ctxWithCancel.Done():
 				if !t.Stop() {
 					<-t.C
 				}
-				s.releaseLock()
+				s.releaseLock(ctx)
 				return
 			case <-t.C:
-				s.acquireLock()
+				s.acquireLock(ctx)
 				t.Reset(s.getSchedInterval() * 8 / 10)
 			}
 		}
@@ -591,10 +690,18 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
+func (s *Schedule) GetLatestStats(ctx context.Context) (fleet.CronStats, fleet.CronStats, error) {
+	// Create an OTEL span for stats retrieval
+	// This uses startSpan which will create a child span if there's a parent,
+	// or a root span if there isn't. If OTEL is disabled, it returns a no-op span.
+	ctx, span := startSpan(ctx, "cron.get_latest_stats",
+		attribute.String("cron.name", s.name),
+	)
+	defer span.End()
+
 	var scheduled, triggered fleet.CronStats
 
-	cs, err := s.statsStore.GetLatestCronStats(s.ctx, s.name)
+	cs, err := s.statsStore.GetLatestCronStats(ctx, s.name)
 	if err != nil {
 		return fleet.CronStats{}, fleet.CronStats{}, err
 	}
@@ -609,19 +716,19 @@ func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
 		case fleet.CronStatsTypeTriggered:
 			triggered = stats
 		default:
-			level.Error(s.logger).Log("msg", fmt.Sprintf("get latest stats unexpected type: %s", stats.StatsType))
+			s.logger.ErrorContext(ctx, fmt.Sprintf("get latest stats unexpected type: %s", stats.StatsType))
 		}
 	}
 
 	return scheduled, triggered, nil
 }
 
-func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {
-	return s.statsStore.InsertCronStats(s.ctx, statsType, s.name, s.instanceID, status)
+func (s *Schedule) insertStats(ctx context.Context, statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {
+	return s.statsStore.InsertCronStats(ctx, statsType, s.name, s.instanceID, status)
 }
 
-func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
+func (s *Schedule) updateStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	return s.statsStore.UpdateCronStats(ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {
@@ -635,7 +742,7 @@ func (s *Schedule) getLockName() string {
 // clearScheduleChannels performs a non-blocking select on the ticker and trigger channel in order
 // to drain each channel. It is intended for use in cases where a signal may have been published to
 // a channel during a pending run, in which case the expected behavior is for the signal to be dropped.
-func clearScheduleChannels(trigger chan struct{}, ticker <-chan time.Time) {
+func clearScheduleChannels(trigger chan int, ticker <-chan time.Time) {
 	for {
 		select {
 		case <-trigger:
@@ -656,3 +763,89 @@ func truncateSecondsWithFloor(d time.Duration) time.Duration {
 	}
 	return d.Truncate(time.Second)
 }
+
+// startRootSpan creates a new root span for async operations
+// This is necessary because cron jobs run in background goroutines without parent HTTP contexts
+// If OpenTelemetry is not configured at the application level, this will be a no-op
+// Details:
+// 1. When OpenTelemetry is NOT configured (i.e., config.Logging.TracingEnabled is false):
+// - otel.SetTracerProvider() is never called in /cmd/fleet/serve.go
+// - The global tracer provider remains unset
+// 2. When otel.Tracer() is called:
+// - Since no global TracerProvider was set, OpenTelemetry returns a no-op tracer
+// 3. When tracer.Start() is called:
+// - The no-op tracer returns a no-op span
+// - Has minimal performance impact (essentially just returns immediately)
+// - Still maintains proper context propagation
+func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule").Start(ctx, name,
+		trace.WithNewRoot(),
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(attrs...))
+}
+
+// startSpan creates a child span
+// If OpenTelemetry is not configured at the application level, this will be a no-op
+func startSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule").Start(ctx, name,
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(attrs...))
+}
+
+// RemoteTriggerSchedule implements fleet.CronSchedule for schedules that run on
+// a remote server. Instead of running jobs locally, Trigger() inserts a "queued"
+// record in the database that the remote server's poll goroutine picks up.
+// This is registered on servers where the actual schedule is disabled (e.g.,
+// when FLEET_VULNERABILITIES_DISABLE_SCHEDULE=true).
+type RemoteTriggerSchedule struct {
+	name       string
+	statsStore CronStatsStore
+}
+
+// NewRemoteTriggerSchedule creates a RemoteTriggerSchedule for the given
+// schedule name, using the provided stats store for DB operations.
+func NewRemoteTriggerSchedule(name string, statsStore CronStatsStore) *RemoteTriggerSchedule {
+	return &RemoteTriggerSchedule{name: name, statsStore: statsStore}
+}
+
+// Trigger inserts a "queued" record in the database for the remote server to
+// pick up. It returns a conflict if there is already a pending or queued run.
+func (r *RemoteTriggerSchedule) Trigger(ctx context.Context) (*fleet.CronStats, bool, error) {
+	ctx, span := startSpan(ctx, "cron.remote_trigger",
+		attribute.String("cron.name", r.name),
+	)
+	defer span.End()
+
+	// NOTE: The read-then-insert below is not atomic, so concurrent trigger
+	// requests could race and insert duplicate queued rows. This is acceptable
+	// because triggering is a low-frequency manual admin operation, and the
+	// worst-case outcome is the schedule running twice.
+	latestStats, err := r.statsStore.GetLatestCronStats(ctx, r.name)
+	if err != nil {
+		return nil, false, err
+	}
+	for _, s := range latestStats {
+		switch {
+		case s.Status == fleet.CronStatsStatusPending:
+			// A scheduled or triggered run is already in progress.
+			return &s, false, nil
+		case s.StatsType == fleet.CronStatsTypeTriggered && s.Status == fleet.CronStatsStatusQueued:
+			// A triggered run is already queued and waiting to be picked up.
+			return &s, false, nil
+		}
+	}
+
+	_, err = r.statsStore.InsertCronStats(ctx, fleet.CronStatsTypeTriggered, r.name, "trigger-api", fleet.CronStatsStatusQueued)
+	if err != nil {
+		return nil, false, err
+	}
+	return nil, true, nil
+}
+
+// Name returns the schedule name.
+func (r *RemoteTriggerSchedule) Name() string {
+	return r.name
+}
+
+// Start is a no-op since the actual schedule runs on a remote server.
+func (r *RemoteTriggerSchedule) Start() {}

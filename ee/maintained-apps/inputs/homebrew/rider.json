@@ -1,0 +1,8 @@
+{
+  "name": "Rider",
+  "unique_identifier": "com.jetbrains.rider",
+  "token": "rider",
+  "installer_format": "dmg",
+  "slug": "rider/darwin",
+  "default_categories": ["Developer tools"]
+}

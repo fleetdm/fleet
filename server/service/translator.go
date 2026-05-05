@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 type translatorRequest struct {
@@ -16,9 +18,9 @@ type translatorResponse struct {
 	Err  error                    `json:"error,omitempty"`
 }
 
-func (r translatorResponse) error() error { return r.Err }
+func (r translatorResponse) Error() error { return r.Err }
 
-func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*translatorRequest)
 	resp, err := svc.Translate(ctx, req.List)
 	if err != nil {
@@ -38,7 +40,7 @@ func translateEmailToUserID(ctx context.Context, ds fleet.Datastore, identifier 
 }
 
 func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
-	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier})
+	labelIDs, err := ds.LabelIDsByName(ctx, []string{identifier}, fleet.TeamFilter{User: authz.UserFromContext(ctx)})
 	if err != nil {
 		return 0, err
 	}
@@ -97,7 +99,7 @@ func (svc *Service) Translate(ctx context.Context, payloads []fleet.TranslatePay
 		default:
 			// if no supported payload type, this is bad regardless of authorization
 			svc.authz.SkipAuthorization(ctx)
-			return nil, badRequestErr(
+			return nil, endpointer.BadRequestErr(
 				fmt.Sprintf("Type %s is unknown. ", payload.Type),
 				fleet.NewErrorf(
 					fleet.ErrNoUnknownTranslate,

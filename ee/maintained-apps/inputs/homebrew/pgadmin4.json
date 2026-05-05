@@ -1,0 +1,8 @@
+{
+  "name": "pgAdmin4",
+  "unique_identifier": "org.pgadmin.pgadmin4",
+  "token": "pgadmin4",
+  "installer_format": "dmg",
+  "slug": "pgadmin4/darwin",
+  "default_categories": ["Developer tools"]
+}

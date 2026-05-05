@@ -1,0 +1,27 @@
+.categories-end-user-experience-preview-modal {
+  .modal__content {
+    @include vertical-modal-layout;
+  }
+
+  .modal-cta-wrap {
+    margin-top: 0; // Defer to new gap styling
+  }
+
+  &__preview-card {
+    max-height: 290px;
+    padding: $pad-xlarge 0 0;
+  }
+
+  &__self-service-preview--mobile {
+    // Different offsets than edit modal
+    top: -94px;
+    left: 175px;
+    gap: $pad-small;
+  }
+}
+
+// Pop up preview immediately.
+.modal__background:has(.categories-end-user-experience-preview-modal) {
+  transition: none;
+  animation: none;
+}

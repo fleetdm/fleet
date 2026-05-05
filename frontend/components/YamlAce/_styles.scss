@@ -1,9 +1,13 @@
 .yaml-ace {
+  max-height: 408px;
   &__wrapper {
     &--error {
       .ace-fleet {
         border: 1px solid $ui-error;
       }
+    }
+    &--disabled {
+      @include disabled($allow-pointer-events: true);
     }
   }
 

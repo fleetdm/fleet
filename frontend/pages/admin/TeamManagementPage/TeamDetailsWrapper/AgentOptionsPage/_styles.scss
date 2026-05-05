@@ -1,10 +1,5 @@
 .agent-options {
-  font-size: $x-small;
-
-  &__page-description {
-    padding-bottom: $pad-medium;
-    margin: 0;
-  }
+  @include vertical-page-tab-panel-layout;
 
   &__osquery-options-form {
     display: flex;
@@ -26,7 +21,6 @@
 
   &__text-editor-wrapper {
     width: 100%;
-    margin-bottom: $pad-medium;
   }
 
   .yaml-ace__label {

@@ -8,6 +8,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { LIVE_QUERY_STEPS, DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import { getPathWithQueryParams } from "utilities/url";
 import queryAPI from "services/entities/queries";
 import hostAPI from "services/entities/hosts";
 import { IHost, IHostResponse } from "interfaces/host";
@@ -28,7 +29,7 @@ interface IRunQueryPageProps {
   params: Params;
   location: {
     pathname: string;
-    query: { host_id: string; team_id?: string };
+    query: { host_id: string; fleet_id?: string };
     search: string;
   };
 }
@@ -85,9 +86,13 @@ const RunQueryPage = ({
 
   // Reroute users out of live flow when live queries are globally disabled
   if (disabledLiveQuery) {
-    queryId
-      ? router.push(PATHS.QUERY_DETAILS(queryId, currentTeamId))
-      : router.push(PATHS.NEW_QUERY(currentTeamId));
+    const path = queryId ? PATHS.REPORT_DETAILS(queryId) : PATHS.NEW_REPORT;
+
+    router.push(
+      getPathWithQueryParams(path, {
+        fleet_id: currentTeamId,
+      })
+    );
   }
 
   // disabled on page load so we can control the number of renders
@@ -147,21 +152,19 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Run Discover TLS certificates | Queries | Fleet
+    // e.g., Run Discover TLS certificates | Reports | Fleet
     if (storedQuery?.name) {
-      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Run ${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
-  const goToQueryEditor = useCallback(
-    () =>
-      queryId
-        ? router.push(PATHS.EDIT_QUERY(queryId, currentTeamId))
-        : router.push(PATHS.NEW_QUERY(currentTeamId)),
-    []
-  );
+  const goToQueryEditor = useCallback(() => {
+    const path = queryId ? PATHS.EDIT_REPORT(queryId) : PATHS.NEW_REPORT;
+
+    router.push(getPathWithQueryParams(path, { fleet_id: currentTeamId }));
+  }, []);
 
   const renderScreen = () => {
     const step1Props = {
@@ -180,6 +183,7 @@ const RunQueryPage = ({
       setTargetedTeams,
       setTargetsTotalCount,
       isObserverCanRunQuery: storedQuery?.observer_can_run,
+      queryTeamId: storedQuery?.team_id ?? null,
     };
 
     const step2Props = {

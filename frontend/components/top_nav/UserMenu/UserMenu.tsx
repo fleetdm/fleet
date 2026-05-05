@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from "react";
-import { keyframes } from "@emotion/react";
+import React, { useContext, useEffect, useState } from "react";
 import Select, {
-  StylesConfig,
-  DropdownIndicatorProps,
-  OptionProps,
   components,
+  DropdownIndicatorProps,
   GroupBase,
+  OptionProps,
+  StylesConfig,
 } from "react-select-5";
+import { NotificationContext } from "context/notification";
+
 import { IUser } from "interfaces/user";
-import { ITeam } from "interfaces/team";
+import { ITeam, ITeamSummary } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import { getSortedTeamOptions } from "utilities/helpers";
@@ -27,19 +28,13 @@ interface IUserMenuProps {
   isAnyTeamAdmin: boolean | undefined;
   isGlobalAdmin: boolean | undefined;
   currentUser: IUser;
+  currentTeam: ITeamSummary | undefined;
 }
 
-const bounceDownAnimation = keyframes`
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-`;
-
-const getOptionBackgroundColor = (state: any) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+const getOptionBackgroundColor = (
+  state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
+) => {
+  return state.isFocused ? COLORS["ui-fleet-black-10"] : "transparent";
 };
 
 const CustomDropdownIndicator = (
@@ -53,7 +48,7 @@ const CustomDropdownIndicator = (
     <components.DropdownIndicator {...props} className={baseClass}>
       <Icon
         name="chevron-down"
-        color="core-fleet-white"
+        color="ui-fleet-black-75"
         className={`${baseClass}__icon`}
         size="small"
       />
@@ -90,10 +85,13 @@ const UserMenu = ({
   isAnyTeamAdmin,
   isGlobalAdmin,
   currentUser,
+  currentTeam,
 }: IUserMenuProps): JSX.Element => {
   // Work around for react-select-5 not having :focus-visible pseudo class that can style dropdown on keyboard tab only
   // Work around preventing react-select-5 from auto focusing first option unless using keyboard
   const [isKeyboardFocus, setIsKeyboardFocus] = useState(false);
+
+  const { renderFlash } = useContext(NotificationContext);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -137,28 +135,56 @@ const UserMenu = ({
 
   if (isGlobalAdmin) {
     const manageUserNavItem = {
-      label: "Manage users",
+      label: "Users",
       value: "manage-users",
       onClick: () => onUserMenuItemClick(PATHS.ADMIN_USERS),
     };
     dropdownItems.unshift(manageUserNavItem);
   }
 
+  const manageLabelsMenuItem = {
+    label: "Labels",
+    value: "labels",
+    onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
+  };
+  dropdownItems.unshift(manageLabelsMenuItem);
+
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
-    const userAdminTeams = currentUser.teams.filter(
-      (thisTeam: ITeam) => thisTeam.role === "admin"
-    );
-    const sortedTeams = getSortedTeamOptions(userAdminTeams);
-    const settingsPath =
-      currentUser.global_role === "admin"
-        ? PATHS.ADMIN_ORGANIZATION
-        : `${PATHS.TEAM_DETAILS_USERS(sortedTeams[0].value)}`;
-    const adminNavItem = {
+    let clickHandler = () => onUserMenuItemClick(PATHS.ADMIN_ORGANIZATION);
+    if (currentUser.global_role !== "admin") {
+      const userAdminTeams = currentUser.teams.filter(
+        (thisTeam: ITeam) => thisTeam.role === "admin"
+      );
+      clickHandler = () => {
+        const currentTeamIsAdmin =
+          currentTeam && userAdminTeams.some((t) => t.id === currentTeam.id);
+        if (currentTeamIsAdmin) {
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(currentTeam.id));
+        } else {
+          // Sort and pick the first team the user is admin of to display.
+          const targetTeam = getSortedTeamOptions(userAdminTeams)[0];
+          if (currentTeam) {
+            const msg = (
+              <>
+                You&apos;re not authorized to view this page for{" "}
+                <b>{currentTeam.name}</b>. Now viewing <b>{targetTeam.label}</b>
+                .
+              </>
+            );
+            renderFlash("warning-filled", msg);
+          }
+          onUserMenuItemClick(PATHS.FLEET_DETAILS_USERS(targetTeam.value));
+        }
+      };
+    }
+
+    const adminMenuItem = {
       label: "Settings",
       value: "settings",
-      onClick: () => onUserMenuItemClick(settingsPath),
+      onClick: clickHandler,
     };
-    dropdownItems.unshift(adminNavItem);
+
+    dropdownItems.unshift(adminMenuItem);
   }
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
@@ -171,18 +197,16 @@ const UserMenu = ({
       marginRight: "8px",
       backgroundColor: "initial",
       border: "2px solid transparent", // So tabbing doesn't shift dropdown
-      borderRadius: "6px",
+      borderRadius: "3px", // Match other nav border after their focused offset
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".user-menu-select__indicator svg": {
-          animation: `${bounceDownAnimation} 0.3s ease-in-out`,
-        },
       },
       ...(state.isFocused &&
         isKeyboardFocus && {
-          border: `2px solid ${COLORS["ui-blue-25"]}`,
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "1px",
         }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
@@ -200,7 +224,8 @@ const UserMenu = ({
     }),
     menu: (provided) => ({
       ...provided,
-      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.1)",
+      backgroundColor: COLORS["core-fleet-white"],
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
       borderRadius: "4px",
       zIndex: 6,
       marginTop: "7px",
@@ -226,13 +251,10 @@ const UserMenu = ({
       padding: "10px 8px",
       fontSize: "15px",
       backgroundColor: getOptionBackgroundColor(state),
-      color: COLORS["tooltip-bg"], // TODO: Why the mismatch in names in colors.scss and colors.ts
+      color: COLORS["core-fleet-black"],
       whiteSpace: "nowrap",
       "&:hover": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
-      },
-      "&:active": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
+        backgroundColor: COLORS["ui-fleet-black-5"],
       },
       "&:last-child, &:nth-last-of-type(2)": {
         borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
@@ -244,7 +266,7 @@ const UserMenu = ({
     return (
       <AvatarTopNav
         className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
+        user={{ gravatar_url: currentUser.gravatar_url }}
         size="small"
       />
     );

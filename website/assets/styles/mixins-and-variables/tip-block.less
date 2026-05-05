@@ -1,0 +1,36 @@
+.tip-block() {
+  margin: 16px 0 32px;
+  background: #F9FAFC;
+  padding: 16px 24px 16px;
+  border-radius: 8px;
+  display: flex;
+  border: 1px solid #e2e4ea;
+  img {
+    display: flex;
+    margin: 4px 12px 0 0;
+    height: 16px;
+    width: 16px;
+    padding: 0px;
+  }
+  p {
+    display: block;
+    margin-bottom: 16px;
+    line-height: 24px;
+    font-size: 14px;
+    code {
+      padding: 2px 4px;
+    }
+  }
+  p:only-child, p:last-child {
+    margin-bottom: 0px;
+  }
+  ul:last-child {
+    margin-bottom: 0px;
+  }
+  li:last-child {
+    padding-bottom: 0px;
+  }
+  :first-child:not(code) {// Remove top padding from the first element inside purpose="tip" blockquotes
+    padding-top: 0;
+  }
+}

@@ -2,8 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -22,12 +20,13 @@ import {
   isTeamObserver,
 } from "utilities/permissions/permissions";
 import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
+import Icon from "components/Icon";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
@@ -36,6 +35,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -50,7 +50,7 @@ interface IQueryDetailsPageProps {
   location: {
     pathname: string;
     query: {
-      team_id?: string;
+      fleet_id?: string;
       order_key?: string;
       order_direction?: string;
       host_id?: string;
@@ -68,7 +68,7 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   if (isNaN(queryId)) {
-    router.push(PATHS.MANAGE_QUERIES);
+    router.push(PATHS.MANAGE_REPORTS);
   }
   const queryParams = location.query;
 
@@ -107,6 +107,8 @@ const QueryDetailsPage = ({
     availableTeams,
     setCurrentTeam,
     isOnGlobalTeam,
+    isGlobalTechnician,
+    isTeamTechnician,
   } = useContext(AppContext);
   const {
     lastEditedQueryName,
@@ -176,10 +178,12 @@ const QueryDetailsPage = ({
     !isOnGlobalTeam &&
     !isStoredQueryLoading &&
     storedQuery?.team_id &&
-    !(storedQuery?.team_id?.toString() === location.query.team_id)
+    !(storedQuery?.team_id?.toString() === location.query.fleet_id)
   ) {
     router.push(
-      `${location.pathname}?team_id=${storedQuery?.team_id?.toString()}`
+      getPathWithQueryParams(location.pathname, {
+        fleet_id: storedQuery?.team_id?.toString(),
+      })
     );
   }
 
@@ -210,15 +214,15 @@ const QueryDetailsPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Discover TLS certificates | Queries | Fleet
     if (storedQuery?.name) {
-      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `${storedQuery.name} | Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+      document.title = `Reports | ${DOCUMENT_TITLE_SUFFIX}`;
     }
   }, [location.pathname, storedQuery?.name]);
 
@@ -243,104 +247,115 @@ const QueryDetailsPage = ({
       isObserverPlus ||
       isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin;
+      isTeamMaintainerOrTeamAdmin ||
+      isGlobalTechnician ||
+      isTeamTechnician;
 
     // Function instead of constant eliminates race condition with filteredQueriesPath
-    const backToQueriesPath = () => {
-      return (
-        filteredQueriesPath ||
-        `${PATHS.MANAGE_QUERIES}?${buildQueryStringFromParams({
-          team_id: currentTeamId,
-        })}`
-      );
+    const backPath = () => {
+      if (filteredQueriesPath) return filteredQueriesPath;
+
+      if (hostId)
+        return getPathWithQueryParams(
+          PATHS.HOST_DETAILS(hostId, currentTeamId)
+        );
+
+      return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
+        fleet_id: currentTeamId,
+      });
     };
 
     return (
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to queries" path={backToQueriesPath()} />
+          <BackButton
+            text={hostId ? "Back to host details" : "Back to reports"}
+            path={backPath()}
+          />
         </div>
-        <div className={`${baseClass}__header-details`}>
-          {!isLoading && !isApiError && (
+        {!isLoading && !isApiError && (
+          <>
             <div className={`${baseClass}__title-bar`}>
               <div className="name-description">
                 <h1 className={`${baseClass}__query-name`}>
                   {lastEditedQueryName}
                 </h1>
-                <p className={`${baseClass}__query-description`}>
-                  {lastEditedQueryDescription}
-                </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="text-icon"
+                  variant="inverse"
                 >
                   Show query
                 </Button>
-                {canEditQuery && (
-                  <Button
-                    onClick={() => {
-                      queryId &&
-                        router.push(PATHS.EDIT_QUERY(queryId, currentTeamId));
-                    }}
-                    className={`${baseClass}__manage-automations button`}
-                    variant="brand"
-                  >
-                    Edit query
-                  </Button>
-                )}
                 {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <div
-                      data-tip
-                      data-for="live-query-button"
-                      // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!isLiveQueryDisabled}
+                    <TooltipWrapper
+                      tipContent="Live reports are disabled in organization settings."
+                      position="top"
+                      disableTooltip={!isLiveQueryDisabled}
+                      underline={false}
+                      showArrow
                     >
-                      <Button
-                        className={`${baseClass}__run`}
-                        variant="blue-green"
-                        onClick={() => {
-                          queryId &&
-                            router.push(
-                              PATHS.LIVE_QUERY(queryId, currentTeamId, hostId)
-                            );
-                        }}
-                        disabled={isLiveQueryDisabled}
-                      >
-                        Live query
-                      </Button>
-                    </div>
-                    <ReactTooltip
-                      className="live-query-button-tooltip"
-                      place="top"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="live-query-button"
-                      data-html
-                    >
-                      Live queries are disabled in organization settings
-                    </ReactTooltip>
+                      <div>
+                        <Button
+                          className={`${baseClass}__run`}
+                          variant="inverse"
+                          onClick={() => {
+                            queryId &&
+                              router.push(
+                                getPathWithQueryParams(
+                                  PATHS.LIVE_REPORT(queryId),
+                                  {
+                                    host_id: hostId,
+                                    fleet_id: currentTeamId,
+                                  }
+                                )
+                              );
+                          }}
+                          disabled={isLiveQueryDisabled}
+                        >
+                          Live report <Icon name="run" />
+                        </Button>
+                      </div>
+                    </TooltipWrapper>
                   </div>
+                )}
+                {canEditQuery && (
+                  <Button
+                    onClick={() => {
+                      queryId &&
+                        router.push(
+                          getPathWithQueryParams(PATHS.EDIT_REPORT(queryId), {
+                            fleet_id: currentTeamId,
+                            host_id: hostId,
+                          })
+                        );
+                    }}
+                    className={`${baseClass}__manage-automations button`}
+                  >
+                    Edit report
+                  </Button>
                 )}
               </div>
             </div>
-          )}
-          {!isLoading && !isApiError && (
+            <PageDescription
+              className={`${baseClass}__query-description`}
+              content={lastEditedQueryDescription}
+            />
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
                   tipContent={
                     <>
-                      Query automations let you send data to your log <br />
+                      Report automations let you send data to your log <br />
                       destination on a schedule. When automations are <b>
                         on
                       </b>, <br />
-                      data is sent according to a query&apos;s frequency.
+                      data is sent according to a report&apos;s interval.
                     </>
                   }
                 >
@@ -355,11 +370,15 @@ const QueryDetailsPage = ({
                 <strong>Log destination:</strong>{" "}
                 <LogDestinationIndicator
                   logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
+                  webhookDestination={config?.logging.result.config?.result_url}
                 />
               </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </>
     );
   };
@@ -370,15 +389,15 @@ const QueryDetailsPage = ({
       cta={<CustomLink url={SUPPORT_LINK} text="Get help" newTab />}
     >
       <div>
-        <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below.
+        <b>Report clipped.</b> A sample of this report&apos;s results is
+        included below.
         {
           // Exclude below message for global and team observers/observer+s
           !(
             (currentUser && isGlobalObserver(currentUser)) ||
             isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
-            " You can still use query automations to complete this report in your log destination."
+            " You can still use automations to complete this report in your log destination."
         }
       </div>
     </InfoBanner>
@@ -390,12 +409,10 @@ const QueryDetailsPage = ({
       disabledCachingGlobally || lastEditedQueryDiscardData || !loggingSnapshot;
     const emptyCache = (queryReport?.results?.length ?? 0) === 0;
 
-    // Loading state
     if (isLoading) {
       return <Spinner />;
     }
 
-    // Error state
     if (isApiError) {
       return <DataError />;
     }
@@ -418,7 +435,7 @@ const QueryDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
@@ -428,7 +445,7 @@ const QueryDetailsPage = ({
             onCancel={onShowQueryModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

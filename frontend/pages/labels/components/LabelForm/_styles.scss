@@ -5,6 +5,13 @@
     resize: vertical;
   }
 
+  &__help-text {
+    font-size: $x-small;
+    font-weight: $regular;
+    color: $ui-fleet-black-75;
+    line-height: 1.5;
+  }
+
   &__label-platform {
     font-size: $x-small;
     font-weight: $regular;

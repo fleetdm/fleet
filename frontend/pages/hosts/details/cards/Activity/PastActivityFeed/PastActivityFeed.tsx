@@ -1,15 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 
-import { ActivityType, IHostPastActivity } from "interfaces/activity";
+import { IHostPastActivity } from "interfaces/activity";
 import { IHostPastActivitiesResponse } from "services/entities/activities";
 
-// @ts-ignore
-import FleetIcon from "components/icons/FleetIcon";
-import Button from "components/buttons/Button";
+import { AppContext } from "context/app";
 import DataError from "components/DataError";
+import Pagination from "components/Pagination";
+import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import { ShowActivityDetailsHandler } from "../Activity";
 
 import { pastActivityComponentMap } from "../ActivityConfig";
 
@@ -18,7 +17,7 @@ const baseClass = "past-activity-feed";
 interface IPastActivityFeedProps {
   activities?: IHostPastActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
@@ -26,12 +25,14 @@ interface IPastActivityFeedProps {
 const PastActivityFeed = ({
   activities,
   isError = false,
-  onDetailsClick,
+  onShowDetails,
   onNextPage,
   onPreviousPage,
 }: IPastActivityFeedProps) => {
+  const { isPremiumTier } = useContext(AppContext);
+
   if (isError) {
-    return <DataError className={`${baseClass}__error`} />;
+    return <DataError verticalPaddingSize="pad-large" />;
   }
 
   if (!activities) {
@@ -44,7 +45,11 @@ const PastActivityFeed = ({
     return (
       <EmptyFeed
         title="No activity"
-        message="Completed actions will appear here (scripts, software, lock, and wipe)."
+        message={
+          isPremiumTier
+            ? "Completed actions will appear here (scripts, software, lock, and wipe)."
+            : "Completed script runs will appear here."
+        }
         className={`${baseClass}__empty-feed`}
       />
     );
@@ -54,50 +59,25 @@ const PastActivityFeed = ({
     <div className={baseClass}>
       <div>
         {activitiesList.map((activity: IHostPastActivity) => {
-          // TODO: remove this once we have a proper way of handling "Fleet-initiated" activities in
-          // the backend. For now, if all these fields are empty, then we assume it was Fleet-initiated.
-          if (
-            !activity.actor_email &&
-            !activity.actor_full_name &&
-            (activity.type === ActivityType.InstalledSoftware ||
-              activity.type === ActivityType.InstalledAppStoreApp ||
-              activity.type === ActivityType.RanScript)
-          ) {
-            activity.actor_full_name = "Fleet";
-          }
           const ActivityItemComponent = pastActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
               key={activity.id}
               tab="past"
               activity={activity}
-              onShowDetails={onDetailsClick}
+              hideCancel
+              onShowDetails={onShowDetails}
             />
           );
         })}
       </div>
-      <div className={`${baseClass}__pagination`}>
-        <Button
-          disabled={!meta.has_previous_results}
-          onClick={onPreviousPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            <FleetIcon name="chevronleft" /> Previous
-          </>
-        </Button>
-        <Button
-          disabled={!meta.has_next_results}
-          onClick={onNextPage}
-          variant="unstyled"
-          className={`${baseClass}__load-activities-button`}
-        >
-          <>
-            Next <FleetIcon name="chevronright" />
-          </>
-        </Button>
-      </div>
+      <Pagination
+        disablePrev={!meta.has_previous_results}
+        disableNext={!meta.has_next_results}
+        hidePagination={!meta.has_next_results && !meta.has_previous_results}
+        onPrevPage={onPreviousPage}
+        onNextPage={onNextPage}
+      />
     </div>
   );
 };

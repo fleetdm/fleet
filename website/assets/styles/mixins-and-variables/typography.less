@@ -2,9 +2,57 @@
 @main-font: 'Inter', sans-serif;
 @header-font: 'Inter', sans-serif;
 @navigation-font: 'Inter', sans-serif;
-
+@kicker-font: 'Roboto Mono';
 @code-font: 'Source Code Pro', sans-serif;
 
 // Font weights:
 @bold: 700;
 @normal: 400;
+
+// Body text styles:
+.body-s() {
+  font-size: 12px;
+  line-height: 150%;
+  font-weight: 400;
+}
+.body-m() {
+  font-size: 14px;
+  line-height: 150%;
+  font-weight: 400;
+}
+.body-l() {
+  font-size: 16px;
+  line-height: 150%;
+  font-weight: 400;
+}
+
+// Title styles:
+.kicker-title() {
+  font-family: 'Roboto Mono';
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 150%;
+  text-transform: uppercase;
+  color: @core-fleet-black-75;
+  margin-bottom: 8px;
+}
+.title-s() {
+  font-size: 16px;
+  line-height: 150%;
+  font-weight: 400;
+}
+.title-m() {
+  font-size: 24px;
+  line-height: 120%;
+  font-weight: 800;
+}
+.title-l() {
+  font-size: 32px;
+  line-height: 120%;
+  font-weight: 800;
+}
+.title-xl() {
+  font-size: 48px;
+  line-height: 120%;
+  font-weight: 800;
+}

@@ -28,7 +28,7 @@ func Up_20220822161445(tx *sql.Tx) error {
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 		UNIQUE KEY idx_munki_issues_name (name, issue_type)
-	)`)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`)
 	if err != nil {
 		return errors.Wrapf(err, "create munki_issues table")
 	}

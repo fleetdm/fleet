@@ -7,11 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 //go:generate go run ../../tools/osquery-agent-options agent_options_generated.go
 
-const maxAgentScriptExecutionTimeout = 3600
+const maxAgentScriptExecutionTimeout = 18000
 
 type AgentOptions struct {
 	// ScriptExecutionTimeout is the maximum time in seconds that a script can run.
@@ -43,11 +45,31 @@ func (o *AgentOptions) ForPlatform(platform string) json.RawMessage {
 	return o.Config
 }
 
+func SuggestAgentOptionsCorrection(err error) error {
+	if field := GetJSONUnknownField(err); field != nil {
+		correctKeyPath, keyErr := FindAgentOptionsKeyPath(*field)
+		if keyErr != nil {
+			return fmt.Errorf("error parsing generated agent options struct: %w", err)
+		}
+		var keyPathJoined string
+		switch pathLen := len(correctKeyPath); {
+		case pathLen > 1:
+			keyPathJoined = fmt.Sprintf("%q", strings.Join(correctKeyPath[:len(correctKeyPath)-1], "."))
+		case pathLen == 1:
+			keyPathJoined = "top level"
+		}
+		if keyPathJoined != "" {
+			err = fmt.Errorf("%q should be part of the %s object", *field, keyPathJoined)
+		}
+	}
+	return err
+}
+
 // ValidateJSONAgentOptions validates the given raw JSON bytes as an Agent
 // Options payload. It ensures that all fields are known and have valid values.
 // The validation always uses the most recent Osquery version that is available
 // at the time of the Fleet release.
-func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool) error {
+func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.RawMessage, isPremium bool, teamID uint) error {
 	var opts AgentOptions
 	if err := JSONStrictDecode(bytes.NewReader(rawJSON), &opts); err != nil {
 		return err
@@ -112,7 +134,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	}
 
 	if len(opts.Extensions) > 0 {
-		if err := validateJSONAgentOptionsExtensions(ctx, ds, opts.Extensions, isPremium); err != nil {
+		if err := validateJSONAgentOptionsExtensions(ctx, ds, opts.Extensions, isPremium, teamID); err != nil {
 			return err
 		}
 	}
@@ -136,23 +158,28 @@ func checkEmptyFields(prefix string, data json.RawMessage) error {
 	return nil
 }
 
-func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsExtensions json.RawMessage, isPremium bool) error {
+func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsExtensions json.RawMessage, isPremium bool, teamID uint) error {
 	var extensions map[string]ExtensionInfo
 	if err := json.Unmarshal(optsExtensions, &extensions); err != nil {
 		return fmt.Errorf("unmarshal extensions: %w", err)
 	}
+
+	// any user able to make it past auth checks elsewhere to modify agent options can see labels for the associated
+	// team; this filter is strictly to filter out mismatched team labels
+	teamFilter := TeamFilter{TeamID: &teamID, User: &User{GlobalRole: ptr.String(RoleAdmin)}}
+
 	for _, extensionInfo := range extensions {
 		if !isPremium && len(extensionInfo.Labels) != 0 {
 			// Setting labels settings in the extensions config is premium only.
 			return ErrMissingLicense
 		}
 		for _, labelName := range extensionInfo.Labels {
-			switch _, err := ds.GetLabelSpec(ctx, labelName); {
+			switch _, err := ds.GetLabelSpec(ctx, teamFilter, labelName); {
 			case err == nil:
 				// OK
 			case IsNotFound(err):
 				// Label does not exist, fail the request.
-				return fmt.Errorf("Label %q does not exist", labelName)
+				return fmt.Errorf("Label %q does not exist, or cannot be used on this fleet", labelName)
 			default:
 				return fmt.Errorf("get label by name: %w", err)
 			}
@@ -274,6 +301,7 @@ type OsqueryCommandLineFlagsWindows struct {
 	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
 	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
+	EnableDNSLookupEvents            bool   `json:"enable_dns_lookup_events"`
 }
 
 type OsqueryCommandLineFlagsMacOS struct {
@@ -304,6 +332,7 @@ type OsqueryCommandLineFlagsHidden struct {
 	AuditShowPartialFIMEvents     bool   `json:"audit_show_partial_fim_events"`
 	AuditShowUntrackedResWarnings bool   `json:"audit_show_untracked_res_warnings"`
 	AuditFIMShowAccesses          bool   `json:"audit_fim_show_accesses"`
+	VModule                       string `json:"vmodule"`
 }
 
 // while ValidateJSONAgentOptions validates an entire Agent Options payload,

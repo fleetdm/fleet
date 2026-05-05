@@ -9,13 +9,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 )
 
 const (
 	directoryReference = "ORBITROOT"
 	imageName          = "fleetdm/wix:latest"
 	dockerPlatform     = "linux/amd64"
-	WineCmd            = "wine64"
+	Wine64Cmd          = "wine64"
+	WineCmd            = "wine"
 )
 
 // Heat runs the WiX Heat command on the provided directory.
@@ -30,6 +33,7 @@ func Heat(path string, native bool, localWixDir string) error {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -39,7 +43,11 @@ func Heat(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		heatPath = filepath.Join(localWixDir, `heat.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, WineCmd)
+			wineExec, err := darwinWineExecutable()
+			if err != nil {
+				return fmt.Errorf("determining wine executable: %w", err)
+			}
+			args = append(args, wineExec)
 		}
 	}
 
@@ -56,7 +64,7 @@ func Heat(path string, native bool, localWixDir string) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if args[0] == WineCmd {
+	if args[0] == WineCmd || args[0] == Wine64Cmd {
 		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
 	}
 
@@ -71,17 +79,38 @@ func Heat(path string, native bool, localWixDir string) error {
 	return nil
 }
 
+func darwinWineExecutable() (string, error) {
+	wineWarning := "Is Wine installed? Building a Windows (.msi) package with --local-wix-dir on macOS requires Wine; the default path uses Docker instead."
+	cmdOut, err := exec.Command("wine", "--version").Output()
+	if err != nil {
+		return "", fmt.Errorf("running wine to get version information: %w. %s", err, wineWarning)
+	}
+	wineVerStr, found := strings.CutPrefix(string(cmdOut), "wine-")
+	if !found {
+		return "", fmt.Errorf("Unknown wine version: %q. %s", string(cmdOut), wineWarning)
+	}
+	wineVersion, err := strconv.ParseInt(strings.Split(wineVerStr, ".")[0], 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("Unable to parse wine version: %q. %s", wineVerStr, wineWarning)
+	}
+	if wineVersion < 10 {
+		return Wine64Cmd, nil
+	}
+	return WineCmd, nil
+}
+
 // Candle runs the WiX Candle command on the provided directory.
 //
 // See
 // https://wixtoolset.org/documentation/manual/v3/overview/candle.html.
-func Candle(path string, native bool, localWixDir string) error {
+func Candle(path string, native bool, localWixDir string, arch string) error {
 	var args []string
 
 	if !native && localWixDir == "" {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -91,19 +120,29 @@ func Candle(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		candlePath = filepath.Join(localWixDir, `candle.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, WineCmd)
+			wineExec, err := darwinWineExecutable()
+			if err != nil {
+				return fmt.Errorf("determining wine executable: %w", err)
+			}
+			args = append(args, wineExec)
 		}
 	}
+
+	wixArch := "x64"
+	if arch == "arm64" {
+		wixArch = "arm64"
+	}
+
 	args = append(args,
 		candlePath, "heat.wxs", "main.wxs", // command
 		"-ext", "WixUtilExtension",
-		"-arch", "x64",
+		"-arch", wixArch,
 	)
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if args[0] == WineCmd {
+	if args[0] == WineCmd || args[0] == Wine64Cmd {
 		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
 	}
 
@@ -129,6 +168,7 @@ func Light(path string, native bool, localWixDir string) error {
 		args = append(
 			args,
 			"docker", "run", "--rm", "--platform", dockerPlatform,
+			"--env", "XDG_RUNTIME_DIR=/tmp", // silence Wine warning inside container
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -138,7 +178,11 @@ func Light(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		lightPath = filepath.Join(localWixDir, `light.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, WineCmd)
+			wineExec, err := darwinWineExecutable()
+			if err != nil {
+				return fmt.Errorf("determining wine executable: %w", err)
+			}
+			args = append(args, wineExec)
 		}
 	}
 	args = append(args,
@@ -152,7 +196,7 @@ func Light(path string, native bool, localWixDir string) error {
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 
-	if args[0] == WineCmd {
+	if args[0] == WineCmd || args[0] == Wine64Cmd {
 		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
 	}
 

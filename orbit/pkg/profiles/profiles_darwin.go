@@ -12,7 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 type profileItem[T any] struct {
@@ -127,7 +127,10 @@ func IsEnrolledInMDM() (bool, string, error) {
 	return true, enrollmentURL, nil
 }
 
-func IsManuallyEnrolledInMDM() (bool, error) {
+// ParseMDMEnrollmentStatus runs the `profiles` command to get the current MDM
+// enrollment information and reports if the host is enrolled via DEP or not.
+// Which is used to check for manual enrollment or not.
+func ParseMDMEnrollmentStatus() (enrolledViaDEP bool, err error) {
 	out, err := getMDMInfoFromProfilesCmd()
 	if err != nil {
 		return false, fmt.Errorf("calling /usr/bin/profiles: %w", err)
@@ -141,21 +144,21 @@ func IsManuallyEnrolledInMDM() (bool, error) {
 	// MDM server: https://test.example.com/mdm/apple/mdm
 	// ```
 	//
-	// If the host is not enrolled into an MDM, the last line is ommitted,
+	// If the host is not enrolled into an MDM, the last line is omitted,
 	// so we need to check that:
 	//
-	// 1. We've got three rows
-	// 2. Whether the first line contains "Yes" or "No"
+	// 1. We've got two rows
+	// 2. The first row contains "Yes" or "No"
 	lines := bytes.Split(bytes.TrimSpace(out), []byte("\n"))
-	if len(lines) < 3 {
-		return false, nil
+	if len(lines) < 2 {
+		return false, fmt.Errorf("Got %d lines of output, when expected at least 2 or more", len(lines))
 	}
 
 	if strings.Contains(string(lines[0]), "Yes") {
-		return false, nil
+		return true, nil
 	}
 
-	return true, nil
+	return false, nil
 }
 
 // getMDMInfoFromProfilesCmd is declared as a variable so it can be overwritten by tests.
@@ -215,29 +218,40 @@ func CheckAssignedEnrollmentProfile(expectedURL string) error {
 		return errors.New("parsing profiles output: received null device enrollment configuration")
 	}
 
+	var configURL, configWebURL string
 	var assignedURL string
 	for _, line := range lines {
 		// Note the output may contain both ConfigurationURL and ConfigurationWebURL but we check only
 		// the latter for backwards compatibility.
 		// See https://github.com/fleetdm/fleet/blob/963b2438537de14e7e16f1f18857ed8a66d51bfc/server/mdm/apple/apple_mdm.go#L195
-		v, ok := parseEnrollmentProfileValue(line, "ConfigurationWebURL")
-		if ok {
-			assignedURL = v
+		if v, ok := parseEnrollmentProfileValue(line, "ConfigurationURL"); ok {
+			configURL = v
+			continue
+		}
+		if v, ok := parseEnrollmentProfileValue(line, "ConfigurationWebURL"); ok {
+			configWebURL = v
 			break
 		}
 	}
 
-	if assignedURL == "" {
-		return errors.New("parsing profiles output: missing or empty configuration web url")
+	switch {
+	case configURL == "" && configWebURL == "":
+		return errors.New("parsing profiles output: missing both configuration web url and configuration url")
+	case configWebURL != "":
+		// Always prefer web URL for consistency.
+		assignedURL = configWebURL
+	default:
+		// Fallback to configuration URL.
+		assignedURL = configURL
 	}
 
 	assigned, err := url.Parse(assignedURL)
 	if err != nil {
-		return fmt.Errorf("parsing profiles output: unable to parse configuration web url: %w", err)
+		return fmt.Errorf("parsing profiles output: unable to parse server url: %w", err)
 	}
 
 	if !strings.EqualFold(assigned.Hostname(), expected.Hostname()) {
-		return fmt.Errorf(`matching configuration web url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
+		return fmt.Errorf(`matching server url: expected '%s' but found '%s'`, expected.Hostname(), assigned.Hostname())
 	}
 
 	return nil

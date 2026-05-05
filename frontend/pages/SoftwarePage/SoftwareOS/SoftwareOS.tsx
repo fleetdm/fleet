@@ -25,7 +25,6 @@ interface ISoftwareOSProps {
   orderKey: string;
   currentPage: number;
   teamId?: number;
-  resetPageIndex: boolean;
   platform: SelectedPlatform;
 }
 
@@ -37,7 +36,6 @@ const SoftwareOS = ({
   orderKey,
   currentPage,
   teamId,
-  resetPageIndex,
   platform,
 }: ISoftwareOSProps) => {
   const queryParams = {
@@ -47,6 +45,7 @@ const SoftwareOS = ({
     order_key: orderKey,
     platform: platform === "all" ? undefined : platform,
     teamId,
+    max_vulnerabilities: 3,
   };
 
   const { data, isFetching, isLoading, isError } = useQuery<
@@ -73,7 +72,7 @@ const SoftwareOS = ({
   }
 
   if (isError) {
-    return <TableDataError className={`${baseClass}__table-error`} />;
+    return <TableDataError verticalPaddingSize="pad-xxxlarge" />;
   }
 
   return (
@@ -88,7 +87,6 @@ const SoftwareOS = ({
         currentPage={currentPage}
         teamId={teamId}
         isLoading={isFetching}
-        resetPageIndex={resetPageIndex}
         platform={platform}
       />
     </div>

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"time"
@@ -12,14 +13,23 @@ import (
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
-	"github.com/go-kit/log"
 )
 
 const (
 	testUsername = "root"
 	testPassword = "toor"
-	testAddress  = "localhost:3307"
 )
+
+var (
+	testAddress = getTestAddress()
+)
+
+func getTestAddress() string {
+	if port := os.Getenv("FLEET_MYSQL_TEST_PORT"); port != "" {
+		return "localhost:" + port
+	}
+	return "localhost:3307"
+}
 
 func panicif(err error) {
 	if err != nil {
@@ -27,6 +37,8 @@ func panicif(err error) {
 	}
 }
 
+// main requires 1 argument:
+// 1. Path to dumpfile
 func main() {
 	if len(os.Args) != 2 {
 		panic("not enough arguments")
@@ -50,7 +62,7 @@ func main() {
 		Address:  testAddress,
 		Database: "schemadb",
 	}
-	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(log.NewNopLogger()), mysql.LimitAttempts(1))
+	ds, err := mysql.New(config, clock.NewMockClock(), mysql.Logger(slog.New(slog.DiscardHandler)), mysql.LimitAttempts(1))
 	panicif(err)
 	defer ds.Close()
 	panicif(ds.MigrateTables(context.Background()))
@@ -66,10 +78,12 @@ func main() {
 	panicif(err)
 
 	// Dump schema to dumpfile
+	// --set-gtid-purged=OFF omits replication transaction IDs from the dump, making it
+	// portable across MySQL servers. This was the default behavior before MySQL 9.5.
 	cmd := exec.Command(
 		"docker", "compose", "exec", "-T", "mysql_test",
 		// Command run inside container
-		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments",
+		"mysqldump", "-u"+testUsername, "-p"+testPassword, "schemadb", "--compact", "--skip-comments", "--set-gtid-purged=OFF",
 	)
 	var stdoutBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf

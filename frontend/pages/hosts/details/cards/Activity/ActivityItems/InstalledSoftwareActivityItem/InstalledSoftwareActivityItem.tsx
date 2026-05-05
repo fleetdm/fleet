@@ -1,34 +1,64 @@
 import React from "react";
 
-import { getInstallStatusPredicate } from "interfaces/software";
+import {
+  getInstallUninstallStatusPredicate,
+  SCRIPT_PACKAGE_SOURCES,
+} from "interfaces/software";
+
+import ActivityItem from "components/ActivityItem";
 
 import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
-import HostActivityItem from "../../HostActivityItem";
-import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "installed-software-activity-item";
 
 const InstalledSoftwareActivityItem = ({
+  tab,
   activity,
   onShowDetails,
+  onCancel,
+  hideCancel,
+  isSoloActivity,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
   const { actor_full_name: actorName, details } = activity;
-  const { self_service, software_title: title } = details;
+  const {
+    self_service,
+    software_title: title,
+    source,
+    from_setup_experience,
+  } = details;
   const status =
     details.status === "failed" ? "failed_uninstall" : details.status;
+  const isScriptPackageSource = SCRIPT_PACKAGE_SOURCES.includes(source || "");
 
   const actorDisplayName = self_service ? (
-    <span>An end user</span>
+    <span>End user</span>
   ) : (
-    <b>{actorName}</b>
+    <b>{actorName ?? "Fleet"}</b>
   );
 
+  let installedSoftwarePrefix = getInstallUninstallStatusPredicate(
+    status,
+    isScriptPackageSource
+  );
+  if (tab !== "past" && activity.fleet_initiated) {
+    installedSoftwarePrefix =
+      status === "pending_uninstall" ? "will uninstall" : "will install";
+  }
+
   return (
-    <HostActivityItem className={baseClass} activity={activity}>
-      <>{actorDisplayName}</> {getInstallStatusPredicate(status)} <b>{title}</b>{" "}
-      on this host.{" "}
-      <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
-    </HostActivityItem>
+    <ActivityItem
+      className={baseClass}
+      activity={activity}
+      hideCancel={hideCancel}
+      onShowDetails={onShowDetails}
+      onCancel={onCancel}
+      isSoloActivity={isSoloActivity}
+    >
+      <>{actorDisplayName}</> {installedSoftwarePrefix} <b>{title}</b> on this
+      host
+      {from_setup_experience ? " during setup experience" : ""}
+      {self_service && " (self-service)"}.
+    </ActivityItem>
   );
 };
 

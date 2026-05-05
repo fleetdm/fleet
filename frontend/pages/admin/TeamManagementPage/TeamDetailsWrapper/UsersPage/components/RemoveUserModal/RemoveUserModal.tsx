@@ -22,36 +22,33 @@ const RemoveUserModal = ({
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Remove user"}
+      title="Remove user"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        <p>
-          You are about to remove{" "}
-          <span className={`${baseClass}__name`}>{userName}</span> from{" "}
-          <span className={`${baseClass}__team-name`}>{teamName}</span>.
-        </p>
-        <p>
-          If {userName} is not assigned to any other team, they will lose access
-          to Fleet.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={onSubmit}
-            className="remove-loading"
-            isLoading={isUpdatingUsers}
-          >
-            Remove
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        You are about to remove{" "}
+        <span className={`${baseClass}__name`}>{userName}</span> from{" "}
+        <span className={`${baseClass}__team-name`}>{teamName}</span>.
+      </p>
+      <p>
+        If {userName} is not assigned to any other fleet, they will lose access.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={onSubmit}
+          className="remove-loading"
+          isLoading={isUpdatingUsers}
+        >
+          Remove
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

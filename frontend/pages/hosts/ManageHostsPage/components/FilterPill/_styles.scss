@@ -5,6 +5,7 @@
     padding: 6px 12px;
     border: 1px solid $ui-fleet-black-25;
     border-radius: $border-radius;
+    overflow: hidden;
     box-shadow: none;
     color: $core-fleet-black;
     font-size: $xx-small;
@@ -13,10 +14,7 @@
     gap: $small;
 
     button {
-      height: auto;
-      padding: 0px;
-      border: none;
-      margin-left: 0;
+      margin: -$pad-small; // Keep button padding from affecting parent padding
     }
 
     .premium-icon-tip {
@@ -25,5 +23,10 @@
         margin-right: 6px;
       }
     }
+  }
+
+  &__tooltip-text {
+    display: block;
+    @include ellipse-text(166px);
   }
 }

@@ -1,0 +1,24 @@
+module "cloudfront-software-installers" {
+  source            = "github.com/fleetdm/fleet-terraform/addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.0"
+  customer          = terraform.workspace
+  s3_bucket         = aws_s3_bucket.software_installers.id
+  s3_kms_key_id     = aws_kms_key.software_installers.id
+  public_key        = data.aws_kms_secrets.cloudfront.plaintext["public_key"]
+  private_key       = data.aws_kms_secrets.cloudfront.plaintext["private_key"]
+  enable_logging    = true
+  logging_s3_bucket = module.logging_alb.log_s3_bucket_id
+}
+
+data "aws_kms_secrets" "cloudfront" {
+  secret {
+    name    = "public_key"
+    key_id  = aws_kms_key.customer_data_key.id
+    payload = file("${path.module}/resources/${terraform.workspace}/${local.cloudfront_key_basename}.pem.encrypted")
+  }
+  secret {
+    name    = "private_key"
+    key_id  = aws_kms_key.customer_data_key.id
+    payload = file("${path.module}/resources/${terraform.workspace}/${local.cloudfront_key_basename}.key.encrypted")
+  }
+}
+

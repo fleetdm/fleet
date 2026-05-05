@@ -1,0 +1,208 @@
+{
+  "schema_version": 27,
+  "standard_lib_version": 86,
+  "action_runtime_version": 66,
+  "name": "MDM Migration (Jamf Pro)",
+  "description": "",
+  "guid": "a3f3b56b19119971a105c0220502f640",
+  "slug": "mdm_migration_jamf_pro",
+  "agents": [
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Lookup device ID in Jamf Pro by Serial Number",
+      "disabled": false,
+      "description": "",
+      "guid": "656d4a952012df4a938ea7b4a741eb8e",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/api/v3/computers-inventory?filter=hardware.serialNumber==<<migrate_to_fleet_webhook.body.host.hardware_serial>>",
+        "method": "get",
+        "headers": {
+          "accept": "application/json",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::WebhookAgent",
+      "name": "Migrate to Fleet Webhook",
+      "disabled": false,
+      "description": null,
+      "guid": "64d007a331aa81eb9eae027691219933",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "path": "56e1286b9a654f1b4137dc07cff3874d",
+        "secret": "34510f3726157a3bd2b69ffe4ebe8af1",
+        "verbs": "get,post"
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Send unmanage command using ID",
+      "disabled": false,
+      "description": "",
+      "guid": "7d85b634d0b5e52c0dbe1f0ad4cfce1e",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/api/v1/computer-inventory/<<lookup_device_id_in_jamf_pro_by_serial_number.body.results[0].id>>/remove-mdm-profile",
+        "method": "post",
+        "content_type": "form",
+        "headers": {
+          "accept": "application/json",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    },
+    {
+      "type": "Agents::HTTPRequestAgent",
+      "name": "Mark device as unmanaged in Jamf Pro",
+      "disabled": false,
+      "description": "",
+      "guid": "e314f6726f0745ed647f95e55f575e2c",
+      "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2a298336c7bd82875939c82f2005137f",
+      "options": {
+        "url": "https://<<RESOURCE.jamf_pro_server_url>>/api/v3/computers-inventory-detail/<<lookup_device_id_in_jamf_pro_by_serial_number.body.results[0].id>>",
+        "method": "patch",
+        "content_type": "application_json",
+        "payload": {
+          "general": {
+            "managed": "false"
+          }
+        },
+        "headers": {
+          "Accept": "application/json",
+          "Authorization": "Bearer <<CREDENTIAL.jamf_pro>>"
+        }
+      },
+      "reporting": {
+        "time_saved_value": 0,
+        "time_saved_unit": "minutes"
+      },
+      "monitoring": {
+        "monitor_all_events": false,
+        "monitor_failures": true,
+        "monitor_no_events_emitted": null
+      },
+      "template": {
+        "created_from_template_guid": null,
+        "created_from_template_version": null,
+        "template_tags": []
+      },
+      "width": null,
+      "schedule": null
+    }
+  ],
+  "diagram_notes": [
+    {
+      "content": "## Command to test\n\n```bash\ncurl -X POST $YOUR_WEBHOOK_ACTION_URL -H \"Content-Type: application/json\" -d '{\n  \"timestamp\": \"0000-00-00T00:00:00Z\",\n  \"host\": {\n    \"id\": $DEVICE_ID_IN_JAMF_PRO,\n    \"uuid\": \"1234-5678-9101-1121\",\n    \"hardware_serial\": \"$SERIAL_NUMBER\"\n  }\n}'\n```",
+      "position": [
+        -600,
+        195
+      ],
+      "guid": "7a88223a0cf93204dd6f81375b28b8a2",
+      "width": 570
+    },
+    {
+      "content": "# Configuration\n\n## Jamf\n\nSet up a Jamf Pro [API Role and Client](https://learn.jamf.com/en-US/bundle/jamf-pro-documentation-current/page/API_Roles_and_Clients.html) with these permissions:\n\n- Computers Create\n- Computers Read\n- Computers Update\n- Send Computer Unmanage Command\n\n## Tines\n\n- Replace Resource: Jamf Pro server URL (`myserver.jamfcloud.com`).\n- Set up Credential: Jamf Pro with the API Client from step 2.\n\n## Fleet\n\n**Read our [macOS MDM migration](https://fleetdm.com/guides/mdm-migration) guide!** At the least:\n\n- Set up MDM in **Settings** > **Integrations** > **MDM**.\n- Then, scroll down to **End user migration workflow**, enable the toggle, choose the **Mode**, and paste the **Webhook URL** from the Migrate to Fleet webhook action on the right. Don't forget to select **Save**!\n\n# Migration\n\n- Assign the device to your Fleet server in ABM.\n- Within 30 minutes, the Fleet Desktop menu bar icon on the device will have a **Migrate to Fleet** button. Select this, and then **Start**. Within a couple of minutes, the webhook will fire off.\n\n## Cleanup\n\nAfter the device is migrated, use Fleet to [deploy a script](https://github.com/fleetdm/fleet/tree/main/docs/solutions/macos/scripts/remove-jamf.sh) to remove the Jamf framework from the device.",
+      "position": [
+        -600,
+        -375
+      ],
+      "guid": "b160cbd5ee73744ce498306a7f2e8bec",
+      "width": 570
+    }
+  ],
+  "links": [
+    {
+      "source": 0,
+      "receiver": 2
+    },
+    {
+      "source": 1,
+      "receiver": 0
+    },
+    {
+      "source": 2,
+      "receiver": 3
+    }
+  ],
+  "diagram_layout": "{\"64d007a331aa81eb9eae027691219933\":[-15,-285],\"656d4a952012df4a938ea7b4a741eb8e\":[-15,-165],\"7d85b634d0b5e52c0dbe1f0ad4cfce1e\":[-15,-30],\"e314f6726f0745ed647f95e55f575e2c\":[-15,105]}",
+  "story_library_metadata": {},
+  "monitor_failures": true,
+  "synchronous_webhooks_enabled": false,
+  "integrations": [],
+  "parent_only_send_to_story": false,
+  "send_to_story_timeout_enabled": false,
+  "send_to_story_timeout_duration_seconds": null,
+  "keep_events_for": 86400,
+  "reporting_status": true,
+  "send_to_story_enabled": false,
+  "entry_agent_guid": null,
+  "exit_agent_guids": [],
+  "api_entry_action_guids": [],
+  "api_exit_action_guids": [],
+  "send_to_story_access": null,
+  "send_to_story_access_source": 0,
+  "send_to_story_skill_use_requires_confirmation": true,
+  "pages": [],
+  "tags": [],
+  "time_saved_unit": "minutes",
+  "time_saved_value": 0,
+  "origin_story_identifier": "cloud:4be52380e9d25dfd9c0431229580c706:2448e973a07b9f4421f839439918d608",
+  "recipients": [
+    ""
+  ],
+  "integration_product": null,
+  "integration_vendor": null,
+  "llm_product_instructions": "",
+  "send_to_stories": [],
+  "exported_at": "2026-02-04T21:20:38Z",
+  "icon": ":magic_wand:"
+}

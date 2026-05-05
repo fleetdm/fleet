@@ -1,46 +1,40 @@
 /** software/titles/:id */
 
-import React, { useCallback, useContext } from "react";
-import { useQuery } from "react-query";
+import React, { useCallback, useContext, useState } from "react";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { AppContext } from "context/app";
-import {
-  ISoftwareTitleDetails,
-  formatSoftwareType,
-  isIpadOrIphoneSoftwareSource,
-} from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
-import softwareAPI, {
-  ISoftwareTitleResponse,
-  IGetSoftwareTitleQueryKey,
-} from "services/entities/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,
 } from "interfaces/team";
+import softwareAPI, {
+  ISoftwareTitleResponse,
+  IGetSoftwareTitleQueryKey,
+} from "services/entities/software";
+
+import { getPathWithQueryParams } from "utilities/url";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
-import Card from "components/Card";
-
-import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
-import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
-import DetailsNoHosts from "../components/DetailsNoHosts";
-import SoftwarePackageCard from "./SoftwarePackageCard";
-import { getPackageCardInfo } from "./helpers";
+import DetailsNoHosts from "../components/cards/DetailsNoHosts";
+import SoftwareSummaryCard from "./SoftwareSummaryCard";
+import SoftwareInstallerCard from "./SoftwareInstallerCard";
 
 const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
-  team_id?: string;
 }
 
 type ISoftwareTitleDetailsPageProps = RouteComponentProps<
@@ -59,11 +53,17 @@ const SoftwareTitleDetailsPage = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
+    isTeamTechnician,
+    config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
+  const autoOpenGitOpsYamlModal =
+    location.query.gitops_yaml === "true" && gitOpsModeEnabled;
 
   const {
     currentTeamId,
@@ -76,6 +76,12 @@ const SoftwareTitleDetailsPage = ({
     includeAllTeams: true,
     includeNoTeam: true,
   });
+
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(
+    autoOpenGitOpsYamlModal || false
+  );
 
   const {
     data: softwareTitle,
@@ -105,18 +111,28 @@ const SoftwareTitleDetailsPage = ({
   const isAvailableForInstall =
     !!softwareTitle?.software_package || !!softwareTitle?.app_store_app;
 
+  const onToggleViewYaml = () => {
+    setShowViewYamlModal(!showViewYamlModal);
+  };
+
   const onDeleteInstaller = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
+    queryClient.invalidateQueries({
+      queryKey: [{ scope: "software-library" }],
+    });
+
     if (softwareTitle?.versions?.length) {
       refetchSoftwareTitle();
       return;
     }
-    // redirect to software titles page if no versions are available
-    if (teamIdForApi) {
-      router.push(paths.SOFTWARE_TITLES.concat(`?team_id=${teamIdForApi}`));
-    } else {
-      router.push(paths.SOFTWARE_TITLES);
-    }
-  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+
+    // redirect to software library page if no versions are available
+    router.push(
+      getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
+        fleet_id: teamIdForApi,
+      })
+    );
+  }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -125,35 +141,50 @@ const SoftwareTitleDetailsPage = ({
     [handleTeamChange]
   );
 
-  const renderSoftwarePackageCard = (title: ISoftwareTitleDetails) => {
+  const renderSoftwareInstallerCard = (title: ISoftwareTitleDetails) => {
     const hasPermission = Boolean(
-      isOnGlobalTeam || isTeamAdmin || isTeamMaintainer || isTeamObserver
+      isOnGlobalTeam ||
+        isTeamAdmin ||
+        isTeamMaintainer ||
+        isTeamObserver ||
+        isTeamTechnician
     );
 
-    const showPackageCard =
+    const showInstallerCard =
       currentTeamId !== APP_CONTEXT_ALL_TEAMS_ID &&
       hasPermission &&
       isAvailableForInstall;
 
-    if (showPackageCard) {
-      const packageCardData = getPackageCardInfo(title);
-      return (
-        <SoftwarePackageCard
-          softwareInstaller={packageCardData.softwarePackage}
-          name={packageCardData.name}
-          version={packageCardData.version}
-          uploadedAt={packageCardData.uploadedAt}
-          status={packageCardData.status}
-          isSelfService={packageCardData.isSelfService}
-          softwareId={softwareId}
-          teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-          onDelete={onDeleteInstaller}
-          refetchSoftwareTitle={refetchSoftwareTitle}
-        />
-      );
+    if (!showInstallerCard) {
+      return null;
     }
 
-    return null;
+    return (
+      <SoftwareInstallerCard
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
+        onDelete={onDeleteInstaller}
+        isLoading={isSoftwareTitleLoading}
+        onToggleViewYaml={onToggleViewYaml}
+        showViewYamlModal={showViewYamlModal}
+      />
+    );
+  };
+
+  const renderSoftwareSummaryCard = (title: ISoftwareTitleDetails) => {
+    return (
+      <SoftwareSummaryCard
+        softwareTitle={title}
+        softwareId={softwareId}
+        teamId={teamIdForApi}
+        isAvailableForInstall={isAvailableForInstall}
+        isLoading={isSoftwareTitleLoading}
+        router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        onToggleViewYaml={onToggleViewYaml}
+      />
+    );
   };
 
   const renderContent = () => {
@@ -173,43 +204,8 @@ const SoftwareTitleDetailsPage = ({
     if (softwareTitle) {
       return (
         <>
-          <SoftwareDetailsSummary
-            title={softwareTitle.name}
-            type={formatSoftwareType(softwareTitle)}
-            versions={softwareTitle.versions?.length ?? 0}
-            hosts={softwareTitle.hosts_count}
-            countsUpdatedAt={softwareTitle.counts_updated_at}
-            queryParams={{
-              software_title_id: softwareId,
-              team_id: teamIdForApi,
-            }}
-            name={softwareTitle.name}
-            source={softwareTitle.source}
-            iconUrl={
-              softwareTitle.app_store_app
-                ? softwareTitle.app_store_app.icon_url
-                : undefined
-            }
-          />
-          {renderSoftwarePackageCard(softwareTitle)}
-          <Card
-            borderRadiusSize="xxlarge"
-            includeShadow
-            className={`${baseClass}__versions-section`}
-          >
-            <h2>Versions</h2>
-            <SoftwareTitleDetailsTable
-              router={router}
-              data={softwareTitle.versions ?? []}
-              isLoading={isSoftwareTitleLoading}
-              teamIdForApi={teamIdForApi}
-              isIPadOSOrIOSApp={isIpadOrIphoneSoftwareSource(
-                softwareTitle.source
-              )}
-              isAvailableForInstall={isAvailableForInstall}
-              countsUpdatedAt={softwareTitle.counts_updated_at}
-            />
-          </Card>
+          {renderSoftwareSummaryCard(softwareTitle)}
+          {renderSoftwareInstallerCard(softwareTitle)}
         </>
       );
     }
@@ -219,7 +215,7 @@ const SoftwareTitleDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      {isPremiumTier && (
+      {isPremiumTier && !config?.partnerships?.enable_primo && (
         <TeamsHeader
           isOnGlobalTeam={isOnGlobalTeam}
           currentTeamId={currentTeamId}

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -13,26 +14,51 @@ type CronScheduleName string
 
 // List of recognized cron schedule names.
 const (
-	CronAppleMDMDEPProfileAssigner  CronScheduleName = "apple_mdm_dep_profile_assigner"
-	CronCleanupsThenAggregation     CronScheduleName = "cleanups_then_aggregation"
-	CronFrequentCleanups            CronScheduleName = "frequent_cleanups"
-	CronUsageStatistics             CronScheduleName = "usage_statistics"
-	CronVulnerabilities             CronScheduleName = "vulnerabilities"
-	CronAutomations                 CronScheduleName = "automations"
-	CronWorkerIntegrations          CronScheduleName = "integrations"
-	CronActivitiesStreaming         CronScheduleName = "activities_streaming"
-	CronMDMAppleProfileManager      CronScheduleName = "mdm_apple_profile_manager"
-	CronMDMWindowsProfileManager    CronScheduleName = "mdm_windows_profile_manager"
-	CronAppleMDMIPhoneIPadRefetcher CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
-	CronAppleMDMAPNsPusher          CronScheduleName = "apple_mdm_apns_pusher"
-	CronCalendar                    CronScheduleName = "calendar"
-	CronUninstallSoftwareMigration  CronScheduleName = "uninstall_software_migration"
-	CronMaintainedApps              CronScheduleName = "maintained_apps"
+	CronAppleMDMDEPProfileAssigner   CronScheduleName = "apple_mdm_dep_profile_assigner"
+	CronCleanupsThenAggregation      CronScheduleName = "cleanups_then_aggregation"
+	CronFrequentCleanups             CronScheduleName = "frequent_cleanups"
+	CronUsageStatistics              CronScheduleName = "usage_statistics"
+	CronVulnerabilities              CronScheduleName = "vulnerabilities"
+	CronAutomations                  CronScheduleName = "automations"
+	CronWorkerIntegrations           CronScheduleName = "integrations"
+	CronActivitiesStreaming          CronScheduleName = "activities_streaming"
+	CronMDMAppleProfileManager       CronScheduleName = "mdm_apple_profile_manager"
+	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
+	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
+	CronMDMAndroidDeviceReconciler   CronScheduleName = "mdm_android_device_reconciler"
+	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
+	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
+	CronCalendar                     CronScheduleName = "calendar"
+	CronUninstallSoftwareMigration   CronScheduleName = "uninstall_software_migration"
+	CronUpgradeCodeSoftwareMigration CronScheduleName = "upgrade_code_software_migration"
+	CronMaintainedApps               CronScheduleName = "maintained_apps"
+	// CronRefreshVPPAppVersions updates the versions of VPP apps in Fleet to the latest value. Runs
+	// every 1h.
+	CronRefreshVPPAppVersions          CronScheduleName = "refresh_vpp_app_versions"
+	CronAppleMDMIPhoneIPadReviver      CronScheduleName = "apple_mdm_iphone_ipad_reviver"
+	CronUpcomingActivitiesMaintenance  CronScheduleName = "upcoming_activities_maintenance"
+	CronHostVitalsLabelMembership      CronScheduleName = "host_vitals_label_membership"
+	CronBatchActivityCompletionChecker CronScheduleName = "batch_activity_completion_checker"
+	CronScheduledBatchActivities       CronScheduleName = "scheduled_batch_activities"
+	// CronEnableAndroidAppReportsOnDefaultPolicy enables applications reports on the default Android MDM policy (profile).
+	// This job only runs once after upgrading to v4.76.0.
+	CronEnableAndroidAppReportsOnDefaultPolicy CronScheduleName = "enable_android_app_reports_on_default_policy"
+	// CronMigrateToPerHostPolicy moves all Android hosts that are on the default MDM policy to a dedicated
+	// policy per host. This job only runs once after upgrading to v4.77.0.
+	CronMigrateToPerHostPolicy CronScheduleName = "migrate_to_per_host_policy"
+	// CronQueryResultsCleanup deletes excess query result rows that exceed the maximum allowed per query.
+	// Runs every 1 minute.
+	CronQueryResultsCleanup CronScheduleName = "query_results_cleanup"
+	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
+	// Runs every 5 minutes.
+	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
+	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
+	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
 )
 
 type CronSchedulesService interface {
 	// TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-	TriggerCronSchedule(name string) error
+	TriggerCronSchedule(ctx context.Context, name string) error
 }
 
 func NewCronSchedules() *CronSchedules {
@@ -40,7 +66,7 @@ func NewCronSchedules() *CronSchedules {
 }
 
 type CronSchedule interface {
-	Trigger() (*CronStats, error)
+	Trigger(ctx context.Context) (*CronStats, bool, error)
 	Name() string
 	Start()
 }
@@ -68,12 +94,12 @@ func (cs *CronSchedules) StartCronSchedule(fn NewCronScheduleFunc) error {
 }
 
 // TriggerCronSchedule attempts to trigger an ad-hoc run of the named cron schedule.
-func (cs *CronSchedules) TriggerCronSchedule(name string) error {
+func (cs *CronSchedules) TriggerCronSchedule(ctx context.Context, name string) error {
 	sched, ok := cs.Schedules[name]
 	if !ok {
 		return triggerNotFoundError{name: name, msg: cs.formatSupportedTriggerNames()}
 	}
-	stats, err := sched.Trigger()
+	stats, _, err := sched.Trigger(ctx)
 	switch {
 	case err != nil:
 		return err
@@ -127,6 +153,10 @@ func (e triggerConflictError) IsConflict() bool {
 	return true
 }
 
+func (e triggerConflictError) IsClientError() bool {
+	return true
+}
+
 func (e triggerConflictError) StatusCode() int {
 	return http.StatusConflict
 }
@@ -141,6 +171,10 @@ func (e triggerNotFoundError) Error() string {
 }
 
 func (e triggerNotFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e triggerNotFoundError) IsClientError() bool {
 	return true
 }
 
@@ -197,7 +231,7 @@ const (
 	CronStatsTypeTriggered CronStatsType = "triggered"
 )
 
-// CronStatsStatus is one of four recognized statuses of cron stats (i.e. "pending", "expired", "canceled", or "completed")
+// CronStatsStatus is one of the recognized statuses of cron stats
 type CronStatsStatus string
 
 // List of recognized cron stats statuses.
@@ -206,4 +240,6 @@ const (
 	CronStatsStatusExpired   CronStatsStatus = "expired"
 	CronStatsStatusCompleted CronStatsStatus = "completed"
 	CronStatsStatusCanceled  CronStatsStatus = "canceled"
+	// CronStatsStatusQueued indicates a trigger request waiting for a remote server to pick up.
+	CronStatsStatusQueued CronStatsStatus = "queued"
 )

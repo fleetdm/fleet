@@ -21,6 +21,10 @@ export const isWindowsMdmEnabledAndConfigured = (config: IConfig): boolean => {
   return Boolean(config.mdm.windows_enabled_and_configured);
 };
 
+export const isAndroidMdmEnabledAndConfigured = (config: IConfig): boolean => {
+  return Boolean(config.mdm.android_enabled_and_configured);
+};
+
 export const isGlobalAdmin = (user: IUser): boolean => {
   return user.global_role === "admin";
 };
@@ -89,6 +93,26 @@ const isAnyTeamMaintainer = (user: IUser): boolean => {
   return false;
 };
 
+export const isTeamTechnician = (
+  user: IUser | null,
+  teamId: number | null
+): boolean => {
+  const userTeamRole = user?.teams.find((team) => team.id === teamId)?.role;
+  return userTeamRole === "technician";
+};
+
+export const isAnyTeamTechnician = (user: IUser): boolean => {
+  if (!isOnGlobalTeam(user)) {
+    return user.teams.some((team) => team?.role === "technician");
+  }
+
+  return false;
+};
+
+export const isGlobalTechnician = (user: IUser): boolean => {
+  return user.global_role === "technician";
+};
+
 const isAnyTeamAdmin = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
     return user.teams.some((team) => team?.role === "admin");
@@ -97,7 +121,7 @@ const isAnyTeamAdmin = (user: IUser): boolean => {
   return false;
 };
 
-const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
+export const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
     return user.teams.some(
       (team) => team?.role === "maintainer" || team?.role === "admin"
@@ -107,7 +131,7 @@ const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
   return false;
 };
 
-const isOnlyObserver = (user: IUser): boolean => {
+export const isOnlyObserver = (user: IUser): boolean => {
   if (isGlobalObserver(user)) {
     return true;
   }
@@ -148,6 +172,7 @@ export default {
   isPremiumTier,
   isMacMdmEnabledAndConfigured,
   isWindowsMdmEnabledAndConfigured,
+  isAndroidMdmEnabledAndConfigured,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
@@ -161,6 +186,9 @@ export default {
   isAnyTeamMaintainerOrTeamAdmin,
   isTeamAdmin,
   isAnyTeamAdmin,
+  isTeamTechnician,
+  isAnyTeamTechnician,
+  isGlobalTechnician,
   isOnlyObserver,
   isObserverPlus,
   isNoAccess,

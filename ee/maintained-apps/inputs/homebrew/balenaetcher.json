@@ -1,0 +1,8 @@
+{
+  "name": "balenaEtcher",
+  "unique_identifier": "io.balena.etcher",
+  "token": "balenaetcher",
+  "installer_format": "dmg",
+  "slug": "balenaetcher/darwin",
+  "default_categories": ["Developer tools"]
+}

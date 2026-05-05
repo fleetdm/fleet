@@ -1,16 +1,20 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
+	"github.com/klauspost/compress/gzhttp"
 )
 
 func newBinaryFileSystem(root string) *assetfs.AssetFS {
@@ -22,13 +26,18 @@ func newBinaryFileSystem(root string) *assetfs.AssetFS {
 	}
 }
 
-func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handler {
-	herr := func(w http.ResponseWriter, err string) {
-		logger.Log("err", err)
+func ServeFrontend(urlPrefix string, sandbox bool, logger *slog.Logger, serveCSP bool) http.Handler {
+	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
+		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeBrowserSecurityHeaders(w)
+		ctx := r.Context()
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)
+		if err != nil {
+			herr(ctx, w, "write browser security headers err: "+err.Error())
+			return
+		}
 
 		// The following check is to prevent a misconfigured osquery from submitting
 		// data to the root endpoint (the osquery remote API uses POST for all its endpoints).
@@ -41,17 +50,17 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		fs := newBinaryFileSystem("/frontend")
 		file, err := fs.Open("templates/react.tmpl")
 		if err != nil {
-			herr(w, "load react template: "+err.Error())
+			herr(ctx, w, "load react template: "+err.Error())
 			return
 		}
 		data, err := io.ReadAll(file)
 		if err != nil {
-			herr(w, "read bindata file: "+err.Error())
+			herr(ctx, w, "read bindata file: "+err.Error())
 			return
 		}
 		t, err := template.New("react").Parse(string(data))
 		if err != nil {
-			herr(w, "create react template: "+err.Error())
+			herr(ctx, w, "create react template: "+err.Error())
 			return
 		}
 		serverType := "on-premise"
@@ -61,67 +70,109 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		if err := t.Execute(w, struct {
 			URLPrefix  string
 			ServerType string
+			CSPNonce   string
 		}{
 			URLPrefix:  urlPrefix,
 			ServerType: serverType,
+			CSPNonce:   nonce,
 		}); err != nil {
-			herr(w, "execute react template: "+err.Error())
+			herr(ctx, w, "execute react template: "+err.Error())
 			return
 		}
 	})
 }
 
-func ServeEndUserEnrollOTA(svc fleet.Service, urlPrefix string, logger log.Logger) http.Handler {
-	herr := func(w http.ResponseWriter, err string) {
-		logger.Log("err", err)
+// ServeEndUserEnrollOTA implements the entrypoint handler for the /enroll
+// path, used to add hosts in "BYOD" mode (currently, iPhone/iPad/Android).
+func ServeEndUserEnrollOTA(
+	svc fleet.Service,
+	urlPrefix string,
+	ds fleet.Datastore,
+	logger *slog.Logger,
+	serveCSP bool,
+) http.Handler {
+	herr := func(ctx context.Context, w http.ResponseWriter, err string) {
+		logger.ErrorContext(ctx, err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		writeBrowserSecurityHeaders(w)
-		setupRequired, err := svc.SetupRequired(r.Context())
+		nonce, err := endpointer.WriteBrowserSecurityHeaders(w, serveCSP, serveCSP)
 		if err != nil {
-			herr(w, "setup required err: "+err.Error())
+			herr(r.Context(), w, "write browser security headers err: "+err.Error())
 			return
 		}
-
+		ctx := r.Context()
+		setupRequired, err := svc.SetupRequired(ctx)
+		if err != nil {
+			herr(ctx, w, "setup required err: "+err.Error())
+			return
+		}
 		if setupRequired {
-			herr(w, "fleet instance not setup")
+			herr(ctx, w, "fleet instance not setup")
 			return
 		}
 
-		fs := newBinaryFileSystem("/frontend")
-		file, err := fs.Open("templates/enroll-ota.html")
+		appCfg, err := ds.AppConfig(r.Context())
 		if err != nil {
-			herr(w, "load enroll ota template: "+err.Error())
+			herr(ctx, w, "load appconfig err: "+err.Error())
 			return
 		}
 
-		data, err := io.ReadAll(file)
-		if err != nil {
-			herr(w, "read bindata file: "+err.Error())
+		errorMsg := r.URL.Query().Get("error")
+		if errorMsg != "" {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg, nonce); err != nil {
+				herr(ctx, w, err.Error())
+			}
 			return
 		}
 
-		t, err := template.New("enroll-ota").Parse(string(data))
-		if err != nil {
-			herr(w, "create react template: "+err.Error())
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+		if enrollSecret == "" {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin.", nonce); err != nil {
+				herr(ctx, w, err.Error())
+			}
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
+		authRequired, err := shared_mdm.RequiresEnrollOTAAuthentication(r.Context(), ds,
+			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
-			herr(w, "generate enroll ota url: "+err.Error())
+			herr(ctx, w, "check if authentication is required err: "+err.Error())
 			return
 		}
-		if err := t.Execute(w, struct {
-			EnrollURL string
-			URLPrefix string
-		}{
-			URLPrefix: urlPrefix,
-			EnrollURL: enrollURL,
-		}); err != nil {
-			herr(w, "execute react template: "+err.Error())
+
+		if authRequired {
+			// check if authentication cookie is present, in which case we go ahead with
+			// offering the enrollment profile to download.
+			var cookieIdPRef string
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
+				cookieIdPRef = byodCookie.Value
+
+				// if the cookie is present, we should also receive a (matching) enroll reference
+				if cookieIdPRef != "" {
+					enrollRef := r.URL.Query().Get("enrollment_reference")
+					if cookieIdPRef != enrollRef {
+						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
+					}
+				}
+			}
+
+			if cookieIdPRef == "" {
+				// IdP authentication has not been completed yet, initiate it by
+				// redirecting to the configured IdP provider.
+				if err := initiateOTAEnrollSSO(svc, w, r, enrollSecret); err != nil {
+					herr(ctx, w, "initiate IdP SSO authentication err: "+err.Error())
+					return
+				}
+				return
+			}
+		}
+
+		// if we get here, IdP SSO authentication is either not required, or has
+		// been successfully completed (we have a cookie with the IdP account
+		// reference).
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, "", nonce); err != nil {
+			herr(ctx, w, err.Error())
 			return
 		}
 	})
@@ -144,6 +195,74 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	return enrollURL.String(), nil
 }
 
-func ServeStaticAssets(path string) http.Handler {
-	return http.StripPrefix(path, http.FileServer(newBinaryFileSystem("/assets")))
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage, nonce string) error {
+	fs := newBinaryFileSystem("/frontend")
+	file, err := fs.Open("templates/enroll-ota.html")
+	if err != nil {
+		return fmt.Errorf("load enroll ota template: %w", err)
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read bindata file: %w", err)
+	}
+
+	t, err := template.New("enroll-ota").Parse(string(data))
+	if err != nil {
+		return fmt.Errorf("create react template: %w", err)
+	}
+
+	enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
+	if err != nil {
+		return fmt.Errorf("generate enroll ota url: %w", err)
+	}
+	if err := t.Execute(w, struct {
+		EnrollURL             string
+		URLPrefix             string
+		ErrorMessage          string
+		AndroidMDMEnabled     bool
+		MacMDMEnabled         bool
+		AndroidFeatureEnabled bool
+		CSPNonce              string
+	}{
+		URLPrefix:             urlPrefix,
+		EnrollURL:             enrollURL,
+		ErrorMessage:          errorMessage,
+		AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
+		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
+		AndroidFeatureEnabled: true,
+		CSPNonce:              nonce,
+	}); err != nil {
+		return fmt.Errorf("execute react template: %w", err)
+	}
+	return nil
+}
+
+func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {
+	requestURL := "/enroll?enroll_secret=" + url.QueryEscape(enrollSecret)
+	// pass the fully_managed parameter for Android enrollments so that it is returned after the callback, else the
+	// user won't get the android fully managed page
+	if r.URL.Query().Get("fully_managed") == "true" {
+		requestURL += "&fully_managed=true"
+	}
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", requestURL, "")
+	if err != nil {
+		return err
+	}
+	setSSOCookie(w, ssnID, ssnDurationSecs)
+	http.Redirect(w, r, idpURL, http.StatusSeeOther)
+	return nil
+}
+
+func ServeStaticAssets(path string, serveCSP bool) http.Handler {
+	contentTypes := []string{"text/javascript", "text/css"}
+	staticAssetsServer := endpointer.BrowserSecurityHeadersHandler(serveCSP, http.FileServer(newBinaryFileSystem("/assets")))
+	withoutGzip := http.StripPrefix(path, staticAssetsServer)
+
+	withOpts, err := gzhttp.NewWrapper(gzhttp.ContentTypes(contentTypes))
+	if err != nil { // fall back to serving without gzip if serving with gzip somehow fails
+		return withoutGzip
+	}
+
+	return withOpts(withoutGzip)
 }

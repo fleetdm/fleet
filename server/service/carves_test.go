@@ -1,12 +1,19 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	strconv "strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
+	carvestorectx "github.com/fleetdm/fleet/v4/server/contexts/carvestore"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -623,4 +630,599 @@ func TestCarveCarveBlock(t *testing.T) {
 	err := svc.CarveBlock(context.Background(), payload)
 	require.NoError(t, err)
 	assert.True(t, ms.NewBlockFuncInvoked)
+}
+
+// MockCarveStore for testing
+type mockCarveStore struct {
+	carves map[string]*fleet.CarveMetadata
+	err    error
+}
+
+func (m *mockCarveStore) CarveBySessionId(ctx context.Context, sessionID string) (*fleet.CarveMetadata, error) {
+	if m.err != nil {
+		return nil, m.err
+	}
+	c, ok := m.carves[sessionID]
+	if !ok {
+		return nil, errors.New("carve not found")
+	}
+	return c, nil
+}
+
+func TestCarveBlockDecodeRequest(t *testing.T) {
+	tests := []struct {
+		name           string
+		body           string
+		ctxSetup       func(ctx context.Context) context.Context
+		wantErr        bool
+		wantErrType    string // e.g., "AuthFailedError", "ctxerr", ""
+		wantErrMessage string
+		wantResult     *carveBlockRequest
+	}{
+		{
+			name: "valid request MySQL session IDs",
+			body: `{"block_id":123,"session_id":"23bbbcf6-6b8a-4f3a-9924-bdd084f31097","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"23bbbcf6-6b8a-4f3a-9924-bdd084f31097": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   123,
+				SessionId: "23bbbcf6-6b8a-4f3a-9924-bdd084f31097",
+				RequestId: "req123",
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name: "valid request AWS like session IDs",
+			body: `{"block_id":123,"session_id":"JUMHLnWZ.A7y5ns2jUODzG8eTr5m9lvFKDD3nBN.hJ8mwr2szW0iUSNrusaE41__.wrtsNokzejFLQyNJTTqY_QN1grwAT0yXGi8A77Kf9ZJlvSiWggmncDAhVev4QXxx2PyN_GtTRPC71WGKPN2YxBFfWBjZlCZBXmPCtc4zrQ","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"JUMHLnWZ.A7y5ns2jUODzG8eTr5m9lvFKDD3nBN.hJ8mwr2szW0iUSNrusaE41__.wrtsNokzejFLQyNJTTqY_QN1grwAT0yXGi8A77Kf9ZJlvSiWggmncDAhVev4QXxx2PyN_GtTRPC71WGKPN2YxBFfWBjZlCZBXmPCtc4zrQ": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   123,
+				SessionId: "JUMHLnWZ.A7y5ns2jUODzG8eTr5m9lvFKDD3nBN.hJ8mwr2szW0iUSNrusaE41__.wrtsNokzejFLQyNJTTqY_QN1grwAT0yXGi8A77Kf9ZJlvSiWggmncDAhVev4QXxx2PyN_GtTRPC71WGKPN2YxBFfWBjZlCZBXmPCtc4zrQ",
+				RequestId: "req123",
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name: "valid request rustfs like session IDs",
+			body: `{"block_id":123,"session_id":"ZGVhZDYwYTctZTVlOC00MzE1LWFhOWMtZDIzMzc5MTI4NGUyLjUzM2MxZjhhLTFiODktNDQ1YS04NTE0LTBjMWE0NDVlNjkwMXgxNzcwMTQ1Njc5NDgyNDg3NzE3","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"ZGVhZDYwYTctZTVlOC00MzE1LWFhOWMtZDIzMzc5MTI4NGUyLjUzM2MxZjhhLTFiODktNDQ1YS04NTE0LTBjMWE0NDVlNjkwMXgxNzcwMTQ1Njc5NDgyNDg3NzE3": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   123,
+				SessionId: "ZGVhZDYwYTctZTVlOC00MzE1LWFhOWMtZDIzMzc5MTI4NGUyLjUzM2MxZjhhLTFiODktNDQ1YS04NTE0LTBjMWE0NDVlNjkwMXgxNzcwMTQ1Njc5NDgyNDg3NzE3",
+				RequestId: "req123",
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name: "valid max-sized session_id",
+			body: fmt.Sprintf(`{"block_id":123,"session_id":"%s","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`, strings.Repeat("F", 255)),
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						strings.Repeat("F", 255): {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   123,
+				SessionId: strings.Repeat("F", 255),
+				RequestId: "req123",
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name:           "missing carve store",
+			body:           `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup:       func(ctx context.Context) context.Context { return ctx },
+			wantErr:        true,
+			wantErrMessage: "missing carve store from context",
+		},
+		{
+			name: "invalid start delimiter",
+			body: `["block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "Authentication failed",
+		},
+		{
+			name: "short non-ending session_id",
+			body: `{"block_id":123,"session_id":"sess123`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "Authentication failed",
+		},
+		{
+			name: "max non-ending session_id",
+			body: fmt.Sprintf(`{"block_id":123,"session_id":"%s`, strings.Repeat("F", 256)),
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "Authentication failed",
+		},
+		{
+			name: "invalid block_id key",
+			body: `{"blockid":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "block_id":, got "blockid":`,
+		},
+		{
+			name: "non-ending block_id key",
+			body: `{"block_id`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "end character not found",
+		},
+		{
+			name: "invalid block_id too long",
+			body: `{"block_id":12345678901234567890,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "end character not found",
+		},
+		{
+			name: "invalid block_id not number",
+			body: `{"block_id":"abc","session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "invalid \"block_id\" format",
+		},
+		{
+			name: "missing session_id key",
+			body: `{"block_id":123,"request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "session_id":", got "request_id":"`,
+		},
+		{
+			name: "missing request_id key",
+			body: `{"block_id":123,"session_id":"sess123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "session_id":", got "data":"ZGF0YW`,
+		},
+		{
+			name: "invalid session_id key",
+			body: `{"block_id":123,"sess_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "session_id":", got "sess_id":"`,
+		},
+		{
+			name: "invalid session_id empty",
+			body: `{"block_id":123,"session_id":"","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "empty session_id",
+		},
+		{
+			name: "invalid session_id too long",
+			body: `{"block_id":123,"session_id":"` + strings.Repeat("a", 256) + `","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "end character not found",
+		},
+		{
+			name: "missing session_id key, terminated body",
+			body: `{"block_id":123,`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "end character not found",
+		},
+		{
+			name: "invalid request_id key",
+			body: `{"block_id":123,"session_id":"sess123","req_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected ,"request_id":", got ,"req_id":"`,
+		},
+		{
+			name: "invalid request_id empty",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "empty request_id",
+		},
+		{
+			name: "invalid request_id too long",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"` + strings.Repeat("F", 65) + `","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "end character not found",
+		},
+		{
+			name: "max non-ending request_id",
+			body: fmt.Sprintf(`{"block_id":123,"session_id":"sess123","request_id":"%s`, strings.Repeat("F", 65)),
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "Authentication failed",
+		},
+		{
+			name: "missing request_id key, terminated body",
+			body: `{"block_id":123,"session_id":"sess123"`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "Authentication failed",
+		},
+		{
+			name: "valid max-sized request_id",
+			body: fmt.Sprintf(`{"block_id":123,"session_id":"sess123","request_id":"%s","data":"ZGF0YWJhc2U2NA=="}`, strings.Repeat("F", 64)),
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: strings.Repeat("F", 64)},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   123,
+				SessionId: "sess123",
+				RequestId: strings.Repeat("F", 64),
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name: "auth failure carve not found",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "carve by session ID: carve not found",
+		},
+		{
+			name: "auth failure request_id mismatch",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "wrongreq"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "request_id does not match session",
+		},
+		{
+			name: "auth failure store error",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					err: errors.New("store error"),
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "carve by session ID: store error",
+		},
+		{
+			name: "invalid data key",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","datum":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `expected ,"data":", got ,"datum":`,
+		},
+		{
+			name: "missing data key",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123"}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `expected ,"data":", got }`,
+		},
+		{
+			name: "missing data key, terminated body",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123"`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `failed to read "data" key`,
+		},
+		{
+			name: "missing data value, terminated body (ending length=0)",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `invalid "data" ending length`,
+		},
+		{
+			name: "missing data value, terminated body (ending length=1)",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"a`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `invalid "data" ending length`,
+		},
+		{
+			name: "empty data key", // empty block is a valid block.
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":""}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid data not base64",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"notbase64!!"}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: "base64 decode block data: illegal base64 data",
+		},
+		{
+			name: "invalid ending",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `invalid "data" ending: ="`,
+		},
+		{
+			name: "short body - after request_id",
+			body: `{"block_id":123,"session_id":"sess123","request_id":"req123"`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr:        true,
+			wantErrMessage: `failed to read "data" key: EOF`,
+		},
+		{
+			name: "empty body",
+			body: ``,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "failed to read object start: EOF",
+		},
+		{
+			name: "empty JSON",
+			body: `{}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "block_id":, got }`,
+		},
+		{
+			name: "unending JSON",
+			body: `{`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: `expected "block_id":, got }`,
+		},
+		{
+			name: "string is a valid JSON",
+			body: `"foobar"`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "failed to read object start: EOF",
+		},
+		{
+			name: "max block_id digits",
+			body: `{"block_id":` + strconv.FormatInt(1<<63-1, 10) + `,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				store := &mockCarveStore{
+					carves: map[string]*fleet.CarveMetadata{
+						"sess123": {RequestId: "req123"},
+					},
+				}
+				return carvestorectx.NewContext(ctx, store)
+			},
+			wantErr: false,
+			wantResult: &carveBlockRequest{
+				BlockId:   1<<63 - 1,
+				SessionId: "sess123",
+				RequestId: "req123",
+				Data:      []byte("database64"),
+			},
+		},
+		{
+			name: "negative block_id",
+			body: `{"block_id":-123,"session_id":"sess123","request_id":"req123","data":"ZGF0YWJhc2U2NA=="}`,
+			ctxSetup: func(ctx context.Context) context.Context {
+				return carvestorectx.NewContext(ctx, &mockCarveStore{})
+			},
+			wantErr:        true,
+			wantErrType:    "AuthFailedError",
+			wantErrMessage: "invalid \"block_id\" format",
+		},
+		// Add more edge cases as needed, e.g., special characters in strings, zero block_id, etc.
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			if tt.ctxSetup != nil {
+				ctx = tt.ctxSetup(ctx)
+			}
+			req := &http.Request{
+				Body: io.NopCloser(bytes.NewReader([]byte(tt.body))),
+			}
+			var r carveBlockRequest
+			result, err := r.DecodeRequest(ctx, req)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DecodeRequest() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err != nil {
+				// Check error type and message
+				if tt.wantErrType == "AuthFailedError" {
+					var afe *fleet.AuthFailedError
+					require.ErrorAs(t, err, &afe)
+				} else if tt.wantErrMessage != "" && !strings.Contains(err.Error(), tt.wantErrMessage) {
+					t.Errorf("error message = %v, want containing %s", err, tt.wantErrMessage)
+				}
+				return
+			}
+			got, ok := result.(*carveBlockRequest)
+			if !ok {
+				t.Errorf("result not *carveBlockRequest")
+				return
+			}
+			if tt.wantResult != nil {
+				if got.BlockId != tt.wantResult.BlockId {
+					t.Errorf("BlockId = %d, want %d", got.BlockId, tt.wantResult.BlockId)
+				}
+				if got.SessionId != tt.wantResult.SessionId {
+					t.Errorf("SessionId = %s, want %s", got.SessionId, tt.wantResult.SessionId)
+				}
+				if got.RequestId != tt.wantResult.RequestId {
+					t.Errorf("RequestId = %s, want %s", got.RequestId, tt.wantResult.RequestId)
+				}
+				if !bytes.Equal(got.Data, tt.wantResult.Data) {
+					t.Errorf("Data = %v, want %v", got.Data, tt.wantResult.Data)
+				}
+			}
+		})
+	}
 }

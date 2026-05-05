@@ -1,0 +1,1 @@
+* No longer turn on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.

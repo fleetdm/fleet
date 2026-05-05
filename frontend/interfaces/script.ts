@@ -9,7 +9,13 @@ export interface IScript {
 }
 
 export const isScriptSupportedPlatform = (hostPlatform: string) =>
-  ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
+  ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, ios, ipados, android see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
+
+export const addTeamIdCriteria = (
+  pred: any,
+  teamId: number,
+  isFreeTier?: boolean
+) => (isFreeTier ? { ...pred } : { ...pred, fleet_id: teamId });
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 
@@ -19,8 +25,39 @@ export interface ILastExecution {
   status: IScriptExecutionStatus;
 }
 
+export type ScriptContent = string;
+
 export interface IHostScript {
   script_id: number;
   name: string;
   last_execution: ILastExecution | null;
 }
+
+const SCRIPT_BATCH_STATUSES = ["started", "scheduled", "finished"] as const;
+export type ScriptBatchStatus = typeof SCRIPT_BATCH_STATUSES[number];
+
+export const isValidScriptBatchStatus = (
+  status: string | null | undefined
+): status is ScriptBatchStatus => {
+  return SCRIPT_BATCH_STATUSES.includes((status ?? "") as ScriptBatchStatus);
+};
+
+export const SCRIPT_BATCH_HOST_EXECUTED_STATUSES = ["ran", "errored"];
+export const SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES = [
+  "pending",
+  "incompatible",
+  "canceled",
+];
+
+export const SCRIPT_BATCH_HOST_STATUSES = SCRIPT_BATCH_HOST_EXECUTED_STATUSES.concat(
+  SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES
+);
+export type ScriptBatchHostStatus = typeof SCRIPT_BATCH_HOST_STATUSES[number];
+
+export const isValidScriptBatchHostStatus = (
+  status: string | null | undefined
+): status is ScriptBatchHostStatus => {
+  return SCRIPT_BATCH_HOST_STATUSES.includes(
+    (status ?? "") as ScriptBatchHostStatus
+  );
+};

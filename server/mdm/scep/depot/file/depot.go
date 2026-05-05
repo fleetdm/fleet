@@ -22,7 +22,8 @@ import (
 
 // NewFileDepot returns a new cert depot.
 func NewFileDepot(path string) (*fileDepot, error) {
-	f, err := os.OpenFile(fmt.Sprintf("%s/index.txt", path),
+	f, err := os.OpenFile( // nolint:gosec // G302
+		fmt.Sprintf("%s/index.txt", path),
 		os.O_RDONLY|os.O_CREATE, 0o666)
 	if err != nil {
 		return nil, err

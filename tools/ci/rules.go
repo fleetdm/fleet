@@ -31,14 +31,15 @@ func txCheck(m dsl.Matcher) {
 	}
 
 	containsIllegal := func(v dsl.Var) bool {
-		return v.Contains(`$ds.writer`) || v.Contains(`$ds.reader`)
+		return v.Contains(`$ds.writer`) || v.Contains(`$ds.reader`) ||
+			v.Contains(`$ds.Writer`) || v.Contains(`$ds.Reader`)
 	}
 
 	isSqlxIface := func(v dsl.Var) bool {
 		return (v.Type.Is(`sqlx.ExtContext`) || v.Type.Is(`sqlx.ExecContext`))
 	}
 
-	m.Match(`$ds.withTx($_, $fn)`, `$ds.withRetryTxx($_, $fn)`).
+	m.Match(`$ds.withTx($_, $fn)`, `$ds.withRetryTxx($_, $fn)`, `$ds.WithRetryTxx($_, $fn)`).
 		Where(isDatastoreType(m["ds"]) && containsIllegal(m["fn"])).
 		Report("improper use of ds.reader or ds.writer in a transaction")
 

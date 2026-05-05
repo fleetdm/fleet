@@ -6,8 +6,12 @@
 
     .last_fetched__header {
       .column-header {
-        margin-bottom: 44px; // Fills space where filter is removed
+        margin-bottom: 36px; // Fills space where filter is removed
       }
+    }
+
+    .last_fetched__cell {
+      white-space: nowrap; // Prevent timestamp wrapping on multiple lines
     }
 
     .data-table__wrapper {

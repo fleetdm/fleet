@@ -1,0 +1,8 @@
+{
+  "name": "KeePassXC",
+  "unique_identifier": "org.keepassx.keepassxc",
+  "token": "keepassxc",
+  "installer_format": "dmg",
+  "slug": "keepassxc/darwin",
+  "default_categories": ["Productivity"]
+}

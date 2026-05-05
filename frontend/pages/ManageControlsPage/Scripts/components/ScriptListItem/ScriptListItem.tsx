@@ -1,15 +1,17 @@
-import React, { useContext } from "react";
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import FileSaver from "file-saver";
+import React, { useContext } from "react";
 
 import { NotificationContext } from "context/notification";
-import scriptAPI from "services/entities/scripts";
 import { IScript } from "interfaces/script";
+import scriptAPI from "services/entities/scripts";
 
-import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 const baseClass = "script-list-item";
 
@@ -17,6 +19,8 @@ interface IScriptListItemProps {
   script: IScript;
   onDelete: (script: IScript) => void;
   onClickScript: (script: IScript) => void;
+  onEdit: (script: IScript) => void;
+  isTechnician?: boolean;
 }
 
 // TODO - useful to have a 'platform' field from API, for use elsewhere in app as well?
@@ -27,7 +31,7 @@ const getFileRenderDetails = (
 
   switch (fileExtension) {
     case "py":
-      return { graphicName: "file-py", platform: null };
+      return { graphicName: "file-py", platform: "macOS & Linux" };
     case "sh":
       return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":
@@ -42,7 +46,7 @@ interface IScriptListItemDetailsProps {
   createdAt: string;
 }
 
-const onClickDownload = async (script: IScript, renderFlash: any) => {
+const onDownload = async (script: IScript, renderFlash: any) => {
   try {
     const content = await scriptAPI.downloadScript(script.id);
     const formatDate = format(new Date(), "yyyy-MM-dd");
@@ -65,7 +69,9 @@ const ScriptListItemDetails = ({
         <span>&bull;</span>
       </>
     )}
-    <span>{`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}</span>
+    <span>
+      Uploaded <HumanTimeDiffWithDateTip timeString={createdAt} />
+    </span>
   </div>
 );
 
@@ -73,44 +79,77 @@ const ScriptListItem = ({
   script,
   onDelete,
   onClickScript,
+  onEdit,
+  isTechnician,
 }: IScriptListItemProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
+  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onEdit(script);
+  };
+
+  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDownload(script, renderFlash);
+  };
+
+  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
+    evt.stopPropagation();
+    onDelete(script);
+  };
+
+  const actions = (
+    <>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickEdit}
+            className={`${baseClass}__action-button`}
+            variant="icon"
+          >
+            <Icon name="pencil" />
+          </Button>
+        )}
+      />
+      <Button
+        className={`${baseClass}__action-button`}
+        variant="icon"
+        onClick={onClickDownload}
+      >
+        <Icon name="download" />
+      </Button>
+      <GitOpsModeTooltipWrapper
+        renderChildren={(disableChildren) => (
+          <Button
+            disabled={disableChildren}
+            onClick={onClickDelete}
+            className={`${baseClass}__action-button`}
+            variant="icon"
+          >
+            <Icon name="trash" />
+          </Button>
+        )}
+      />
+    </>
+  );
+
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={
-        <Button variant="text-link" onClick={() => onClickScript(script)}>
-          {script.name}
-        </Button>
-      }
+      title={<Button variant="link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}
           createdAt={script.created_at}
         />
       }
-      actions={
-        <>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onClickDownload(script, renderFlash)}
-          >
-            <Icon name="download" />
-          </Button>
-          <Button
-            className={`${baseClass}__action-button`}
-            variant="text-icon"
-            onClick={() => onDelete(script)}
-          >
-            <Icon name="trash" color="ui-fleet-black-75" />
-          </Button>
-        </>
-      }
+      actions={isTechnician ? undefined : actions}
+      onClick={() => onClickScript(script)}
     />
   );
 };

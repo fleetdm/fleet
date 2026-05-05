@@ -1,26 +1,36 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
+import { useQuery } from "react-query";
+
+import { AppContext } from "context/app";
+
+import { IQueryKeyQueriesLoadAll } from "interfaces/schedulable_query";
+import { LogDestination } from "interfaces/config";
+import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox/Checkbox";
 import QueryFrequencyIndicator from "components/QueryFrequencyIndicator/QueryFrequencyIndicator";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
-
-import { ISchedulableQuery } from "interfaces/schedulable_query";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
-import { CONTACT_FLEET_LINK } from "utilities/constants";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+export interface IQueryAutomationsSubmitData {
+  newAutomatedQueryIds: number[];
+  previousAutomatedQueryIds: number[];
+}
 
 interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
-  onSubmit: (formData: any) => void; // TODO
+  onSubmit: (formData: IQueryAutomationsSubmitData) => void;
   onCancel: () => void;
   isShowingPreviewDataModal: boolean;
   togglePreviewDataModal: () => void;
-  availableQueries?: ISchedulableQuery[];
-  automatedQueryIds: number[];
-  logDestination: string;
+  teamId?: number;
+  logDestination: LogDestination;
+  webhookDestination?: string;
+  filesystemDestination?: string;
 }
 
 interface ICheckedQuery {
@@ -30,18 +40,81 @@ interface ICheckedQuery {
   interval: number;
 }
 
-const useCheckboxListStateManagement = (
-  allQueries: ISchedulableQuery[],
-  automatedQueryIds: number[] | undefined
-) => {
-  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>(() => {
-    return allQueries.map(({ name, id, interval }) => ({
-      name,
-      id,
-      isChecked: !!automatedQueryIds?.includes(id),
-      interval,
-    }));
-  });
+const baseClass = "manage-query-automations-modal";
+
+const ManageQueryAutomationsModal = ({
+  isUpdatingAutomations,
+  onSubmit,
+  onCancel,
+  isShowingPreviewDataModal,
+  togglePreviewDataModal,
+  teamId,
+  logDestination,
+  webhookDestination,
+  filesystemDestination,
+}: IManageQueryAutomationsModalProps): JSX.Element => {
+  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
+    .gitops_mode_enabled;
+
+  // Fetch team-scoped queries (mergeInherited: false) so we only show
+  // queries that belong to this team, not inherited global queries.
+  const { data: queriesResponse } = useQuery<
+    IQueriesResponse,
+    Error,
+    IQueriesResponse,
+    IQueryKeyQueriesLoadAll[]
+  >(
+    [
+      {
+        scope: "queries",
+        teamId,
+        orderKey: "name",
+        orderDirection: "asc" as const,
+        mergeInherited: false,
+      },
+    ],
+    ({ queryKey }) => queriesAPI.loadAll(queryKey[0]),
+    {
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const availableQueries = useMemo(() => queriesResponse?.queries ?? [], [
+    queriesResponse,
+  ]);
+
+  const automatedQueryIds = useMemo(
+    () =>
+      availableQueries
+        .filter((query) => query.automations_enabled)
+        .map((query) => query.id),
+    [availableQueries]
+  );
+
+  // Client side sort queries alphabetically
+  const sortedAvailableQueries = useMemo(
+    () =>
+      [...availableQueries].sort((a, b) =>
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      ),
+    [availableQueries]
+  );
+
+  const [queryItems, setQueryItems] = useState<ICheckedQuery[]>([]);
+
+  // Sync queryItems when the async fetch completes.
+  useEffect(() => {
+    if (sortedAvailableQueries.length > 0) {
+      setQueryItems(
+        sortedAvailableQueries.map(({ name, id, interval }) => ({
+          name,
+          id,
+          isChecked: !!automatedQueryIds?.includes(id),
+          interval,
+        }))
+      );
+    }
+  }, [sortedAvailableQueries, automatedQueryIds]);
 
   const updateQueryItems = (queryId: number) => {
     setQueryItems((prevItems) =>
@@ -51,35 +124,6 @@ const useCheckboxListStateManagement = (
     );
   };
 
-  return { queryItems, updateQueryItems };
-};
-
-const baseClass = "manage-query-automations-modal";
-
-const ManageQueryAutomationsModal = ({
-  isUpdatingAutomations,
-  automatedQueryIds,
-  onSubmit,
-  onCancel,
-  isShowingPreviewDataModal,
-  togglePreviewDataModal,
-  availableQueries,
-  logDestination,
-}: IManageQueryAutomationsModalProps): JSX.Element => {
-  // TODO: Error handling, if any
-  // const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  // Client side sort queries alphabetically
-  const sortedAvailableQueries =
-    availableQueries?.sort((a, b) =>
-      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-    ) || [];
-
-  const { queryItems, updateQueryItems } = useCheckboxListStateManagement(
-    sortedAvailableQueries,
-    automatedQueryIds || []
-  );
-
   const onSubmitQueryAutomations = (
     evt: React.MouseEvent<HTMLFormElement> | KeyboardEvent
   ) => {
@@ -88,14 +132,22 @@ const ManageQueryAutomationsModal = ({
     const newQueryIds: number[] = [];
     queryItems?.forEach((p) => p.isChecked && newQueryIds.push(p.id));
 
-    onSubmit(newQueryIds);
+    onSubmit({
+      newAutomatedQueryIds: newQueryIds,
+      previousAutomatedQueryIds: automatedQueryIds,
+    });
   };
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
       if (event.code === "Enter" || event.code === "NumpadEnter") {
         event.preventDefault();
-        onSubmit(event);
+        onSubmit({
+          newAutomatedQueryIds: queryItems
+            .filter((p) => p.isChecked)
+            .map((p) => p.id),
+          previousAutomatedQueryIds: automatedQueryIds,
+        });
       }
     };
     document.addEventListener("keydown", listener);
@@ -114,13 +166,14 @@ const ManageQueryAutomationsModal = ({
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
-          Query automations let you send data to your log destination on a
-          schedule. Data is sent according to a query’s frequency.
+          Report automations let you send data gathered from macOS, Windows, and
+          Linux hosts to a log destination. Data is sent according to a
+          report&apos;s interval.
         </div>
-        {availableQueries?.length ? (
+        {availableQueries.length ? (
           <div className={`${baseClass}__select form-field`}>
             <div className="form-field__label">
-              Choose which queries will send data:
+              Choose which reports will send data:
             </div>
             <div className={`${baseClass}__checkboxes`}>
               {queryItems &&
@@ -133,9 +186,8 @@ const ManageQueryAutomationsModal = ({
                         name={name}
                         onChange={() => {
                           updateQueryItems(id);
-                          // !isChecked &&
-                          //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
+                        disabled={gitOpsModeEnabled}
                       >
                         <TooltipTruncatedText value={name} />
                       </Checkbox>
@@ -150,14 +202,18 @@ const ManageQueryAutomationsModal = ({
           </div>
         ) : (
           <div className={`${baseClass}__no-queries`}>
-            <b>You have no queries.</b>
-            <p>Add a query to turn on automations.</p>
+            <b>You have no reports.</b>
+            <p>Add a report to turn on automations.</p>
           </div>
         )}
         <div className={`${baseClass}__log-destination form-field`}>
           <div className="form-field__label">Log destination:</div>
           <div className={`${baseClass}__selection`}>
-            <LogDestinationIndicator logDestination={logDestination} />
+            <LogDestinationIndicator
+              logDestination={logDestination}
+              webhookDestination={webhookDestination}
+              filesystemDestination={filesystemDestination}
+            />
           </div>
           <div className={`${baseClass}__configure form-field__help-text`}>
             Users with the admin role can&nbsp;
@@ -168,31 +224,29 @@ const ManageQueryAutomationsModal = ({
             />
           </div>
         </div>
-        <InfoBanner className={`${baseClass}__supported-platforms`}>
-          <p>Automations currently run on macOS, Windows, and Linux hosts.</p>
-          <p>
-            Interested in query automations for your Chromebooks? &nbsp;
-            <CustomLink url={CONTACT_FLEET_LINK} text="Let us know" newTab />
-          </p>
-        </InfoBanner>
         <Button
           type="button"
-          variant="text-link"
+          variant="inverse"
           onClick={togglePreviewDataModal}
           className={`${baseClass}__preview-data`}
         >
           Preview data
         </Button>
         <div className="modal-cta-wrap">
-          <Button
-            type="submit"
-            variant="brand"
-            onClick={onSubmitQueryAutomations}
-            className="save-loading"
-            isLoading={isUpdatingAutomations}
-          >
-            Save
-          </Button>
+          <GitOpsModeTooltipWrapper
+            tipOffset={6}
+            renderChildren={(disableChildren) => (
+              <Button
+                type="submit"
+                onClick={onSubmitQueryAutomations}
+                className="save-loading"
+                isLoading={isUpdatingAutomations}
+                disabled={disableChildren}
+              >
+                Save
+              </Button>
+            )}
+          />
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

@@ -1,7 +1,7 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-// @ts-ignore
+import { renderWithSetup } from "test/test-utils";
 import InputFieldWithIcon from "./InputFieldWithIcon";
 
 describe("InputFieldWithIcon Component", () => {
@@ -111,7 +111,7 @@ describe("InputFieldWithIcon Component", () => {
   });
 
   test("renders tooltip when provided", async () => {
-    render(
+    const { user } = renderWithSetup(
       <InputFieldWithIcon
         value=""
         onChange={mockOnChange}
@@ -122,8 +122,172 @@ describe("InputFieldWithIcon Component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText(/test input/i));
-    const tooltip = screen.getByText("This is a tooltip.");
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(screen.getByText(/test input/i));
+    await waitFor(() => {
+      const tooltip = screen.getByText("This is a tooltip.");
+      expect(tooltip).toBeInTheDocument();
+    });
+  });
+
+  test("renders icon when iconSvg is provided", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        iconSvg="search"
+      />
+    );
+
+    expect(screen.getByTestId("search-icon")).toBeInTheDocument();
+  });
+
+  test("does not render icon when iconSvg is not provided", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+      />
+    );
+
+    expect(screen.queryByTestId("search-icon")).not.toBeInTheDocument();
+  });
+
+  test("renders as disabled when disabled prop is true", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        disabled
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/enter text/i)).toBeDisabled();
+  });
+
+  test("does not allow typing when disabled", async () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        disabled
+      />
+    );
+
+    await userEvent.type(
+      screen.getByPlaceholderText(/enter text/i),
+      "some text"
+    );
+
+    expect(mockOnChange).not.toHaveBeenCalled();
+  });
+
+  test("autofocuses the input when autofocus is true", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        autofocus
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/enter text/i)).toHaveFocus();
+  });
+
+  test("does not autofocus the input when autofocus is false", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/enter text/i)).not.toHaveFocus();
+  });
+
+  test("calls onClick when the input is clicked", async () => {
+    const mockOnClick = jest.fn();
+
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        onClick={mockOnClick}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+      />
+    );
+
+    await userEvent.click(screen.getByPlaceholderText(/enter text/i));
+
+    expect(mockOnClick).toHaveBeenCalledTimes(1);
+  });
+
+  test("sets data-1p-ignore attribute when ignore1Password is true", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        ignore1Password
+      />
+    );
+
+    expect(screen.getByPlaceholderText(/enter text/i)).toHaveAttribute(
+      "data-1p-ignore",
+      "true"
+    );
+  });
+
+  test("does not render clear button when value is empty", () => {
+    render(
+      <InputFieldWithIcon
+        value=""
+        onChange={mockOnChange}
+        label="Test Input"
+        placeholder="Enter text"
+        name="test-input"
+        clearButton
+      />
+    );
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  test("applies password type styling when type is password and value is present", () => {
+    render(
+      <InputFieldWithIcon
+        value="secret"
+        onChange={mockOnChange}
+        label="Password"
+        placeholder="Enter password"
+        name="test-password"
+        type="password"
+      />
+    );
+
+    const input = screen.getByPlaceholderText(/enter password/i);
+    expect(input).toHaveAttribute("type", "password");
+    expect(input).toHaveClass("input-icon-field__input--password");
   });
 });

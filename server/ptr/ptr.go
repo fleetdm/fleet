@@ -8,7 +8,9 @@ import (
 
 // String returns a pointer to the provided string.
 func String(x string) *string {
-	return &x
+	val := new(string)
+	*val = x
+	return val
 }
 
 // Int returns a pointer to the provided int.
@@ -19,6 +21,16 @@ func Int(x int) *int {
 // Uint returns a pointer to the provided uint.
 func Uint(x uint) *uint {
 	return &x
+}
+
+// UintOrNilIfZero returns nil if the supplied value is zero, else a pointer to the provided uint.
+// This is useful for cases that expect nil to be supplied for "No team" instead of zero, and allows for
+// a quick way to sidestep e.g. https://github.com/fleetdm/fleet/issues/37729 (which ptr.Uint() would cause).
+func UintOrNilIfZero(x uint) *uint {
+	if x > 0 {
+		return &x
+	}
+	return nil
 }
 
 // Bool returns a pointer to the provided bool.
@@ -39,7 +51,9 @@ func StringPtr(x string) **string {
 
 // Time returns a pointer to the provided time.Time.
 func Time(x time.Time) *time.Time {
-	return &x
+	val := new(time.Time)
+	*val = x
+	return val
 }
 
 // TimePtr returns a *time.Time Pointer (**time.Time) for the provided time.
@@ -70,4 +84,33 @@ func Int64(x int64) *int64 {
 
 func Duration(x time.Duration) *time.Duration {
 	return &x
+}
+
+// T is the generic version to get the pointer of any type.
+func T[T any](x T) *T {
+	return &x
+}
+
+// Equal returns true if both pointers are nil, or both are non-nil and
+// point to equal values.
+func Equal[T comparable](a, b *T) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+// ValOrZero returns the value of x if x is not nil, and the zero value
+// for T otherwise.
+func ValOrZero[T any](x *T) T {
+	var ret T
+
+	if x != nil {
+		return *x
+	}
+
+	return ret
 }

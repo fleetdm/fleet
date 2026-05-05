@@ -3,7 +3,7 @@ package mdm
 import (
 	"errors"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 var (
@@ -62,6 +62,7 @@ type Command struct {
 type CommandWithSubtype struct {
 	Command
 	Subtype CommandSubtype
+	Name    string
 }
 
 // DecodeCommand unmarshals rawCommand into command

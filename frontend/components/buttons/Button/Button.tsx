@@ -5,25 +5,18 @@ import Spinner from "components/Spinner";
 const baseClass = "button";
 
 export type ButtonVariant =
-  | "brand"
-  | "success"
+  | "default"
   | "alert"
-  | "blue-green"
-  | "grey"
-  | "warning"
-  | "link"
-  | "label"
-  | "text-link" // Underlines on hover
+  | "pill"
+  | "grey-pill"
+  | "link" // Looks like CustomLink with animated underline on hover
+  | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
-  | "small-icon" // Buttons without text
   | "inverse"
   | "inverse-alert"
-  | "block"
-  | "unstyled"
+  | "unstyled" // Avoid as much as possible (used in registration breadcrumbs, 404/500, an old button dropdown)
   | "unstyled-modal-query"
-  | "contextual-nav-item"
-  | "small-text-icon"
   | "oversized";
 
 export interface IButtonProps {
@@ -31,11 +24,11 @@ export interface IButtonProps {
   children: React.ReactNode;
   className?: string;
   disabled?: boolean;
-  size?: string;
   tabIndex?: number;
   type?: "button" | "submit" | "reset";
+  /** Text shown on tooltip when hovering over a button */
   title?: string;
-  /** Default: "brand" */
+  /** Default: "default" */
   variant?: ButtonVariant;
   onClick?:
     | ((value?: any) => void)
@@ -46,6 +39,21 @@ export interface IButtonProps {
       ) => void);
   isLoading?: boolean;
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
+  /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
+  iconStroke?: boolean;
+  ariaHasPopup?:
+    | boolean
+    | "false"
+    | "true"
+    | "menu"
+    | "listbox"
+    | "tree"
+    | "grid"
+    | "dialog";
+  ariaExpanded?: boolean;
+  ariaLabel?: string;
+  /** Small: 1/2 the padding, Wide: 200px */
+  size?: "small" | "wide" | "default";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -57,9 +65,8 @@ interface Inputs {
 
 class Button extends React.Component<IButtonProps, IButtonState> {
   static defaultProps = {
-    size: "",
     type: "button",
-    variant: "brand",
+    variant: "default",
   };
 
   componentDidMount(): void {
@@ -111,28 +118,36 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       children,
       className,
       disabled,
-      size,
       tabIndex,
       type,
       title,
       variant,
       isLoading,
       customOnKeyDown,
+      iconStroke,
+      ariaHasPopup,
+      ariaExpanded,
+      ariaLabel,
+      size,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
       `${baseClass}--${variant}`,
       className,
       {
+        [`${baseClass}--${variant}__small`]: size === "small",
+        [`${baseClass}__wide`]: size === "wide",
         [`${baseClass}--disabled`]: disabled,
-        [`${baseClass}--${size}`]: size !== undefined,
+        [`${baseClass}--icon-stroke`]: iconStroke,
       }
     );
     const onWhite =
-      variant === "text-link" ||
+      variant === "link" ||
       variant === "inverse" ||
+      variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
-      variant === "label";
+      variant === "pill" ||
+      variant === "grey-pill";
 
     return (
       <button
@@ -144,11 +159,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         type={type}
         title={title}
         ref={setRef}
+        aria-haspopup={ariaHasPopup}
+        aria-expanded={ariaExpanded}
+        aria-label={ariaLabel}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}
         </div>
-        {isLoading && <Spinner small button white={!onWhite} />}
+        {isLoading && <Spinner small button white={!onWhite} delay={0} />}
       </button>
     );
   }

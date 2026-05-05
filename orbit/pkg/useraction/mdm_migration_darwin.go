@@ -17,11 +17,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/migration"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 
+	fleetclient "github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
-	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/rs/zerolog/log"
 )
 
@@ -47,17 +48,17 @@ const (
 // people that build integrations on top of the migration flow.
 var mdmEnrollmentFile = "/private/var/db/ConfigurationProfiles/Settings/.cloudConfigProfileInstalled"
 
-// mdmUnenrollmentTotalWaitTime defines how long the dialog is going to wait
+// defaultMDMUnenrollmentTotalWaitTime defines how long the dialog is going to wait
 // for the device to be unenrolled before bailing out and showing an error
 // message.
-const mdmUnenrollmentTotalWaitTime = 90 * time.Second
+const defaultMDMUnenrollmentTotalWaitTime = 90 * time.Second
 
 // defaultUnenrollmentRetryInterval defines how long we're going to wait
 // between unenrollment checks.
 const defaultUnenrollmentRetryInterval = 5 * time.Second
 
 var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemplate").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
@@ -65,7 +66,7 @@ Select **Start** and look for this notification in your notification center:` +
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
@@ -73,7 +74,7 @@ Select **Start** and My device page will appear soon:` +
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and Remote Management window will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)\n\n" +
@@ -83,25 +84,33 @@ Select **Start** and Remote Management window will appear soon:` +
 var errorTemplate = template.Must(template.New("").Parse(`
 ### Something's gone wrong.
 
-Please contact your IT admin [here]({{ .ContactURL }}).
+Please contact your IT admin.
 `))
 
-var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
+var unenrollBody = "### Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
 
 var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 🛜🚫 No internet connection. Please connect to internet to continue.`,
 ))
 
 // baseDialog implements the basic building blocks to render dialogs using
 // swiftDialog.
+// it should fulfil the dialog interface.
 type baseDialog struct {
 	path        string
 	interruptCh chan struct{}
 }
 
-func newBaseDialog(path string) *baseDialog {
+// dialog is an interface that MDMMigrator needs to act on dialog windows
+type dialog interface {
+	CanRun() bool
+	Exit()
+	render(flags ...string) (chan swiftDialogExitCode, chan error)
+}
+
+func newBaseDialog(path string) dialog {
 	return &baseDialog{path: path, interruptCh: make(chan struct{}, 1)}
 }
 
@@ -114,11 +123,19 @@ func (b *baseDialog) CanRun() bool {
 	return true
 }
 
+func (m *swiftDialogMDMMigrator) CanRun() bool {
+	return m.baseDialog.CanRun()
+}
+
 // Exit sends the interrupt signal to try and stop the current swiftDialog
 // instance.
 func (b *baseDialog) Exit() {
 	b.interruptCh <- struct{}{}
 	log.Info().Msg("dialog exit message sent")
+}
+
+func (m *swiftDialogMDMMigrator) Exit() {
+	m.baseDialog.Exit()
 }
 
 // render is a general-purpose render method that receives the flags used to
@@ -185,7 +202,7 @@ func (b *baseDialog) render(flags ...string) (chan swiftDialogExitCode, chan err
 }
 
 // NewMDMMigrator creates a new  swiftDialogMDMMigrator with the right internal state.
-func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw *migration.ReadWriter, fleetURL string, showCh chan struct{}) MDMMigrator {
+func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHandler, mrw readWriter, fleetURL string, showCh chan struct{}) MDMMigrator {
 	if cap(showCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
 	}
@@ -194,19 +211,27 @@ func NewMDMMigrator(path string, frequency time.Duration, handler MDMMigratorHan
 		baseDialog:                newBaseDialog(path),
 		frequency:                 frequency,
 		unenrollmentRetryInterval: defaultUnenrollmentRetryInterval,
+		maxUnenrollmentWaitTime:   defaultMDMUnenrollmentTotalWaitTime,
 		mrw:                       mrw,
 		fleetURL:                  fleetURL,
 		showCh:                    showCh,
 	}
 }
 
+// readWriter is an interface that abstracts the reading and writing of the migration file
+type readWriter interface {
+	GetMigrationType() (string, error)
+	SetMigrationFile(typ string) error
+	RemoveFile() error
+}
+
 // swiftDialogMDMMigrator implements MDMMigrator for macOS using swiftDialog as
 // the underlying mechanism for user action.
 type swiftDialogMDMMigrator struct {
-	*baseDialog
-	props     MDMMigratorProps
-	frequency time.Duration
-	handler   MDMMigratorHandler
+	baseDialog dialog
+	props      MDMMigratorProps
+	frequency  time.Duration
+	handler    MDMMigratorHandler
 
 	// ensures only one dialog is open at a time, protects access to
 	// lastShown
@@ -222,7 +247,8 @@ type swiftDialogMDMMigrator struct {
 	// the enrollment status of the host
 	testEnrollmentCheckStatusFn func() (bool, string, error)
 	unenrollmentRetryInterval   time.Duration
-	mrw                         *migration.ReadWriter
+	maxUnenrollmentWaitTime     time.Duration
+	mrw                         readWriter
 	fleetURL                    string
 }
 
@@ -257,13 +283,19 @@ func (m *swiftDialogMDMMigrator) render(message string, flags ...string) (chan s
 		icon = "https://fleetdm.com/images/permanent/fleet-mark-color-40x40@4x.png"
 	}
 
+	iconSize, err := swiftdialog.GetIconSize(icon)
+	if err != nil {
+		log.Error().Err(err).Msg("mdm migrator: getting icon size")
+		iconSize = swiftdialog.DefaultIconSize
+	}
+
 	flags = append([]string{
 		// disable the built-in title so we have full control over the
 		// content
 		"--title", "none",
 		// top icon
 		"--icon", icon,
-		"--iconsize", "80",
+		"--iconsize", fmt.Sprintf("%d", iconSize),
 		"--centreicon",
 		// modal content
 		"--message", message,
@@ -296,24 +328,33 @@ func (m *swiftDialogMDMMigrator) renderLoadingSpinner(preSonoma, isManual bool) 
 
 func (m *swiftDialogMDMMigrator) renderError() (chan swiftDialogExitCode, chan error) {
 	var errorMessage bytes.Buffer
-	if err := errorTemplate.Execute(
-		&errorMessage,
-		m.props.OrgInfo,
-	); err != nil {
+	if err := errorTemplate.Execute(&errorMessage, nil); err != nil {
 		codeChan := make(chan swiftDialogExitCode, 1)
 		errChan := make(chan error, 1)
 		errChan <- fmt.Errorf("execute error template: %w", err)
 		return codeChan, errChan
 	}
 
-	return m.render(errorMessage.String(), "--button1text", "Close", "--height", "220")
+	// if no contact url just show a dialog with a Close button
+	if m.props.OrgInfo.ContactURL == "" {
+		return m.render(errorMessage.String(),
+			"--button1text", "Close",
+			"--height", "220")
+	}
+
+	// otherwise show a Contact IT button that links to the contact URL
+	return m.render(errorMessage.String(),
+		"--button1text", "Contact IT",
+		"--button1action", m.props.OrgInfo.ContactURL,
+		"--button2text", "Close",
+		"--height", "220")
 }
 
 // waitForUnenrollment waits 90 seconds (value determined by product) for the
 // device to unenroll from the current MDM solution. If the device doesn't
 // unenroll, an error is returned.
 func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error {
-	maxRetries := int(mdmUnenrollmentTotalWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
+	maxRetries := int(m.maxUnenrollmentWaitTime.Seconds() / m.unenrollmentRetryInterval.Seconds())
 	checkFileFn := m.testEnrollmentCheckFileFn
 	if checkFileFn == nil {
 		checkFileFn = func() (bool, error) {
@@ -365,7 +406,7 @@ func (m *swiftDialogMDMMigrator) waitForUnenrollment(isADEMigration bool) error 
 
 func (m *swiftDialogMDMMigrator) renderMigration() error {
 	log.Debug().Msg("checking current enrollment status")
-	isCurrentlyManuallyEnrolled, err := profiles.IsManuallyEnrolledInMDM()
+	enrolledViaDEP, err := profiles.ParseMDMEnrollmentStatus()
 	if err != nil {
 		return err
 	}
@@ -377,10 +418,10 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 		return fmt.Errorf("getting migration type: %w", err)
 	}
 
-	isManualMigration := isCurrentlyManuallyEnrolled || previousMigrationType == constant.MDMMigrationTypeManual
+	isManualMigration := !enrolledViaDEP || previousMigrationType == constant.MDMMigrationTypeManual
 	isADEMigration := previousMigrationType == constant.MDMMigrationTypeADE
 
-	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("isCurrentlyManuallyEnrolled", isCurrentlyManuallyEnrolled).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
+	log.Debug().Bool("isManualMigration", isManualMigration).Bool("isADEMigration", isADEMigration).Bool("enrolledViaDEP", enrolledViaDEP).Str("previousMigrationType", previousMigrationType).Msg("props after assigning")
 
 	vers, err := m.getMacOSMajorVersion()
 	if err != nil {
@@ -406,13 +447,14 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			return nil
 		}
 
-		if previousMigrationType == constant.MDMMigrationTypeADE {
+		if previousMigrationType == constant.MDMMigrationTypeADE && m.props.IsUnmanaged {
+			// Only skip if we know the device is unamanged, but then
 			// Do nothing; the Remote Management modal will be launched by Orbit every minute.
 			return nil
 		}
 
-		if previousMigrationType == constant.MDMMigrationTypeManual || previousMigrationType == constant.MDMMigrationTypePreSonoma {
-			// Launch the "My device" page.
+		if (previousMigrationType == constant.MDMMigrationTypeManual || previousMigrationType == constant.MDMMigrationTypePreSonoma) && m.props.IsUnmanaged {
+			// Launch the "My device" page, only if the device is marked as unmanaged else keep trying to unenroll
 			log.Info().Msg("showing instructions")
 
 			if err := m.handler.ShowInstructions(); err != nil {
@@ -423,7 +465,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 
 		if !m.props.IsUnmanaged {
 			// show the loading spinner
-			m.renderLoadingSpinner(isPreSonoma, isCurrentlyManuallyEnrolled)
+			m.renderLoadingSpinner(isPreSonoma, isManualMigration)
 
 			// send the API call
 			if notifyErr := m.handler.NotifyRemote(); notifyErr != nil {
@@ -456,7 +498,7 @@ func (m *swiftDialogMDMMigrator) renderMigration() error {
 			switch {
 			case isPreSonoma:
 				if err := m.mrw.SetMigrationFile(constant.MDMMigrationTypePreSonoma); err != nil {
-					log.Error().Str("migration_type", constant.MDMMigrationTypeADE).Err(err).Msg("set migration file")
+					log.Error().Str("migration_type", constant.MDMMigrationTypePreSonoma).Err(err).Msg("set migration file")
 				}
 
 				log.Info().Msg("showing instructions after pre-sonoma unenrollment")
@@ -574,6 +616,7 @@ func (m *swiftDialogMDMMigrator) getMessageAndFlags(version int, isManualMigrati
 		)
 	}
 
+	// otherwise show a Contact IT button that links to the contact URL
 	if m.props.OrgInfo.ContactURL != "" {
 		flags = append(flags,
 			// info button
@@ -623,7 +666,7 @@ func (m *swiftDialogMDMMigrator) MarkMigrationCompleted() error {
 }
 
 type offlineWatcher struct {
-	client          *service.DeviceClient
+	client          *fleetclient.DeviceClient
 	swiftDialogPath string
 	// swiftDialogCh is shared with the migrator and used to ensure only one dialog is open at a time
 	swiftDialogCh chan struct{}
@@ -633,7 +676,7 @@ type offlineWatcher struct {
 // StartMDMMigrationOfflineWatcher starts a watcher running on a 3-minute loop that checks if the
 // device goes offline in the process of migrating to Fleet's MDM and offline. If so, it shows a
 // dialog to prompt the user to connect to the internet.
-func StartMDMMigrationOfflineWatcher(ctx context.Context, client *service.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
+func StartMDMMigrationOfflineWatcher(ctx context.Context, client *fleetclient.DeviceClient, swiftDialogPath string, swiftDialogCh chan struct{}, fileWatcher migration.FileWatcher) MDMOfflineWatcher {
 	if cap(swiftDialogCh) != 1 {
 		log.Fatal().Msg("swift dialog channel must have a buffer size of 1")
 	}
@@ -801,8 +844,8 @@ func (o *offlineWatcher) showSwiftDialogMDMMigrationOffline(ctx context.Context)
 }
 
 type swiftDialogMDMMigrationOffline struct {
-	*baseDialog
-	props MDMMigratorProps
+	baseDialog dialog
+	props      MDMMigratorProps
 }
 
 func (m *swiftDialogMDMMigrationOffline) render(flags ...string) (chan swiftDialogExitCode, chan error) {

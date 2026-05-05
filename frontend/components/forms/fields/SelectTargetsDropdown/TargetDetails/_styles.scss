@@ -1,5 +1,7 @@
 .host-target,
 .label-target {
+  @include vertical-page-tab-panel-layout;
+
   width: 100%;
 
   &__back {
@@ -9,21 +11,30 @@
   }
 
   @include breakpoint(ltdesktop) {
-    padding-top: $pad-xxlarge;
+    padding-top: $pad-medium;
+  }
+
+  &__spotlight {
+    @include vertical-page-tab-panel-layout;
   }
 }
 
 .host-target {
+  &__host-info {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
   &__display-text {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.6px;
     color: $core-fleet-black;
     margin: 0;
   }
 
   &__icon {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     margin-right: $pad-small;
     width: 21px;
 
@@ -38,18 +49,7 @@
 
   &__status {
     margin: $pad-xsmall 0;
-    font-size: $small;
-    font-weight: $bold;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-
-    &--is-online {
-      color: $ui-success;
-    }
-
-    &--is-offline {
-      color: $ui-error;
-    }
+    font-size: $x-small;
   }
 
   &__labels-wrapper {
@@ -58,7 +58,7 @@
   }
 
   &__labels-header {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $bold;
     letter-spacing: 0.9px;
     color: $core-fleet-black;
@@ -67,7 +67,7 @@
   }
 
   &__labels-list {
-    font-size: $small;
+    font-size: $x-small;
     font-weight: $regular;
     letter-spacing: 0.5px;
     color: $core-fleet-black;
@@ -103,9 +103,8 @@
 
 .label-target {
   &__display-text {
-    font-size: $medium;
+    font-size: $x-small;
     font-weight: $bold;
-    letter-spacing: 0.6px;
     color: $core-fleet-black;
     margin: 0;
   }
@@ -116,51 +115,18 @@
     width: 30px;
   }
 
-  &__hosts {
-    margin: $pad-xsmall 0;
-    letter-spacing: 0.4px;
-    font-size: $small;
-    font-weight: $regular;
-  }
-
-  &__hosts-count {
-    font-weight: $bold;
-    color: $core-fleet-black;
-
-    strong {
-      min-width: 21px;
-      text-align: center;
-      font-weight: $bold;
-      display: inline-block;
-      margin-right: $pad-small;
-    }
-  }
-
   &__hosts-online {
     color: $ui-success;
   }
 
   &__description {
-    font-size: $pad-medium;
     font-weight: $regular;
     color: $core-fleet-black;
-    margin: 0 0 $pad-small;
   }
 }
 
 .target-details {
-  &__table {
-    border-collapse: collapse;
-    border-spacing: 0;
-    text-align: left;
-    font-size: $small;
-    width: 100%;
-    margin-bottom: $pad-medium;
-
-    th {
-      font-weight: $bold;
-      color: $core-fleet-black;
-      padding-right: $pad-small;
-    }
+  &__details {
+    @include vertical-data-set-layout;
   }
 }

@@ -3,38 +3,68 @@ import {
   ISoftwareTitleDetails,
   isSoftwarePackage,
   aggregateInstallStatusCounts,
+  SCRIPT_PACKAGE_SOURCES,
+  ISoftwarePackage,
 } from "interfaces/software";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { getDisplayedSoftwareName } from "../helpers";
 
-/**
- * Generates the data needed to render the package card. It differentiates between
- * software packages and app store apps and returns the appropriate data.
- *
- * FIXME: This function ought to be refactored or renamed to better reflect its purpose.
- * "PackageCard" is a bit ambiguous in this context (it refers to the card that displays
- * package or app information, as applicable).
- */
+export interface InstallerCardInfo {
+  softwareTitleName: string;
+  softwareDisplayName: string;
+  softwareInstaller: ISoftwarePackage | IAppStoreApp;
+  name: string;
+  version: string | null;
+  source: ISoftwareTitleDetails["source"];
+  addedTimestamp: string;
+  status: {
+    installed: number;
+    pending: number;
+    failed: number;
+  };
+  isSelfService: boolean;
+  isScriptPackage: boolean;
+  iconUrl?: string | null;
+  displayName?: string;
+  autoUpdateEnabled?: boolean;
+  autoUpdateStartTime?: string;
+  autoUpdateEndTime?: string;
+}
+
 // eslint-disable-next-line import/prefer-default-export
-export const getPackageCardInfo = (softwareTitle: ISoftwareTitleDetails) => {
-  // we know at this point that softwareTitle.software_package or
-  // softwareTitle.app_store_app is not null so we will do a type assertion.
-  const packageData = softwareTitle.software_package
+export const getInstallerCardInfo = (
+  softwareTitle: ISoftwareTitleDetails
+): InstallerCardInfo => {
+  const installerData = softwareTitle.software_package
     ? softwareTitle.software_package
     : (softwareTitle.app_store_app as IAppStoreApp);
 
-  const isPackage = isSoftwarePackage(packageData);
+  const isPackage = isSoftwarePackage(installerData);
 
   return {
-    softwarePackage: packageData,
-    name: (isPackage && packageData.name) || softwareTitle.name,
+    softwareTitleName: softwareTitle.name,
+    softwareDisplayName: getDisplayedSoftwareName(
+      softwareTitle.name,
+      softwareTitle.display_name
+    ),
+    softwareInstaller: installerData,
+    name: (isPackage && installerData.name) || softwareTitle.name,
     version:
-      (isSoftwarePackage(packageData)
-        ? packageData.version
-        : packageData.latest_version) || DEFAULT_EMPTY_CELL_VALUE,
-    uploadedAt: isSoftwarePackage(packageData) ? packageData.uploaded_at : "",
-    status: isSoftwarePackage(packageData)
-      ? aggregateInstallStatusCounts(packageData.status)
-      : packageData.status,
-    isSelfService: packageData.self_service,
+      (isPackage ? installerData.version : installerData.latest_version) ||
+      null,
+    source: softwareTitle.source,
+    iconUrl: softwareTitle.icon_url,
+    displayName: softwareTitle.display_name,
+    addedTimestamp: isPackage
+      ? installerData.uploaded_at
+      : installerData.created_at,
+    status: isPackage
+      ? aggregateInstallStatusCounts(installerData.status)
+      : installerData.status,
+    isSelfService: installerData.self_service,
+    isScriptPackage:
+      SCRIPT_PACKAGE_SOURCES.includes(softwareTitle.source) || false,
+    autoUpdateEnabled: softwareTitle.auto_update_enabled,
+    autoUpdateStartTime: softwareTitle.auto_update_window_start,
+    autoUpdateEndTime: softwareTitle.auto_update_window_end,
   };
 };

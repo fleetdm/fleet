@@ -7,38 +7,256 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"encoding/xml"
 	"errors"
 	"fmt"
-	"regexp"
+	"log/slog"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
 )
 
+func TestSoftwareIngestionMutations(t *testing.T) {
+	dcvViewer := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(t.Context(), dcvViewer, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2024.0.8004", dcvViewer.Version)
+
+	noOp := &fleet.Software{
+		BundleIdentifier: "com.nicesoftware.dcvviewer",
+		Source:           "apps",
+		Version:          "2024",
+	}
+
+	MutateSoftwareOnIngestion(t.Context(), noOp, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2024", noOp.Version)
+
+	noMatch := &fleet.Software{
+		BundleIdentifier: "com.google.chrome",
+		Source:           "apps",
+		Version:          "2024.0 (r8004)",
+	}
+
+	MutateSoftwareOnIngestion(t.Context(), noMatch, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2024.0 (r8004)", noMatch.Version)
+
+	for expectedName, s := range map[string]*fleet.Software{
+		"SynologyAssistant": {
+			Name:             "DSAssistant",
+			BundleIdentifier: "com.synology.DSAssistant",
+			Source:           "apps",
+		},
+		"BlueStacksMIM": {
+			Name:             "HD-MultiInstanceManager",
+			BundleIdentifier: "com.now.gg.BlueStacksMIM",
+			Source:           "apps",
+		},
+		"JPKIUninstall": {
+			Name:             "JPKIUninstall.scpt",
+			BundleIdentifier: "jp.go.jpki.JPKIUninstall",
+			Source:           "apps",
+		},
+		"OracleDataModeler": {
+			Name:             "datamodeler.sh",
+			BundleIdentifier: "com.oracle.OracleDataModeler",
+			Source:           "apps",
+		},
+		"EaseUS NTFS Service": {
+			Name:             "euntfsservice",
+			BundleIdentifier: "com.easeus.ntfsformacdaemon",
+			Source:           "apps",
+		},
+		"Poly Lens Desktop (Legacy)": {
+			Name:             "legacyhost",
+			BundleIdentifier: "com.poly.lens.legacyhost.app",
+			Source:           "apps",
+		},
+		"Zen Browser Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "app.zen-browser.plugincontainer",
+			Source:           "apps",
+		},
+		"Mozilla Plugin Container": {
+			Name:             "plugin-container",
+			BundleIdentifier: "org.mozilla.plugincontainer",
+			Source:           "apps",
+		},
+		"Chrome Remote Desktop Host Uninstaller": {
+			Name:             "remoting_host_uninstaller",
+			BundleIdentifier: "com.google.chromeremotedesktop.me2me-host-uninstaller",
+			Source:           "apps",
+		},
+		"Android Emulator": {
+			Name:             "runemu",
+			BundleIdentifier: "",
+			Source:           "apps",
+		},
+		"Oracle SQLDeveloper": {
+			Name:             "sqldeveloper.sh/",
+			BundleIdentifier: "com.oracle.SQLDeveloper",
+			Source:           "apps",
+		},
+	} {
+		MutateSoftwareOnIngestion(t.Context(), s, slog.New(slog.DiscardHandler))
+		assert.Equal(t, expectedName, s.Name)
+	}
+
+	// Test customAppSanitizers TNMS case
+	sw := &fleet.Software{
+		Name:             "TNMS 21.10.0.590.1",
+		BundleIdentifier: "TNMS_21.10.0.590.1",
+		Source:           "apps",
+	}
+	MutateSoftwareOnIngestion(t.Context(), sw, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "TNMS", sw.Name)
+	assert.Equal(t, "21.10.0.590.1", sw.Version)
+
+	// Test JetBrains version sanitizer - extracts version from product name
+	jetbrainsGoLand := &fleet.Software{
+		Name:    "GoLand 2025.3.3",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsGoLand, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.3.3", jetbrainsGoLand.Version)
+
+	// Test JetBrains with 2-part year.minor version (like "WebStorm 2025.1")
+	jetbrainsWebStorm := &fleet.Software{
+		Name:    "WebStorm 2025.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "251.23774.424",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsWebStorm, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.1", jetbrainsWebStorm.Version)
+
+	// Test JetBrains with 4-part version number
+	jetbrainsIntelliJ := &fleet.Software{
+		Name:    "IntelliJ IDEA 2025.3.1.1",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.200",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsIntelliJ, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2025.3.1.1", jetbrainsIntelliJ.Version)
+
+	// Test JetBrains Toolbox is excluded (reports correct version)
+	jetbrainsToolbox := &fleet.Software{
+		Name:    "JetBrains Toolbox",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "2.6.2.38498",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsToolbox, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "2.6.2.38498", jetbrainsToolbox.Version)
+
+	// Test JetBrains software without version in name is not transformed
+	jetbrainsNoVersionInName := &fleet.Software{
+		Name:    "IntelliJ IDEA",
+		Source:  "programs",
+		Vendor:  "JetBrains s.r.o.",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), jetbrainsNoVersionInName, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "253.31033.139", jetbrainsNoVersionInName.Version)
+
+	// Test non-JetBrains software is not transformed
+	nonJetbrains := &fleet.Software{
+		Name:    "Some Software 2025.1.1",
+		Source:  "programs",
+		Vendor:  "Some Vendor",
+		Version: "253.31033.139",
+	}
+	MutateSoftwareOnIngestion(t.Context(), nonJetbrains, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "253.31033.139", nonJetbrains.Version)
+
+	// Test RHEL kernel version and release are joined
+	rhelKernel := &fleet.Software{
+		Name:    "kernel",
+		Source:  "rpm_packages",
+		Version: "5.14.0",
+		Release: "362.24.1.el9_3",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rhelKernel, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "5.14.0-362.24.1.el9_3", rhelKernel.Version)
+	assert.Equal(t, "", rhelKernel.Release)
+
+	// Test RHEL kernel without release is not modified
+	rhelKernelNoRelease := &fleet.Software{
+		Name:    "kernel",
+		Source:  "rpm_packages",
+		Version: "5.14.0",
+		Release: "",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rhelKernelNoRelease, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "5.14.0", rhelKernelNoRelease.Version)
+
+	// Test non-kernel rpm package is not modified
+	rpmPackage := &fleet.Software{
+		Name:    "openssl",
+		Source:  "rpm_packages",
+		Version: "3.0.7",
+		Release: "24.el9",
+	}
+	MutateSoftwareOnIngestion(t.Context(), rpmPackage, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "3.0.7", rpmPackage.Version)
+	assert.Equal(t, "24.el9", rpmPackage.Release)
+
+	// Test Windows Defender sanitizer - MsMpEng.exe → Windows Defender (#18494)
+	winDefender := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefender, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefender.Name)
+
+	// Test Windows Defender case-insensitive match
+	winDefenderLower := &fleet.Software{
+		Name:   "msmpeng.exe",
+		Source: "programs",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderLower, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "Windows Defender", winDefenderLower.Name)
+
+	// Test Windows Defender with wrong source is not mutated
+	winDefenderWrongSource := &fleet.Software{
+		Name:   "MsMpEng.exe",
+		Source: "apps",
+	}
+	MutateSoftwareOnIngestion(t.Context(), winDefenderWrongSource, slog.New(slog.DiscardHandler))
+	assert.Equal(t, "MsMpEng.exe", winDefenderWrongSource.Name)
+}
+
 func TestDetailQueryNetworkInterfaces(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["network_interface_unix"].IngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["network_interface_unix"].IngestFunc
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
@@ -49,7 +267,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "10.0.1.2", host.PrimaryIP)
 	assert.Equal(t, "bc:d0:74:4b:10:6d", host.PrimaryMac)
 
@@ -63,7 +281,7 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 			&rows,
 		),
 	)
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "fd7a:115c:a1e0::d401:6637", host.PrimaryIP)
 	assert.Equal(t, "b2:a2:e4:62:0f:1e", host.PrimaryMac)
 }
@@ -71,7 +289,9 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
+	task := async.NewTask(ds, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{EnableAsyncHostProcessing: "false"},
+	})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {
@@ -82,10 +302,10 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		return nil
 	}
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil)["scheduled_query_stats"].DirectTaskIngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, nil, Integrations{}, nil)["scheduled_query_stats"].DirectTaskIngestFunc
 
-	ctx := context.Background()
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
+	ctx := t.Context()
+	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, nil))
 	assert.Len(t, host.PackStats, 0)
 
 	resJSON := `
@@ -167,7 +387,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	var rows []map[string]string
 	require.NoError(t, json.Unmarshal([]byte(resJSON), &rows))
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, rows))
+	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, rows))
 	assert.Len(t, gotPackStats, 2)
 	sort.Slice(gotPackStats, func(i, j int) bool {
 		return gotPackStats[i].PackName < gotPackStats[j].PackName
@@ -248,7 +468,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 		},
 	)
 
-	assert.NoError(t, ingest(ctx, log.NewNopLogger(), &host, task, nil))
+	assert.NoError(t, ingest(ctx, slog.New(slog.DiscardHandler), &host, task, nil))
 	assert.Len(t, gotPackStats, 0)
 }
 
@@ -261,7 +481,7 @@ func sortedKeysCompare(t *testing.T, m map[string]DetailQuery, expectedKeys []st
 }
 
 func TestGetDetailQueries(t *testing.T) {
-	queriesNoConfig := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)
+	queriesNoConfig := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
 
 	baseQueries := []string{
 		"network_interface_unix",
@@ -274,6 +494,8 @@ func TestGetDetailQueries(t *testing.T) {
 		"system_info",
 		"uptime",
 		"disk_space_unix",
+		"disk_space_darwin",
+		"disk_space_darwin_legacy",
 		"disk_space_windows",
 		"mdm",
 		"mdm_windows",
@@ -283,31 +505,29 @@ func TestGetDetailQueries(t *testing.T) {
 		"os_windows",
 		"os_unix_like",
 		"os_chrome",
-		"windows_update_history",
 		"kubequery_info",
 		"orbit_info",
 		"disk_encryption_darwin",
 		"disk_encryption_linux",
 		"disk_encryption_windows",
 		"chromeos_profile_user_info",
+		"certificates_darwin",
+		"certificates_windows",
 	}
 
 	require.Len(t, queriesNoConfig, len(baseQueries))
 	sortedKeysCompare(t, queriesNoConfig, baseQueries)
 
-	queriesWithoutWinOSVuln := GetDetailQueries(context.Background(), config.FleetConfig{Vulnerabilities: config.VulnerabilitiesConfig{DisableWinOSVulnerabilities: true}}, nil, nil)
-	require.Len(t, queriesWithoutWinOSVuln, 25)
-
-	queriesWithUsers := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true})
+	queriesWithUsers := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	qs := baseQueries
 	qs = append(qs, "users", "users_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsers, len(qs))
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
-	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
+	queriesWithUsersAndSoftware := GetDetailQueries(t.Context(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true}, Integrations{}, nil)
 	qs = baseQueries
-	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions",
-		"software_chrome", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign")
+	qs = append(qs, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_jetbrains_plugins", "software_linux_fleetd_pacman",
+		"software_chrome", "software_python_packages", "software_python_packages_with_users_dir", "scheduled_query_stats", "software_macos_firefox", "software_macos_codesign", "software_macos_executable_sha256", "software_windows_last_opened_at", "software_deb_last_opened_at", "software_rpm_last_opened_at", "software_windows_acrobat_dc", "software_go_binaries", "software_windows_program_files_scan")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -324,26 +544,93 @@ func TestGetDetailQueries(t *testing.T) {
 	ac := fleet.AppConfig{}
 	ac.MDM.EnabledAndConfigured = true
 	// windows mdm is disabled by default, windows mdm queries should not be present
-	gotQueries := GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	gotQueries := GetDetailQueries(t.Context(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries := baseQueries
 	wantQueries = append(wantQueries, mdmQueriesBase...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
 	// enable windows mdm, windows mdm queries should be present
 	ac.MDM.WindowsEnabledAndConfigured = true
-	gotQueries = GetDetailQueries(context.Background(), config.FleetConfig{}, &ac, nil)
+	gotQueries = GetDetailQueries(t.Context(), config.FleetConfig{}, &ac, nil, Integrations{}, nil)
 	wantQueries = append(wantQueries, mdmQueriesWindows...)
 	require.Len(t, gotQueries, len(wantQueries))
 	sortedKeysCompare(t, gotQueries, wantQueries)
+
+	// Check that TPM PIN verify queries are only added iff RequireBitLockerPIN is set
+
+	testCases := []struct {
+		name string
+		ac   fleet.AppConfig
+		want []string
+	}{
+		{
+			name: "windows MDM not enabled",
+			ac:   fleet.AppConfig{},
+		},
+		{
+			name: "windows MDM is enabled but disk encryption is not enabled",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption but TPM PIN is not enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+				},
+			},
+		},
+		{
+			name: "windows MDM is enabled with disk encryption and TPM PIN is enforced",
+			ac: fleet.AppConfig{
+				MDM: fleet.MDM{
+					WindowsEnabledAndConfigured: true,
+					EnableDiskEncryption:        optjson.SetBool(true),
+					RequireBitLockerPIN:         optjson.SetBool(true),
+				},
+			},
+			want: maps.Keys(tpmPINQueries),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetDetailQueries(t.Context(), config.FleetConfig{}, &tt.ac, nil, Integrations{}, nil)
+			for _, name := range tt.want {
+				_, ok := got[name]
+				require.True(t, ok)
+			}
+		})
+	}
+}
+
+func TestDiskSpaceDarwinLegacyQueryExcludesGigsAll(t *testing.T) {
+	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)
+
+	// disk_space_darwin_legacy targets darwin where the `disk_space`` table is
+	// unavailable. gigs_all_disk_space is only ingested for Linux hosts, so the
+	// legacy darwin query should not include it.
+	legacy, ok := queries["disk_space_darwin_legacy"]
+	require.True(t, ok)
+	assert.NotContains(t, legacy.Query, "gigs_all_disk_space")
+
+	// disk_space_unix targets Linux and should include gigs_all_disk_space.
+	unix, ok := queries["disk_space_unix"]
+	require.True(t, ok)
+	assert.Contains(t, unix.Query, "gigs_all_disk_space")
 }
 
 func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	// Rolling release for archlinux
@@ -365,7 +652,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux rolling", host.OSVersion)
 
 	// Simulate a linux with a proper version
@@ -386,7 +673,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Arch Linux 1.2.3", host.OSVersion)
 
 	// Simulate Ubuntu host with incorrect `patch` number
@@ -407,7 +694,7 @@ func TestDetailQueriesOSVersionUnixLike(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Ubuntu 18.04.5 LTS", host.OSVersion)
 }
 
@@ -415,9 +702,9 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version_windows"].IngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version_windows"].IngestFunc
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
@@ -440,7 +727,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Windows 11 Enterprise 21H2 10.0.22000", host.OSVersion)
 
 	require.NoError(t, json.Unmarshal([]byte(`
@@ -462,7 +749,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "Windows 10 Enterprise LTSC 10.0.17763", host.OSVersion)
 }
 
@@ -470,9 +757,9 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 	var initialHost fleet.Host
 	host := initialHost
 
-	ingest := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, nil)["os_version"].IngestFunc
+	ingest := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, nil, Integrations{}, nil)["os_version"].IngestFunc
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, nil))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, nil))
 	assert.Equal(t, initialHost, host)
 
 	var rows []map[string]string
@@ -493,7 +780,7 @@ func TestDetailQueriesOSVersionChrome(t *testing.T) {
 		&rows,
 	))
 
-	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
+	assert.NoError(t, ingest(t.Context(), slog.New(slog.DiscardHandler), &host, rows))
 	assert.Equal(t, "chromeos 1.3.3.7", host.OSVersion)
 }
 
@@ -591,38 +878,35 @@ func TestDirectIngestMDMMac(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, isServer, c.wantParams[0])
 				require.Equal(t, enrolled, c.wantParams[1])
 				require.Equal(t, serverURL, c.wantParams[2])
 				require.Equal(t, installedFromDep, c.wantParams[3])
 				require.Equal(t, name, c.wantParams[4])
 				require.Equal(t, fleetEnrollmentRef, c.enrollRef)
-				return nil
-			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
 
-			if c.name == "with invalid enrollment reference" {
-				ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-					return &nfe{}
-				}
-			}
-
-			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{c.got})
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{c.got})
 			if c.wantErr != "" {
 				require.ErrorContains(t, err, c.wantErr)
 				require.False(t, ds.SetOrUpdateMDMDataFuncInvoked)
-
 			} else {
 				require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 				require.NoError(t, err)
-				ds.SetOrUpdateMDMDataFuncInvoked = false
-				if c.name != "with invalid enrollment reference" {
-					require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-				}
 			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
 		})
 	}
 }
@@ -643,59 +927,50 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 	}
 
 	type testCase struct {
-		name                 string
-		mdmData              []map[string]string
-		wantServerURL        string
-		wantEnrollRef        string
-		wantHostEmailsCalled bool
+		name          string
+		mdmData       []map[string]string
+		wantServerURL string
+		wantEnrollRef string
 	}
 
 	for _, tc := range []testCase{
 		{
-			name:                 "Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet no enroll_reference",
-			mdmData:              generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "Fleet no enroll_reference",
+			mdmData:       generateRows("https://test.example.com", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 		{
-			name:                 "Fleet enrollment_reference",
-			mdmData:              generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enrollment_reference",
+			mdmData:       generateRows("https://test.example.com?enrollment_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "Fleet enroll_reference with other query params",
-			mdmData:              generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "test-reference",
-			wantHostEmailsCalled: true,
+			name:          "Fleet enroll_reference with other query params",
+			mdmData:       generateRows("https://test.example.com?token=abcdefg&enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "test-reference",
 		},
 		{
-			name:                 "non-Fleet enroll_reference",
-			mdmData:              generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
-			wantServerURL:        "https://test.example.com",
-			wantEnrollRef:        "",
-			wantHostEmailsCalled: false,
+			name:          "non-Fleet enroll_reference",
+			mdmData:       generateRows("https://test.example.com?enroll_reference=test-reference", "com.unknown.mdm"),
+			wantServerURL: "https://test.example.com",
+			wantEnrollRef: "",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
-				return nil
-			}
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.False(t, isServer)
 				require.True(t, enrolled)
 				require.True(t, installedFromDep)
+				require.False(t, isPersonalEnrollment)
 
 				require.Equal(t, tc.wantServerURL, serverURL)
 				require.Equal(t, tc.wantEnrollRef, fleetEnrollmentRef)
@@ -710,15 +985,61 @@ func TestDirectIngestMDMFleetEnrollRef(t *testing.T) {
 
 				return nil
 			}
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{
+					MDM: fleet.MDM{
+						MacOSSetup: fleet.MacOSSetup{
+							EnableEndUserAuthentication: true,
+						},
+					},
+				}, nil
+			}
 
-			err := directIngestMDMMac(context.Background(), log.NewNopLogger(), &host, ds, tc.mdmData)
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tc.mdmData)
 			require.NoError(t, err)
 			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 			ds.SetOrUpdateMDMDataFuncInvoked = false
-			require.Equal(t, tc.wantHostEmailsCalled, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked = false
 		})
 	}
+
+	t.Run("end user authentication disabled", func(t *testing.T) {
+		// Test that email isn't set when end user authentication is disabled
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return &fleet.AppConfig{
+				MDM: fleet.MDM{
+					MacOSSetup: fleet.MacOSSetup{
+						EnableEndUserAuthentication: false,
+					},
+				},
+			}, nil
+		}
+		ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
+			require.False(t, isServer)
+			require.True(t, enrolled)
+			require.True(t, installedFromDep)
+			require.Equal(t, "https://test.example.com", serverURL)
+			require.Equal(t, "test-reference", fleetEnrollmentRef)
+			require.Equal(t, fleet.WellKnownMDMFleet, name)
+			require.False(t, isPersonalEnrollment)
+
+			return nil
+		}
+
+		t.Run("no team", func(t *testing.T) {
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+
+		t.Run("team", func(t *testing.T) {
+			host.TeamID = ptr.Uint(1)
+			err := directIngestMDMMac(t.Context(), slog.New(slog.DiscardHandler), &host, ds, generateRows("https://test.example.com?enroll_reference=test-reference", apple_mdm.FleetPayloadIdentifier))
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+		})
+	})
 }
 
 func TestDirectIngestMDMWindows(t *testing.T) {
@@ -931,24 +1252,26 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string) error {
+			ds.SetOrUpdateMDMDataFunc = func(ctx context.Context, hostID uint, isServer, enrolled bool, serverURL string, installedFromDep bool, name string, fleetEnrollmentRef string, isPersonalEnrollment bool) error {
 				require.Equal(t, c.wantEnrolled, enrolled)
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
 				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
+				require.False(t, isPersonalEnrollment)
 				return nil
 			}
-			ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFunc = func(ctx context.Context, hostID uint, fleetEnrollmentRef string) error {
-				return nil
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hostUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+				return nil, common_mysql.NotFound("MDMWindowsEnrolledDevice")
 			}
+			ds.SetOrUpdateMDMDataFuncInvoked = false
+			ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFuncInvoked = false
+
+			err := directIngestMDMWindows(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{}, ds, c.data)
+			require.NoError(t, err)
+			require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
 		})
-		err := directIngestMDMWindows(context.Background(), log.NewNopLogger(), &fleet.Host{}, ds, c.data)
-		require.NoError(t, err)
-		require.True(t, ds.SetOrUpdateMDMDataFuncInvoked)
-		ds.SetOrUpdateMDMDataFuncInvoked = false
-		require.False(t, ds.SetOrUpdateHostEmailsFromMdmIdpAccountsFuncInvoked)
 	}
 }
 
@@ -968,7 +1291,7 @@ func TestDirectIngestChromeProfiles(t *testing.T) {
 		ID: 1,
 	}
 
-	err := directIngestChromeProfiles(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err := directIngestChromeProfiles(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
 		{"email": "test@example.com"},
 		{"email": "test+2@example.com"},
 	})
@@ -1054,7 +1377,7 @@ func TestDirectIngestBattery(t *testing.T) {
 				ID: 1,
 			}
 
-			err := directIngestBattery(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{tt.input})
+			err := directIngestBattery(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{tt.input})
 			require.NoError(t, err)
 			require.True(t, ds.ReplaceHostBatteriesFuncInvoked)
 		})
@@ -1070,14 +1393,15 @@ func TestDirectIngestOSWindows(t *testing.T) {
 	}{
 		{
 			expected: fleet.OperatingSystem{
-				Name:           "Microsoft Windows 11 Enterprise 21H2",
-				Version:        "10.0.22000.795",
-				Arch:           "64-bit",
-				KernelVersion:  "10.0.22000.795",
-				DisplayVersion: "21H2",
+				Name:             "Microsoft Windows 11 Enterprise 21H2",
+				Version:          "10.0.22000.795",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.22000.795",
+				DisplayVersion:   "21H2",
+				InstallationType: "Client",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit"},
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "arch": "64-bit", "installation_type": "Client"},
 			},
 		},
 		{
@@ -1092,6 +1416,32 @@ func TestDirectIngestOSWindows(t *testing.T) {
 				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763.2183", "arch": "64-bit"},
 			},
 		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2 (Server Core)",
+				Version:          "10.0.20348.1850",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.20348.1850",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server Core",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows Server 2022 Datacenter", "display_version": "21H2", "version": "10.0.20348.1850", "arch": "64-bit", "installation_type": "Server Core"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:             "Microsoft Windows Server 2022 Datacenter 21H2",
+				Version:          "10.0.20348.1850",
+				Arch:             "64-bit",
+				KernelVersion:    "10.0.20348.1850",
+				DisplayVersion:   "21H2",
+				InstallationType: "Server",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows Server 2022 Datacenter", "display_version": "21H2", "version": "10.0.20348.1850", "arch": "64-bit", "installation_type": "Server"},
+			},
+		},
 	}
 
 	host := fleet.Host{ID: 1}
@@ -1103,7 +1453,7 @@ func TestDirectIngestOSWindows(t *testing.T) {
 			return nil
 		}
 
-		err := directIngestOSWindows(context.Background(), log.NewNopLogger(), &host, ds, tt.data)
+		err := directIngestOSWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, tt.data)
 		require.NoError(t, err)
 
 		require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
@@ -1240,6 +1590,46 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				KernelVersion: "5.10.76-linuxkit",
 			},
 		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux ARM",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "aarch64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "aarch64",
+				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
+		{
+			data: []map[string]string{
+				{
+					"name":           "Arch Linux",
+					"version":        "",
+					"major":          "1",
+					"minor":          "2",
+					"patch":          "3",
+					"build":          "",
+					"arch":           "x86_64",
+					"kernel_version": "6.6.10-1-ARCH",
+				},
+			},
+			expected: fleet.OperatingSystem{
+				Name:          "Arch Linux",
+				Version:       "1.2.3",
+				Arch:          "x86_64",
+				KernelVersion: "6.6.10-1-ARCH",
+			},
+		},
 	} {
 		t.Run(tc.expected.Name, func(t *testing.T) {
 			ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, hostID uint, hostOS fleet.OperatingSystem) error {
@@ -1248,7 +1638,7 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 				return nil
 			}
 
-			err := directIngestOSUnixLike(context.Background(), log.NewNopLogger(), &fleet.Host{ID: uint(i)}, //nolint:gosec // dismiss G115
+			err := directIngestOSUnixLike(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{ID: uint(i)}, //nolint:gosec // dismiss G115
 				ds, tc.data)
 
 			require.NoError(t, err)
@@ -1259,37 +1649,37 @@ func TestDirectIngestOSUnixLike(t *testing.T) {
 }
 
 func TestAppConfigReplaceQuery(t *testing.T) {
-	queries := GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true})
+	queries := GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true}, Integrations{}, nil)
 	originalQuery := queries["users"].Query
 
 	replacementMap := make(map[string]*string)
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	replacementMap["users"] = nil
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists := queries["users"]
 	assert.False(t, exists)
 
 	// put the query back again
 	replacementMap["users"] = ptr.String("select 1 from blah")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	assert.NotEqual(t, originalQuery, queries["users"].Query)
 	assert.Equal(t, "select 1 from blah", queries["users"].Query)
 
 	// empty strings are also ignored
 	replacementMap["users"] = ptr.String("")
-	queries = GetDetailQueries(context.Background(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap})
+	queries = GetDetailQueries(t.Context(), config.FleetConfig{}, nil, &fleet.Features{EnableHostUsers: true, DetailQueryOverrides: replacementMap}, Integrations{}, nil)
 	_, exists = queries["users"]
 	assert.False(t, exists)
 }
 
 func TestDirectIngestSoftware(t *testing.T) {
 	ds := new(mock.Store)
-	ctx := context.Background()
-	logger := log.NewNopLogger()
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
 	host := fleet.Host{ID: uint(1)}
 
 	t.Run("ingesting installed software path", func(t *testing.T) {
@@ -1338,7 +1728,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			require.True(t, ds.UpdateHostSoftwareFuncInvoked)
 
 			require.Len(t, calledWith, 1)
-			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
+			require.Contains(t, strings.Join(maps.Keys(calledWith), " "), fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", data[1]["installed_path"], fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, "", fleet.SoftwareFieldSeparator, data[1]["name"]))
 
 			ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
 		})
@@ -1390,53 +1780,321 @@ func TestDirectIngestSoftware(t *testing.T) {
 			ds.UpdateHostSoftwareFuncInvoked = false
 		}
 	})
+
+	t.Run("cdhash_sha256", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Software 1",
+				"version":           "12.5.0",
+				"source":            "apps",
+				"bundle_identifier": "com.bundle.com",
+				"vendor":            "EvilCorp",
+
+				"installed_path":    "/Applications/Software1.app",
+				"team_identifier":   "corp1",
+				"cdhash_sha256":     "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+				"executable_sha256": "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+				"executable_path":   "/Applications/Software1.app/Contents/MacOS/Software1",
+			},
+			{
+				"name":              "Software 2",
+				"version":           "0.0.1",
+				"source":            "apps",
+				"bundle_identifier": "coms.widgets.com",
+				"vendor":            "widgets",
+
+				"team_identifier": "corp2",
+				"installed_path":  "/Applications/Software2.app",
+			},
+		}
+		var dataAsSoftware []fleet.Software
+		for _, entry := range data {
+			software := fleet.Software{
+				Name:             entry["name"],
+				Version:          entry["version"],
+				Source:           entry["source"],
+				BundleIdentifier: entry["bundle_identifier"],
+				Vendor:           entry["vendor"],
+			}
+			dataAsSoftware = append(dataAsSoftware, software)
+		}
+
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			return nil, nil
+		}
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			require.Len(t, sPaths, 2)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s%s%s%s%s%s",
+					data[0]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["cdhash_sha256"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["executable_sha256"],
+					fleet.SoftwareFieldSeparator,
+					data[0]["executable_path"],
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[0].ToUniqueStr(),
+				),
+			)
+			require.Contains(t, sPaths,
+				fmt.Sprintf(
+					"%s%s%s%s%s%s%s%s%s%s%s",
+					data[1]["installed_path"],
+					fleet.SoftwareFieldSeparator,
+					data[1]["team_identifier"],
+					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					"",
+					fleet.SoftwareFieldSeparator,
+					dataAsSoftware[1].ToUniqueStr(),
+				),
+			)
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareInstalledPathsFuncInvoked)
+		ds.UpdateHostSoftwareInstalledPathsFuncInvoked = false
+	})
+
+	t.Run("all software columns are copied properly", func(t *testing.T) {
+		data := []map[string]string{
+			{
+				"name":              "Test Software",
+				"version":           "1.2.3",
+				"source":            "chrome_extensions",
+				"vendor":            "Test Vendor",
+				"installed_path":    "/Applications/TestSoftware.app",
+				"release":           "1.0",
+				"arch":              "x86_64",
+				"bundle_identifier": "com.test.software",
+				"extension_id":      "ext123",
+				"extension_for":     "chrome",
+				"last_opened_at":    "1672574400",
+			},
+		}
+
+		var capturedSoftware []fleet.Software
+		ds.UpdateHostSoftwareFunc = func(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+			capturedSoftware = make([]fleet.Software, len(software))
+			copy(capturedSoftware, software)
+			return nil, nil
+		}
+
+		ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
+			return nil
+		}
+
+		require.NoError(t, directIngestSoftware(ctx, logger, &host, ds, data))
+		require.True(t, ds.UpdateHostSoftwareFuncInvoked)
+		require.Len(t, capturedSoftware, 1)
+
+		software := capturedSoftware[0]
+
+		// Verify all columns from lines 1838-1848 are properly copied
+		assert.Equal(t, "Test Software", software.Name)
+		assert.Equal(t, "1.2.3", software.Version)
+		assert.Equal(t, "chrome_extensions", software.Source)
+		assert.Equal(t, "Test Vendor", software.Vendor)
+		assert.Equal(t, "1.0", software.Release)
+		assert.Equal(t, "x86_64", software.Arch)
+		assert.Equal(t, "com.test.software", software.BundleIdentifier)
+		assert.Equal(t, "ext123", software.ExtensionID)
+		assert.Equal(t, "chrome", software.ExtensionFor)
+
+		// Verify last_opened_at is properly parsed and set
+		require.NotNil(t, software.LastOpenedAt)
+		expectedTime := time.Unix(1672574400, 0).UTC()
+		assert.True(t, software.LastOpenedAt.Equal(expectedTime))
+
+		ds.UpdateHostSoftwareFuncInvoked = false
+	})
 }
 
-func TestDirectIngestWindowsUpdateHistory(t *testing.T) {
-	ds := new(mock.Store)
-	ds.InsertWindowsUpdatesFunc = func(ctx context.Context, hostID uint, updates []fleet.WindowsUpdate) error {
-		require.Len(t, updates, 6)
-		require.ElementsMatch(t, []fleet.WindowsUpdate{
-			{KBID: 2267602, DateEpoch: 1657929207},
-			{KBID: 890830, DateEpoch: 1658226954},
-			{KBID: 5013887, DateEpoch: 1658225364},
-			{KBID: 5005463, DateEpoch: 1658225225},
-			{KBID: 5010472, DateEpoch: 1658224963},
-			{KBID: 4052623, DateEpoch: 1657929544},
-		}, updates)
-		return nil
+func TestDirectIngestUsersManagedLocalAccount(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+
+	baseRows := []map[string]string{
+		{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		{"uid": "502", "username": "_fleetadmin", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "fleetadmin-uuid"},
 	}
 
-	host := fleet.Host{
-		ID: 1,
-	}
+	t.Run("darwin with row and NULL account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
 
-	payload := []map[string]string{
-		{"date": "1659392951", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.1239.0)"},
-		{"date": "1658271402", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.442.0)"},
-		{"date": "1658228495", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.415.0)"},
-		{"date": "1658226954", "title": "Windows Malicious Software Removal Tool x64 - v5.103 (KB890830)"},
-		{"date": "1658225364", "title": "2022-06 Cumulative Update for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5013887)"},
-		{"date": "1658225225", "title": "2022-04 Update for Windows 10 Version 21H2 for x64-based Systems (KB5005463)"},
-		{"date": "1658224963", "title": "2022-02 Cumulative Update Preview for .NET Framework 3.5 and 4.8 for Windows 10 Version 21H2 for x64 (KB5010472)"},
-		{"date": "1658222131", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.400.0)"},
-		{"date": "1658189063", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.376.0)"},
-		{"date": "1658185542", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.386.0)"},
-		{"date": "1657929544", "title": "Update for Microsoft Defender Antivirus antimalware platform - KB4052623 (Version 4.18.2205.7)"},
-		{"date": "1657929207", "title": "Security Intelligence Update for Microsoft Defender Antivirus - KB2267602 (Version 1.371.203.0)"},
-	}
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
 
-	err := directIngestWindowsUpdateHistory(context.Background(), log.NewNopLogger(), &host, ds, payload)
-	require.NoError(t, err)
-	require.True(t, ds.InsertWindowsUpdatesFuncInvoked)
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return nil, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and different account_uuid -> captures uuid, excludes from host_users", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			assert.Equal(t, "host-uuid", hostUUID)
+			return new("some-uuid"), nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			assert.Equal(t, "host-uuid", hostUUID)
+			assert.Equal(t, "fleetadmin-uuid", accountUUID)
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			require.Len(t, users, 1)
+			assert.Equal(t, "alice", users[0].Username)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+		assert.True(t, ds.SaveHostUsersFuncInvoked)
+	})
+
+	t.Run("darwin with row and existing account_uuid -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		existing := "fleetadmin-uuid"
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return &existing, nil
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when account_uuid already set")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin with no row -> no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, common_mysql.NotFound("ManagedLocalAccount")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called when no row exists")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.True(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin without _fleetadmin row -> no Get/Set calls", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called when _fleetadmin is absent")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		rows := []map[string]string{
+			{"uid": "501", "username": "alice", "type": "standard", "groupname": "staff", "shell": "/bin/zsh", "uuid": "alice-uuid"},
+		}
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, rows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+		assert.False(t, ds.SetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("non-darwin -> no Get/Set calls even when _fleetadmin present", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "linux"}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			t.Fatalf("GetManagedLocalAccountUUID should not be called on non-darwin")
+			return nil, nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+			// _fleetadmin is not skipped on non-darwin (guard is darwin-only),
+			// so it passes through unchanged.
+			require.Len(t, users, 2)
+			return nil
+		}
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+		assert.False(t, ds.GetManagedLocalAccountUUIDFuncInvoked)
+	})
+
+	t.Run("darwin Get error -> ingest still succeeds, no Set call", func(t *testing.T) {
+		ds := new(mock.Store)
+		host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+		ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+			return "", "", nil
+		}
+
+		ds.GetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID string) (*string, error) {
+			return nil, errors.New("boom")
+		}
+		ds.SetManagedLocalAccountUUIDFunc = func(ctx context.Context, hostUUID, accountUUID string) error {
+			t.Fatalf("SetManagedLocalAccountUUID should not be called after Get error")
+			return nil
+		}
+		ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error { return nil }
+
+		require.NoError(t, directIngestUsers(t.Context(), logger, host, ds, baseRows))
+	})
 }
 
 func TestIngestKubequeryInfo(t *testing.T) {
-	err := ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, nil)
+	err := ingestKubequeryInfo(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{}, nil)
 	require.Error(t, err)
-	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{})
+	err = ingestKubequeryInfo(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{}, []map[string]string{})
 	require.Error(t, err)
-	err = ingestKubequeryInfo(context.Background(), log.NewNopLogger(), &fleet.Host{}, []map[string]string{
+	err = ingestKubequeryInfo(t.Context(), slog.New(slog.DiscardHandler), &fleet.Host{}, []map[string]string{
 		{
 			"cluster_name": "foo",
 		},
@@ -1447,7 +2105,7 @@ func TestIngestKubequeryInfo(t *testing.T) {
 func TestDirectDiskEncryption(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
@@ -1458,7 +2116,7 @@ func TestDirectDiskEncryption(t *testing.T) {
 
 	// set to true (osquery returned a row)
 	expectEncrypted = true
-	err := directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err := directIngestDiskEncryption(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
 		{"col1": "1"},
 	})
 	require.NoError(t, err)
@@ -1467,16 +2125,105 @@ func TestDirectDiskEncryption(t *testing.T) {
 
 	// set to false (osquery returned nothing)
 	expectEncrypted = false
-	err = directIngestDiskEncryption(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{})
+	err = directIngestDiskEncryption(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 }
 
+func TestDirectIngestDiskEncryptionWindows(t *testing.T) {
+	ds := new(mock.Store)
+	var gotEncrypted bool
+	var gotProtectionStatus *int
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
+		gotEncrypted = encrypted
+		gotProtectionStatus = bitlockerProtectionStatus
+		return nil
+	}
+
+	host := fleet.Host{ID: 1}
+
+	t.Run("no rows = not encrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus)
+	})
+
+	t.Run("fully encrypted and protection on", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOn, *gotProtectionStatus)
+	})
+
+	t.Run("fully decrypted", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+		})
+		require.NoError(t, err)
+		assert.False(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
+	})
+
+	t.Run("in-progress conversion statuses are not encrypted", func(t *testing.T) {
+		for _, cs := range []int{2, 3, 4, 5} { // encrypting, decrypting, encryption paused, decryption paused
+			err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+				{"conversion_status": strconv.Itoa(cs), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+			})
+			require.NoError(t, err)
+			assert.False(t, gotEncrypted, "conversion_status=%d should not be treated as encrypted", cs)
+		}
+	})
+
+	t.Run("fully encrypted but protection off", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		require.NotNil(t, gotProtectionStatus)
+		assert.Equal(t, fleet.BitLockerProtectionStatusOff, *gotProtectionStatus)
+	})
+
+	t.Run("protection status unknown normalized to nil", func(t *testing.T) {
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted), "protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusUnknown)},
+		})
+		require.NoError(t, err)
+		assert.True(t, gotEncrypted)
+		assert.Nil(t, gotProtectionStatus, "unknown protection status should be normalized to nil")
+	})
+
+	t.Run("invalid conversion_status returns error", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "bad", "protection_status": "1"},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker conversion_status")
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+
+	t.Run("invalid protection_status returns error", func(t *testing.T) {
+		ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
+		err := directIngestDiskEncryptionWindows(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
+			{"conversion_status": "1", "protection_status": "bad"},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing bitlocker protection_status")
+		assert.False(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked, "should not update DB on parse error")
+	})
+}
+
 func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	ds := new(mock.Store)
 	var expectEncrypted bool
-	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool) error {
+	ds.SetOrUpdateHostDisksEncryptionFunc = func(ctx context.Context, id uint, encrypted bool, bitlockerProtectionStatus *int) error {
 		assert.Equal(t, expectEncrypted, encrypted)
 		return nil
 	}
@@ -1485,13 +2232,13 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 	}
 
 	expectEncrypted = false
-	err := directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{})
+	err := directIngestDiskEncryptionLinux(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{})
 	require.NoError(t, err)
 	require.True(t, ds.SetOrUpdateHostDisksEncryptionFuncInvoked)
 	ds.SetOrUpdateHostDisksEncryptionFuncInvoked = false
 
 	expectEncrypted = true
-	err = directIngestDiskEncryptionLinux(context.Background(), log.NewNopLogger(), &host, ds, []map[string]string{
+	err = directIngestDiskEncryptionLinux(t.Context(), slog.New(slog.DiscardHandler), &host, ds, []map[string]string{
 		{"path": "/etc/hosts", "encrypted": "0"},
 		{"path": "/tmp", "encrypted": "0"},
 		{"path": "/", "encrypted": "1"},
@@ -1502,9 +2249,17 @@ func TestDirectIngestDiskEncryptionLinux(t *testing.T) {
 
 func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 	ds := new(mock.Store)
-	ctx := context.Background()
-	logger := log.NewNopLogger()
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 1}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+			},
+		}, nil
+	}
 
 	var wantKey string
 
@@ -1529,17 +2284,19 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 		}
 	}
 
-	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint, encryptedBase64Key, clientError string, decryptable *bool) error {
+	ds.SetOrUpdateHostDiskEncryptionKeyFunc = func(ctx context.Context, incomingHost *fleet.Host, encryptedBase64Key, clientError string,
+		decryptable *bool,
+	) (bool, error) {
 		if base64.StdEncoding.EncodeToString([]byte(wantKey)) != encryptedBase64Key {
-			return errors.New("key mismatch")
+			return false, errors.New("key mismatch")
 		}
-		if host.ID != hostID {
-			return errors.New("host ID mismatch")
+		if host.ID != incomingHost.ID {
+			return false, errors.New("host ID mismatch")
 		}
 		if encryptedBase64Key == "" && (decryptable == nil || *decryptable == true) {
-			return errors.New("decryptable should be false if the key is empty")
+			return false, errors.New("decryptable should be false if the key is empty")
 		}
-		return nil
+		return false, nil
 	}
 
 	t.Run("empty key", func(t *testing.T) {
@@ -1616,8 +2373,8 @@ func TestDirectIngestDiskEncryptionKeyDarwin(t *testing.T) {
 
 func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 	ds := new(mock.Store)
-	ctx := context.Background()
-	logger := log.NewNopLogger()
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
 	h := &fleet.Host{ID: 1}
 
 	toRows := func(profs []*fleet.HostMacOSProfile) []map[string]string {
@@ -1685,366 +2442,196 @@ func TestDirectIngestHostMacOSProfiles(t *testing.T) {
 
 func TestDirectIngestMDMDeviceIDWindows(t *testing.T) {
 	ds := new(mock.Store)
-	ctx := context.Background()
-	logger := log.NewNopLogger()
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
 	host := &fleet.Host{ID: 1, UUID: "mdm-windows-hw-uuid"}
 
-	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) error {
+	returnEnrollmentsUpdated := true
+	ds.UpdateMDMWindowsEnrollmentsHostUUIDFunc = func(ctx context.Context, hostUUID string, deviceID string) (bool, error) {
 		require.NotEmpty(t, deviceID)
 		require.Equal(t, host.UUID, hostUUID)
+		return returnEnrollmentsUpdated, nil
+	}
+	ds.UpdateMDMInstalledFromDEPFunc = func(ctx context.Context, hostID uint, enrolledFromDEP bool) error {
 		return nil
 	}
 
-	// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-
-	// if multiple rows, expect error
-	require.Error(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-		{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
-	}))
-	require.False(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-
-	// happy path
-	require.NoError(t, directIngestMDMDeviceIDWindows(ctx, logger, host, ds, []map[string]string{
-		{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
-	}))
-	require.True(t, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
-}
-
-func TestSanitizeSoftware(t *testing.T) {
-	for _, tc := range []struct {
-		name      string
-		h         *fleet.Host
-		s         *fleet.Software
-		sanitized *fleet.Software
-	}{
-		{
-			name: "Microsoft Teams.app on macOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams.app",
-				Version: "1.00.622155",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams.app",
-				Version: "1.6.00.22155",
-			},
-		},
-		{
-			name: "Microsoft Teams not on macOS",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams",
-				Version: "1.6.00.22378",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams",
-				Version: "1.6.00.22378",
-			},
-		},
-		{
-			name: "Other.app on macOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Other.app",
-				Version: "1.2.3",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Other.app",
-				Version: "1.2.3",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows, version not using full year",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "23.9.248.0",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows, version using full year",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "2023.9.248.0",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows with invalid version",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foobar",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foobar",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Cloudflare WARP on Windows with invalid version",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foo.bar",
-				Source:  "programs",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Cloudflare WARP",
-				Version: "foo.bar",
-				Source:  "programs",
-			},
-		},
-		{
-			name: "Other on Windows",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Other",
-				Version: "1.2.3",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Other",
-				Version: "1.2.3",
-			},
-		},
-		{
-			name: "Citrix Workspace on Windows",
-			h: &fleet.Host{
-				Platform: "windows",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace 2309",
-				Version: "23.9.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace 2309",
-				Version: "2309.1.104",
-			},
-		},
-		{
-			name: "Citrix Workspace on Mac",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "23.9.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2309.1.104",
-			},
-		},
-		{
-			name: "Citrix Workspace with correct versioning",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2400.1.104",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Citrix Workspace.app",
-				Version: "2400.1.104",
-			},
-		},
-		{
-			name: "MS Teams classic on MacOS",
-			h: &fleet.Host{
-				Platform: "darwin",
-			},
-			s: &fleet.Software{
-				Name:    "Microsoft Teams classic.app",
-				Version: "1.00.634263",
-			},
-			sanitized: &fleet.Software{
-				Name:    "Microsoft Teams classic.app",
-				Version: "1.6.00.34263",
-			},
-		},
-		{
-			name: "minio",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:    "minio",
-				Version: "RELEASE.2022-03-10T00-00-00Z",
-			},
-			sanitized: &fleet.Software{
-				Name:    "minio",
-				Version: "2022-03-10T00-00-00Z",
-			},
-		},
-		{
-			name: "minio",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:    "minio",
-				Version: "20200310000000",
-			},
-			sanitized: &fleet.Software{
-				Name:    "minio",
-				Version: "2020-03-10T00-00-00Z",
-			},
-		},
-		{
-			name: "minio with trailing garbage",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:    "minio",
-				Version: "RELEASE.2022-03-10T00-00-00Z_1",
-			},
-			sanitized: &fleet.Software{
-				Name:    "minio",
-				Version: "2022-03-10T00-00-00Z",
-			},
-		},
-		{
-			name: "JetBrains non-EAP",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:             "GoLand.app",
-				Version:          "2024.3.1",
-				BundleIdentifier: "com.jetbrains.goland",
-			},
-			sanitized: &fleet.Software{
-				Name:             "GoLand.app",
-				Version:          "2024.3.1",
-				BundleIdentifier: "com.jetbrains.goland",
-			},
-		},
-		{
-			name: "JetBrains EAP",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:             "GoLand.app",
-				Version:          "EAP GO-243.21565.42",
-				BundleIdentifier: "com.jetbrains.goland-EAP",
-			},
-			sanitized: &fleet.Software{
-				Name:             "GoLand.app",
-				Version:          "2024.2.99.21565.42",
-				BundleIdentifier: "com.jetbrains.goland-EAP",
-			},
-		},
-		{
-			name: "JetBrains year-wrapped EAP",
-			h:    &fleet.Host{},
-			s: &fleet.Software{
-				Name:             "IntelliJ IDEA CE",
-				Version:          "EAP IC-241.12345.67",
-				BundleIdentifier: "com.jetbrains.intellij-EAP",
-			},
-			sanitized: &fleet.Software{
-				Name:             "IntelliJ IDEA CE",
-				Version:          "2023.4.99.12345.67",
-				BundleIdentifier: "com.jetbrains.intellij-EAP",
-			},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			sanitizeSoftware(tc.h, tc.s, log.NewNopLogger())
-			require.Equal(t, tc.sanitized, tc.s)
-		})
+	baseEnrolledDeviceToReturn := fleet.MDMWindowsEnrolledDevice{
+		ID:                     1,
+		MDMHardwareID:          "12345",
+		MDMDeviceState:         "MDMDeviceEnrolledEnrolled",
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "Fleetie-PC",
+		MDMEnrollUserID:        "a1b2c3d4e5f6g7h8i9j0",
+		MDMEnrollProtoVersion:  "7.0",
+		MDMEnrollClientVersion: "10.0.26200.7020",
+		MDMEnrollType:          "Full",
 	}
-}
+	ds.MDMWindowsGetEnrolledDeviceWithDeviceIDFunc = func(ctx context.Context, deviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+		device := baseEnrolledDeviceToReturn
+		device.MDMDeviceID = deviceID
+		return &device, nil
+	}
 
-func TestDirectIngestWindowsProfiles(t *testing.T) {
-	ctx := context.Background()
-	logger := log.NewNopLogger()
-	ds := new(mock.Store)
+	ds.ReplaceHostDeviceMappingFunc = func(ctx context.Context, hostID uint, mappings []*fleet.HostDeviceMapping, source string) error {
+		require.Len(t, mappings, 1)
+		require.Equal(t, baseEnrolledDeviceToReturn.MDMEnrollUserID, mappings[0].Email)
+		require.Equal(t, host.ID, mappings[0].HostID)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, mappings[0].Source)
+		require.Equal(t, fleet.DeviceMappingMDMIdpAccounts, source)
+		return nil
+	}
 
-	for _, tc := range []struct {
-		hostProfiles []*fleet.ExpectedMDMProfile
-		want         string
+	baseSCIMUser := fleet.ScimUser{
+		ID:         1,
+		UserName:   "fleetie@example.com",
+		GivenName:  ptr.String("Fleetie"),
+		FamilyName: ptr.String("McDougal"),
+		Emails:     []fleet.ScimUserEmail{{ScimUserID: 1, Email: "fleetie@example.com"}},
+	}
+	returnSCIMUser := true
+
+	ds.ScimUserByUserNameOrEmailFunc = func(ctx context.Context, name string, email string) (*fleet.ScimUser, error) {
+		if returnSCIMUser {
+			return &baseSCIMUser, nil
+		}
+		return nil, common_mysql.NotFound("SCIMUser")
+	}
+
+	ds.SetOrUpdateHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint, scimUserID uint) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, baseSCIMUser.ID, scimUserID)
+		return nil
+	}
+
+	ds.DeleteHostSCIMUserMappingFunc = func(ctx context.Context, hostID uint) error {
+		require.Equal(t, host.ID, hostID)
+		return nil
+	}
+
+	testCases := []struct {
+		name                                                 string
+		rows                                                 []map[string]string
+		expectError                                          string
+		mdmEnrollUserID                                      string
+		mdmEnrollNotInOOBE                                   bool
+		returnSCIMUser                                       bool
+		expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked bool
+		expectUpdateMDMInstalledFromDEPFuncInvoked           bool
+		expectReplaceHostDeviceMappingFuncInvoked            bool
+		expectScimUserByUserNameOrEmailFuncInvoked           bool
+		expectDeleteHostSCIMUserMappingFuncInvoked           bool
 	}{
-		{nil, ""},
 		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{})},
-			},
-			"",
+			// if no rows, assume the registry key is not present (i.e. mdm is turned off) and do nothing
+			name: "no rows",
+			rows: []map[string]string{},
 		},
 		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-			},
-			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get></SyncBody>';",
+			name: "multiple rows",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+				{"name": "mdm-windows-hostname2", "data": "mdm-windows-device-id2"},
+			}, expectError: "invalid number of rows",
 		},
 		{
-			[]*fleet.ExpectedMDMProfile{
-				{Name: "N1", RawProfile: syncml.ForTestWithData(map[string]string{"L1": "D1"})},
-				{Name: "N2", RawProfile: syncml.ForTestWithData(map[string]string{"L2": "D2"})},
-				{Name: "N3", RawProfile: syncml.ForTestWithData(map[string]string{"L3": "D3", "L3.1": "D3.1"})},
+			name: "happy path, device without UPN",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
 			},
-			"SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input = '<SyncBody><Get><CmdID>1255198959</CmdID><Item><Target><LocURI>L1</LocURI></Target></Item></Get><Get><CmdID>2736786183</CmdID><Item><Target><LocURI>L2</LocURI></Target></Item></Get><Get><CmdID>894211447</CmdID><Item><Target><LocURI>L3</LocURI></Target></Item></Get><Get><CmdID>3410477854</CmdID><Item><Target><LocURI>L3.1</LocURI></Target></Item></Get></SyncBody>';",
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
 		},
-	} {
+		{
+			name: "happy path, device enrolled by Fleetie@example.com via Autopilot",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID: "fleetie@example.com",
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+		},
+		{
+			name: "device was enrolled by fleetie@example.com via Settings app",
+			rows: []map[string]string{
+				{"name": "mdm-windows-hostname", "data": "mdm-windows-device-id"},
+			},
+			mdmEnrollUserID:    "fleetie@example.com",
+			mdmEnrollNotInOOBE: true,
+			expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked: true,
+			expectUpdateMDMInstalledFromDEPFuncInvoked:           true,
+			expectScimUserByUserNameOrEmailFuncInvoked:           true,
+			expectReplaceHostDeviceMappingFuncInvoked:            true,
+		},
+	}
 
-		ds.GetHostMDMProfilesExpectedForVerificationFunc = func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error) {
-			result := map[string]*fleet.ExpectedMDMProfile{}
-			for _, p := range tc.hostProfiles {
-				result[p.Name] = p
+	resetInvocationFlags := func() {
+		ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked = false
+		ds.UpdateMDMInstalledFromDEPFuncInvoked = false
+		ds.ReplaceHostDeviceMappingFuncInvoked = false
+		ds.ScimUserByUserNameOrEmailFuncInvoked = false
+		ds.DeleteHostSCIMUserMappingFuncInvoked = false
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			resetInvocationFlags()
+
+			// set base enrolled device state
+			if tc.mdmEnrollUserID != "" {
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = tc.mdmEnrollUserID
+			} else {
+				// random string that looks like the sort of device IDs we get from the orbit enroll path
+				baseEnrolledDeviceToReturn.MDMEnrollUserID = "a1b2c3d4e5f6g7h8i9j0"
 			}
-			return result, nil
-		}
-		ds.ExpandEmbeddedSecretsFunc = func(ctx context.Context, secret string) (string, error) {
-			return secret, nil
-		}
+			baseEnrolledDeviceToReturn.MDMNotInOOBE = tc.mdmEnrollNotInOOBE
 
-		gotQuery := buildConfigProfilesWindowsQuery(ctx, logger, &fleet.Host{}, ds)
-		if tc.want != "" {
-			require.Contains(t, gotQuery, "SELECT raw_mdm_command_output FROM mdm_bridge WHERE mdm_command_input =")
-			re := regexp.MustCompile(`'<(.*?)>'`)
-			gotMatches := re.FindStringSubmatch(gotQuery)
-			require.NotEmpty(t, gotMatches)
-			wantMatches := re.FindStringSubmatch(tc.want)
-			require.NotEmpty(t, wantMatches)
+			// If no updates were done no further actions should be taken. This generic case covers this behavior.
+			if tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked {
+				returnEnrollmentsUpdated = false
+				err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
 
-			var extractedStruct, expectedStruct fleet.SyncBody
-			err := xml.Unmarshal([]byte(gotMatches[0]), &extractedStruct)
-			require.NoError(t, err)
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, false, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, false, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, false, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
 
-			err = xml.Unmarshal([]byte(wantMatches[0]), &expectedStruct)
-			require.NoError(t, err)
+			// Run the actual defined testcase
+			returnEnrollmentsUpdated = true
+			returnSCIMUser = true
+			err := directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+			if tc.expectError != "" {
+				require.ErrorContains(t, err, tc.expectError)
+			} else {
+				require.NoError(t, err)
+			}
 
-			require.ElementsMatch(t, expectedStruct.Get, extractedStruct.Get)
-		} else {
-			require.Equal(t, gotQuery, tc.want)
-		}
+			require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+			require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+			require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+			require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+			// this test will always return a SCIM user if invoked and as such should update the mapping and never delete it
+			require.Equal(t, false, ds.DeleteHostSCIMUserMappingFuncInvoked)
+
+			// Test the case where no user is returned if applicable
+			if tc.expectScimUserByUserNameOrEmailFuncInvoked {
+				resetInvocationFlags()
+
+				returnSCIMUser = false
+				err = directIngestMDMDeviceIDWindows(ctx, logger, host, ds, tc.rows)
+				require.NoError(t, err)
+
+				require.Equal(t, tc.expectUpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked, ds.UpdateMDMWindowsEnrollmentsHostUUIDFuncInvoked)
+				require.Equal(t, tc.expectUpdateMDMInstalledFromDEPFuncInvoked, ds.UpdateMDMInstalledFromDEPFuncInvoked)
+				require.Equal(t, tc.expectReplaceHostDeviceMappingFuncInvoked, ds.ReplaceHostDeviceMappingFuncInvoked)
+				require.Equal(t, tc.expectScimUserByUserNameOrEmailFuncInvoked, ds.ScimUserByUserNameOrEmailFuncInvoked)
+				// this test will never return a SCIM user if invoked and as such should always delete the mapping
+				require.Equal(t, true, ds.DeleteHostSCIMUserMappingFuncInvoked)
+			}
+		})
 	}
 }
 
@@ -2095,7 +2682,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
-			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			err := ingestNetworkInterface(publicip.NewContext(t.Context(), tc.ip), slog.New(slog.DiscardHandler), &h, nil)
 			require.NoError(t, err)
 			if tc.valid {
 				require.Equal(t, tc.ip, h.PublicIP)
@@ -2109,13 +2696,13 @@ func TestIngestNetworkInterface(t *testing.T) {
 		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
 		ip := "10.0.0.1"
 		var b bytes.Buffer
-		logger := log.NewLogfmtLogger(&b)
+		logger := slog.New(slog.NewTextHandler(&b, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
 		// Happy path
 		rows := []map[string]string{
 			{"address": "address", "mac": "mac"},
 		}
-		err := ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		err := ingestNetworkInterface(publicip.NewContext(t.Context(), ip), logger, &h, rows)
 		require.NoError(t, err)
 		assert.Equal(t, ip, h.PublicIP)
 		assert.Equal(t, "mac", h.PrimaryMac)
@@ -2125,7 +2712,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 		// No rows
 		b.Reset()
 		h = fleet.Host{PublicIP: "190.18.97.3"}
-		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, []map[string]string{})
+		err = ingestNetworkInterface(publicip.NewContext(t.Context(), ip), logger, &h, []map[string]string{})
 		require.NoError(t, err)
 		assert.Equal(t, ip, h.PublicIP)
 		assert.Empty(t, h.PrimaryMac)
@@ -2139,13 +2726,294 @@ func TestIngestNetworkInterface(t *testing.T) {
 			{"address": "address", "mac": "mac"},
 			{"address": "address2", "mac": "mac2"},
 		}
-		err = ingestNetworkInterface(publicip.NewContext(context.Background(), ip), logger, &h, rows)
+		err = ingestNetworkInterface(publicip.NewContext(t.Context(), ip), logger, &h, rows)
 		require.NoError(t, err)
 		assert.Equal(t, ip, h.PublicIP)
 		assert.Empty(t, h.PrimaryMac)
 		assert.Empty(t, h.PrimaryIP)
 		assert.Contains(t, b.String(), "expected single result")
 	})
+}
+
+func TestDirectIngestHostCertificates(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+	row1 := map[string]string{
+		"ca":                "0",
+		"common_name":       "Cert 1 Common Name",
+		"issuer":            "/C=US/O=Issuer 1 Inc./CN=Issuer 1 Common Name",
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abc",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31",
+		"source":            "user",
+		"path":              "/Users/mna/Library/Keychains/login.keychain-db",
+	}
+
+	// row2 will be ingested correctly with the issue field containing a / in the value
+	row2 := map[string]string{
+		"ca":                "1",
+		"common_name":       "Cert 2 Common Name",
+		"issuer":            `/C=US/O=Issuer 2 Inc.\/foobar/CN=Issuer 2 Common Name`,
+		"subject":           "/C=US/O=Subject 1 Inc./OU=Subject 1 Org Unit/CN=Subject 1 Common Name",
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Data Encipherment, Key Encipherment, Digital Signature",
+		"serial":            "123abcd",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32",
+		"source":            "system",
+		"path":              "/Library/Keychains/System.keychain",
+	}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, host.UUID, hostUUID)
+		require.Len(t, certs, 2)
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd31", hex.EncodeToString(certs[0].SHA1Sum))
+		require.Equal(t, "Cert 1 Common Name", certs[0].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[0].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[0].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[0].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[0].SubjectCountry)
+		require.Equal(t, "Issuer 1 Common Name", certs[0].IssuerCommonName)
+		require.Equal(t, "Issuer 1 Inc.", certs[0].IssuerOrganization)
+		require.Empty(t, certs[0].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[0].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[0].KeyAlgorithm)
+		require.Equal(t, 2048, certs[0].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[0].KeyUsage)
+		require.Equal(t, "123abc", certs[0].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[0].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[0].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[0].NotValidBefore.Unix())
+		require.False(t, certs[0].CertificateAuthority)
+		require.EqualValues(t, "user", certs[0].Source)
+		require.Equal(t, "mna", certs[0].Username)
+
+		require.Equal(t, "9c1e9c00d8120c1a9d96274d2a17c38ffa30fd32", hex.EncodeToString(certs[1].SHA1Sum))
+		require.Equal(t, "Cert 2 Common Name", certs[1].CommonName)
+		require.Equal(t, "Subject 1 Common Name", certs[1].SubjectCommonName)
+		require.Equal(t, "Subject 1 Inc.", certs[1].SubjectOrganization)
+		require.Equal(t, "Subject 1 Org Unit", certs[1].SubjectOrganizationalUnit)
+		require.Equal(t, "US", certs[1].SubjectCountry)
+		require.Equal(t, "Issuer 2 Common Name", certs[1].IssuerCommonName)
+		require.Equal(t, "Issuer 2 Inc./foobar", certs[1].IssuerOrganization)
+		require.Empty(t, certs[1].IssuerOrganizationalUnit)
+		require.Equal(t, "US", certs[1].IssuerCountry)
+		require.Equal(t, "rsaEncryption", certs[1].KeyAlgorithm)
+		require.Equal(t, 2048, certs[1].KeyStrength)
+		require.Equal(t, "Data Encipherment, Key Encipherment, Digital Signature", certs[1].KeyUsage)
+		require.Equal(t, "123abcd", certs[1].Serial)
+		require.Equal(t, "sha256WithRSAEncryption", certs[1].SigningAlgorithm)
+		require.Equal(t, int64(1822755797), certs[1].NotValidAfter.Unix())
+		require.Equal(t, int64(1770228826), certs[1].NotValidBefore.Unix())
+		require.True(t, certs[1].CertificateAuthority)
+		require.EqualValues(t, "system", certs[1].Source)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row1, row2})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesDarwinHexEscapes(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+
+	// Simulate osquery outputting Cyrillic characters as literal \xHH escape
+	// sequences. "АБ" in UTF-8 is bytes D0 90 D0 91, which osquery returns as
+	// the 16-character ASCII string `\xD0\x90\xD0\x91`.
+	row := map[string]string{
+		"ca":                "0",
+		"common_name":       `\xD0\x90\xD0\x91`,
+		"subject":           `/C=US/O=\xD0\x90\xD0\x91/OU=\xD0\x92\xD0\x93/CN=\xD0\x94\xD0\x95`,
+		"issuer":            `/O=\xD0\x96\xD0\x97/CN=\xD0\x98\xD0\x9A`,
+		"key_algorithm":     "rsaEncryption",
+		"key_strength":      "2048",
+		"key_usage":         "Digital Signature",
+		"serial":            "abc123",
+		"signing_algorithm": "sha256WithRSAEncryption",
+		"not_valid_after":   "1822755797",
+		"not_valid_before":  "1770228826",
+		"sha1":              "aabbccdd00112233445566778899aabbccddeeff",
+		"source":            "system",
+		"path":              "/Library/Keychains/System.keychain",
+	}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Len(t, certs, 1)
+		cert := certs[0]
+
+		assert.Equal(t, "АБ", cert.CommonName)
+		assert.Equal(t, "ДЕ", cert.SubjectCommonName)
+		assert.Equal(t, "АБ", cert.SubjectOrganization)
+		assert.Equal(t, "ВГ", cert.SubjectOrganizationalUnit)
+		assert.Equal(t, "US", cert.SubjectCountry)
+		assert.Equal(t, "ИК", cert.IssuerCommonName)
+		assert.Equal(t, "ЖЗ", cert.IssuerOrganization)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesDarwin(ctx, logger, host, ds, []map[string]string{row})
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
+}
+
+func TestDirectIngestHostCertificatesWindows(t *testing.T) {
+	ds := new(mock.Store)
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+	host := &fleet.Host{ID: 1, UUID: "host-uuid", Platform: "windows"}
+
+	// Fleet SCEP cert example based on data from a real Windows host
+	c1 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"subject":           "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D",
+		"issuer":            "\"\", scep-ca, SCEP CA, FleetDM",
+		"key_algorithm":     "RSA",
+		"key_strength":      "2160",
+		"key_usage":         "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1780784467",
+		"not_valid_before":  "1749248467",
+		"serial":            "05",
+		"sha1":              "1A395245953C61AE12657704FF45F31A1E7BC1E8",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+	// Custom SCEP cert example based on data from a real Windows host
+	c2 := map[string]string{
+		"ca":                "-1",
+		"common_name":       "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN",
+		"subject":           "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"",
+		"issuer":            "US, scep-ca, SCEP CA, MICROMDM SCEP CA",
+		"key_algorithm":     "RSA",
+		"key_strength":      "1120",
+		"key_usage":         "CERT_DIGITAL_SIGNATURE_KEY_USAGE",
+		"signing_algorithm": "sha256RSA",
+		"not_valid_after":   "1796430423",
+		"not_valid_before":  "1764893823",
+		"serial":            "23",
+		"sha1":              "EE5E756CC1A0782078C7C45180A4544A37D0F6D7",
+		"username":          "Admin",
+		"path":              "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000\\Personal",
+	}
+
+	// We'll use the examples above to create rows with minor variations, similar to what
+	// we would get from a real Windows host.
+	c3 := maps.Clone(c1)
+	c3["username"] = "SYSTEM"
+	c3["path"] = "Users\\S-1-5-18\\Personal"
+
+	c4 := maps.Clone(c1)
+	c4["username"] = "SYSTEM"
+	c4["path"] = "CurrentUser\\Personal"
+
+	c5 := maps.Clone(c1)
+	c5["username"] = "SYSTEM"
+	c5["path"] = "Users\\S-1-5-18\\Personal"
+
+	c6 := maps.Clone(c1)
+	c6["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	c7 := maps.Clone(c2)
+	c7["path"] = "Users\\S-1-5-21-1043593016-4249271388-1765263865-1000_Classes\\Personal"
+
+	rows := []map[string]string{c1, c2, c3, c4, c5, c6, c7}
+
+	ds.UpdateHostCertificatesFunc = func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord) error {
+		require.Equal(t, host.ID, hostID)
+		require.Equal(t, host.UUID, hostUUID)
+		require.Len(t, certs, 3)
+
+		// We expect that the ingest function will deduplicate certs based on SHA1+username
+		// so we should see only 3 unique combinations from the 7 rows above.
+		expectSha1Users := map[string]bool{
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "Admin":  true, // c1, c6
+			"1A395245953C61AE12657704FF45F31A1E7BC1E8" + "SYSTEM": true, // c3, c4, c5
+			"EE5E756CC1A0782078C7C45180A4544A37D0F6D7" + "Admin":  true, // c2, c7
+		}
+		seenSha1Users := map[string]bool{}
+		for _, cert := range certs {
+			s := strings.ToUpper(hex.EncodeToString(cert.SHA1Sum))
+			_, ok := expectSha1Users[s+cert.Username]
+			require.True(t, ok, "unexpected cert SHA1+username combination: %s + %s", s, cert.Username)
+			seenSha1Users[s+cert.Username] = true
+
+			// Validate fields that differ between the cert examples
+			switch s {
+			case "1A395245953C61AE12657704FF45F31A1E7BC1E8":
+				require.Equal(t, "CERT_KEY_ENCIPHERMENT_KEY_USAGE,CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "05", cert.Serial)
+				require.Equal(t, int64(1780784467), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1749248467), cert.NotValidBefore.Unix())
+				require.Equal(t, 2160, cert.KeyStrength)
+				require.Equal(t, "494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.CommonName)
+				require.Equal(t, "Fleet, 494FE0F794940E21C757B790494B0FAFD97CFA4D5E9CC75856DB00DE78F3958D", cert.SubjectCommonName)
+				require.Equal(t, "\"\", scep-ca, SCEP CA, FleetDM", cert.IssuerCommonName)
+				require.Contains(t, []string{"Admin", "SYSTEM"}, cert.Username)
+
+			case "EE5E756CC1A0782078C7C45180A4544A37D0F6D7":
+				require.Equal(t, "CERT_DIGITAL_SIGNATURE_KEY_USAGE", cert.KeyUsage)
+				require.Equal(t, "23", cert.Serial)
+				require.Equal(t, int64(1796430423), cert.NotValidAfter.Unix())
+				require.Equal(t, int64(1764893823), cert.NotValidBefore.Unix())
+				require.Equal(t, 1120, cert.KeyStrength)
+				require.Equal(t, "wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN", cert.CommonName)
+				require.Equal(t, "fleet-w2a6fd2c4-0018-4bdc-8046-c7342962b576, \"wc215384b-5a6e-4ca5-a2a3-1289734a5a71 User\n            CN\"", cert.SubjectCommonName)
+				require.Equal(t, "US, scep-ca, SCEP CA, MICROMDM SCEP CA", cert.IssuerCommonName)
+				require.Equal(t, "Admin", cert.Username)
+
+			default:
+				t.Fatalf("unexpected cert SHA1: %s", s)
+			}
+
+			// Validate fields common across all Windows certs in this test
+			require.Equal(t, "RSA", cert.KeyAlgorithm)
+			require.Equal(t, "sha256RSA", cert.SigningAlgorithm)
+			require.False(t, cert.CertificateAuthority)
+			if cert.Username == "SYSTEM" {
+				require.Equal(t, fleet.SystemHostCertificate, cert.Source)
+			} else {
+				require.Equal(t, fleet.UserHostCertificate, cert.Source)
+			}
+
+			// For Windows certs, osquery squeezes all distinguished name fields into
+			// the comma-separated list that we store as Issuer/SubjectCommonName and
+			// we leave all other fields empty for now (see fleet.ExtractDetailsFromOsqueryDistinguishedName)
+			require.Empty(t, cert.SubjectOrganization)
+			require.Empty(t, cert.SubjectOrganizationalUnit)
+			require.Empty(t, cert.SubjectCountry)
+			require.Empty(t, cert.IssuerOrganization)
+			require.Empty(t, cert.IssuerOrganizationalUnit)
+			require.Empty(t, cert.IssuerCountry)
+
+		}
+		require.Equal(t, expectSha1Users, seenSha1Users)
+
+		return nil
+	}
+
+	err := directIngestHostCertificatesWindows(ctx, logger, host, ds, rows)
+	require.NoError(t, err)
+	require.True(t, ds.UpdateHostCertificatesFuncInvoked)
 }
 
 func TestGenerateSQLForAllExists(t *testing.T) {
@@ -2172,10 +3040,1131 @@ func TestGenerateSQLForAllExists(t *testing.T) {
 	assert.Equal(t, "SELECT 1 WHERE EXISTS (SELECT 1 WHERE foo = 'ba;r') AND EXISTS (SELECT 1 WHERE baz = 'qu;x')", sql)
 }
 
-type nfe struct{}
+func TestLuksVerifyQueryDiscovery(t *testing.T) {
+	lsblkTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'lsblk'"
+	cryptsetupLuksSaltTbl := "SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'cryptsetup_luks_salt'"
 
-func (e nfe) Error() string {
-	return "foobar"
+	require.Equal(t,
+		fmt.Sprintf("SELECT 1 WHERE EXISTS (%s) AND EXISTS (%s);", lsblkTbl, cryptsetupLuksSaltTbl),
+		luksVerifyQuery.Discovery,
+	)
 }
 
-func (e nfe) IsNotFound() bool { return true }
+func TestLuksVerifyQueryIngester(t *testing.T) {
+	decrypter := func(encrypted string) (string, error) {
+		return encrypted, nil
+	}
+	ctx := t.Context()
+	logger := slog.New(slog.DiscardHandler)
+
+	nonLUKSHost := &fleet.Host{ID: 1, Platform: "skynet"}
+	luksHost := &fleet.Host{ID: 1, Platform: "ubuntu"}
+
+	testCases := []struct {
+		name         string
+		rows         []map[string]string
+		err          error
+		host         *fleet.Host
+		setUp        func(t *testing.T, ds *mock.Store)
+		expectations func(t *testing.T, ds *mock.Store, err error)
+	}{
+		{
+			name: "No results",
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "host is not LUKS capable",
+			host: nonLUKSHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.GetHostDiskEncryptionKeyFuncInvoked)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "disk encryption entry not found on DB",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, common_mysql.NotFound("HostDiskEncryptionKey")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "error is thrown while getting the host disk encryption key",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return nil, errors.New("some error")
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.Error(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key matches the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some salty bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: "some salty bits",
+					}, nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.False(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+		{
+			name: "stored key does not match the one reported",
+			host: luksHost,
+			rows: []map[string]string{
+				{
+					"key_slot": "0",
+					"salt":     "some sour bits",
+				},
+				{
+					"key_slot": "1",
+					"salt":     "some spicy bits",
+				},
+			},
+			setUp: func(t *testing.T, ds *mock.Store) {
+				ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
+					require.Equal(t, uint(1), hostID)
+					return &fleet.HostDiskEncryptionKey{
+						KeySlot:             ptr.Uint(0),
+						Base64EncryptedSalt: base64.StdEncoding.EncodeToString([]byte("some salty bits")),
+					}, nil
+				}
+				ds.DeleteLUKSDataFunc = func(ctx context.Context, hostID uint, keySlot uint) error {
+					require.Equal(t, uint(1), hostID)
+					return nil
+				}
+			},
+			expectations: func(t *testing.T, ds *mock.Store, err error) {
+				require.NoError(t, err)
+				require.True(t, ds.DeleteLUKSDataFuncInvoked)
+			},
+		},
+	}
+
+	sut := luksVerifyQueryIngester(decrypter)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			if tc.setUp != nil {
+				tc.setUp(t, ds)
+			}
+			tc.expectations(t, ds, sut(ctx, logger, tc.host, ds, tc.rows))
+		})
+	}
+}
+
+func TestUserIngestNoUID(t *testing.T) {
+	ctx := t.Context()
+	host := fleet.Host{ID: 1}
+	ds := new(mock.Store)
+	savedUsers := 0
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		savedUsers = len(users)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh"},
+		// Missing uid
+		{"shell": "/bin/sh"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	// Saved the good user, ignored the one missing a uid
+	require.Equal(t, 1, savedUsers)
+}
+
+func TestUserIngestMacosUpdateManagedUser(t *testing.T) {
+	ctx := t.Context()
+	host := fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+	ds := new(mock.Store)
+	userUUIDForUpdate := "uuid-1234"
+
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "fleetie", userUUIDForUpdate, nil
+	}
+
+	ds.UpdateNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string, userUUID string, username string) error {
+		require.Equal(t, host.UUID, deviceID)
+		require.Equal(t, userUUIDForUpdate, userUUID)
+		require.Equal(t, "new fleetie", username)
+		return nil
+	}
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		require.Len(t, users, 2)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh", "username": "new fleetie", "uuid": userUUIDForUpdate},
+		{"uid": "500", "shell": "/bin/sh", "username": "someone else", "uuid": "some-other-uuid"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	require.True(t, ds.UpdateNanoMDMUserEnrollmentUsernameFuncInvoked)
+	require.True(t, ds.SaveHostUsersFuncInvoked)
+}
+
+func TestMaxString(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		a    string
+		b    string
+		want string
+	}{
+		{a: "", b: "", want: ""},
+		{a: "1", b: "", want: "1"},
+		{a: "", b: "2", want: "2"},
+		{a: "1751737544", b: "1751737555", want: "1751737555"},
+	}
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("a=%s,b=%s", tc.a, tc.b), func(t *testing.T) {
+			got := maxString(tc.a, tc.b)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestWindowsLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_last_opened_at"].SoftwareProcessResults
+	prefetchResults := []map[string]string{
+		{"executable_path": "", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGECORE\\135.0.3179.73\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744841906"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEUPDATE\\MICROSOFTEDGEUPDATE.EXE", "last_opened_at": "1751755072"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\135.0.3179.54\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1744305414"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\136.0.3240.64\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1747354446"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.68\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751739680"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGEWEBVIEW\\APPLICATION\\137.0.3296.93\\MSEDGEWEBVIEW2.EXE", "last_opened_at": "1751755195"},
+		{"executable_path": "\\PROGRAM FILES (X86)\\MICROSOFT\\EDGE\\APPLICATION\\MSEDGE.EXE", "last_opened_at": "1744224613"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.MSPAINT_6.2410.13017.0_X64__8WEKYB3D8BBWE\\PAINTSTUDIO.VIEW.EXE", "last_opened_at": "1751739848"},
+		{"executable_path": "\\PROGRAM FILES\\WINDOWSAPPS\\MICROSOFT.PAINT_11.2504.531.0_X64__8WEKYB3D8BBWE\\PAINTAPP\\MSPAINT.EXE", "last_opened_at": "1751739842"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CMAKE.EXE", "last_opened_at": "1751756660"},
+		{"executable_path": "\\PROGRAM FILES\\CMAKE\\BIN\\CTEST.EXE", "last_opened_at": "1751756665"},
+		{"executable_path": "\\PROGRAM FILES\\GIT\\CMD\\GIT.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\CRASHHELPER.EXE", "last_opened_at": "1751650445"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\FIREFOX.EXE", "last_opened_at": "1751755087"},
+		{"executable_path": "\\PROGRAM FILES\\MOZILLA FIREFOX\\PINGSENDER.EXE", "last_opened_at": "1750358363"},
+		{"executable_path": "\\PROGRAM FILES\\POWERTOYS\\POWERTOYS.EXE", "last_opened_at": "1747935582"},
+		{"executable_path": "\\STRAWBERRY\\PERL\\BIN\\PERL.EXE", "last_opened_at": "1749664524"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1749678210"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.24.5-WIN32-X64\\LLVM\\BIN\\CLANG-FORMAT.EXE", "last_opened_at": "1749678028"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751739766"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.25.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751739736"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS-SRV.EXE", "last_opened_at": "1751756684"},
+		{"executable_path": "\\USERS\\ZACH\\.VSCODE\\EXTENSIONS\\MS-VSCODE.CPPTOOLS-1.26.3-WIN32-X64\\BIN\\CPPTOOLS.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD-BROWSERSUPPORT.EXE", "last_opened_at": "1751650028"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\APP\\8\\1PASSWORD.EXE", "last_opened_at": "1751755191"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\1PASSWORD\\UPDATE\\8\\1PASSWORD.EXE", "last_opened_at": "1751650139"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\BIN\\CODE-TUNNEL.EXE", "last_opened_at": "1751756657"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\CODE.EXE", "last_opened_at": "1751756772"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\RIPGREP\\BIN\\RG.EXE", "last_opened_at": "1751756656"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\RESOURCES\\APP\\NODE_MODULES\\@VSCODE\\VSCE-SIGN\\BIN\\VSCE-SIGN.EXE", "last_opened_at": "1751739739"},
+		{"executable_path": "\\USERS\\ZACH\\APPDATA\\LOCAL\\PROGRAMS\\MICROSOFT VS CODE\\TOOLS\\INNO_UPDATER.EXE", "last_opened_at": "1751739781"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "", "source": "ie_extensions", "vendor": "", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\windows\\System32\\", "name": "", "source": "programs", "vendor": "Microsoft Corporation", "version": ""},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "", "source": "programs", "vendor": "", "version": "1.3.195.61"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FilePicker_cw5n1h2txyewy", "name": "1527c705-839a-4832-9118-54d4Bd6a0c89", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\1Password\\app\\8", "name": "1Password", "source": "programs", "vendor": "AgileBits, Inc.", "version": "8.10.82"},
+		{"extension_for": "firefox", "extension_id": "{d634138d-c276-4fc8-924b-40a0ea21d284}", "installed_path": "C:\\Users\\zach\\AppData\\Roaming\\Mozilla\\Firefox\\Profiles\\0oxsfufm.default-release\\extensions\\{d634138d-c276-4fc8-924b-40a0ea21d284}.xpi", "name": "1Password – Password Manager", "source": "firefox_addons", "vendor": "", "version": "8.10.76.34"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelGraphicsExperience_1.100.5688.0_x64__8j3eq9eme6ctt", "name": "AppUp.IntelGraphicsExperience", "source": "programs", "vendor": "INTEL CORP", "version": "1.100.5688.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "Application Verifier x64 External Package", "source": "programs", "vendor": "Microsoft", "version": "10.1.20348.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\CMake\\", "name": "CMake", "source": "programs", "vendor": "Kitware", "version": "3.28.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.CapturePicker_cw5n1h2txyewy", "name": "CapturePicker", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19580.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\STMicroelectronicsMEMS.DellFreeFallDataProtection_1.0.27.0_x64__rp6h1c31mfy1y", "name": "Dell Free Fall Data Protection", "source": "programs", "vendor": "STMICROELECTRONICS S.R.L.", "version": "1.0.27.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\system32\\DellTPad", "name": "Dell PointStick Driver", "source": "programs", "vendor": "ALPS ELECTRIC CO., LTD.", "version": "10.3201.101.326"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppResolverUX_cw5n1h2txyewy", "name": "E2A4F912-2574-4A75-9BB0-0D023378592B", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.19640.1000"},
+		{"extension_for": "edge", "extension_id": "jmjflgjpcpepeafmmgdpfkogkghcpiha", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Extensions\\jmjflgjpcpepeafmmgdpfkogkghcpiha\\1.2.1_0", "name": "Edge relevant text changes", "source": "chrome_extensions", "vendor": "", "version": "1.2.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AddSuggestedFoldersToLibraryDialog_cw5n1h2txyewy", "name": "F46D4000-FD22-4DB4-AC8E-4E1DDDE828FE", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "Fleet osquery", "source": "programs", "vendor": "Fleet Device Management (fleetdm.com)", "version": "1.44.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGamingOverlay_7.325.5191.0_x64__8wekyb3d8bbwe", "name": "Game Bar", "source": "programs", "vendor": "Microsoft Corporation", "version": "7.325.5191.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Git\\", "name": "Git", "source": "programs", "vendor": "The Git Development Community", "version": "2.43.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "GitHub CLI", "source": "programs", "vendor": "GitHub, Inc.", "version": "2.69.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\138.0.3351.65\\BHO\\ie_to_edge_bho_64.dll", "name": "IEToEdge BHO", "source": "ie_extensions", "vendor": "", "version": "138.0.3351.65"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\AppUp.IntelOptaneMemoryandStorageManagement_18.1.1042.0_x64__8j3eq9eme6ctt", "name": "Intel® Optane™ Memory and Storage Management", "source": "programs", "vendor": "INTEL CORP", "version": "18.1.1042.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.1.7_1.7.27413.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27413.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Framework.2.2_2.2.29512.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Framework Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.29512.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.1.7_1.7.27422.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.7.27422.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.NET.Native.Runtime.2.2_2.2.28604.0_x64__8wekyb3d8bbwe", "name": "Microsoft .Net Native Runtime Package 2.2", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.2.28604.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application", "name": "Microsoft Edge", "source": "programs", "vendor": "Microsoft Corporation", "version": "138.0.3351.65"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application", "name": "Microsoft Edge WebView2 Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "137.0.3296.93"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Services.Store.Engagement_10.0.23012.0_x64__8wekyb3d8bbwe", "name": "Microsoft Engagement Framework", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.23012.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Office", "name": "Microsoft Office Home and Student 2019 - en-us", "source": "programs", "vendor": "Microsoft Corporation", "version": "16.0.18925.20138"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsStore_22505.1401.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft Store", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.17.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MSTeams_25153.1010.3727.5483_x64__8wekyb3d8bbwe", "name": "Microsoft Teams", "source": "programs", "vendor": "Microsoft", "version": "25153.1010.3727.5483"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\System32\\ieframe.dll", "name": "Microsoft Url Search Hook", "source": "ie_extensions", "vendor": "", "version": "11.0.26100.4343"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00.UWPDesktop_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Desktop Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VCLibs.140.00_14.0.33519.0_x64__8wekyb3d8bbwe", "name": "Microsoft Visual C++ 2015 UWP Runtime Package", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "14.0.33519.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Microsoft VS Code\\", "name": "Microsoft Visual Studio Code (User)", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.101.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\"", "name": "Microsoft Visual Studio Installer", "source": "programs", "vendor": "Microsoft Corporation", "version": "3.12.2320.19252"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy", "name": "Microsoft.AAD.BrokerPlugin", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.19580.1000.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AV1VideoExtension_1.3.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AV1VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.3.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.AVCEncoderVideoExtension_1.1.17.0_x64__8wekyb3d8bbwe", "name": "Microsoft.AVCEncoderVideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.17.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AccountsControl_cw5n1h2txyewy", "name": "Microsoft.AccountsControl", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ApplicationCompatibilityEnhancements_1.2411.16.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ApplicationCompatibilityEnhancements", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2411.16.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.AsyncTextService_8wekyb3d8bbwe", "name": "Microsoft.AsyncTextService", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.BingSearch_1.1.34.0_x64__8wekyb3d8bbwe", "name": "Microsoft.BingSearch", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.1.34.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.BioEnrollment_cw5n1h2txyewy", "name": "Microsoft.BioEnrollment", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19587.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.CommandPalette_0.2.1.0_x64__8wekyb3d8bbwe", "name": "Microsoft.CommandPalette", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.2.1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\microsoft.creddialoghost_cw5n1h2txyewy", "name": "Microsoft.CredDialogHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19595.1001"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.DesktopAppInstaller_1.26.400.0_x64__8wekyb3d8bbwe", "name": "Microsoft.DesktopAppInstaller", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.26.400.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.ECApp_8wekyb3d8bbwe", "name": "Microsoft.ECApp", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4061"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Edge.GameAssist_1.0.3336.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Edge.GameAssist", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1.0.3336.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GetHelp_10.2409.22951.0_x64__8wekyb3d8bbwe", "name": "Microsoft.GetHelp", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2409.22951.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.HEIFImageExtension_1.2.20.0_x64__8wekyb3d8bbwe", "name": "Microsoft.HEIFImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.LockApp_cw5n1h2txyewy", "name": "Microsoft.LockApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.4202"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MPEG2VideoExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MPEG2VideoExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.MSPaint_6.2410.13017.0_x64__8wekyb3d8bbwe", "name": "Microsoft.MSPaint", "source": "programs", "vendor": "Microsoft Corporation", "version": "6.2410.13017.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.MicrosoftEdgeDevToolsClient_8wekyb3d8bbwe", "name": "Microsoft.MicrosoftEdgeDevToolsClient", "source": "programs", "vendor": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Paint_11.2504.531.0_x64__8wekyb3d8bbwe", "name": "Microsoft.Paint", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.531.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.People_10.2202.100.0_x64__8wekyb3d8bbwe", "name": "Microsoft.People", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.2202.100.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.PowerAutomateDesktop_1.0.1420.0_x64__8wekyb3d8bbwe", "name": "Microsoft.PowerAutomateDesktop", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.0.1420.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.RawImageExtension_2.5.5.0_x64__8wekyb3d8bbwe", "name": "Microsoft.RawImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "2.5.5.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ScreenSketch_11.2504.42.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ScreenSketch", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.42.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.SecHealthUI_1000.27840.1000.0_x64__8wekyb3d8bbwe", "name": "Microsoft.SecHealthUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.27840.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.StorePurchaseApp_22505.1401.0.0_x64__8wekyb3d8bbwe", "name": "Microsoft.StorePurchaseApp", "source": "programs", "vendor": "Microsoft Corporation", "version": "22505.1401.0.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.0_2.1810.18004.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.0", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "2.1810.18004.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.7_7.2409.9001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.7", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "7.2409.9001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.UI.Xaml.2.8_8.2310.30001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.2.8", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "8.2310.30001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\Microsoft.UI.Xaml.CBS_8wekyb3d8bbwe", "name": "Microsoft.UI.Xaml.CBS", "source": "programs", "vendor": "Microsoft Platform Extensions", "version": "9.2311.10002.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.VP9VideoExtensions_1.2.6.0_x64__8wekyb3d8bbwe", "name": "Microsoft.VP9VideoExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.6.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebMediaExtensions_1.2.14.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebMediaExtensions", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.14.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WebpImageExtension_1.2.10.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WebpImageExtension", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2.10.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Win32WebViewHost_cw5n1h2txyewy", "name": "Microsoft.Win32WebViewHost", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.AppRep.ChxApp_cw5n1h2txyewy", "name": "Microsoft.Windows.Apprep.ChxApp", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCalculator_11.2502.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCalculator", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2502.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsCamera_2025.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsCamera", "source": "programs", "vendor": "Microsoft Corporation", "version": "2025.2505.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2504.62.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsNotepad", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2504.62.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.22.11141.0_x64__8wekyb3d8bbwe", "name": "Microsoft.WindowsTerminal", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.22.11141.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.XboxGameCallableUI_cw5n1h2txyewy", "name": "Microsoft.XboxGameCallableUI", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "1000.25128.1000.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxIdentityProvider_12.115.1001.0_x64__8wekyb3d8bbwe", "name": "Microsoft.XboxIdentityProvider", "source": "programs", "vendor": "Microsoft Corporation", "version": "12.115.1001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxSpeechToTextOverlay_1.97.17002.0_neutral_split.scale-125_8wekyb3d8bbwe", "name": "Microsoft.XboxSpeechToTextOverlay", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.97.17002.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.YourPhone_1.25052.76.0_x64__8wekyb3d8bbwe", "name": "Microsoft.YourPhone", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.25052.76.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.ZuneMusic_11.2505.2.0_x64__8wekyb3d8bbwe", "name": "Microsoft.ZuneMusic", "source": "programs", "vendor": "Microsoft Corporation", "version": "11.2505.2.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.54792954.Filons_cw5n1h2txyewy", "name": "MicrosoftWindows.54792954.Filons", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.56978801.Voiess_cw5n1h2txyewy", "name": "MicrosoftWindows.56978801.Voiess", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57058570.Speion_cw5n1h2txyewy", "name": "MicrosoftWindows.57058570.Speion", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\SxS\\MicrosoftWindows.57074914.Livtop_cw5n1h2txyewy", "name": "MicrosoftWindows.57074914.Livtop", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CBS", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.107.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.Core_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Core", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.46.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.CoreAI_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.CoreAI", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.4351.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\WINDOWS\\SystemApps\\MicrosoftWindows.Client.FileExp_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.FileExp", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.3.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.OOBE_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.OOBE", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.7.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.Client.Photon_cw5n1h2txyewy", "name": "MicrosoftWindows.Client.Photon", "source": "programs", "vendor": "Microsoft Windows", "version": "1000.26100.8.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.CrossDevice_1.25061.25.0_x64__cw5n1h2txyewy", "name": "MicrosoftWindows.CrossDevice", "source": "programs", "vendor": "Microsoft Windows", "version": "1.25061.25.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Mozilla Firefox", "name": "Mozilla Firefox (x64 en-US)", "source": "programs", "vendor": "Mozilla", "version": "139.0.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.OutlookForWindows_1.2025.129.300_x64__8wekyb3d8bbwe", "name": "Outlook for Windows", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.2025.129.300"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.PinningConfirmationDialog_cw5n1h2txyewy", "name": "PinningConfirmationDialog", "source": "programs", "vendor": "Microsoft Corporation", "version": "1000.25140.1001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\PowerToys\\", "name": "PowerToys (Preview)", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "PowerToys (Preview) x64", "source": "programs", "vendor": "Microsoft Corporation", "version": "0.91.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Strawberry\\", "name": "Strawberry Perl (64-bit)", "source": "programs", "vendor": "strawberryperl.com project", "version": "5.38.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\MicrosoftWindows.UndockedDevKit_cw5n1h2txyewy", "name": "UDK Package", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community", "name": "Visual Studio Community 2022", "source": "programs", "vendor": "Microsoft Corporation", "version": "17.12.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WidgetsPlatformRuntime_1.6.9.0_x64__8wekyb3d8bbwe", "name": "Widgets Platform Runtime", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.6.9.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "WinAppDeploy", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.1.20348.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\MicrosoftWindows.Client.WebExperience_525.15301.20.0_x64__cw5n1h2txyewy", "name": "Windows Web Experience Pack", "source": "programs", "vendor": "Microsoft Windows", "version": "525.15301.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.CBSPreview_cw5n1h2txyewy", "name": "Windows.CBSPreview", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "10.0.19580.1000"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Windows.PrintDialog_cw5n1h2txyewy", "name": "Windows.PrintDialog", "source": "programs", "vendor": "CN=Microsoft Windows, O=Microsoft Corporation, L=Redmond, S=Washington, C=US", "version": "6.2.3.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.3_3000.934.1904.0_x86__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.3", "source": "programs", "vendor": "Microsoft Corporation", "version": "3000.934.1904.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.4_4000.1136.2333.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.4", "source": "programs", "vendor": "Microsoft Corporation", "version": "4000.1136.2333.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.5_5001.373.1736.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.5", "source": "programs", "vendor": "Microsoft Corporation", "version": "5001.373.1736.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.6_6000.486.517.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.6", "source": "programs", "vendor": "Microsoft Corporation", "version": "6000.486.517.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsAppRuntime.1.7_7000.522.1444.0_x64__8wekyb3d8bbwe", "name": "WindowsAppRuntime.1.7", "source": "programs", "vendor": "Microsoft Corporation", "version": "7000.522.1444.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.GamingApp_2506.1001.20.0_x64__8wekyb3d8bbwe", "name": "Xbox", "source": "programs", "vendor": "Microsoft Corporation", "version": "2506.1001.20.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.XboxGameOverlay_1.54.4001.0_x64__8wekyb3d8bbwe", "name": "Xbox Game Bar Plugin", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.54.4001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\Microsoft.Xbox.TCUI_1.24.10001.0_x64__8wekyb3d8bbwe", "name": "Xbox TCUI", "source": "programs", "vendor": "Microsoft Corporation", "version": "1.24.10001.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Windows\\SystemApps\\Microsoft.Windows.FileExplorer_cw5n1h2txyewy", "name": "c5e2524a-ea46-4f67-841f-6a9465d9d515", "source": "programs", "vendor": "Microsoft Corporation", "version": "10.0.26100.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Program Files\\WindowsApps\\microsoft.windowscommunicationsapps_16005.14326.22342.0_x64__8wekyb3d8bbwe", "name": "microsoft.windowscommunicationsapps", "source": "programs", "vendor": "Microsoft Corporation", "version": "16005.14326.22342.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "vcpp_crt.redist.clickonce", "source": "programs", "vendor": "Microsoft Corporation", "version": "14.29.30157"},
+		{"extension_for": "", "bundle_identifier": "", "extension_id": "99b17261-8f6e-45f0-9ad5-a69c6f509a4f", "installed_path": "/c:/Users/zach/.vscode/extensions/ms-vscode.cpptools-themes-2.0.0", "last_opened_at": "", "name": "ms-vscode.cpptools-themes", "source": "vscode_extensions", "vendor": "Microsoft", "version": "2.0.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "C:\\Users\\zach\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\pip-23.2.1.dist-info", "name": "pip", "source": "python_packages", "vendor": "", "version": "23.2.1"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, prefetchResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "programs" {
+			// Last opened at should only be set for programs
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["installed_path"] == "C:\\Windows\\System32\\" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "Strawberry Perl (64-bit)" {
+			assert.Equal(t, "1749664524", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.MSPaint" {
+			assert.Equal(t, "1751739848", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft.Paint" {
+			assert.Equal(t, "1751739842", software["last_opened_at"])
+		}
+
+		if software["name"] == "Microsoft Visual Studio Code (User)" {
+			assert.Equal(t, "1751756772", software["last_opened_at"])
+		}
+
+		if software["name"] == "CMake" {
+			assert.Equal(t, "1751756665", software["last_opened_at"])
+		}
+
+		if software["name"] == "Mozilla Firefox (x64 en-US)" {
+			assert.Equal(t, "1751755087", software["last_opened_at"])
+		}
+	}
+}
+
+func TestWindowsAcrobatDC(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_acrobat_dc"].SoftwareProcessResults
+	softwareResults := []map[string]string{
+		{"name": "Adobe Acrobat Reader 64-bit"},
+		{"name": "Adobe Acrobat 2017"},
+		{"name": "Acrobat Reader"},
+	}
+
+	testCases := []struct {
+		name            string
+		registryResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name:            "no registry results",
+			registryResults: nil,
+			expected:        softwareResults,
+		},
+		{
+			name: "registry results",
+			registryResults: []map[string]string{
+				{"present": ""},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat Reader DC 64-bit"},
+				{"name": "Adobe Acrobat DC 2017"},
+				{"name": "Acrobat Reader DC"},
+			},
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			result := processFunc(softwareResults, testCase.registryResults)
+			require.Equal(t, testCase.expected, result)
+		})
+	}
+}
+
+func TestWindowsProgramFilesScan(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["windows_program_files_scan"].SoftwareProcessResults
+
+	testCases := []struct {
+		name            string
+		mainResults     []map[string]string
+		fileScanResults []map[string]string
+		expected        []map[string]string
+	}{
+		{
+			name: "no file scan results returns main unchanged",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: nil,
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+		},
+		{
+			name: "all duplicates filtered out",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Git\cmd\git.exe`, "filename": "git.exe", "product_version": "2.43.0", "file_version": "2.43.0"},
+				{"path": `C:\Program Files\CMake\bin\cmake.exe`, "filename": "cmake.exe", "product_version": "3.28.1", "file_version": "3.28.1"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{"name": "CMake", "source": "programs", "installed_path": `C:\Program Files\CMake\`},
+			},
+		},
+		{
+			name: "new entries appended with correct columns",
+			mainResults: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\Windows Defender\MsMpEng.exe`, "filename": "MsMpEng.exe", "product_version": "4.18.25030.2", "file_version": "4.18.25030.2"},
+				{"path": `C:\Program Files\Adobe\DNG Converter\DNGConverter.exe`, "filename": "DNGConverter.exe", "product_version": "16.1", "file_version": "16.1.0.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Git", "source": "programs", "installed_path": `C:\Program Files\Git\`},
+				{
+					"name": "MsMpEng.exe", "version": "4.18.25030.2", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Windows Defender`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+				{
+					"name": "DNGConverter.exe", "version": "16.1", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\Adobe\DNG Converter`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name:        "version falls back to file_version when product_version is empty",
+			mainResults: []map[string]string{},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "", "file_version": "1.0.0.0"},
+			},
+			expected: []map[string]string{
+				{
+					"name": "app.exe", "version": "1.0.0.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "case-insensitive path matching deduplicates",
+			mainResults: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `c:\program files\Adobe\subfolder\tool.exe`, "filename": "tool.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "Adobe Acrobat", "source": "programs", "installed_path": `C:\Program Files\Adobe`},
+			},
+		},
+		{
+			name: "exe in parent directory of known install path is not a duplicate",
+			mainResults: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\JetBrains\updater.exe`, "filename": "updater.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "GoLand", "source": "programs", "installed_path": `C:\Program Files\JetBrains\GoLand 2025.3.3`},
+				{
+					"name": "updater.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\JetBrains`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "drive root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\NewApp\app.exe`, "filename": "app.exe", "product_version": "1.0", "file_version": "1.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SomeTool", "source": "programs", "installed_path": `C:\`},
+				{
+					"name": "app.exe", "version": "1.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\NewApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "system32 installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\AnotherApp\tool.exe`, "filename": "tool.exe", "product_version": "3.0", "file_version": "3.0"},
+			},
+			expected: []map[string]string{
+				{"name": "SysTool", "source": "programs", "installed_path": `C:\Windows\System32`},
+				{
+					"name": "tool.exe", "version": "3.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\AnotherApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "Program Files root installed_path does not suppress file scan results",
+			mainResults: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeVendor\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "BadEntry", "source": "programs", "installed_path": `C:\Program Files`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeVendor`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+		{
+			name: "non-programs entries in main do not affect dedup",
+			mainResults: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+			},
+			fileScanResults: []map[string]string{
+				{"path": `C:\Program Files\SomeApp\app.exe`, "filename": "app.exe", "product_version": "2.0", "file_version": "2.0"},
+			},
+			expected: []map[string]string{
+				{"name": "1Password", "source": "chrome_extensions", "installed_path": `C:\Program Files\SomeApp`},
+				{
+					"name": "app.exe", "version": "2.0", "source": "programs",
+					"vendor": "", "installed_path": `C:\Program Files\SomeApp`,
+					"extension_id": "", "extension_for": "", "upgrade_code": "",
+					"release": "", "arch": "", "bundle_identifier": "", "last_opened_at": "",
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := processFunc(tc.mainResults, tc.fileScanResults)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestTPMPinSetVerifyIngest(t *testing.T) {
+	tests := []struct {
+		name   string
+		host   *fleet.Host
+		rows   []map[string]string
+		pinSet *bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+			rows: []map[string]string{
+				{"host": "something", "criteria": "1"},
+			},
+		},
+		{
+			name: "empty uuid",
+			host: &fleet.Host{
+				ID: 1,
+			},
+			rows: []map[string]string{{"host": "something", "criteria": "1"}},
+		},
+		{
+			name: "no rows - pin not set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows:   []map[string]string{},
+			pinSet: ptr.Bool(false),
+		},
+		{
+			name: "with rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+		{
+			name: "multiple rows - pin set",
+			host: &fleet.Host{
+				ID:   1,
+				UUID: "test-uuid",
+			},
+			rows: []map[string]string{
+				{"host": "Mordor", "criteria": "1"},
+				{"host": "Mordor", "criteria": "1"},
+			},
+			pinSet: ptr.Bool(true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			var setPinCalled bool
+			ds.SetOrUpdateHostDiskTpmPINFunc = func(ctx context.Context, hostID uint, pinSet bool) error {
+				setPinCalled = true
+				require.Equal(t, *tt.pinSet, pinSet)
+				require.Equal(t, tt.host.ID, hostID)
+				return nil
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_set_verify"].DirectIngestFunc
+
+			require.NoError(t, ingestFunc(t.Context(), slog.New(slog.DiscardHandler), tt.host, ds, tt.rows))
+			require.Equal(t, setPinCalled, tt.pinSet != nil)
+		})
+	}
+}
+
+func TestTPMPinConfigVerifyDirectIngest(t *testing.T) {
+	logger := slog.New(slog.DiscardHandler)
+	ctx := t.Context()
+
+	tests := []struct {
+		name      string
+		host      *fleet.Host
+		rows      []map[string]string
+		wantCmd   bool
+		wantError bool
+	}{
+		{
+			name: "nil host",
+			host: nil,
+		},
+		{
+			name: "empty UUID host",
+			host: &fleet.Host{UUID: ""},
+		},
+		{
+			name: "too many rows",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+			wantError: true,
+		},
+		{
+			name: "no rows - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows:    []map[string]string{},
+			wantCmd: true,
+		},
+		{
+			name: "disallowed state - requires command",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownDisallowed)},
+			},
+			wantCmd: true,
+		},
+		{
+			name: "policy set to optinal",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownOptional)},
+			},
+		},
+		{
+			name: "policy set to required",
+			host: &fleet.Host{
+				UUID: "test-uuid",
+				ID:   1,
+			},
+			rows: []map[string]string{
+				{"data": strconv.Itoa(microsoft_mdm.PolicyOptDropdownRequired)},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ds := new(mock.Store)
+
+			cmdInserted := false
+			if tt.wantCmd {
+				ds.MDMWindowsInsertCommandForHostsFunc = func(
+					ctx context.Context,
+					hostUUIDs []string,
+					cmd *fleet.MDMWindowsCommand,
+				) error {
+					cmdInserted = true
+					require.Equal(t, []string{tt.host.UUID}, hostUUIDs)
+					require.NotNil(t, cmd)
+					return nil
+				}
+			}
+
+			ingestFunc := tpmPINQueries["tpm_pin_config_verify"].DirectIngestFunc
+			err := ingestFunc(ctx, logger, tt.host, ds, tt.rows)
+			require.Equal(t, tt.wantError, err != nil)
+			require.Equal(t, cmdInserted, tt.wantCmd)
+		})
+	}
+}
+
+func TestDebLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["deb_last_opened_at"].SoftwareProcessResults
+	debPackageResults := []map[string]string{
+		{"package": "accountsservice", "last_opened_at": "1753287489"},
+		{"package": "acl", "last_opened_at": "1752178409"},
+		{"package": "adduser", "last_opened_at": "1753287887"},
+		{"package": "alsa-base", "last_opened_at": "1752178572"},
+		{"package": "alsa-utils", "last_opened_at": "1753806108"},
+		{"package": "anacron", "last_opened_at": "1754439481"},
+		{"package": "apg", "last_opened_at": "1752178498"},
+		{"package": "apparmor", "last_opened_at": "1753978475"},
+		{"package": "apport", "last_opened_at": "1754439481"},
+		{"package": "apport-core-dump-handler", "last_opened_at": "1752791628"},
+		{"package": "apport-gtk", "last_opened_at": "1752791824"},
+		{"package": "appstream", "last_opened_at": "1754361022"},
+		{"package": "apt", "last_opened_at": "1754439481"},
+		{"package": "apt-file", "last_opened_at": "1753293736"},
+		{"package": "apt-utils", "last_opened_at": "1753978482"},
+		{"package": "aptdaemon", "last_opened_at": "1752791767"},
+		{"package": "aspell", "last_opened_at": "1752178619"},
+		{"package": "at-spi2-core", "last_opened_at": "1753806242"},
+		{"package": "avahi-daemon", "last_opened_at": "1753806108"},
+		{"package": "baobab", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "accountsservice", "source": "deb_packages", "vendor": "", "version": "23.13.9-2ubuntu6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "acl", "source": "deb_packages", "vendor": "", "version": "2.3.2-1build1.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "adduser", "source": "deb_packages", "vendor": "", "version": "3.137ubuntu1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "adwaita-icon-theme", "source": "deb_packages", "vendor": "", "version": "46.0-1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-base", "source": "deb_packages", "vendor": "", "version": "1.0.25+dfsg-0ubuntu7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-topology-conf", "source": "deb_packages", "vendor": "", "version": "1.2.5.1-2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-ucm-conf", "source": "deb_packages", "vendor": "", "version": "1.2.10-1ubuntu5.7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "alsa-utils", "source": "deb_packages", "vendor": "", "version": "1.2.9-1ubuntu5"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "anacron", "source": "deb_packages", "vendor": "", "version": "2.3-39ubuntu2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apg", "source": "deb_packages", "vendor": "", "version": "2.2.3.dfsg.1-5build3"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apparmor", "source": "deb_packages", "vendor": "", "version": "4.0.1really4.0.1-0ubuntu0.24.04.4"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-core-dump-handler", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-gtk", "source": "deb_packages", "vendor": "", "version": "2.28.1-0ubuntu3.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apport-symptoms", "source": "deb_packages", "vendor": "", "version": "0.25"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "appstream", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt", "source": "deb_packages", "vendor": "", "version": "2.8.3"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-config-icons-hidpi", "source": "deb_packages", "vendor": "", "version": "1.0.2-1build6"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "apt-file", "source": "deb_packages", "vendor": "", "version": "3.3"},
+		// Add some non-deb_packages software to test filtering
+		{"extension_for": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, debPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "deb_packages" {
+			// Last opened at should only be set for deb_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "accountsservice" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "acl" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "adduser" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-base" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-utils" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "anacron" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apg" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "apparmor" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-core-dump-handler" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-gtk" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "appstream" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-file" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "adwaita-icon-theme" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-topology-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "alsa-ucm-conf" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apport-symptoms" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "apt-config-icons-hidpi" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}
+
+func TestRpmLastOpenedAt(t *testing.T) {
+	processFunc := SoftwareOverrideQueries["rpm_last_opened_at"].SoftwareProcessResults
+	rpmPackageResults := []map[string]string{
+		{"package": "bash", "last_opened_at": "1753287489"},
+		{"package": "coreutils", "last_opened_at": "1752178409"},
+		{"package": "curl", "last_opened_at": "1753287887"},
+		{"package": "firewalld", "last_opened_at": "1752178572"},
+		{"package": "git", "last_opened_at": "1753806108"},
+		{"package": "httpd", "last_opened_at": "1754439481"},
+		{"package": "java-11-openjdk", "last_opened_at": "1752178498"},
+		{"package": "kernel", "last_opened_at": "1753978475"},
+		{"package": "libcurl", "last_opened_at": "1754439481"},
+		{"package": "mysql-server", "last_opened_at": "1752791628"},
+		{"package": "nginx", "last_opened_at": "1752791824"},
+		{"package": "nodejs", "last_opened_at": "1754361022"},
+		{"package": "openssh-server", "last_opened_at": "1754439481"},
+		{"package": "postgresql", "last_opened_at": "1753293736"},
+		{"package": "python3", "last_opened_at": "1753978482"},
+		{"package": "redis", "last_opened_at": "1752791767"},
+		{"package": "systemd", "last_opened_at": "1752178619"},
+		{"package": "vim", "last_opened_at": "1753806242"},
+		{"package": "wget", "last_opened_at": "1753806108"},
+		{"package": "yum", "last_opened_at": "1753806594"},
+	}
+	softwareResults := []map[string]string{
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "bash", "source": "rpm_packages", "vendor": "", "version": "4.2.46-35.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "coreutils", "source": "rpm_packages", "vendor": "", "version": "8.22-24.el7_9.2"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "curl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "firewalld", "source": "rpm_packages", "vendor": "", "version": "0.6.3-13.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "git", "source": "rpm_packages", "vendor": "", "version": "1.8.3.1-25.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "httpd", "source": "rpm_packages", "vendor": "", "version": "2.4.6-97.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "java-11-openjdk", "source": "rpm_packages", "vendor": "", "version": "11.0.21.0.9-1.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "kernel", "source": "rpm_packages", "vendor": "", "version": "3.10.0-1160.105.1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "libcurl", "source": "rpm_packages", "vendor": "", "version": "7.29.0-59.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "mysql-server", "source": "rpm_packages", "vendor": "", "version": "5.7.44-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "nginx", "source": "rpm_packages", "vendor": "", "version": "1.20.1-9.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "nodejs", "source": "rpm_packages", "vendor": "", "version": "16.20.2-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "openssh-server", "source": "rpm_packages", "vendor": "", "version": "7.4p1-23.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "postgresql", "source": "rpm_packages", "vendor": "", "version": "13.14-1.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "python3", "source": "rpm_packages", "vendor": "", "version": "3.6.8-18.el7_9.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "redis", "source": "rpm_packages", "vendor": "", "version": "5.0.3-1.el7"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "systemd", "source": "rpm_packages", "vendor": "", "version": "219-78.el7_9.8"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "vim", "source": "rpm_packages", "vendor": "", "version": "7.4.629-8.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "wget", "source": "rpm_packages", "vendor": "", "version": "1.14-18.el7_6.1"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "yum", "source": "rpm_packages", "vendor": "", "version": "3.4.3-168.el7_9"},
+		// Add some packages that don't have last_opened_at data
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "glibc", "source": "rpm_packages", "vendor": "", "version": "2.17-325.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "openssl", "source": "rpm_packages", "vendor": "", "version": "1.0.2k-26.el7_9"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "zlib", "source": "rpm_packages", "vendor": "", "version": "1.2.7-18.el7"},
+		// Add some non-rpm_packages software to test filtering
+		{"extension_for": "firefox", "extension_id": "test-extension", "installed_path": "", "name": "Firefox Extension", "source": "firefox_addons", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "chrome-extension", "source": "chrome_extensions", "vendor": "", "version": "1.0"},
+		{"extension_for": "", "extension_id": "", "installed_path": "", "name": "deb-package", "source": "deb_packages", "vendor": "", "version": "1.0"},
+	}
+	softwareWithLastUsed := processFunc(softwareResults, rpmPackageResults)
+
+	for _, software := range softwareWithLastUsed {
+		if software["source"] != "rpm_packages" {
+			// Last opened at should only be set for rpm_packages
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "bash" {
+			assert.Equal(t, "1753287489", software["last_opened_at"])
+		}
+
+		if software["name"] == "coreutils" {
+			assert.Equal(t, "1752178409", software["last_opened_at"])
+		}
+
+		if software["name"] == "curl" {
+			assert.Equal(t, "1753287887", software["last_opened_at"])
+		}
+
+		if software["name"] == "firewalld" {
+			assert.Equal(t, "1752178572", software["last_opened_at"])
+		}
+
+		if software["name"] == "git" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "httpd" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "java-11-openjdk" {
+			assert.Equal(t, "1752178498", software["last_opened_at"])
+		}
+
+		if software["name"] == "kernel" {
+			assert.Equal(t, "1753978475", software["last_opened_at"])
+		}
+
+		if software["name"] == "libcurl" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "mysql-server" {
+			assert.Equal(t, "1752791628", software["last_opened_at"])
+		}
+
+		if software["name"] == "nginx" {
+			assert.Equal(t, "1752791824", software["last_opened_at"])
+		}
+
+		if software["name"] == "nodejs" {
+			assert.Equal(t, "1754361022", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssh-server" {
+			assert.Equal(t, "1754439481", software["last_opened_at"])
+		}
+
+		if software["name"] == "postgresql" {
+			assert.Equal(t, "1753293736", software["last_opened_at"])
+		}
+
+		if software["name"] == "python3" {
+			assert.Equal(t, "1753978482", software["last_opened_at"])
+		}
+
+		if software["name"] == "redis" {
+			assert.Equal(t, "1752791767", software["last_opened_at"])
+		}
+
+		if software["name"] == "systemd" {
+			assert.Equal(t, "1752178619", software["last_opened_at"])
+		}
+
+		if software["name"] == "vim" {
+			assert.Equal(t, "1753806242", software["last_opened_at"])
+		}
+
+		if software["name"] == "wget" {
+			assert.Equal(t, "1753806108", software["last_opened_at"])
+		}
+
+		if software["name"] == "yum" {
+			assert.Equal(t, "1753806594", software["last_opened_at"])
+		}
+
+		// Test packages that don't have last_opened_at data
+		if software["name"] == "glibc" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "openssl" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+
+		if software["name"] == "zlib" {
+			assert.Equal(t, "", software["last_opened_at"])
+		}
+	}
+}

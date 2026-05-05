@@ -1,18 +1,20 @@
 import React from "react";
 import classnames from "classnames";
-import { uniqueId } from "lodash";
 
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
+import TooltipWrapper from "components/TooltipWrapper";
+
+import {
+  isPerformanceImpactIndicator,
+  PerformanceImpactIndicatorValue,
+} from "interfaces/schedulable_query";
+import { getPerformanceImpactIndicatorTooltip } from "utilities/helpers";
 
 interface IPerformanceImpactCellValue {
   indicator: string;
-  id?: number;
 }
 interface IPerformanceImpactCellProps {
   value: IPerformanceImpactCellValue;
   isHostSpecific?: boolean;
-  customIdPrefix?: string;
 }
 
 const generateClassTag = (rawValue: string): string => {
@@ -24,9 +26,8 @@ const baseClass = "performance-impact-cell";
 const PerformanceImpactCell = ({
   value,
   isHostSpecific = false,
-  customIdPrefix,
 }: IPerformanceImpactCellProps): JSX.Element => {
-  const { indicator, id } = value;
+  const { indicator } = value;
   const pillClassName = classnames(
     "data-table__pill",
     `data-table__pill--${generateClassTag(indicator || "")}`,
@@ -40,74 +41,34 @@ const PerformanceImpactCell = ({
     "Undetermined",
   ].includes(indicator);
 
-  const tooltipText = () => {
-    switch (indicator) {
-      case "Minimal":
-        return (
-          <>
-            Running this query very frequently has little to no <br /> impact on
-            your device&apos;s performance.
-          </>
-        );
-      case "Considerable":
-        return (
-          <>
-            Running this query frequently can have a noticeable <br />
-            impact on your device&apos;s performance.
-          </>
-        );
-      case "Excessive":
-        return (
-          <>
-            Running this query, even infrequently, can have a <br />
-            significant impact on your device&apos;s performance.
-          </>
-        );
-      case "Denylisted":
-        return (
-          <>
-            This query has been <br /> stopped from running <br /> because of
-            excessive <br /> resource consumption.
-          </>
-        );
-      case "Undetermined":
-        return (
-          <>
-            Performance impact will be available when{" "}
-            {isHostSpecific ? "the" : "this"} <br />
-            query runs{isHostSpecific && " on this host"}.
-          </>
-        );
-      default:
-        return null;
-    }
-  };
-  const tooltipId = uniqueId();
+  const indicatorValue = isPerformanceImpactIndicator(indicator)
+    ? indicator
+    : PerformanceImpactIndicatorValue.UNDETERMINED;
 
   return (
     <span className={`${baseClass}`}>
-      <span
-        data-tip
-        data-for={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
-        data-tip-disable={disableTooltip}
+      <TooltipWrapper
+        tipContent={
+          <span
+            className={`tooltip ${generateClassTag(
+              indicator || ""
+            )}__tooltip-text`}
+          >
+            {getPerformanceImpactIndicatorTooltip(
+              indicatorValue,
+              isHostSpecific
+            )}
+          </span>
+        }
+        position="top"
+        disableTooltip={disableTooltip}
+        underline={false}
+        showArrow
+        // Pills require more gap from text to tooltip
+        tipOffset={indicatorValue === "Undetermined" ? 8 : 12}
       >
-        <span className={pillClassName}>{indicator}</span>
-      </span>
-      <ReactTooltip
-        place="top"
-        effect="solid"
-        backgroundColor={COLORS["tooltip-bg"]}
-        id={`${customIdPrefix || "pill"}__${id?.toString() || tooltipId}`}
-        data-html
-      >
-        <span
-          className={`tooltip ${generateClassTag(
-            indicator || ""
-          )}__tooltip-text`}
-        >
-          {tooltipText()}
-        </span>
-      </ReactTooltip>
+        <span className={pillClassName}>{indicatorValue}</span>
+      </TooltipWrapper>
     </span>
   );
 };

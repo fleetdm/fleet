@@ -20,7 +20,9 @@ func Up_20221115104546(tx *sql.Tx) error {
 			status VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-			INDEX idx_cron_stats_name_created_at (name, created_at))
+			INDEX idx_cron_stats_name_created_at (name, created_at)
+		)
+			ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 	`)
 	if err != nil {
 		return errors.Wrapf(err, "create table")

@@ -1,0 +1,8 @@
+{
+  "name": "Microsoft Teams",
+  "slug": "microsoft-teams/darwin",
+  "unique_identifier": "com.microsoft.teams2",
+  "token": "microsoft-teams",
+  "installer_format": "pkg",
+  "default_categories": ["Communication"]
+}

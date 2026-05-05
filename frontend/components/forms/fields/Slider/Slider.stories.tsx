@@ -1,19 +1,11 @@
-import React from "react";
-import { Meta, Story } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react";
 import { noop } from "lodash";
 
 import Slider from ".";
 
 import "../../../../index.scss";
 
-interface ISliderProps {
-  value: boolean;
-  inactiveText: string;
-  activeText: string;
-  onChange: () => void;
-}
-
-export default {
+const meta: Meta<typeof Slider> = {
   component: Slider,
   title: "Components/FormFields/Slider",
   args: {
@@ -22,8 +14,10 @@ export default {
     activeText: "On",
     onChange: noop,
   },
-} as Meta;
+};
 
-const Template: Story<ISliderProps> = (props) => <Slider {...props} />;
+export default meta;
 
-export const Default = Template.bind({});
+type Story = StoryObj<typeof Slider>;
+
+export const Default: Story = {};

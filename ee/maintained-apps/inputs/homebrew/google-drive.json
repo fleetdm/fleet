@@ -1,0 +1,8 @@
+{
+  "name": "Google Drive",
+  "slug": "google-drive/darwin",
+  "unique_identifier": "com.google.drivefs",
+  "token": "google-drive",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"]
+}

@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"testing"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -25,14 +28,27 @@ func TestVPP(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"SetTeamVPPApps", testSetTeamVPPApps},
+		{"SetTeamVPPAppsWithLabels", testSetTeamVPPAppsWithLabels},
 		{"VPPAppMetadata", testVPPAppMetadata},
 		{"VPPAppStatus", testVPPAppStatus},
 		{"VPPApps", testVPPApps},
 		{"GetVPPAppByTeamAndTitleID", testGetVPPAppByTeamAndTitleID},
 		{"VPPTokensCRUD", testVPPTokensCRUD},
 		{"VPPTokenAppTeamAssociations", testVPPTokenAppTeamAssociations},
+		{"VPPTokenReassignTeamsToAllTeams", testVPPTokenReassignTeamsToAllTeams},
 		{"GetOrInsertSoftwareTitleForVPPApp", testGetOrInsertSoftwareTitleForVPPApp},
 		{"DeleteVPPAssignedToPolicy", testDeleteVPPAssignedToPolicy},
+		{"TestVPPTokenTeamAssignment", testVPPTokenTeamAssignment},
+		{"TestGetAllVPPApps", testGetAllVPPApps},
+		{"TestGetUnverifiedVPPInstallsForHost", testGetUnverifiedVPPInstallsForHost},
+		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameVPP},
+		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
+		{"GetVPPAppInstallStatusByCommandUUID", testGetVPPAppInstallStatusByCommandUUID},
+		{"AndroidAppConfigs", testAndroidAppConfigs},
+		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
+		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
+		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
+		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
 	}
 
 	for _, c := range cases {
@@ -67,7 +83,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// create no-team app
 	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, nil)
 	require.NoError(t, err)
 	vpp1, titleID1 := va1.VPPAppID, va1.TitleID
@@ -76,8 +92,22 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID1)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK for comparison purposes
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1}, meta)
+	meta.VPPAppsTeamsID = 0    // we don't care about the VPP app team PK for comparison purposes
+	meta.AddedAt = time.Time{} // we don't care about AddedAt here
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, BundleIdentifier: "com.app.vpp1", SelfService: true}, meta)
+
+	// Check that getting metadata in team context works for no team
+	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, nil)
+	require.ErrorContains(t, err, "not found")
+
+	gotMeta, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, meta.AdamID, meta.Platform, nil)
+	require.NoError(t, err)
+	require.Equal(t, "com.app.vpp1", gotMeta.BundleIdentifier)
+	require.Equal(t, "vpp1", gotMeta.Name)
+	require.Equal(t, titleID1, gotMeta.TitleID)
+	require.Equal(t, va1.VPPAppTeam.AppTeamID, gotMeta.VPPAppTeam.AppTeamID)
+	require.Equal(t, fleet.VPPAppID{Platform: fleet.MacOSPlatform, AdamID: meta.AdamID}, gotMeta.VPPAppTeam.VPPAppID)
+	require.True(t, gotMeta.SelfService)
 
 	// try to add the same app again, update self_service field
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -93,7 +123,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, titleID1, title.SoftwareTitleID)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true}, meta)
+	meta.AddedAt = time.Time{} // we don't care about AddedAt here
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp1", VPPAppID: vpp1, SelfService: true, BundleIdentifier: "com.app.vpp1"}, meta)
 
 	// get nonexistent title
 	_, err = ds.GetTitleInfoFromVPPAppsTeamsID(ctx, 0)
@@ -111,13 +142,15 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for all teams
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// try to add the same app again, fails
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -130,7 +163,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 
 	// get it for team 2, does not exist
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
@@ -141,7 +175,7 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// create the same app for team2
 	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
-		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}, SelfService: true},
 	}, &team2.ID)
 	require.NoError(t, err)
 
@@ -149,11 +183,13 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, SelfService: true, BundleIdentifier: "com.app.vpp2"}, meta)
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
 	// create another no-team app
 	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
@@ -173,7 +209,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp1
 	err = ds.DeleteVPPAppFromTeam(ctx, nil, vpp1)
@@ -186,7 +223,8 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, titleID3)
 	require.NoError(t, err)
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp3", VPPAppID: vpp3, BundleIdentifier: "com.app.vpp3"}, meta)
 
 	// delete vpp2 for team1
 	err = ds.DeleteVPPAppFromTeam(ctx, &team1.ID, vpp2)
@@ -198,16 +236,23 @@ func testVPPAppMetadata(t *testing.T, ds *Datastore) {
 	// but still found for team2
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team2.ID, titleID2)
 	require.NoError(t, err)
+	expectedVPPAppsTeamsID := meta.VPPAppsTeamsID
 	meta.VPPAppsTeamsID = 0 // we don't care about the VPP app team PK
-	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2}, meta)
+	meta.AddedAt = time.Time{}
+	require.Equal(t, &fleet.VPPAppStoreApp{Name: "vpp2", VPPAppID: vpp2, BundleIdentifier: "com.app.vpp2", SelfService: true}, meta)
 
-	appMeta, err := ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, meta.AdamID, meta.Platform)
-	require.NoError(t, err)
-	require.Equal(t, appMeta.AdamID, meta.AdamID)
-	require.Equal(t, appMeta.Platform, meta.Platform)
-
-	_, err = ds.GetVPPAppMetadataByAdamIDAndPlatform(ctx, "foo", meta.Platform)
+	// Check that getting metadata in team context works
+	_, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, "foo", meta.Platform, &team2.ID)
 	require.ErrorContains(t, err, "not found")
+
+	gotMeta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, meta.AdamID, meta.Platform, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "com.app.vpp2", gotMeta.BundleIdentifier)
+	require.Equal(t, "vpp2", gotMeta.Name)
+	require.Equal(t, titleID2, gotMeta.TitleID)
+	require.Equal(t, expectedVPPAppsTeamsID, gotMeta.VPPAppTeam.AppTeamID)
+	require.Equal(t, fleet.VPPAppID{Platform: fleet.MacOSPlatform, AdamID: meta.AdamID}, gotMeta.VPPAppTeam.VPPAppID)
+	require.True(t, gotMeta.SelfService)
 
 	// mark it as install_during_setup for team 2
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
@@ -327,11 +372,11 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, h3, false)
 
 	// move h3 to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{h3.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h3.ID}))
 	require.NoError(t, err)
 
 	// simulate an install request of vpp1 on h1
-	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user.ID)
+	cmd1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -346,8 +391,8 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 
 	// create a new request for h1 that supercedes the failed on, and a request
 	// for h2 with a successful result.
-	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user.ID)
-	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1.AdamID, user.ID)
+	cmd2 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, user)
+	cmd3 := createVPPAppInstallRequest(t, ds, h2, vpp1.AdamID, user)
 	createVPPAppInstallResult(t, ds, h2, cmd3, fleet.MDMAppleStatusAcknowledged)
 
 	actUser, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd3})
@@ -357,12 +402,24 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, cmd3, act.CommandUUID)
 	require.False(t, act.SelfService)
 
+	// both are pending because h2 is not verified yet
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2, Failed: 0, Installed: 0}, summary)
+
+	// mark it as verified
+	err = ds.SetVPPInstallAsVerified(ctx, h2.ID, cmd3, uuid.NewString())
+	require.NoError(t, err)
+
+	// h2 is now installed
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 1}, summary)
 
-	// mark the pending request as successful too
+	// mark the pending request as successful and verified too
 	createVPPAppInstallResult(t, ds, h1, cmd2, fleet.MDMAppleStatusAcknowledged)
+	err = ds.SetVPPInstallAsVerified(ctx, h1.ID, cmd2, uuid.NewString())
+	require.NoError(t, err)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
 	require.NoError(t, err)
@@ -373,21 +430,31 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 0}, summary)
 
-	// simulate a successful request for team app vpp2 on h3
-	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2.AdamID, user.ID)
+	// simulate a successful but unverified request for team app vpp2 on h3
+	cmd4 := createVPPAppInstallRequest(t, ds, h3, vpp2.AdamID, user)
 	createVPPAppInstallResult(t, ds, h3, cmd4, fleet.MDMAppleStatusAcknowledged)
 
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
 	require.NoError(t, err)
-	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 0, Installed: 1}, summary)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Failed: 0, Installed: 0}, summary)
+
+	// verify it as failed
+	err = ds.SetVPPInstallAsFailed(ctx, h3.ID, cmd4, uuid.NewString())
+	require.NoError(t, err)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &team1.ID, vpp2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 0, Failed: 1, Installed: 0}, summary)
 
 	// simulate a successful, failed and pending request for app vpp3 on team
 	// (h3) and no team (h1, h2)
-	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3.AdamID, user.ID)
+	cmd5 := createVPPAppInstallRequest(t, ds, h3, vpp3.AdamID, user)
 	createVPPAppInstallResult(t, ds, h3, cmd5, fleet.MDMAppleStatusAcknowledged)
-	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, user.ID)
+	err = ds.SetVPPInstallAsVerified(ctx, h3.ID, cmd5, uuid.NewString())
+	require.NoError(t, err)
+	cmd6 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, user)
 	createVPPAppInstallResult(t, ds, h1, cmd6, fleet.MDMAppleStatusCommandFormatError)
-	createVPPAppInstallRequest(t, ds, h2, vpp3.AdamID, user.ID)
+	createVPPAppInstallRequest(t, ds, h2, vpp3.AdamID, user)
 
 	// for no team, it sees the failed and pending counts
 	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp3)
@@ -414,42 +481,127 @@ func testVPPAppStatus(t *testing.T, ds *Datastore) {
 }
 
 // simulates creating the VPP app install request on the host, returns the command UUID.
-func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, adamID string, userID uint) string {
+func createVPPAppInstallRequest(t *testing.T, ds *Datastore, host *fleet.Host, adamID string, user *fleet.User) string {
 	ctx := context.Background()
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
 
 	cmdUUID := uuid.NewString()
-	appleCmd := createRawAppleCmd("ProfileList", cmdUUID)
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	err := commander.EnqueueCommand(ctx, []string{host.UUID}, appleCmd)
-	require.NoError(t, err)
+	eventID := uuid.NewString()
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_vpp_software_installs (host_id, adam_id, platform, command_uuid, user_id) VALUES (?, ?, ?, ?, ?)`,
-			host.ID, adamID, host.Platform, cmdUUID, userID)
-		return err
-	})
+	err := ds.InsertHostVPPSoftwareInstall(ctx, host.ID, fleet.VPPAppID{
+		AdamID:   adamID,
+		Platform: fleet.InstallableDevicePlatform(host.Platform),
+	}, cmdUUID, eventID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
 	return cmdUUID
 }
 
 func createVPPAppInstallResult(t *testing.T, ds *Datastore, host *fleet.Host, cmdUUID string, status string) {
 	ctx := context.Background()
 
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, ?, '<?xml')`,
-			host.UUID, cmdUUID, status)
-		return err
+	activitySvc := NewTestActivityService(t, ds)
+
+	nanoDB, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
+	require.NoError(t, err)
+	nanoCtx := &mdm.Request{EnrollID: &mdm.EnrollID{ID: host.UUID}, Context: ctx}
+
+	cmdRes := &mdm.CommandResults{
+		CommandUUID: cmdUUID,
+		Status:      status,
+		Raw:         []byte(`<?xml version="1.0" encoding="UTF-8"?>`),
+	}
+	err = nanoDB.StoreCommandReport(nanoCtx, cmdRes)
+	require.NoError(t, err)
+
+	// inserting the activity is what marks the upcoming activity as completed
+	// (and activates the next one).
+	err = activitySvc.NewActivity(ctx, nil, fleet.ActivityInstalledAppStoreApp{
+		HostID:      host.ID,
+		CommandUUID: cmdUUID,
 	})
+	require.NoError(t, err)
 }
 
 func testVPPApps(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	// Create a team
+	// Create a couple of teams
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "foobar"})
 	require.NoError(t, err)
 
 	test.CreateInsertGlobalVPPToken(t, ds)
+
+	t.Run("vpp apps with labels", func(t *testing.T) {
+		teamWithLabels, err := ds.NewTeam(ctx, &fleet.Team{Name: "labels" + t.Name()})
+		require.NoError(t, err)
+
+		// Create some labels
+		label1, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:        "label1" + t.Name(),
+			Description: "a label",
+			Query:       "select 1 from processes;",
+			Platform:    "darwin",
+		})
+		require.NoError(t, err)
+
+		label2, err := ds.NewLabel(ctx, &fleet.Label{
+			Name:        "label2" + t.Name(),
+			Description: "a label",
+			Query:       "select 2 from processes;",
+			Platform:    "darwin",
+		})
+		require.NoError(t, err)
+
+		// insert a VPP app with include_any labels
+		labeledApp := &fleet.VPPApp{
+			Name: "vpp_app_labels_1" + t.Name(),
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "5", Platform: fleet.MacOSPlatform},
+				ValidatedLabels: &fleet.LabelIdentsWithScope{
+					LabelScope: fleet.LabelScopeIncludeAny,
+					ByName: map[string]fleet.LabelIdent{label1.Name: {
+						LabelID:   label1.ID,
+						LabelName: label1.Name,
+					}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+				},
+			},
+			BundleIdentifier: "b5",
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
+		require.NoError(t, err)
+
+		meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamWithLabels.ID, labeledApp.TitleID)
+		require.NoError(t, err)
+
+		require.Len(t, meta.LabelsIncludeAny, 2)
+		require.Len(t, meta.LabelsExcludeAny, 0)
+		require.Len(t, meta.LabelsIncludeAll, 0)
+
+		// insert a VPP app with exclude_any labels
+		labeledApp = &fleet.VPPApp{
+			Name: "vpp_app_labels_2" + t.Name(),
+			VPPAppTeam: fleet.VPPAppTeam{
+				VPPAppID: fleet.VPPAppID{AdamID: "6", Platform: fleet.MacOSPlatform},
+				ValidatedLabels: &fleet.LabelIdentsWithScope{
+					LabelScope: fleet.LabelScopeExcludeAny,
+					ByName: map[string]fleet.LabelIdent{label1.Name: {
+						LabelID:   label1.ID,
+						LabelName: label1.Name,
+					}, label2.Name: {LabelID: label2.ID, LabelName: label2.Name}},
+				},
+			},
+			BundleIdentifier: "b6",
+		}
+		_, err = ds.InsertVPPAppWithTeam(ctx, labeledApp, &teamWithLabels.ID)
+		require.NoError(t, err)
+
+		meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamWithLabels.ID, labeledApp.TitleID)
+		require.NoError(t, err)
+
+		require.Len(t, meta.LabelsIncludeAny, 0)
+		require.Len(t, meta.LabelsExcludeAny, 2)
+		require.Len(t, meta.LabelsIncludeAll, 0)
+	})
 
 	// create a host with some non-VPP software
 	h1, err := ds.NewHost(ctx, &fleet.Host{
@@ -461,14 +613,13 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 		HardwareSerial: "654321a",
 	})
 	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h1, false)
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", BundleIdentifier: "b1"},
 		{Name: "foo", Version: "0.0.2", BundleIdentifier: "b1"},
 		{Name: "bar", Version: "0.0.3", BundleIdentifier: "bar"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, h1.ID, software)
-	require.NoError(t, err)
-	err = ds.ReconcileSoftwareTitles(ctx)
 	require.NoError(t, err)
 
 	// Insert some VPP apps for the team, "vpp_app_1" should match the existing "foo" title
@@ -494,7 +645,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertVPPAppWithTeam(ctx, appNoTeam2, nil)
 	require.NoError(t, err)
 
-	// Check that host_vpp_software_installs works
+	// Check that inserting pending vpp installs works
 	u, err := ds.NewUser(ctx, &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
 		Name:       "user1",
@@ -503,51 +654,89 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: u})
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 1, app1.VPPAppID, "a", "b", false, nil)
+
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID, app1.VPPAppID, "a", "b", fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
-	err = ds.InsertHostVPPSoftwareInstall(ctx, 2, app2.VPPAppID, "c", "d", true, nil)
+	// non-existing host
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h1.ID+1, app2.VPPAppID, "c", "d", fleet.HostSoftwareInstallOptions{SelfService: true})
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// create host 2
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-2",
+		OsqueryHostID:  ptr.String("osquery-macos-2"),
+		NodeKey:        ptr.String("node-key-macos-2"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321b",
+	})
+	require.NoError(t, err)
+	nanoEnrollAndSetHostMDMData(t, ds, h2, false)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, h2.ID, app2.VPPAppID, "c", "d", fleet.HostSoftwareInstallOptions{SelfService: true})
 	require.NoError(t, err)
 
-	var results []struct {
-		HostID            uint   `db:"host_id"`
-		UserID            *uint  `db:"user_id"`
-		AdamID            string `db:"adam_id"`
-		CommandUUID       string `db:"command_uuid"`
-		AssociatedEventID string `db:"associated_event_id"`
-		SelfService       bool   `db:"self_service"`
-	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &results, `SELECT host_id, user_id, adam_id, command_uuid, associated_event_id, self_service FROM host_vpp_software_installs ORDER BY adam_id`)
+	acts, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{})
 	require.NoError(t, err)
-	require.Len(t, results, 2)
-	a1 := results[0]
-	a2 := results[1]
-	require.Equal(t, a1.HostID, uint(1))
-	require.Equal(t, a1.UserID, ptr.Uint(u.ID))
-	require.Equal(t, a1.AdamID, app1.AdamID)
-	require.Equal(t, a1.CommandUUID, "a")
-	require.Equal(t, a1.AssociatedEventID, "b")
-	require.False(t, a1.SelfService)
-	require.Equal(t, a2.HostID, uint(2))
-	require.Equal(t, a2.UserID, ptr.Uint(u.ID))
-	require.Equal(t, a2.AdamID, app2.AdamID)
-	require.Equal(t, a2.CommandUUID, "c")
-	require.Equal(t, a2.AssociatedEventID, "d")
-	require.True(t, a2.SelfService)
+	require.Len(t, acts, 1)
+	require.NotNil(t, acts[0].ActorFullName)
+	require.Equal(t, u.Name, *acts[0].ActorFullName)
+	// app1 software title because it matched an existing software "foo" by bundle identifier
+	require.JSONEq(t, fmt.Sprintf(`{
+		"app_store_id":"%s",
+		"command_uuid":"a",
+		"host_display_name":"%s",
+		"host_id":%d,
+		"host_platform":"darwin",
+		"self_service":false,
+		"software_title":"foo",
+		"status":"pending_install"
+	}`, app1.AdamID, h1.DisplayName(), h1.ID), string(*acts[0].Details))
+
+	acts, _, err = ds.ListHostUpcomingActivities(ctx, h2.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, acts, 1)
+	require.NotNil(t, acts[0].ActorFullName)
+	require.Equal(t, u.Name, *acts[0].ActorFullName)
+	require.JSONEq(t, fmt.Sprintf(`{
+		"app_store_id":"%s",
+		"command_uuid":"c",
+		"host_display_name":"%s",
+		"host_id":%d,
+		"host_platform":"darwin",
+		"self_service":true,
+		"software_title":"vpp_app_2",
+		"status":"pending_install"
+	}`, app2.AdamID, h2.DisplayName(), h2.ID), string(*acts[0].Details))
 
 	// Check that getting the assigned apps works
 	appSet, err := ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
+	meta, err := ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, app1.AdamID, app1.Platform, &team.ID)
+	require.NoError(t, err)
+	appTeamID1 := meta.AppTeamID
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, app2.AdamID, app2.Platform, &team.ID)
+	require.NoError(t, err)
+	appTeamID2 := meta.AppTeamID
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
-		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		app1.VPPAppID: {VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1, AddedAt: appSet[app1.VPPAppID].AddedAt},
+		app2.VPPAppID: {VPPAppID: app2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2, AddedAt: appSet[app2.VPPAppID].AddedAt},
 	}, appSet)
 
 	appSet, err = ds.GetAssignedVPPApps(ctx, nil)
 	require.NoError(t, err)
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appNoTeam1.AdamID, app1.Platform, nil)
+	require.NoError(t, err)
+	appTeamID1 = meta.AppTeamID
+	meta, err = ds.GetVPPAppMetadataByAdamIDPlatformTeamID(ctx, appNoTeam2.AdamID, app2.Platform, nil)
+	require.NoError(t, err)
+	appTeamID2 = meta.AppTeamID
+	require.NoError(t, err)
 	assert.Equal(t, map[fleet.VPPAppID]fleet.VPPAppTeam{
-		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
-		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
+		appNoTeam1.VPPAppID: {VPPAppID: appNoTeam1.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID1, AddedAt: appSet[appNoTeam1.VPPAppID].AddedAt},
+		appNoTeam2.VPPAppID: {VPPAppID: appNoTeam2.VPPAppID, InstallDuringSetup: ptr.Bool(false), AppTeamID: appTeamID2, AddedAt: appSet[appNoTeam2.VPPAppID].AddedAt},
 	}, appSet)
 
 	var appTitles []fleet.SoftwareTitle
@@ -592,11 +781,35 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
 
+	forSetup, err := ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &team.ID, "darwin")
+	require.NoError(t, err)
+	require.Len(t, forSetup, 0)
+
 	// Assign 2 apps
 	// make app1 install_during_setup for that team
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
+	}, map[string]uint{})
+	require.NoError(t, err)
+
+	// create policies using two of the apps
+	app1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+	app2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+	policy1, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 1",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app1Meta.VPPAppsTeamsID,
+	})
+	require.NoError(t, err)
+	policy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:           "Policy 2",
+		Query:          "SELECT 1;",
+		Platform:       "darwin",
+		VPPAppsTeamsID: &app2Meta.VPPAppsTeamsID,
 	})
 	require.NoError(t, err)
 
@@ -608,13 +821,22 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.True(t, assigned[app2.VPPAppID].SelfService)
 	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
+	forSetup, err = ds.GetVPPAppsToInstallDuringSetupExperience(ctx, &team.ID, "darwin")
+	require.NoError(t, err)
+	require.Len(t, forSetup, 1)
+	require.ElementsMatch(t, forSetup, []string{app1.VPPAppID.AdamID})
+
 	// Assign an additional app
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID},
 		{VPPAppID: app3.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -626,12 +848,16 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Swap one app out for another
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Equal(t, app1Meta.VPPAppsTeamsID, *policy1.VPPAppsTeamsID)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
@@ -643,35 +869,51 @@ func testSetTeamVPPApps(t *testing.T, ds *Datastore) {
 	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
 
 	// Remove app1 fails because it is installed during setup
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.Error(t, err)
 	require.ErrorIs(t, err, errDeleteInstallerInstalledDuringSetup)
 
 	// make app1 NOT install_during_setup for that team
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(false)},
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
 	// Remove app1 now works
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
 		{VPPAppID: app2.VPPAppID, SelfService: true},
 		{VPPAppID: app4.VPPAppID},
-	})
+	}, nil)
 	require.NoError(t, err)
 
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Equal(t, app2Meta.VPPAppsTeamsID, *policy2.VPPAppsTeamsID)
+
 	// Remove all apps
-	err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{})
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
 	require.NoError(t, err)
 
 	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
 	require.NoError(t, err)
 	require.Len(t, assigned, 0)
+
+	policy1, err = ds.Policy(ctx, policy1.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy1.VPPAppsTeamsID)
+
+	policy2, err = ds.Policy(ctx, policy2.ID)
+	require.NoError(t, err)
+	require.Nil(t, policy2.VPPAppsTeamsID)
 }
 
 func testGetVPPAppByTeamAndTitleID(t *testing.T, ds *Datastore) {
@@ -802,7 +1044,7 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	assert.Equal(t, dataToken.Token, upTok.Token)
 	assert.Equal(t, orgName, upTok.OrgName)
 	assert.Equal(t, location, upTok.Location)
-	assert.NotNil(t, upTok.Teams) // "All Teams" teamm array is non-nil but empty
+	assert.NotNil(t, upTok.Teams) // "All Teams" team array is non-nil but empty
 	assert.Len(t, upTok.Teams, 0)
 
 	tok, err = ds.GetVPPToken(ctx, tok.ID)
@@ -1217,7 +1459,6 @@ func testVPPTokensCRUD(t *testing.T, ds *Datastore) {
 	////
 	err = ds.DeleteVPPToken(ctx, tokNone.ID)
 	assert.NoError(t, err)
-
 }
 
 func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
@@ -1338,10 +1579,50 @@ func testVPPTokenAppTeamAssociations(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, apps, 0)
 
-	/// Can't assaign apps with no token
+	/// Can't assign apps with no token
 
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team2.ID)
 	assert.Error(t, err)
+}
+
+func testVPPTokenReassignTeamsToAllTeams(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Set up two teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "All Teams Reassign Team 2"})
+	require.NoError(t, err)
+
+	// Insert token
+	tokenData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org For Reassign", "Loc For Reassign")
+	require.NoError(t, err)
+	tok, err := ds.InsertVPPToken(ctx, tokenData)
+	require.NoError(t, err)
+	tokenID := tok.ID
+
+	// Assign token to team1 and team2
+	upTok, err := ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID, team2.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 2)
+
+	// Now, reassign to ALL TEAMS (teams = [])
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{})
+	require.NoError(t, err)
+	require.NotNil(t, upTok.Teams)
+	require.Len(t, upTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Confirm that the assignment is present as "All teams"
+	gotTok, err := ds.GetVPPToken(ctx, tokenID)
+	require.NoError(t, err)
+	require.NotNil(t, gotTok.Teams)
+	require.Len(t, gotTok.Teams, 0, "After reassigning to all teams, Teams should be zero-length (all teams)")
+
+	// Now, assign back to just team1
+	upTok, err = ds.UpdateVPPTokenTeams(ctx, tokenID, []uint{team1.ID})
+	require.NoError(t, err)
+	require.Len(t, upTok.Teams, 1)
+	require.Equal(t, team1.ID, upTok.Teams[0].ID)
 }
 
 func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
@@ -1357,6 +1638,7 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 		{Name: "Existing Title", Version: "v0.0.2", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title", Version: "0.0.3", Source: "apps", BundleIdentifier: "existing.title"},
 		{Name: "Existing Title Without Bundle", Version: "0.0.3", Source: "apps"},
+		{Name: "Existing Title from windows", Version: "0.0.3", Source: "programs"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -1364,12 +1646,24 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
 	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+	// get the ID of the windows title so we can validate that it is not re-used
+	sw, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{}, fleet.TeamFilter{TeamID: host2.TeamID})
+	require.NoError(t, err)
+	require.Len(t, sw, 3)
+	var tid uint
+	for _, s := range sw {
+		if s.Name == "Existing Title from windows" {
+			tid = s.ID
+		}
+	}
+
 	tests := []struct {
-		name string
-		app  *fleet.VPPApp
+		name            string
+		app             *fleet.VPPApp
+		existingTitleID uint
+		expectDiffID    bool
 	}{
 		{
 			name: "title that already exists, no bundle identifier in payload",
@@ -1404,6 +1698,16 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 			},
 		},
 		{
+			name: "title that already exists for windows",
+			app: &fleet.VPPApp{
+				Name:             "Existing Title from windows",
+				LatestVersion:    "0.0.4",
+				BundleIdentifier: "com.bundle.id",
+			},
+			existingTitleID: tid,
+			expectDiffID:    true,
+		},
+		{
 			name: "title that doesn't exist, no bundle identifier in payload",
 			app: &fleet.VPPApp{
 				Name:             "New Title",
@@ -1421,7 +1725,7 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	for _, platform := range fleet.VPPAppsPlatforms {
+	for _, platform := range fleet.AppStoreAppsPlatforms {
 		for _, tt := range tests {
 			t.Run(fmt.Sprintf("%s_%v", tt.name, platform), func(t *testing.T) {
 				tt.app.Platform = platform
@@ -1433,6 +1737,9 @@ func testGetOrInsertSoftwareTitleForVPPApp(t *testing.T, ds *Datastore) {
 				})
 				require.NoError(t, err)
 				require.NotEmpty(t, id)
+				if tt.expectDiffID {
+					require.NotEqual(t, tt.existingTitleID, id)
+				}
 			})
 		}
 	}
@@ -1460,11 +1767,1352 @@ func testDeleteVPPAssignedToPolicy(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
 	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
 
 	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{p1.ID})
 	require.NoError(t, err)
 
 	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
 	require.NoError(t, err)
+}
+
+func testVPPTokenTeamAssignment(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a couple of teams
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1" + t.Name()})
+	require.NoError(t, err)
+
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2" + t.Name()})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "vpp_org"+t.Name(), "vpp location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	// Insert some VPP apps for no team
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team2.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+
+	// assign app1 and app2 to team1
+	_, err = ds.SetTeamVPPApps(ctx, &team1.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, InstallDuringSetup: ptr.Bool(true)},
+		{VPPAppID: app2.VPPAppID, SelfService: true},
+	}, nil)
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	assert.Contains(t, assigned, app1.VPPAppID)
+	assert.Contains(t, assigned, app2.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	// assign token to team1 and team 2 explicitly
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID, team2.ID})
+	require.NoError(t, err)
+
+	// team1 should still have its apps
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+	assert.Contains(t, assigned, app1.VPPAppID)
+	assert.Contains(t, assigned, app2.VPPAppID)
+	assert.True(t, assigned[app2.VPPAppID].SelfService)
+	assert.True(t, *assigned[app1.VPPAppID].InstallDuringSetup)
+
+	// assign token to just team2
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	// team1 should no longer have its apps, since the token was removed
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.Empty(t, assigned)
+}
+
+func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp_app_labels" + t.Name()})
+	require.NoError(t, err)
+
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org"+t.Name(), "Location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	// Create some labels
+	label1, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label1" + t.Name(),
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	})
+	require.NoError(t, err)
+
+	label2, err := ds.NewLabel(ctx, &fleet.Label{
+		Name:        "label2" + t.Name(),
+		Description: "a label",
+		Query:       "select 2 from processes;",
+		Platform:    "darwin",
+	})
+	require.NoError(t, err)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 0)
+
+	app1.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app1.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	app2.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app2.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		app1.VPPAppTeam,
+		app2.VPPAppTeam,
+	}, nil)
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+
+	app1Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+
+	app2Meta, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+
+	require.Len(t, app1Meta.LabelsIncludeAny, 2)
+	require.Len(t, app1Meta.LabelsExcludeAny, 0)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
+	for _, l := range app1Meta.LabelsIncludeAny {
+		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+
+	require.Len(t, app2Meta.LabelsExcludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
+	for _, l := range app2Meta.LabelsExcludeAny {
+		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+
+	// switch label types
+	app1.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app1.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeExcludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	app2.VPPAppTeam = fleet.VPPAppTeam{VPPAppID: app2.VPPAppID, ValidatedLabels: &fleet.LabelIdentsWithScope{
+		LabelScope: fleet.LabelScopeIncludeAny,
+		ByName: map[string]fleet.LabelIdent{
+			label1.Name: {
+				LabelID:   label1.ID,
+				LabelName: label1.Name,
+			},
+			label2.Name: {
+				LabelID:   label2.ID,
+				LabelName: label2.Name,
+			},
+		},
+	}}
+
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		app1.VPPAppTeam,
+		app2.VPPAppTeam,
+	}, nil)
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 2)
+
+	app1Meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app1.TitleID)
+	require.NoError(t, err)
+
+	app2Meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team.ID, app2.TitleID)
+	require.NoError(t, err)
+
+	require.Len(t, app1Meta.LabelsIncludeAny, 0)
+	require.Len(t, app1Meta.LabelsExcludeAny, 2)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
+	for _, l := range app1Meta.LabelsExcludeAny {
+		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+
+	require.Len(t, app2Meta.LabelsExcludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
+	for _, l := range app2Meta.LabelsIncludeAny {
+		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
+		require.True(t, ok)
+	}
+}
+
+func testGetAllVPPApps(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Org"+t.Name(), "Location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	assert.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+	assert.NoError(t, err)
+
+	app1 := &fleet.VPPApp{Name: "vpp_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+
+	app2 := &fleet.VPPApp{Name: "vpp_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+
+	app3 := &fleet.VPPApp{Name: "vpp_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+
+	// Include an Android app. it shouldn't show up since this is an Apple-only operation.
+	app4 := &fleet.VPPApp{Name: "vpp_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.an.android.app", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "com.an.android.app"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	// this method doesn't pull the VPPAppTeamID
+	app1.AppTeamID = 0
+	app2.AppTeamID = 0
+	app3.AppTeamID = 0
+
+	apps, err := ds.GetAllVPPApps(ctx)
+	require.NoError(t, err)
+
+	require.Equal(t, apps, []*fleet.VPPApp{app1, app2, app3})
+}
+
+func testGetUnverifiedVPPInstallsForHost(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp1 := va1.VPPAppID
+
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_2", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp2 := va2.VPPAppID
+
+	va3, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp3", BundleIdentifier: "com.app.vpp3",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_3", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	vpp3 := va3.VPPAppID
+
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-test-1",
+		OsqueryHostID:  ptr.String("osquery-macos-1"),
+		NodeKey:        ptr.String("node-key-macos-1"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "654321a",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, h1, false)
+
+	cmdUUID1 := createVPPAppInstallRequest(t, ds, h1, vpp1.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID1, "Acknowledged")
+
+	cmdUUID2 := createVPPAppInstallRequest(t, ds, h1, vpp2.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID2, "Acknowledged")
+
+	cmdUUID3 := createVPPAppInstallRequest(t, ds, h1, vpp3.AdamID, nil)
+	createVPPAppInstallResult(t, ds, h1, cmdUUID3, "Acknowledged")
+
+	for _, step := range []struct {
+		installUUID string
+		before      int
+		after       int
+	}{
+		{installUUID: cmdUUID1, before: 3, after: 2},
+		{installUUID: cmdUUID2, before: 2, after: 1},
+		{installUUID: cmdUUID3, before: 1, after: 0},
+	} {
+
+		x, err := ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+		require.NoError(t, err)
+		assert.Len(t, x, step.before)
+
+		err = ds.SetVPPInstallAsVerified(ctx, h1.ID, step.installUUID, fleet.VerifySoftwareInstallCommandUUID())
+		require.NoError(t, err)
+
+		x, err = ds.GetUnverifiedVPPInstallsForHost(ctx, h1.UUID)
+		require.NoError(t, err)
+		assert.Len(t, x, step.after)
+	}
+}
+
+func testSoftwareTitleDisplayNameVPP(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform}},
+	}, nil)
+	require.NoError(t, err)
+	titleID := va1.TitleID
+
+	// Display name is empty by default
+	titles, _, _, err := ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	title, err := ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
+
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: ptr.String("vpp_update1"),
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// Display name entry should be in join table
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		type result struct {
+			DisplayName     string `db:"display_name"`
+			SoftwareTitleID uint   `db:"software_title_id"`
+			TeamID          uint   `db:"team_id"`
+		}
+		var r []result
+
+		err := sqlx.SelectContext(ctx, q, &r, "SELECT display_name, software_title_id, team_id FROM software_title_display_names")
+		require.NoError(t, err)
+
+		assert.Len(t, r, 1)
+		assert.Equal(t, r[0], result{"vpp_update1", titleID, 0})
+		return nil
+	})
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "vpp_update1", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "vpp_update1", title.DisplayName)
+
+	// Update the display name again, should see the change
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+			DisplayName: ptr.String("vpp_update2"),
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Equal(t, "vpp_update2", titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, "vpp_update2", title.DisplayName)
+
+	// Update display name to be empty
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			DisplayName: ptr.String(""),
+			VPPAppID:    fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform},
+		},
+	}, nil)
+	require.NoError(t, err)
+
+	// List contains display name
+	titles, _, _, err = ds.ListSoftwareTitles(
+		ctx,
+		fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0)},
+		fleet.TeamFilter{User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		}},
+	)
+	require.NoError(t, err)
+	assert.Len(t, titles, 1)
+	assert.Empty(t, titles[0].DisplayName)
+
+	// Entity contains display name
+	title, err = ds.SoftwareTitleByID(ctx, titleID, ptr.Uint(0), fleet.TeamFilter{})
+	require.NoError(t, err)
+	assert.Empty(t, title.DisplayName)
+
+	// Delete vpp app, display name should be deleted
+	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), fleet.VPPAppID{AdamID: "adam_vpp_app_1", Platform: fleet.MacOSPlatform})
+	require.NoError(t, err)
+	_, err = ds.getSoftwareTitleDisplayName(ctx, 0, titleID)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testAndroidVPPAppStatus(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a few android devices, including one on a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	host1 := createAndroidHost(uuid.NewString())
+	host1, err = ds.NewAndroidHost(ctx, host1, false)
+	require.NoError(t, err)
+
+	host2 := createAndroidHost(uuid.NewString())
+	host2, err = ds.NewAndroidHost(ctx, host2, false)
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host2.Host.ID}))
+	require.NoError(t, err)
+	host2.Host.TeamID = &tm.ID
+
+	host3 := createAndroidHost(uuid.NewString())
+	host3, err = ds.NewAndroidHost(ctx, host3, false)
+	require.NoError(t, err)
+
+	// create no-team app
+	va1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp1", Platform: fleet.AndroidPlatform}, SelfService: true},
+	}, nil)
+	require.NoError(t, err)
+	vpp1, titleID1 := va1.VPPAppID, va1.TitleID
+
+	// create team app
+	va2, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		Name: "vpp2", BundleIdentifier: "com.app.vpp2",
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "com.app.vpp2", Platform: fleet.AndroidPlatform}, SelfService: true},
+	}, &tm.ID)
+	require.NoError(t, err)
+	vpp2, titleID2 := va2.VPPAppID, va2.TitleID
+
+	installs, err := ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 100)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	// unknown host uuid returns nothing
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, "no-such-uuid", 1)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	// insert pending install for no-team app on host1
+	cmdVpp1 := uuid.NewString()
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+		HostID:            host1.Host.ID,
+		AdamID:            vpp1.AdamID,
+		CommandUUID:       cmdVpp1,
+		AssociatedEventID: "1",
+	})
+	require.NoError(t, err)
+
+	// requesting pending installs with any version equal or greater returns it
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 1)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp1, installs[0].CommandUUID)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 3)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp1, installs[0].CommandUUID)
+
+	// smaller version doesn't return it
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host1.Host.UUID, 0)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	// insert pending install for team app on host2
+	cmdVpp2 := uuid.NewString()
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+		HostID:            host2.Host.ID,
+		AdamID:            vpp2.AdamID,
+		CommandUUID:       cmdVpp2,
+		AssociatedEventID: "123",
+	})
+	require.NoError(t, err)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host2.Host.UUID, 3)
+	require.NoError(t, err)
+	require.Len(t, installs, 0)
+
+	installs, err = ds.ListHostMDMAndroidVPPAppsPendingInstallWithVersion(ctx, host2.Host.UUID, 123)
+	require.NoError(t, err)
+	require.Len(t, installs, 1)
+	require.Equal(t, cmdVpp2, installs[0].CommandUUID)
+
+	// insert pending install for no-team app on host3
+	cmdVpp3 := uuid.NewString()
+	err = ds.InsertAndroidSetupExperienceSoftwareInstall(ctx, &fleet.HostAndroidVPPSoftwareInstall{
+		HostID:            host3.Host.ID,
+		AdamID:            vpp1.AdamID,
+		CommandUUID:       cmdVpp3,
+		AssociatedEventID: "1",
+	})
+	require.NoError(t, err)
+
+	// list software available for install on no-team
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: ptr.Uint(0), Platform: "android", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, titleID1, titles[0].ID)
+	require.NotNil(t, titles[0].AppStoreApp)
+	require.Equal(t, titles[0].AppStoreApp.AppStoreID, vpp1.AdamID)
+
+	// list software available for install on team
+	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &tm.ID, Platform: "android", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, titleID2, titles[0].ID)
+	require.NotNil(t, titles[0].AppStoreApp)
+	require.Equal(t, titles[0].AppStoreApp.AppStoreID, vpp2.AdamID)
+
+	// list host software, should show as pending
+	hostTitles, _, err := ds.ListHostSoftware(ctx, host1.Host, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true})
+	require.NoError(t, err)
+	require.Len(t, hostTitles, 1)
+	require.NotNil(t, hostTitles[0].AppStoreApp)
+	require.Equal(t, vpp1.AdamID, hostTitles[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, hostTitles[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *hostTitles[0].Status)
+
+	hostTitles, _, err = ds.ListHostSoftware(ctx, host2.Host, fleet.HostSoftwareTitleListOptions{IncludeAvailableForInstall: true})
+	require.NoError(t, err)
+	require.Len(t, hostTitles, 1)
+	require.NotNil(t, hostTitles[0].AppStoreApp)
+	require.Equal(t, vpp2.AdamID, hostTitles[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, hostTitles[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *hostTitles[0].Status)
+
+	// bulk-set nothing as verified
+	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{})
+	require.NoError(t, err)
+
+	summary, err := ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 2}, summary)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &tm.ID, vpp2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1}, summary)
+
+	// mark vpp1 as installed on host1
+	err = ds.BulkSetVPPInstallsAsVerified(ctx, host1.Host.ID, []string{cmdVpp1})
+	require.NoError(t, err)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, nil, vpp1)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Pending: 1, Installed: 1}, summary)
+
+	// mark vpp2 as failed on host2
+	err = ds.BulkSetVPPInstallsAsFailed(ctx, host2.Host.ID, []string{cmdVpp2})
+	require.NoError(t, err)
+
+	summary, err = ds.GetSummaryHostVPPAppInstalls(ctx, &tm.ID, vpp2)
+	require.NoError(t, err)
+	require.Equal(t, &fleet.VPPAppStatusSummary{Failed: 1}, summary)
+
+	// get vpp command result for an android command returns nothing (but doesn't fail)
+	res, err := ds.GetVPPCommandResults(ctx, cmdVpp1, host1.Host.UUID)
+	require.NoError(t, err)
+	require.Nil(t, res)
+
+	// set an unknown host install or an unknown app ID as pending due to config change has no effect
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, "no-such-host", vpp1.AdamID, 123)
+	require.NoError(t, err)
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, "no-such-app-id", 123)
+	require.NoError(t, err)
+
+	// list hosts filtering by vpp1 installed status
+	hosts, err := ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host1.Host.ID, hosts[0].ID)
+
+	// list hosts filtering by vpp2 failed status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host2.Host.ID, hosts[0].ID)
+
+	// list hosts filtering by vpp2 pending status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// list hosts filtering by vpp1 pending status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host3.Host.ID, hosts[0].ID)
+
+	// set vpp1 as pending due to config change on host1
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host1.Host.UUID, vpp1.AdamID, 123)
+	require.NoError(t, err)
+
+	// now nothing is returned for Installed for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstalled)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 0)
+
+	// and host1 is returned for pending for vpp1
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: nil, SoftwareTitleIDFilter: &titleID1, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallPending), ListOptions: fleet.ListOptions{OrderKey: "id"}})
+	require.NoError(t, err)
+	require.Len(t, hosts, 2)
+	require.Equal(t, host1.Host.ID, hosts[0].ID)
+	require.Equal(t, host3.Host.ID, hosts[1].ID)
+
+	// set vpp2 as pending due to config change on host2
+	err = ds.SetAndroidAppInstallPendingApplyConfig(ctx, host2.Host.UUID, vpp2.AdamID, 123)
+	require.NoError(t, err)
+
+	// has no effect because the install was failed, it stays failed
+	// list hosts filtering by vpp2 failed status
+	hosts, err = ds.ListHosts(ctx, tmFilter, fleet.HostListOptions{TeamFilter: &tm.ID, SoftwareTitleIDFilter: &titleID2, SoftwareStatusFilter: ptr.T(fleet.SoftwareInstallFailed)})
+	require.NoError(t, err)
+	require.Len(t, hosts, 1)
+	require.Equal(t, host2.Host.ID, hosts[0].ID)
+}
+
+func testGetVPPAppInstallStatusByCommandUUID(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Create VPP token for the team
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	// user
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// create host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host, false)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+	require.NoError(t, err)
+	host.TeamID = &tm.ID
+
+	// create host2 with different UUID and hostname
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now(), test.WithPlatform("darwin"))
+	nanoEnroll(t, ds, host2, false)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host2.ID}))
+	require.NoError(t, err)
+	host2.TeamID = &tm.ID
+
+	vPPApp := &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_1", Platform: fleet.MacOSPlatform}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, vPPApp, &tm.ID)
+	require.NoError(t, err)
+	vpp1 := va1.AdamID
+	// Insert software entry for vpp app
+	res, err := ds.writer(ctx).ExecContext(ctx, `
+        INSERT INTO software (name, version, source, bundle_identifier, title_id, checksum)
+        VALUES (?, ?, ?, ?, ?, ?)
+	`,
+		vPPApp.Name, "0.1.1", "apps", vPPApp.BundleIdentifier, vPPApp.TitleID, hex.EncodeToString([]byte("vpp1")),
+	)
+	require.NoError(t, err)
+	vppSoftwareID, err := res.LastInsertId()
+	require.NoError(t, err)
+
+	// install on host 1
+	vpp1CmdUUID := createVPPAppInstallRequest(t, ds, host, vpp1, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO host_software (host_id, software_id)
+		VALUES (?, ?)
+	`, host.ID, vppSoftwareID)
+	require.NoError(t, err)
+
+	// host 2 no entry in host_software
+	vpp2CmdUUID := createVPPAppInstallRequest(t, ds, host2, vpp1, user)
+	_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), host2.ID, "")
+	require.NoError(t, err)
+	createVPPAppInstallResult(t, ds, host2, vpp2CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+	// Test 1: Get install status for host1 (app is installed)
+	isInstalled, err := ds.GetVPPAppInstallStatusByCommandUUID(ctx, vpp1CmdUUID)
+	require.NoError(t, err)
+	require.True(t, isInstalled, "app should be installed on host1")
+
+	// Test 2: Get install status for host2 (app is NOT installed)
+	isInstalled, err = ds.GetVPPAppInstallStatusByCommandUUID(ctx, vpp2CmdUUID)
+	require.NoError(t, err)
+	require.False(t, isInstalled, "app should NOT be installed on host2")
+
+	// Test 3: Get install status for non-existent command UUID (returns false)
+	isInstalled, err = ds.GetVPPAppInstallStatusByCommandUUID(ctx, "non-existent-uuid")
+	require.NoError(t, err)
+	require.False(t, isInstalled, "should return false for non-existent command")
+}
+
+func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "androids"})
+	require.NoError(t, err)
+
+	// Insert some VPP apps for no team
+	app1 := &fleet.VPPApp{Name: "android_app_1", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b1"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app1, nil)
+	require.NoError(t, err)
+	app2 := &fleet.VPPApp{Name: "android_app_2", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "2", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b2"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app2, nil)
+	require.NoError(t, err)
+	app3 := &fleet.VPPApp{Name: "android_app_3", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "3", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b3"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app3, nil)
+	require.NoError(t, err)
+	app4 := &fleet.VPPApp{Name: "android_app_4", VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "4", Platform: fleet.AndroidPlatform}}, BundleIdentifier: "b4"}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app4, nil)
+	require.NoError(t, err)
+
+	config1 := json.RawMessage(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1":1}}`)
+	expectedConfig1 := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED", "managedConfiguration": {"1": 1}}`)
+
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID, SelfService: true, DisplayName: ptr.String("name 1")},
+		{VPPAppID: app2.VPPAppID, SelfService: true, DisplayName: ptr.String("name 2"), Configuration: json.RawMessage(nil)},
+		{VPPAppID: app3.VPPAppID, SelfService: true, DisplayName: ptr.String("name 3"), Configuration: json.RawMessage(`{}`)},
+		{VPPAppID: app4.VPPAppID, SelfService: true, DisplayName: ptr.String("name 4"), Configuration: config1},
+	}, map[string]uint{"1_android": 1, "2_android": 2, "3_android": 3, "4_android": 4})
+	require.NoError(t, err)
+
+	assigned, err := ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		if config != nil {
+			a.Configuration = *config
+			assigned[a.VPPAppID] = a
+		}
+	}
+
+	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(nil), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
+
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{
+		{VPPAppID: app1.VPPAppID}, // stays nil
+		{VPPAppID: app2.VPPAppID, Configuration: json.RawMessage(`{"managedConfiguration": 1}`)}, // updates
+		{VPPAppID: app3.VPPAppID, Configuration: json.RawMessage(nil)},
+		{VPPAppID: app4.VPPAppID, Configuration: config1},
+	}, map[string]uint{"1": 1, "2": 2, "3": 3, "4": 4})
+	require.NoError(t, err)
+
+	assigned, err = ds.GetAssignedVPPApps(ctx, &team.ID)
+	require.NoError(t, err)
+	require.Len(t, assigned, 4)
+
+	for _, a := range assigned {
+		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
+		require.True(t, err == nil || fleet.IsNotFound(err))
+		byAppTeamIdConfig, byAppTeamIdErr := ds.GetAndroidAppConfigurationByAppTeamID(ctx, a.AppTeamID)
+
+		if config != nil {
+			a.Configuration = *config
+			assigned[a.VPPAppID] = a
+
+			require.NoError(t, byAppTeamIdErr)
+			require.JSONEq(t, string(*config), string(*byAppTeamIdConfig))
+		} else {
+			require.Nil(t, byAppTeamIdConfig)
+			require.True(t, fleet.IsNotFound(byAppTeamIdErr))
+		}
+	}
+
+	require.Equal(t, json.RawMessage(nil), assigned[app1.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{"managedConfiguration": 1}`), assigned[app2.VPPAppID].Configuration)
+	require.Equal(t, json.RawMessage(`{}`), assigned[app3.VPPAppID].Configuration)
+	require.Equal(t, expectedConfig1, assigned[app4.VPPAppID].Configuration)
+
+	// Delete all
+	_, err = ds.SetTeamVPPApps(ctx, &team.ID, []fleet.VPPAppTeam{}, nil)
+	require.NoError(t, err)
+}
+
+func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Create VPP token for the team
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create iOS host.
+	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ios-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iOSHost, false)
+
+	// Create iPadOS host.
+	iPadOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipados-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IPadOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOSHost, false)
+
+	// Create iOS VPP app on the team.
+	iOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1",
+			Platform: fleet.IOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, iOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iOSVPPApp1 := va1.AdamID
+
+	// Create iPadOS VPP app on the team.
+	iPadOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1", // iOS/iPadOS apps usually share Adam ID
+			Platform: fleet.IPadOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va2, err := ds.InsertVPPAppWithTeam(ctx, iPadOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iPadOSVPPApp1 := va2.AdamID
+
+	t.Run("ios_host_happy_path", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iOSHost, iOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		createVPPAppInstallResult(t, ds, iOSHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was acknowledged but the installation was not verified.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		// Mark the installation as verified.
+		err = ds.SetVPPInstallAsVerified(ctx, iOSHost.ID, vpp1CmdUUID, uuid.NewString())
+		require.NoError(t, err)
+
+		// Should not get pending Adam IDs anymore (installation succeeded).
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+
+	t.Run("ipados_host_cancel_install", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iPadOSHost.
+		installCmdUUID := createVPPAppInstallRequest(t, ds, iPadOSHost, iPadOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID, true)
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was canceled.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iPadOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+
+	t.Run("ios_host_failed_install", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Create another iOS VPP app on the team.
+		iOSVPPApp := &fleet.VPPApp{
+			VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+				AdamID:   "adam_vpp_2",
+				Platform: fleet.IOSPlatform,
+			}},
+			Name:             "vpp2",
+			BundleIdentifier: "com.app.vpp2",
+			LatestVersion:    "2.0.0",
+		}
+		va1, err := ds.InsertVPPAppWithTeam(ctx, iOSVPPApp, &tm.ID)
+		require.NoError(t, err)
+		iOSVPPApp2 := va1.AdamID
+
+		// Should get no pending Adam IDs.
+		adamIDs, err := ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iOSHost, iOSVPPApp2, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get adam_vpp_1 as pending installation.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_2")
+
+		createVPPAppInstallResult(t, ds, iOSHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+		// Should get adam_vpp_1 as pending installation.
+		// The installation command was acknowledged but the installation was not verified.
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_2")
+
+		// Mark the installation as verified.
+		err = ds.SetVPPInstallAsVerified(ctx, iOSHost.ID, vpp1CmdUUID, uuid.NewString())
+		require.NoError(t, err)
+
+		// Should not get pending Adam IDs anymore (installation verified).
+		adamIDs, err = ds.MapAdamIDsPendingInstallVerification(ctx, iOSHost.ID)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+}
+
+func testMapAdamIDsRecentInstalls(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Create VPP token for the team
+	dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+	require.NoError(t, err)
+	tok1, err := ds.InsertVPPToken(ctx, dataToken)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{tm.ID})
+	require.NoError(t, err)
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Create iOS host.
+	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ios-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iOSHost, false)
+
+	// Create iPadOS host.
+	iPadOSHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ipados-test-1",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IPadOSPlatform),
+		HardwareSerial: uuid.NewString(),
+		TeamID:         &tm.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, iPadOSHost, false)
+
+	// Create iOS VPP app on the team.
+	iOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1",
+			Platform: fleet.IOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va1, err := ds.InsertVPPAppWithTeam(ctx, iOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iOSVPPApp1 := va1.AdamID
+
+	// Create iPadOS VPP app on the team.
+	iPadOSVPPApp := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{
+			AdamID:   "adam_vpp_1", // iOS/iPadOS apps usually share Adam ID
+			Platform: fleet.IPadOSPlatform,
+		}},
+		Name:             "vpp1",
+		BundleIdentifier: "com.app.vpp1",
+		LatestVersion:    "1.0.0",
+	}
+	va2, err := ds.InsertVPPAppWithTeam(ctx, iPadOSVPPApp, &tm.ID)
+	require.NoError(t, err)
+	iPadOSVPPApp1 := va2.AdamID
+
+	t.Run("ios_host_happy_path", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no recently installed Adam IDs.
+		adamIDs, err := ds.MapAdamIDsRecentInstalls(ctx, iOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iOSHost, iOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get the install request (even if it wasn't acknowledged and verified).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		// Acknowledge installation.
+		createVPPAppInstallResult(t, ds, iOSHost, vpp1CmdUUID, fleet.MDMAppleStatusAcknowledged)
+
+		// Should get the install request (even if it wasn't verified).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		// Mark the installation as verified.
+		err = ds.SetVPPInstallAsVerified(ctx, iOSHost.ID, vpp1CmdUUID, uuid.NewString())
+		require.NoError(t, err)
+
+		// Should get the install request (verified).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		time.Sleep(2 * time.Second)
+
+		// Should not get the install request (more than 1 second has passed since the install request).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iOSHost.ID, 1)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+
+	t.Run("ipados_host_canceled", func(t *testing.T) {
+		ctx := t.Context()
+
+		// Should get no recently installed Adam IDs.
+		adamIDs, err := ds.MapAdamIDsRecentInstalls(ctx, iPadOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+
+		// Issue installation of VPP app on iPadOSHost.
+		vpp1CmdUUID := createVPPAppInstallRequest(t, ds, iPadOSHost, iPadOSVPPApp1, user)
+		_, err = ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, "")
+		require.NoError(t, err)
+
+		// Should get the install request (even if it wasn't acknowledged and verified).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iPadOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Len(t, adamIDs, 1)
+		require.Contains(t, adamIDs, "adam_vpp_1")
+
+		// Cancel the installation.
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID, true)
+		require.NoError(t, err)
+
+		// Should not get the install request (more than 1 second has passed since the install request).
+		adamIDs, err = ds.MapAdamIDsRecentInstalls(ctx, iPadOSHost.ID, 3600)
+		require.NoError(t, err)
+		require.Empty(t, adamIDs)
+	})
+}
+
+func testGetHostVPPInstallByCommandUUID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	// Non-existent command UUID returns nil
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, "no-such-cmd")
+	require.NoError(t, err)
+	require.Nil(t, install)
+
+	// Fake inserting some data only in to the host_vpp_software_installs table
+	firstCmd := "cmd-uuid-1"
+	adamId := "adam_vpp_1"
+	vpp := &fleet.VPPApp{
+		Name: "name_1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamId,
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: adamId,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, firstCmd, "event-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, firstCmd)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, host.ID, install.HostID)
+	require.Equal(t, firstCmd, install.InstallCommandUUID)
+}
+
+func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "test-host",
+		UUID:           uuid.NewString(),
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	adamId := "adam_vpp_1"
+	vpp := &fleet.VPPApp{
+		Name: "name_1",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamId,
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		BundleIdentifier: adamId,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	cmdUUID := "cmd-uuid-1"
+	err = ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "event-1", fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	// Get the host install
+	install, err := ds.GetHostVPPInstallByCommandUUID(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, 0, install.RetryCount)
+	require.Equal(t, cmdUUID, install.InstallCommandUUID)
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var upcomingActivityExecutionID string
+		err := sqlx.GetContext(ctx, q, &upcomingActivityExecutionID, "SELECT execution_id FROM upcoming_activities WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		require.Equal(t, install.InstallCommandUUID, upcomingActivityExecutionID)
+
+		var nanoCommandCount int
+		err = sqlx.GetContext(ctx, q, &nanoCommandCount, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, nanoCommandCount)
+
+		var queueCommandCount int
+		err = sqlx.GetContext(ctx, q, &queueCommandCount, "SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, queueCommandCount)
+		return nil
+	})
+
+	// Call the retry method
+	err = ds.RetryVPPInstall(ctx, install)
+	require.NoError(t, err)
+
+	// Manually grab the new command UUID
+	var newCmdUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &newCmdUUID, "SELECT command_uuid FROM host_vpp_software_installs WHERE host_id = ?", install.HostID)
+	})
+
+	// Get the host install again and verify the retry count increased
+	install, err = ds.GetHostVPPInstallByCommandUUID(ctx, newCmdUUID)
+	require.NoError(t, err)
+	require.NotNil(t, install)
+	require.Equal(t, 1, install.RetryCount)
+	require.NotEqual(t, cmdUUID, install.InstallCommandUUID)
+
+	// Verify the upcoming activity has the new command UUID and the nano_commands and nano_enrollment_queue has the new command
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var upcomingActivityExecutionID string
+		err := sqlx.GetContext(ctx, q, &upcomingActivityExecutionID, "SELECT execution_id FROM upcoming_activities WHERE host_id = ?", host.ID)
+		require.NoError(t, err)
+		require.Equal(t, install.InstallCommandUUID, upcomingActivityExecutionID)
+
+		var nanoCommandCount int
+		err = sqlx.GetContext(ctx, q, &nanoCommandCount, "SELECT COUNT(*) FROM nano_commands WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, nanoCommandCount)
+
+		var queueCommandCount int
+		err = sqlx.GetContext(ctx, q, &queueCommandCount, "SELECT COUNT(*) FROM nano_enrollment_queue WHERE command_uuid = ?", install.InstallCommandUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, queueCommandCount)
+		return nil
+	})
 }

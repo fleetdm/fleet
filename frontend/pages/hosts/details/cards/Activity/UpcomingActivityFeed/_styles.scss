@@ -1,19 +1,7 @@
 .upcoming-activity-feed {
-  margin-top: $pad-large;
   display: flex;
   flex-direction: column;
   position: relative;
-  min-height: 500px;
-
-  &__pagination {
-    position: absolute;
-    bottom: 0px;
-    right: 0px;
-
-    .button {
-      font-weight: $bold;
-    }
-  }
 
   &__load-activities-button {
     color: $core-vibrant-blue;
@@ -44,11 +32,7 @@
 
     &:hover:not(.button--disabled),
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
     }
-  }
-
-  &__error {
-    margin: $pad-xlarge 0;
   }
 }

@@ -1,11 +1,13 @@
 import React from "react";
 
+import InputField from "components/forms/fields/InputField";
+
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
-import { IDeviceUserResponse } from "interfaces/host";
+import { IDUPDetails } from "interfaces/host";
 
 interface IAutoEnrollMdmModalProps {
-  host: IDeviceUserResponse["host"];
+  host: IDUPDetails["host"];
   onCancel: () => void;
 }
 
@@ -16,12 +18,14 @@ const AutoEnrollMdmModal = ({
   onCancel,
 }: IAutoEnrollMdmModalProps): JSX.Element => {
   let isMacOsSonomaOrLater = false;
+  let isMacOs26OrLater = false;
   if (platform === "darwin" && os_version.startsWith("macOS ")) {
     const [major] = os_version
       .replace("macOS ", "")
       .split(".")
       .map((s) => parseInt(s, 10));
     isMacOsSonomaOrLater = major >= 14;
+    isMacOs26OrLater = major >= 26;
   }
 
   const preSonomaBody = (
@@ -37,38 +41,69 @@ const AutoEnrollMdmModal = ({
         <li>
           Select the <b>Device Enrollment</b> notification. This will open{" "}
           <b>System Settings</b>. Select <b>Allow</b>.
+          <div className={`${baseClass}__profiles-renew`}>
+            <div className={`${baseClass}__profiles-renew--instructions`}>
+              If you don&apos;t see <b>Enroll in Remote Management</b>, open
+              your <b>Terminal</b> app (<b>Finder</b> {">"} <b>Applications</b>{" "}
+              {">"} <b>Utilities</b> folder), copy and paste the below command,
+              press enter, enter your password, and press enter again.
+            </div>
+            <InputField
+              enableCopy
+              readOnly
+              name="profiles-renew-command"
+              value="sudo profiles renew -type enrollment"
+            />
+          </div>
         </li>
         <li>
           Enter your password, and select <b>Enroll</b>.
         </li>
         <li>
-          Select <b>Done</b> to close this window and select Refetch on your My
-          device page to tell your organization that MDM is on.
+          Select <b>Close</b> to close this window and select <b>Refetch</b> on
+          your My device page to tell your organization that MDM is on.
         </li>
       </ol>
     </>
   );
 
+  const enrollCTA = isMacOs26OrLater
+    ? "Enroll in Device Management"
+    : "Enroll in Remote Management";
   const sonomaAndAboveBody = (
     <>
       <p className={`${baseClass}__description`}>
-        To turn on MDM, Apple Inc. requires that you install a profile.
+        To turn on MDM, Apple Inc. requires that you follow the steps below.
       </p>
       <ol>
         <li>
           From the Apple menu in the top left corner of your screen, select{" "}
-          <b>System Settings</b> or <b>System Preferences</b>.
+          <b>System Settings</b>.
         </li>
         <li>
-          In the sidebar menu, select <b>Enroll in Remote Management</b>, and
-          select <b>Enroll</b>.
+          In the sidebar menu, select <b>{enrollCTA}</b>, and select{" "}
+          <b>Enroll</b>.
+          <div className={`${baseClass}__profiles-renew`}>
+            <div className={`${baseClass}__profiles-renew--instructions`}>
+              If you don&apos;t see <b>{enrollCTA}</b>, open your{" "}
+              <b>Terminal</b> app (<b>Finder</b> {">"} <b>Applications</b> {">"}{" "}
+              <b>Utilities</b> folder), copy and paste the below command, press
+              enter, enter your password, and press enter again.
+            </div>
+            <InputField
+              enableCopy
+              readOnly
+              name="profiles-renew-command"
+              value="sudo profiles renew -type enrollment"
+            />
+          </div>
         </li>
         <li>
           Enter your password, and select <b>Enroll</b>.
         </li>
         <li>
-          Close this window and select <b>Refetch</b> on your My device page to
-          tell your organization that MDM is on.
+          Select <b>Close</b> to close this window and select <b>Refetch</b> on
+          your My device page to tell your organization that MDM is on.
         </li>
       </ol>
     </>
@@ -85,8 +120,8 @@ const AutoEnrollMdmModal = ({
       <div>
         {isMacOsSonomaOrLater ? sonomaAndAboveBody : preSonomaBody}
         <div className="modal-cta-wrap">
-          <Button type="button" onClick={onCancel} variant="brand">
-            Done
+          <Button type="button" onClick={onCancel}>
+            Close
           </Button>
         </div>
       </div>

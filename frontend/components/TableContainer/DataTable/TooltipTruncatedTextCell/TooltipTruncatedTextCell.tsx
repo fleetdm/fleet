@@ -14,9 +14,11 @@ interface ITooltipTruncatedTextCellProps {
   /** If set to `true` the text inside the tooltip will break on words instead of any character.
    * By default the tooltip text breaks on any character. Default: false */
   tooltipBreakOnWord?: boolean;
-  /** @deprecated use the prop `className` in order to add custom classes to this component */
-  classes?: string;
   className?: string;
+  /** Content does not get truncated */
+  prefix?: React.ReactNode;
+  /** Content does not get truncated */
+  suffix?: React.ReactNode;
 }
 
 const baseClass = "tooltip-truncated-cell";
@@ -25,15 +27,16 @@ const TooltipTruncatedTextCell = ({
   value,
   tooltip,
   tooltipBreakOnWord = false,
-  classes = "w250",
   className,
+  prefix,
+  suffix,
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
-  const classNames = classnames(baseClass, classes, className, {
+  const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
   });
 
   // Tooltip visibility logic: Enable only when text is truncated
-  const ref = useRef<HTMLInputElement>(null);
+  const ref = useRef<HTMLSpanElement>(null);
   const [tooltipDisabled, setTooltipDisabled] = useState(true);
 
   useLayoutEffect(() => {
@@ -46,19 +49,24 @@ const TooltipTruncatedTextCell = ({
   // End
 
   const tooltipId = uniqueId();
+  value =
+    value === null || value === undefined || value === ""
+      ? DEFAULT_EMPTY_CELL_VALUE
+      : value;
   const isDefaultValue = value === DEFAULT_EMPTY_CELL_VALUE;
 
   return (
     <div className={classNames}>
+      {prefix && <span className="data-table__prefix">{prefix}</span>}
       <div
-        className="data-table__tooltip-truncated-text"
+        className="data-table__tooltip-truncated-text-container"
         data-tip
         data-for={tooltipId}
         data-tip-disable={isDefaultValue || tooltipDisabled}
       >
         <span
           ref={ref}
-          className={`data-table__tooltip-truncated-text--cell ${
+          className={`data-table__tooltip-truncated-text ${
             isDefaultValue ? "text-muted" : ""
           } ${tooltipDisabled ? "" : "truncated"}`}
         >
@@ -81,6 +89,7 @@ const TooltipTruncatedTextCell = ({
           {/* Fixes triple click selecting next element in Safari */}
         </>
       </ReactTooltip>
+      {suffix && <span className="data-table__suffix">{suffix}</span>}
     </div>
   );
 };

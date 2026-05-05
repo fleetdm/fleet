@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { noop } from "lodash";
 
 import Breadcrumbs from "pages/RegistrationPage/Breadcrumbs";

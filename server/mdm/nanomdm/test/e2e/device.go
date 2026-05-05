@@ -8,7 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/test/enrollment"
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 // device is a wrapper around our enrollment for ease of use.

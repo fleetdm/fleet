@@ -113,7 +113,7 @@ resource "aws_ecs_task_definition" "backend" {
             awslogs-stream-prefix = "fleet"
           }
         },
-        secrets = [
+        secrets = concat([
           {
             name      = "FLEET_MYSQL_PASSWORD"
             valueFrom = aws_secretsmanager_secret.database_password_secret.arn
@@ -130,7 +130,7 @@ resource "aws_ecs_task_definition" "backend" {
             name      = "FLEET_SERVER_PRIVATE_KEY"
             valueFrom = aws_secretsmanager_secret.fleet_server_private_key.arn
           }
-        ]
+        ], local.secrets)
         environment = concat([
           {
             name  = "FLEET_LOGGING_JSON"

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -47,10 +48,15 @@ const (
 	defaultTeamFeaturesExpiration      = 1 * time.Minute
 	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	defaultTeamConfigKey               = "DefaultTeamConfig"
+	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
 	defaultQueryResultsCountExpiration = 1 * time.Second
+	yaraRuleCachePrefix                = "YaraRuleByName:"
+	yaraRuleByNameKey                  = yaraRuleCachePrefix + "%s"
+	defaultYaraRuleByNameExpiration    = 1 * time.Minute
 	// NOTE: MDM assets are cached using their checksum as well, as it's
 	// important for them to always be fresh if they changed (see cachedi
 	// mplementation below for details)
@@ -59,6 +65,12 @@ const (
 	// changes, it'll linger for this amount of time. The curent
 	// implementation assumes infrequent asset changes.
 	defaultMDMConfigAssetExpiration = 15 * time.Minute
+
+	// FMA names cache stores a map of unique_identifier -> canonical name
+	// for Fleet-maintained apps. Used during software ingestion to override
+	// osquery-reported names with the FMA canonical name.
+	fmaNamesByIdentifierKey               = "FMANamesByIdentifier"
+	defaultFMANamesByIdentifierExpiration = 5 * time.Minute
 )
 
 // cloneCache wraps the in memory cache with one that clones items before returning them.
@@ -108,15 +120,18 @@ type cachedMysql struct {
 
 	c *cloneCache
 
-	appConfigExp         time.Duration
-	packsExp             time.Duration
-	scheduledQueriesExp  time.Duration
-	teamAgentOptionsExp  time.Duration
-	teamFeaturesExp      time.Duration
-	teamMDMConfigExp     time.Duration
-	queryByNameExp       time.Duration
-	queryResultsCountExp time.Duration
-	mdmConfigAssetExp    time.Duration
+	appConfigExp            time.Duration
+	packsExp                time.Duration
+	scheduledQueriesExp     time.Duration
+	teamAgentOptionsExp     time.Duration
+	teamFeaturesExp         time.Duration
+	teamMDMConfigExp        time.Duration
+	defaultTeamConfigExp    time.Duration
+	queryByNameExp          time.Duration
+	queryResultsCountExp    time.Duration
+	yaraRuleByNameExp       time.Duration
+	mdmConfigAssetExp       time.Duration
+	fmaNamesByIdentifierExp time.Duration
 }
 
 type Option func(*cachedMysql)
@@ -169,25 +184,46 @@ func WithQueryResultsCountExpiration(d time.Duration) Option {
 	}
 }
 
+func WithYaraRuleByNameExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.yaraRuleByNameExp = d
+	}
+}
+
 func WithMDMConfigAssetExpiration(d time.Duration) Option {
 	return func(o *cachedMysql) {
 		o.mdmConfigAssetExp = d
 	}
 }
 
+func WithDefaultTeamConfigExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.defaultTeamConfigExp = d
+	}
+}
+
+func WithFMANamesByIdentifierExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.fmaNamesByIdentifierExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
-		Datastore:            ds,
-		c:                    &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
-		appConfigExp:         defaultAppConfigExpiration,
-		packsExp:             defaultPacksExpiration,
-		scheduledQueriesExp:  defaultScheduledQueriesExpiration,
-		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
-		teamFeaturesExp:      defaultTeamFeaturesExpiration,
-		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
-		queryByNameExp:       defaultQueryByNameExpiration,
-		queryResultsCountExp: defaultQueryResultsCountExpiration,
-		mdmConfigAssetExp:    defaultMDMConfigAssetExpiration,
+		Datastore:               ds,
+		c:                       &cloneCache{cache.New(5*time.Minute, 10*time.Minute)},
+		appConfigExp:            defaultAppConfigExpiration,
+		packsExp:                defaultPacksExpiration,
+		scheduledQueriesExp:     defaultScheduledQueriesExpiration,
+		teamAgentOptionsExp:     defaultTeamAgentOptionsExpiration,
+		teamFeaturesExp:         defaultTeamFeaturesExpiration,
+		teamMDMConfigExp:        defaultTeamMDMConfigExpiration,
+		defaultTeamConfigExp:    defaultDefaultTeamConfigExpiration,
+		queryByNameExp:          defaultQueryByNameExpiration,
+		queryResultsCountExp:    defaultQueryResultsCountExpiration,
+		yaraRuleByNameExp:       defaultYaraRuleByNameExpiration,
+		mdmConfigAssetExp:       defaultMDMConfigAssetExpiration,
+		fmaNamesByIdentifierExp: defaultFMANamesByIdentifierExpiration,
 	}
 	for _, fn := range opts {
 		fn(c)
@@ -407,9 +443,10 @@ func (ds *cachedMysql) ResultCountForQuery(ctx context.Context, queryID uint) (i
 func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
 	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	// always reach the database to get the latest hashes
-	latestHashes, err := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
-	if err != nil {
-		return nil, err
+	latestHashes, hashErr := ds.Datastore.GetAllMDMConfigAssetsHashes(ctx, assetNames)
+	// Continue even with partial results - we'll return the error at the end
+	if hashErr != nil && len(latestHashes) == 0 {
+		return nil, hashErr
 	}
 
 	cachedAssets := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset)
@@ -430,14 +467,13 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 	}
 
 	if len(missingAssets) == 0 {
-		return cachedAssets, nil
+		// All requested assets that exist are cached
+		// Return hashErr if we had partial hashes (some assets don't exist)
+		return cachedAssets, hashErr
 	}
 
 	// fetch missing assets from the database
 	assetMap, err := ds.Datastore.GetAllMDMConfigAssetsByName(ctx, missingAssets, queryerContext)
-	if err != nil {
-		return nil, err
-	}
 
 	// update the cache with the fetched assets and their hashes
 	for name, asset := range assetMap {
@@ -446,5 +482,117 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 		cachedAssets[name] = asset
 	}
 
-	return cachedAssets, nil
+	// Return the combined results (cached + fetched), preserving any error (e.g., ErrPartialResult)
+	// If we had partial hashes, prioritize that error over the fetch error
+	if hashErr != nil {
+		return cachedAssets, hashErr
+	}
+	return cachedAssets, err
+}
+
+func (ds *cachedMysql) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	if x, found := ds.c.Get(ctx, defaultTeamConfigKey); found {
+		if cfg, ok := x.(*fleet.TeamConfig); ok {
+			return cfg, nil
+		}
+	}
+
+	cfg, err := ds.Datastore.DefaultTeamConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, defaultTeamConfigKey, cfg, ds.defaultTeamConfigExp)
+
+	return cfg, nil
+}
+
+func (ds *cachedMysql) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	err := ds.Datastore.SaveDefaultTeamConfig(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate the cache
+	ds.c.Delete(defaultTeamConfigKey)
+
+	return nil
+}
+
+func (ds *cachedMysql) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
+	key := fmt.Sprintf(yaraRuleByNameKey, name)
+
+	if x, found := ds.c.Get(ctx, key); found {
+		if rule, ok := x.(*fleet.YaraRule); ok {
+			return rule, nil
+		}
+	}
+
+	rule, err := ds.Datastore.YaraRuleByName(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, key, rule, ds.yaraRuleByNameExp)
+
+	return rule, nil
+}
+
+func (ds *cachedMysql) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule) error {
+	err := ds.Datastore.ApplyYaraRules(ctx, rules)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate all cached YARA rules
+	// We need to flush all because we don't know which rules were added/removed/modified
+	items := ds.c.Items()
+	for k := range items {
+		if strings.HasPrefix(k, yaraRuleCachePrefix) {
+			ds.c.Delete(k)
+		}
+	}
+
+	return nil
+}
+
+func (ds *cachedMysql) GetFMANamesByIdentifier(ctx context.Context) (map[string]string, error) {
+	if x, found := ds.c.Get(ctx, fmaNamesByIdentifierKey); found {
+		if names, ok := x.(fmaNameMap); ok {
+			return names, nil
+		}
+	}
+
+	names, err := ds.Datastore.GetFMANamesByIdentifier(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, fmaNamesByIdentifierKey, fmaNameMap(names), ds.fmaNamesByIdentifierExp)
+
+	return names, nil
+}
+
+func (ds *cachedMysql) UpsertMaintainedApp(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+	result, err := ds.Datastore.UpsertMaintainedApp(ctx, app)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invalidate the FMA names cache since an app was added/updated
+	ds.c.Delete(fmaNamesByIdentifierKey)
+
+	return result, nil
+}
+
+func (ds *cachedMysql) ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error {
+	err := ds.Datastore.ClearRemovedFleetMaintainedApps(ctx, slugsToKeep)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate the FMA names cache since apps may have been removed
+	ds.c.Delete(fmaNamesByIdentifierKey)
+
+	return nil
 }

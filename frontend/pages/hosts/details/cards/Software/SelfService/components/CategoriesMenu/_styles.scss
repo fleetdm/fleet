@@ -1,0 +1,6 @@
+.categories-menu {
+  @include side-nav-list;
+  &__category-link {
+    @include side-nav-item;
+  }
+}

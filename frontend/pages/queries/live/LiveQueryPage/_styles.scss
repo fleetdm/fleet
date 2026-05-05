@@ -37,6 +37,11 @@
     }
   }
 
+  &__team-help-text {
+    @include help-text;
+    margin: 0 0 $pad-small;
+  }
+
   &__empty-entity-search {
     margin-top: $pad-small;
     font-size: $x-small;

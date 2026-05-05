@@ -14,15 +14,15 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 4.32.0"
+      version = "~> 5.0"
     }
     docker = {
       source  = "kreuzwerker/docker"
       version = "~> 2.16.0"
     }
     git = {
-      source  = "paultyng/git"
-      version = "~> 0.1.0"
+      source  = "metio/git"
+      version = "2025.10.10"
     }
   }
   backend "s3" {
@@ -54,7 +54,7 @@ provider "docker" {
 provider "git" {}
 
 data "git_repository" "tf" {
-  path = "${path.module}/../../../"
+  directory = "${path.module}/../../../"
 }
 
 data "terraform_remote_state" "shared" {

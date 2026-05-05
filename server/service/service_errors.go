@@ -1,6 +1,11 @@
 package service
 
-import "github.com/fleetdm/fleet/v4/server/fleet"
+import (
+	"fmt"
+	"path/filepath"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
+)
 
 type alreadyExistsError struct {
 	fleet.ErrorWithUUID
@@ -11,6 +16,10 @@ func (a *alreadyExistsError) Error() string {
 }
 
 func (a *alreadyExistsError) IsExists() bool {
+	return true
+}
+
+func (a *alreadyExistsError) IsClientError() bool {
 	return true
 }
 
@@ -27,6 +36,10 @@ func (e *notFoundError) Error() string {
 }
 
 func (e *notFoundError) IsNotFound() bool {
+	return true
+}
+
+func (e *notFoundError) IsClientError() bool {
 	return true
 }
 
@@ -69,4 +82,22 @@ func (e *ssoError) Error() string {
 
 func (e *ssoError) Unwrap() error {
 	return e.err
+}
+
+// gitOpsValidationError is an error that occurs during validating fields in the yaml spec.
+type gitOpsValidationError struct {
+	message string
+}
+
+func (e *gitOpsValidationError) Error() string {
+	return e.message
+}
+
+func (e *gitOpsValidationError) WithFileContext(baseDir, filename string) error {
+	fileFullPath := filepath.Join(baseDir, filename)
+	return fmt.Errorf("Couldn't edit %q at: %q. %s", filename, fileFullPath, e.message)
+}
+
+func newGitOpsValidationError(message string) *gitOpsValidationError {
+	return &gitOpsValidationError{message: message}
 }

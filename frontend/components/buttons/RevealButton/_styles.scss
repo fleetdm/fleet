@@ -2,6 +2,15 @@
   display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
+  min-width: max-content;
+
+  .reveal-button__caret svg {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: rotate(0deg);
+  }
+  .reveal-button__caret--open svg {
+    transform: rotate(180deg);
+  }
 
   svg {
     path {
@@ -12,12 +21,12 @@
   &:hover,
   &:focus {
     .component__tooltip-wrapper__element {
-      color: $core-vibrant-blue-over;
+      color: $ui-fleet-black-75-over;
     }
 
     svg {
       path {
-        stroke: $core-vibrant-blue-over;
+        stroke: $ui-fleet-black-75-over;
       }
     }
   }

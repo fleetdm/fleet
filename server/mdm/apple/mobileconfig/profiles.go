@@ -123,7 +123,7 @@ var OTAMobileConfigTemplate = template.Must(template.New("").Funcs(funcMap).Opti
     <key>PayloadContent</key>
     <dict>
       <key>URL</key>
-      <string>{{ .URL }}</string>
+      <string>{{ xml .URL }}</string>
       <key>DeviceAttributes</key>
       <array>
         <string>UDID</string>

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"maps"
 	"testing"
 	"time"
 
@@ -58,6 +59,17 @@ func TestClone(t *testing.T) {
 				ServerSettings: fleet.ServerSettings{
 					DebugHostIDs: []uint{1, 2, 3},
 				},
+			},
+		},
+		{
+			name: "yara rule",
+			src: &fleet.YaraRule{
+				Name:     "test_rule.yar",
+				Contents: "rule TestRule { condition: true }",
+			},
+			want: &fleet.YaraRule{
+				Name:     "test_rule.yar",
+				Contents: "rule TestRule { condition: true }",
 			},
 		},
 	}
@@ -847,4 +859,203 @@ func TestGetAllMDMConfigAssetsByName(t *testing.T) {
 	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"not exists"}, nil)
 	require.Error(t, err)
 	require.Equal(t, "error fetching hashes", err.Error())
+}
+
+func TestCachedYaraRules(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithYaraRuleByNameExpiration(100*time.Millisecond))
+
+	testRule1 := &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1 { condition: true }",
+	}
+	testRule2 := &fleet.YaraRule{
+		Name:     "rule2.yar",
+		Contents: "rule Rule2 { condition: true }",
+	}
+
+	// Setup mock functions
+	mockedDS.YaraRuleByNameFunc = func(_ context.Context, name string) (*fleet.YaraRule, error) {
+		switch name {
+		case "rule1.yar":
+			return testRule1, nil
+		case "rule2.yar":
+			return testRule2, nil
+		default:
+			return nil, errors.New("rule not found")
+		}
+	}
+
+	mockedDS.ApplyYaraRulesFunc = func(_ context.Context, _ []fleet.YaraRule) error {
+		return nil
+	}
+
+	// Test 1: First call gets the result from the DB
+	rule1, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1)
+	require.Same(t, testRule1, rule1)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked)
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Test 2: Cached call returns cloned value
+	rule1Cached, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Cached)             // returns the cached value
+	require.NotSame(t, testRule1, rule1Cached)           // have been cloned
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // from cache
+
+	// Test 3: Deep change doesn't alter the stored value
+	rule1Cached.Contents = "modified content"
+	require.NotEqual(t, rule1, rule1Cached)
+
+	// Verify original cached value is unchanged
+	rule1Again, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Again)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // still from cache
+
+	// Test 4: Cache multiple rules
+	rule2, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked)
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Both rules should now be cached
+	rule2Cached, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2Cached)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // from cache
+
+	// Test 5: ApplyYaraRules invalidates all cached rules
+	newRules := []fleet.YaraRule{
+		{Name: "rule1.yar", Contents: "rule Rule1Modified { condition: false }"},
+		{Name: "rule3.yar", Contents: "rule Rule3 { condition: true }"},
+	}
+	err = ds.ApplyYaraRules(context.Background(), newRules)
+	require.NoError(t, err)
+	require.True(t, mockedDS.ApplyYaraRulesFuncInvoked)
+
+	// Update mock to return modified rule
+	testRule1 = &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1Modified { condition: false }",
+	}
+
+	// After ApplyYaraRules, cache should be invalidated, so next call hits the DB
+	rule1AfterApply, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1AfterApply)        // updated rule
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB, not cache
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// rule2 should also be invalidated even though it wasn't changed
+	rule2AfterApply, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2AfterApply)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB, not cache
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Test 6: Cache expiration
+	// The previous call (rule1AfterApply) already cached rule1, so verify it's cached
+	rule1Cached2, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Cached2)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // should be from cache
+
+	// Wait for cache to expire
+	time.Sleep(200 * time.Millisecond)
+
+	// Update mock to return a different value
+	testRule1 = &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1Expired { condition: true }",
+	}
+
+	// This call should get from DB again since cache expired
+	rule1Expired, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Expired) // new value from DB
+	require.Same(t, testRule1, rule1Expired)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB after expiration
+}
+
+func TestCachedFMANamesByIdentifier(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithFMANamesByIdentifierExpiration(100*time.Millisecond))
+
+	fmaNames := map[string]string{
+		"com.microsoft.VSCode":    "Microsoft Visual Studio Code",
+		"com.1password.1password": "1Password",
+	}
+
+	mockedDS.GetFMANamesByIdentifierFunc = func(ctx context.Context) (map[string]string, error) {
+		// Return a copy to avoid mutation
+		result := make(map[string]string, len(fmaNames))
+		maps.Copy(result, fmaNames)
+		return result, nil
+	}
+
+	mockedDS.UpsertMaintainedAppFunc = func(ctx context.Context, app *fleet.MaintainedApp) (*fleet.MaintainedApp, error) {
+		return app, nil
+	}
+
+	// Test 1: Initial call hits the DB
+	names, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names, 2)
+	require.Equal(t, "Microsoft Visual Studio Code", names["com.microsoft.VSCode"])
+	require.Equal(t, "1Password", names["com.1password.1password"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 2: Second call uses cache
+	names2, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names2, 2)
+	require.False(t, mockedDS.GetFMANamesByIdentifierFuncInvoked) // from cache
+
+	// Test 3: Modifying returned map doesn't affect cache
+	names2["com.microsoft.VSCode"] = "Modified"
+	names3, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "Microsoft Visual Studio Code", names3["com.microsoft.VSCode"]) // still original
+
+	// Test 4: UpsertMaintainedApp invalidates cache
+	_, err = ds.UpsertMaintainedApp(context.Background(), &fleet.MaintainedApp{
+		Name:             "New App",
+		Slug:             "new-app/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.new.app",
+	})
+	require.NoError(t, err)
+	require.True(t, mockedDS.UpsertMaintainedAppFuncInvoked)
+
+	// Update mock to return new data
+	fmaNames["com.new.app"] = "New App"
+
+	// Next call should hit DB again since cache was invalidated
+	names4, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Len(t, names4, 3)
+	require.Equal(t, "New App", names4["com.new.app"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
+	mockedDS.GetFMANamesByIdentifierFuncInvoked = false
+
+	// Test 5: Cache expiration
+	time.Sleep(200 * time.Millisecond)
+
+	// Update mock to return different data
+	fmaNames["com.microsoft.VSCode"] = "VS Code Updated"
+
+	// This call should get from DB again since cache expired
+	names5, err := ds.GetFMANamesByIdentifier(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "VS Code Updated", names5["com.microsoft.VSCode"])
+	require.True(t, mockedDS.GetFMANamesByIdentifierFuncInvoked)
 }

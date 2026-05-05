@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/groob/plist"
+	"github.com/micromdm/plist"
 )
 
 // PlistReader encodes v to XML Plist.

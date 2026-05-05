@@ -15,7 +15,7 @@ const enrolledHostsSetKey = "enrolled_hosts:host_ids"
 
 var redisSetMembersBatchSize = 10000 // var so it can be changed in tests
 
-// SyncEnrolledHostIDs forces synchronisation of host IDs between the DB and
+// SyncEnrolledHostIDs forces synchronization of host IDs between the DB and
 // the Redis set. To optimize for the common case, it first checks if the
 // counts are the same in the database and the redis set, and if so it does
 // nothing else. Otherwise, it loads the current list of IDs from the database,
@@ -75,17 +75,17 @@ func addHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) error 
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		max := len(hostIDs)
-		if max > redisSetMembersBatchSize {
-			max = redisSetMembersBatchSize
+		maxSize := len(hostIDs)
+		if maxSize > redisSetMembersBatchSize {
+			maxSize = redisSetMembersBatchSize
 		}
 
 		args := redigo.Args{enrolledHostsSetKey}
-		args = args.AddFlat(hostIDs[:max])
+		args = args.AddFlat(hostIDs[:maxSize])
 		if _, err := conn.Do("SADD", args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "enrolled limits: add hosts")
 		}
-		hostIDs = hostIDs[max:]
+		hostIDs = hostIDs[maxSize:]
 	}
 	return nil
 }
@@ -95,17 +95,17 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		max := len(hostIDs)
-		if max > redisSetMembersBatchSize {
-			max = redisSetMembersBatchSize
+		maxSize := len(hostIDs)
+		if maxSize > redisSetMembersBatchSize {
+			maxSize = redisSetMembersBatchSize
 		}
 
 		args := redigo.Args{enrolledHostsSetKey}
-		args = args.AddFlat(hostIDs)
+		args = args.AddFlat(hostIDs[:maxSize])
 		if _, err := conn.Do("SREM", args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "enrolled limits: remove hosts")
 		}
-		hostIDs = hostIDs[max:]
+		hostIDs = hostIDs[maxSize:]
 	}
 	return nil
 }
@@ -126,62 +126,100 @@ func (d *Datastore) checkCanAddHost(ctx context.Context) (bool, error) {
 
 func (d *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host, error) {
 	h, err := d.Datastore.NewHost(ctx, host)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return h, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return h, err
+	// A newly inserted host has no positive cache entry, but a stale negative
+	// cache entry for the new node_key could linger (up to hostCacheNegativeTTL)
+	// if the node_key had been probed moments before enrollment. Clearing it
+	// here ensures the next LoadHostByNodeKey populates the positive cache
+	// instead of returning a false NotFound.
+	d.invalidateAfterHostEnroll(ctx, h, "enroll")
+	return h, nil
 }
 
-func (d *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey string, teamID *uint, cooldown time.Duration) (*fleet.Host, error) {
-	h, err := d.Datastore.EnrollHost(ctx, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial, nodeKey, teamID, cooldown)
-	if err == nil && d.enforceHostLimit > 0 {
+func (d *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	h, err := d.Datastore.EnrollOsquery(ctx, opts...)
+	if err != nil {
+		return h, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := addHosts(ctx, d.pool, h.ID); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return h, err
+	// EnrollOsquery can update an existing row's node_key + team_id on
+	// re-enrollment, so the cached snapshot is stale after the call.
+	d.invalidateAfterHostEnroll(ctx, h, "enroll")
+	return h, nil
 }
 
 func (d *Datastore) DeleteHost(ctx context.Context, hid uint) error {
 	err := d.Datastore.DeleteHost(ctx, hid)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, hid); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return err
+	// Deleted row must not serve from cache: a stale hit would let the host
+	// authenticate after its deletion.
+	d.hostCacheDeleteByID(ctx, hid, "delete")
+	return nil
 }
 
 func (d *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
 	err := d.Datastore.DeleteHosts(ctx, ids)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return err
+	// Batched pipelined invalidation — see invalidateHostIDs for why.
+	d.invalidateHostIDs(ctx, ids, "delete")
+	return nil
 }
 
-func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
-	ids, err := d.Datastore.CleanupExpiredHosts(ctx)
-	if err == nil && d.enforceHostLimit > 0 {
+func (d *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHostDetails, error) {
+	details, err := d.Datastore.CleanupExpiredHosts(ctx)
+	if err != nil {
+		return details, err
+	}
+	ids := make([]uint, len(details))
+	for i, detail := range details {
+		ids[i] = detail.ID
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return ids, err
+	d.invalidateHostIDs(ctx, ids, "delete")
+	return details, nil
 }
 
 func (d *Datastore) CleanupIncomingHosts(ctx context.Context, now time.Time) ([]uint, error) {
 	ids, err := d.Datastore.CleanupIncomingHosts(ctx, now)
-	if err == nil && d.enforceHostLimit > 0 {
+	if err != nil {
+		return ids, err
+	}
+	if d.enforceHostLimit > 0 {
 		if err := removeHosts(ctx, d.pool, ids...); err != nil {
 			logging.WithErr(ctx, err)
 		}
 	}
-	return ids, err
+	d.invalidateHostIDs(ctx, ids, "delete")
+	return ids, nil
 }
 
 func (d *Datastore) CanEnrollNewHost(ctx context.Context) (bool, error) {

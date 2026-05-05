@@ -1,0 +1,9 @@
+.inventory-versions-modal {
+  &__content {
+    max-height: 581px;
+    overflow-y: auto;
+  }
+  .data-set__horizontal {
+    flex-direction: row;
+  }
+}

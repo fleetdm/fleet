@@ -1,9 +1,10 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import PATHS from "router/paths";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IEmptyUsersTableProps {
   className: string;
@@ -12,12 +13,13 @@ interface IEmptyUsersTableProps {
   isTeamAdmin: boolean;
   toggleAddUserModal: () => void;
   toggleCreateMemberModal: () => void;
+  disabled?: boolean;
 }
 
 const infoLink = (
   <>
     <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still access
-    this team.
+    this fleet.
   </>
 );
 
@@ -27,6 +29,7 @@ const CreateUserButton = ({
   isTeamAdmin,
   toggleAddUserModal,
   toggleCreateMemberModal,
+  disabled = false,
 }: Omit<IEmptyUsersTableProps, "searchString">) => {
   if (!isGlobalAdmin && !isTeamAdmin) {
     return null;
@@ -35,9 +38,9 @@ const CreateUserButton = ({
   if (isGlobalAdmin) {
     return (
       <Button
-        variant="brand"
         className={`${className}__create-button`}
         onClick={toggleAddUserModal}
+        disabled={disabled}
       >
         Add user
       </Button>
@@ -46,9 +49,9 @@ const CreateUserButton = ({
 
   return (
     <Button
-      variant="brand"
       className={`${className}__create-button`}
       onClick={toggleCreateMemberModal}
+      disabled={disabled}
     >
       Create user
     </Button>
@@ -65,7 +68,7 @@ const EmptyMembersTable = ({
 }: IEmptyUsersTableProps) => {
   if (searchString !== "") {
     return (
-      <EmptyTable
+      <EmptyState
         header="No users match the current criteria"
         info="Expecting to see users? Try again in a few seconds as the system catches up."
       />
@@ -73,17 +76,22 @@ const EmptyMembersTable = ({
   }
 
   return (
-    <EmptyTable
-      graphicName="empty-users"
-      header="No users on this team"
+    <EmptyState
+      header="No users on this fleet"
       info={infoLink}
       primaryButton={
-        <CreateUserButton
-          className={className}
-          isGlobalAdmin={isGlobalAdmin}
-          isTeamAdmin={isTeamAdmin}
-          toggleAddUserModal={toggleAddUserModal}
-          toggleCreateMemberModal={toggleCreateMemberModal}
+        <GitOpsModeTooltipWrapper
+          tipOffset={8}
+          renderChildren={(disableChildren) => (
+            <CreateUserButton
+              className={className}
+              isGlobalAdmin={isGlobalAdmin}
+              isTeamAdmin={isTeamAdmin}
+              toggleAddUserModal={toggleAddUserModal}
+              toggleCreateMemberModal={toggleCreateMemberModal}
+              disabled={disableChildren}
+            />
+          )}
         />
       }
     />

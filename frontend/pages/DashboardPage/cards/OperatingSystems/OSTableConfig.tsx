@@ -7,25 +7,31 @@ import React from "react";
 import { CellProps, Column, HeaderProps } from "react-table";
 import { InjectedRouter } from "react-router";
 
-import { buildQueryStringFromParams } from "utilities/url";
+import { getPathWithQueryParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
-import { ISoftwareVulnerability } from "interfaces/software";
+import {
+  ISoftwareVulnerability,
+  ROLLING_ARCH_LINUX_NAMES,
+} from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
-import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
-import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
+import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
 import {
   INumberCellProps,
   IStringCellProps,
 } from "interfaces/datatable_config";
+import { isLinuxLike } from "interfaces/platform";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -36,6 +42,8 @@ type IVulnCellProps = CellProps<
   ISoftwareVulnerability[]
 >;
 type IHostCountCellProps = INumberCellProps<IOperatingSystemVersion>;
+type IViewAllHostsLinkProps = CellProps<IOperatingSystemVersion>;
+
 type IHostHeaderProps = HeaderProps<IOperatingSystemVersion>;
 
 interface IOSTableConfigOptions {
@@ -63,14 +71,12 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, os_version_id } = cellProps.row.original;
+      const { name_only, os_version_id, platform } = cellProps.row.original;
 
-      const teamQueryParam = buildQueryStringFromParams({
-        team_id: teamId,
-      });
-      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
-        os_version_id
-      )}?${teamQueryParam}`;
+      const softwareOsDetailsPath = getPathWithQueryParams(
+        PATHS.SOFTWARE_OS_DETAILS(os_version_id),
+        { fleet_id: teamId }
+      );
 
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
@@ -83,12 +89,9 @@ const generateDefaultTableHeaders = (
         <LinkCell
           path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
-          value={
-            <>
-              <SoftwareIcon name={cellProps.row.original.platform} />
-              <span className="software-name">{name}</span>
-            </>
-          }
+          tooltipTruncate
+          prefix={<OSIcon name={platform} />}
+          value={name_only}
         />
       );
     },
@@ -96,21 +99,56 @@ const generateDefaultTableHeaders = (
   {
     Header: "Version",
     disableSortBy: true,
-    accessor: "version",
-    Cell: (cellProps: IVersionCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IVersionCellProps) => {
+      const { version, name_only } = cellProps.row.original;
+      if (
+        ROLLING_ARCH_LINUX_NAMES.includes(name_only) &&
+        version === "rolling"
+      ) {
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
+      }
+      return <TextCell value={version} />;
+    },
   },
   {
-    Header: "Vulnerabilities",
+    Header: (): JSX.Element => {
+      const titleWithTooltip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Vulnerabilities on Linux are currently supported <br />
+              for Ubuntu, Debian, and RHEL based systems.
+            </>
+          }
+        >
+          Vulnerabilities
+        </TooltipWrapper>
+      );
+      return (
+        <>
+          <HeaderCell value={titleWithTooltip} disableSortBy />
+        </>
+      );
+    },
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
-      if (platform !== "darwin" && platform !== "windows") {
+      if (
+        platform !== "darwin" &&
+        platform !== "windows" &&
+        !isLinuxLike(platform)
+      ) {
         return <TextCell value="Not supported" grey />;
       }
-      return <VulnerabilitiesCell vulnerabilities={cellProps.cell.value} />;
+      return (
+        <VulnerabilitiesCell
+          vulnerabilities={cellProps.cell.value}
+          vulnerabilitiesCount={cellProps.row.original.vulnerabilities_count}
+        />
+      );
     },
   },
   {
@@ -125,22 +163,29 @@ const generateDefaultTableHeaders = (
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: IHostCountCellProps) => {
-      const { hosts_count, os_version_id } = cellProps.row.original;
+      const { hosts_count } = cellProps.row.original;
       return (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={hosts_count} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                os_version_id,
-                team_id: teamId,
-              }}
-              className="os-hosts-link"
-            />
-          </span>
+        <span className="hosts-cell__count">
+          <TextCell value={hosts_count} />
         </span>
+      );
+    },
+  },
+  {
+    Header: "",
+    id: "view-all-hosts",
+    disableSortBy: true,
+    Cell: (cellProps: IViewAllHostsLinkProps) => {
+      const { os_version_id } = cellProps.row.original;
+      return (
+        <ViewAllHostsLink
+          queryParams={{
+            os_version_id,
+            fleet_id: teamId,
+          }}
+          className="os-hosts-link"
+          rowHover
+        />
       );
     },
   },

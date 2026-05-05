@@ -33,4 +33,4 @@ CREATE TABLE nano_dep_names (
 
     CHECK (tokenpki_cert_pem IS NULL OR SUBSTRING(tokenpki_cert_pem FROM 1 FOR 27) = '-----BEGIN CERTIFICATE-----'),
     CHECK (tokenpki_key_pem IS NULL OR SUBSTRING(tokenpki_key_pem FROM 1 FOR  5) = '-----')
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

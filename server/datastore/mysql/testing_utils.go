@@ -1,23 +1,23 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
-	"math/big"
+	"log/slog"
 	"os"
 	"os/exec"
-	"path"
-	"runtime"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,38 +26,34 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/acl/activityacl"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
+	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
-	"github.com/go-kit/log"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
+	platform_authz "github.com/fleetdm/fleet/v4/server/platform/authz"
+	"github.com/fleetdm/fleet/v4/server/platform/logging"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/olekukonko/tablewriter"
 	"github.com/smallstep/pkcs7"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testUsername              = "root"
-	testPassword              = "toor"
-	testAddress               = "localhost:3307"
-	testReplicaDatabaseSuffix = "_replica"
-	testReplicaAddress        = "localhost:3310"
-)
-
-func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	cfg := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
-		Database: testName,
-		Address:  testAddress,
-	}
+func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	commonCfg := testing_utils.MysqlTestConfig(testName)
+	cfg := fromCommonMysqlConfig(commonCfg)
 
 	// Create datastore client
 	var replicaOpt DBOption
 	if opts.DummyReplica {
-		replicaConf := cfg
-		replicaConf.Database += testReplicaDatabaseSuffix
+		replicaConf := *cfg
+		replicaConf.Database += testing_utils.TestReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
 
@@ -70,32 +66,28 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	// TODO: for some reason we never log datastore messages when running integration tests, why?
 	//
 	// Changes below assume that we want to follows the same pattern as the rest of the codebase.
-	dslogger := log.NewLogfmtLogger(os.Stdout)
+	var dslogger *slog.Logger
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		dslogger = log.NewNopLogger()
+		dslogger = slog.New(slog.DiscardHandler)
+	} else {
+		dslogger = logging.NewSlogLogger(logging.Options{Output: os.Stdout, Debug: true})
 	}
 
-	// set SQL mode to ANSI, as it's a special mode equivalent to:
-	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
-	// ONLY_FULL_GROUP_BY
-	//
-	// Per the docs:
-	// > This mode changes syntax and behavior to conform more closely to
-	// standard SQL.
-	//
-	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
+	// This ensures we catch data truncation errors and other strict behaviors during testing
+	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
 		setupDummyReplica(t, testName, ds, opts)
 	}
 	if opts.RealReplica {
-		replicaOpts := &dbOptions{
-			minLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
-			maxAttempts:         1,
-			logger:              log.NewNopLogger(),
-			sqlMode:             "ANSI",
+		replicaOpts := &common_mysql.DBOptions{
+			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
+			MaxAttempts:         1,
+			Logger:              slog.New(slog.DiscardHandler),
+			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -103,7 +95,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 	return ds
 }
 
-func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *DatastoreTestOptions) {
+func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testing_utils.DatastoreTestOptions) {
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
@@ -136,7 +128,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 
 		primary := ds.primary
 		replica := ds.replica.(*sqlx.DB)
-		replicaDB := testName + testReplicaDatabaseSuffix
+		replicaDB := testName + testing_utils.TestReplicaDatabaseSuffix
 		last := time.Now().Add(-time.Minute)
 
 		// drop all foreign keys in the replica, as that causes issues even with
@@ -213,11 +205,25 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *Datas
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
+
 					stmt = fmt.Sprintf(`CREATE TABLE %s.%s LIKE %s.%s`, replicaDB, tbl, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
-					stmt = fmt.Sprintf(`INSERT INTO %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
+
+					// Build query to avoid inserting into GENERATED columns
+					var columns string
+					columnsStmt := fmt.Sprintf(`SELECT
+                                                  GROUP_CONCAT(column_name ORDER BY ordinal_position)
+                                                FROM information_schema.columns
+                                                WHERE table_schema = '%s' AND table_name = '%s'
+												  AND NOT (EXTRA LIKE '%%GENERATED%%' AND EXTRA NOT LIKE '%%DEFAULT_GENERATED%%');`, replicaDB, tbl)
+					err = replica.GetContext(ctx, &columns, columnsStmt)
+					require.NoError(t, err)
+
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s)
+                                        SELECT %s
+                                        FROM %s.%s;`, replicaDB, tbl, columns, columns, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
@@ -256,7 +262,7 @@ var (
 	databasesToReplicate string
 )
 
-func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbOptions) {
+func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *common_mysql.DBOptions) {
 	t.Helper()
 	const replicaUser = "replicator"
 	const replicaPassword = "rotacilper"
@@ -268,7 +274,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 				"docker", "compose", "exec", "-T", "mysql_replica_test",
 				// Command run inside container
 				"mysql",
-				"-u"+testUsername, "-p"+testPassword,
+				"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 				"-e",
 				"STOP REPLICA; RESET REPLICA ALL;",
 			).CombinedOutput(); err != nil {
@@ -328,7 +334,7 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 		"docker", "compose", "exec", "-T", "mysql_replica_test",
 		// Command run inside container
 		"mysql",
-		"-u"+testUsername, "-p"+testPassword,
+		"-u"+testing_utils.TestUsername, "-p"+testing_utils.TestPassword,
 		"-e",
 		fmt.Sprintf(
 			`
@@ -347,144 +353,36 @@ func setupRealReplica(t testing.TB, testName string, ds *Datastore, options *dbO
 
 	// Connect to the replica
 	replicaConfig := config.MysqlConfig{
-		Username: testUsername,
-		Password: testPassword,
+		Username: testing_utils.TestUsername,
+		Password: testing_utils.TestPassword,
 		Database: testName,
-		Address:  testReplicaAddress,
+		Address:  testing_utils.TestReplicaAddress,
 	}
-	require.NoError(t, checkConfig(&replicaConfig))
-	replica, err := newDB(&replicaConfig, options)
+	require.NoError(t, checkAndModifyConfig(&replicaConfig))
+	replica, err := NewDB(&replicaConfig, options)
 	require.NoError(t, err)
 	ds.replica = replica
-	ds.readReplicaConfig = &replicaConfig
+	ds.readReplicaConfig = toCommonMysqlConfig(&replicaConfig)
 }
 
 // initializeDatabase loads the dumped schema into a newly created database in
 // MySQL. This is much faster than running the full set of migrations on each
 // test.
-func initializeDatabase(t testing.TB, testName string, opts *DatastoreTestOptions) *Datastore {
-	_, filename, _, _ := runtime.Caller(0)
-	base := path.Dir(filename)
-	schema, err := os.ReadFile(path.Join(base, "schema.sql"))
-	if err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
-
-	// execute the schema for the test db, and once more for the replica db if
-	// that option is set.
-	dbs := []string{testName}
-	if opts.DummyReplica {
-		dbs = append(dbs, testName+testReplicaDatabaseSuffix)
-	}
-	for _, dbName := range dbs {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			dbName, dbName, dbName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-	if opts.RealReplica {
-		// Load schema from dumpfile
-		sqlCommands := fmt.Sprintf(
-			"DROP DATABASE IF EXISTS %s; CREATE DATABASE %s; USE %s; SET FOREIGN_KEY_CHECKS=0; %s;",
-			testName, testName, testName, schema,
-		)
-
-		cmd := exec.Command(
-			"docker", "compose", "exec", "-T", "mysql_replica_test",
-			// Command run inside container
-			"mysql",
-			"-u"+testUsername, "-p"+testPassword,
-		)
-		cmd.Stdin = strings.NewReader(sqlCommands)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			t.Error(err)
-			t.Error(string(out))
-			t.FailNow()
-		}
-	}
-
+func initializeDatabase(t testing.TB, testName string, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	testing_utils.LoadDefaultSchema(t, testName, opts)
 	return connectMySQL(t, testName, opts)
 }
 
-// DatastoreTestOptions configures how the test datastore is created
-// by CreateMySQLDSWithOptions.
-type DatastoreTestOptions struct {
-	// DummyReplica indicates that a read replica test database should be created.
-	DummyReplica bool
-
-	// RunReplication is the function to call to execute the replication of all
-	// missing changes from the primary to the replica. The function is created
-	// and set automatically by CreateMySQLDSWithOptions. The test is in full
-	// control of when the replication is executed. Only applies to DummyReplica.
-	// Note that not all changes to data show up in the information_schema
-	// update_time timestamp, so to work around that limitation, explicit table
-	// names can be provided to force their replication.
-	RunReplication func(forceTables ...string)
-
-	// RealReplica indicates that the replica should be a real DB replica, with a dedicated connection.
-	RealReplica bool
-}
-
-func createMySQLDSWithOptions(t testing.TB, opts *DatastoreTestOptions) *Datastore {
-	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
-		t.Skip("MySQL tests are disabled")
-	}
-
-	if opts == nil {
-		// so it is never nil in internal helper functions
-		opts = new(DatastoreTestOptions)
-	}
-
-	if tt, ok := t.(*testing.T); ok && !opts.RealReplica {
-		tt.Parallel()
-	}
-
-	if opts.RealReplica {
-		if _, ok := os.LookupEnv("MYSQL_REPLICA_TEST"); !ok {
-			t.Skip("MySQL replica tests are disabled. Set env var MYSQL_REPLICA_TEST=1 to enable.")
-		}
-	}
-
-	pc, _, _, ok := runtime.Caller(2)
-	details := runtime.FuncForPC(pc)
-	if !ok || details == nil {
-		t.FailNow()
-	}
-
-	cleanName := strings.ReplaceAll(
-		strings.TrimPrefix(details.Name(), "github.com/fleetdm/fleet/v4/"), "/", "_",
-	)
-	cleanName = strings.ReplaceAll(cleanName, ".", "_")
-	if len(cleanName) > 60 {
-		// the later parts are more unique than the start, with the package names,
-		// so trim from the start.
-		cleanName = cleanName[len(cleanName)-60:]
-	}
-	ds := initializeDatabase(t, cleanName, opts)
+func createMySQLDSWithOptions(t testing.TB, opts *testing_utils.DatastoreTestOptions) *Datastore {
+	cleanTestName, opts := testing_utils.ProcessOptions(t, opts)
+	ds := initializeDatabase(t, cleanTestName, opts)
 	t.Cleanup(func() { ds.Close() })
 	return ds
 }
 
-func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithReplica(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	if opts == nil {
-		opts = new(DatastoreTestOptions)
+		opts = new(testing_utils.DatastoreTestOptions)
 	}
 	opts.RealReplica = true
 	const numberOfAttempts = 10
@@ -507,7 +405,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *DatastoreTestOptions) *Datasto
 	return ds
 }
 
-func CreateMySQLDSWithOptions(t *testing.T, opts *DatastoreTestOptions) *Datastore {
+func CreateMySQLDSWithOptions(t *testing.T, opts *testing_utils.DatastoreTestOptions) *Datastore {
 	return createMySQLDSWithOptions(t, opts)
 }
 
@@ -516,13 +414,22 @@ func CreateMySQLDS(t testing.TB) *Datastore {
 }
 
 func CreateNamedMySQLDS(t *testing.T, name string) *Datastore {
+	ds, _ := CreateNamedMySQLDSWithConns(t, name)
+	return ds
+}
+
+// CreateNamedMySQLDSWithConns creates a MySQL datastore and returns both the datastore
+// and the underlying database connections. This matches the production flow where
+// DBConnections are created first and shared across datastores.
+func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common_mysql.DBConnections) {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
 
-	ds := initializeDatabase(t, name, new(DatastoreTestOptions))
+	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
-	return ds
+
+	return ds, TestDBConnections(t, ds)
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -541,68 +448,21 @@ func EncryptWithPrivateKey(tb testing.TB, ds *Datastore, data []byte) ([]byte, e
 	return encrypt(data, ds.serverPrivateKey)
 }
 
-// TruncateTables truncates the specified tables, in order, using ds.writer.
-// Note that the order is typically not important because FK checks are
-// disabled while truncating. If no table is provided, all tables (except
-// those that are seeded by the SQL schema file) are truncated.
 func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
-	// By setting DISABLE_TRUNCATE_TABLES a developer can troubleshoot tests
-	// by inspecting mysql tables.
-	if os.Getenv("DISABLE_TRUNCATE_TABLES") != "" {
-		return
-	}
-
 	// those tables are seeded with the schema.sql and as such must not
 	// be truncated - a more precise approach must be used for those, e.g.
 	// delete where id > max before test, or something like that.
 	nonEmptyTables := map[string]bool{
 		"app_config_json":                  true,
-		"migration_status_tables":          true,
-		"osquery_options":                  true,
+		"fleet_variables":                  true,
+		"mdm_apple_declaration_categories": true,
 		"mdm_delivery_status":              true,
 		"mdm_operation_types":              true,
-		"mdm_apple_declaration_categories": true,
+		"migration_status_tables":          true,
+		"osquery_options":                  true,
+		"software_categories":              true,
 	}
-	ctx := context.Background()
-
-	require.NoError(t, ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var skipSeeded bool
-
-		if len(tables) == 0 {
-			skipSeeded = true
-			sql := `
-      SELECT
-        table_name
-      FROM
-        information_schema.tables
-      WHERE
-        table_schema = database() AND
-        table_type = 'BASE TABLE'
-    `
-			if err := sqlx.SelectContext(ctx, tx, &tables, sql); err != nil {
-				return err
-			}
-		}
-
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=0`); err != nil {
-			return err
-		}
-		for _, tbl := range tables {
-			if nonEmptyTables[tbl] {
-				if skipSeeded {
-					continue
-				}
-				return fmt.Errorf("cannot truncate table %s, it contains seed data from schema.sql", tbl)
-			}
-			if _, err := tx.ExecContext(ctx, "TRUNCATE TABLE "+tbl); err != nil {
-				return err
-			}
-		}
-		if _, err := tx.ExecContext(ctx, `SET FOREIGN_KEY_CHECKS=1`); err != nil {
-			return err
-		}
-		return nil
-	}))
+	testing_utils.TruncateTables(t, ds.writer(context.Background()), ds.logger, nonEmptyTables, tables...)
 }
 
 // this is meant to be used for debugging/testing that statement uses an efficient
@@ -641,46 +501,77 @@ func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args 
 	}
 }
 
-func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string) { //nolint: unused
-	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT * FROM %s`, tableName))
+func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...string) { //nolint: unused
+	colList := "*"
+	if len(cols) > 0 {
+		colList = strings.Join(cols, ", ")
+	}
+	rows, err := q.QueryContext(context.Background(), fmt.Sprintf(`SELECT %s FROM %s`, colList, tableName))
 	require.NoError(t, err)
 	defer rows.Close()
 
 	t.Logf(">> dumping table %s:", tableName)
 
+	data := [][]string{}
+	columns, err := rows.Columns()
+	require.NoError(t, err)
+
 	var anyDst []any
 	var strDst []sql.NullString
-	var sb strings.Builder
 	for rows.Next() {
 		if anyDst == nil {
-			cols, err := rows.Columns()
-			require.NoError(t, err)
-			anyDst = make([]any, len(cols))
-			strDst = make([]sql.NullString, len(cols))
-			for i := 0; i < len(cols); i++ {
+			anyDst = make([]any, len(columns))
+			strDst = make([]sql.NullString, len(columns))
+			for i := range columns {
 				anyDst[i] = &strDst[i]
 			}
-			t.Logf("%v", cols)
 		}
 		require.NoError(t, rows.Scan(anyDst...))
 
-		sb.Reset()
+		row := []string{}
 		for _, v := range strDst {
 			if v.Valid {
-				sb.WriteString(v.String)
+				row = append(row, v.String)
 			} else {
-				sb.WriteString("NULL")
+				row = append(row, "NULL")
 			}
-			sb.WriteString("\t")
 		}
-		t.Logf("%s", sb.String())
+		data = append(data, row)
 	}
 	require.NoError(t, rows.Err())
+
+	printDumpTable(t, columns, data)
 	t.Logf("<< dumping table %s completed", tableName)
 }
 
+func printDumpTable(t *testing.T, cols []string, rows [][]string) {
+	writer := bytes.NewBufferString("")
+	table := tablewriter.NewWriter(writer)
+	table.SetAlignment(tablewriter.ALIGN_LEFT)
+	table.SetAutoFormatHeaders(false)
+	table.SetAutoWrapText(false)
+	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
+	table.SetHeaderLine(true)
+	table.SetRowLine(false)
+
+	table.SetHeader(cols)
+	table.AppendBulk(rows)
+	table.Render()
+
+	t.Logf("\n%s", writer.String())
+}
+
+func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
+	syncML := generateDummyWindowsProfile(uuid)
+	checksum := md5.Sum(syncML)
+	return fleet.MDMWindowsProfileContents{
+		SyncML:   syncML,
+		Checksum: checksum[:],
+	}
+}
+
 func generateDummyWindowsProfile(uuid string) []byte {
-	return []byte(fmt.Sprintf(`<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid))
+	return fmt.Appendf([]byte{}, `<Atomic><Replace><Item><Target><LocURI>./Device/Foo/%s</LocURI></Target></Item></Replace></Atomic>`, uuid)
 }
 
 // TODO(roberto): update when we have datastore functions and API methods for this
@@ -770,11 +661,12 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	certPEM := assets[fleet.MDMAssetABMCert].Value
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -802,13 +694,17 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 			"Content-Description: S/MIME Encrypted Message\r\n"+
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   []byte(tokenBytes),
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 	return tok
 }
 
 func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMToken {
-	apnsCert, apnsKey, err := GenerateTestCertBytes()
+	apnsCert, apnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 
 	certPEM, keyPEM, tokenBytes, err := GenerateTestABMAssets(t)
@@ -825,7 +721,11 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   tokenBytes,
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
@@ -839,15 +739,16 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 }
 
 func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
-	certPEM, keyPEM, err := GenerateTestCertBytes()
+	certPEM, keyPEM, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -878,32 +779,17 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	return certPEM, keyPEM, []byte(tokenBytes), nil
 }
 
-// TODO: move to mdmcrypto?
-func GenerateTestCertBytes() ([]byte, []byte, error) {
+func GenerateTestCertBytes(template *x509.Certificate) ([]byte, []byte, error) {
+	if template == nil {
+		return nil, nil, errors.New("template is nil")
+	}
+
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	template := x509.Certificate{
-		SerialNumber: big.NewInt(1),
-		Subject: pkix.Name{
-			Organization: []string{"Test Org"},
-			ExtraNames: []pkix.AttributeTypeAndValue{
-				{
-					Type:  asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1},
-					Value: "com.apple.mgmt.Example",
-				},
-			},
-		},
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
-		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		BasicConstraintsValid: true,
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	certBytes, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1008,4 +894,162 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 		return result, ctxerr.Wrap(ctx, err, "rows error")
 	}
 	return result, nil
+}
+
+// NormalizeSQL normalizes the SQL statement by removing extra spaces and new lines, etc.
+func NormalizeSQL(query string) string {
+	query = strings.ToUpper(query)
+	query = strings.TrimSpace(query)
+
+	transformations := []struct {
+		pattern     *regexp.Regexp
+		replacement string
+	}{
+		{
+			// Remove comments
+			regexp.MustCompile(`(?m)--.*$|/\*(?s).*?\*/`),
+			"",
+		},
+		{
+			// Normalize whitespace
+			regexp.MustCompile(`\s+`),
+			" ",
+		},
+		{
+			// Replace spaces around ','
+			regexp.MustCompile(`\s*,\s*`),
+			",",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\(\s*`),
+			" (",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\)\s*`),
+			") ",
+		},
+	}
+	for _, tx := range transformations {
+		query = tx.pattern.ReplaceAllString(query, tx.replacement)
+	}
+	return query
+}
+
+func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, execIDs ...string) {
+	ctx := t.Context()
+
+	type upcoming struct {
+		ExecutionID    string `db:"execution_id"`
+		ActivatedAtSet bool   `db:"activated_at_set"`
+	}
+
+	var got []upcoming
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &got,
+			`SELECT
+					execution_id,
+					(activated_at IS NOT NULL) as activated_at_set
+				FROM upcoming_activities
+				WHERE host_id = ?
+				ORDER BY IF(activated_at IS NULL, 0, 1) DESC, priority DESC, created_at ASC`, host.ID)
+	})
+
+	var want []upcoming
+	if len(execIDs) > 0 {
+		want = make([]upcoming, len(execIDs))
+		for i, execID := range execIDs {
+			want[i] = upcoming{
+				ExecutionID:    execID,
+				ActivatedAtSet: i == 0,
+			}
+		}
+	}
+	require.Equal(t, want, got)
+}
+
+// Test helpers for using the activity bounded context API in tests.
+// These are exported for use by other test packages.
+
+// testingAuthorizer is a mock authorizer that allows all requests.
+type testingAuthorizer struct{}
+
+func (t *testingAuthorizer) Authorize(_ context.Context, _ platform_authz.AuthzTyper, _ platform_authz.Action) error {
+	return nil
+}
+
+// testingLookupService adapts mysql.Datastore to fleet.ActivityLookupService interface.
+// This allows tests to use the real activityacl.FleetServiceAdapter instead of
+// duplicating the conversion logic.
+type testingLookupService struct {
+	ds *Datastore
+}
+
+func (t *testingLookupService) ListUsers(ctx context.Context, opt fleet.UserListOptions) ([]*fleet.User, error) {
+	return t.ds.ListUsers(ctx, opt)
+}
+
+func (t *testingLookupService) UsersByIDs(ctx context.Context, ids []uint) ([]*fleet.UserSummary, error) {
+	return t.ds.UsersByIDs(ctx, ids)
+}
+
+// GetHostLite adapts Datastore.HostLite to the LookupService interface.
+func (t *testingLookupService) GetHostLite(ctx context.Context, id uint) (*fleet.Host, error) {
+	return t.ds.HostLite(ctx, id)
+}
+
+func (t *testingLookupService) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
+	appConfig, err := t.ds.AppConfig(ctx)
+	if err != nil {
+		return fleet.ActivitiesWebhookSettings{}, err
+	}
+	return appConfig.WebhookSettings.ActivitiesWebhook, nil
+}
+
+func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.Context, hostID uint, fromCompletedExecID string) error {
+	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
+}
+
+// TestDBConnections extracts the underlying DB connections from a test Datastore.
+func TestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections {
+	t.Helper()
+	replica, ok := ds.replica.(*sqlx.DB)
+	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
+	return &common_mysql.DBConnections{Primary: ds.primary, Replica: replica}
+}
+
+// NewTestActivityService creates an activity service. This allows tests to call the activity bounded context API.
+// User data is fetched from the same database to support tests that verify user info in activities.
+func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
+	t.Helper()
+
+	dbConns := TestDBConnections(t, ds)
+
+	// Use the real ACL adapter with a testing lookup service
+	lookupSvc := &testingLookupService{ds: ds}
+	aclAdapter := activityacl.NewFleetServiceAdapter(lookupSvc)
+
+	// Create service via bootstrap (the public API for creating the bounded context)
+	discardLogger := slog.New(slog.DiscardHandler)
+	svc, _ := activity_bootstrap.New(dbConns, &testingAuthorizer{}, aclAdapter, discardLogger)
+	return svc
+}
+
+// ListActivitiesAPI calls the activity bounded context's ListActivities API.
+func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Service, opts activity_api.ListOptions) []*activity_api.Activity {
+	t.Helper()
+
+	// Apply defaults for test convenience and determinism.
+	if opts.OrderKey == "" {
+		opts.OrderKey = "id"
+		opts.OrderDirection = activity_api.OrderAscending
+	}
+	if opts.PerPage == 0 {
+		opts.PerPage = fleet.DefaultPerPage
+	}
+
+	activities, _, err := svc.ListActivities(ctx, opts)
+	require.NoError(t, err)
+	return activities
 }

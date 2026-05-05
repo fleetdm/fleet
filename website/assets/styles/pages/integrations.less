@@ -28,6 +28,24 @@
       line-height: 24px;
       max-width: 720px;
     }
+    [purpose='edit-button'] {
+      color: @core-vibrant-green;
+      font-size: 12px;
+      cursor: pointer;
+      border: 1px solid @core-vibrant-green;
+      border-radius: 4px;
+      padding: 4px 8px;
+      text-decoration: none;
+      i {
+        height: 16px;
+        padding-right: 5px;
+      }
+      &:hover {
+        background: @core-vibrant-green;
+        color: @accent-white;
+        text-decoration: none;
+      }
+    }
   }
   [purpose='integration-cards'] {
     margin-left: -12px;
@@ -43,7 +61,6 @@
     padding: 40px;
     max-width: 384px;
     min-width: auto;
-    height: 232px;
     border-radius: 16px;
     flex: 1 1 357px;
     margin-bottom: 24px;
@@ -62,7 +79,6 @@
   [purpose='integration-card-buttons'] {
     [purpose='learn-more-link'] {
       font-weight: 400;
-      color: @core-vibrant-blue;
     }
     a {
       line-height: 21px;
@@ -98,7 +114,6 @@
       padding: 40px;
       max-width: none;
       min-width: auto;
-      height: 232px;
       border-radius: 16px;
       flex: 1 1 332px;
     }

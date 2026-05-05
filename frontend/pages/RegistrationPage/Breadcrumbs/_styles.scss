@@ -1,20 +1,22 @@
 .registration-breadcrumbs {
+  background-color: $gradient-background; // Solid color, gradient starts below it
   display: flex;
-  justify-content: space-between;
-  width: 652px;
-  height: 125px;
-  margin: 38px auto 0;
+  justify-content: center;
+  width: 100%;
 
-  @include breakpoint(tablet) {
-    height: 75px;
+  &__wrapper {
+    display: flex;
+    justify-content: center;
+    height: 54px;
+    padding-top: 48px;
   }
 
   &__page {
     text-align: center;
-    min-width: 156px;
+    min-width: 250px;
     font-size: $small;
     font-weight: $regular;
-    color: $core-white;
+    color: $ui-fleet-black-75;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -26,46 +28,30 @@
     &::before {
       content: "";
       position: absolute;
-      width: 88.5%;
+      width: 225px;
       height: 2px;
-      background-color: $core-vibrant-blue;
-      bottom: 36%;
-      left: 121px;
-
-      // Firefox-specific
-      @-moz-document url-prefix() {
-        bottom: 38.2%;
-      }
-
-      @include breakpoint(tablet) {
-        bottom: 26.5%;
-        // Firefox-specific
-        @-moz-document url-prefix() {
-          bottom: 30%;
-        }
-      }
+      background-color: $ui-fleet-black-25;
+      top: 42px;
+      left: 137px;
     }
 
     &::after {
       @extend %fleeticon;
       @include size(24px);
+      min-height: 24px;
       background-color: transparent;
       display: block;
       border-radius: 50%;
       content: "";
-      font-size: $x-large;
+      font-size: $large;
       margin-top: 12px;
       position: relative;
       z-index: 1;
       cursor: pointer;
-
-      @include breakpoint(tablet) {
-        margin-top: $pad-xsmall;
-      }
     }
 
-    &:focus {
-      outline: 1px dashed $core-white;
+    &:focus-visible {
+      outline: 1px solid $core-fleet-black;
       border-radius: $border-radius;
     }
 
@@ -75,28 +61,27 @@
 
     &--1 {
       &::after {
-        border: 2px solid $core-white;
-        margin-top: 11px;
+        outline: 2px solid $ui-fleet-black-75;
       }
 
       &.registration-breadcrumbs__page--active {
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
-            $core-vibrant-blue 50%
+            $ui-fleet-black-75 50%,
+            $ui-fleet-black-25 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          outline: 2px solid $ui-fleet-black-75;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $core-white;
+          background: $ui-fleet-black-75;
           background-size: auto;
           z-index: 2;
         }
@@ -104,44 +89,43 @@
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
-          border: 0;
+          color: $ui-fleet-black-75;
+          outline: 0;
         }
       }
     }
 
     &--2 {
       &::after {
-        border: solid 1px $core-vibrant-blue;
-        margin-top: 11px;
+        outline: solid 1px $ui-fleet-black-25;
       }
 
       &.registration-breadcrumbs__page--active {
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
-            $core-vibrant-blue 50%
+            $ui-fleet-black-75 50%,
+            $ui-fleet-black-25 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          outline: 2px solid $ui-fleet-black-75;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $core-white;
+          background: $ui-fleet-black-75;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
-          border: 0;
+          color: $ui-fleet-black-75;
+          outline: 0;
         }
       }
     }
@@ -152,22 +136,21 @@
       }
 
       &::after {
-        border: solid 1px $core-vibrant-blue;
-        margin-top: 11px;
+        outline: solid 1px $ui-fleet-black-25;
       }
 
       &.registration-breadcrumbs__page--active {
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
-            $core-vibrant-blue 50%
+            $ui-fleet-black-75 50%,
+            $ui-fleet-black-25 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          outline: 2px solid $ui-fleet-black-75;
         }
       }
 
@@ -175,8 +158,8 @@
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
-          border: 0;
+          color: $ui-fleet-black-75;
+          outline: 0;
         }
       }
     }

@@ -5,7 +5,7 @@ interface ICheckProps {
   color?: Colors;
 }
 
-const Check = ({ color = "core-fleet-blue" }: ICheckProps) => {
+const Check = ({ color = "ui-fleet-black-75" }: ICheckProps) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -13,6 +13,7 @@ const Check = ({ color = "core-fleet-blue" }: ICheckProps) => {
       height="16"
       fill="none"
       viewBox="0 0 16 16"
+      aria-label="check"
     >
       <path
         stroke={COLORS[color]}

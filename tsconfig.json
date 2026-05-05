@@ -1,13 +1,19 @@
 {
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./frontend",
     "target": "ES2019",
+    "moduleResolution": "bundler",
+    "noUncheckedSideEffectImports": false,
     "sourceMap": true,
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String"]
+    "lib": ["ES2021.String", "ES2020.Promise"],
+    "types": ["*"],
+    "paths": {
+      "*": ["./frontend/*"],
+      "node-sql-parser": ["./node_modules/@sgress454/node-sql-parser"]
+    }
   },
   "include": ["./frontend/**/*"],
   "exclude": ["node_modules"],

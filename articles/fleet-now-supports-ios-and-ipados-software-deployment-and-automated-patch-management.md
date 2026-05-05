@@ -21,13 +21,13 @@ Managing security, control, and flexibility across diverse devices can be challe
 
 ### Self-service Apple App Store apps
 
-Fleet enables organizations to assign and install Apple App Store apps purchased through the Volume Purchase Program (VPP) directly via Self-Service using Fleet Desktop. This feature lets IT administrators [make VPP-purchased apps available to end users](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet). 
+Fleet enables organizations to assign and install Apple App Store apps purchased through the Volume Purchase Program (VPP) directly via Self-Service using Fleet Desktop. This feature lets IT administrators [make VPP-purchased apps available to end users](https://fleetdm.com/guides/install-app-store-apps). 
 
 By integrating VPP app distribution into the Fleet Desktop Self-Service portal, organizations can streamline the deployment of essential software across their macOS devices. This ensures that users have easy access to the tools they need while maintaining control over software distribution. This update enhances the overall user experience and operational efficiency, empowering end users to install approved applications with minimal IT intervention.
 
-### Multiple Apple Business Manager and VPP support
+### Multiple Apple Business and VPP support
 
-Alongside initial Volume Purchase Program (VPP) support, now you can add and manage multiple Apple Business Manager (ABM) and VPP tokens within a single Fleet instance. This feature is designed for both Managed Service Providers (MSPs) and large enterprises. Whether an MSP or an enterprise with multiple divisions, admins can set up separate workflows to automatically enroll devices and distribute apps through the App Store. This update simplifies the process of handling macOS, iOS, and iPadOS devices, providing a scalable solution for both MSPs and enterprises looking to centralize control while maintaining flexibility for different user groups.
+Alongside initial Volume Purchase Program (VPP) support, now you can add and manage multiple Apple Business (AB) and VPP tokens within a single Fleet instance. This feature is designed for both Managed Service Providers (MSPs) and large enterprises. Whether an MSP or an enterprise with multiple divisions, admins can set up separate workflows to automatically enroll devices and distribute apps through the App Store. This update simplifies the process of handling macOS, iOS, and iPadOS devices, providing a scalable solution for both MSPs and enterprises looking to centralize control while maintaining flexibility for different user groups.
 
 ![Add software modal](../website/assets/images/articles/fleet-now-supports-ios-and-ipados-software-deployment-and-automated-patch-management-1-2000x1000@2x.png "Add software modal.")
 *Add software modal.*

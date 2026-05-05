@@ -1,0 +1,22 @@
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
+
+  &--mobile-header {
+    gap: $pad-large;
+  }
+
+  &__header {
+    font-size: $small;
+    font-weight: $bold;
+    margin: 0;
+  }
+
+  &__subheader {
+    color: $ui-fleet-black-75;
+    font-size: $x-small;
+    font-weight: $regular;
+    margin: 0;
+  }
+}

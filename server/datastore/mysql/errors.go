@@ -1,83 +1,38 @@
 package mysql
 
 import (
-	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
+	"syscall"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/go-sql-driver/mysql"
 )
 
-type notFoundError struct {
-	ID           uint
-	Name         string
-	Message      string
-	ResourceType string
-
-	fleet.ErrorWithUUID
-}
-
-var _ fleet.NotFoundError = (*notFoundError)(nil)
-
-func notFound(kind string) *notFoundError {
-	return &notFoundError{
+func notFound(kind string) *common_mysql.NotFoundError {
+	return &common_mysql.NotFoundError{
 		ResourceType: kind,
 	}
 }
 
-func (e *notFoundError) Error() string {
-	if e.ID != 0 {
-		return fmt.Sprintf("%s %d was not found in the datastore", e.ResourceType, e.ID)
-	}
-	if e.Name != "" {
-		return fmt.Sprintf("%s %s was not found in the datastore", e.ResourceType, e.Name)
-	}
-	if e.Message != "" {
-		return fmt.Sprintf("%s %s was not found in the datastore", e.ResourceType, e.Message)
-	}
-	return fmt.Sprintf("%s was not found in the datastore", e.ResourceType)
-}
-
-func (e *notFoundError) WithID(id uint) error {
-	e.ID = id
-	return e
-}
-
-func (e *notFoundError) WithName(name string) error {
-	e.Name = name
-	return e
-}
-
-func (e *notFoundError) WithMessage(msg string) error {
-	e.Message = msg
-	return e
-}
-
-func (e *notFoundError) IsNotFound() bool {
-	return true
-}
-
-// Implement Is so that errors.Is(err, sql.ErrNoRows) returns true for an
-// error of type *notFoundError, without having to wrap sql.ErrNoRows
-// explicitly.
-func (e *notFoundError) Is(other error) bool {
-	return other == sql.ErrNoRows
-}
-
 type existsError struct {
-	Identifier   interface{}
+	Identifier   any
 	ResourceType string
 	TeamID       *uint
+	TeamName     *string
 
 	fleet.ErrorWithUUID
 }
 
-func alreadyExists(kind string, identifier interface{}) error {
+func alreadyExists(kind string, identifier any) *existsError {
 	if s, ok := identifier.(string); ok {
 		identifier = strconv.Quote(s)
 	}
@@ -87,8 +42,13 @@ func alreadyExists(kind string, identifier interface{}) error {
 	}
 }
 
-func (e *existsError) WithTeamID(teamID uint) error {
+func (e *existsError) WithTeamID(teamID uint) *existsError {
 	e.TeamID = &teamID
+	return e
+}
+
+func (e *existsError) WithTeamName(name string) *existsError {
+	e.TeamName = &name
 	return e
 }
 
@@ -98,13 +58,20 @@ func (e *existsError) Error() string {
 		msg += fmt.Sprintf(" %v", e.Identifier)
 	}
 	msg += " already exists"
-	if e.TeamID != nil {
-		msg += fmt.Sprintf(" with TeamID %d", *e.TeamID)
+	switch {
+	case e.TeamID != nil:
+		msg += fmt.Sprintf(" with FleetID %d.", *e.TeamID)
+	case e.TeamName != nil:
+		msg += fmt.Sprintf(" with fleet %q.", *e.TeamName)
 	}
 	return msg
 }
 
 func (e *existsError) IsExists() bool {
+	return true
+}
+
+func (e *existsError) IsClientError() bool {
 	return true
 }
 
@@ -191,10 +158,41 @@ func isMySQLAccessDenied(err error) bool {
 	return false
 }
 
-func isMySQLUnknownStatement(err error) bool {
-	err = ctxerr.Cause(err)
+// isBadConnection checks if the error is a connection-level error that
+// justifies retrying the operation on a new connection.
+func isBadConnection(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, driver.ErrBadConn) ||
+		errors.Is(err, mysql.ErrInvalidConn) ||
+		errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.ENETUNREACH) ||
+		errors.Is(err, syscall.ETIMEDOUT) {
+		return true
+	}
+
 	var mySQLErr *mysql.MySQLError
-	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
+	if errors.As(err, &mySQLErr) {
+		switch mySQLErr.Number {
+		case 1243, // ER_UNKNOWN_STMT_HANDLER
+			2006, // ER_SERVER_GONE_ERROR
+			1053: // ER_SERVER_SHUTDOWN
+			return true
+		}
+	}
+
+	// Check for underlying network errors.
+	var se *os.SyscallError
+	if errors.As(err, &se) {
+		return errors.Is(se.Err, syscall.ECONNRESET) || errors.Is(se.Err, syscall.EPIPE)
+	}
+
+	return false
 }
 
 // ErrPartialResult indicates that a batch operation was completed,

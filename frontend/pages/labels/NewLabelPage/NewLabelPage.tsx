@@ -1,62 +1,108 @@
-import React, { useCallback, useContext, useState } from "react";
-import { Tab, TabList, Tabs } from "react-tabs";
+import React, { useContext, useEffect, useState } from "react";
 
-import { QueryContext } from "context/query";
-import useToggleSidePanel from "hooks/useToggleSidePanel";
-
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import TabsWrapper from "components/TabsWrapper";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import { useQuery } from "react-query";
+import { useDebouncedCallback } from "use-debounce";
+import { Ace } from "ace-builds";
+import { Row } from "react-table";
 
 import PATHS from "router/paths";
+
+import targetsAPI, { ITargetsSearchResponse } from "services/entities/targets";
+import idpAPI from "services/entities/idp";
+import labelsAPI from "services/entities/labels";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+// TODO - move this table config near here once expanded this logic to encompass editing and
+// therefore not longer needed anywhere else
+import { generateTableHeaders } from "pages/labels/components/ManualLabelForm/LabelHostTargetTableConfig";
+
+import { validateQuery } from "components/forms/validators/validate_query";
+
+import { QueryContext } from "context/query";
+import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+
+import useToggleSidePanel from "hooks/useToggleSidePanel";
+
 import { RouteComponentProps } from "react-router";
+import {
+  LabelHostVitalsCriterion,
+  LabelMembershipType,
+} from "interfaces/label";
+import { IHost } from "interfaces/host";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+import { getErrorReason } from "interfaces/errors";
 
-interface ILabelSubNavItem {
-  name: string;
-  pathname: string;
-}
+import SidePanelPage from "components/SidePanelPage";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import Button from "components/buttons/Button";
+import SQLEditor from "components/SQLEditor";
+import Icon from "components/Icon";
+import TargetsInput from "components/TargetsInput";
+import Radio from "components/forms/fields/Radio";
+import PlatformField from "../components/PlatformField";
+import { validateNewLabelFormData, INewLabelFormValidation } from "./helpers";
 
-const labelSubNav: ILabelSubNavItem[] = [
-  {
-    name: "Dynamic",
-    pathname: PATHS.LABEL_NEW_DYNAMIC,
-  },
-  {
-    name: "Manual",
-    pathname: PATHS.LABEL_NEW_MANUAL,
-  },
+const availableCriteria: {
+  label: string;
+  value: LabelHostVitalsCriterion;
+}[] = [
+  { label: "Identity provider (IdP) group", value: "end_user_idp_group" },
+  { label: "IdP department", value: "end_user_idp_department" },
 ];
-
-const getTabIndex = (path: string): number => {
-  return labelSubNav.findIndex((navItem) => {
-    // tab stays highlighted for paths that start with same pathname
-    return path.startsWith(navItem.pathname);
-  });
-};
 
 const baseClass = "new-label-page";
 
-interface INewLabelPageProps extends RouteComponentProps<never, never> {
-  children: JSX.Element;
+export const LABEL_TARGET_HOSTS_INPUT_LABEL = "Select hosts";
+const LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER =
+  "Search name, hostname, or serial number";
+const DEBOUNCE_DELAY = 500;
+
+interface ITargetsQueryKey {
+  scope: string;
+  query?: string | null;
+  excludedHostIds?: number[];
 }
 
-const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
+export interface INewLabelFormData {
+  name: string;
+  description: string; // optional
+  type: LabelMembershipType;
+  // dynamic
+  labelQuery: string;
+  platform: string;
+
+  // host vitals
+  vital: LabelHostVitalsCriterion; // TODO - make use of recursive `LabelHostVitalsCriteria` type in future iterations to support logical combinations of different criteria
+  vitalValue: string;
+
+  // manual
+  targetedHosts: IHost[];
+}
+
+const DEFAULT_DYNAMIC_QUERY = "SELECT 1 FROM os_version WHERE major >= 13;";
+
+const NewLabelPage = ({
+  router,
+  location,
+}: RouteComponentProps<never, never>) => {
+  // page-level state
   const { selectedOsqueryTable, setSelectedOsqueryTable } = useContext(
     QueryContext
   );
+  const { isPremiumTier } = useContext(AppContext);
+  const { renderFlash } = useContext(NotificationContext);
+
   const { isSidePanelOpen, setSidePanelOpen } = useToggleSidePanel(true);
   const [showOpenSidebarButton, setShowOpenSidebarButton] = useState(false);
 
-  const isDynamicLabel = location.pathname.includes("dynamic");
-
-  const navigateToNav = useCallback(
-    (i: number): void => {
-      router.replace(labelSubNav[i].pathname);
-    },
-    [router]
-  );
-
+  // page-level handlers
   const onCloseSidebar = () => {
     setSidePanelOpen(false);
     setShowOpenSidebarButton(true);
@@ -71,47 +117,532 @@ const NewLabelPage = ({ router, location, children }: INewLabelPageProps) => {
     setSelectedOsqueryTable(tableName);
   };
 
-  return (
-    <>
-      <MainContent className={baseClass}>
-        <h1>Add label</h1>
-        <p className={`${baseClass}__page-description`}>
-          Dynamic (smart) labels are assigned to hosts if the query returns
-          results. Manual labels are assigned to selected hosts.
-        </p>
-        <TabsWrapper className={`${baseClass}__new-label-tabs-wrapper`}>
-          <Tabs
-            selectedIndex={getTabIndex(location?.pathname || "")}
-            onSelect={navigateToNav}
-          >
-            <TabList>
-              {labelSubNav.map((navItem) => {
-                return (
-                  <Tab key={navItem.name} data-text={navItem.name}>
-                    {navItem.name}
-                  </Tab>
-                );
-              })}
-            </TabList>
-          </Tabs>
-        </TabsWrapper>
-        {React.cloneElement(children, {
-          showOpenSidebarButton,
-          onOpenSidebar,
-          onOsqueryTableSelect,
-        })}
-      </MainContent>
-      {isDynamicLabel && isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSidebar}
+  // form state
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [formData, setFormData] = useState<INewLabelFormData>({
+    name: "",
+    description: "",
+    type: "dynamic", // default type
+    // dynamic-specific
+    labelQuery: DEFAULT_DYNAMIC_QUERY,
+    platform: "",
+    // host_vitals-specific
+    vital: "end_user_idp_group",
+    vitalValue: "",
+    // manual-specific
+    targetedHosts: [],
+  });
+  const [formErrors, setFormErrors] = useState<INewLabelFormValidation>({
+    isValid: true,
+  });
+
+  const {
+    name,
+    description,
+    type,
+    labelQuery,
+    platform,
+    vital,
+    vitalValue,
+    targetedHosts,
+  } = formData;
+
+  const [targetsSearchQuery, setTargetsSearchQuery] = useState("");
+  const [
+    debouncedTargetsSearchQuery,
+    setDebouncedTargetsSearchQuery,
+  ] = useState("");
+  const [isDebouncingTargetsSearch, setIsDebouncingTargetsSearch] = useState(
+    false
+  );
+
+  // "manual" label target search logic
+  const debounceSearch = useDebouncedCallback(
+    (search: string) => {
+      setDebouncedTargetsSearchQuery(search);
+      setIsDebouncingTargetsSearch(false);
+    },
+    DEBOUNCE_DELAY,
+    { trailing: true }
+  );
+
+  useEffect(() => {
+    setIsDebouncingTargetsSearch(true);
+    debounceSearch(targetsSearchQuery);
+  }, [debounceSearch, targetsSearchQuery]);
+
+  const {
+    data: targetsSearchResults,
+    isLoading: isLoadingTargetsSearchResults,
+    isError: isErrorTargetsSearchResults,
+  } = useQuery<ITargetsSearchResponse, Error, IHost[], ITargetsQueryKey[]>(
+    [
+      {
+        scope: "labels-targets-search",
+        query: debouncedTargetsSearchQuery,
+        excludedHostIds: targetedHosts.map((host) => host.id),
+      },
+    ],
+    ({ queryKey }) => {
+      const { query, excludedHostIds } = queryKey[0];
+      return targetsAPI.search({
+        query: query ?? "",
+        excluded_host_ids: excludedHostIds ?? null,
+      });
+    },
+    {
+      select: (data) => data.hosts,
+      enabled: type === "manual" && !!targetsSearchQuery,
+    }
+  );
+
+  const { data: scimIdPDetails } = useQuery(
+    ["scim_details"],
+    () => idpAPI.getSCIMDetails(),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: isPremiumTier,
+    }
+  );
+  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+
+  let hostVitalsTooltipContent: React.ReactNode;
+  if (!isPremiumTier) {
+    hostVitalsTooltipContent = (
+      <>
+        Currently, host vitals labels are based on
+        <br />
+        identity provider (IdP) groups or departments.
+        <br />
+        IdP integration available in Fleet Premium.
+      </>
+    );
+  } else if (!idpConfigured) {
+    hostVitalsTooltipContent = (
+      <>
+        Currently, host vitals labels are based on
+        <br />
+        identity provider (IdP) groups or departments.
+        <br />
+        IdP has not been configured in integration settings.
+      </>
+    );
+  }
+
+  useEffect(() => {
+    if (location.pathname.includes("dynamic")) {
+      router.replace(PATHS.NEW_LABEL);
+    }
+    if (location.pathname.includes("manual")) {
+      setFormData((prevData) => ({
+        ...prevData,
+        type: "manual",
+      }));
+
+      router.replace(PATHS.NEW_LABEL);
+    }
+  }, [location.pathname, router]);
+
+  // form handlers
+
+  const onInputChange = ({
+    name: fieldName,
+    value,
+  }: IInputFieldParseTarget) => {
+    const newFormData = { ...formData, [fieldName]: value };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      // start from previous errors
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      // ONLY CLEAR existing error on this field if it is now valid.
+      if (fieldName === "name") {
+        if (prev.name && fullValidation.name?.isValid) {
+          next.name = undefined;
+        }
+      } else if (fieldName === "description") {
+        if (prev.description && fullValidation.description?.isValid) {
+          next.description = undefined;
+        }
+      } else if (fieldName === "vitalValue") {
+        if (prev.criteria && fullValidation.criteria?.isValid) {
+          next.criteria = undefined;
+        }
+      }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+  };
+
+  const onTypeChange = (value: string): void => {
+    const newFormData = {
+      ...formData,
+      type: value as LabelMembershipType,
+    };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = fullValidation.name ?? prev.name;
+      if (prev.description)
+        next.description = fullValidation.description ?? prev.description;
+      if (prev.labelQuery)
+        next.labelQuery = fullValidation.labelQuery ?? prev.labelQuery;
+      if (prev.criteria)
+        next.criteria = fullValidation.criteria ?? prev.criteria;
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+  };
+
+  const onInputBlur = () => {
+    setFormErrors(validateNewLabelFormData(formData));
+  };
+
+  const onSubmit = async (evt: React.FormEvent<HTMLFormElement>) => {
+    evt.preventDefault();
+
+    const fullValidation = validateNewLabelFormData(formData);
+    setFormErrors(fullValidation);
+    if (!fullValidation.isValid) {
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await labelsAPI.create(formData);
+      router.push(PATHS.MANAGE_LABELS);
+      renderFlash("success", "Label added successfully.");
+    } catch (error) {
+      const status = (error as { status: number }).status;
+      let errorMessage = "Couldn't add label. Please try again.";
+      if (status === 409) {
+        errorMessage =
+          "Couldn't add label: A label with this name already exists.";
+      } else if (status === 422) {
+        const reason = getErrorReason(error);
+        if (reason) {
+          errorMessage = `Couldn't add label: ${reason}. Please try again.`;
+        }
+      }
+      renderFlash("error", errorMessage);
+    }
+    setIsUpdating(false);
+  };
+
+  const debounceValidateSQL = useDebouncedCallback((queryString: string) => {
+    const { error } = validateQuery(queryString);
+    return error || null;
+  }, 500);
+
+  const onQueryChange = (newQuery: string) => {
+    const newFormData = { ...formData, labelQuery: newQuery };
+    setFormData(newFormData);
+
+    const fullValidation = validateNewLabelFormData(newFormData);
+
+    setFormErrors((prev) => {
+      const next: INewLabelFormValidation = { ...prev, isValid: true };
+
+      if (prev.name) next.name = prev.name;
+      if (prev.description) next.description = prev.description;
+      if (prev.labelQuery) next.labelQuery = prev.labelQuery;
+      if (prev.criteria) next.criteria = prev.criteria;
+
+      if (prev.labelQuery && fullValidation.labelQuery?.isValid) {
+        next.labelQuery = undefined;
+      }
+
+      const fields = [
+        next.name,
+        next.description,
+        next.labelQuery,
+        next.criteria,
+      ];
+      next.isValid = fields.every((f) => !f || f.isValid);
+
+      return next;
+    });
+
+    debounceValidateSQL(newQuery);
+  };
+
+  // form rendering helpers
+  const onLoadSQLEditor = (editor: Ace.Editor) => {
+    editor.setOptions({
+      enableMultiselect: false, // Disables command + click creating multiple cursors
+    });
+
+    // @ts-expect-error
+    // the string "linkClick" is not officially in the lib but we need it
+    editor.on("linkClick", (data) => {
+      const { type: type_, value } = data.token;
+
+      if (type_ === "osquery-token" && onOsqueryTableSelect) {
+        return onOsqueryTableSelect(value);
+      }
+
+      return false;
+    });
+  };
+
+  const onChangeSearchQuery = (value: string) => {
+    setTargetsSearchQuery(value);
+  };
+  const onHostSelect = (row: Row<IHost>) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      targetedHosts: targetedHosts.concat(row.original),
+    }));
+    setTargetsSearchQuery("");
+  };
+
+  const onHostRemove = (row: Row<IHost>) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      targetedHosts: targetedHosts.filter((h) => h.id !== row.original.id),
+    }));
+  };
+  const resultsTableConfig = generateTableHeaders();
+  const selectedHostsTableConfig = generateTableHeaders(onHostRemove);
+
+  const renderVariableFields = () => {
+    switch (type) {
+      case "dynamic":
+        return (
+          <>
+            <SQLEditor
+              error={formErrors.labelQuery?.message}
+              name="query"
+              onChange={onQueryChange}
+              onBlur={onInputBlur}
+              value={labelQuery}
+              label="Query"
+              labelActionComponent={
+                showOpenSidebarButton ? (
+                  <Button variant="inverse" onClick={onOpenSidebar}>
+                    Schema
+                    <Icon name="info" size="small" />
+                  </Button>
+                ) : null
+              }
+              // readOnly={isEditing} TODO when extending to handle edits
+              onLoad={onLoadSQLEditor}
+              wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
+              // helpText={isEditing ? IMMUTABLE_QUERY_HELP_TEXT : ""} TODO when extending to handle edits
+              wrapEnabled
+            />
+            <PlatformField
+              platform={platform}
+              // isEditing={isEditing} TODO when extending to handle edits
+
+              // onChange={onInputChange} TODO - once this form covers edits, can use the commmon
+              // `onInputChange` along with updating PlatformField's Dropdown to `parseTarget`
+              onChange={(newPlatform) => {
+                setFormData((prevData) => ({
+                  ...prevData,
+                  platform: newPlatform,
+                }));
+              }}
+            />
+          </>
+        );
+
+      case "host_vitals":
+        return (
+          <div className={`${baseClass}__host_vitals-fields`}>
+            <label className="form-field__label" htmlFor="criterion-and-value">
+              Label criteria
+            </label>
+            <span id="criterion-and-value">
+              <Dropdown
+                name="vital"
+                onChange={onInputChange}
+                parseTarget
+                value={vital}
+                error={formErrors.criteria?.message}
+                options={availableCriteria}
+                classname={`${baseClass}__criteria-dropdown`}
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
+              />
+              <p>is equal to</p>
+              <InputField
+                error={formErrors.criteria?.message}
+                name="vitalValue"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                value={vitalValue}
+                inputClassName={`${baseClass}__vital-value`}
+                placeholder={
+                  vital === "end_user_idp_group" ? "IT admins" : "Engineering"
+                }
+                parseTarget
+              />
+            </span>
+            <span className="form-field__help-text">
+              Currently, label criteria can be IdP group or department.
+            </span>
+          </div>
+        );
+
+      case "manual":
+        return (
+          <TargetsInput
+            label={LABEL_TARGET_HOSTS_INPUT_LABEL}
+            placeholder={LABEL_TARGET_HOSTS_INPUT_PLACEHOLDER}
+            searchText={targetsSearchQuery}
+            searchResultsTableConfig={resultsTableConfig}
+            selectedHostsTableConifg={selectedHostsTableConfig}
+            isTargetsLoading={
+              isLoadingTargetsSearchResults || isDebouncingTargetsSearch
+            }
+            hasFetchError={isErrorTargetsSearchResults}
+            searchResults={targetsSearchResults ?? []}
+            targetedHosts={targetedHosts}
+            setSearchText={onChangeSearchQuery}
+            handleRowSelect={onHostSelect}
           />
-        </SidePanelContent>
-      )}
-    </>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderLabelForm = () => (
+    <form className={`${baseClass}__label-form`} onSubmit={onSubmit}>
+      <InputField
+        error={formErrors.name?.message}
+        name="name"
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        value={name}
+        inputClassName={`${baseClass}__label-name`}
+        label="Name"
+        placeholder="Label name"
+        parseTarget
+      />
+      <InputField
+        error={formErrors.description?.message}
+        name="description"
+        onChange={onInputChange}
+        onBlur={onInputBlur}
+        value={description}
+        inputClassName={`${baseClass}__label-description`}
+        label="Description"
+        type="textarea"
+        placeholder="Label description (optional)"
+        parseTarget
+      />
+      <div className="form-field type-field">
+        <div className="form-field__label">Type</div>
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Dynamic"
+          id="dynamic"
+          checked={type === "dynamic"}
+          value="dynamic"
+          name="label-type"
+          onChange={onTypeChange}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Host vitals"
+          id="host_vitals"
+          checked={type === "host_vitals"}
+          value="host_vitals"
+          name="label-type"
+          onChange={onTypeChange}
+          tooltip={hostVitalsTooltipContent}
+          disabled={!!hostVitalsTooltipContent}
+        />
+        <Radio
+          className={`${baseClass}__radio-input`}
+          label="Manual"
+          id="manual"
+          checked={type === "manual"}
+          value="manual"
+          name="label-type"
+          onChange={onTypeChange}
+        />
+      </div>
+      {renderVariableFields()}
+      <div className="button-wrap">
+        <Button
+          onClick={() => {
+            router.goBack();
+          }}
+          variant="inverse"
+          disabled={isUpdating}
+        >
+          Cancel
+        </Button>
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdating}
+              disabled={disableChildren || isUpdating || !formErrors.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </div>
+    </form>
+  );
+
+  return (
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <div className={`${baseClass}__header`}>
+            <h1 className="page-header">New label</h1>
+            <p className={`${baseClass}__page-description`}>
+              Create a new label for targeting and filtering hosts.
+            </p>
+          </div>
+          {renderLabelForm()}
+        </MainContent>
+        {type === "dynamic" && isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

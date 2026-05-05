@@ -26,6 +26,7 @@ interface ILoadTeamsParams {
  */
 export interface ILoadTeamResponse {
   team: ITeamConfig;
+  fleet: ITeamConfig;
 }
 
 export interface ILoadTeamsResponse {
@@ -54,8 +55,8 @@ export interface IUpdateTeamFormData {
       deadline: string;
     };
     windows_updates?: {
-      deadline_days: number;
-      grace_period_days: number;
+      deadline_days: number | null;
+      grace_period_days: number | null;
     };
   };
   host_expiry_settings: {
@@ -81,10 +82,10 @@ export default {
     return sendRequest("DELETE", path);
   },
   load: (teamId: number | undefined): Promise<ILoadTeamResponse> => {
-    if (!teamId || teamId <= API_NO_TEAM_ID) {
+    if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid team id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
         )
       );
     }
@@ -115,7 +116,7 @@ export default {
       host_expiry_settings,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
-  ): Promise<ITeamConfig> => {
+  ): Promise<ILoadTeamResponse> => {
     if (typeof teamId === "undefined") {
       return Promise.reject("Invalid usage: missing team id");
     }
@@ -130,7 +131,12 @@ export default {
       requestBody.webhook_settings = webhook_settings;
     }
     if (integrations) {
-      const { jira, zendesk, google_calendar } = integrations;
+      const {
+        jira,
+        zendesk,
+        google_calendar,
+        conditional_access_enabled,
+      } = integrations;
       const teamIntegrationProps = [
         "enable_failing_policies",
         "group_id",
@@ -141,6 +147,7 @@ export default {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
         google_calendar,
+        conditional_access_enabled,
       };
     }
     if (mdm) {
@@ -204,9 +211,11 @@ export default {
     return sendRequest("GET", path);
   },
   modifyEnrollSecrets: (teamId: number, secrets: IEnrollSecret[]) => {
+    // The API only expects an array of objects with a "secret" property.
+    const payload = secrets.map((s) => pick(s, "secret"));
     const { TEAMS_ENROLL_SECRETS } = endpoints;
     const path = TEAMS_ENROLL_SECRETS(teamId);
 
-    return sendRequest("PATCH", path, { secrets });
+    return sendRequest("PATCH", path, { secrets: payload });
   },
 };

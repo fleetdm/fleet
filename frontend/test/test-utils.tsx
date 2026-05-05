@@ -1,7 +1,13 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
-import { render, RenderOptions, RenderResult } from "@testing-library/react";
-import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
+import { Location } from "history";
+import {
+  render,
+  RenderOptions,
+  RenderResult,
+  waitFor,
+} from "@testing-library/react";
+import type { UserEvent } from "@testing-library/user-event";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
 
@@ -12,6 +18,7 @@ import {
 } from "context/notification";
 import { IPolicyContext, PolicyContext } from "context/policy";
 import { IQueryContext, QueryContext } from "context/query";
+import { IRouterLocation } from "interfaces/routing";
 
 export const baseUrl = (path: string) => {
   return `/api/latest/fleet${path}`;
@@ -36,8 +43,17 @@ export const renderWithAppContext = (
   );
 };
 
+// recursively make all fields in T optional
+type DeepPartial<T> = T extends object
+  ? {
+      [P in keyof T]?: DeepPartial<T[P]>;
+    }
+  : T;
+
 interface IContextOptions {
-  app?: Partial<IAppContext>;
+  // DeepPartial allows inclusion of only fields needed for testing, even if such a partial type
+  // is not acceptable in actual application code
+  app?: DeepPartial<IAppContext>;
   notification?: Partial<INotificationContext>;
   policy?: Partial<IPolicyContext>;
   query?: Partial<IQueryContext>;
@@ -82,7 +98,15 @@ type RenderResultWithUser = RenderResult & { user: UserEvent };
 const addQueryProviderWrapper = (
   CustomWrapperComponent: ({ children }: IChildrenProp) => JSX.Element
 ) => {
-  const client = new QueryClient();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // important: no automatic retries in tests
+        cacheTime: 0, // optional but makes behavior deterministic
+      },
+    },
+  });
+
   CustomWrapperComponent = createWrapperComponent(
     CustomWrapperComponent,
     QueryClientProvider,
@@ -145,7 +169,6 @@ export const createCustomRenderer = (renderOptions?: ICustomRenderOptions) => {
  * This is a convenince method that calls the render method from `@testing-library/react` and also
  * sets up the also `user-events`library and adds the user object to the returned object.
  */
-// eslint-disable-next-line import/prefer-default-export
 export const renderWithSetup = (component: JSX.Element) => {
   return {
     user: userEvent.setup(),
@@ -172,6 +195,37 @@ export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
   };
 };
 
+export const createMockLocation = (overrides?: Partial<Location>): Location => {
+  return {
+    pathname: "/",
+    search: "",
+    hash: "",
+    query: {},
+    state: undefined,
+    action: "POP",
+    key: "",
+    ...overrides,
+  };
+};
+
+export const createMockLocationExperimental = (
+  overrides?: Partial<IRouterLocation>
+): IRouterLocation => {
+  // Default values for the location object
+  const defaultLocation: IRouterLocation = {
+    pathname: "/",
+    host: "localhost:8080",
+    hostname: "localhost",
+    port: "8080",
+    protocol: "http:",
+  };
+
+  return {
+    ...defaultLocation,
+    ...overrides,
+  };
+};
+
 /** helper method to generate a date "x" days ago. */
 export const getPastDate = (days: number) => {
   const targetDate = new Date();
@@ -184,4 +238,10 @@ export const getFutureDate = (days: number) => {
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + days);
   return targetDate.toISOString();
+};
+
+export const waitForLoadingToFinish = async (container: HTMLElement) => {
+  await waitFor(() => {
+    expect(container.querySelector(".loading-overlay")).not.toBeInTheDocument();
+  });
 };

@@ -3,10 +3,12 @@ package nvd
 import (
 	"compress/gzip"
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +17,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cpedict"
-	"github.com/go-kit/log"
-	kitlog "github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,18 +38,104 @@ func TestCPEFromSoftware(t *testing.T) {
 	reCache := newRegexpCache()
 
 	// checking a version that exists works
-	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	cpe, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
 
-	// Does not error on Unicode Names
-	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	// When multiple CPE candidates share the same product name and no vendor info
+	// is available, ORDER BY ensures deterministic results across runs.
+	for range 5 {
+		cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+			Name: "Line", Version: "3.5.1", Source: "chrome_extensions",
+		}, nil, reCache)
+		require.NoError(t, err)
+		require.Equal(t, "cpe:2.3:a:ge:line:3.5.1:*:*:*:*:chrome:*:*", cpe, "should be deterministic across runs")
+	}
+
+	// When vendor info is present and matches a CPE vendor, prefer that match.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Line", Version: "4.3.1", Vendor: "linecorp inc", Source: "apps",
+	}, nil, reCache)
 	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:linecorp:line:4.3.1:*:*:*:*:macos:*:*", cpe)
+
+	// Deprecated CPE: when the only matching CPE is deprecated, follows the deprecation
+	// chain to find the non-deprecated replacement.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "Widget", Version: "1.0", Vendor: "goodcorp inc", Source: "programs",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:goodcorp:correct_result:1.0:*:*:*:*:windows:*:*", cpe)
+
+	// Does not error on Unicode Names
+	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	require.NoError(t, err)
+
+	// Does not error on names that sanitize to empty (e.g. only special characters)
+	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "[", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil,
+		reCache)
+	require.NoError(t, err)
+
+	// Does not error on names that sanitize to FTS5 reserved keywords (AND, OR, NOT).
+	// These names are composed of special characters surrounding a keyword, so after
+	// sanitizeMatch strips non-alphanumeric chars and quotes each token, the keyword
+	// becomes a quoted literal instead of an FTS5 operator.
+	ftsKeywordNames := []string{
+		"_OR_",       // sanitizes to `"OR"`
+		"(AND)",      // sanitizes to `"AND"`
+		"[NOT]",      // sanitizes to `"NOT"`
+		"--OR--",     // sanitizes to `"OR"`
+		"OR - Debug", // sanitizes to `"OR" "Debug"`
+		"foo - OR",   // sanitizes to `"foo" "OR"`
+	}
+	for _, name := range ftsKeywordNames {
+		_, err = CPEFromSoftware(
+			t.Context(), slog.New(slog.DiscardHandler), db,
+			&fleet.Software{Name: name, Version: "1.0", Source: "programs"}, nil, reCache,
+		)
+		require.NoError(t, err, "software name %q should not cause FTS5 syntax error", name)
+	}
+
+	// Target_SW scoring: python_packages source should prefer python vendor over jenkins vendor
+	// when multiple CPE entries exist for the same product name.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "requests", Version: "2.31.0", Source: "python_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:python:requests:2.31.0:*:*:*:*:python:*:*", cpe,
+		"python_packages should prefer python:requests (vendor contains 'python')")
+
+	// Target_SW scoring: npm_packages source should prefer openjsf vendor over checkpoint vendor
+	// when the CPE has target_sw=node.js matching the expected target_sw.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "express", Version: "4.18.0", Source: "npm_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:openjsf:express:4.18.0:*:*:*:*:node.js:*:*", cpe,
+		"npm_packages should prefer openjsf:express with target_sw=node.js")
+
+	// Target_SW scoring with <product>_project fallback pattern.
+	// For duplicity from python_packages, neither vendor relates to Python ecosystem, but
+	// duplicity_project:duplicity follows the NVD "<product>_project" pattern for upstream CPEs.
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "duplicity", Version: "0.8.0", Source: "python_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:duplicity_project:duplicity:0.8.0:*:*:*:*:python:*:*", cpe,
+		"should prefer duplicity_project (upstream) over debian (distro-specific) using _project pattern")
+
+	// Target_SW scoring: deb_packages source should prefer debian vendor for duplicity
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{
+		Name: "duplicity", Version: "0.8.0", Source: "deb_packages",
+	}, nil, reCache)
+	require.NoError(t, err)
+	require.Equal(t, "cpe:2.3:a:debian:duplicity:0.8.0:*:*:*:*:*:*:*", cpe,
+		"deb_packages duplicity should prefer debian:duplicity (vendor contains 'debian')")
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -163,7 +249,7 @@ func TestCPETranslations(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			cpe, err := CPEFromSoftware(log.NewNopLogger(), db, tc.Software, tc.Translations, reCache)
+			cpe, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, tc.Software, tc.Translations, reCache)
 			require.NoError(t, err)
 			require.Equal(t, tc.Expected, cpe)
 		})
@@ -192,22 +278,22 @@ func TestSyncCPEDatabase(t *testing.T) {
 		BundleIdentifier: "com.1password.1password",
 		Source:           "apps",
 	}
-	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
+	cpe, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
-	npmCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
+	npmCPE, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	windowsCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
+	windowsCPE, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:*:*:*:*:windows:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
+	_, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, software, nil, reCache)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -229,7 +315,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
+	cpe, err = CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
@@ -377,7 +463,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
+	err = TranslateSoftwareToCPE(t.Context(), ds, tempDir, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	assert.Equal(t, []string{
 		"cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*",
@@ -426,7 +512,7 @@ func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
 	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
-	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
+	err = TranslateSoftwareToCPE(t.Context(), ds, tempDir, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 	require.True(t, ds.DeleteSoftwareCPEsFuncInvoked)
 }
@@ -488,10 +574,60 @@ func TestLegacyCPEDB(t *testing.T) {
 }
 
 func TestCPEFromSoftwareIntegration(t *testing.T) {
+	// Note: make sure to run `go test` with "-tags fts5" for this test, since it uses sqlite.
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
 	}{
+		// This should work but there are no CPE entries in the database despite CVE-2024-25659 existing, using
+		// the following cpe_translations changes:
+		/*
+		  {
+		    "software": {
+		      "bundle_identifier": ["/^TNMS_/"],
+		      "source": ["apps"]
+		    },
+		    "filter": {
+		      "product": ["nokia"],
+		      "vendor": ["transcend_network_management_system"]
+		    }
+		  },
+		*/
+		/*{
+			software: fleet.Software{
+				Name:             "TNMS",
+				BundleIdentifier: "TNMS_19.10.3",
+				Source:           "apps",
+				Version:          "19.10.3",
+			},
+			cpe: "cpe:2.3:a:nokia:transcend_network_management_system:19.10.3:*:*:*:*:macos:*:*",
+		},*/
+		{
+			software: fleet.Software{
+				Name:             "Oracle SQLDeveloper",
+				BundleIdentifier: "com.oracle.SQLDeveloper",
+				Source:           "apps",
+				Version:          "24.3.1",
+			},
+			cpe: "cpe:2.3:a:oracle:sql_developer:24.3.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Poly Lens Desktop",
+				BundleIdentifier: "com.poly.lens.legacyhost.app",
+				Source:           "apps",
+			},
+			cpe: "cpe:2.3:a:poly:lens:*:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "BlueStacksMIM",
+				BundleIdentifier: "com.now.gg.BlueStacksMIM",
+				Source:           "apps",
+				Version:          "4.100.1",
+			},
+			cpe: "cpe:2.3:a:bluestacks:bluestacks:4.100.1:*:*:*:*:macos:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "Adobe Acrobat Reader DC.app",
@@ -519,6 +655,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "com.apple.finder",
 			}, cpe: "cpe:2.3:a:apple:finder:12.5:*:*:*:*:macos:*:*",
+		},
+		{ // Make sure we generate the expected CPE so we can match it downstream and drop the false negative vulns
+			software: fleet.Software{
+				Name:             "Dota 2",
+				Source:           "apps",
+				Version:          "1.0", // default version; on ingestion it's actually blank
+				Vendor:           "",
+				BundleIdentifier: "",
+			},
+			cpe: "cpe:2.3:a:valvesoftware:dota_2:1.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -609,7 +755,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.8.9",
 				Vendor:           "",
 				BundleIdentifier: "com.apple.python3",
-			}, cpe: "cpe:2.3:a:python:python:3.8.9:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.8.9:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -618,7 +764,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.7",
 				Vendor:           "",
 				BundleIdentifier: "org.python.python",
-			}, cpe: "cpe:2.3:a:python:python:3.10.7:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.7:-:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -781,8 +927,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Igor Pavlov",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:7-zip:7-zip:22.01:*:*:*:*:windows:*:*",
-		},
-		{
+		}, /*
+			{ // See #29570
 			software: fleet.Software{
 				Name:             "Adobe Acrobat DC (64-bit)",
 				Source:           "programs",
@@ -790,8 +936,8 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "Adobe",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:adobe:acrobat_dc:22.002.20212:*:*:*:*:windows:*:*",
-		},
-		{
+			},
+		*/{
 			software: fleet.Software{
 				Name:             "Brave",
 				Source:           "programs",
@@ -825,7 +971,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.37.1",
 				Vendor:           "The Git Development Community",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:git-scm:git:2.37.1:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:git:git:2.37.1:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -897,7 +1043,31 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.10.6150.0",
 				Vendor:           "Python Software Foundation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:python:python:3.10.6150.0:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:python:python:3.10.6:-:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0a1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.101.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:alpha1:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0b2 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.112.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:beta2:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Python 3.14.0rc1 (64-bit)",
+				Source:  "programs",
+				Version: "3.14.121.0",
+				Vendor:  "Python Software Foundation",
+			}, cpe: "cpe:2.3:a:python:python:3.14.0:rc1:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -978,7 +1148,16 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "0.8.21",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:duplicity_project:duplicity:0.8.21:*:*:*:*:python:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "duplicity",
+				Source:           "deb_packages",
+				Version:          "0.8.21",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:debian:duplicity:0.8.21:*:*:*:*:*:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1149,7 +1328,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.12.4",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:golang:protobuf:3.12.4:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1176,7 +1355,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.3.0+ubuntu2.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:debian:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1288,7 +1467,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.7.1",
 				BundleIdentifier: "com.docker.docker",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.7.1:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1296,7 +1475,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.16.2",
 				BundleIdentifier: "com.electron.dockerdesktop",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.16.2:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1304,7 +1483,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "3.5.0",
 				BundleIdentifier: "com.electron.docker-frontend",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:3.5.0:*:*:*:*:macos:*:*",
 		},
 		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
 		{
@@ -1312,6 +1491,14 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Name:    "docker",
 				Source:  "python_packages",
 				Version: "6.0.1",
+			}, cpe: "",
+		},
+		// 2025-01-20: there are no entries for the jira python package at the NVD dataset.
+		{
+			software: fleet.Software{
+				Name:    "jira",
+				Source:  "python_packages",
+				Version: "3.8.0",
 			}, cpe: "",
 		},
 		{ // checks vendor/product matching based on bundle name, including EAPs
@@ -1323,6 +1510,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "com.jetbrains.goland-EAP",
 			},
 			cpe: "cpe:2.3:a:jetbrains:goland:2022.3.99.123.456:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "IntelliJ IDEA Community Edition 2022.3.2",
+				Source:  "programs",
+				Version: "223.8617.56",
+				Vendor:  "",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:223.8617.56:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1382,6 +1578,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:  "GitKraken",
 			},
 			cpe: "cpe:2.3:a:gitkraken:gitlens:14.9.0:*:*:*:*:visual_studio_code:*:*",
+		},
+		{ // skipped because the Docker DX VSCode extension has no vulnerabilities, so a CPE hasn't been built
+			software: fleet.Software{
+				Name:    "docker.docker",
+				Source:  "vscode_extensions",
+				Version: "0.6.0",
+				Vendor:  "Docker",
+			},
+			cpe: ``,
 		},
 		{
 			software: fleet.Software{
@@ -1614,6 +1819,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			cpe: `cpe:2.3:a:github:pull_requests_and_issues:0.82.0:*:*:*:*:visual_studio_code:*:*`,
 		},
 		{
+			// Running SELECT * FROM cpe_2 WHERE target_sw LIKE '%visual_studio_code%' AND product LIKE
+			// '%go%’; on the CPE sqlite db from NVD returned no rows containing "golang.go", or even “go”
+			// at all, indicating as of 10/3/25 there are no known CVEs in this extension, meaning
+			// it’s safe to skip matching this SW name to avoid the very broad match glob,
+			// cpe:2.3:a:golang:go:*:*:*:*:*:*:*:*, provided by NVD
+			software: fleet.Software{
+				Name:    "golang.go",
+				Source:  "vscode_extensions",
+				Version: "0.50.0",
+			}, cpe: "",
+		},
+		{
 			software: fleet.Software{
 				Name:             "Google Chrome Helper.app",
 				Source:           "apps",
@@ -1653,7 +1870,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "3.9.18_2",
 				Vendor:  "",
 			},
-			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:macos:*:*`,
+			cpe: `cpe:2.3:a:microsoft:python:3.9.18_2:*:*:*:*:macos:*:*`,
 		},
 		{
 			software: fleet.Software{
@@ -1691,6 +1908,158 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:             "vault",
+				Source:           "homebrew_packages",
+				Version:          "1.4.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:hashicorp:vault:1.4.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "pass",
+				Source:           "homebrew_packages",
+				Version:          "1.7.4",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:simple_password_store_project:simple_password_store:1.7.4:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Cloudflare WARP",
+				Source:  "programs",
+				Version: "25.1.861.0",
+			}, cpe: "cpe:2.3:a:cloudflare:warp:2025.1.861.0:*:*:*:*:windows:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should not be mutated
+				Version: "25016.1904.3401.2239",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:25016.1904.3401.2239:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:   "Microsoft Teams.app",
+				Source: "apps",
+				// Should be mutated
+				Version: "1.00.622155",
+			},
+			cpe: "cpe:2.3:a:microsoft:teams:1.6.00.22155:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Source:  "apps",
+				Version: "24.11.10",
+			},
+			cpe: "cpe:2.3:a:citrix:workspace:2411.10:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "RELEASE.2025-02-28T09-55-16Z_1",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2025-02-28T09-55-16Z:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "minio",
+				Source:  "homebrew_packages",
+				Version: "20200310000000",
+			},
+			cpe: "cpe:2.3:a:minio:minio:2020-03-10T00-00-00Z:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "dify",
+				Source:  "npm_packages",
+				Version: "0.11.0",
+			},
+			cpe: "cpe:2.3:a:langgenius:dify:0.11.0:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "undici",
+				Source:  "npm_packages",
+				Version: "5.22.1",
+			},
+			cpe: "cpe:2.3:a:nodejs:undici:5.22.1:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vite",
+				Source:  "npm_packages",
+				Version: "4.3.9",
+			},
+			cpe: "cpe:2.3:a:vitejs:vite:4.3.9:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "directus",
+				Source:  "npm_packages",
+				Version: "9.12.2",
+			},
+			cpe: "cpe:2.3:a:monospace:directus:9.12.2:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "iTerm2",
+				Source:           "apps",
+				Version:          "3.5.14",
+				BundleIdentifier: "com.googlecode.iterm2",
+			},
+			cpe: "cpe:2.3:a:iterm2:iterm2:3.5.14:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "iTerm2ImportStatus",
+				Source:           "apps",
+				Version:          "1.0",
+				BundleIdentifier: "com.googlecode.iterm2.iTerm2ImportStatus",
+			},
+			cpe: "", // Skip iTerm2ImportStatus since it is part of iTerm2 and doesn't have its own cpe
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox.app",
+				Source:  "apps",
+				Version: "137.0.2",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:137.0.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox ESR.app",
+				Source:  "apps",
+				Version: "128.14.0",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
+		},
+		{
+			// confirmed that as of Oct. 6 '25 there is no CPE and therefore no CVEs for this software in
+			// the NVD db, so safe to skip checking for one
+			software: fleet.Software{
+				Name:             "Logi Bolt",
+				BundleIdentifier: "com.logi.bolt.app",
+				Source:           "apps",
+				Version:          "1.2",
+			},
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Snyk Security - Code, Open Source, Container, IaC Configurations",
+				Source:  "jetbrains_plugins",
+				Version: "2.4.9",
+			},
+			cpe: "cpe:2.3:a:snyk:snyk_security:2.4.9:*:*:*:*:intellij:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
@@ -1717,9 +2086,59 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 
 	for _, tt := range testCases {
 		tt := tt
-		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
+		cpe, err := CPEFromSoftware(t.Context(), slog.New(slog.DiscardHandler), db, &tt.software, cpeTranslations, reCache)
+
+		translation, okT, _ := cpeTranslations.Translate(reCache, &tt.software)
+		if okT {
+			if len(translation.SWEdition) == 0 || translation.SWEdition[0] == "" {
+				re := regexp.MustCompile(`\*:[^*]+:[^*]+:\*:\*$`)
+				assert.False(t, re.MatchString(cpe), "did not expect sw_edition for:"+cpe)
+			}
+		}
+
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
+	}
+}
+
+func TestCPEVendorMatchesSoftware(t *testing.T) {
+	tests := []struct {
+		name           string
+		cpeVendor      string
+		softwareVendor string
+		want           bool
+	}{
+		{
+			name:           "CPE vendor appears in software vendor",
+			cpeVendor:      "linecorp",
+			softwareVendor: "linecorp inc",
+			want:           true,
+		},
+		{
+			name:           "CPE vendor does not appear in software vendor",
+			cpeVendor:      "ge",
+			softwareVendor: "linecorp inc",
+			want:           false,
+		},
+		{
+			name:           "software vendor is empty",
+			cpeVendor:      "linecorp",
+			softwareVendor: "",
+			want:           false,
+		},
+		{
+			name:           "CPE vendor appears in software vendor case-insensitive",
+			cpeVendor:      "python",
+			softwareVendor: "Python Software Foundation",
+			want:           true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			item := &IndexedCPEItem{Vendor: tt.cpeVendor}
+			sw := &fleet.Software{Vendor: tt.softwareVendor}
+			assert.Equal(t, tt.want, cpeVendorMatchesSoftware(item, sw))
+		})
 	}
 }
 
@@ -1738,5 +2157,524 @@ func TestContainsNonASCII(t *testing.T) {
 
 	for _, tc := range testCases {
 		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
+	}
+}
+
+func TestMutateSoftware(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		s         *fleet.Software
+		sanitized *fleet.Software
+	}{
+		{
+			name: "Microsoft Teams.app on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.00.622155",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams.app",
+				Source:  "apps",
+				Version: "1.6.00.22155",
+			},
+		},
+		{
+			name: "Microsoft Teams not on macOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams",
+				Source:  "programs",
+				Version: "1.6.00.22378",
+			},
+		},
+		{
+			name: "Other.app on macOS",
+			s: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other.app",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version not using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "23.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows, version using full year",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "2023.9.248.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foobar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Cloudflare WARP on Windows with invalid version",
+			s: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Cloudflare WARP",
+				Version: "foo.bar",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Other on Windows",
+			s: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Other",
+				Version: "1.2.3",
+			},
+		},
+		{
+			name: "Citrix Workspace on Windows",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace on Mac",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "23.9.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2309.1.104",
+			},
+		},
+		{
+			name: "Citrix Workspace with correct versioning",
+			s: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "2400.1.104",
+			},
+		},
+		{
+			name: "MS Teams classic on MacOS",
+			s: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.00.634263",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Microsoft Teams classic.app",
+				Source:  "apps",
+				Version: "1.6.00.34263",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "20200310000000",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2020-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "minio with trailing garbage",
+			s: &fleet.Software{
+				Name:    "minio",
+				Version: "RELEASE.2022-03-10T00-00-00Z_1",
+			},
+			sanitized: &fleet.Software{
+				Name:    "minio",
+				Version: "2022-03-10T00-00-00Z",
+			},
+		},
+		{
+			name: "JetBrains non-EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Version:          "2024.3.1",
+				BundleIdentifier: "com.jetbrains.goland",
+			},
+		},
+		{
+			name: "JetBrains EAP",
+			s: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "EAP GO-243.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "GoLand.app",
+				Source:           "apps",
+				Version:          "2024.2.99.21565.42",
+				BundleIdentifier: "com.jetbrains.goland-EAP",
+			},
+		},
+		{
+			name: "JetBrains year-wrapped EAP",
+			s: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "EAP IC-241.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+			sanitized: &fleet.Software{
+				Name:             "IntelliJ IDEA CE",
+				Version:          "2023.4.99.12345.67",
+				BundleIdentifier: "com.jetbrains.intellij-EAP",
+			},
+		},
+		{
+			name: "Python for Windows GA dot-zero",
+			s: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.150.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12 (64-bit)",
+				Version: "3.12.0",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows GA patch release",
+			s: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8150.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.12.8 (64-bit)",
+				Version: "3.12.8",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows alpha",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.104.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0a4 (64-bit)",
+				Version: "3.14.0a4",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows beta",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.113.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0b3 (64-bit)",
+				Version: "3.14.0b3",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Python for Windows RC",
+			s: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.122.1013",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "Python 3.14.0rc2 (64-bit)",
+				Version: "3.14.0rc2",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "MacVim with known Vim version (9.0.1897 -> 178)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.0.1897",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "178",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with known Vim version (9.1.0 -> 179)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.0",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "179",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with prerelease Vim version (9.1.1577 -> 181.2)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.1.1577",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "181.2",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim with unknown Vim version (leaves as-is)",
+			s: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+			sanitized: &fleet.Software{
+				Name:             "MacVim",
+				Version:          "9.2.9999",
+				Source:           "apps",
+				BundleIdentifier: "org.vim.MacVim",
+			},
+		},
+		{
+			name: "MacVim from wrong source (not transformed)",
+			s: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "MacVim",
+				Version: "9.0.1897",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Homebrew imp (Integrative Modeling Platform)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.23.0_13",
+				Source:  "homebrew_packages",
+			},
+		},
+		{
+			name: "imp from non-Homebrew source (should not be renamed)",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "imp",
+				Version: "5.0.22",
+				Source:  "programs",
+			},
+		},
+		{
+			name: "Homebrew imp with different version",
+			s: &fleet.Software{
+				Name:    "imp",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+			sanitized: &fleet.Software{
+				Name:    "integrative-modeling-platform",
+				Version: "2.20.0",
+				Source:  "homebrew_packages",
+			},
+		},
+		{
+			name: "ninxsoft Mist (macOS installer download tool)",
+			s: &fleet.Software{
+				Name:             "Mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+			sanitized: &fleet.Software{
+				Name:             "ninxsoft-mist",
+				Version:          "0.30",
+				Source:           "apps",
+				BundleIdentifier: "com.ninxsoft.mist",
+			},
+		},
+		{
+			name: "7-Zip on Windows with four-part MSI version",
+			s: &fleet.Software{
+				Name:    "7-Zip 24.09 (x64)",
+				Version: "24.09.00.0",
+				Source:  "programs",
+			},
+			sanitized: &fleet.Software{
+				Name:    "7-Zip 24.09 (x64)",
+				Version: "24.09",
+				Source:  "programs",
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.NotPanics(t, func() { mutateSoftware(t.Context(), tc.s, slog.New(slog.DiscardHandler)) })
+			require.Equal(t, tc.sanitized, tc.s)
+		})
+	}
+}
+
+func TestCitrixWorkspaceLTSR(t *testing.T) {
+	item := &IndexedCPEItem{
+		Product: "workspace",
+		Vendor:  "citrix",
+	}
+
+	for _, tc := range []struct {
+		name     string
+		software fleet.Software
+		wantCPE  string
+	}{
+		{
+			name: "Citrix Workspace 2203 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2203",
+				Version: "22.3.1.41",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2203.1.41:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2402 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2402",
+				Version: "24.2.0.65",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace non-LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2309",
+				Version: "23.9.1.104",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2309.1.104:*:*:*:*:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace LTSR version on Mac (not programs source)",
+			software: fleet.Software{
+				Name:    "Citrix Workspace.app",
+				Version: "24.2.0.65",
+				Source:  "apps",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2402.0.65:*:*:*:*:macos:*:*",
+		},
+		{
+			name: "Citrix Workspace 1912 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 1912",
+				Version: "19.12.0.5",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:1912.0.5:*:*:*:ltsr:windows:*:*",
+		},
+		{
+			name: "Citrix Workspace 2507.1 LTSR on Windows",
+			software: fleet.Software{
+				Name:    "Citrix Workspace 2507",
+				Version: "25.7.1.50",
+				Source:  "programs",
+				Vendor:  "Citrix Systems, Inc.",
+			},
+			wantCPE: "cpe:2.3:a:citrix:workspace:2507.1.50:*:*:*:ltsr:windows:*:*",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			mutateSoftware(t.Context(), &tc.software, slog.New(slog.DiscardHandler))
+			got := item.FmtStr(&tc.software)
+			require.Equal(t, tc.wantCPE, got)
+		})
 	}
 }

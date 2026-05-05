@@ -22,7 +22,9 @@ const DEFAULT_POLICY_MOCK: IPolicyStats = {
   webhook: "Off",
   has_run: true,
   next_update_ms: 3600000,
+  type: "dynamic",
   calendar_events_enabled: true,
+  conditional_access_enabled: false,
   install_software: {
     name: "testSw0",
     software_title_id: 1,
@@ -58,7 +60,9 @@ export const createMockPoliciesResponse = (
         webhook: "Off",
         has_run: true,
         next_update_ms: 3600000,
+        type: "dynamic",
         calendar_events_enabled: false,
+        conditional_access_enabled: false,
       },
       {
         id: 29090,
@@ -80,7 +84,9 @@ export const createMockPoliciesResponse = (
         webhook: "Off",
         has_run: true,
         next_update_ms: 3600000,
+        type: "dynamic",
         calendar_events_enabled: false,
+        conditional_access_enabled: false,
       },
       {
         id: 136,
@@ -104,7 +110,9 @@ export const createMockPoliciesResponse = (
         webhook: "Off",
         has_run: true,
         next_update_ms: 3600000,
+        type: "dynamic",
         calendar_events_enabled: false,
+        conditional_access_enabled: false,
       },
     ],
   };

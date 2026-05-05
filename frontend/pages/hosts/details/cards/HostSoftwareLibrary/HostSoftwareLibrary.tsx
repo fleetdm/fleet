@@ -1,0 +1,707 @@
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
+import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
+
+import hostAPI, {
+  IGetHostSoftwareResponse,
+  IHostSoftwareQueryKey,
+} from "services/entities/hosts";
+import PATHS from "router/paths";
+import {
+  IHostSoftware,
+  IVPPHostSoftware,
+  ISoftware,
+} from "interfaces/software";
+import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
+
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import permissions from "utilities/permissions";
+import { getPathWithQueryParams } from "utilities/url";
+
+import { NotificationContext } from "context/notification";
+import { AppContext } from "context/app";
+
+import CardHeader from "components/CardHeader";
+import DataError from "components/DataError";
+import Spinner from "components/Spinner";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
+import SoftwareIpaInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareIpaInstallDetailsModal";
+import SoftwareScriptDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareScriptDetailsModal";
+import VppInstallDetailsModal from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal";
+import SoftwareUninstallDetailsModal, {
+  ISWUninstallDetailsParentState,
+} from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
+import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
+
+import { generateHostSWLibraryTableHeaders } from "./HostSoftwareLibraryTable/HostSoftwareLibraryTableConfig";
+import HostSoftwareLibraryTable from "./HostSoftwareLibraryTable";
+import { getInstallErrorMessage, getUninstallErrorMessage } from "./helpers";
+import { getUiStatus } from "../Software/helpers";
+import SoftwareUpdateModal from "../Software/SelfService/components/SoftwareUpdateModal";
+
+const baseClass = "host-software-library-card";
+
+export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
+  vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
+}
+
+interface IHostSoftwareLibraryProps {
+  /** This is the host id or the device token */
+  id: number | string;
+  platform: HostPlatform;
+  hostDisplayName: string;
+  softwareUpdatedAt?: string;
+  router: InjectedRouter;
+  queryParams: ReturnType<typeof parseHostSoftwareLibraryQueryParams>;
+  pathname: string;
+  hostTeamId: number;
+  hostName: string;
+  onShowInventoryVersions: (software?: IHostSoftware) => void;
+  isSoftwareEnabled?: boolean;
+  hostScriptsEnabled?: boolean;
+  hostMDMEnrolled?: boolean;
+  isHostOnline?: boolean;
+  refetchHostDetails: () => void;
+  isHostDetailsPolling: boolean;
+}
+
+const DEFAULT_SEARCH_QUERY = "";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_PAGE = 0;
+const DEFAULT_PAGE_SIZE = 20;
+
+export const parseHostSoftwareLibraryQueryParams = (queryParams: {
+  page?: string;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  self_service?: string;
+  fleet_id?: string;
+}) => {
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_PAGE_SIZE;
+  const selfService = queryParams?.self_service === "true";
+  const teamId = queryParams?.fleet_id
+    ? parseInt(queryParams.fleet_id, 10)
+    : undefined;
+
+  return {
+    page,
+    query: searchQuery,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+    available_for_install: true, // always true for host installers
+    self_service: selfService,
+    fleet_id: teamId,
+  };
+};
+
+const HostSoftwareLibrary = ({
+  id,
+  platform,
+  hostDisplayName,
+  softwareUpdatedAt,
+  hostScriptsEnabled,
+  router,
+  queryParams,
+  pathname,
+  hostTeamId = 0,
+  hostName,
+  onShowInventoryVersions,
+  isSoftwareEnabled = false,
+  hostMDMEnrolled,
+  isHostOnline = false,
+  refetchHostDetails,
+  isHostDetailsPolling,
+}: IHostSoftwareLibraryProps) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    isGlobalTechnician,
+    currentUser,
+  } = useContext(AppContext);
+
+  const isUnsupported = isAndroid(platform); // no Android software
+  const isWindowsHost = platform === "windows";
+  const isIPadOrIPhoneHost = isIPadOrIPhone(platform);
+  const isAndroidHost = isAndroid(platform);
+  const isMacOSHost = platform === "darwin";
+
+  const [hostSoftwareLibraryRes, setHostSoftwareLibraryRes] = useState<
+    IGetHostSoftwareResponse | undefined
+  >(undefined);
+  const [
+    selectedSoftwareUpdates,
+    setSelectedSoftwareUpdates,
+  ] = useState<IHostSoftware | null>(null);
+  // these states and modal logic exist at this level instead of the page level to match the similar
+  // pattern on
+  // the device user page, which facilitates manipulating relevant UI states e.g.
+  // "updating..." when the user clicks "Retry" in the SoftwareInstallDetailsModal
+  const [
+    selectedHostSWInstallDetails,
+    setSelectedHostSWInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWIpaInstallDetails,
+    setSelectedHostSWIpaInstallDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWScriptDetails,
+    setSelectedHostSWScriptDetails,
+  ] = useState<IHostSoftware | null>(null);
+  const [
+    selectedHostSWUninstallDetails,
+    setSelectedHostSWUninstallDetails,
+  ] = useState<ISWUninstallDetailsParentState | null>(null);
+  const [
+    selectedVPPInstallDetails,
+    setSelectedVPPInstallDetails,
+  ] = useState<IVPPHostSoftware | null>(null);
+
+  const enhancedSoftware = useMemo(() => {
+    if (!hostSoftwareLibraryRes) return [];
+    return hostSoftwareLibraryRes.software.map((software) => ({
+      ...software,
+      ui_status: getUiStatus(software, isHostOnline, softwareUpdatedAt),
+    }));
+  }, [hostSoftwareLibraryRes, isHostOnline, softwareUpdatedAt]);
+
+  const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
+  const pollingTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+  const isAwaitingHostDetailsPolling = useRef(isHostDetailsPolling);
+
+  const queryKey = useMemo<IHostSoftwareQueryKey[]>(() => {
+    return [
+      {
+        scope: "host_software",
+        id: id as number,
+        softwareUpdatedAt,
+        ...queryParams,
+      },
+    ];
+  }, [queryParams, id, softwareUpdatedAt]);
+
+  const {
+    isLoading: hostSoftwareLibraryLoading,
+    isError: hostSoftwareLibraryError,
+    isFetching: hostSoftwareLibraryFetching,
+    refetch: refetchHostSoftwareLibrary,
+  } = useQuery<
+    IGetHostSoftwareResponse,
+    AxiosError,
+    IGetHostSoftwareResponse,
+    IHostSoftwareQueryKey[]
+  >(queryKey, () => hostAPI.getHostSoftware(queryKey[0]), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: isSoftwareEnabled && !isUnsupported,
+    keepPreviousData: true,
+    onSuccess: (response) => {
+      setHostSoftwareLibraryRes(response);
+    },
+  });
+
+  // After host details polling (in parent) finishes, refetch software data.
+  // Ensures self service data reflects updates to installed_versions from the latest host details.
+  useEffect(() => {
+    // Detect completion of the host details polling (in parent)
+    // Once host details polling completes, refetch software data to retreive updated installed_versions keyed from host details data
+    if (isAwaitingHostDetailsPolling.current && !isHostDetailsPolling) {
+      refetchHostSoftwareLibrary();
+    }
+    isAwaitingHostDetailsPolling.current = isHostDetailsPolling;
+  }, [isHostDetailsPolling, refetchHostSoftwareLibrary]);
+
+  // Poll for pending installs/uninstalls
+  const { refetch: refetchForPendingInstallsOrUninstalls } = useQuery<
+    IGetHostSoftwareResponse,
+    AxiosError
+  >(
+    ["pending_installs", queryKey[0]],
+    () => hostAPI.getHostSoftware(queryKey[0]),
+    {
+      enabled: false,
+      onSuccess: (response) => {
+        const newPendingSet = new Set(
+          response.software
+            .filter(
+              (software) =>
+                software.status === "pending_install" ||
+                software.status === "pending_uninstall"
+            )
+            .map((software) => String(software.id))
+        );
+
+        // Determine which items just completed
+        const previouslyPendingIds = [...pendingSoftwareSetRef.current];
+        const completedIds = previouslyPendingIds.filter(
+          (pendingId) => !newPendingSet.has(pendingId)
+        );
+
+        if (completedIds.length > 0) {
+          // Refetch host details to:
+          // - Update the software library version information of newly installed/uninstalled software of inventory‑detectable sources only
+          // - Update the software inventory of any changes to software detected by software inventory
+          refetchHostDetails();
+        }
+
+        // Compare new set with the previous set
+        const setsAreEqual =
+          newPendingSet.size === pendingSoftwareSetRef.current.size &&
+          [...newPendingSet].every((pendingId) =>
+            pendingSoftwareSetRef.current.has(pendingId)
+          );
+
+        if (newPendingSet.size > 0) {
+          // If the set changed, update and continue polling
+          if (!setsAreEqual) {
+            pendingSoftwareSetRef.current = newPendingSet;
+            setHostSoftwareLibraryRes(response);
+          }
+
+          // Continue polling
+          if (pollingTimeoutIdRef.current) {
+            clearTimeout(pollingTimeoutIdRef.current);
+          }
+          pollingTimeoutIdRef.current = setTimeout(() => {
+            refetchForPendingInstallsOrUninstalls();
+          }, 5000);
+        } else {
+          // No pending installs nor pending uninstalls, stop polling and refresh data
+          pendingSoftwareSetRef.current = new Set();
+          if (pollingTimeoutIdRef.current) {
+            clearTimeout(pollingTimeoutIdRef.current);
+            pollingTimeoutIdRef.current = null;
+          }
+          setHostSoftwareLibraryRes(response);
+        }
+      },
+      onError: () => {
+        pendingSoftwareSetRef.current = new Set();
+        renderFlash(
+          "error",
+          "We're having trouble checking pending installs. Please refresh the page."
+        );
+      },
+    }
+  );
+
+  // Stop polling if the host goes offline
+  // Polling will automatically resume when host is online with pending installs
+  useEffect(() => {
+    if (!isHostOnline) {
+      if (pollingTimeoutIdRef.current) {
+        clearTimeout(pollingTimeoutIdRef.current);
+        pollingTimeoutIdRef.current = null;
+      }
+      pendingSoftwareSetRef.current = new Set();
+    }
+  }, [isHostOnline]);
+
+  const startPollingForPendingInstallsOrUninstalls = useCallback(
+    (pendingIds: string[]) => {
+      if (isHostOnline) {
+        const newSet = new Set(pendingIds);
+        const setsAreEqual =
+          newSet.size === pendingSoftwareSetRef.current.size &&
+          [...newSet].every((pendingId) =>
+            pendingSoftwareSetRef.current.has(pendingId)
+          );
+        if (!setsAreEqual) {
+          pendingSoftwareSetRef.current = newSet;
+
+          // Clear any existing timeout to avoid overlap
+          if (pollingTimeoutIdRef.current) {
+            clearTimeout(pollingTimeoutIdRef.current);
+          }
+          // Starts polling for pending installs/uninstalls
+          refetchForPendingInstallsOrUninstalls();
+        }
+      }
+    },
+    [refetchForPendingInstallsOrUninstalls, isHostOnline]
+  );
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      pendingSoftwareSetRef.current = new Set();
+      if (pollingTimeoutIdRef.current) {
+        clearTimeout(pollingTimeoutIdRef.current);
+        pollingTimeoutIdRef.current = null;
+      }
+    };
+  }, []);
+
+  // On initial load or data change, check for pending installs/uninstalls
+  useEffect(() => {
+    const pendingSoftware = hostSoftwareLibraryRes?.software.filter(
+      (software) =>
+        software.status === "pending_install" ||
+        software.status === "pending_uninstall"
+    );
+    const pendingIds = pendingSoftware?.map((s) => String(s.id)) ?? [];
+    if (pendingIds.length > 0) {
+      startPollingForPendingInstallsOrUninstalls(pendingIds);
+    }
+  }, [hostSoftwareLibraryRes, startPollingForPendingInstallsOrUninstalls]);
+
+  const onAddSoftware = useCallback(() => {
+    // "Add Software" path dependent on host's platform
+    let path = "";
+    const params: {
+      fleet_id: number;
+      platform?: string;
+    } = { fleet_id: hostTeamId };
+
+    switch (true) {
+      case isIPadOrIPhoneHost || isAndroidHost:
+        path = PATHS.SOFTWARE_ADD_APP_STORE;
+        params.platform = isAndroidHost ? "android" : "apple";
+        break;
+      case isMacOSHost || isWindowsHost:
+        path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+        break;
+      default:
+        path = PATHS.SOFTWARE_ADD_PACKAGE;
+    }
+
+    router.push(getPathWithQueryParams(path, params));
+  }, [
+    hostTeamId,
+    isIPadOrIPhoneHost,
+    isAndroidHost,
+    isMacOSHost,
+    isWindowsHost,
+    router,
+  ]);
+
+  const onShowUpdateDetails = useCallback(
+    (software?: IHostSoftware) => {
+      if (software) {
+        setSelectedSoftwareUpdates(software);
+      }
+    },
+    [setSelectedSoftwareUpdates]
+  );
+
+  const onSetSelectedHostSWInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWInstallDetails]
+  );
+
+  const onSetSelectedHostSWIpaInstallDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWIpaInstallDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWIpaInstallDetails]
+  );
+
+  const onSetSelectedHostSWScriptDetails = useCallback(
+    (hostSW?: IHostSoftware) => {
+      if (hostSW) {
+        setSelectedHostSWScriptDetails(hostSW);
+      }
+    },
+    [setSelectedHostSWScriptDetails]
+  );
+
+  const onSetSelectedHostSWUninstallDetails = useCallback(
+    (uninstallDetails?: ISWUninstallDetailsParentState) => {
+      if (uninstallDetails) {
+        setSelectedHostSWUninstallDetails(uninstallDetails);
+      }
+    },
+    [setSelectedHostSWUninstallDetails]
+  );
+
+  const onSetSelectedVPPInstallDetails = useCallback(
+    (s?: IVPPHostSoftware) => {
+      if (s) {
+        setSelectedVPPInstallDetails(s);
+      }
+    },
+    [setSelectedVPPInstallDetails]
+  );
+
+  const onInstallOrUninstall = useCallback(() => {
+    // For online hosts, poll for change in pending statuses
+    // For offline hosts, refresh the data without polling
+    isHostOnline
+      ? refetchForPendingInstallsOrUninstalls()
+      : refetchHostSoftwareLibrary();
+  }, [
+    refetchForPendingInstallsOrUninstalls,
+    refetchHostSoftwareLibrary,
+    isHostOnline,
+  ]);
+
+  const hasSWWriteRole = Boolean(
+    isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isGlobalTechnician ||
+      permissions.isTeamTechnician(currentUser, hostTeamId)
+  );
+
+  const canAddSoftware =
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    !isAndroidHost;
+
+  // 4.77 Currently Android apps can only be installed via self-service by end user
+  const userHasSWWritePermission = hasSWWriteRole && !isAndroidHost;
+
+  const isMountedRef = useRef(false);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const onClickInstallAction = useCallback(
+    async (softwareId: number, isScriptPackage = false) => {
+      try {
+        await hostAPI.installHostSoftwarePackage(id as number, softwareId);
+        if (isMountedRef.current) {
+          onInstallOrUninstall();
+        }
+
+        const message = () => {
+          switch (true) {
+            case isHostOnline && isScriptPackage:
+              return "Script is running.";
+            case isHostOnline && !isScriptPackage:
+              return "Software is installing.";
+            case !isHostOnline && isScriptPackage:
+              return "Script will run when the host comes online.";
+            default:
+              return "Software will install when the host comes online.";
+          }
+        };
+
+        renderFlash(
+          "success",
+          <>
+            {message()} To see details, go to <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getInstallErrorMessage(e));
+      }
+    },
+    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+  );
+
+  const onClickUninstallAction = useCallback(
+    async (softwareId: number) => {
+      try {
+        await hostAPI.uninstallHostSoftwarePackage(id as number, softwareId);
+        if (isMountedRef.current) {
+          onInstallOrUninstall();
+        }
+        renderFlash(
+          "success",
+          <>
+            Software{" "}
+            {isHostOnline
+              ? "is uninstalling"
+              : "will uninstall when the host comes online"}
+            . To see details, go to <b>Details &gt; Activity</b>.
+          </>
+        );
+      } catch (e) {
+        renderFlash("error", getUninstallErrorMessage(e));
+      }
+    },
+    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+  );
+
+  const tableConfig = useMemo(() => {
+    return generateHostSWLibraryTableHeaders({
+      userHasSWWritePermission,
+      hostScriptsEnabled,
+      hostMDMEnrolled,
+      router,
+      teamId: hostTeamId,
+      hostName,
+      baseClass,
+      onShowInventoryVersions,
+      onShowUpdateDetails,
+      onSetSelectedHostSWInstallDetails,
+      onSetSelectedHostSWIpaInstallDetails,
+      onSetSelectedHostSWScriptDetails,
+      onSetSelectedHostSWUninstallDetails,
+      onSetSelectedVPPInstallDetails,
+      onClickInstallAction,
+      onClickUninstallAction,
+      isHostOnline,
+    });
+  }, [
+    userHasSWWritePermission,
+    hostScriptsEnabled,
+    hostMDMEnrolled,
+    router,
+    hostTeamId,
+    hostName,
+    onShowInventoryVersions,
+    onShowUpdateDetails,
+    onSetSelectedHostSWInstallDetails,
+    onSetSelectedHostSWIpaInstallDetails,
+    onSetSelectedHostSWScriptDetails,
+    onSetSelectedHostSWUninstallDetails,
+    onSetSelectedVPPInstallDetails,
+    onClickInstallAction,
+    onClickUninstallAction,
+    isHostOnline,
+  ]);
+
+  const isLoading = hostSoftwareLibraryLoading;
+  const isError = hostSoftwareLibraryError;
+  const data = hostSoftwareLibraryRes;
+  const enhancedData = enhancedSoftware;
+
+  const renderHostSoftware = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+
+    if (isError) {
+      return <DataError verticalPaddingSize="pad-xxxlarge" />;
+    }
+
+    return (
+      <HostSoftwareLibraryTable
+        isLoading={hostSoftwareLibraryFetching}
+        data={data}
+        enhancedData={enhancedData}
+        platform={platform}
+        router={router}
+        tableConfig={tableConfig}
+        sortHeader={queryParams.order_key}
+        sortDirection={queryParams.order_direction}
+        searchQuery={queryParams.query}
+        page={queryParams.page}
+        pagePath={pathname}
+        selfService={queryParams.self_service}
+        teamId={queryParams.fleet_id}
+      />
+    );
+  };
+
+  return (
+    <div className={baseClass}>
+      <div className={`${baseClass}__header`}>
+        <CardHeader subheader="Software available to be installed on this host" />
+        {canAddSoftware && (
+          <Button variant="inverse" onClick={onAddSoftware}>
+            <Icon name="plus" />
+            <span>Add software</span>
+          </Button>
+        )}
+      </div>
+      {renderHostSoftware()}
+      {selectedSoftwareUpdates && (
+        <SoftwareUpdateModal
+          hostDisplayName={hostDisplayName}
+          software={selectedSoftwareUpdates}
+          onUpdate={onClickInstallAction}
+          onExit={() => setSelectedSoftwareUpdates(null)}
+        />
+      )}
+      {selectedHostSWInstallDetails && (
+        <SoftwareInstallDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWInstallDetails}
+          onCancel={() => setSelectedHostSWInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWIpaInstallDetails && (
+        <SoftwareIpaInstallDetailsModal
+          details={{
+            hostDisplayName,
+            fleetInstallStatus: selectedHostSWIpaInstallDetails.status,
+            appName: getDisplayedSoftwareName(
+              selectedHostSWIpaInstallDetails.name,
+              selectedHostSWIpaInstallDetails.display_name
+            ),
+            commandUuid:
+              selectedHostSWIpaInstallDetails.software_package?.last_install
+                ?.install_uuid, // slightly redundant, see explanation in `SoftwareInstallDetailsModal
+          }}
+          hostSoftware={selectedHostSWIpaInstallDetails}
+          onCancel={() => setSelectedHostSWIpaInstallDetails(null)}
+        />
+      )}
+      {selectedHostSWScriptDetails && (
+        <SoftwareScriptDetailsModal
+          details={{
+            host_display_name: hostDisplayName,
+            install_uuid:
+              selectedHostSWScriptDetails.software_package?.last_install
+                ?.install_uuid,
+          }}
+          hostSoftware={selectedHostSWScriptDetails}
+          onCancel={() => setSelectedHostSWScriptDetails(null)}
+        />
+      )}
+      {selectedHostSWUninstallDetails && (
+        <SoftwareUninstallDetailsModal
+          {...selectedHostSWUninstallDetails}
+          hostDisplayName={hostDisplayName}
+          onCancel={() => setSelectedHostSWUninstallDetails(null)}
+        />
+      )}
+      {selectedVPPInstallDetails && (
+        <VppInstallDetailsModal
+          details={{
+            fleetInstallStatus: selectedVPPInstallDetails.status,
+            hostDisplayName,
+            appName: getDisplayedSoftwareName(
+              selectedVPPInstallDetails.name,
+              selectedVPPInstallDetails.display_name
+            ),
+            commandUuid: selectedVPPInstallDetails.commandUuid,
+            platform,
+          }}
+          hostSoftware={selectedVPPInstallDetails}
+          onCancel={() => setSelectedVPPInstallDetails(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default React.memo(HostSoftwareLibrary);

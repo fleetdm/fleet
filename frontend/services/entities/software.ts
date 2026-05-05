@@ -1,7 +1,14 @@
 import { AxiosProgressEvent } from "axios";
 
-import sendRequest, { sendRequestWithProgress } from "services";
+import sendRequest, {
+  sendRequestWithHeaders,
+  sendRequestWithProgressAndHeaders,
+} from "services";
 import endpoints from "utilities/endpoints";
+import {
+  encodeScriptBase64,
+  SCRIPTS_ENCODED_HEADER,
+} from "utilities/scripts_encoding";
 import {
   ISoftwareResponse,
   ISoftwareCountResponse,
@@ -11,16 +18,26 @@ import {
   IFleetMaintainedApp,
   IFleetMaintainedAppDetails,
   ISoftwarePackage,
+  SoftwareCategory,
 } from "interfaces/software";
-import { CommaSeparatedPlatformString } from "interfaces/platform";
+import {
+  ApplePlatform,
+  CommaSeparatedPlatformString,
+} from "interfaces/platform";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
+  getPathWithQueryParams,
 } from "utilities/url";
-import { IPackageFormData } from "pages/SoftwarePage/components/PackageForm/PackageForm";
+import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { IEditPackageFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditSoftwareModal/EditSoftwareModal";
+import { ISoftwareVppFormData } from "pages/SoftwarePage/components/forms/SoftwareVppForm/SoftwareVppForm";
+import { ISoftwareAutoUpdateConfigFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditAutoUpdateConfigModal/EditAutoUpdateConfigModal";
+import { ISoftwareDisplayNameFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditIconModal/EditIconModal";
 import { IAddFleetMaintainedData } from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage/FleetMaintainedAppDetailsPage";
 import { listNamesFromSelectedLabels } from "components/TargetLabelSelector/TargetLabelSelector";
+import { ISoftwareAndroidFormData } from "pages/SoftwarePage/components/forms/SoftwareAndroidForm/SoftwareAndroidForm";
+import { ISoftwareConfigurationFormData } from "pages/SoftwarePage/SoftwareTitleDetailsPage/EditConfigurationModal/EditConfigurationModal";
 
 export interface ISoftwareApiParams {
   page?: number;
@@ -67,16 +84,12 @@ export interface ISoftwareVersionResponse {
 }
 
 export interface ISoftwareVersionsQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken: string | null;
   scope: "software-versions";
 }
 
 export interface ISoftwareTitlesQueryKey extends ISoftwareApiParams {
-  // used to trigger software refetches from sibling pages
-  addedSoftwareToken?: string | null;
   platform?: CommaSeparatedPlatformString;
-  scope: "software-titles";
+  scope: "software-titles" | "software-library";
 }
 
 export interface ISoftwareQueryKey extends ISoftwareApiParams {
@@ -136,22 +149,249 @@ export interface IFleetMaintainedAppResponse {
 }
 
 interface IAddFleetMaintainedAppPostBody {
-  team_id: number;
+  fleet_id: number;
   fleet_maintained_app_id: number;
   pre_install_query?: string;
   install_script?: string;
   post_install_script?: string;
   uninstall_script?: string;
   self_service?: boolean;
+  automatic_install?: boolean;
   labels_include_any?: string[];
+  labels_include_all?: string[];
   labels_exclude_any?: string[];
+  categories: string[];
+}
+
+export interface IAddAppStoreAppPostBody {
+  app_store_id: string;
+  fleet_id: number;
+  platform: ApplePlatform | "android";
+  // True by default for android apps
+  self_service?: boolean;
+  // No automatic_install on add Android app
+  automatic_install?: boolean;
+  labels_include_any?: string[];
+  labels_include_all?: string[];
+  labels_exclude_any?: string[];
+  categories?: SoftwareCategory[];
+}
+
+// 4.77 Edit for Android app is not yet available
+export interface IEditAppStoreAppPostBody {
+  fleet_id: number;
+  self_service?: boolean;
+  // No automatic_install on edit VPP or android app
+  labels_include_any?: string[];
+  labels_include_all?: string[];
+  labels_exclude_any?: string[];
+  categories?: SoftwareCategory[];
+  display_name?: string;
+  configuration?: string;
+  auto_update_enabled?: boolean;
+  auto_update_window_start?: string;
+  auto_update_window_end?: string;
 }
 
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
-export const MAX_FILE_SIZE_MB = 3000;
-export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+const handleAndroidForm = (
+  teamId: number,
+  formData: ISoftwareAndroidFormData
+) => {
+  const { SOFTWARE_APP_STORE_APPS } = endpoints;
+
+  const body: IAddAppStoreAppPostBody = {
+    app_store_id: formData.applicationID,
+    fleet_id: teamId,
+    platform: formData.platform,
+    self_service: formData.selfService,
+    automatic_install: formData.automaticInstall,
+  };
+
+  if (formData.categories && formData.categories.length > 0) {
+    body.categories = formData.categories as SoftwareCategory[];
+  }
+
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  }
+
+  return sendRequest("POST", SOFTWARE_APP_STORE_APPS, body);
+};
+
+const handleVppAppForm = (teamId: number, formData: ISoftwareVppFormData) => {
+  const { SOFTWARE_APP_STORE_APPS } = endpoints;
+
+  if (!formData.selectedApp) {
+    throw new Error("Selected app is required. This should not happen.");
+  }
+
+  const body: IAddAppStoreAppPostBody = {
+    app_store_id: formData.selectedApp.app_store_id,
+    fleet_id: teamId,
+    platform: formData.selectedApp?.platform, // Nested platform
+    self_service: formData.selfService,
+    automatic_install: formData.automaticInstall,
+  };
+
+  if (formData.categories && formData.categories.length > 0) {
+    body.categories = formData.categories as SoftwareCategory[];
+  }
+
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  }
+
+  return sendRequest("POST", SOFTWARE_APP_STORE_APPS, body);
+};
+
+const handleDisplayNameForm = (
+  data: ISoftwareDisplayNameFormData,
+  formData: FormData
+) => {
+  formData.append("display_name", data.displayName || "");
+};
+
+const handleEditPackageForm = (
+  data: IEditPackageFormData,
+  formData: FormData,
+  orignalPackage: ISoftwarePackage
+) => {
+  data.software && formData.append("software", data.software);
+  formData.append("self_service", data.selfService.toString());
+  // Base64 encode script fields to bypass WAF rules that block script patterns
+  formData.append(
+    "install_script",
+    encodeScriptBase64(data.installScript) || ""
+  );
+  formData.append(
+    "pre_install_query",
+    encodeScriptBase64(data.preInstallQuery || "") || ""
+  );
+  formData.append(
+    "post_install_script",
+    encodeScriptBase64(data.postInstallScript || "") || ""
+  );
+  formData.append(
+    "uninstall_script",
+    encodeScriptBase64(data.uninstallScript || "") || ""
+  );
+  if (data.categories) {
+    data.categories.forEach((category) => {
+      formData.append("categories", category);
+    });
+  }
+
+  // clear out labels if targetType is "All hosts"
+  if (data.targetType === "All hosts") {
+    if (orignalPackage.labels_include_any) {
+      formData.append("labels_include_any", "");
+    } else if (orignalPackage.labels_include_all) {
+      formData.append("labels_include_all", "");
+    } else {
+      formData.append("labels_exclude_any", "");
+    }
+  }
+
+  // add custom labels if targetType is "Custom"
+  if (data.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
+    let labelKey = "";
+    if (data.customTarget === "labelsIncludeAny") {
+      labelKey = "labels_include_any";
+    } else if (data.customTarget === "labelsIncludeAll") {
+      labelKey = "labels_include_all";
+    } else {
+      labelKey = "labels_exclude_any";
+    }
+    selectedLabels?.forEach((label) => {
+      formData.append(labelKey, label);
+    });
+  }
+};
+
+const handleDisplayNameAppStoreAppForm = (
+  formData: ISoftwareDisplayNameFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.display_name = formData.displayName || "";
+};
+
+const handleConfigurationAppStoreAppForm = (
+  formData: ISoftwareConfigurationFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.configuration = formData.configuration || "{}";
+};
+
+const handleAutoUpdateConfigAppStoreAppForm = (
+  formData: ISoftwareAutoUpdateConfigFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.auto_update_enabled = formData.autoUpdateEnabled;
+  if (formData.autoUpdateEnabled) {
+    body.auto_update_window_start = formData.autoUpdateStartTime;
+    body.auto_update_window_end = formData.autoUpdateEndTime;
+  }
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
+    body.labels_include_all = [];
+  }
+};
+
+const handleEditAppStoreAppForm = (
+  formData: ISoftwareVppFormData,
+  body: IEditAppStoreAppPostBody
+) => {
+  body.self_service = formData.selfService;
+
+  if (formData.categories && formData.categories.length > 0) {
+    body.categories = formData.categories as SoftwareCategory[];
+  } else {
+    body.categories = [];
+  }
+
+  if (formData.targetType === "Custom") {
+    const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
+    if (formData.customTarget === "labelsIncludeAny") {
+      body.labels_include_any = selectedLabels;
+    } else if (formData.customTarget === "labelsIncludeAll") {
+      body.labels_include_all = selectedLabels;
+    } else {
+      body.labels_exclude_any = selectedLabels;
+    }
+  } else {
+    body.labels_exclude_any = [];
+    body.labels_include_any = [];
+    body.labels_include_all = [];
+  }
+};
 
 export default {
   load: async ({
@@ -180,7 +420,11 @@ export default {
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE}?${queryString}`;
 
     try {
@@ -206,7 +450,11 @@ export default {
       vulnerable,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restCountParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restCountParams,
+      fleet_id: team_id,
+    });
 
     return sendRequest("GET", path.concat(`?${queryString}`));
   },
@@ -216,7 +464,11 @@ export default {
   ): Promise<ISoftwareTitlesResponse> => {
     const { SOFTWARE_TITLES } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restTitleParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restTitleParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_TITLES}?${queryString}`;
     return sendRequest("GET", path);
   },
@@ -226,7 +478,7 @@ export default {
     teamId,
   }: IGetSoftwareTitleQueryParams): Promise<ISoftwareTitleResponse> => {
     const endpoint = endpoints.SOFTWARE_TITLE(softwareId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const queryString = buildQueryStringFromParams({ fleet_id: teamId });
     const path =
       typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
@@ -235,7 +487,11 @@ export default {
   getSoftwareVersions: (params: ISoftwareApiParams) => {
     const { SOFTWARE_VERSIONS } = endpoints;
     const snakeCaseParams = convertParamsToSnakeCase(params);
-    const queryString = buildQueryStringFromParams(snakeCaseParams);
+    const { team_id, ...restVersionParams } = snakeCaseParams;
+    const queryString = buildQueryStringFromParams({
+      ...restVersionParams,
+      fleet_id: team_id,
+    });
     const path = `${SOFTWARE_VERSIONS}?${queryString}`;
     return sendRequest("GET", path);
   },
@@ -245,7 +501,7 @@ export default {
     teamId,
   }: IGetSoftwareVersionQueryParams) => {
     const endpoint = endpoints.SOFTWARE_VERSION(versionId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const queryString = buildQueryStringFromParams({ fleet_id: teamId });
     const path =
       typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
 
@@ -274,25 +530,43 @@ export default {
     const formData = new FormData();
     formData.append("software", data.software);
     formData.append("self_service", data.selfService.toString());
-    data.installScript && formData.append("install_script", data.installScript);
-    data.uninstallScript &&
-      formData.append("uninstall_script", data.uninstallScript);
-    data.preInstallQuery &&
-      formData.append("pre_install_query", data.preInstallQuery);
-    data.postInstallScript &&
-      formData.append("post_install_script", data.postInstallScript);
-    data.installType &&
+    // Base64 encode script fields to bypass WAF rules that block script patterns
+    data.installScript &&
       formData.append(
-        "automatic_install",
-        (data.installType === "automatic").toString()
+        "install_script",
+        encodeScriptBase64(data.installScript) || ""
       );
-    teamId && formData.append("team_id", teamId.toString());
+    data.uninstallScript &&
+      formData.append(
+        "uninstall_script",
+        encodeScriptBase64(data.uninstallScript) || ""
+      );
+    data.preInstallQuery &&
+      formData.append(
+        "pre_install_query",
+        encodeScriptBase64(data.preInstallQuery) || ""
+      );
+    data.postInstallScript &&
+      formData.append(
+        "post_install_script",
+        encodeScriptBase64(data.postInstallScript) || ""
+      );
+    data.automaticInstall &&
+      formData.append("automatic_install", data.automaticInstall.toString());
+    teamId && formData.append("fleet_id", teamId.toString());
+    if (data.categories) {
+      data.categories.forEach((category) => {
+        formData.append("categories", category);
+      });
+    }
 
     if (data.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
       let labelKey = "";
       if (data.customTarget === "labelsIncludeAny") {
         labelKey = "labels_include_any";
+      } else if (data.customTarget === "labelsIncludeAll") {
+        labelKey = "labels_include_all";
       } else {
         labelKey = "labels_exclude_any";
       }
@@ -301,10 +575,11 @@ export default {
       });
     }
 
-    return sendRequestWithProgress({
+    return sendRequestWithProgressAndHeaders({
       method: "POST",
       path: SOFTWARE_PACKAGE_ADD,
       data: formData,
+      customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
       onUploadProgress,
@@ -321,8 +596,8 @@ export default {
     onUploadProgress,
     signal,
   }: {
-    data: IEditPackageFormData;
-    orignalPackage: ISoftwarePackage;
+    data: IEditPackageFormData | ISoftwareDisplayNameFormData;
+    orignalPackage?: ISoftwarePackage;
     softwareId: number;
     teamId: number;
     timeout?: number;
@@ -330,43 +605,30 @@ export default {
     signal?: AbortSignal;
   }) => {
     const { EDIT_SOFTWARE_PACKAGE } = endpoints;
-
     const formData = new FormData();
-    formData.append("team_id", teamId.toString());
-    data.software && formData.append("software", data.software);
-    formData.append("self_service", data.selfService.toString());
-    formData.append("install_script", data.installScript);
-    formData.append("pre_install_query", data.preInstallQuery || "");
-    formData.append("post_install_script", data.postInstallScript || "");
-    formData.append("uninstall_script", data.uninstallScript || "");
+    formData.append("fleet_id", teamId.toString());
 
-    // clear out labels if targetType is "All hosts"
-    if (data.targetType === "All hosts") {
-      if (orignalPackage.labels_include_any) {
-        formData.append("labels_include_any", "");
-      } else {
-        formData.append("labels_exclude_any", "");
+    if ("displayName" in data) {
+      // Handles Edit display name form only
+      handleDisplayNameForm(data, formData);
+    } else {
+      // TODO: Confirm if orignalPackage is required
+      if (!orignalPackage) {
+        throw new Error("originalPackage is required for EditPackageFormData");
       }
+      // Handles primary Edit Package form
+      handleEditPackageForm(
+        data as IEditPackageFormData,
+        formData,
+        orignalPackage
+      );
     }
 
-    // add custom labels if targetType is "Custom"
-    if (data.targetType === "Custom") {
-      const selectedLabels = listNamesFromSelectedLabels(data.labelTargets);
-      let labelKey = "";
-      if (data.customTarget === "labelsIncludeAny") {
-        labelKey = "labels_include_any";
-      } else {
-        labelKey = "labels_exclude_any";
-      }
-      selectedLabels?.forEach((label) => {
-        formData.append(labelKey, label);
-      });
-    }
-
-    return sendRequestWithProgress({
+    return sendRequestWithProgressAndHeaders({
       method: "PATCH",
       path: EDIT_SOFTWARE_PACKAGE(softwareId),
       data: formData,
+      customHeaders: { [SCRIPTS_ENCODED_HEADER]: "base64" },
       timeout,
       skipParseError: true,
       onUploadProgress,
@@ -374,12 +636,117 @@ export default {
     });
   },
 
+  addAppStoreApp: (
+    teamId: number,
+    formData: ISoftwareVppFormData | ISoftwareAndroidFormData
+  ) => {
+    if ("platform" in formData) {
+      // Android form data
+      return handleAndroidForm(teamId, formData as ISoftwareAndroidFormData);
+    }
+
+    // Apple VPP form data
+    return handleVppAppForm(teamId, formData as ISoftwareVppFormData);
+  },
+
+  editAppStoreApp: (
+    softwareId: number,
+    teamId: number,
+    formData:
+      | ISoftwareVppFormData
+      | ISoftwareAndroidFormData
+      | ISoftwareDisplayNameFormData
+      | ISoftwareConfigurationFormData
+      | ISoftwareAutoUpdateConfigFormData
+  ) => {
+    const { EDIT_SOFTWARE_APP_STORE_APP } = endpoints;
+
+    const body: IEditAppStoreAppPostBody = { fleet_id: teamId };
+
+    if ("displayName" in formData) {
+      // Handles Edit display name form only
+      handleDisplayNameAppStoreAppForm(
+        formData as ISoftwareDisplayNameFormData,
+        body
+      );
+    } else if ("configuration" in formData) {
+      // Handles Edit configuration form only
+      handleConfigurationAppStoreAppForm(
+        formData as ISoftwareConfigurationFormData,
+        body
+      );
+    } else if ("autoUpdateEnabled" in formData) {
+      // Handles Edit auto update configuration form only
+      handleAutoUpdateConfigAppStoreAppForm(
+        formData as ISoftwareAutoUpdateConfigFormData,
+        body
+      );
+    } else {
+      // Handles primary Edit AppStoreApp form
+      // 4.77 Currently, only VPP apps can be edited, not Google Play apps
+      handleEditAppStoreAppForm(formData as IEditPackageFormData, body);
+    }
+
+    return sendRequest("PATCH", EDIT_SOFTWARE_APP_STORE_APP(softwareId), body);
+  },
+
+  getSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      fleet_id: teamId,
+    });
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true
+    ); // returnRaw is true to get headers
+  },
+
+  // This API call is for both:
+  // "/api/v1/fleet/software/titles/{softwareId}/icon?fleet_id={teamId}"
+  // "/api/v1/fleet/device/{deviceToken}/software/titles/{softwareId}/icon"
+  getSoftwareIconFromApiUrl: (apiUrl: string) => {
+    // sendRequest prepends "/api" to the path, so we need to remove it
+    // if it's already included in the apiUrl param
+    const result = apiUrl.replace(/^\/api/, "");
+
+    return sendRequest("GET", result, undefined, "blob");
+  },
+
+  deleteSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      fleet_id: teamId,
+    });
+    return sendRequest("DELETE", path);
+  },
+
+  editSoftwareIcon: (
+    softwareId: number,
+    teamId: number,
+    fileObject: { icon: File }
+  ) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      fleet_id: teamId,
+    });
+
+    const formData = new FormData();
+    formData.append("icon", fileObject.icon);
+
+    return sendRequest("PUT", path, formData);
+  },
+
   // Endpoint for deleting packages or VPP
   deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
     const path = `${SOFTWARE_AVAILABLE_FOR_INSTALL(
       softwareId
-    )}?team_id=${teamId}`;
+    )}?fleet_id=${teamId}`;
     return sendRequest("DELETE", path);
   },
 
@@ -389,7 +756,7 @@ export default {
   ): Promise<ISoftwareInstallTokenResponse> => {
     const path = `${endpoints.SOFTWARE_PACKAGE_TOKEN(
       softwareTitleId
-    )}?${buildQueryStringFromParams({ alt: "media", team_id: teamId })}`;
+    )}?${buildQueryStringFromParams({ alt: "media", fleet_id: teamId })}`;
 
     return sendRequest("POST", path);
   },
@@ -404,14 +771,20 @@ export default {
     params: ISoftwareFleetMaintainedAppsQueryParams
   ): Promise<ISoftwareFleetMaintainedAppsResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
-    const queryStr = buildQueryStringFromParams(params);
+    const { team_id, ...rest } = params;
+    const queryStr = buildQueryStringFromParams({ ...rest, fleet_id: team_id });
     const path = `${SOFTWARE_FLEET_MAINTAINED_APPS}?${queryStr}`;
     return sendRequest("GET", path);
   },
 
-  getFleetMaintainedApp: (id: number): Promise<IFleetMaintainedAppResponse> => {
+  getFleetMaintainedApp: (
+    id: number,
+    teamId?: string
+  ): Promise<IFleetMaintainedAppResponse> => {
     const { SOFTWARE_FLEET_MAINTAINED_APP } = endpoints;
-    const path = `${SOFTWARE_FLEET_MAINTAINED_APP(id)}`;
+    const path = getPathWithQueryParams(SOFTWARE_FLEET_MAINTAINED_APP(id), {
+      fleet_id: teamId,
+    });
     return sendRequest("GET", path);
   },
 
@@ -421,25 +794,37 @@ export default {
   ) => {
     const { SOFTWARE_FLEET_MAINTAINED_APPS } = endpoints;
 
+    // Base64 encode script fields to bypass WAF rules that block script patterns
     const body: IAddFleetMaintainedAppPostBody = {
-      team_id: teamId,
+      fleet_id: teamId,
       fleet_maintained_app_id: formData.appId,
-      pre_install_query: formData.preInstallQuery,
-      install_script: formData.installScript,
-      post_install_script: formData.postInstallScript,
-      uninstall_script: formData.uninstallScript,
+      pre_install_query: encodeScriptBase64(formData.preInstallQuery),
+      install_script: encodeScriptBase64(formData.installScript),
+      post_install_script: encodeScriptBase64(formData.postInstallScript),
+      uninstall_script: encodeScriptBase64(formData.uninstallScript),
       self_service: formData.selfService,
+      automatic_install: formData.automaticInstall,
+      categories: formData.categories,
     };
 
     if (formData.targetType === "Custom") {
       const selectedLabels = listNamesFromSelectedLabels(formData.labelTargets);
       if (formData.customTarget === "labelsIncludeAny") {
         body.labels_include_any = selectedLabels;
+      } else if (formData.customTarget === "labelsIncludeAll") {
+        body.labels_include_all = selectedLabels;
       } else {
         body.labels_exclude_any = selectedLabels;
       }
     }
 
-    return sendRequest("POST", SOFTWARE_FLEET_MAINTAINED_APPS, body);
+    return sendRequestWithHeaders(
+      "POST",
+      SOFTWARE_FLEET_MAINTAINED_APPS,
+      body,
+      {
+        [SCRIPTS_ENCODED_HEADER]: "base64",
+      }
+    );
   },
 };

@@ -11,10 +11,12 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   replicas: {{ .Values.replicas }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   selector:
     matchLabels:
       app: fleet
       chart: fleet
+      component: fleet-server
       heritage: {{ .Release.Service }}
       release: {{ .Release.Name }}
   template:
@@ -26,9 +28,47 @@ spec:
       labels:
         app: fleet
         chart: fleet
+        component: fleet-server
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
     spec:
+      initContainers:
+      {{- if include "fleet.additionalCAs.enabled" . }}
+      - name: install-trusted-cas
+        image: "{{ .Values.imageRepository }}:{{ .Values.imageTag }}"
+        securityContext:
+          runAsUser: 0
+          runAsNonRoot: false
+          allowPrivilegeEscalation: false
+        command:
+          - sh
+          - -c
+          - |
+            set -e
+            apk add ca-certificates
+            echo "Installing trusted CA certificates..."
+
+            for dir in /custom-ca/*; do
+              if [ -d "$dir" ]; then
+                cp "$dir"/*.crt /usr/local/share/ca-certificates/
+              fi
+            done
+
+            update-ca-certificates
+        volumeMounts:
+      {{- range .Values.fleet.additionalCAs.configMaps }}
+          - name: ca-configmap-{{ .name }}
+            mountPath: /custom-ca/configmap-{{ .name }}
+            readOnly: true
+      {{- end }}
+      {{- range .Values.fleet.additionalCAs.secrets }}
+          - name: ca-secret-{{ .name }}
+            mountPath: /custom-ca/secret-{{ .name }}
+            readOnly: true
+      {{- end }}
+          - name: ca-certs
+            mountPath: /etc/ssl/certs
+      {{- end }}
       containers:
       - name: fleet
         command: [/usr/bin/fleet]
@@ -68,6 +108,18 @@ spec:
             value: "{{ .Values.fleet.logging.json }}"
           - name: FLEET_LOGGING_DISABLE_BANNER
             value: "{{ .Values.fleet.logging.disableBanner }}"
+          {{- if ne .Values.fleet.mdm.windows.wstepIdentityCertKey "" }}
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityCertKey }}"
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityKeyKey }}"
+          {{- end }}
           - name: FLEET_SERVER_TLS
             value: "{{ .Values.fleet.tls.enabled }}"
           {{- if .Values.fleet.tls.enabled }}
@@ -78,11 +130,18 @@ spec:
           - name: FLEET_SERVER_KEY
             value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
           {{- end }}
+          ### Carving S3 Configuration
           {{- if ne .Values.fleet.carving.s3.bucketName "" }}
           - name: FLEET_S3_BUCKET
             value: "{{ .Values.fleet.carving.s3.bucketName }}"
           - name: FLEET_S3_PREFIX
             value: "{{ .Values.fleet.carving.s3.prefix }}"
+          - name: FLEET_S3_ENDPOINT_URL
+            value: "{{ .Values.fleet.carving.s3.endpointURL }}"
+          - name: FLEET_S3_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.carving.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_CARVES_REGION
+            value: "{{ .Values.fleet.carving.s3.region }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
           - name: FLEET_S3_ACCESS_KEY_ID
             value: "{{ .Values.fleet.carving.s3.accessKeyID }}"
@@ -94,6 +153,31 @@ spec:
           {{ else }}
           - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
+          {{- end }}
+          {{- end }}
+          ### Software Installers S3 Configuration
+          {{- if ne .Values.fleet.softwareInstallers.s3.bucketName "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_BUCKET
+            value: "{{ .Values.fleet.softwareInstallers.s3.bucketName }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_PREFIX
+            value: "{{ .Values.fleet.softwareInstallers.s3.prefix }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL
+            value: "{{ .Values.fleet.softwareInstallers.s3.endpointURL }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.softwareInstallers.s3.forceS3PathStyle }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_REGION
+            value: "{{ .Values.fleet.softwareInstallers.s3.region }}"
+          {{- if ne .Values.fleet.softwareInstallers.s3.accessKeyID "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID
+            value: "{{ .Values.fleet.softwareInstallers.s3.accessKeyID }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.softwareInstallers.s3.secretKey }}"
+          {{- else }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN
+            value: "{{ .Values.fleet.softwareInstallers.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
           {{- if .Values.fleet.license.secretName }}
@@ -141,6 +225,67 @@ spec:
             value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
+          ## BEGIN MYSQL READ REPLICA SECTION
+          {{- if .Values.database_read_replica }}
+          {{- if .Values.database_read_replica.address }}
+          - name: FLEET_MYSQL_READ_REPLICA_ADDRESS
+            value: "{{ .Values.database_read_replica.address }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.database }}
+          - name: FLEET_MYSQL_READ_REPLICA_DATABASE
+            value: "{{ .Values.database_read_replica.database }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.username }}
+          - name: FLEET_MYSQL_READ_REPLICA_USERNAME
+            value: "{{ .Values.database_read_replica.username }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.passwordPath }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD_PATH
+            value: "{{ .Values.database_read_replica.passwordPath }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.secretName }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.database_read_replica.secretName }}
+                key: {{ .Values.database_read_replica.passwordKey }}
+          {{- end }}
+          {{- if .Values.database_read_replica.maxOpenConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS
+            value: "{{ .Values.database_read_replica.maxOpenConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.maxIdleConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_IDLE_CONNS
+            value: "{{ .Values.database_read_replica.maxIdleConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.connMaxLifetime }}
+          - name: FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME
+            value: "{{ .Values.database_read_replica.connMaxLifetime }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.enabled }}
+          {{- if .Values.database_read_replica.tls.caCertKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CA
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.caCertKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.certKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CERT
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.certKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.keyKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_KEY
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.keyKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.config }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CONFIG
+            value: "{{ .Values.database_read_replica.tls.config }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.serverName }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_SERVER_NAME
+            value: "{{ .Values.database_read_replica.tls.serverName }}"
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          ## END MYSQL READ REPLICA SECTION
           ## BEGIN REDIS SECTION
           - name: FLEET_REDIS_ADDRESS
             value: "{{ .Values.cache.address }}"
@@ -269,6 +414,16 @@ spec:
             value: "{{ .Values.osquery.logging.pubsub.resultTopic }}"
           {{- end }}
           ## END OSQUERY SECTION
+
+          ## BEGIN VULNERABILITY PROCESSING
+          # Disable vulnerability processing in the main deployment when the
+          # dedicated cron is setup to reduce total cpu/memory utilization
+          {{- if .Values.vulnProcessing.dedicated }}
+          - name: FLEET_VULNERABILITIES_DISABLE_SCHEDULE
+            value: "true"
+          {{- end }}
+          ## END Vulnerability Processing
+
           ## APPEND ENVIRONMENT VARIABLES FROM VALUES
           {{- range $key, $value := .Values.environments }}
           - name: {{ $key }}
@@ -293,10 +448,20 @@ spec:
           capabilities:
             drop: [ALL]
           privileged: false
+          {{- if hasKey .Values.fleet.securityContext "readOnlyRootFilesystem" }}
+          readOnlyRootFilesystem: {{ .Values.fleet.securityContext.readOnlyRootFilesystem }}
+          {{- else }}
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
-          runAsNonRoot: true
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsGroup }}
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -311,10 +476,10 @@ spec:
             {{- if .Values.fleet.tls.enabled }}
             scheme: HTTPS
             {{- end }}
-        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           - name: tmp
             mountPath: /tmp
+        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
           {{- if .Values.fleet.tls.enabled }}
           - name: fleet-tls
             readOnly: true
@@ -328,6 +493,10 @@ spec:
           {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
           - name: osquery-logs
             mountPath: /logs
+          {{- end }}
+          {{- if include "fleet.additionalCAs.enabled" . }}
+          - name: ca-certs
+            mountPath: /etc/ssl/certs
           {{- end }}
           {{- with .Values.fleet.extraVolumeMounts }}
           {{- toYaml . | nindent 10 }}
@@ -353,18 +522,28 @@ spec:
             drop: [ALL]
           privileged: false
           readOnlyRootFilesystem: true
-          runAsGroup: 3333
-          runAsUser: 3333
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsGroup }}
+          runAsGroup: {{ int64 .Values.fleet.securityContext.runAsGroup }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsUser }}
+          runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
+          {{- end }}
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
       {{- end }}
       hostPID: false
       hostNetwork: false
       hostIPC: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8}}
+      {{- end }}
       serviceAccountName: fleet
-      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         - name: tmp
           emptyDir:
+      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") (include "fleet.additionalCAs.enabled" .) }}
         {{- if .Values.fleet.tls.enabled }}
         - name: fleet-tls
           secret:
@@ -386,6 +565,20 @@ spec:
         {{- end }}
         {{- with .Values.fleet.extraVolumes }}
         {{- toYaml . | nindent 8 }}
+        {{- end }}
+        {{- if include "fleet.additionalCAs.enabled" . }}
+        {{- range .Values.fleet.additionalCAs.configMaps }}
+        - name: ca-configmap-{{ .name }}
+          configMap:
+            name: {{ .name }}
+        {{- end }}
+        {{- range .Values.fleet.additionalCAs.secrets }}
+        - name: ca-secret-{{ .name }}
+          secret:
+            secretName: {{ .name }}
+        {{- end }}
+        - name: ca-certs
+          emptyDir: {}
         {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}

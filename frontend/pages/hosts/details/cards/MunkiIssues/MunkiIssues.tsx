@@ -3,8 +3,9 @@ import React from "react";
 import { IMunkiIssue } from "interfaces/host";
 
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 
 import { munkiIssuesTableHeaders } from "./MunkiIssuesTableConfig";
 
@@ -25,14 +26,8 @@ const MunkiIssuesTable = ({
   const tableHeaders = munkiIssuesTableHeaders;
 
   return (
-    <Card
-      className={`${baseClass} card`}
-      borderRadiusSize="xxlarge"
-      includeShadow
-      largePadding
-    >
-      <p className="card__header">Munki issues</p>
-
+    <Card className={baseClass} borderRadiusSize="xxlarge" paddingSize="xlarge">
+      <CardHeader header="Munki issues" />
       {munkiIssues?.length ? (
         <div className={deviceType || ""}>
           <TableContainer
@@ -43,7 +38,7 @@ const MunkiIssuesTable = ({
             defaultSortDirection="asc"
             resultsTitle="issue"
             emptyComponent={() => (
-              <EmptyTable
+              <EmptyState
                 header="No Munki issues detected"
                 info="The last time Munki ran on this host, no issues were reported."
               />
@@ -54,7 +49,7 @@ const MunkiIssuesTable = ({
           />
         </div>
       ) : (
-        <EmptyTable
+        <EmptyState
           header="No Munki issues detected"
           info="The last time Munki ran on this host, no issues were reported."
         />

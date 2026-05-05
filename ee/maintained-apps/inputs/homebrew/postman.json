@@ -1,0 +1,8 @@
+{
+  "name": "Postman",
+  "slug": "postman/darwin",
+  "unique_identifier": "com.postmanlabs.mac",
+  "token": "postman",
+  "installer_format": "zip",
+  "default_categories": ["Developer tools"]
+}

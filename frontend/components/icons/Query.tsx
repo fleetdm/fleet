@@ -6,7 +6,7 @@ interface IQuery {
   color?: Colors;
   size?: IconSizes;
 }
-const Query = ({ color = "core-fleet-blue", size = "medium" }: IQuery) => {
+const Query = ({ color = "ui-fleet-black-75", size = "medium" }: IQuery) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

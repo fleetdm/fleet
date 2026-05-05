@@ -2,11 +2,12 @@
 package logging
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 )
 
 type FilesystemConfig struct {
@@ -17,6 +18,10 @@ type FilesystemConfig struct {
 	MaxSize              int
 	MaxAge               int
 	MaxBackups           int
+}
+
+type WebhookConfig struct {
+	URL string
 }
 
 type FirehoseConfig struct {
@@ -66,28 +71,45 @@ type KafkaRESTConfig struct {
 	Timeout          int
 }
 
+type NatsConfig struct {
+	Server  string
+	Subject string
+
+	CredFile string
+	NKeyFile string
+
+	TLSClientCertFile string
+	TLSClientKeyFile  string
+	CACertFile        string
+
+	Compression string
+	JetStream   bool
+
+	Timeout time.Duration
+}
+
 type Config struct {
 	Plugin string
 
 	Filesystem FilesystemConfig
+	Webhook    WebhookConfig
 	Firehose   FirehoseConfig
 	Kinesis    KinesisConfig
 	Lambda     LambdaConfig
 	PubSub     PubSubConfig
 	KafkaREST  KafkaRESTConfig
+	Nats       NatsConfig
 }
 
-func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLogger, error) {
+func NewJSONLogger(ctx context.Context, name string, config Config, logger *slog.Logger) (fleet.JSONLogger, error) {
 	switch config.Plugin {
 	case "":
 		// Allow "" to mean filesystem for backwards compatibility
-		level.Info(logger).Log(
-			"msg",
-			fmt.Sprintf("plugin for %s not explicitly specified. Assuming 'filesystem'", name),
-		)
+		logger.InfoContext(ctx, fmt.Sprintf("plugin for %s not explicitly specified. Assuming 'filesystem'", name))
 		fallthrough
 	case "filesystem":
 		writer, err := NewFilesystemLogWriter(
+			ctx,
 			config.Filesystem.LogFile,
 			logger,
 			config.Filesystem.EnableLogRotation,
@@ -98,6 +120,12 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		)
 		if err != nil {
 			return nil, fmt.Errorf("create filesystem %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "webhook":
+		writer, err := NewWebhookLogWriter(config.Webhook.URL, logger)
+		if err != nil {
+			return nil, fmt.Errorf("create webhook %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	case "firehose":
@@ -146,6 +174,7 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		return fleet.JSONLogger(writer), nil
 	case "pubsub":
 		writer, err := NewPubSubLogWriter(
+			ctx,
 			config.PubSub.Project,
 			config.PubSub.Topic,
 			config.PubSub.AddAttributes,
@@ -170,6 +199,25 @@ func NewJSONLogger(name string, config Config, logger log.Logger) (fleet.JSONLog
 		})
 		if err != nil {
 			return nil, fmt.Errorf("create kafka rest %s logger: %w", name, err)
+		}
+		return fleet.JSONLogger(writer), nil
+	case "nats":
+		writer, err := NewNatsLogWriter(
+			ctx,
+			config.Nats.Server,
+			config.Nats.Subject,
+			config.Nats.CredFile,
+			config.Nats.NKeyFile,
+			config.Nats.TLSClientCertFile,
+			config.Nats.TLSClientKeyFile,
+			config.Nats.CACertFile,
+			config.Nats.Compression,
+			config.Nats.JetStream,
+			config.Nats.Timeout,
+			logger,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("create nats %s logger: %w", name, err)
 		}
 		return fleet.JSONLogger(writer), nil
 	default:
