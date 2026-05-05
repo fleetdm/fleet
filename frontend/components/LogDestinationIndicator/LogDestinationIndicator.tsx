@@ -40,6 +40,8 @@ const LogDestinationIndicator = ({
         return "Amazon Kinesis Data Streams";
       case "lambda":
         return "AWS Lambda";
+      case "cloudrun_service":
+        return "Google Cloud Run";
       case "pubsub":
         return "Google Cloud Pub/Sub";
       case "kafka":
@@ -86,6 +88,13 @@ const LogDestinationIndicator = ({
           <>
             Each time a report runs, the data <br />
             is sent to AWS Lambda.
+          </>
+        );
+      case "cloudrun_service":
+        return (
+          <>
+            Each time a report runs, the data <br />
+            is sent to Google Cloud Run.
           </>
         );
       case "pubsub":

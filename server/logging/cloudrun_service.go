@@ -89,6 +89,7 @@ func (w *cloudRunServiceLogWriter) Write(ctx context.Context, logs []json.RawMes
 			)
 			return fmt.Errorf("cloudrun_service POST to %s returned status %d", platformhttp.MaskSecretURLParams(w.url), resp.StatusCode)
 		}
+		_, _ = io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 	}
 
