@@ -32,28 +32,10 @@
     overflow: hidden;
   }
 
-  &__breadcrumb {
-    display: flex;
-    align-items: center;
-    padding: $pad-small $pad-medium 0;
-  }
-
-  &__breadcrumb-back {
-    display: inline-flex;
-    align-items: center;
-    padding: $pad-xsmall $pad-small;
-    font-size: $xx-small;
-    font-weight: $bold;
-    color: $ui-fleet-black-50;
-    background-color: $ui-fleet-black-5;
-    border: none;
-    border-radius: $border-radius;
-    cursor: pointer;
-
-    &:hover {
-      background-color: $ui-fleet-black-10;
-      color: $core-fleet-black;
-    }
+  &__back-button {
+    flex-shrink: 0;
+    margin-right: $pad-small;
+    white-space: nowrap;
   }
 
   &__input-wrapper {
@@ -80,7 +62,7 @@
     width: 100%;
     box-sizing: border-box;
     height: 44px;
-    padding: $pad-small $pad-medium $pad-small 36px;
+    padding: $pad-small $pad-medium $pad-small $pad-xxlarge;
     font-size: $x-small;
     color: $core-fleet-black;
     background-color: $core-fleet-white;

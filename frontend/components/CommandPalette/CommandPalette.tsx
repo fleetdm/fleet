@@ -11,6 +11,7 @@ import { browserHistory } from "react-router";
 import { AppContext } from "context/app";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
+import Button from "components/buttons/Button";
 import { toggleDarkMode } from "utilities/theme";
 import paths from "router/paths";
 
@@ -435,17 +436,6 @@ const CommandPalette = (): JSX.Element | null => {
         return 0;
       }}
     >
-      {page !== "root" && (
-        <div className={`${baseClass}__breadcrumb`}>
-          <button
-            type="button"
-            className={`${baseClass}__breadcrumb-back`}
-            onClick={goBack}
-          >
-            Switch fleet
-          </button>
-        </div>
-      )}
       <div className={`${baseClass}__input-wrapper`}>
         <Icon
           name="search"
@@ -464,6 +454,17 @@ const CommandPalette = (): JSX.Element | null => {
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
         />
+        {page !== "root" && (
+          <Button
+            variant="inverse"
+            size="small"
+            className={`${baseClass}__back-button`}
+            onClick={goBack}
+          >
+            <Icon name="chevron-left" color="ui-fleet-black-50" />
+            <span>Back</span>
+          </Button>
+        )}
       </div>
       <Command.List className={`${baseClass}__list`}>
         <Command.Empty className={`${baseClass}__empty`}>
