@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -323,18 +324,50 @@ func (ds *Datastore) ListHostReports(
 		whereClause += " AND q.discard_data = 0 AND q.logging_type = 'snapshot'"
 	}
 
-	// Filter by label membership: include queries that have no labels, or whose
-	// labels overlap with the labels the host belongs to.
+	// labels_include_all is a premium-only feature. On free tier, hide any
+	// query that has include_all labels (require_all=1) from the reports
+	// list, even if such rows pre-exist (e.g. after a tier downgrade).
+	// Mirrors the server-side write gate so include_all data never surfaces
+	// via the reports API on free tier.
+	if !license.IsPremium(ctx) {
+		whereClause += `
+		AND NOT EXISTS (
+			SELECT 1 FROM query_labels ql
+			WHERE ql.query_id = q.id AND ql.require_all = 1
+		)`
+	}
+
+	// Filter by label membership. Two scopes coexist on query_labels via
+	// require_all:
+	//   include_any (require_all=0): host must be in at least ONE of the labels
+	//   include_all (require_all=1): host must be in EVERY one of the labels
 	whereClause += `
-		AND (NOT EXISTS (
-			SELECT 1 FROM query_labels ql WHERE ql.query_id = q.id
-		) OR EXISTS (
-			SELECT 1
-			FROM query_labels ql
-			JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
-			WHERE ql.query_id = q.id
-		))`
-	whereArgs = append(whereArgs, hostID)
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+			OR EXISTS (
+				SELECT 1 FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 0
+			)
+		)
+		AND (
+			NOT EXISTS (
+				SELECT 1 FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+			OR (
+				SELECT COUNT(*) FROM query_labels ql
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			) = (
+				SELECT COUNT(*) FROM query_labels ql
+				JOIN label_membership lm ON lm.label_id = ql.label_id AND lm.host_id = ?
+				WHERE ql.query_id = q.id AND ql.require_all = 1
+			)
+		)`
+	whereArgs = append(whereArgs, hostID, hostID)
 
 	// Filter by platform: include queries with no platform restriction, or
 	// whose platform list contains the host's normalized platform.

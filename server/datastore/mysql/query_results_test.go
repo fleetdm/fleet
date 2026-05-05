@@ -1238,6 +1238,57 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		assert.Contains(t, names, qSave1.Name, "unlabeled query must always be visible")
 	})
 
+	t.Run("label_filtering_include_all", func(t *testing.T) {
+		labelA, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-A", Query: "SELECT 1"})
+		require.NoError(t, err)
+		labelB, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-all-B", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		qIncludeAll, err := ds.NewQuery(ctx, &fleet.Query{
+			Name:     "Include All Query",
+			Query:    "SELECT 1",
+			AuthorID: &user.ID,
+			Saved:    true,
+			Logging:  fleet.LoggingSnapshot,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: labelA.Name},
+				{LabelName: labelB.Name},
+			},
+		})
+		require.NoError(t, err)
+
+		newHost := func(name string) *fleet.Host {
+			return test.NewHost(t, ds, name, "10.0.0.1", "k-"+name, "u-"+name, time.Now())
+		}
+		hostNone := newHost("include-all-host-none")
+		hostOnlyA := newHost("include-all-host-onlyA")
+		hostBoth := newHost("include-all-host-both")
+
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+		require.NoError(t, ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+		opts := fleet.ListHostReportsOptions{
+			IncludeReportsDontStoreResults: true,
+			ListOptions:                    fleet.ListOptions{OrderKey: "name"},
+		}
+
+		hasReport := func(hostID uint) bool {
+			t.Helper()
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", opts, fleet.DefaultMaxQueryReportRows)
+			require.NoError(t, err)
+			for _, r := range reports {
+				if r.Name == qIncludeAll.Name {
+					return true
+				}
+			}
+			return false
+		}
+
+		assert.False(t, hasReport(hostNone.ID), "host with NO required labels must not see include_all query")
+		assert.False(t, hasReport(hostOnlyA.ID), "host with SUBSET of required labels must not see include_all query")
+		assert.True(t, hasReport(hostBoth.ID), "host with ALL required labels must see include_all query")
+	})
+
 	t.Run("combined_platform_label_team_filters", func(t *testing.T) {
 		// This test verifies that all three filters (platform, label, team) are
 		// applied simultaneously and are each independently capable of excluding

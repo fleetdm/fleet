@@ -29749,6 +29749,74 @@ func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 }
 
+// TestListHostReportsIncludeAllPremium verifies that on premium tier the
+// /hosts/:id/reports endpoint surfaces include_all queries only to hosts that
+// are members of every required label. The free-tier counterpart
+// (TestListHostReports/free_tier_hides_include_all_reports) asserts that the
+// same data is hidden entirely on free tier.
+func (s *integrationEnterpriseTestSuite) TestListHostReportsIncludeAllPremium() {
+	t := s.T()
+	ctx := t.Context()
+
+	labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-A", Query: "SELECT 1"})
+	require.NoError(t, err)
+	labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-B", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	admin := s.users[TestAdminUserEmail]
+	qIncludeAll, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_include_all",
+		Query:       "SELECT 1",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		LabelsIncludeAll: []fleet.LabelIdent{
+			{LabelName: labelA.Name},
+			{LabelName: labelB.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	mkHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(t.Name() + suffix),
+			NodeKey:         ptr.String(t.Name() + suffix),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + "-" + suffix + ".local",
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostNone := mkHost("none")
+	hostOnlyA := mkHost("onlyA")
+	hostBoth := mkHost("both")
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+	hasIncludeAllReport := func(hostID uint) bool {
+		t.Helper()
+		var resp listHostReportsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", hostID), nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true")
+		for _, r := range resp.Reports {
+			if r.ReportID == qIncludeAll.ID {
+				return true
+			}
+		}
+		return false
+	}
+
+	require.False(t, hasIncludeAllReport(hostNone.ID), "host with no labels must not see include_all query")
+	require.False(t, hasIncludeAllReport(hostOnlyA.ID), "host with subset of labels must not see include_all query")
+	require.True(t, hasIncludeAllReport(hostBoth.ID), "host with all labels must see include_all query on premium")
+}
+
 func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() {
 	t := s.T()
 	ctx := context.Background()
