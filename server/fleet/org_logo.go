@@ -124,10 +124,6 @@ func ValidateOrgLogoBytes(b []byte) error {
 	return &BadRequestError{Message: "logo must be a PNG, JPEG, WebP, or SVG file"}
 }
 
-// isSafeSVGURL allowlists the URL forms that can appear in href/src
-// attributes. Allowlist is intentional: a blocklist of script-bearing
-// schemes (javascript:, vbscript:, livescript:, mocha:, …) keeps growing
-// and is what CodeQL flags as incomplete.
 func isSafeSVGURL(raw string) bool {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || strings.HasPrefix(raw, "#") {

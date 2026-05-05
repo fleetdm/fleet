@@ -72,10 +72,6 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 
 	t.Run("href/src URL schemes", func(t *testing.T) {
 		// Allowlist: only fragment, relative, or http(s) are safe.
-		// Blocklist would have to chase javascript: + vbscript: +
-		// livescript: + mocha: + data: + file: + every future scheme,
-		// which is what CodeQL's "incomplete URL scheme check"
-		// warning is about.
 		cases := []struct {
 			name string
 			href string
@@ -124,9 +120,6 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 	})
 
 	t.Run("rejects non-svg root that still tripped the sniffer", func(t *testing.T) {
-		// looksLikeSVG just searches for "<svg" anywhere in the head;
-		// a wrapper element must not let a document slip past with
-		// the sniffer satisfied but the parsed root non-svg.
 		body := `<html><body><svg/></body></html>`
 		err := ValidateOrgLogoBytes([]byte(body))
 		require.Error(t, err)
