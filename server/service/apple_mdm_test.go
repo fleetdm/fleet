@@ -6033,6 +6033,83 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionNonString(t *t
 	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
 }
 
+func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTruncation(t *testing.T) {
+	ctx := context.Background()
+	hostID := uint(99)
+	hostUUID := "IOS-HOST-UUID"
+	commandUUID := fleet.RefetchDeviceCommandUUIDPrefix + "SUPP-UUID"
+
+	// rawOSVersion longer than 150 chars with an invalid supplemental value — the
+	// fallback path must still apply the 150-char cap via buildOSVersion(rawOSVersion, "").
+	longVersion := strings.Repeat("a", 256)
+	truncated := strings.Repeat("a", 150)
+
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: slog.New(slog.DiscardHandler)}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		return &fleet.Host{ID: hostID, UUID: hostUUID}, nil
+	}
+	ds.UpdateHostFunc = func(ctx context.Context, host *fleet.Host) error {
+		require.Equal(t, "iOS "+truncated, host.OSVersion)
+		return nil
+	}
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, incomingHostID uint, gigsAvailable, percentAvailable, gigsTotal float64, gigsAll *float64) error {
+		return nil
+	}
+	ds.UpdateHostOperatingSystemFunc = func(ctx context.Context, incomingHostID uint, hostOS fleet.OperatingSystem) error {
+		require.Equal(t, truncated, hostOS.Version)
+		return nil
+	}
+	ds.RemoveHostMDMCommandFunc = func(ctx context.Context, command fleet.HostMDMCommand) error {
+		return nil
+	}
+	ds.CleanupStaleNanoRefetchCommandsFunc = func(ctx context.Context, enrollmentID string, commandUUIDPrefix string, currentCommandUUID string) error {
+		return nil
+	}
+
+	_, err := svc.CommandAndReportResults(
+		&mdm.Request{Context: ctx},
+		&mdm.CommandResults{
+			Enrollment:  mdm.Enrollment{UDID: hostUUID},
+			CommandUUID: commandUUID,
+			Raw: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>CommandUUID</key>
+        <string>REFETCH-SUPP-UUID</string>
+        <key>QueryResponses</key>
+        <dict>
+                <key>AvailableDeviceCapacity</key>
+                <real>64</real>
+                <key>DeviceCapacity</key>
+                <real>128</real>
+                <key>DeviceName</key>
+                <string>My iPhone</string>
+                <key>OSVersion</key>
+                <string>%s</string>
+                <key>SupplementalOSVersionExtra</key>
+                <string>&lt;script&gt;</string>
+                <key>ProductName</key>
+                <string>iPhone14,5</string>
+                <key>WiFiMAC</key>
+                <string>aa:bb:cc:dd:ee:ff</string>
+        </dict>
+        <key>Status</key>
+        <string>Acknowledged</string>
+        <key>UDID</key>
+        <string>IOS-HOST-UUID</string>
+</dict>
+</plist>`, longVersion)),
+		},
+	)
+	require.NoError(t, err)
+
+	require.True(t, ds.UpdateHostFuncInvoked)
+	require.True(t, ds.UpdateHostOperatingSystemFuncInvoked)
+}
+
 func TestUnmarshalAppList(t *testing.T) {
 	ctx := context.Background()
 	noApps := []byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -7408,16 +7485,16 @@ func TestBuildOSVersion(t *testing.T) {
 			expectErr:    true,
 		},
 		{
-			name:           "osVersion truncated at 255 chars",
-			osVersion:      strings.Repeat("a", 256),
+			name:           "osVersion truncated at 150 chars",
+			osVersion:      strings.Repeat("a", 151),
 			supplemental:   "",
-			expectedResult: strings.Repeat("a", 255),
+			expectedResult: strings.Repeat("a", 150),
 		},
 		{
-			name:           "combined result truncated at 255 chars",
-			osVersion:      strings.Repeat("a", 253),
+			name:           "combined result truncated at 150 chars",
+			osVersion:      strings.Repeat("a", 148),
 			supplemental:   "(a)",
-			expectedResult: strings.Repeat("a", 253) + " (", // 253 + " (a)" = 257, truncated to 255
+			expectedResult: strings.Repeat("a", 148) + " (", // 148 + " (a)" = 152, truncated to 150
 		},
 	}
 

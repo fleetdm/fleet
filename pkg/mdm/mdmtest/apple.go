@@ -1192,6 +1192,10 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 	return c.AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, "", "")
 }
 
+// AcknowledgeDeviceInformationWithExtra sends a DeviceInformation acknowledgment
+// with configurable OS version fields. If osVersion is empty it defaults to "17.5.1".
+// If supplementalOSVersionExtra is non-empty it is included as SupplementalOSVersionExtra
+// in the response, representing a Rapid Security Response suffix such as "(a)".
 func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithExtra(udid, cmdUUID, deviceName, productName, timeZone, osVersion, supplementalOSVersionExtra string) (*mdm.Command, error) {
 	if osVersion == "" {
 		osVersion = "17.5.1"

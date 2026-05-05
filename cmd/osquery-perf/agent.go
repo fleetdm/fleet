@@ -3888,6 +3888,8 @@ func main() {
 		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			model := "iPhone 14,6"
 			var osVersion, supplementalOSVersionExtra string
+			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
+			// which adds a SupplementalOSVersionExtra suffix to the OS version (e.g. "26.3.1 (a)").
 			switch tmpl.Name() {
 			case "ipad_13.18.tmpl":
 				model = "iPad 13,18"

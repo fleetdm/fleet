@@ -4479,20 +4479,27 @@ var versionPattern = regexp.MustCompile(
 	`^v?\s*(\d+(?:\.\d+)*)\s*$`,
 )
 
+// Allows alphanumeric characters, spaces, and the punctuation Apple uses in RSR suffixes (e.g. "(a)").
 var supplementalOSVersionExtraRe = regexp.MustCompile(`^[A-Za-z0-9 ()._-]+$`)
 
 // buildOSVersion combines osVersion and supplementalOSVersionExtra into a
 // single version string, validating the supplemental value before appending.
-// The result is capped at 255 characters to match the hosts.os_version column.
+// The result is capped at 150 characters to match the operating_systems.version
+// column, which is the tighter of the two columns this value is written to.
+// Callers that prepend a platform prefix (e.g. "iOS ") must still truncate the
+// final combined string to fit their own column limit.
 func buildOSVersion(osVersion, supplementalOSVersionExtra string) (string, error) {
 	if supplementalOSVersionExtra != "" {
-		if len(supplementalOSVersionExtra) > 32 || !supplementalOSVersionExtraRe.MatchString(supplementalOSVersionExtra) {
-			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: length=%d", len(supplementalOSVersionExtra))
+		if len(supplementalOSVersionExtra) > 32 {
+			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: too long (length=%d)", len(supplementalOSVersionExtra))
+		}
+		if !supplementalOSVersionExtraRe.MatchString(supplementalOSVersionExtra) {
+			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: contains disallowed characters (value=%q)", supplementalOSVersionExtra)
 		}
 		osVersion += " " + supplementalOSVersionExtra
 	}
-	if len(osVersion) > 255 {
-		osVersion = osVersion[:255]
+	if len(osVersion) > 150 {
+		osVersion = osVersion[:150]
 	}
 	return osVersion, nil
 }
@@ -5058,7 +5065,7 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	osVersion, err := buildOSVersion(rawOSVersion, supplementalExtra)
 	if err != nil {
 		svc.logger.WarnContext(ctx, "ignoring invalid SupplementalOSVersionExtra from device", "host_uuid", host.UUID, "err", err)
-		osVersion = rawOSVersion
+		osVersion, _ = buildOSVersion(rawOSVersion, "")
 	}
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
@@ -5105,31 +5112,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 		osVersionPrefix string
 		platform        string
 	)
-	if productNameOK {
-		if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
-			osVersionPrefix = "iOS"
-			platform = "ios"
-		} else { // iPad
-			osVersionPrefix = "iPadOS"
-			platform = "ipados"
-		}
-		host.HardwareModel = productName
-	} else {
-		platform = host.Platform
-		switch host.Platform {
-		case "ios":
-			osVersionPrefix = "iOS"
-		case "ipados":
-			osVersionPrefix = "iPadOS"
-		}
+	if strings.HasPrefix(productName, "iPhone") || strings.HasPrefix(productName, "iPod") {
+		osVersionPrefix = "iOS"
+		platform = "ios"
+	} else { // iPad
+		osVersionPrefix = "iPadOS"
+		platform = "ipados"
 	}
-
-	// Only update host.OSVersion when we have both the prefix (from ProductName or
-	// preserved platform) and the version string itself.
 	if osVersionOK && osVersionPrefix != "" {
 		host.OSVersion = osVersionPrefix + " " + osVersion
+		if len(host.OSVersion) > 255 {
+			host.OSVersion = host.OSVersion[:255]
+		}
 	}
-
 	host.PrimaryMac = wifiMac
 	host.DetailUpdatedAt = time.Now()
 	// iOS/iPadOS devices do not support dynamic labels at this time so we should update their LabelUpdatedAt timestamp
