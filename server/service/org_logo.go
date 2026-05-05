@@ -11,6 +11,7 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -255,6 +256,27 @@ func validateOrgLogoBytes(b []byte) error {
 	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, WebP, or SVG file"}
 }
 
+// isSafeSVGURL allowlists the URL forms that can appear in href/src
+// attributes. Allowlist is intentional: a blocklist of script-bearing
+// schemes (javascript:, vbscript:, livescript:, mocha:, …) keeps growing
+// and is what CodeQL flags as incomplete.
+func isSafeSVGURL(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.HasPrefix(raw, "#") {
+		return true
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	if u.Scheme == "" {
+		// Relative path or fragment — no scheme, no script surface.
+		return true
+	}
+	s := strings.ToLower(u.Scheme)
+	return s == "http" || s == "https"
+}
+
 // Elements that can run scripts or load foreign content. <img>-rendered
 // SVGs are script-sandboxed, but pasting the URL loads it as a document
 // — so reject structurally instead of trusting the renderer.
@@ -305,9 +327,8 @@ func validateSVG(b []byte) error {
 				}
 				// Name.Local matches both href and xlink:href.
 				if attrName == "href" || attrName == "src" {
-					val := strings.ToLower(strings.TrimSpace(attr.Value))
-					if strings.HasPrefix(val, "javascript:") || strings.HasPrefix(val, "data:") {
-						return &fleet.BadRequestError{Message: "SVG javascript: and data: URLs are not allowed"}
+					if !isSafeSVGURL(attr.Value) {
+						return &fleet.BadRequestError{Message: "SVG href/src must be a fragment, relative path, or http(s):// URL"}
 					}
 				}
 			}

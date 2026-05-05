@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -187,18 +188,41 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 		assert.Contains(t, err.Error(), "event-handler")
 	})
 
-	t.Run("rejects javascript: href", func(t *testing.T) {
-		body := `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="javascript:alert(1)"><rect width="1" height="1"/></a></svg>`
-		err := validateOrgLogoBytes([]byte(body))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "javascript:")
-	})
-
-	t.Run("rejects data: href", func(t *testing.T) {
-		body := `<svg xmlns="http://www.w3.org/2000/svg"><a href="data:text/html,&lt;script&gt;alert(1)&lt;/script&gt;"><rect width="1" height="1"/></a></svg>`
-		err := validateOrgLogoBytes([]byte(body))
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "data:")
+	t.Run("href/src URL schemes", func(t *testing.T) {
+		// Allowlist: only fragment, relative, or http(s) are safe.
+		// Blocklist would have to chase javascript: + vbscript: +
+		// livescript: + mocha: + data: + file: + every future scheme,
+		// which is what CodeQL's "incomplete URL scheme check"
+		// warning is about.
+		cases := []struct {
+			name string
+			href string
+			ok   bool
+		}{
+			{"fragment", "#defs-id", true},
+			{"relative", "./icon.png", true},
+			{"https", "https://example.com/x.png", true},
+			{"http", "http://example.com/x.png", true},
+			{"javascript", "javascript:alert(1)", false},
+			{"vbscript", "vbscript:msgbox(1)", false},
+			{"data", "data:text/html,&lt;script&gt;a()&lt;/script&gt;", false},
+			{"file", "file:///etc/passwd", false},
+			{"livescript", "livescript:alert(1)", false},
+			{"uppercase javascript", "JAVASCRIPT:alert(1)", false},
+			{"leading whitespace + javascript", "  javascript:alert(1)", false},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				body := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href=%q><rect width="1" height="1"/></a></svg>`, c.href)
+				err := validateOrgLogoBytes([]byte(body))
+				if c.ok {
+					require.NoError(t, err)
+				} else {
+					require.Error(t, err)
+					assert.Contains(t, err.Error(), "fragment")
+				}
+			})
+		}
 	})
 
 	t.Run("rejects DOCTYPE", func(t *testing.T) {
