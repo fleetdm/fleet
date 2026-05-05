@@ -81,7 +81,7 @@ const renderSoftwareDeployWarningBanner = () => (
     className={`${baseClass}__deploy-warning`}
     cta={
       <CustomLink
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-install-software`}
         text="Learn more"
         newTab
       />
