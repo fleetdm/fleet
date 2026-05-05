@@ -48,6 +48,13 @@
         order: 1;
         width: 100%;
 
+        // The TooltipWrapper around the search input is inline-flex by
+        // default, which prevents the search bar from filling the row.
+        .component__tooltip-wrapper {
+          display: flex;
+          width: 100%;
+        }
+
         .table-container__search-input {
           margin-left: 0;
 
