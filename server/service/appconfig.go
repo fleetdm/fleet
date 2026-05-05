@@ -959,6 +959,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// matters: SaveAppConfig (above) commits first; the worker that picks
 	// up these jobs will see the new config and the collection cron will
 	// already have stopped writing the disabled scope.
+	//
+	// Log-and-continue on failure, rather than skipping the rest of the updates
+	// and putting things in an inconsistent state.
 	if err := fleet.EnqueueHistoricalDataScrubs(
 		ctx,
 		svc.ds,
@@ -966,7 +969,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features.HistoricalData,
 		nil,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "enqueue historical data scrubs")
+		svc.logger.ErrorContext(ctx, "enqueue historical data scrubs after SaveAppConfig commit", "err", err)
 	}
 
 	addedEntraTenantIDs := make([]string, 0)

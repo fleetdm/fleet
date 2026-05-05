@@ -107,11 +107,6 @@ type chartScrubFleetArgs struct {
 // before commit risks a worker picking up the job before the new config is
 // visible, which would race the collection cron and re-introduce the bits
 // the scrub is meant to clear.
-//
-// Dataset names in the job payload are the public config sub-keys
-// ("uptime", "vulnerabilities") to match the activity payloads. The chart
-// service translates to internal dataset names ("uptime", "cve") via the
-// Enabled(name) mapping.
 func EnqueueHistoricalDataScrubs(
 	ctx context.Context,
 	enq HistoricalDataScrubEnqueuer,
@@ -119,12 +114,14 @@ func EnqueueHistoricalDataScrubs(
 	fleetID *uint,
 ) error {
 	changes := []struct {
-		dataset string
-		oldVal  bool
-		newVal  bool
+		// scrubDataset is the internal dataset name (matches host_scd_data.dataset
+		// and the chart-package Dataset.Name() return values).
+		scrubDataset string
+		oldVal       bool
+		newVal       bool
 	}{
 		{"uptime", oldHD.Uptime, newHD.Uptime},
-		{"vulnerabilities", oldHD.Vulnerabilities, newHD.Vulnerabilities},
+		{"cve", oldHD.Vulnerabilities, newHD.Vulnerabilities},
 	}
 	for _, c := range changes {
 		if c.oldVal == c.newVal || c.newVal /* false → true: no scrub */ {
@@ -136,16 +133,16 @@ func EnqueueHistoricalDataScrubs(
 		var err error
 		if fleetID == nil {
 			jobName = chartScrubDatasetGlobalJobName
-			argsJSON, err = json.Marshal(chartScrubGlobalArgs{Dataset: c.dataset})
+			argsJSON, err = json.Marshal(chartScrubGlobalArgs{Dataset: c.scrubDataset})
 		} else {
 			jobName = chartScrubDatasetFleetJobName
 			argsJSON, err = json.Marshal(chartScrubFleetArgs{
-				Dataset:  c.dataset,
+				Dataset:  c.scrubDataset,
 				FleetIDs: []uint{*fleetID},
 			})
 		}
 		if err != nil {
-			return fmt.Errorf("marshal scrub job args for %s: %w", c.dataset, err)
+			return fmt.Errorf("marshal scrub job args for %s: %w", c.scrubDataset, err)
 		}
 
 		raw := json.RawMessage(argsJSON)
@@ -155,7 +152,7 @@ func EnqueueHistoricalDataScrubs(
 			State: JobStateQueued,
 		}
 		if _, err := enq.NewJob(ctx, job); err != nil {
-			return fmt.Errorf("enqueue %s for %s: %w", jobName, c.dataset, err)
+			return fmt.Errorf("enqueue %s for %s: %w", jobName, c.scrubDataset, err)
 		}
 	}
 	return nil

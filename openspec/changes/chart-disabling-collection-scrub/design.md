@@ -176,6 +176,16 @@ No new datastore methods on the main Fleet datastore —
 `disabledFleetIDs` is derived from team configs that the
 orchestrator already loads.
 
+**Failure handling — fail closed.** If the orchestrator can't load
+`AppConfig` or `ListTeams` for the tick, it does NOT fall back to
+an unscoped collection. The disable feature's contract is that
+disabled scopes stop accumulating new data; a fallback to "collect
+everything" silently undoes that contract for the duration of the
+config-load outage. The tick logs the error and returns it; the cron
+will retry on its next interval (10m). An extended outage degrades
+to "no collection" rather than to "collect data the operator just
+disabled" — strictly the safer failure mode.
+
 ### 3. Per-dataset `disabledFleetIDs`, computed each cron tick
 
 Disabled-fleet membership depends on `Enabled(name)` per team, which
@@ -262,6 +272,30 @@ Considered alternatives:
   run the scrub, and then the still-stale config-aware cron
   re-introduces bits.
 
+**Failure handling — log and continue after commit.** The enqueue is
+just an `INSERT INTO jobs` against the same MySQL connection that
+just successfully committed `SaveAppConfig` / `SaveTeam`. The failure
+window is microscopic, but if it does fail, the call MUST NOT return
+an error: `SaveAppConfig` / `SaveTeam` has already committed, the
+`disabled_historical_dataset` activity has already been emitted, and
+returning an error would manufacture a "partial-success but the API
+says fail" UX. The client retries with the same payload, the diff is
+now empty, and the scrub never enqueues — strictly worse than the
+log-and-continue behavior. If a transient enqueue failure proves
+load-bearing in production, the upgrade path is a transactional
+outbox (write the job intent in the same transaction as the config
+commit). Deferred until/unless observed.
+
+Mapping public config key → internal dataset name at enqueue. The
+public `historical_data` sub-keys are `uptime` and `vulnerabilities`
+(matching the activity payloads admins see). The chart datasets are
+named `uptime` and `cve` internally — `host_scd_data.dataset` stores
+`"cve"`, not `"vulnerabilities"`. The scrub worker delegates straight
+into the chart store's `dataset = ?` clause, so the job payload MUST
+carry the internal name. `EnqueueHistoricalDataScrubs` does the
+mapping inline (`vulnerabilities → cve`); activities continue to use
+the public name.
+
 ### 6. Scrub handler: global = DELETE, fleet = ANDNOT walk
 
 Global handler (`chart_scrub_dataset_global`):
@@ -331,6 +365,16 @@ estimates; both tunable via package vars so tests can shrink them to
 exercise multi-batch paths. The 2 MB per-statement target is a soft
 ceiling well under MySQL's default 16–64 MB `max_allowed_packet`,
 chosen to keep replication binlog events small.
+
+**Reads on the primary.** Both the host-membership lookup
+(`HostIDsInFleets`) and the row-walk paging `SELECT` MUST run against
+the primary, not a replica. Both are read-then-write patterns: the
+host-id read builds the mask that drives the immediately-following
+`UPDATE`, and the paging read terminates the loop on `len(rows) == 0`.
+Replica lag in either spot silently causes the wrong outcome —
+scrubbing the wrong host set, or stopping the loop while rows still
+exist on primary that the next disable won't re-enqueue. Use
+`ctxdb.RequirePrimary(ctx, true)` for both reads.
 
 Considered: a single statement using MySQL's `BIT_AND` over BLOB —
 not portable; MySQL's bit operators don't operate on BLOB element-

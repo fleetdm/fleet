@@ -47,6 +47,23 @@ func TestEnqueueHistoricalDataScrubs_Global(t *testing.T) {
 		assert.Empty(t, enq.jobs)
 	})
 
+	t.Run("flips true→false on vulnerabilities: enqueues scrub with internal name 'cve'", func(t *testing.T) {
+		enq := &fakeJobEnqueuer{}
+		err := EnqueueHistoricalDataScrubs(t.Context(), enq,
+			HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			HistoricalDataSettings{Uptime: true, Vulnerabilities: false},
+			nil,
+		)
+		require.NoError(t, err)
+		require.Len(t, enq.jobs, 1)
+		assert.Equal(t, "chart_scrub_dataset_global", enq.jobs[0].Name)
+		var args chartScrubGlobalArgs
+		require.NoError(t, json.Unmarshal(*enq.jobs[0].Args, &args))
+		// Storage uses the internal dataset name; "vulnerabilities" would
+		// match no rows in host_scd_data.
+		assert.Equal(t, "cve", args.Dataset)
+	})
+
 	t.Run("flips true→false on uptime: enqueues global uptime scrub", func(t *testing.T) {
 		enq := &fakeJobEnqueuer{}
 		err := EnqueueHistoricalDataScrubs(t.Context(), enq,
@@ -77,7 +94,8 @@ func TestEnqueueHistoricalDataScrubs_Global(t *testing.T) {
 			require.NoError(t, json.Unmarshal(*j.Args, &a))
 			datasets = append(datasets, a.Dataset)
 		}
-		assert.ElementsMatch(t, []string{"uptime", "vulnerabilities"}, datasets)
+		// Internal dataset names — see EnqueueHistoricalDataScrubs comment.
+		assert.ElementsMatch(t, []string{"uptime", "cve"}, datasets)
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/chart"
 	"github.com/fleetdm/fleet/v4/server/chart/api"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/jmoiron/sqlx"
 )
@@ -441,6 +442,11 @@ func (ds *Datastore) DeleteAllForDataset(ctx context.Context, dataset string, ba
 // HostIDsInFleets returns host IDs whose team_id is one of the given fleet IDs.
 // Used by the per-fleet scrub worker to build a bitmap of hosts to clear from
 // existing host_scd_data rows.
+//
+// Reads from the primary: the result drives an immediately-following UPDATE
+// (ApplyScrubMaskToDataset). Replica lag could yield a stale membership set
+// — scrubbing the wrong hosts, or missing hosts that just moved into the
+// fleet — within the same job invocation.
 func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error) {
 	if len(fleetIDs) == 0 {
 		return nil, nil
@@ -451,6 +457,7 @@ func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]ui
 	}
 	query = ds.rebind(query)
 
+	ctx = ctxdb.RequirePrimary(ctx, true)
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select host IDs in fleets")
@@ -495,6 +502,12 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		id       uint
 		scrubbed []byte
 	}
+
+	// Paging select reads from the primary: the loop terminates on
+	// `len(rows) == 0`, so replica lag could end the scrub early while
+	// rows still exist on the primary, leaving disabled-scope bits behind
+	// that the next disable won't re-enqueue.
+	ctx = ctxdb.RequirePrimary(ctx, true)
 
 	var lastID uint
 	for {

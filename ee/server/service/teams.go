@@ -425,6 +425,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	// Enqueue scrub jobs for any sub-key that flipped to disabled on this
 	// team. SaveTeam (above) has already committed; the worker will see
 	// the new config when it picks up the job.
+	//
+	// Log-and-continue on failure, rather than skipping the rest of the updates
+	// and putting things in an inconsistent state.
 	if err := fleet.EnqueueHistoricalDataScrubs(
 		ctx,
 		svc.ds,
@@ -432,7 +435,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.Features.HistoricalData,
 		&team.ID,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "enqueue historical data scrubs for team")
+		svc.logger.ErrorContext(ctx, "enqueue historical data scrubs after SaveTeam commit", "err", err, "team_id", team.ID)
 	}
 
 	if macOSMinVersionUpdated {

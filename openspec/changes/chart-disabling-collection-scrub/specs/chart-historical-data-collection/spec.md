@@ -10,6 +10,13 @@ this tick. No new rows SHALL be written to `host_scd_data` for that
 dataset, and no helper queries (e.g. `FindRecentlySeenHostIDs`,
 `AffectedHostIDsByCVE`) SHALL run.
 
+If the orchestrator cannot load `AppConfig` or the team list needed
+to build the scope resolver, it SHALL fail the tick (log the error
+and return) rather than fall back to unscoped collection. Falling
+back to unscoped collection would silently undo the disable contract
+for the duration of the config-load outage. The cron retries on its
+next interval.
+
 #### Scenario: Global flag is false for a dataset
 
 - **WHEN** `appCfg.Features.HistoricalData.Vulnerabilities` is `false`
@@ -24,6 +31,16 @@ dataset, and no helper queries (e.g. `FindRecentlySeenHostIDs`,
   cron tick fires
 - **THEN** the orchestrator proceeds to mask construction and
   invokes `UptimeDataset.Collect`
+
+#### Scenario: Scope-resolution failure halts the tick
+
+- **WHEN** `AppConfig` or `ListTeams` returns an error while building
+  the scope resolver
+- **THEN** the orchestrator logs the error and returns it from the
+  tick
+- **AND** no `Collect` calls run on this tick (no datasets collected,
+  including ones that would otherwise be enabled)
+- **AND** the cron retries on its next scheduled interval
 
 ### Requirement: Cron filters per-fleet-disabled hosts via SQL push-down
 
@@ -133,6 +150,23 @@ Jobs MUST be enqueued AFTER the relevant `SaveAppConfig` /
 a scrub for a no-op flip (already-disabled stays disabled, or PATCH
 submits the same value back) and MUST NOT enqueue a scrub for a
 `false → true` flip.
+
+Enqueue failure after the config commit SHALL be logged but MUST NOT
+be returned to the API caller as an error. `SaveAppConfig` /
+`SaveTeam` has already committed and the disable activity has
+already been emitted; surfacing an enqueue error to the client would
+manufacture a partial-success-but-API-says-fail state, and a client
+retry sees an empty diff and never re-enqueues. The activity is the
+durable record that the disable happened; if the operator notices
+stale data later, re-toggling the flag re-fires the enqueue.
+
+The job-payload `dataset` field SHALL be the internal chart dataset
+name (`uptime`, `cve`), not the public config sub-key
+(`uptime`, `vulnerabilities`). The scrub worker forwards this value
+straight into the chart store's `dataset = ?` clause, which matches
+`host_scd_data.dataset`. The mapping happens at enqueue time so the
+worker payload is stable and storage-aligned. Activities continue
+to use the public sub-key.
 
 Two job types are defined:
 
@@ -257,6 +291,12 @@ The handler MUST NOT delete rows. The handler MUST NOT acquire
 table-level locks; per-row `UPDATE` statements rely on InnoDB row
 locking. The row walk runs once per dataset regardless of how many
 fleets are in `fleet_ids`.
+
+Both the host-membership lookup (step 1) and the row-paging `SELECT`
+(step 3) SHALL run against the primary database, not a replica.
+Both feed an immediately-following write whose correctness depends
+on the read result; replica lag could either scrub the wrong host
+set or terminate the loop while rows still exist on the primary.
 
 #### Scenario: Per-fleet scrub clears bits (single fleet)
 

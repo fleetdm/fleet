@@ -1570,13 +1570,13 @@ func newChartDataCollectionSchedule(
 		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
 			// Build a per-dataset scope resolver from AppConfig + team configs.
 			// Loaded fresh each tick so config changes take effect without
-			// a process restart. Failures here are logged and converted to a
-			// pass-through resolver — better to over-collect for one tick than
-			// to silently halt collection.
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
 			appCfg, err := ds.AppConfig(ctx)
 			if err != nil {
 				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
-				return chartSvc.CollectDatasets(ctx, time.Now(), nil)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
 			}
 			teams, err := ds.ListTeams(ctx,
 				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
@@ -1584,7 +1584,7 @@ func newChartDataCollectionSchedule(
 			)
 			if err != nil {
 				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
-				return chartSvc.CollectDatasets(ctx, time.Now(), nil)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
 			}
 			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
 		}),

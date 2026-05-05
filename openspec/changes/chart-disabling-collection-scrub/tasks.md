@@ -59,7 +59,7 @@ per-team) is also deferred.
 - [x] 5.5 Skip enqueue for false→true flips: handled in `EnqueueHistoricalDataScrubs`.
 - [ ] 5.6 Integration tests in `server/service/integration_*_test.go`:
   - `MYSQL_TEST=1 REDIS_TEST=1`
-  - PATCH global config with `vulnerabilities: false`, assert one `chart_scrub_dataset_global` job with payload `{"dataset":"vulnerabilities"}`.
+  - PATCH global config with `vulnerabilities: false`, assert one `chart_scrub_dataset_global` job with payload `{"dataset":"cve"}` (internal dataset name, not the public config sub-key).
   - PATCH a team disabling uptime, assert one `chart_scrub_dataset_fleet` job with `fleet_ids:[<team>]` and `dataset: "uptime"`.
   - PATCH a no-op (already-disabled): zero new jobs.
   - PATCH false→true: zero jobs.
