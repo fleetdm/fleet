@@ -6,7 +6,7 @@ Linux devices in particular were a blind spot in the institution's security prog
 
 ## At a glance
 
-* **Industry:** Higher education and medical research
+- **Industry:** Higher education and medical research
 - **Linux devices managed with Fleet:** 56
 - **Primary requirements:** Linux management, encryption visibility, and osquery integration
 - **Previous challenge:** Linux devices were difficult to manage with legacy tools
