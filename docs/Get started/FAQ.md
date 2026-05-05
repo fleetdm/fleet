@@ -127,6 +127,14 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
+## Why is my EDR flagging the fleetd agent (orbit)?
+
+EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
+
+For example, osquery v5.23.0 was released as part of the fleetd agent and included a change to prevent keychain corruption that could occur when querying the macOS `certificates` table. To safely access keychain data without risking corruption, this change performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern—creating temporary copies and then cleaning them up—can trigger EDR heuristic alerts even though the behavior is legitimate and expected.
+
+Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If your EDR product flags the orbit binary, you can safely allowlist it by binary path or hash while the false-positive classification is being addressed by the vendor.
+
 ## How can I uninstall fleetd?
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
