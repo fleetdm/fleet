@@ -14,6 +14,7 @@ import Icon from "components/Icon";
 import InfoBanner from "components/InfoBanner";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { monthDayTimeFormat } from "utilities/date_format";
+import { getErrorReason } from "interfaces/errors";
 
 const baseClass = "managed-account-modal";
 
@@ -73,9 +74,11 @@ const ManagedAccountModal = ({
       // Notify parent so it can refetch host details + activities.
       onRotate();
     } catch (e) {
+      const msg = getErrorReason(e);
       renderFlash(
         "error",
-        "Couldn’t rotate managed local account password. Please try again."
+        msg ||
+          "Couldn't send request to rotate managed local account password. Please try again."
       );
     }
     setIsRotating(false);
