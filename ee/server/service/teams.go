@@ -422,6 +422,19 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
+	// Enqueue scrub jobs for any sub-key that flipped to disabled on this
+	// team. SaveTeam (above) has already committed; the worker will see
+	// the new config when it picks up the job.
+	if err := fleet.EnqueueHistoricalDataScrubs(
+		ctx,
+		svc.ds,
+		oldHistoricalData,
+		team.Config.Features.HistoricalData,
+		&team.ID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "enqueue historical data scrubs for team")
+	}
+
 	if macOSMinVersionUpdated {
 		if err := svc.mdmAppleEditedAppleOSUpdates(ctx, &team.ID, fleet.MacOS, team.Config.MDM.MacOSUpdates); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "update DDM profile on macOS updates change")

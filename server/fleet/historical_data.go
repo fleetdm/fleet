@@ -2,7 +2,17 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 )
+
+// HistoricalDataScrubEnqueuer is the narrow interface needed by
+// EnqueueHistoricalDataScrubs. The fleet.Datastore satisfies it via NewJob,
+// the same way it does for the worker package's QueueJob helper. Defined
+// locally to avoid pulling worker-package types into the fleet package.
+type HistoricalDataScrubEnqueuer interface {
+	NewJob(ctx context.Context, j *Job) (*Job, error)
+}
 
 // HistoricalDataActivityEmitter is the narrow interface needed by
 // OnHistoricalDataChanged. Both the free service and the EE service
@@ -51,6 +61,101 @@ func OnHistoricalDataChanged(
 		}
 		if err := emitter.NewActivity(ctx, user, act); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// Worker job names mirrored here to avoid an import cycle between fleet
+// and server/worker. If these strings drift from the worker constants,
+// jobs will be enqueued under one name and never picked up. The worker
+// package's chart_scrub.go is the source of truth.
+const (
+	chartScrubDatasetGlobalJobName = "chart_scrub_dataset_global"
+	chartScrubDatasetFleetJobName  = "chart_scrub_dataset_fleet"
+)
+
+// chartScrubGlobalArgs and chartScrubFleetArgs mirror the payload structs in
+// server/worker/chart_scrub.go. Declared locally for the same import-cycle
+// reason as the job-name constants above. The JSON shape is the contract;
+// keep field names and tags in sync.
+type chartScrubGlobalArgs struct {
+	Dataset string `json:"dataset"`
+}
+
+type chartScrubFleetArgs struct {
+	Dataset  string `json:"dataset"`
+	FleetIDs []uint `json:"fleet_ids"`
+}
+
+// EnqueueHistoricalDataScrubs inserts scrub jobs into the jobs table for any
+// historical_data sub-key that flipped from true to false between oldHD and
+// newHD. Mirror of OnHistoricalDataChanged, but for the side effect of
+// removing already-collected data when an admin disables a dataset.
+//
+// fleetID semantics:
+//   - nil: a global flip. Each disabled dataset enqueues one
+//     chart_scrub_dataset_global job that will DELETE every row.
+//   - non-nil: a per-fleet flip. Each disabled dataset enqueues one
+//     chart_scrub_dataset_fleet job whose fleet_ids slice contains just
+//     this fleet ID. (Per-call coalescing across multiple teams within a
+//     single batch is a future optimization — see the
+//     chart-historical-data-collection spec.)
+//
+// CALLER ORDERING REQUIREMENT: this function MUST be called AFTER the
+// corresponding SaveAppConfig / SaveTeam commit has succeeded. Enqueuing
+// before commit risks a worker picking up the job before the new config is
+// visible, which would race the collection cron and re-introduce the bits
+// the scrub is meant to clear.
+//
+// Dataset names in the job payload are the public config sub-keys
+// ("uptime", "vulnerabilities") to match the activity payloads. The chart
+// service translates to internal dataset names ("uptime", "cve") via the
+// Enabled(name) mapping.
+func EnqueueHistoricalDataScrubs(
+	ctx context.Context,
+	enq HistoricalDataScrubEnqueuer,
+	oldHD, newHD HistoricalDataSettings,
+	fleetID *uint,
+) error {
+	changes := []struct {
+		dataset string
+		oldVal  bool
+		newVal  bool
+	}{
+		{"uptime", oldHD.Uptime, newHD.Uptime},
+		{"vulnerabilities", oldHD.Vulnerabilities, newHD.Vulnerabilities},
+	}
+	for _, c := range changes {
+		if c.oldVal == c.newVal || c.newVal /* false → true: no scrub */ {
+			continue
+		}
+
+		var jobName string
+		var argsJSON []byte
+		var err error
+		if fleetID == nil {
+			jobName = chartScrubDatasetGlobalJobName
+			argsJSON, err = json.Marshal(chartScrubGlobalArgs{Dataset: c.dataset})
+		} else {
+			jobName = chartScrubDatasetFleetJobName
+			argsJSON, err = json.Marshal(chartScrubFleetArgs{
+				Dataset:  c.dataset,
+				FleetIDs: []uint{*fleetID},
+			})
+		}
+		if err != nil {
+			return fmt.Errorf("marshal scrub job args for %s: %w", c.dataset, err)
+		}
+
+		raw := json.RawMessage(argsJSON)
+		job := &Job{
+			Name:  jobName,
+			Args:  &raw,
+			State: JobStateQueued,
+		}
+		if _, err := enq.NewJob(ctx, job); err != nil {
+			return fmt.Errorf("enqueue %s for %s: %w", jobName, c.dataset, err)
 		}
 	}
 	return nil

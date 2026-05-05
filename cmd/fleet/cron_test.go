@@ -248,3 +248,100 @@ func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 		require.Equal(t, "CVE-2024-0005", rhelVulns[host.ID][0].CVE)
 	})
 }
+
+func TestBuildChartScopeResolver(t *testing.T) {
+	historicalData := func(uptime, vulns bool) fleet.HistoricalDataSettings {
+		return fleet.HistoricalDataSettings{Uptime: uptime, Vulnerabilities: vulns}
+	}
+	makeAppCfg := func(uptime, vulns bool) *fleet.AppConfig {
+		return &fleet.AppConfig{
+			Features: fleet.Features{HistoricalData: historicalData(uptime, vulns)},
+		}
+	}
+	makeTeam := func(id uint, uptime, vulns bool) *fleet.Team {
+		return &fleet.Team{
+			ID: id,
+			Config: fleet.TeamConfig{
+				Features: fleet.Features{HistoricalData: historicalData(uptime, vulns)},
+			},
+		}
+	}
+
+	t.Run("global off → skip", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(false, true), nil, nil)
+		skip, disabled := scope("uptime")
+		require.True(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("global on, no teams → no scoping", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("global on, all teams on → empty disabled list", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{makeTeam(1, true, true), makeTeam(2, true, true)},
+			nil,
+		)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.Empty(t, disabled)
+	})
+
+	t.Run("global on, mixed teams → disabled team IDs only", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{
+				makeTeam(1, true, true),
+				makeTeam(2, false, true), // uptime disabled on team 2
+				makeTeam(3, true, true),
+				makeTeam(4, false, true), // uptime disabled on team 4
+			},
+			nil,
+		)
+		skip, disabled := scope("uptime")
+		require.False(t, skip)
+		require.ElementsMatch(t, []uint{2, 4}, disabled)
+	})
+
+	t.Run("per-dataset isolation: uptime and cve resolve independently", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, true),
+			[]*fleet.Team{
+				makeTeam(1, true, false),  // cve only on team 1
+				makeTeam(2, false, true),  // uptime only on team 2
+				makeTeam(3, true, true),
+			},
+			nil,
+		)
+		skipU, disabledU := scope("uptime")
+		require.False(t, skipU)
+		require.ElementsMatch(t, []uint{2}, disabledU)
+
+		skipC, disabledC := scope("cve")
+		require.False(t, skipC)
+		require.ElementsMatch(t, []uint{1}, disabledC)
+	})
+
+	t.Run("global cve off, teams ignored", func(t *testing.T) {
+		scope := buildChartScopeResolver(
+			makeAppCfg(true, false),
+			[]*fleet.Team{makeTeam(1, true, true)},
+			nil,
+		)
+		skip, disabled := scope("cve")
+		require.True(t, skip)
+		require.Nil(t, disabled)
+	})
+
+	t.Run("unknown dataset name falls through to no-scope", func(t *testing.T) {
+		scope := buildChartScopeResolver(makeAppCfg(true, true), nil, nil)
+		skip, disabled := scope("unknown_dataset")
+		require.False(t, skip)
+		require.Nil(t, disabled)
+	})
+}

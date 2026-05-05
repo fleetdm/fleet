@@ -65,6 +65,25 @@ func BlobAND(a, b []byte) []byte {
 	return result
 }
 
+// BlobANDNOT returns a new blob equal to a with the bits set in mask cleared.
+// Result length is len(a). If mask is shorter than a, it zero-extends — high
+// bytes of a pass through unchanged. If mask is longer than a, the excess
+// bytes of mask are ignored.
+func BlobANDNOT(a, mask []byte) []byte {
+	if len(a) == 0 {
+		return nil
+	}
+	out := make([]byte, len(a))
+	n := min(len(a), len(mask))
+	for i := 0; i < n; i++ {
+		out[i] = a[i] &^ mask[i]
+	}
+	if n < len(a) {
+		copy(out[n:], a[n:])
+	}
+	return out
+}
+
 // BlobOR returns a new blob that is the bitwise OR of a and b.
 // The result length is max(len(a), len(b)) — the shorter blob is zero-extended.
 func BlobOR(a, b []byte) []byte {

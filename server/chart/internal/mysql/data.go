@@ -401,3 +401,96 @@ func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 		}
 	}
 }
+
+// DeleteAllForDataset removes every host_scd_data row for the given dataset in
+// batches. Used by the global scrub worker. Loops until a DELETE affects zero
+// rows; the loop is naturally idempotent on retry.
+func (ds *Datastore) DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error {
+	if batchSize <= 0 {
+		batchSize = 5000
+	}
+	for {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM host_scd_data WHERE dataset = ? LIMIT ?`,
+			dataset, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete SCD rows for dataset")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "rows affected for dataset delete")
+		}
+		if n == 0 {
+			return nil
+		}
+	}
+}
+
+// HostIDsInFleets returns host IDs whose team_id is one of the given fleet IDs.
+// Used by the per-fleet scrub worker to build a bitmap of hosts to clear from
+// existing host_scd_data rows.
+func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error) {
+	if len(fleetIDs) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT id FROM hosts WHERE team_id IN (?)`, fleetIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand host-IDs-in-fleets args")
+	}
+	query = ds.rebind(query)
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host IDs in fleets")
+	}
+	return ids, nil
+}
+
+// ApplyScrubMaskToDataset pages through host_scd_data rows for the given
+// dataset in id-order, applies BlobANDNOT(host_bitmap, mask) to each, and
+// writes the result back. Each page is its own transaction; the loop bounds
+// lock duration. Idempotent: re-running with the same mask is a no-op for
+// already-scrubbed rows.
+//
+// An empty mask is a no-op (ANDNOT with empty leaves the bitmap unchanged).
+// The walk happens once for the dataset regardless of how many fleets the
+// mask was built from.
+func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
+	if batchSize <= 0 {
+		batchSize = 5000
+	}
+	if len(mask) == 0 {
+		// Nothing to clear; avoid the row walk entirely.
+		return nil
+	}
+
+	type row struct {
+		ID         uint   `db:"id"`
+		HostBitmap []byte `db:"host_bitmap"`
+	}
+
+	var lastID uint
+	for {
+		var rows []row
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
+			`SELECT id, host_bitmap FROM host_scd_data
+			 WHERE dataset = ? AND id > ?
+			 ORDER BY id LIMIT ?`,
+			dataset, lastID, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "read scrub batch")
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+
+		for _, r := range rows {
+			scrubbed := chart.BlobANDNOT(r.HostBitmap, mask)
+			if _, err := ds.writer(ctx).ExecContext(ctx,
+				`UPDATE host_scd_data SET host_bitmap = ? WHERE id = ?`,
+				scrubbed, r.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "scrub row")
+			}
+			lastID = r.ID
+		}
+	}
+}

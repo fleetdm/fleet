@@ -16,12 +16,41 @@ type Service interface {
 	// RegisterDataset registers a chart dataset.
 	RegisterDataset(ds Dataset)
 
-	// CollectDatasets runs Collect on all registered datasets for the given timestamp.
-	CollectDatasets(ctx context.Context, now time.Time) error
+	// CollectDatasets runs Collect on registered datasets for the given timestamp.
+	//
+	// scope is a per-dataset scope resolver that the orchestrator supplies to
+	// thread config-awareness through the chart bounded context without
+	// depending on Fleet types here. For each registered dataset, the service
+	// calls scope(name):
+	//
+	//   skip == true                   → service does not call Collect for this
+	//                                    dataset (e.g. global flag is off).
+	//   skip == false, disabledFleetIDs → forwarded to Collect; SQL excludes
+	//                                    those team IDs from the result set.
+	//
+	// scope == nil is equivalent to a resolver that returns (false, nil) for
+	// every name — every registered dataset runs with no fleet filter,
+	// preserving the pre-feature behavior used by tests and bootstrap.
+	CollectDatasets(ctx context.Context, now time.Time, scope CollectScopeFn) error
 
 	// CleanupData deletes chart data rows older than the specified number of days.
 	CleanupData(ctx context.Context, days int) error
+
+	// ScrubDatasetGlobal removes every collected row for the given dataset.
+	// Invoked by the chart_scrub_dataset_global worker after an admin disables
+	// the dataset globally. Idempotent — a retry on partially-completed work
+	// converges to the same end state (no rows for the dataset).
+	ScrubDatasetGlobal(ctx context.Context, dataset string) error
+
+	// ScrubDatasetFleet clears bits for every host currently in any of
+	// fleetIDs from every host_scd_data row for the dataset. Invoked by the
+	// chart_scrub_dataset_fleet worker after an admin disables the dataset
+	// for one or more fleets in a single operation. Idempotent.
+	ScrubDatasetFleet(ctx context.Context, dataset string, fleetIDs []uint) error
 }
+
+// CollectScopeFn resolves per-dataset collection scope. See Service.CollectDatasets.
+type CollectScopeFn func(datasetName string) (skip bool, disabledFleetIDs []uint)
 
 // ViewerProvider exposes authorization-relevant information about the current
 // authenticated viewer. Implementations typically read the viewer context, so
