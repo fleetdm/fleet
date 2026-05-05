@@ -86,6 +86,14 @@
     .react-select__indicators {
       padding: 0;
     }
+
+    // nowrapMenu anchors the menu to the right edge of the control, which is
+    // designed for table-filter dropdowns. Re-anchor to the left so the menu
+    // drops down under the title text rather than under the chevron.
+    .react-select__menu {
+      left: 0 !important;
+      right: auto !important;
+    }
   }
 
   &__filtered-badge {
