@@ -6799,3 +6799,144 @@ software:
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
 }
+
+func TestGitOpsQueryLabelsMutexRejection(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: lbl-b
+    description: B
+    label_membership_type: dynamic
+    query: SELECT 2
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+queries:
+  - name: bad-query
+    description: invalid mutex
+    query: SELECT 1
+    labels_include_any:
+      - lbl-a
+    labels_include_all:
+      - lbl-b
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "bad-query")
+	require.ErrorContains(t, err, "labels_include_any")
+	require.ErrorContains(t, err, "labels_include_all")
+}
+
+func TestGitOpsQueryLabelsIncludeAllUnknownLabel(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+labels:
+  - name: known-label
+    description: known
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+queries:
+  - name: refs-missing
+    description: references undefined label
+    query: SELECT 1
+    labels_include_all:
+      - does-not-exist
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing labels")
+}
+
+func TestGitOpsPolicyLabelsIncludeAllMutexRejection(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: lbl-b
+    description: B
+    label_membership_type: dynamic
+    query: SELECT 2
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: bad-policy
+    description: invalid mutex
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_include_all:
+      - lbl-a
+    labels_exclude_any:
+      - lbl-b
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "bad-policy")
+	require.ErrorContains(t, err, "labels_include_all")
+	require.ErrorContains(t, err, "labels_exclude_any")
+}

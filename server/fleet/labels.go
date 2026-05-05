@@ -298,7 +298,7 @@ type LabelIdent struct {
 }
 
 // LabelNamesToIdents wraps each label name in a bare LabelIdent (with LabelID
-// left zero). Returns nil for empty input.
+// left zero).
 func LabelNamesToIdents(names []string) []LabelIdent {
 	if len(names) == 0 {
 		return nil
@@ -306,6 +306,18 @@ func LabelNamesToIdents(names []string) []LabelIdent {
 	out := make([]LabelIdent, len(names))
 	for i, name := range names {
 		out[i] = LabelIdent{LabelName: name}
+	}
+	return out
+}
+
+// LabelIdentsToNames extracts the label names from a slice of LabelIdent.
+func LabelIdentsToNames(idents []LabelIdent) []string {
+	if len(idents) == 0 {
+		return nil
+	}
+	out := make([]string, len(idents))
+	for i, ident := range idents {
+		out[i] = ident.LabelName
 	}
 	return out
 }

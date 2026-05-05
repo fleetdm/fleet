@@ -1650,18 +1650,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		}
 		// Parse any labels.
 		if policy.LabelsIncludeAny != nil {
-			labels := make([]string, len(policy.LabelsIncludeAny))
-			for i, label := range policy.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_include_any"] = labels
+			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
+		}
+		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
 		if policy.LabelsExcludeAny != nil {
-			labels := make([]string, len(policy.LabelsExcludeAny))
-			for i, label := range policy.LabelsExcludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_exclude_any"] = labels
+			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
 		}
 		result[i] = policySpec
 	}
@@ -1723,11 +1718,10 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 
 		// Parse any labels.
 		if query.LabelsIncludeAny != nil {
-			labels := make([]string, len(query.LabelsIncludeAny))
-			for i, label := range query.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			querySpec["labels_include_any"] = labels
+			querySpec["labels_include_any"] = fleet.LabelIdentsToNames(query.LabelsIncludeAny)
+		}
+		if query.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			querySpec["labels_include_all"] = fleet.LabelIdentsToNames(query.LabelsIncludeAll)
 		}
 
 		result[i] = querySpec
