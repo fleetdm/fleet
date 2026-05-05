@@ -511,11 +511,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const onSoftwareTabChange = (index: number) => {
-    const { SOFTWARE_TITLES } = paths;
+    const { SOFTWARE_INVENTORY } = paths;
     setSoftwareNavTabIndex(index);
     setSoftwareActionUrl &&
       setSoftwareActionUrl(
-        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
+        index === 1
+          ? `${SOFTWARE_INVENTORY}?vulnerable=true`
+          : SOFTWARE_INVENTORY
       );
     setSoftwarePageIndex(0);
   };

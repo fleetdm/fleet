@@ -500,6 +500,17 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	if license.DeviceCount > 0 && config.License.EnforceHostLimit {
 		dsOpts = append(dsOpts, mysqlredis.WithEnforcedHostLimit(license.DeviceCount))
 	}
+	if config.Redis.HostCacheEnabled {
+		if config.Redis.HostCacheTTL <= 0 {
+			initFatal(
+				fmt.Errorf("redis.host_cache_ttl must be > 0 when redis.host_cache_enabled is true (got %s)", config.Redis.HostCacheTTL),
+				"validate host cache configuration",
+			)
+		}
+		dsOpts = append(dsOpts, mysqlredis.WithHostCache(config.Redis.HostCacheTTL))
+		logger.InfoContext(cmd.Context(), "host lookup redis cache enabled",
+			"component", "mysqlredis", "ttl", config.Redis.HostCacheTTL)
+	}
 	redisWrapperDS := mysqlredis.New(ds, redisPool, dsOpts...)
 	ds = redisWrapperDS
 
@@ -958,6 +969,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		initFatal(err, "initializing android service")
 	}
 
+	orgLogoStore := initOrgLogoStore(ctx, config.S3, logger)
+
 	svc, err = service.NewService(
 		ctx,
 		ds,
@@ -987,6 +1000,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		conditionalAccessMicrosoftProxy,
 		redis_key_value.New(redisPool),
 		androidSvc,
+		orgLogoStore,
 	)
 	if err != nil {
 		initFatal(err, "initializing service")
@@ -1967,6 +1981,32 @@ func createChartBoundedContext(dbConns *common_mysql.DBConnections, svc fleet.Se
 	}
 	chartRoutes := chartRoutesFn(chartAuthMiddleware)
 	return chartSvc, chartRoutes
+}
+
+// initOrgLogoStore builds the OrgLogoStore implementation appropriate for the deployment:
+// - S3 in cloud
+// - local filesystem on-prem (rooted at FLEET_ORG_LOGO_STORE_DIR, falling back to os.TempDir()).
+func initOrgLogoStore(ctx context.Context, s3Config configpkg.S3Config, logger *slog.Logger) fleet.OrgLogoStore {
+	if s3Config.SoftwareInstallersBucket != "" {
+		store, err := s3.NewOrgLogoStore(s3Config)
+		if err != nil {
+			initFatal(err, "initializing S3 org logo store")
+		}
+		logger.InfoContext(ctx, "using S3 org logo store", "bucket", s3Config.SoftwareInstallersBucket)
+		return store
+	}
+	logoDir := os.Getenv("FLEET_ORG_LOGO_STORE_DIR")
+	if logoDir == "" {
+		logoDir = os.TempDir()
+	}
+	store, err := filesystem.NewOrgLogoStore(logoDir)
+	if err != nil {
+		initFatal(err, "initializing filesystem org logo store")
+	}
+	logger.InfoContext(ctx,
+		"using local filesystem org logo store, this is not suitable for production use",
+		"directory", logoDir)
+	return store
 }
 
 func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBConnections, logger *slog.Logger) (activity_api.Service, endpointer.HandlerRoutesFunc) {

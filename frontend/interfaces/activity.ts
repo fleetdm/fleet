@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -169,6 +170,12 @@ export enum ActivityType {
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
+  FailedEnrollmentProfileRenewal = "failed_enrollment_profile_renewal",
+  CreatedLabel = "created_label",
+  EditedLabel = "edited_label",
+  DeletedLabel = "deleted_label",
+  ChangedOrgLogo = "changed_org_logo",
+  DeletedOrgLogo = "deleted_org_logo",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -194,7 +201,8 @@ export type IHostPastActivityType =
   | ActivityType.ResentCertificate
   | ActivityType.ClearedPasscode
   | ActivityType.ViewedManagedLocalAccount
-  | ActivityType.CreatedManagedLocalAccount;
+  | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.FailedEnrollmentProfileRenewal;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -262,6 +270,7 @@ export interface IActivityDetails {
   location?: string; // name of location associated with VPP token
   mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
+  mode?: IOrgLogoMode;
   name?: string;
   pack_id?: number;
   pack_name?: string;
@@ -305,6 +314,10 @@ export interface IActivityDetails {
   certificate_template_id?: number;
   detail?: string;
   exception?: string;
+  label_id?: number;
+  label_name?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -330,6 +343,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_uninstall_software: "Canceled activity: uninstall software",
   canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
+  changed_org_logo: "Updated organization logo",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",
   created_declaration_profile: "Added declaration (DDM) profile",
@@ -351,6 +365,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
   deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
+  deleted_org_logo: "Deleted organization logo",
   deleted_pack: "Deleted pack",
   deleted_policy: "Deleted policy",
   deleted_saved_query: "Deleted report",
@@ -485,4 +500,9 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.FailedEnrollmentProfileRenewal]:
+    "Enrollment profile renewal failed",
+  [ActivityType.CreatedLabel]: "Created label",
+  [ActivityType.EditedLabel]: "Edited label",
+  [ActivityType.DeletedLabel]: "Deleted label",
 };
