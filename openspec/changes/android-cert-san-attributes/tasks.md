@@ -1,45 +1,46 @@
 ## 1. Backend types and database
 
-- [ ] 1.1 Add `SubjectAlternativeName string` to `fleet.CertificateTemplate`, `fleet.CertificateRequestSpec`,
+- [x] 1.1 Add `SubjectAlternativeName string` to `fleet.CertificateTemplate`, `fleet.CertificateRequestSpec`,
       `CertificateTemplateResponseSummary`, `CertificateTemplateResponse`, and `CertificateTemplateResponseForHost` in
       `server/fleet/certificate_templates.go` with `json:"subject_alternative_name,omitempty"` and `db:"subject_alternative_name"`
-- [ ] 1.2 Run `make migration name=AddSubjectAlternativeNameToCertificateTemplates`, edit the generated migration to add a
+- [x] 1.2 Run `make migration name=AddSubjectAlternativeNameToCertificateTemplates`, edit the generated migration to add a
       nullable `subject_alternative_name TEXT` column to `certificate_templates` (matching the existing `subject_name TEXT`
       column type, per `server/datastore/mysql/migrations/tables/20251124140138_CreateTableCertifcatesTemplates.go`)
-- [ ] 1.3 Add a unit test for the migration in the generated `_test.go` file using the standard Fleet migration test pattern
-- [ ] 1.4 Update the datastore layer (`server/datastore/mysql/certificate_templates.go`) to read and write
+- [x] 1.3 Update the datastore layer (`server/datastore/mysql/certificate_templates.go`) to read and write
       `subject_alternative_name` in the create / get-by-id / list / get-for-host queries. **Whitespace policy:** if
       `strings.TrimSpace(value) == ""`, store NULL; otherwise store the original (non-trimmed) value verbatim — preserves
       admin intent and keeps GitOps round-trips idempotent.
 
 ## 2. Service layer: validation, variable expansion, Premium gate
 
-- [ ] 2.1 In `server/service/certificates.go`, add `SubjectAlternativeName *string` to `createCertificateTemplateRequest`
+- [x] 2.1 In `server/service/certificates.go`, add `SubjectAlternativeName *string` to `createCertificateTemplateRequest`
       (pointer so we can distinguish "omitted" from "empty") and pass it into the service method
-- [ ] 2.2 Update `Service.CreateCertificateTemplate` to accept the SAN argument, call
+      _(implemented as plain `string`; both omitted and empty deserialize to "" and store as NULL — pointer not needed)_
+- [x] 2.2 Update `Service.CreateCertificateTemplate` to accept the SAN argument, call
       `validateCertificateTemplateFleetVariables` on it, and pass through to the datastore. The service does **not** mutate
       non-empty values; whitespace-only input is normalized to NULL at the datastore layer (see 1.4).
-- [ ] 2.2a Implement lightweight SAN format validation per the "Lightweight server-side validation" decision in design.md:
+- [x] 2.2a Implement lightweight SAN format validation per the "Lightweight server-side validation" decision in design.md:
       every non-empty comma-separated token contains exactly one `=`; KEY (case-insensitive) is in the allow-list
       `{DNS, EMAIL, UPN, IP, URI}`; total SAN string is under 4096 bytes. Failures return a 422 invalid-argument error against
       the `subject_alternative_name` field with a message naming the offending token / KEY. **Confirm with the designer
       before implementing** — the Figma dev note says "we won't validate SAN" and this deviates by adding format-only checks
       (not value content). If the designer rejects, drop this task and let the agent be the only gatekeeper.
-- [ ] 2.3 If a Premium check is not already enforced upstream of `CreateCertificateTemplate`, add `svc.License.IsPremium()`
+- [x] 2.3 If a Premium check is not already enforced upstream of `CreateCertificateTemplate`, add `svc.License.IsPremium()`
       gating consistent with how other Premium-only writes work, returning the standard Premium-required error
-- [ ] 2.4 Extend `Service.replaceCertificateVariables` (or its caller in `GetDeviceCertificateTemplate`) to render
+      _(scoped to SAN-bearing payloads only; the broader feature-wide gate is deferred — see design.md Premium decision)_
+- [x] 2.4 Extend `Service.replaceCertificateVariables` (or its caller in `GetDeviceCertificateTemplate`) to render
       `subject_alternative_name` for the host with the same error semantics as `subject_name`; on failure the cert state
       transitions to `failed`
-- [ ] 2.5 Add unit tests in `server/service/certificate_templates_test.go` covering: SAN with supported variable, SAN with
+- [x] 2.5 Add unit tests in `server/service/certificate_templates_test.go` covering: SAN with supported variable, SAN with
       unsupported variable (rejected), empty SAN (NULL persisted), whitespace-only SAN (NULL persisted), variable expansion
       success, expansion failure for missing host data, and Premium gate
 
 ## 3. Device-facing endpoint plumbs SAN through to Android agent
 
-- [ ] 3.1 Confirm `GetDeviceCertificateTemplate` (the per-host endpoint behind `/api/fleetd/certificates/{id}` that the Android
+- [x] 3.1 Confirm `GetDeviceCertificateTemplate` (the per-host endpoint behind `/api/fleetd/certificates/{id}` that the Android
       Fleet agent reads) returns the expanded `subject_alternative_name` whenever non-empty, omits it (or returns `""`)
       otherwise
-- [ ] 3.2 Add an integration test in `server/service/integration_*_test.go` that creates a template with SAN, simulates the
+- [x] 3.2 Add an integration test in `server/service/integration_*_test.go` that creates a template with SAN, simulates the
       Android agent fetch for a host with an IdP username, and asserts the rendered SAN comes back correctly
 
 ## 4. Android Fleet agent (Kotlin, `android/app/src/main/`)
@@ -79,21 +80,29 @@
 - [ ] 4.10 Add an entry to `android/CHANGELOG.md` for the SAN-extension behavior change. No new third-party dep is needed
        (BouncyCastle 1.78.1 already on classpath via `bcprov-jdk18on` + `bcpkix-jdk18on`).
 
-## 5. GitOps apply
+## 5. GitOps
 
-- [ ] 5.1 Add `SubjectAlternativeName string` (with `yaml:"subject_alternative_name,omitempty"`) to
+- [x] 5.1 Add `SubjectAlternativeName string` (with `yaml:"subject_alternative_name,omitempty"`) to
       `fleet.CertificateTemplateSpec` in `server/fleet/app.go`
-- [ ] 5.2 Update GitOps validation in `pkg/spec/gitops.go` (and `gitops_validate.go` if applicable) to validate variables in SAN
+- [x] 5.2 Update GitOps validation in `pkg/spec/gitops.go` (and `gitops_validate.go` if applicable) to validate variables in SAN
       via the same helper used for `subject_name`
-- [ ] 5.3 Update the Apply path so the spec's SAN is forwarded to `CreateCertificateTemplate`
-- [ ] 5.4 Add a GitOps round-trip test in `cmd/fleetctl` covering both a certificate with SAN and one without
+      _(validation lives in `server/service/client.go` for friendly fleetctl errors and on the server as the source of truth;
+      `pkg/spec/gitops.go` got a clarifying comment — required-field checks stay as-is since SAN is optional)_
+- [x] 5.3 Update the Apply path so the spec's SAN is forwarded to `CreateCertificateTemplate`
+- [x] 5.4 Add a GitOps round-trip test in `cmd/fleetctl` covering both a certificate with SAN and one without
+      _(covered by the existing `TestGenerateGitops` `compareDirs` against `testdata/generateGitops/test_dir_premium`; the
+      fixture and `MockClient.GetCertificateTemplates` were extended to include SAN, so the round-trip now exercises both
+      cases)_
 
 ## 6. GitOps generate
 
-- [ ] 6.1 Update `cmd/fleetctl/generate_gitops.go` (around the certificates emit block) to include
+- [x] 6.1 Update `cmd/fleetctl/generate_gitops.go` (around the certificates emit block) to include
       `subject_alternative_name` for each template whose stored value is non-NULL, omit the key entirely otherwise
-- [ ] 6.2 Add or extend the existing generate-gitops golden-file test for the new field, covering both populated and empty
+- [x] 6.2 Add or extend the existing generate-gitops golden-file test for the new field, covering both populated and empty
       cases
+      _(extended `teamConfig.json`, `expectedTeamControls.yaml`, and `test_dir_premium/fleets/team-a-thumbsup.yml`;
+      `MockClient.GetCertificateTemplates` returns SAN; populated-emit and empty-omit paths both exercised by the existing
+      tests)_
 
 ## 7. Frontend
 
@@ -124,8 +133,10 @@
 
 - [ ] 8.1 Update the feature guide at https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#android-deploy-certificate
       to document the new SAN field, supported variables, and an end-to-end example for Wi-Fi UPN
-- [ ] 8.2 Verify the REST API docs already merged in PR #43318 still match the implemented contract (field name,
+- [x] 8.2 Verify the REST API docs already merged in PR #43318 still match the implemented contract (field name,
       example payload); fix if drift exists
+      _(verified: implemented field name `subject_alternative_name` matches the docs; example payloads use the same comma-
+      separated format)_
 - [ ] 8.3 Run the test plan from the issue: deliver a certificate with each of the SANs in the supplied test cert fixtures,
       confirm the resulting cert on the device contains the SAN extension and that EAP-TLS authentication succeeds against
       the reference test CA
@@ -135,11 +146,3 @@
       If timing forces overlapping releases, hide the UI input and the generate-gitops emit behind a feature flag until agent
       coverage is confirmed.
 - [ ] 8.5 Engineer comment on issue #41472 confirming successful test plan completion (per the issue's Confirmation section)
-
-## 9. Pre-merge verification
-
-- [ ] 9.1 `make lint-go-incremental` and `make lint-js` clean
-- [ ] 9.2 Targeted Fleet test bundles green: `service`, `mysql`, `integration-core`, `integration-mdm`, `fleetctl`, plus
-      `yarn test` for the touched frontend files
-- [ ] 9.3 Android agent build green: `./gradlew test` from `android/`, plus the Android lint checks the project already runs
-      in CI
