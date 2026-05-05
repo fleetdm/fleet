@@ -75,11 +75,12 @@ func BlobANDNOT(a, mask []byte) []byte {
 	}
 	out := make([]byte, len(a))
 	n := min(len(a), len(mask))
-	ab := a[:n]
-	mb := mask[:n]
+	bitsToMask := a[:n]
+	sizedMask := mask[:n]
 	for i := range n {
-		out[i] = ab[i] &^ mb[i] //nolint:gosec // ab and mb are bounded to n via slicing above
+		out[i] = bitsToMask[i] &^ sizedMask[i] //nolint:gosec // bitsToMask and sizedMask are bounded to n via slicing above
 	}
+	// If mask is shorter than a, copy the remaining high bytes unchanged.
 	if n < len(a) {
 		copy(out[n:], a[n:])
 	}
