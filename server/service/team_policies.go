@@ -327,6 +327,12 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 		if err != nil {
 			return 0, 0, err
 		}
+		// CountPolicies ignores automationType when teamID is nil, so the
+		// inherited count would be wrong (too high) when an automation filter
+		// is active. Short-circuit to 0 in that case.
+		if automationType != "" {
+			return count, 0, nil
+		}
 		inheritedCount, err := svc.ds.CountPolicies(ctx, nil, matchQuery, automationType, platform)
 		if err != nil {
 			return 0, 0, err

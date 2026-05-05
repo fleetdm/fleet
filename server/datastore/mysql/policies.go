@@ -775,10 +775,11 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 }
 
 func platformFilterClause(platform string) (string, []any) {
+	platform = strings.ReplaceAll(platform, " ", "")
 	if platform == "" {
 		return "", nil
 	}
-	return " AND (p.platforms = '' OR FIND_IN_SET(?, p.platforms))", []any{platform}
+	return " AND (p.platforms = '' OR FIND_IN_SET(?, REPLACE(p.platforms, ' ', '')))", []any{platform}
 }
 
 // returns the list of policies associated with the provided teamID, or the
