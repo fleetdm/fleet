@@ -736,10 +736,6 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account status")
 	}
-	// Behavior change vs #43381: gate on password_available rather than
-	// status == 'verified'. A row whose status is 'pending' due to a recent view
-	// (or a deferred rotation waiting on UUID capture) still has a valid password
-	// and should be viewable. Only 'failed' or a missing password block access.
 	if !acct.PasswordAvailable {
 		return nil, &fleet.BadRequestError{
 			Message: "Host's managed account password is not available.",
@@ -785,11 +781,6 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 // When account_uuid is missing we record a deferred rotation that the cron
 // will fulfill once the UUID arrives via osquery — the user-actor activity
 // is still logged immediately (the cron must NOT re-log it for these rows).
-//
-// Idempotency: if a rotation is already in flight (pending_encrypted_password
-// IS NOT NULL) we return success without enqueueing again. The pending rotation
-// will land via the device ack and the next user-initiated rotate (if needed)
-// can proceed afterwards.
 func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err

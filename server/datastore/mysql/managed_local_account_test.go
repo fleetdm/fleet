@@ -63,8 +63,8 @@ func testManagedLocalAccountGetStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Initially status is NULL in DB → should return "pending".
-	// New (post-rotation) semantics: password is available whenever encrypted_password
-	// is set and status != 'failed'. The pre-ack NULL status with a stored password
+	// Post-rotation semantics: password is available whenever encrypted_password is
+	// set and status != 'failed'. The pre-ack NULL status with a stored password
 	// is therefore "available" too.
 	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
 	require.NoError(t, err)
