@@ -626,7 +626,18 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmen
 	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
 	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
 	// idle path does not go through a sql.ErrNoRows branch.
-	const probe = `SELECT EXISTS(SELECT 1 FROM windows_mdm_command_queue WHERE enrollment_id = ?)`
+	// Queue rows now persist after ACK (cleaned by periodic GC), so the probe
+	// must also exclude rows that already have a result in
+	// windows_mdm_command_results.
+	const probe = `SELECT EXISTS(
+		SELECT 1 FROM windows_mdm_command_queue wmcq
+		WHERE wmcq.enrollment_id = ?
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results wmcr
+			WHERE wmcr.enrollment_id = wmcq.enrollment_id
+			AND wmcr.command_uuid = wmcq.command_uuid
+		)
+	)`
 	var hasPending bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "probe pending Windows MDM commands")
@@ -826,27 +837,21 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 
-			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
-				result = &fleet.MDMWindowsSaveResponseResult{
-					WipeFailed: &fleet.MDMWindowsWipeResult{
-						HostUUID: enrolledDevice.HostUUID,
-					},
+			if wipeCmdStatus != "" && rowsAffected > 0 {
+				if wipeSucceeded {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeSucceeded: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
+				} else {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeFailed: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
 				}
 			}
-		}
-
-		// dequeue the commands
-		var matchingUUIDs []string
-		for _, cmd := range matchingCmds {
-			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
-		}
-		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
-		}
-		if _, err = tx.ExecContext(ctx, stmt, params...); err != nil {
-			return ctxerr.Wrap(ctx, err, "dequeuing commands")
 		}
 
 		return nil
@@ -3514,4 +3519,40 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 		deviceId,
 	)
 	return err
+}
+
+func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
+	const batchSize = 1000
+	// Multi-table DELETE does not support LIMIT directly, so we use a
+	// subquery to select the rows to delete in batches.
+	const stmt = `
+DELETE q FROM windows_mdm_command_queue q
+INNER JOIN (
+    SELECT q2.enrollment_id, q2.command_uuid
+    FROM windows_mdm_command_queue q2
+    INNER JOIN windows_mdm_command_results r
+        ON r.enrollment_id = q2.enrollment_id AND r.command_uuid = q2.command_uuid
+    WHERE r.created_at < NOW() - INTERVAL 1 HOUR
+    LIMIT ?
+) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
+	const maxBatches = 500 // cap total work per cron tick (500k rows)
+	var totalDeleted int64
+	exhausted := true
+	for range maxBatches {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
+		}
+		n, _ := res.RowsAffected()
+		totalDeleted += n
+		if n < int64(batchSize) {
+			exhausted = false
+			break
+		}
+	}
+	if exhausted {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm command queue did not finish, remaining rows will be cleaned on next run",
+			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return nil
 }

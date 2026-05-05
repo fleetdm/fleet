@@ -195,41 +195,68 @@ func scanVulnerabilities(
 		return fmt.Errorf("getting current time from database: %w", err)
 	}
 
+	scanStart := time.Now()
+
+	phaseStart := time.Now()
 	nvdVulns := checkNVDVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "nvd", "elapsed", time.Since(phaseStart))
 
 	var ovalVulns []fleet.SoftwareVulnerability
 
 	// OVAL processes all platforms by default, but will exclude Ubuntu if OSV feature flag is enabled
+	phaseStart = time.Now()
 	ovalResults := checkOvalVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 	ovalVulns = append(ovalVulns, ovalResults...)
+	logger.InfoContext(ctx, "phase completed", "phase", "oval", "elapsed", time.Since(phaseStart))
 
 	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
 		osvVulns := checkOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, osvVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "osv", "elapsed", time.Since(phaseStart))
 	}
 
 	if config.OSVForVulnerabilities {
+		phaseStart = time.Now()
 		rhelOSVVulns := checkRHELOSVVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
 		ovalVulns = append(ovalVulns, rhelOSVVulns...)
+		logger.InfoContext(ctx, "phase completed", "phase", "rhel_osv", "elapsed", time.Since(phaseStart))
 	}
 
+	phaseStart = time.Now()
 	govalDictVulns := checkGovalDictionaryVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
-	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "goval_dictionary", "elapsed", time.Since(phaseStart))
 
+	phaseStart = time.Now()
+	macOfficeVulns := checkMacOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "mac_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	winOfficeVulns := checkWinOfficeVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "win_office", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
+	customVulns := checkCustomVulnerabilities(ctx, ds, logger, vulnAutomationEnabled != "", startTime)
+	logger.InfoContext(ctx, "phase completed", "phase", "custom", "elapsed", time.Since(phaseStart))
+
+	phaseStart = time.Now()
 	checkWinVulnerabilities(ctx, ds, logger, vulnPath, config, vulnAutomationEnabled != "")
+	logger.InfoContext(ctx, "phase completed", "phase", "windows_msrc", "elapsed", time.Since(phaseStart))
 
 	// Clean up orphaned vulnerabilities (software/OS no longer associated with any host).
 	// This runs here (not in cleanups_then_aggregation) to stay in series with the scanners
 	// that write to the same tables, avoiding cross-schedule lock contention. The LEFT JOIN
 	// queries are index-backed on both sides, so execution time is fast for low orphan counts.
+	phaseStart = time.Now()
 	if err := ds.DeleteOrphanedSoftwareVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned software vulnerabilities", err)
 	}
 	if err := ds.DeleteOrphanedOSVulnerabilities(ctx); err != nil {
 		errHandler(ctx, logger, "deleting orphaned OS vulnerabilities", err)
 	}
+	logger.InfoContext(ctx, "phase completed", "phase", "orphan_cleanup", "elapsed", time.Since(phaseStart))
+
+	logger.InfoContext(ctx, "all phases completed", "total_elapsed", time.Since(scanStart))
 
 	// If no automations enabled, then there is nothing else to do...
 	if vulnAutomationEnabled == "" {
@@ -1430,6 +1457,9 @@ func newCleanupsAndAggregationSchedule(
 		}),
 		schedule.WithJob("cleanup_host_mdm_commands", func(ctx context.Context) error {
 			return ds.CleanupHostMDMCommands(ctx)
+		}),
+		schedule.WithJob("cleanup_windows_mdm_command_queue", func(ctx context.Context) error {
+			return ds.CleanupWindowsMDMCommandQueue(ctx)
 		}),
 		schedule.WithJob("cleanup_host_mdm_managed_certificates", func(ctx context.Context) error {
 			return ds.CleanUpMDMManagedCertificates(ctx)

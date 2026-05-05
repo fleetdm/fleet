@@ -167,6 +167,21 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 		return &fleet.TeamMDM{}, nil
 	}
+	// Default mocks used by ApplyLabelSpecs to detect created vs edited labels
+	// for activity emission. Tests can override these.
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: fleet.Label{ID: lid}}, nil, nil
+	}
+	ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid}, nil
+	}
+
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds

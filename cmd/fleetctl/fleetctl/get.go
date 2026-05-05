@@ -345,8 +345,13 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 	if len(query.LabelsIncludeAny) > 0 {
 		scheduleInfo += "\nlabels_include_any:"
-
 		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
+	if len(query.LabelsIncludeAll) > 0 {
+		scheduleInfo += "\nlabels_include_all:"
+		for _, label := range query.LabelsIncludeAll {
 			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
 		}
 	}
@@ -479,10 +484,6 @@ func getReportsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						labelsAny := []string{}
-						for _, label := range query.LabelsIncludeAny {
-							labelsAny = append(labelsAny, label.LabelName)
-						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -496,7 +497,8 @@ func getReportsCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
-							LabelsIncludeAny:   labelsAny,
+							LabelsIncludeAny:   fleet.LabelIdentsToNames(query.LabelsIncludeAny),
+							LabelsIncludeAll:   fleet.LabelIdentsToNames(query.LabelsIncludeAll),
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}

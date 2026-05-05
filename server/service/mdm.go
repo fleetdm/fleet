@@ -1047,6 +1047,18 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 		}
 	}
 
+	if req.ListOptions.PerPage > fleet.MaxMDMCommandsPerPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", fleet.MaxMDMCommandsPerPage),
+		}
+	}
+
+	if req.ListOptions.Page > fleet.MaxMDMCommandsPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set page to %d or less, or use cursor pagination via the after parameter for deep traversal.", fleet.MaxMDMCommandsPage),
+		}
+	}
+
 	return nil
 }
 
@@ -1061,6 +1073,9 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
+	if req.ListOptions.PerPage == 0 {
+		req.ListOptions.PerPage = fleet.DefaultMDMCommandsPerPage
+	}
 	req.ListOptions.IncludeMetadata = true
 
 	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{

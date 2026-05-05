@@ -2,6 +2,8 @@ github.com/fleetdm/fleet/v4/server/fleet/AppConfig	OrgInfo	fleet.OrgInfo
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgName	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURL	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightBackground	string
+github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLDarkMode	string
+github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	OrgLogoURLLightMode	string
 github.com/fleetdm/fleet/v4/server/fleet/OrgInfo	ContactURL	string
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	ServerSettings	fleet.ServerSettings
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ServerURL	string
@@ -39,6 +41,9 @@ github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
 github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
+github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
+github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
+github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	DeprecatedHostSettings	*fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	AgentOptions	*json.RawMessage
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPTest	bool
