@@ -206,6 +206,12 @@ func (c *Client) UpdateIcon(teamID uint, titleID uint, filename string, hash str
 	return c.putIcon(teamID, titleID, writer, buf)
 }
 
+// ErrIconBytesMissing is returned by UpdateIcon when the server has the
+// software_title_icons row but the underlying bytes for the requested storage
+// hash are missing or fail integrity. Callers can fall back to a full upload
+// to recover.
+var ErrIconBytesMissing = errors.New("icon bytes missing on server")
+
 func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, buf bytes.Buffer) error {
 	response, err := c.doContextWithBodyAndHeaders(
 		context.Background(),
@@ -224,11 +230,14 @@ func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, bu
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != http.StatusOK {
+	switch response.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusConflict:
+		return ErrIconBytesMissing
+	default:
 		return fmt.Errorf("update icon: unexpected status code: %d", response.StatusCode)
 	}
-
-	return nil
 }
 
 func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
