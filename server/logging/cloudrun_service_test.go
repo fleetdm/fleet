@@ -71,3 +71,8 @@ func TestNewCloudRunServiceLogWriterRequiresURL(t *testing.T) {
 	_, err := NewCloudRunServiceLogWriter(context.Background(), "", "", slog.New(slog.DiscardHandler))
 	require.ErrorContains(t, err, "Cloud Run service URL missing")
 }
+
+func TestNewCloudRunServiceLogWriterRequiresValidURL(t *testing.T) {
+	_, err := NewCloudRunServiceLogWriter(context.Background(), "not-a-url", "", slog.New(slog.DiscardHandler))
+	require.ErrorContains(t, err, "invalid Cloud Run service URL")
+}

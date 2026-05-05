@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -33,6 +34,10 @@ type cloudRunServiceLogWriter struct {
 func NewCloudRunServiceLogWriter(ctx context.Context, serviceURL, audience string, logger *slog.Logger) (*cloudRunServiceLogWriter, error) {
 	if serviceURL == "" {
 		return nil, errors.New("Cloud Run service URL missing")
+	}
+	parsedServiceURL, err := url.Parse(serviceURL)
+	if err != nil || parsedServiceURL.Scheme == "" || parsedServiceURL.Host == "" {
+		return nil, fmt.Errorf("invalid Cloud Run service URL: %q", serviceURL)
 	}
 
 	var client *http.Client
