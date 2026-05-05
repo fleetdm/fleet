@@ -12,7 +12,6 @@ import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import {
   CommaSeparatedPlatformString,
   isQueryablePlatform,
-  QueryablePlatform,
 } from "interfaces/platform";
 import { IPolicyStats } from "interfaces/policy";
 import PATHS from "router/paths";
@@ -165,7 +164,7 @@ const generateTableHeaders = (
         const platforms = cellProps.cell.value
           .split(",")
           .map((s) => s.trim())
-          .filter((s) => isQueryablePlatform(s)) as QueryablePlatform[];
+          .filter(isQueryablePlatform);
         return <PlatformCell platforms={platforms} />;
       },
     },

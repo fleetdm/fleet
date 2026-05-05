@@ -247,6 +247,10 @@ func (svc *Service) ListTeamPolicies(ctx context.Context, teamID uint, opts flee
 		return nil, nil, err
 	}
 
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err)
+	}
+
 	if teamID > 0 {
 		if _, err := svc.ds.TeamLite(ctx, teamID); err != nil { // TODO see if we can use TeamExists here instead
 			return nil, nil, ctxerr.Wrapf(ctx, err, "loading team %d", teamID)
@@ -306,6 +310,10 @@ func (svc *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQue
 		},
 	}, fleet.ActionRead); err != nil {
 		return 0, 0, err
+	}
+
+	if err := fleet.ValidatePolicyPlatformFilter(platform); err != nil {
+		return 0, 0, ctxerr.Wrap(ctx, err)
 	}
 
 	if teamID > 0 {

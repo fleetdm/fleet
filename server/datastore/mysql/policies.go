@@ -774,13 +774,8 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts, filterClause, filterArgs)
 }
 
-// platformFilterClause returns a SQL fragment (starting with " AND ...") and
-// its args that filters policies by a targeted platform token. A policy
-// matches if its comma-separated platform column contains the selected token
-// OR the column is empty (meaning "all platforms"). The empty/"all" platform
-// returns an empty clause.
 func platformFilterClause(platform string) (string, []any) {
-	if platform == "" || platform == "all" {
+	if platform == "" {
 		return "", nil
 	}
 	return " AND (p.platforms = '' OR FIND_IN_SET(?, p.platforms))", []any{platform}

@@ -9,6 +9,7 @@ import {
   IPoliciesCountResponse,
   ILoadTeamPolicyResponse,
 } from "interfaces/policy";
+import { QueryablePlatform } from "interfaces/platform";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { buildQueryStringFromParams, QueryParams } from "utilities/url";
 import { GlobalPoliciesAutomationType } from "./global_policies";
@@ -27,8 +28,8 @@ interface IPoliciesApiQueryParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   automationType?: AutomationType | GlobalPoliciesAutomationType;
-  /** Targeted platform to filter policies by (e.g. "darwin"/"windows"/"linux"/"chrome"). */
-  platform?: string;
+  /** Targeted platform to filter policies by. */
+  platform?: QueryablePlatform;
 }
 
 export interface IPoliciesApiParams extends IPoliciesApiQueryParams {
@@ -53,7 +54,7 @@ export interface IPoliciesCountApiParams {
   query?: string;
   mergeInherited?: boolean;
   automationType?: AutomationType;
-  platform?: string;
+  platform?: QueryablePlatform;
 }
 
 const ORDER_KEY = "name";
@@ -184,7 +185,7 @@ export default {
       query,
       mergeInherited,
       automationType,
-      platform: platform === "all" ? undefined : platform,
+      platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -208,7 +209,7 @@ export default {
       query,
       mergeInherited,
       automationType,
-      platform: platform === "all" ? undefined : platform,
+      platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

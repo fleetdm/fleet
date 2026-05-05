@@ -1,11 +1,13 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { noop } from "lodash";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
 import createMockPolicy from "__mocks__/policyMock";
 import PoliciesTable from "./PoliciesTable";
+
+const mockRouter = createMockRouter();
 
 describe("Policies table", () => {
   it("Renders the page-wide empty state when no policies are present (free tier)", async () => {
@@ -27,6 +29,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -57,6 +60,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -89,6 +93,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -120,6 +125,7 @@ describe("Policies table", () => {
         searchQuery="shouldn't match anything"
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={0}
       />
@@ -152,6 +158,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testCriticalPolicy].length}
       />
@@ -190,6 +197,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testInheritedPolicy].length}
       />
@@ -228,6 +236,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={[testGlobalPolicy].length}
       />
@@ -269,6 +278,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         canAddOrDeletePolicies
         hasPoliciesToDelete
@@ -316,6 +326,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={1}
       />
@@ -346,6 +357,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={1}
       />
@@ -385,16 +397,17 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={2}
       />
     );
 
     expect(screen.getByText("Targeted platforms")).toBeInTheDocument();
-    // Platform icon row for the darwin policy should render an <Icon /> whose
-    // data-testid is "icons"; the "all platforms" row should render the empty
-    // "---" TextCell instead.
-    expect(screen.getAllByTestId("icons").length).toBe(1);
+    expect(screen.getByTestId("darwin-icon")).toBeInTheDocument();
+    expect(screen.queryByTestId("windows-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("linux-icon")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chrome-icon")).not.toBeInTheDocument();
   });
 
   it("Renders the platform filter dropdown when the table is searchable", () => {
@@ -417,6 +430,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={1}
       />
@@ -460,6 +474,7 @@ describe("Policies table", () => {
         searchQuery=""
         page={0}
         onQueryChange={noop}
+        router={mockRouter}
         renderPoliciesCount={() => null}
         count={2}
       />

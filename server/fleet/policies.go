@@ -208,6 +208,21 @@ func verifyPolicyPlatforms(platforms string) error {
 	return nil
 }
 
+// ValidatePolicyPlatformFilter validates the platform query parameter used to
+// filter policies on list/count endpoints. An empty string means "no filter"
+// and is always valid; otherwise the value must be a single supported
+// platform token.
+func ValidatePolicyPlatformFilter(platform string) error {
+	if platform == "" {
+		return nil
+	}
+	switch platform {
+	case "windows", "linux", "darwin", "chrome":
+		return nil
+	}
+	return NewInvalidArgumentError("platform", `Invalid platform: must be one of "darwin", "windows", "linux", or "chrome".`)
+}
+
 func verifyPatchPolicy(team string, typ string) error {
 	if typ == PolicyTypePatch && emptyString(team) {
 		return errPatchPolicyRequiresTeam

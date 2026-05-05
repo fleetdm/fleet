@@ -7,7 +7,7 @@ import { AppContext } from "context/app";
 import { IPolicyStats } from "interfaces/policy";
 import { ITeamSummary, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IEmptyStateProps } from "interfaces/empty_state";
-import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
+import { SelectedPlatform } from "interfaces/platform";
 import { getNextLocationPath } from "utilities/helpers";
 import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
@@ -28,8 +28,6 @@ const isLastPage = (count: number, pageSize: number, page: number) => {
 };
 
 const baseClass = "policies-table";
-
-const DEFAULT_PLATFORM: SelectedPlatform = "all";
 
 const PLATFORM_FILTER_OPTIONS = [
   {
@@ -77,7 +75,7 @@ interface IPoliciesTableProps {
   count: number;
   customControl?: () => JSX.Element | null;
   isFiltered?: boolean;
-  router?: InjectedRouter;
+  router: InjectedRouter;
   queryParams?: {
     fleet_id?: string;
     query?: string;
@@ -87,7 +85,7 @@ interface IPoliciesTableProps {
     automation_type?: AutomationType;
     platform?: string;
   };
-  platform?: string;
+  platform?: SelectedPlatform;
 }
 
 const PoliciesTable = ({
@@ -110,22 +108,13 @@ const PoliciesTable = ({
   isFiltered,
   router,
   queryParams,
-  platform,
+  platform = "all",
 }: IPoliciesTableProps): JSX.Element => {
   const { config } = useContext(AppContext);
 
-  const curTargetedPlatformFilter: SelectedPlatform = isQueryablePlatform(
-    platform
-  )
-    ? platform
-    : DEFAULT_PLATFORM;
-
-  const isPlatformFiltered = curTargetedPlatformFilter !== "all";
-  const combinedIsFiltered = !!isFiltered || isPlatformFiltered;
-
   const handlePlatformFilterDropdownChange = useCallback(
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
-      router?.push(
+      router.push(
         getNextLocationPath({
           pathPrefix: PATHS.MANAGE_POLICIES,
           queryParams: {
@@ -146,7 +135,7 @@ const PoliciesTable = ({
     return (
       <DropdownWrapper
         name="platform-dropdown"
-        value={curTargetedPlatformFilter}
+        value={platform}
         className={`${baseClass}__platform-dropdown`}
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
@@ -154,7 +143,7 @@ const PoliciesTable = ({
         iconName="filter-alt"
       />
     );
-  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
+  }, [platform, handlePlatformFilterDropdownChange]);
 
   const emptyState: IEmptyStateProps = {
     header: "You don't have any policies",
@@ -177,7 +166,7 @@ const PoliciesTable = ({
     emptyState.info = "";
   }
 
-  if (searchQuery || combinedIsFiltered) {
+  if (searchQuery || isFiltered) {
     delete emptyState.primaryButton;
     emptyState.header = "No matching policies";
     emptyState.info = "No policies match the current filters.";
@@ -186,7 +175,7 @@ const PoliciesTable = ({
   const searchable = !(
     policiesList?.length === 0 &&
     searchQuery === "" &&
-    !combinedIsFiltered
+    !isFiltered
   );
 
   const combinedCustomControl = () => {
@@ -259,7 +248,7 @@ const PoliciesTable = ({
         inputPlaceHolder="Search by name"
         searchable={searchable}
         customControl={searchable ? combinedCustomControl : undefined}
-        selectedDropdownFilter={curTargetedPlatformFilter}
+        selectedDropdownFilter={platform}
       />
     </div>
   );

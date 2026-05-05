@@ -7,6 +7,7 @@ import {
   ILoadAllPoliciesResponse,
   IPoliciesCountResponse,
 } from "interfaces/policy";
+import { QueryablePlatform } from "interfaces/platform";
 import {
   buildQueryStringFromParams,
   convertParamsToSnakeCase,
@@ -25,8 +26,8 @@ export interface IGlobalPoliciesApiQueryParams {
   orderDirection?: "asc" | "desc";
   query?: string;
   automationType?: GlobalPoliciesAutomationType;
-  /** Targeted platform to filter policies by (e.g. "darwin"/"windows"/"linux"/"chrome"). */
-  platform?: string;
+  /** Targeted platform to filter policies by. */
+  platform?: QueryablePlatform;
 }
 
 export interface IPoliciesQueryKey extends IGlobalPoliciesApiQueryParams {
@@ -92,7 +93,7 @@ export default {
       orderDirection: orderDir,
       query,
       automationType,
-      platform: platform === "all" ? undefined : platform,
+      platform,
     };
 
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
@@ -114,7 +115,7 @@ export default {
     const queryParams = {
       query,
       automationType,
-      platform: platform === "all" ? undefined : platform,
+      platform,
     };
     const snakeCaseParams = convertParamsToSnakeCase(queryParams);
     const queryString = buildQueryStringFromParams(snakeCaseParams);

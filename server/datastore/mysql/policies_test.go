@@ -402,7 +402,7 @@ func testPoliciesPlatformFilter(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	ctx := context.Background()
 
-	// "all" platforms policy (empty platform string)
+	// Cross-platform policy (empty platform string targets all platforms)
 	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
 		Name:  "cross-platform",
 		Query: "select 1;",
@@ -423,12 +423,8 @@ func testPoliciesPlatformFilter(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Empty / "all" platform returns all policies
+	// Empty platform = no filter, returns all policies
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "")
-	require.NoError(t, err)
-	require.Len(t, policies, 3)
-
-	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{OrderKey: "name"}, "all")
 	require.NoError(t, err)
 	require.Len(t, policies, 3)
 
