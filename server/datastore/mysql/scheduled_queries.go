@@ -15,10 +15,29 @@ import (
 )
 
 var scheduledQueriesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
-	"id":         "sq.id",
-	"name":       "sq.name",
-	"query_name": "sq.query_name",
-	"interval":   "sq.interval",
+	"id":          "sq.id",
+	"pack_id":     "sq.pack_id",
+	"name":        "sq.name",
+	"query_name":  "sq.query_name",
+	"description": "sq.description",
+	"interval":    "sq.interval",
+	"snapshot":    "sq.snapshot",
+	"removed":     "sq.removed",
+	"platform":    "sq.platform",
+	"version":     "sq.version",
+	"shard":       "sq.shard",
+	"denylist":    "sq.denylist",
+
+	"query":    "q.query",  // from queries table
+	"query_id": "query_id", // from queries table
+
+	// JSON_EXTRACT required on the following:
+	// must match SELECT clause so cursor pagination (WHERE) and ORDER BY are consistent
+	"user_time_p50":    "JSON_EXTRACT(ag.json_value, '$.user_time_p50')",
+	"user_time_p95":    "JSON_EXTRACT(ag.json_value, '$.user_time_p95')",
+	"system_time_p50":  "JSON_EXTRACT(ag.json_value, '$.system_time_p50')",
+	"system_time_p95":  "JSON_EXTRACT(ag.json_value, '$.system_time_p95')",
+	"total_executions": "JSON_EXTRACT(ag.json_value, '$.total_executions')",
 }
 
 // ListScheduledQueriesInPackWithStats loads a pack's scheduled queries and its aggregated stats.
