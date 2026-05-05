@@ -39,8 +39,12 @@ describe("CommandPalette helpers", () => {
   });
 
   describe("buildCommandItems", () => {
-    it("returns items for a global admin", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+    it("returns items for a global admin with a team selected", () => {
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
       expect(items.length).toBeGreaterThan(0);
 
       const ids = items.map((i) => i.id);
@@ -51,6 +55,14 @@ describe("CommandPalette helpers", () => {
       expect(ids).toContain("reports");
       expect(ids).toContain("policies");
       expect(ids).toContain("settings-page");
+    });
+
+    it("hides controls on All fleets", () => {
+      const items = buildCommandItems(BASE_CONTEXT);
+      const ids = items.map((i) => i.id);
+      expect(ids).not.toContain("controls-page");
+      expect(ids).not.toContain("controls-os-updates");
+      expect(ids).not.toContain("controls-os-settings");
     });
 
     it("excludes controls for observers", () => {
@@ -248,6 +260,8 @@ describe("CommandPalette helpers", () => {
       const items = buildCommandItems({
         ...BASE_CONTEXT,
         isTechnician: true,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
       });
 
       const osSettings = items.find((i) => i.id === "controls-os-settings");
@@ -258,7 +272,11 @@ describe("CommandPalette helpers", () => {
     });
 
     it("includes certificates and passwords for non-technicians", () => {
-      const items = buildCommandItems(BASE_CONTEXT);
+      const items = buildCommandItems({
+        ...BASE_CONTEXT,
+        hasTeamSelected: true,
+        currentTeam: { id: 1, name: "Engineering" },
+      });
 
       const osSettings = items.find((i) => i.id === "controls-os-settings");
       const subIds = osSettings?.subItems?.map((s) => s.id) ?? [];
