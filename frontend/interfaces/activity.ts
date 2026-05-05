@@ -205,7 +205,7 @@ export type IHostPastActivityType =
   | ActivityType.ViewedManagedLocalAccount
   | ActivityType.CreatedManagedLocalAccount
   | ActivityType.RotatedManagedLocalAccountPassword
-  | ActivityType.FailedToRotateManagedLocalAccountPassword;
+  | ActivityType.FailedToRotateManagedLocalAccountPassword
   | ActivityType.FailedEnrollmentProfileRenewal;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
