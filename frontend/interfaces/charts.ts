@@ -52,8 +52,8 @@ export const DATASET_CONFIG_KEY: Record<string, HistoricalDataConfigKey> = {
 };
 
 export const DATASET_LABEL: Record<HistoricalDataConfigKey, string> = {
-  uptime: "Hosts active",
-  vulnerabilities: "Vulnerabilities",
+  uptime: "Hosts online",
+  vulnerabilities: "Vulnerability exposure",
 };
 
 // Applies the global-AND-fleet precedence rule for historical data

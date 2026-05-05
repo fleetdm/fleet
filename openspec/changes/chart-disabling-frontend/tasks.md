@@ -170,6 +170,41 @@
   Added cases for the empty state and for normal rendering when
   `historicalDataEnabled` is supplied.
 
+## Activity feed rendering
+
+- [x] **Add `EnabledHistoricalDataset` / `DisabledHistoricalDataset` to `ActivityType`**
+  In `frontend/interfaces/activity.ts`, extend the `ActivityType` enum with
+  the two new values: `EnabledHistoricalDataset = "enabled_historical_dataset"`
+  and `DisabledHistoricalDataset = "disabled_historical_dataset"`.
+
+- [x] **Type the activity details payload**
+  Add an `IActivityDetails`-shaped entry (or extend the existing union)
+  capturing `dataset: string`, `fleet_id: number | null`,
+  `fleet_name: string | null` for the two new activity types. Match the
+  surrounding patterns in the file.
+
+- [x] **Add tagged-template renderers in `GlobalActivityItem.tsx`**
+  Two renderers — one for enable, one for disable — that:
+  - Look up the friendly label via `DATASET_LABEL[details.dataset]`.
+    On miss, fall back to a sentence-cased rendering of the raw config
+    key (`_` / `-` → space, first letter capitalized, rest lowercase).
+  - Render `... data collection for <b>{label}</b>` on global, and
+    `... data collection for <b>{label}</b> for the <b>{fleet_name}</b> fleet`
+    when `fleet_name` is present.
+  - Wire both into the switch in the appropriate place.
+
+- [x] **Tests for `GlobalActivityItem`**
+  - Global enable renders "Enabled data collection for **Hosts active**."
+  - Global disable renders "Disabled data collection for **Vulnerabilities**."
+  - Fleet-scoped enable includes "for the **Engineering** fleet."
+  - Fleet-scoped disable includes "for the **Engineering** fleet."
+  - Unknown dataset key (e.g. `policy_compliance`) renders as a
+    sentence-cased label ("Policy compliance") without throwing.
+
+- [x] **Update `frontend/__mocks__/activityMock.ts` if needed**
+  Skipped: tests use inline `createMockActivity({ type, details })` fixtures;
+  no shared mock entry needed.
+
 ## Documentation
 
 - [x] **Update user-facing docs**
@@ -178,6 +213,7 @@
   itself plus its link to Advanced settings provides the user-facing
   context. The API/GitOps docs for `features.historical_data` are the
   responsibility of the upstream `chart-disabling-gitops-api` change.
+
 
 ## Verification
 
@@ -200,3 +236,6 @@
     dataset(s); Cancel leaves config untouched.
   - In the confirmation modal: clicking "Save and disable" issues the
     PATCH and closes the modal.
+  - Activity feed shows correctly-formatted rows for enable/disable, both
+    global and fleet-scoped, with the dataset label and (when scoped) the
+    "for the **X** fleet" suffix.

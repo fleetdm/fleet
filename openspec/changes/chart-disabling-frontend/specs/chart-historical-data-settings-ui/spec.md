@@ -221,3 +221,62 @@ tooltip-explained when GitOps mode is enabled.
   GitOps tooltip
 - **AND** the GitOps lockout SHALL take precedence over the
   "Disabled globally" lockout in tooltip selection (GitOps wins)
+
+### Requirement: Activity feed renders historical-dataset toggles
+
+The global activity feed SHALL render the `enabled_historical_dataset` and
+`disabled_historical_dataset` activity types with copy that names the
+dataset and, when the change was fleet-scoped, names the fleet.
+
+The dataset label SHALL come from the shared `DATASET_LABEL` mapping
+(`uptime` → "Hosts active", `vulnerabilities` → "Vulnerabilities") so the
+activity copy matches the checkbox, confirmation modal, and empty-state
+copy. If `details.dataset` is a config key the frontend does not recognize,
+the renderer SHALL fall back to a sentence-cased rendering of the raw key
+(replace `_` / `-` with spaces, capitalize only the first letter) rather
+than throwing.
+
+#### Scenario: Global enable
+
+- **GIVEN** an activity with type `enabled_historical_dataset`,
+  `details.dataset = "uptime"`, and `details.fleet_id = null`
+- **WHEN** the activity feed renders the row
+- **THEN** the message SHALL read
+  "Enabled data collection for **Hosts active**."
+
+#### Scenario: Global disable
+
+- **GIVEN** an activity with type `disabled_historical_dataset`,
+  `details.dataset = "vulnerabilities"`, and `details.fleet_id = null`
+- **WHEN** the activity feed renders the row
+- **THEN** the message SHALL read
+  "Disabled data collection for **Vulnerabilities**."
+
+#### Scenario: Fleet-scoped enable
+
+- **GIVEN** an activity with type `enabled_historical_dataset`,
+  `details.dataset = "uptime"`, `details.fleet_id = 7`, and
+  `details.fleet_name = "Engineering"`
+- **WHEN** the activity feed renders the row
+- **THEN** the message SHALL read
+  "Enabled data collection for **Hosts active** for the **Engineering** fleet."
+
+#### Scenario: Fleet-scoped disable
+
+- **GIVEN** an activity with type `disabled_historical_dataset`,
+  `details.dataset = "vulnerabilities"`, `details.fleet_id = 7`, and
+  `details.fleet_name = "Engineering"`
+- **WHEN** the activity feed renders the row
+- **THEN** the message SHALL read
+  "Disabled data collection for **Vulnerabilities** for the **Engineering** fleet."
+
+#### Scenario: Unknown dataset config key
+
+- **GIVEN** an activity with type `disabled_historical_dataset` and
+  `details.dataset = "policy_compliance"` (a future dataset whose frontend
+  label mapping has not yet shipped)
+- **WHEN** the activity feed renders the row
+- **THEN** the renderer SHALL NOT throw
+- **AND** the message SHALL read
+  "Disabled data collection for **Policy compliance**." (the raw key
+  sentence-cased: `_` replaced with a space, first letter capitalized)

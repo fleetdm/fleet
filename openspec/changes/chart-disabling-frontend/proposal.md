@@ -98,6 +98,34 @@ TeamSettings, ChartCard) need to share them.
   single click on the destructive button proceeds; there is no extra
   type-to-confirm step.
 
+### Activity feed rendering
+
+- The backend (shipped via `chart-disabling-gitops-api`) emits two activity
+  types when a dataset's collection is toggled:
+  - `enabled_historical_dataset`
+  - `disabled_historical_dataset`
+
+  Both carry `dataset` (config key — `"uptime"` or `"vulnerabilities"`),
+  plus `fleet_id` / `fleet_name` (both `nil` for global, both populated for
+  fleet-scoped changes).
+- Add `ActivityType.EnabledHistoricalDataset` and
+  `ActivityType.DisabledHistoricalDataset` entries to
+  `frontend/interfaces/activity.ts`.
+- Add tagged-template renderers in
+  `frontend/pages/DashboardPage/cards/ActivityFeed/GlobalActivityItem/GlobalActivityItem.tsx`
+  and wire them into the switch. Copy:
+  - Global enable: `Enabled data collection for <b>Hosts active</b>.`
+  - Global disable: `Disabled data collection for <b>Hosts active</b>.`
+  - Fleet-scoped enable: `Enabled data collection for <b>Hosts active</b> for the <b>Engineering</b> fleet.`
+  - Fleet-scoped disable: `Disabled data collection for <b>Hosts active</b> for the <b>Engineering</b> fleet.`
+- The dataset label uses `DATASET_LABEL[details.dataset]`. If the config key
+  is unrecognized (e.g. a future dataset whose frontend mapping hasn't
+  shipped), fall back to a sentence-cased rendering of the raw key:
+  replace `_` and `-` with spaces, capitalize the first letter, lowercase
+  the rest (`policy_compliance` → "Policy compliance"). Same defensive
+  instinct as the `DATASET_CONFIG_KEY` fall-through in the dashboard
+  empty state.
+
 ### Dashboard empty state
 
 - In `DashboardPage.tsx`, load both global config (already loaded) and the
@@ -143,6 +171,10 @@ TeamSettings, ChartCard) need to share them.
   Avoids duplicating the AND rule across components.
 - **Confirmation modal fires only on enable→disable transitions.** No-op
   saves and re-enabling produce no modal.
+
+- **Activity feed copy mirrors dataset labels.** The `DATASET_LABEL`
+  mapping is reused so checkbox copy, confirmation modal, empty state,
+  and activity-feed text all surface the same human-readable name.
 
 ## Out of Scope
 
