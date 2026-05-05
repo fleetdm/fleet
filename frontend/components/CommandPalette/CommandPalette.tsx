@@ -12,7 +12,7 @@ import { AppContext } from "context/app";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
-import { toggleDarkMode } from "utilities/theme";
+import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
 
 import {
@@ -200,7 +200,7 @@ const CommandPalette = (): JSX.Element | null => {
     hasTeamSelected,
     withTeamId,
     onToggleDarkMode: () => {
-      toggleDarkMode();
+      setThemeMode(isDarkMode() ? "light" : "dark");
       setOpen(false);
     },
   });

@@ -833,7 +833,13 @@ export const buildCommandItems = (
               ? "Switch to light mode"
               : "Switch to dark mode",
             group: "Actions",
-            keywords: ["dark mode", "light mode", "theme", "toggle"],
+            keywords: [
+              "dark mode",
+              "light mode",
+              "theme",
+              "toggle",
+              "system theme",
+            ],
             onAction: onToggleDarkMode,
           },
         ]
