@@ -4312,14 +4312,14 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 			}
 		}
-		// No matching row = SSO-only AccountConfiguration → no-op
+		// No matching row = SSO-only AccountConfiguration, no-op
 
 	case fleet.SetAutoAdminPasswordCmdName:
 		host, err := svc.ds.GetManagedLocalAccountByPendingCommandUUID(r.Context, cmdResult.CommandUUID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				// The pending row may have been cleared (e.g., the user clicked Rotate
-				// twice and the second click was idempotent). No-op.
+				// Hard to say what happened here, most likely a command was superceded by another OR a user
+				// sent this command manually(e.g. via Commands endpoint)
 				break
 			}
 			return nil, ctxerr.Wrap(r.Context, err, "get managed local account by pending command uuid")
