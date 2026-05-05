@@ -3,8 +3,9 @@ import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
+import { IFormattedDataPoint } from "interfaces/charts";
+
 import CheckerboardViz from "./CheckerboardViz";
-import { IFormattedDataPoint } from "./types";
 
 // Generate data points for a given number of days with 12 two-hour slots each
 const generateData = (

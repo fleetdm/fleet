@@ -18,10 +18,11 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import { IDataSet, IFormattedDataPoint } from "interfaces/charts";
+
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
-import { IDataSet, IFormattedDataPoint } from "./types";
 
 const baseClass = "chart-card";
 
