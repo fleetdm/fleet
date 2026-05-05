@@ -107,19 +107,21 @@ func ValidateOrgLogoBytes(b []byte) error {
 	if int64(len(b)) > OrgLogoMaxFileSize {
 		return &BadRequestError{Message: "logo must be 100KB or less"}
 	}
-	if looksLikeSVG(b) {
-		return validateSVG(b)
-	}
-	_, format, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return &BadRequestError{
-			Message:     "logo must be a valid PNG, JPEG, WebP, or SVG image",
-			InternalErr: err,
+	switch ContentTypeForOrgLogo(b) {
+	case "image/png", "image/jpeg", "image/webp":
+		_, format, err := image.DecodeConfig(bytes.NewReader(b))
+		if err != nil {
+			return &BadRequestError{
+				Message:     "logo must be a valid PNG, JPEG, WebP, or SVG image",
+				InternalErr: err,
+			}
 		}
-	}
-	switch format {
-	case "png", "jpeg", "webp":
-		return nil
+		switch format {
+		case "png", "jpeg", "webp":
+			return nil
+		}
+	case "image/svg+xml":
+		return validateSVG(b)
 	}
 	return &BadRequestError{Message: "logo must be a PNG, JPEG, WebP, or SVG file"}
 }
