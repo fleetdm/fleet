@@ -312,8 +312,8 @@ func TestBuildChartScopeResolver(t *testing.T) {
 		scope := buildChartScopeResolver(
 			makeAppCfg(true, true),
 			[]*fleet.Team{
-				makeTeam(1, true, false),  // cve only on team 1
-				makeTeam(2, false, true),  // uptime only on team 2
+				makeTeam(1, true, false), // cve only on team 1
+				makeTeam(2, false, true), // uptime only on team 2
 				makeTeam(3, true, true),
 			},
 			nil,

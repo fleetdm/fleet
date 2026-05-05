@@ -56,16 +56,16 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getSCDDataFunc             func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
-	getHostIDsForFilterFunc    func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	findRecentlySeenHostIDsFn  func(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
-	affectedHostIDsByCVEFn     func(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
-	trackedCriticalCVEsFn      func(ctx context.Context) ([]string, error)
-	recordBucketDataFn         func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
-	recordBucketDataInvoked    bool
-	deleteAllForDatasetFn      func(ctx context.Context, dataset string, batchSize int) error
-	hostIDsInFleetsFn          func(ctx context.Context, fleetIDs []uint) ([]uint, error)
-	applyScrubMaskFn           func(ctx context.Context, dataset string, mask []byte, batchSize int) error
+	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
+	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
+	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	affectedHostIDsByCVEFn    func(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+	trackedCriticalCVEsFn     func(ctx context.Context) ([]string, error)
+	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
+	recordBucketDataInvoked   bool
+	deleteAllForDatasetFn     func(ctx context.Context, dataset string, batchSize int) error
+	hostIDsInFleetsFn         func(ctx context.Context, fleetIDs []uint) ([]uint, error)
+	applyScrubMaskFn          func(ctx context.Context, dataset string, mask []byte, batchSize int) error
 }
 
 func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
@@ -682,7 +682,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
-		var gotDisabled []uint = []uint{0xDEADBEEF} // sentinel — should be replaced with nil
+		gotDisabled := []uint{0xDEADBEEF} // sentinel — should be replaced with nil
 		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
 			gotDisabled = disabled
 			return []uint{1}, nil
