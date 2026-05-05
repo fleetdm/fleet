@@ -12,7 +12,7 @@ func TestUp_20260423161823(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Seed an existing team config that lacks historical_data — simulates a
-	// pre-change deployment so the backfill's JSON_SET path is exercised.
+	// pre-change deployment so the backfill's JSON_MERGE_PATCH path is exercised.
 	execNoErr(t, db, `
 		INSERT INTO teams (name, description, config)
 		VALUES (?, ?, ?)
@@ -46,6 +46,6 @@ func TestUp_20260423161823(t *testing.T) {
 	require.Equal(t, true, teamHD["uptime"], "team uptime defaulted true")
 	require.Equal(t, true, teamHD["vulnerabilities"], "team vulnerabilities defaulted true")
 
-	// Pre-existing fields under features.* SHALL be preserved by JSON_SET.
-	require.Equal(t, true, teamFeatures["enable_host_users"], "JSON_SET preserved enable_host_users")
+	// Pre-existing fields under features.* SHALL be preserved by JSON_MERGE_PATCH.
+	require.Equal(t, true, teamFeatures["enable_host_users"], "JSON_MERGE_PATCH preserved enable_host_users")
 }
