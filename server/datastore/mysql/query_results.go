@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
@@ -324,7 +323,7 @@ func (ds *Datastore) ListHostReports(
 		whereClause += " AND q.discard_data = 0 AND q.logging_type = 'snapshot'"
 	}
 
-	if !license.IsPremium(ctx) {
+	if opts.ExcludeIncludeAllQueries {
 		whereClause += `
 		AND NOT EXISTS (
 			SELECT 1 FROM query_labels ql

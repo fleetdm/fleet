@@ -1287,6 +1287,25 @@ func testListHostReports(t *testing.T, ds *Datastore) {
 		assert.False(t, hasReport(hostNone.ID), "host with NO required labels must not see include_all query")
 		assert.False(t, hasReport(hostOnlyA.ID), "host with SUBSET of required labels must not see include_all query")
 		assert.True(t, hasReport(hostBoth.ID), "host with ALL required labels must see include_all query")
+
+		// ExcludeIncludeAllQueries hides include_all queries entirely from
+		// the result set, regardless of host membership.
+		excludeOpts := opts
+		excludeOpts.ExcludeIncludeAllQueries = true
+		hasReportExcluded := func(hostID uint) bool {
+			t.Helper()
+			reports, _, _, err := ds.ListHostReports(ctx, hostID, nil, "", excludeOpts, fleet.DefaultMaxQueryReportRows)
+			require.NoError(t, err)
+			for _, r := range reports {
+				if r.Name == qIncludeAll.Name {
+					return true
+				}
+			}
+			return false
+		}
+		assert.False(t, hasReportExcluded(hostNone.ID), "ExcludeIncludeAllQueries must hide include_all from host with no labels")
+		assert.False(t, hasReportExcluded(hostOnlyA.ID), "ExcludeIncludeAllQueries must hide include_all from host with subset of labels")
+		assert.False(t, hasReportExcluded(hostBoth.ID), "ExcludeIncludeAllQueries must hide include_all from host with all labels")
 	})
 
 	t.Run("combined_platform_label_team_filters", func(t *testing.T) {
