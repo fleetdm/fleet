@@ -474,7 +474,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           disableVulnerabilities={formData.disableVulnerabilities}
           globalHostsActiveDisabled={globalHostsActiveDisabled}
           globalVulnerabilitiesDisabled={globalVulnerabilitiesDisabled}
-          onChange={onInputChange}
+          onChange={({ name, value }) =>
+            onInputChange({ name: name as FormNames, value })
+          }
         />
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-function */
 import React from "react";
 import { screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { renderWithSetup, createMockRouter } from "test/test-utils";
 
 import createMockConfig from "__mocks__/configMock";
 
@@ -29,6 +29,7 @@ const renderAdvanced = (
       appConfig={config}
       handleSubmit={handleSubmit}
       isUpdatingSettings={false}
+      router={createMockRouter()}
     />
   );
   return { ...utils, handleSubmit, config };
