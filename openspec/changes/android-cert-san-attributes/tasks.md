@@ -106,8 +106,9 @@
 
 ## 7. Frontend
 
-- [ ] 7.1 Add `subjectAlternativeName: string` to `IAddCertFormData` and the equivalent edit-form types under
-      `frontend/pages/ManageControlsPage/OSSettings/cards/Certificates/`
+- [ ] 7.1 Add `subjectAlternativeName: string` to `IAddCertFormData` under
+      `frontend/pages/ManageControlsPage/OSSettings/cards/Certificates/`. (No edit-form types: the Certificates card today
+      wires only Add and Delete actions in `Certificates.tsx`; editing an existing template is delete+re-add.)
 - [ ] 7.2 Add a SAN text input directly under the existing `subject_name` input in `AddCertificateModal.tsx`, matching the
       Figma wireframe (https://www.figma.com/design/2jRQoXofC1caxyNhWl8F0m/...?node-id=3462-252) for label/help text
 - [ ] 7.3 Wire the field through the API client (`frontend/services/`) request and response types so the modal sends and reads
