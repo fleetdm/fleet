@@ -47,6 +47,7 @@ locals {
       FLEET_AUTH_SSO_SESSION_VALIDITY_PERIOD         = "15m"
       FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE            = "500"
       FLEET_SERVER_GZIP_RESPONSES                    = "true"
+      FLEET_VULNERABILITIES_OSV_FOR_VULNERABILITIES  = "false"
 
 
       # Load TLS Certificate for RDS Authentication
