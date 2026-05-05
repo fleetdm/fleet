@@ -56,8 +56,8 @@ const (
 	// Runs every 5 minutes; picks up rows whose auto_rotate_at has elapsed (set by view or
 	// by a manual rotation that was deferred because the account UUID wasn't yet known).
 	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
-	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
-	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
+	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 )
 
 type CronSchedulesService interface {
