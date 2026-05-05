@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -52,17 +51,29 @@ func validateCertificateTemplateFleetVariables(subjectName string) error {
 // validateCertificateTemplateSubjectAlternativeName performs lightweight format-only validation
 // of the SAN string. Empty / whitespace-only input is permitted (means no SAN). For non-empty
 // values it checks the length cap, that each non-empty comma-separated token contains '=' with
-// non-empty content on both sides, that each KEY is in the allow-list (DNS, EMAIL, UPN, IP,
+// non-empty content on both sides, that each KEY is in the allowlist (DNS, EMAIL, UPN, IP,
 // URI), and that at least one valid token is present (rejects separator-only inputs like ",").
 // The value (right of '=') is otherwise not validated; value content is parsed by the Android
 // agent at delivery time, where any $FLEET_VAR_* references have already been expanded.
-func validateCertificateTemplateSubjectAlternativeName(san string) error {
+//
+// certName is suffixed onto each error reason as "(certificate <name>)" for GitOps multi-cert
+// clarity; pass "" from single-cert callers like CreateCertificateTemplate where the failing
+// cert is unambiguous. Returns a typed *fleet.InvalidArgumentError on failure (HTTP 422,
+// errors[].name = "subject_alternative_name") or nil on success.
+func validateCertificateTemplateSubjectAlternativeName(san, certName string) error {
+	const field = "subject_alternative_name"
+	mkErr := func(reason string) error {
+		if certName != "" {
+			reason = fmt.Sprintf("%s (certificate %s)", reason, certName)
+		}
+		return fleet.NewInvalidArgumentError(field, reason)
+	}
 	if strings.TrimSpace(san) == "" {
 		return nil
 	}
 	if len(san) > maxCertificateTemplateSubjectAlternativeNameLength {
-		return fmt.Errorf("subject_alternative_name is too long. Maximum is %d bytes.",
-			maxCertificateTemplateSubjectAlternativeNameLength)
+		return mkErr(fmt.Sprintf("is too long. Maximum is %d bytes",
+			maxCertificateTemplateSubjectAlternativeNameLength))
 	}
 	tokensSeen := 0
 	for raw := range strings.SplitSeq(san, ",") {
@@ -73,23 +84,21 @@ func validateCertificateTemplateSubjectAlternativeName(san string) error {
 		tokensSeen++
 		eqIdx := strings.Index(token, "=")
 		if eqIdx == -1 {
-			return fmt.Errorf("subject_alternative_name token %q is missing '='", token)
+			return mkErr(fmt.Sprintf("token %q is missing '='", token))
 		}
 		if eqIdx == 0 {
-			return fmt.Errorf("subject_alternative_name token %q has an empty key", token)
+			return mkErr(fmt.Sprintf("token %q has an empty key", token))
 		}
 		key := strings.ToUpper(strings.TrimSpace(token[:eqIdx]))
 		if _, ok := subjectAlternativeNameAllowedKeys[key]; !ok {
-			return fmt.Errorf(
-				"subject_alternative_name has unsupported key %q. Allowed keys are DNS, EMAIL, UPN, IP, URI.",
-				key)
+			return mkErr(fmt.Sprintf("has unsupported key %q. Allowed keys are DNS, EMAIL, UPN, IP, URI", key))
 		}
 		if strings.TrimSpace(token[eqIdx+1:]) == "" {
-			return fmt.Errorf("subject_alternative_name token %q has an empty value", token)
+			return mkErr(fmt.Sprintf("token %q has an empty value", token))
 		}
 	}
 	if tokensSeen == 0 {
-		return errors.New("subject_alternative_name contains no entries")
+		return mkErr("contains no entries")
 	}
 	return nil
 }

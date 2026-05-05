@@ -262,7 +262,7 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
-	t.Run("Format failures return BadRequestError naming the issue", func(t *testing.T) {
+	t.Run("Format failures return InvalidArgumentError scoped to the SAN field", func(t *testing.T) {
 		svc, ctx, _ := makePremiumService(t)
 
 		cases := []struct {
@@ -279,9 +279,13 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				_, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", tc.san)
 				require.Error(t, err)
-				var bre *fleet.BadRequestError
-				require.ErrorAs(t, err, &bre)
-				require.Contains(t, err.Error(), tc.fragment)
+				var iae *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &iae)
+				require.True(t, iae.HasErrors())
+				details := iae.Invalid()
+				require.Len(t, details, 1)
+				require.Equal(t, "subject_alternative_name", details[0]["name"])
+				require.Contains(t, details[0]["reason"], tc.fragment)
 			})
 		}
 	})
@@ -326,10 +330,18 @@ func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validateCertificateTemplateSubjectAlternativeName(tc.san)
+			err := validateCertificateTemplateSubjectAlternativeName(tc.san, "")
 			if tc.expectError {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.errContains)
+				// Validator must return a typed *fleet.InvalidArgumentError scoped to the SAN field
+				// (HTTP 422).
+				var iae *fleet.InvalidArgumentError
+				require.ErrorAs(t, err, &iae)
+				require.True(t, iae.HasErrors())
+				details := iae.Invalid()
+				require.Len(t, details, 1)
+				require.Equal(t, "subject_alternative_name", details[0]["name"])
 			} else {
 				require.NoError(t, err)
 			}

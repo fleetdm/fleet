@@ -109,11 +109,11 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		if !lic.IsPremium() {
 			return nil, fleet.ErrMissingLicense
 		}
-		if err := validateCertificateTemplateSubjectAlternativeName(subjectAlternativeName); err != nil {
-			return nil, &fleet.BadRequestError{Message: err.Error()}
+		if err := validateCertificateTemplateSubjectAlternativeName(subjectAlternativeName, ""); err != nil {
+			return nil, err
 		}
 		if err := validateCertificateTemplateFleetVariables(subjectAlternativeName); err != nil {
-			return nil, &fleet.BadRequestError{Message: err.Error()}
+			return nil, fleet.NewInvalidArgumentError("subject_alternative_name", err.Error())
 		}
 	}
 
@@ -535,11 +535,12 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 
 		// Validate the optional SAN for format and variables.
 		if strings.TrimSpace(spec.SubjectAlternativeName) != "" {
-			if err := validateCertificateTemplateSubjectAlternativeName(spec.SubjectAlternativeName); err != nil {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
+			if err := validateCertificateTemplateSubjectAlternativeName(spec.SubjectAlternativeName, spec.Name); err != nil {
+				return err
 			}
 			if err := validateCertificateTemplateFleetVariables(spec.SubjectAlternativeName); err != nil {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name)}
+				return fleet.NewInvalidArgumentError("subject_alternative_name",
+					fmt.Sprintf("%s (certificate %s)", err.Error(), spec.Name))
 			}
 		}
 

@@ -3353,7 +3353,7 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
 		// reaches the server. Server re-validates as the source of truth.
 		if san != "" {
-			if err := validateCertificateTemplateSubjectAlternativeName(san); err != nil {
+			if err := validateCertificateTemplateSubjectAlternativeName(san, certificates[i].Name); err != nil {
 				return newGitOpsValidationError(
 					fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
 				)

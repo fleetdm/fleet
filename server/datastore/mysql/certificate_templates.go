@@ -259,10 +259,8 @@ func (ds *Datastore) BatchUpsertCertificateTemplates(ctx context.Context, certif
 	}
 
 	// On duplicate (team_id, name), this is a no-op for content-bearing fields. SubjectName,
-	// CertificateAuthorityID, and SubjectAlternativeName changes are handled upstream in the
-	// fleetctl GitOps client by deleting and recreating the template (see
-	// doGitOpsAndroidCertificates in server/service/client.go), so the upsert intentionally
-	// does not propagate updates.
+	// CertificateAuthorityID, and SubjectAlternativeName changes are handled upstream, so the
+	// upsert intentionally does not propagate updates.
 	const sqlInsertCertificate = `
 		INSERT INTO certificate_templates (
 			name,
