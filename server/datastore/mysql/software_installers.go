@@ -3294,7 +3294,7 @@ FROM
 	LEFT JOIN fleet_maintained_apps fma ON
 		si.fleet_maintained_app_id = fma.id
 WHERE
-	si.global_or_team_id = ? AND si.is_active = 1
+	global_or_team_id = ?
 
 UNION ALL
 
