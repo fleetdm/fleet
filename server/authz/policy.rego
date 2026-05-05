@@ -743,7 +743,7 @@ allow {
 # Global admins, maintainers, technician, observers, and observer_plus can read all software.
 allow {
   object.type == "software_inventory"
-  subject.global_role == [admin, maintainer, technician, observer, observer_plus][_]
+  subject.global_role == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
@@ -758,28 +758,28 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "software_inventory"
-  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, observer, observer_plus, gitops][_]
   action == read
 }
 
 # Global admins and maintainers can read all maintained apps.
 allow {
   object.type == "maintained_app"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == read
 }
 
 # Team admins and maintainers can read all maintained apps (no team constraint, unlike installers)
 allow {
   object.type == "maintained_app"
-  team_role(subject, subject.teams[_].id) == [admin, maintainer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, gitops][_]
   action == read
 }
 
 # Global admins, maintainers, and technicians can read any installable entity (software installer or VPP app)
 allow {
   object.type == "installable_entity"
-  subject.global_role == [admin, maintainer, technician][_]
+  subject.global_role == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
@@ -794,7 +794,7 @@ allow {
 allow {
   not is_null(object.team_id)
   object.type == "installable_entity"
-  team_role(subject, object.team_id) == [admin, maintainer, technician][_]
+  team_role(subject, object.team_id) == [admin, maintainer, technician, gitops][_]
   action == read
 }
 
