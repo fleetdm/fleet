@@ -297,8 +297,6 @@ func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, ho
 // the cron pick it up on the next tick (after the UUID is captured by osquery), and
 // initiated_by_fleet=0 tells the cron *not* to re-log the activity (the manual path
 // already logged it with the user as actor at click time).
-//
-// Idempotent — repeated calls with the row already in the deferred state are no-ops.
 func (ds *Datastore) MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error {
 	stmt := fmt.Sprintf(`
 		UPDATE host_managed_local_account_passwords
