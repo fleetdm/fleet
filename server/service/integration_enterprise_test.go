@@ -29749,11 +29749,6 @@ func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
 }
 
-// TestListHostReportsIncludeAllPremium verifies that on premium tier the
-// /hosts/:id/reports endpoint surfaces include_all queries only to hosts that
-// are members of every required label. The free-tier counterpart
-// (TestListHostReports/free_tier_hides_include_all_reports) asserts that the
-// same data is hidden entirely on free tier.
 func (s *integrationEnterpriseTestSuite) TestListHostReportsIncludeAllPremium() {
 	t := s.T()
 	ctx := t.Context()

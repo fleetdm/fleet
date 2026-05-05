@@ -324,11 +324,6 @@ func (ds *Datastore) ListHostReports(
 		whereClause += " AND q.discard_data = 0 AND q.logging_type = 'snapshot'"
 	}
 
-	// labels_include_all is a premium-only feature. On free tier, hide any
-	// query that has include_all labels (require_all=1) from the reports
-	// list, even if such rows pre-exist (e.g. after a tier downgrade).
-	// Mirrors the server-side write gate so include_all data never surfaces
-	// via the reports API on free tier.
 	if !license.IsPremium(ctx) {
 		whereClause += `
 		AND NOT EXISTS (
