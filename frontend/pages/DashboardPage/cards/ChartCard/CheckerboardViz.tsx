@@ -280,18 +280,23 @@ const CheckerboardViz = ({
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
+              const level = getColorLevel(cell.percentage);
+              // Filled cells have a bg-colored 1px stroke that visually blends
+              // away. The level-0 (empty) cell uses a colored stroke instead,
+              // so without insetting it would look 1px larger than filled
+              // cells. Inset by half the stroke so the outline's outer edge
+              // sits where the filled cell's invisible stroke does.
+              const inset = level === 0 ? 0.5 : 0;
               return (
                 <rect
                   key={`${cell.dayIndex}-${cell.hourRow}`}
-                  x={col * (cellW + CELL_GAP)}
-                  y={row * (cellH + CELL_GAP)}
-                  width={cellW}
-                  height={cellH}
+                  x={col * (cellW + CELL_GAP) + inset}
+                  y={row * (cellH + CELL_GAP) + inset}
+                  width={cellW - inset * 2}
+                  height={cellH - inset * 2}
                   rx={3}
                   ry={3}
-                  className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
-                    cell.percentage
-                  )}`}
+                  className={`${baseClass}__cell ${baseClass}__cell--level-${level}`}
                   role="img"
                   aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}

@@ -290,8 +290,12 @@
     stroke-width: 1px;
 
     &--level-0 {
-      fill: var(--level-0);
-      background-color: var(--level-0);
+      fill: none;
+      stroke: var(--level-0);
+      // HTML legend swatch can't use SVG stroke; inset shadow gives the same
+      // outlined-only look without changing the swatch's outer dimensions.
+      background-color: transparent;
+      box-shadow: inset 0 0 0 1px var(--level-0);
     }
 
     &--level-1 {
