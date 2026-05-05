@@ -134,8 +134,10 @@ func isSafeSVGURL(raw string) bool {
 		return false
 	}
 	if u.Scheme == "" {
-		// Relative path or fragment — no scheme, no script surface.
-		return true
+		// Bare relative path or fragment is fine; protocol-relative
+		// "//host/x" parses to empty Scheme + non-empty Host and a
+		// browser resolves it against the page's scheme — reject.
+		return u.Host == ""
 	}
 	s := strings.ToLower(u.Scheme)
 	return s == "http" || s == "https"
@@ -143,13 +145,19 @@ func isSafeSVGURL(raw string) bool {
 
 // Elements that can run scripts or load foreign content. <img>-rendered
 // SVGs are script-sandboxed, but pasting the URL loads it as a document
-// — so reject structurally instead of trusting the renderer.
+// — so reject structurally instead of trusting the renderer. SMIL
+// animation tags are blocked because they can mutate href/xlink:href at
+// runtime and bypass the static href allowlist.
 var disallowedSVGElements = map[string]struct{}{
-	"script":        {},
-	"foreignobject": {},
-	"iframe":        {},
-	"object":        {},
-	"embed":         {},
+	"script":           {},
+	"foreignobject":    {},
+	"iframe":           {},
+	"object":           {},
+	"embed":            {},
+	"set":              {},
+	"animate":          {},
+	"animatetransform": {},
+	"animatemotion":    {},
 }
 
 // validateSVG rejects unsafe SVG content. Leaving decoder.Entity nil and

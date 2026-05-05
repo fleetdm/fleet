@@ -63,6 +63,20 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 		assert.Contains(t, strings.ToLower(err.Error()), "foreignobject")
 	})
 
+	t.Run("rejects SMIL animation elements", func(t *testing.T) {
+		// SMIL <set>/<animate> can rewrite an ancestor's href to
+		// javascript:... after the static allowlist already passed,
+		// so the validator must reject these structurally.
+		for _, tag := range []string{"set", "animate", "animateTransform", "animateMotion"} {
+			t.Run(tag, func(t *testing.T) {
+				body := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg"><a href="#safe"><%s attributeName="href" to="javascript:alert(1)"/><rect width="1" height="1"/></a></svg>`, tag)
+				err := ValidateOrgLogoBytes([]byte(body))
+				require.Error(t, err)
+				assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(tag))
+			})
+		}
+	})
+
 	t.Run("rejects on* event handlers", func(t *testing.T) {
 		body := `<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="1" height="1"/></svg>`
 		err := ValidateOrgLogoBytes([]byte(body))
@@ -88,6 +102,9 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 			{"livescript", "livescript:alert(1)", false},
 			{"uppercase javascript", "JAVASCRIPT:alert(1)", false},
 			{"leading whitespace + javascript", "  javascript:alert(1)", false},
+			// url.Parse("//host/x") returns Scheme=="" + Host=="host";
+			// the browser resolves the page's scheme on click.
+			{"protocol-relative", "//evil.com/x.png", false},
 		}
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
