@@ -27,6 +27,7 @@ parasails.registerComponent('code-block-copy-buttons', {
 
       // Now add click events to each code-block-copy-button element that copies the text content of the neighboring <code> element.
       $('[purpose="code-block-copy-button"]').on('click', async function() {
+        // Get the text content of the closest <code> element to the copy button.
         let code = $(this).closest('pre').find('code').text();
         // Add the copied class to the copy button (which replaces the icon with a checkmark).
         $(this).addClass('copied');
