@@ -1107,7 +1107,8 @@ CREATE TABLE `host_scd_data` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_entity_bucket` (`dataset`,`entity_id`,`valid_from`),
-  KEY `idx_dataset_range` (`dataset`,`valid_from`,`valid_to`)
+  KEY `idx_dataset_range` (`dataset`,`valid_from`,`valid_to`),
+  KEY `idx_valid_to_dataset` (`valid_to`,`dataset`,`entity_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
