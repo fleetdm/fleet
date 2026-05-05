@@ -595,7 +595,7 @@ changelog:
 
 changelog-orbit:
 	$(eval TODAY_DATE := $(shell date "+%b %d, %Y"))
-	@echo -e "## Orbit $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
+	@echo -e "## $(version) ($(TODAY_DATE))\n" > new-CHANGELOG.md
 	sh -c "find orbit/changes -type file | grep -v .keep | xargs -I {} sh -c 'grep \"\S\" {} | sed -E "s/^-/*/"; echo' >> new-CHANGELOG.md"
 	sh -c "cat new-CHANGELOG.md orbit/CHANGELOG.md > tmp-CHANGELOG.md && rm new-CHANGELOG.md && mv tmp-CHANGELOG.md orbit/CHANGELOG.md"
 	sh -c "git rm orbit/changes/*"
