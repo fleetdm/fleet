@@ -130,11 +130,14 @@ Most organizations only need one AB token and one VPP token to manage their macO
 
 These organizations may need multiple AB and VPP tokens:
 
-- Managed Service Providers (MSPs)
-- Enterprises that acquire new businesses and as a result inherit new hosts
-- Umbrella organizations that preside over entities with separated purchasing authority (i.e. a hospital or university)
+- [Managed Service Providers (MSPs)](#msps)
+- [Enterprises that acquire](#enterprises-that-acquire) new businesses and as a result inherit new hosts
+- [Umbrella organizations](#umbrella-organizations) that preside over entities with separated purchasing authority (i.e. a hospital or university)
+- [International organizations](#international-organizations) that manage hosts across multiple countries
 
-For **MSPs**, the best practice is to have one AB and VPP connection per client.
+### MSPs
+
+For MSPs, the best practice is to have one AB and VPP connection per client.
 
 The default fleets for each client's AB token will look like this:
 - macOS: 💻 Client A - Workstations
@@ -143,7 +146,9 @@ The default fleets for each client's AB token will look like this:
 
 Client A's VPP token will be assigned to the above fleets.
 
-For **enterprises that acquire**, the best practice is to add a new AB and VPP connection for each acquisition.
+### Enterprises that acquire
+
+For enterprises that acquire, the best practice is to add a new AB and VPP connection for each acquisition.
 
 These will be the default fleets:
 
@@ -160,6 +165,28 @@ Acquisition AB token:
 - iPadOS:🔳🏢 Acquisition - Company-owned iPads
 
 The acquisitions's VPP token will be assigned to the above fleets.
+
+### Umbrella organizations
+
+For umbrella organizations (e.g., a hospital system or university) where each entity has its own purchasing authority, the best practice is to have one AB and VPP connection per entity.
+
+The default fleets for each entity's AB token will look like this:
+- macOS: 💻 Entity A - Workstations
+- iOS: 📱🏢 Entity A - Company-owned iPhones
+- iPadOS: 🔳🏢 Entity A - Company-owned iPads
+
+Entity A's VPP token will be assigned to the above fleets.
+
+### International organizations
+
+For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
+
+The default fleets for each country's AB token will look like this:
+- macOS: 💻 Country A - Workstations
+- iOS: 📱🏢 Country A - Company-owned iPhones
+- iPadOS: 🔳🏢 Country A - Company-owned iPads
+
+Each country's VPP token will be assigned to the above fleets.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 
