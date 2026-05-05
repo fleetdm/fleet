@@ -1065,9 +1065,6 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 				if cert.SubjectName == "" {
 					multiError = multierror.Append(multiError, fmt.Errorf("android_settings.certificates[%d]: subject_name is required", i))
 				}
-				// subject_alternative_name is optional. Format and variable allow-list checks happen
-				// in fleetctl client.go (with friendly error messages) and again on the server as the
-				// source of truth. We only check here for things the server can't catch later.
 			}
 		}
 
