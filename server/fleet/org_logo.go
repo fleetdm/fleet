@@ -197,16 +197,26 @@ func validateSVG(b []byte) error {
 				if strings.HasPrefix(attrName, "on") {
 					return &BadRequestError{Message: "SVG event-handler attributes are not allowed"}
 				}
-				// Name.Local matches both href and xlink:href.
-				if attrName == "href" || attrName == "src" {
+				// Name.Local matches both href and xlink:href. xml:base
+				// is here too: a hostile base ("javascript:") would
+				// re-anchor every relative href and bypass this check.
+				if attrName == "href" || attrName == "src" || attrName == "base" {
 					if !isSafeSVGURL(attr.Value) {
-						return &BadRequestError{Message: "SVG href/src must be a fragment, relative path, or http(s):// URL"}
+						return &BadRequestError{Message: "SVG href/src/xml:base must be a fragment, relative path, or http(s):// URL"}
 					}
 				}
 			}
 		case xml.Directive:
 			// DOCTYPE / ENTITY (XXE, billion-laughs vectors).
 			return &BadRequestError{Message: "SVG DTD/DOCTYPE declarations are not allowed"}
+		case xml.ProcInst:
+			// The leading `<?xml ...?>` declaration is reported as a
+			// ProcInst with Target=="xml". Anything else (most notably
+			// `<?xml-stylesheet href="..."?>`) pulls external resources
+			// when the SVG is opened as a document — block it.
+			if t.Target != "xml" {
+				return &BadRequestError{Message: fmt.Sprintf("SVG processing instruction <?%s ...?> is not allowed", t.Target)}
+			}
 		}
 	}
 	if !sawRoot {

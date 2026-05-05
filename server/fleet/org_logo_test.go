@@ -120,6 +120,23 @@ func TestValidateOrgLogoBytesSVG(t *testing.T) {
 		}
 	})
 
+	t.Run("rejects xml:base with unsafe scheme", func(t *testing.T) {
+		// xml:base re-anchors every relative href in the subtree, so
+		// `xml:base="javascript:"` + `href="alert(1)"` resolves to a
+		// javascript: URL and bypasses the static href check.
+		body := `<svg xmlns="http://www.w3.org/2000/svg" xml:base="javascript:"><a href="alert(1)"><rect width="1" height="1"/></a></svg>`
+		err := ValidateOrgLogoBytes([]byte(body))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "fragment")
+	})
+
+	t.Run("rejects xml-stylesheet PI", func(t *testing.T) {
+		body := `<?xml version="1.0"?><?xml-stylesheet href="https://evil.example/x.xsl"?><svg xmlns="http://www.w3.org/2000/svg"/>`
+		err := ValidateOrgLogoBytes([]byte(body))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "xml-stylesheet")
+	})
+
 	t.Run("rejects DOCTYPE", func(t *testing.T) {
 		body := `<?xml version="1.0"?>
 <!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>

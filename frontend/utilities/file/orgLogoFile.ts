@@ -51,12 +51,25 @@ const detectImageType = (bytes: Uint8Array): ImageFileType | null => {
   ) {
     return "webp";
   }
-  // SVG is text — search the sniff window for "<svg" (case-insensitive).
-  // Real SVGs put the root tag near the top, after at most an XML
-  // declaration, comments, or a DOCTYPE. Strict safety checks happen
-  // server-side; the FE check is just for early UX feedback.
-  const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-  if (/<svg\b/i.test(text)) {
+  // SVG is text. Require <svg as the first start tag — accepting any
+  // text containing "<svg" anywhere would let an HTML file with an
+  // inline <svg> sail past the FE check and only get rejected after
+  // the upload round-trips. Strip BOM, leading whitespace, an optional
+  // <?xml ...?> declaration, and any leading comments / DOCTYPE / PIs,
+  // then look for <svg at the head.
+  let text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+  if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+  text = text.replace(/^\s+/, "");
+  text = text.replace(/^<\?xml\b[^?]*\?>\s*/, "");
+  // Comments / DOCTYPE / other PIs may all stack before the root.
+  let prev: string;
+  do {
+    prev = text;
+    text = text.replace(/^<!--[\s\S]*?-->\s*/, "");
+    text = text.replace(/^<!DOCTYPE[^>]*>\s*/i, "");
+    text = text.replace(/^<\?[\s\S]*?\?>\s*/, "");
+  } while (text !== prev);
+  if (/^<svg\b/i.test(text)) {
     return "svg";
   }
   return null;
