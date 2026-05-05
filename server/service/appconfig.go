@@ -952,7 +952,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
 	addedEntraTenantIDs := make([]string, 0)

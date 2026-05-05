@@ -419,7 +419,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
 	if macOSMinVersionUpdated {
@@ -1870,7 +1870,7 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return err
+		return ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
