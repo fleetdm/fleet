@@ -3832,7 +3832,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			}
 
 			if err := svc.ds.MDMAppleResetOnReenrollment(r.Context, r.ID, appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment); err != nil {
-				return ctxerr.Wrap(r.Context, err, "resetting enrollment for device in DEP migration", "host_uuid", r.ID)
+				return ctxerr.Wrap(r.Context, err, "resetting enrollment on re-enrollment", "host_uuid", r.ID)
 			}
 		}
 

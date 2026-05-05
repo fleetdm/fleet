@@ -3014,7 +3014,7 @@ type Datastore interface {
 	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 
 	// MDMAppleResetOnReenrollment performs necessary datastore operations to reset the state of a host that is re-enrolling in MDM,
-	// resetting label membership, other host data, and optionally host activites (activities and mdm command queue).
+	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
 	// Host activities will not be cleared if preserveHostActivities is true
 	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 }

@@ -1670,6 +1670,10 @@ func TestMDMTokenUpdate(t *testing.T) {
 		return j, nil
 	}
 
+	ds.MDMAppleResetOnReenrollmentFunc = func(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+		return nil
+	}
+
 	err := svc.TokenUpdate(
 		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
 		&mdm.TokenUpdate{
