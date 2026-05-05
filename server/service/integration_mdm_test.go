@@ -24110,12 +24110,19 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		rotateActivityName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
 		var sawFleetRotation bool
 		for _, a := range fleetActivities.Activities {
-			if a.Type == rotateActivityName && a.FleetInitiated {
+			if a.Type != rotateActivityName || !a.FleetInitiated || a.Details == nil {
+				continue
+			}
+			var d fleet.ActivityTypeRotatedManagedLocalAccountPassword
+			if err := json.Unmarshal(*a.Details, &d); err != nil {
+				continue
+			}
+			if d.HostID == host.ID {
 				sawFleetRotation = true
 				break
 			}
 		}
-		require.True(t, sawFleetRotation, "expected an auto-rotation activity with FleetInitiated=true")
+		require.True(t, sawFleetRotation, "expected an auto-rotation activity with FleetInitiated=true for this host")
 
 		// Password changed again.
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
@@ -24204,6 +24211,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.Equal(t, "failed", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
 		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PendingRotation)
 		require.Nil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 	})
 
 	t.Run("Setup experience team config", func(t *testing.T) {
