@@ -2669,8 +2669,8 @@ host's fleet sub-key are `true`.
 
 | Name              | Type    | Description                                                                                                |
 | ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
-| uptime            | boolean | Whether to collect host activity samples that drive the Hosts Active dashboard chart. (Default: `true`)      |
-| vulnerabilities   | boolean | Whether to collect per-host software vulnerability data that drive the Vulnerability Exposure dashboard chart. (Default: `true`)    |
+| uptime            | boolean | Whether to collect host activity samples. (Default: `true`)      |
+| vulnerabilities   | boolean | Whether to collect per-host software vulnerability data. (Default: `true`)    |
 
 <br/>
 
