@@ -123,8 +123,8 @@ const DynamicLabelForm = ({
         onCancel={onCancel}
         immutableFields={
           teamName
-            ? ["fleets", "reports", "platforms"]
-            : ["reports", "platforms"]
+            ? ["fleets", "queries", "platforms"]
+            : ["queries", "platforms"]
         }
         additionalFields={
           <>
