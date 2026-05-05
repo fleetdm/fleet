@@ -30,6 +30,7 @@ func TestHostCertificates(t *testing.T) {
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
+		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
@@ -77,7 +78,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 		generateTestHostCertificateRecord(t, 1, &expected2),
 	}
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload, fleet.HostCertificateOriginOsquery))
 
 	// verify that we saved the records correctly
 	certs, meta, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", IncludeMetadata: true})
@@ -101,7 +102,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected2.Subject.CommonName, certs[1].SubjectCommonName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1]}, fleet.HostCertificateOriginOsquery))
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 1)
@@ -111,7 +112,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	// re-add first certificate but as a "user" source
 	payload[0].Source = fleet.UserHostCertificate
 	payload[0].Username = "A"
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[0], payload[1]}, fleet.HostCertificateOriginOsquery))
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
@@ -155,7 +156,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		t.Log(c.desc)
 
-		err := ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", c.ingest)
+		err := ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", c.ingest, fleet.HostCertificateOriginOsquery)
 		require.NoError(t, err)
 		certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", TestSecondaryOrderKey: "username"})
 		require.NoError(t, err)
@@ -301,7 +302,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 		generateTestHostCertificateRecord(t, host.ID, &expected3),
 	}
 
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery))
 
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(context.Background(), 1, fleet.ListOptions{OrderKey: "common_name"})
@@ -348,7 +349,7 @@ func testUpdatingHostMDMManagedCertificates(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "step-ca", profile2.CAName)
 
 	// simulate removal of a certificate
-	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1], payload[2]}))
+	require.NoError(t, ds.UpdateHostCertificates(context.Background(), host.ID, "95816502-d8c0-462c-882f-39991cc89a0c", []*fleet.HostCertificateRecord{payload[1], payload[2]}, fleet.HostCertificateOriginOsquery))
 	certs3, _, err := ds.ListHostCertificates(context.Background(), host.ID, fleet.ListOptions{OrderKey: "common_name"})
 	require.NoError(t, err)
 	require.Len(t, certs3, 2)
@@ -489,8 +490,8 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	host2Cert.Username = "jsmith"
 
 	// Add the same certificate to both hosts
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert}))
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host1.ID, host1.UUID, []*fleet.HostCertificateRecord{host1Cert}, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2Cert}, fleet.HostCertificateOriginOsquery))
 
 	// Verify both hosts have the correct certs, with the correct sources
 	host1Certs, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
@@ -511,7 +512,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	host2CertUpdated.Source = fleet.UserHostCertificate
 	host2CertUpdated.Username = "janesmith"
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}, fleet.HostCertificateOriginOsquery))
 
 	// Verify host1's certificate source was *not* updated
 	host1CertsAfter, _, err := ds.ListHostCertificates(ctx, host1.ID, fleet.ListOptions{})
@@ -526,7 +527,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	require.Equal(t, "janesmith", host2CertsAfter[0].Username)
 
 	// Verify no-op case
-	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated})
+	err = ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated}, fleet.HostCertificateOriginOsquery)
 	require.NoError(t, err)
 
 	// Verify host2's certificate source was updated
@@ -540,7 +541,7 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	systemCertOnHost2 := fleet.NewHostCertificateRecord(host2.ID, parsed)
 	systemCertOnHost2.Source = fleet.SystemHostCertificate
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated, systemCertOnHost2}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host2.ID, host2.UUID, []*fleet.HostCertificateRecord{host2CertUpdated, systemCertOnHost2}, fleet.HostCertificateOriginOsquery))
 
 	// Verify host2 now has the certificate with both sources
 	host2CertsMultiSource, _, err := ds.ListHostCertificates(ctx, host2.ID, fleet.ListOptions{})
@@ -566,6 +567,95 @@ func testUpdateHostCertificatesSourcesIsolation(t *testing.T, ds *Datastore) {
 	require.Len(t, host1CertsMultiSource, 1)
 	require.Equal(t, fleet.UserHostCertificate, host1CertsMultiSource[0].Source)
 	require.Equal(t, "jdoe", host1CertsMultiSource[0].Username)
+}
+
+// testUpdateHostCertificatesOriginScopedDelete verifies that each ingestion
+// source only soft-deletes rows it owns: an osquery sync that omits an
+// MDM-only cert must not remove that cert, and vice versa.
+func testUpdateHostCertificatesOriginScopedDelete(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("origin-host-osquery-id"),
+		NodeKey:         ptr.String("origin-host-node-key"),
+		UUID:            "origin-host-uuid",
+		Hostname:        "origin-host",
+	})
+	require.NoError(t, err)
+
+	mkCert := func(commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			KeyUsage:              x509.KeyUsageDigitalSignature,
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		rec := fleet.NewHostCertificateRecord(host.ID, parsed)
+		rec.Source = fleet.SystemHostCertificate
+		return rec
+	}
+
+	osqueryOnly := mkCert("osquery-only")
+	mdmOnly := mkCert("mdm-only")
+
+	// Initial state: osquery reports osqueryOnly; MDM reports mdmOnly.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{osqueryOnly}, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{mdmOnly}, fleet.HostCertificateOriginMDM))
+
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	originByCN := func(certs []*fleet.HostCertificateRecord) map[string]fleet.HostCertificateOrigin {
+		m := make(map[string]fleet.HostCertificateOrigin, len(certs))
+		for _, c := range certs {
+			m[c.CommonName] = c.Origin
+		}
+		return m
+	}
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"osquery-only": fleet.HostCertificateOriginOsquery,
+		"mdm-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN(certs))
+
+	// Osquery sync runs again with an EMPTY cert list. The osquery-only cert
+	// should be soft-deleted, but the mdm-only cert must survive.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{}, fleet.HostCertificateOriginOsquery))
+
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1, "mdm-only cert should survive an osquery sync that omits it")
+	require.Equal(t, "mdm-only", certs[0].CommonName)
+	require.Equal(t, fleet.HostCertificateOriginMDM, certs[0].Origin)
+
+	// Now the symmetric case: osquery re-reports its cert, MDM sync runs with an
+	// empty list. The mdm-only cert should be soft-deleted, osquery-only survives.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{osqueryOnly}, fleet.HostCertificateOriginOsquery))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{}, fleet.HostCertificateOriginMDM))
+
+	certs, _, err = ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 1, "osquery-only cert should survive an MDM sync that omits it")
+	require.Equal(t, "osquery-only", certs[0].CommonName)
+	require.Equal(t, fleet.HostCertificateOriginOsquery, certs[0].Origin)
 }
 
 // testHostCertificateWithInvalidCountryCode tests that a certificate with a country code longer than the standard 2 letters works
@@ -649,7 +739,7 @@ func testHostCertificateWithInvalidCountryCode(t *testing.T, ds *Datastore) {
 	payload[1].SubjectCountry = certWithNormalCountryTemplate.Subject.Country[0]
 	payload[1].IssuerCountry = parentWithLongIssuerCountryTemplate.Subject.Country[0]
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload, fleet.HostCertificateOriginOsquery))
 
 	// verify that we saved the records correctly
 	certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
@@ -758,7 +848,7 @@ func testTruncateLongCertificateFields(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Update certificates - this should trigger truncation
-	err = ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{cert})
+	err = ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{cert}, fleet.HostCertificateOriginOsquery)
 	require.NoError(t, err)
 
 	// Retrieve the certificate and verify all fields were truncated
@@ -841,7 +931,7 @@ func testListHostCertificatesCountMatches(t *testing.T, ds *Datastore) {
 	certUser.Source = fleet.UserHostCertificate
 	certUser.Username = "alice"
 
-	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}))
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}, fleet.HostCertificateOriginOsquery))
 
 	// Now list with metadata
 	certs, meta, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{IncludeMetadata: true})
