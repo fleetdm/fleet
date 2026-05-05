@@ -259,6 +259,12 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 				"block path must NOT include ServerHasFinishedProvisioning")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "InstallationState"),
 				"block path uses the timeout-based trigger, not InstallationState")
+			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "WasDeviceSuccessfullyProvisioned"),
+				"block path must NOT include WasDeviceSuccessfullyProvisioned (cycle 10 verified the documented "+
+					"path does not render failure UI on Win11 26200 non-Sidecar MDM)")
+			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "IsSyncDone"),
+				"block path must NOT include IsSyncDone (cycle 10 verified the documented path does not render "+
+					"failure UI on Win11 26200 non-Sidecar MDM)")
 			// Block path always includes BlockInStatusPage=1 (Reset PC), AllowCollectLogsButton, and
 			// TimeOutUntilSyncFailure=1 (one minute, forces failure UI).
 			blockCmd := pbtFindCmdByLocURI(cmds, "BlockInStatusPage")

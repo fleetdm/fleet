@@ -2421,13 +2421,13 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 		// clamps to 60, the failure UI would take ~1 hour to appear instead of ~1 minute -- bad UX but the contract
 		// (eventual failure UI) still holds.
 		//
-		// TODO: replace this empirical hack with documented per-tracker InstallationState=4 once orbit reports
-		// setup-experience progress via the LocalMDM channel (subtask
-		// https://github.com/fleetdm/fleet/issues/43776). At that point each setup-experience software item becomes
-		// a TrackedResourceTypes/{tracker} on the device, a failed install reports InstallationError on its tracker,
-		// and the ESP renders the failure UI natively from per-tracker state -- no timeout trick required. Setting
-		// InstallationState=4 on the parent PolicyProviders node alone (as we tested) does NOT escalate the UI
-		// without trackers underneath, which is why we keep the timeout-based approach for now.
+		// We tried the alternative documented in the DMClient CSP -- setting WasDeviceSuccessfullyProvisioned=0
+		// followed by IsSyncDone=true, which the docs say should render the failure UI without any timeout. On
+		// Win11 26200 the device acks both Replaces with status 200, but the Account-setup page stays at "Working
+		// on it..." indefinitely (verified past 25 minutes). The OS-side ESP UI on this build appears to require
+		// per-software-item progress state that Fleet cannot populate today; until that gap is closed (documented in
+		// https://github.com/fleetdm/fleet/issues/43776), the timeout trigger above is the only mechanism that
+		// reliably surfaces the failure UI for these enrollments.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
