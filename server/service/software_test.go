@@ -72,6 +72,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 		user                 *fleet.User
 		shouldFailGlobalRead bool
 		shouldFailTeamRead   bool
+		shouldFailGetByID    bool
 	}{
 		{
 			name: "global-admin",
@@ -81,6 +82,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "global-maintainer",
@@ -90,6 +92,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "global-observer",
@@ -99,6 +102,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "team-admin-belongs-to-team",
@@ -111,6 +115,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "team-maintainer-belongs-to-team",
@@ -123,6 +128,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "team-observer-belongs-to-team",
@@ -135,6 +141,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
+			shouldFailGetByID:    false,
 		},
 		{
 			name: "team-admin-does-not-belong-to-team",
@@ -147,6 +154,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 		},
 		{
 			name: "team-maintainer-does-not-belong-to-team",
@@ -159,6 +167,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 		},
 		{
 			name: "team-observer-does-not-belong-to-team",
@@ -171,6 +180,45 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			},
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
+		},
+		{
+			// GitOps can list/count software but cannot fetch a single version
+			// because SoftwareByID also requires Host:list permission.
+			name: "global-gitops",
+			user: &fleet.User{
+				ID:         1,
+				GlobalRole: ptr.String(fleet.RoleGitOps),
+			},
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+			shouldFailGetByID:    true,
+		},
+		{
+			name: "team-gitops-belongs-to-team",
+			user: &fleet.User{
+				ID: 1,
+				Teams: []fleet.UserTeam{{
+					Team: fleet.Team{ID: 1},
+					Role: fleet.RoleGitOps,
+				}},
+			},
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+			shouldFailGetByID:    true,
+		},
+		{
+			name: "team-gitops-does-not-belong-to-team",
+			user: &fleet.User{
+				ID: 1,
+				Teams: []fleet.UserTeam{{
+					Team: fleet.Team{ID: 2},
+					Role: fleet.RoleGitOps,
+				}},
+			},
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+			shouldFailGetByID:    true,
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -197,7 +245,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
 			_, err = svc.SoftwareByID(ctx, 1, ptr.Uint(1), false)
-			checkAuthErr(t, tc.shouldFailTeamRead, err)
+			checkAuthErr(t, tc.shouldFailGetByID, err)
 		})
 	}
 }

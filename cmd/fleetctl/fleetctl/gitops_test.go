@@ -1475,6 +1475,12 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
+	// historical_data sub-keys default to true on team gitops applies that
+	// don't pin them — same carve-out as enable_software_inventory above.
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"team gitops defaults historical_data.uptime to true")
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"team gitops defaults historical_data.vulnerabilities to true")
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
@@ -4311,6 +4317,190 @@ software:
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+}
+
+func TestGitOpsHistoricalData(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Start with both sub-keys disabled to verify the GitOps apply flips them.
+	appConfig := fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{
+				Uptime:          false,
+				Vulnerabilities: false,
+			},
+		},
+	}
+
+	globalFileWithHistoricalData, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithHistoricalData.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: true
+      vulnerabilities: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Apply explicit historical_data values via GitOps and verify they're applied.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime)
+	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
+
+	// Apply a YAML that omits historical_data entirely and verify that values revert
+	// to defaults (true).
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime,
+		"omitted historical_data defaults uptime to true")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted historical_data defaults vulnerabilities to true")
+
+	// Apply a YAML with historical_data.uptime: false but no vulnerabilities
+	// key, and verify that uptime is set to false but vulnerabilities remains true.
+	globalFileWithUptimeOnly, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithUptimeOnly.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
+	require.NoError(t, err)
+	require.False(t, appConfig.Features.HistoricalData.Uptime,
+		"explicit uptime: false is honored")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted vulnerabilities sub-key defaults to true")
+}
+
+func TestGitOpsTeamHistoricalDataActivity(t *testing.T) {
+	// Test that fleet GitOps properly applies historical_data changes via editTeamFromSpec.
+	// This verifies the code path that was fixed to call OnHistoricalDataChanged and
+	// emit activities. The activity emission itself is tested in integration tests
+	// (see TestModifyTeamHistoricalData in server/service/integration_enterprise_test.go).
+
+	appConfig := &fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+	}
+
+	tmpDir := t.TempDir()
+
+	// Create a team YAML with historical_data.uptime flipped to false.
+	teamFile, err := os.CreateTemp(tmpDir, "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(`name: Test Team
+settings:
+  features:
+    historical_data:
+      uptime: false
+      vulnerabilities: true
+`)
+	require.NoError(t, err)
+
+	// Use the SetupFullGitOpsPremiumServer which provides comprehensive mocking
+	// and will actually call the service methods including editTeamFromSpec.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Team" && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		team.ID = 1
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
+		return nil, nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		if savedTeam != nil && savedTeam.ID == id {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a global file for the gitops run.
+	globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+
+	// Apply the GitOps YAMLs. This will call editTeamFromSpec which should now
+	// emit activities via OnHistoricalDataChanged.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify the team was created/updated with the correct historical_data settings.
+	require.NotNil(t, savedTeam, "team should have been created or modified")
+	require.False(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"historical_data.uptime should be false from GitOps")
+	require.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"historical_data.vulnerabilities should be true from GitOps")
 }
 
 func TestGitOpsSSOSettings(t *testing.T) {

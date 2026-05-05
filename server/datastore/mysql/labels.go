@@ -18,6 +18,25 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var labelsAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"id":                    "l.id",
+	"created_at":            "l.created_at",
+	"updated_at":            "l.updated_at",
+	"name":                  "l.name",
+	"description":           "l.description",
+	"query":                 "l.query",
+	"platform":              "l.platform",
+	"label_type":            "l.label_type",
+	"label_membership_type": "l.label_membership_type",
+	"author_id":             "l.author_id",
+	"criteria":              "l.criteria",
+	"team_id":               "l.team_id",
+
+	// dependent on include_host_counts being set on request
+	// (checked on transport layer).
+	"host_count": "host_count",
+}
+
 func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpec) (err error) {
 	return ds.ApplyLabelSpecsWithAuthor(ctx, specs, nil)
 }
@@ -814,7 +833,10 @@ func (ds *Datastore) ListLabels(ctx context.Context, filter fleet.TeamFilter, op
 		return nil, err
 	}
 
-	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
+	query, params, err = appendListOptionsWithCursorToSQLSecure(query, params, &opt, labelsAllowedOrderKeys)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list labels")
+	}
 	var labels []*fleet.Label
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, query, params...); err != nil {

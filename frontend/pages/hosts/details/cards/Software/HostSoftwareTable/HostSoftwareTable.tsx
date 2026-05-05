@@ -14,7 +14,6 @@ import {
 
 import {
   HostPlatform,
-  isAndroid,
   PLATFORM_DISPLAY_NAMES,
   isVulnUnsupportedPlatform,
 } from "interfaces/platform";

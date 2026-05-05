@@ -2,12 +2,12 @@ import { isEqual } from "lodash";
 
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import { IInvite } from "interfaces/invite";
-import { IUser, IUserUpdateBody, IUpdateUserFormData } from "interfaces/user";
+import { IUser, IUpdateUserFormData } from "interfaces/user";
 import { IUserFormData } from "../components/UserForm/UserForm";
 
 type ICurrentUserData = Pick<
   IUser,
-  "global_role" | "teams" | "name" | "email" | "sso_enabled"
+  "global_role" | "teams" | "name" | "email" | "sso_enabled" | "mfa_enabled"
 >;
 
 export interface IRoleOptionsParams {
@@ -34,21 +34,15 @@ const generateUpdateData = (
     "sso_enabled",
     "mfa_enabled",
   ];
-  return Object.keys(formData).reduce<IUserUpdateBody | any>(
+  return Object.keys(formData).reduce<IUpdateUserFormData>(
     (updatedAttributes, attr) => {
+      const key = attr as keyof ICurrentUserData;
       // attribute can be updated and is different from the current value.
       if (
         updatableFields.includes(attr) &&
-        !isEqual(
-          formData[attr as keyof ICurrentUserData],
-          currentUserData[attr as keyof ICurrentUserData]
-        )
+        !isEqual(formData[key], currentUserData[key])
       ) {
-        // Note: ignore TS error as we will never have undefined set to an
-        // updatedAttributes value if we get to this code.
-        // @ts-ignore
-        updatedAttributes[attr as keyof ICurrentUserData] =
-          formData[attr as keyof ICurrentUserData];
+        (updatedAttributes as Record<string, unknown>)[attr] = formData[key];
       }
       return updatedAttributes;
     },

@@ -1,0 +1,1 @@
+* Added gitops support for uploading custom org logos: `fleetctl gitops` accepts `org_logo_path_dark_mode`/`org_logo_path_light_mode` keys to upload local files, and `fleetctl generate-gitops` exports Fleet-hosted logos as local files alongside path keys while keeping external URLs as `org_logo_url_*_mode` keys.

@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -1214,12 +1215,92 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName                   string `json:"org_name"`
-	OrgLogoURL                string `json:"org_logo_url"`
+	OrgName string `json:"org_name"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
+}
+
+// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
+// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
+func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+
+	switch {
+	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
+		invalid.Append("org_logo_url",
+			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
+	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
+		o.OrgLogoURL = o.OrgLogoURLDarkMode
+	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
+		o.OrgLogoURLDarkMode = o.OrgLogoURL
+	}
+
+	switch {
+	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
+		invalid.Append("org_logo_url_light_background",
+			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
+	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
+		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
+	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
+		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+// orgLogoServingPathPrefix is the relative path Fleet writes into the
+// OrgLogo*URL fields after a successful logo upload (see
+// orgLogoServingURL in server/service/org_logo.go). AbsolutizeLogoURLs
+// uses this to recognize Fleet-hosted logos that need the current
+// ServerURL prepended on read.
+const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
+
+// AbsolutizeLogoURL rewrites a Fleet-hosted relative logo URL into a
+// fully-qualified URL using the supplied serverURL. URLs that don't
+// match the Fleet-hosted serving path (i.e. external URLs set by
+// customers) and empty strings are returned unchanged. Use this when
+// you only need to absolutize one field — see AbsolutizeLogoURLs for
+// the OrgInfo-wide variant.
+func AbsolutizeLogoURL(u, serverURL string) string {
+	if serverURL == "" || !strings.HasPrefix(u, orgLogoServingPathPrefix) {
+		return u
+	}
+	return strings.TrimRight(serverURL, "/") + u
+}
+
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
+// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
+	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
+	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
+	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
+}
+
+// IsFleetHostedLogoURL reports whether the given URL points at the Fleet logo
+// serving endpoint. Handles both the persisted relative form
+// ("/api/latest/fleet/logo?mode=...") and the absolutized form returned by
+// AbsolutizeLogoURLs. Match must be on the parsed Path so a sibling endpoint
+// like "/api/latest/fleet/logo-proxy" doesn't get falsely identified.
+func IsFleetHostedLogoURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Path == orgLogoServingPathPrefix
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
@@ -1265,15 +1346,44 @@ type ActivityExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// HistoricalDataSettings controls per-dataset collection of the time-series
+// rollups that drive the dashboard charts. Each sub-key corresponds to a
+// chart dataset; `true` means collect, `false` means skip.
+//
+// Sub-key names are the public config keys (used in YAML and audit
+// activities). Internal dataset names (the values returned by Dataset.Name())
+// are translated to sub-keys via the Enabled method.
+type HistoricalDataSettings struct {
+	Uptime          bool `json:"uptime"`
+	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+// Enabled returns whether collection is enabled for the given internal
+// dataset name. The mapping is the single canonical translation between
+// internal dataset names (e.g. "cve") and config sub-keys (e.g.
+// "vulnerabilities"). Callers SHOULD use this method rather than reading
+// fields directly.
+func (h HistoricalDataSettings) Enabled(dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return h.Uptime, nil
+	case "cve":
+		return h.Vulnerabilities, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1286,6 +1396,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.HistoricalData.Uptime = true
+	f.HistoricalData.Vulnerabilities = true
 }
 
 // Clone implements cloner for Features.

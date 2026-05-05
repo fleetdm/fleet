@@ -1373,6 +1373,21 @@ type Service interface {
 	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
 
+	/////////////////////////////////////////////////////////////////////////////////
+	// Organization logo
+
+	// UploadOrgLogo stores a logo image for the given mode and updates the
+	// AppConfig URL fields. OrgLogoModeAll applies the same file to both
+	// light and dark.
+	UploadOrgLogo(ctx context.Context, mode OrgLogoMode, content io.ReadSeeker) error
+	// DeleteOrgLogo removes the stored logo for the given mode and clears
+	// the AppConfig URL fields. OrgLogoModeAll deletes both.
+	DeleteOrgLogo(ctx context.Context, mode OrgLogoMode) error
+	// GetOrgLogo returns the stored logo bytes for mode along with their
+	// content length. Only OrgLogoModeLight and OrgLogoModeDark are valid;
+	// OrgLogoModeAll is rejected.
+	GetOrgLogo(ctx context.Context, mode OrgLogoMode) ([]byte, int64, error)
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 
