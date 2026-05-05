@@ -591,6 +591,23 @@ func testMatcherRecoversStuckHMMCRows(t *testing.T, ds *Datastore) {
 		assert.True(t, newerCert.NotAfter.Equal(*got.NotValidAfter), "matcher should pick the cert with latest not_valid_before")
 	})
 
+	t.Run("StableCertListRecovers", func(t *testing.T) {
+		// Reviewer requirement: recovery must fire even when the host's cert
+		// inventory hasn't changed this call (toInsert empty).
+		profileUUID := "stable-list"
+		freshCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-time.Hour).Truncate(time.Second).UTC(), time.Now().Add(365*24*time.Hour).Truncate(time.Second).UTC(), 4601)
+		recs := seedHostCertificates(t, []*x509.Certificate{freshCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-stable"}, fleet.MDMDeliveryVerified)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		// Re-pass the same records — toInsert will be empty, but recovery still runs.
+		require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, recs))
+
+		got := getApple(t, profileUUID, "ca-stable")
+		require.NotNil(t, got.NotValidAfter)
+		assert.True(t, freshCert.NotAfter.Equal(*got.NotValidAfter), "stuck row must recover even when toInsert is empty")
+	})
+
 	t.Run("MonotonicForward", func(t *testing.T) {
 		profileUUID := "monotonic-forward"
 		freshNotBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
