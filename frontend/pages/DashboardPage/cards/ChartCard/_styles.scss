@@ -333,6 +333,10 @@
     &--level-0 {
       fill: none;
       stroke: var(--level-0);
+      // SVG only fires hover on filled regions or stroked lines; without
+      // pointer-events: all, hovering inside an outlined-only cell does
+      // nothing because the interior has no fill.
+      pointer-events: all;
       // HTML legend swatch can't use SVG stroke; inset shadow gives the same
       // outlined-only look without changing the swatch's outer dimensions.
       background-color: transparent;
