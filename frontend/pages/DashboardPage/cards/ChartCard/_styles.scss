@@ -54,7 +54,7 @@
     }
 
     .react-select__single-value {
-      font-size: 18px;
+      font-size: $small;
       font-weight: $bold;
       color: $core-fleet-black;
     }
@@ -111,7 +111,6 @@
     border-radius: $border-radius;
     font-size: $xx-small;
     box-shadow: 0px 2px 6px rgba(0, 0, 0, 0.1);
-
   }
 
   &__tooltip-label {
@@ -125,7 +124,7 @@
 
   .react-tooltip {
     a {
-      color: $core-fleet-white;
+      color: $static-white;
       display: inline;
       font-size: $xx-small;
     }
@@ -268,11 +267,11 @@
 
     body.dark-mode & {
       --level-0: #515256;
-      --level-1: #2E363D;
-      --level-2: #2B4747;
+      --level-1: #2e363d;
+      --level-2: #2b4747;
       --level-3: #006246;
-      --level-4: #008B64;
-      --level-5: #00C28B;
+      --level-4: #008b64;
+      --level-5: #00c28b;
     }
   }
 
@@ -283,6 +282,15 @@
     --level-3: #d28282;
     --level-4: #9a0000;
     --level-5: #5b0000;
+
+    body.dark-mode & {
+      --level-0: #515256;
+      --level-1: #3d2e2e;
+      --level-2: #472b2b;
+      --level-3: #640000;
+      --level-4: #8b0000;
+      --level-5: #c20000;
+    }
   }
 
   &__cell {

@@ -217,7 +217,16 @@ const HostsEnrolledCard = ({
             barCategoryGap="25%"
           >
             <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-            <CartesianGrid vertical={false} />
+            <CartesianGrid
+              vertical={false}
+              horizontalCoordinatesGenerator={({ offset }) => {
+                const { top, height } = offset;
+                const bandHeight = height / data.length;
+                return data
+                  .map((_, i) => top + i * bandHeight)
+                  .concat(top + height);
+              }}
+            />
             <XAxis
               type="number"
               tickFormatter={formatTick}
