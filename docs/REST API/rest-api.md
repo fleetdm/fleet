@@ -7967,17 +7967,17 @@ None.
 ## Policies
 
 - [List policies](#list-policies)
-- [List fleet policies](#list-fleet-policies)
+- [List fleet-level policies](#list-fleet-level-policies)
 - [Get policies count](#get-policies-count)
-- [Get fleet policies count](#get-fleet-policies-count)
+- [Get fleet-level policies count](#get-fleet-level-policies-count)
 - [Get policy](#get-policy)
-- [Get fleet policy](#get-fleet-policy)
+- [Get fleet-level policy](#get-fleet-level-policy)
 - [Create policy](#create-policy)
-- [Create fleet policy](#create-fleet-policy)
+- [Create fleet-level policy](#create-fleet-level-policy)
 - [Delete policies](#delete-policies)
-- [Delete fleet policies](#delete-fleet-policies)
+- [Delete fleet-level policies](#delete-fleet-level-policies)
 - [Update policy](#update-policy)
-- [Update fleet policy](#update-fleet-policy)
+- [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
@@ -8059,7 +8059,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ---
 
-### List fleet policies
+### List fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8293,7 +8293,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policies count
+### Get fleet-level policies count
 
 _Available in Fleet Premium_
 
@@ -8366,7 +8366,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policy
+### Get fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8497,7 +8497,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Create fleet policy
+### Create fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8620,7 +8620,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Delete fleet policies
+### Delete fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8723,7 +8723,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Update fleet policy
+### Update fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8745,7 +8745,6 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
-| conditional_access_bypass_enabled | boolean | body | _Available in Fleet Premium_. Additional option to allow end users to bypass conditional access for this policy for a single Okta login. This setting is ignored if `conditional_access_enabled` is `false`, if Okta conditional access is not configured, or if bypass is disabled in org settings. (Default: `true`.) |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
