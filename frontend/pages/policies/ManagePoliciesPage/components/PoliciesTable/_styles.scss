@@ -36,6 +36,12 @@
     width: 200px;
   }
 
+  // Allow horizontal scrolling when the table is wider than its container so
+  // body cells don't overflow past the table boundary on smaller screens.
+  .table-container__data-table-block .data-table-block .data-table__wrapper {
+    overflow-x: auto;
+  }
+
   // Stack the search bar above the filter dropdowns on smaller screens so
   // they don't get scrunched together (matches the Hosts page pattern).
   .table-container {
