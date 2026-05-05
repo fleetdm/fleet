@@ -493,15 +493,17 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 - `name` is the name of the certificate. Name can be used as a certificate alias to reference in configuration profiles (custom settings).
 - `certificate_authority_name` is the name of the [certificate authority (CA)](#certificate-authorities) to issue the certificate from. Currently, only a custom SCEP CA is supported.
-- `subject_name` is the certificate's subject name (SN). Separate subject fields by a ",". For example: "/CN=john@example.com/O=Acme Inc.".
-- `subject_alternative_name` is the certificate's subject alternative name (SAN). Separate SAN fields by a ",". Each field is a `KEY=value` pair. Supported keys (case-insensitive) are:
+- `subject_name` is the certificate's subject name (SN). Separate subject fields with a comma (`,`). For example: "/CN=john@example.com/O=Acme Inc.".
+- `subject_alternative_name` is the certificate's subject alternative name (SAN). Separate SAN fields with a comma (`,`). Each field is a key-value pair. Supported keys (case-insensitive) are:
   - `DNS` for a DNS hostname (e.g. `DNS=wifi.example.com`).
   - `EMAIL` for an email address / RFC 822 name (e.g. `EMAIL=john@example.com`).
   - `UPN` for a Microsoft User Principal Name (e.g. `UPN=john@corp.example.com`), commonly used for Active Directory / Intune Wi-Fi authentication.
   - `IP` for an IPv4 or IPv6 address (e.g. `IP=10.0.0.1` or `IP=2001:db8::1`).
   - `URI` for a URI (e.g. `URI=spiffe://example.com/workload/wifi`).
 
-  Example: `"DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"`. Variables are supported in SAN values, with the same allow-list as `subject_name`.
+  Example: `"DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"`.
+
+You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
 #### Variables
 
