@@ -1,8 +1,9 @@
 .hosts-enrolled-card {
   &__title {
-    font-size: $small;
+    font-size: $medium !important;
     font-weight: $bold;
     margin: 0 0 $pad-medium !important;
+    line-height: 1;
   }
 
   // The bar chart's plot height is set inline to match the checkerboard's
