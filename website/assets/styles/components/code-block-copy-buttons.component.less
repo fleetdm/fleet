@@ -16,11 +16,21 @@
   background-position: center;
   background-repeat: no-repeat;
   cursor: pointer;
+  outline: none;
+  border: none;
   &.copied {
     background: url('/images/icon-copy-clicked-checkmark-no-background-32x32@2x.png');
     background-size: 32px 32px;
     background-repeat: no-repeat;
     background-position: center;
+    border: none;
+  }
+  &:hover {
+    background-color: #E9EEF5;
+  }
+  &:focus {
+    outline: none;
+    background-color: #E9EEF5;
   }
 }
 

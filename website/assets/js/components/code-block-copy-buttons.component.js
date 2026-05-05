@@ -20,9 +20,9 @@ parasails.registerComponent('code-block-copy-buttons', {
   mounted: async function(){
     // Only add copy buttons if the clipboard method is available.
     if(typeof navigator.clipboard !== 'undefined'){
-      // Prepend all <pre> elements with a code-block-copy-button elment, and add the position-relative bootstrap class.
-      $('pre')
-      .prepend('<div purpose="code-block-copy-button"></div>')
+      // Prepend all <pre><code> elements with a code-block-copy-button element, and add the has-copy-button class.
+      $('pre:has(code)').not('.has-copy-button')
+      .prepend('<button type="button" purpose="code-block-copy-button" aria-label="Copy code" title="Copy code"></button>')
       .addClass('has-copy-button');// Note: we set this bootstrap class to correctly position the copy button without needing to adjust the styles of the page it is added to.
 
       // Now add click events to each code-block-copy-button element that copies the text content of the neighboring <code> element.
@@ -32,7 +32,7 @@ parasails.registerComponent('code-block-copy-buttons', {
         // Add the copied class to the copy button (which replaces the icon with a checkmark).
         $(this).addClass('copied');
         // Remove the copied class after 2 seconds.
-        await setTimeout(()=>{
+        setTimeout(()=>{
           $(this).removeClass('copied');
         }, 2000);
         navigator.clipboard.writeText(code);
