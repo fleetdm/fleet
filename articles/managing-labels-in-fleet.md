@@ -62,15 +62,6 @@ If no label targeting is specified, the profile is delivered to all hosts on the
 
 You can also set label targets through the Fleet UI when adding or editing a configuration profile under **Controls > OS settings > Configuration profiles**, or via the [REST API](https://fleetdm.com/docs/rest-api/rest-api#create-configuration-profile).
 
-## Activity logging
-
-Fleet logs an activity when a label is added to or removed from a host. These activities appear in the host's activity feed:
-
-- **added_label_to_host**: Generated when a label is added to a host.
-- **removed_label_from_host**: Generated when a label is removed from a host.
-
-Each activity includes the host ID, host display name, label ID, and label name. For more details, see [Audit logs](https://fleetdm.com/docs/contributing/reference/audit-logs).
-
 
 <meta name="articleTitle" value="Labels in Fleet">
 <meta name="authorFullName" value="Noah Talerman">
