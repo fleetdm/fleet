@@ -2981,6 +2981,22 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// 'after' param is not supported for labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
 
+	// ordering by host_count when include_host_counts=false is rejected
+	res := s.Do("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, "order_key", "host_count", "include_host_counts", "false")
+	require.Contains(t, extractServerErrorText(res.Body), "Invalid order_key (host_count cannot be ordered when they are disabled)")
+
+	// ordering by host_count with include_host_counts=true is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count", "include_host_counts", "true")
+
+	// ordering by host_count without include_host_counts (default true) is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count")
+
+	// include_host_counts=false with a different order_key is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
@@ -4168,6 +4184,90 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		"ids": []uint{query.ID, query2.ID, query3.ID},
 	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestScheduledQueriesInPackOrderKey() {
+	t := s.T()
+
+	// create a pack
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	// create a query
+	var createQueryResp fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", &fleet.QueryPayload{
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_")),
+		Query: new("select 1"),
+	}, http.StatusOK, &createQueryResp)
+	query := createQueryResp.Query
+
+	// schedule the query in the pack so the listing has at least one row
+	var createSchedResp fleet.ScheduleQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", &fleet.ScheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID,
+		Interval: 60,
+	}, http.StatusOK, &createSchedResp)
+
+	// every key in scheduledQueriesAllowedOrderKeys must work end-to-end with cursor pagination.
+	allowedOrderKeys := []string{
+		"id",
+		"pack_id",
+		"name",
+		"query_name",
+		"description",
+		"interval",
+		"snapshot",
+		"removed",
+		"platform",
+		"version",
+		"shard",
+		"denylist",
+		"query",
+		"query_id",
+		"user_time_p50",
+		"user_time_p95",
+		"system_time_p50",
+		"system_time_p95",
+		"total_executions",
+	}
+	for _, orderKey := range allowedOrderKeys {
+		t.Run(orderKey, func(t *testing.T) {
+			var getInPackResp fleet.GetScheduledQueriesInPackResponse
+			s.DoJSON(
+				"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+				nil, http.StatusOK, &getInPackResp,
+				"order_key", orderKey,
+				"after", "0",
+			)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestScheduledQueriesInPackInvalidOrderKey() {
+	t := s.T()
+
+	// create a pack so the endpoint has a real id to operate on
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	var getInPackResp fleet.GetScheduledQueriesInPackResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+		nil, http.StatusUnprocessableEntity, &getInPackResp,
+		"order_key", "not_a_real_column",
+		"after", "0",
+	)
 }
 
 func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
