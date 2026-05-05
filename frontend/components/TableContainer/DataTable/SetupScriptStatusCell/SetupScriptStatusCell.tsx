@@ -34,8 +34,14 @@ const SetupScriptStatusCell = ({ status }: ISetupScriptStatusCell) => {
   const { label, icon } = serverToUiStatus(status);
   return (
     <div className={baseClass}>
-      {icon === "spinner" ? <Spinner size="x-small" /> : <Icon name={icon} />}
-      {label}
+      <div className={`${baseClass}__icon`}>
+        {icon === "spinner" ? (
+          <Spinner size="x-small" includeContainer={false} delay={0} />
+        ) : (
+          <Icon name={icon} />
+        )}
+      </div>
+      <span className={`${baseClass}__label`}>{label}</span>
     </div>
   );
 };

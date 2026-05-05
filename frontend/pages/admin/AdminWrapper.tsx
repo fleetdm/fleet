@@ -98,7 +98,9 @@ const AdminWrapper = ({
             </TabList>
           </Tabs>
         </TabNav>
-        {children}
+        <div key={pathname} className="tab-nav-routed-content">
+          {children}
+        </div>
       </>
     </MainContent>
   );

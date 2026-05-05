@@ -11,6 +11,7 @@ spec:
   activity_expiry_settings:
     activity_expiry_enabled: false
     activity_expiry_window: 0
+    preserve_host_activities_on_reenrollment: false
   conditional_access:
     microsoft_entra_tenant_id: ""
     microsoft_entra_connection_configured: false
@@ -69,7 +70,9 @@ spec:
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
+      enable_managed_local_account: false
       enable_release_device_manually: false
+      end_user_local_account_type: admin
       lock_end_user_info: false
       macos_setup_assistant:
       manual_agent_install:
@@ -79,8 +82,10 @@ spec:
       software:
     setup_experience:
       macos_bootstrap_package:
+      enable_create_local_admin_account: false
       enable_end_user_authentication: false
       apple_enable_release_device_manually: false
+      end_user_local_account_type: admin
       lock_end_user_info: false
       apple_setup_assistant:
       macos_manual_agent_install:
@@ -105,6 +110,8 @@ spec:
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
+    org_logo_url_dark_mode: ""
+    org_logo_url_light_mode: ""
     org_name: ""
     contact_url: https://fleetdm.com/company/contact
   server_settings:

@@ -549,7 +549,7 @@ Delete pack by name.
 
 The MDM endpoints exist to support the related command-line interface sub-commands of `fleetctl`, such as `fleetctl generate mdm-apple` and `fleetctl get mdm-apple`, as well as the Fleet UI.
 
-- [Generate Apple Business Manager public key (ADE)](#generate-apple-business-manager-public-key-ade)
+- [Generate Apple Business public key (ADE)](#generate-apple-business-manager-public-key-ade)
 - [Request Certificate Signing Request (CSR)](#request-certificate-signing-request-csr)
 - [Upload APNS certificate](#upload-apns-certificate)
 - [Add ABM token](#add-abm-token)
@@ -575,6 +575,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Get FileVault statistics](#get-filevault-statistics)
 - [Upload VPP content token](#upload-vpp-content-token)
 - [Disable VPP](#disable-vpp)
+- [Get host's DEP assignment](#get-hosts-dep-assignment)
 - [SCEP proxy](#scep-proxy)
 - [Get Android Enterprise signup URL](#get-android-enterprise-signup-url)
 - [Connect Android Enterprise](#connect-android-enterprise)
@@ -585,7 +586,7 @@ The MDM endpoints exist to support the related command-line interface sub-comman
 - [Android Enterprise PubSub push endpoint](#android-enterprise-pubsub-push-endpoint)
 
 
-### Generate Apple Business Manager public key (ADE)
+### Generate Apple Business public key (ADE)
 
 `GET /api/v1/fleet/mdm/apple/abm_public_key`
 
@@ -669,7 +670,7 @@ Content-Type: application/octet-stream
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the token (.p7m) from Apple Business Manager |
+| token | file | form | *Required* The file containing the token (.p7m) from Apple Business |
 
 #### Example
 
@@ -712,11 +713,11 @@ Content-Type: application/octet-stream
 }
 ```
 
-### Count ABM tokens
+### Count AB tokens
 
 `GET /api/v1/fleet/abm_tokens/count`
 
-Get the number of ABM tokens on the Fleet server.
+Get the number of AB tokens on the Fleet server.
 
 #### Parameters
 
@@ -756,10 +757,10 @@ None.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| id | integer | path | *Required* The ABM token's ID |
-| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
-| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
-| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business Manager. If not specified, defaults to "No team". |
+| id | integer | path | *Required* The AB token's ID |
+| macos_team_id | integer | body | macOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ios_team_id | integer | body | iOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
+| ipados_team_id | integer | body | iPadOS hosts are automatically added to this team in Fleet when they appear in Apple Business. If not specified, defaults to "No team". |
 
 #### Example
 
@@ -870,7 +871,7 @@ Content-Type: application/octet-stream
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
 
 #### Example
 
@@ -1278,7 +1279,7 @@ This endpoint uses the profiles stored by the [Preassign profiles to devices](#p
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business Manager |
+| token | file | form | *Required* The file containing the content token (.vpptoken) from Apple Business |
 
 #### Example
 
@@ -1317,6 +1318,60 @@ Content-Type: application/octet-stream
 ##### Default response
 
 `Status: 204`
+
+### Get host's DEP assignment
+
+_Available in Fleet Premium_
+
+Returns the raw data about a DEP device's current state from the [Get Device Details](https://developer.apple.com/documentation/devicemanagement/device-details) API. Supports only Apple hosts which are, or were, assigned to Fleet in Apple Business Manager.
+
+`GET /api/v1/fleet/hosts/:id/dep_assignment`
+
+#### Parameters
+
+| Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
+| ------- | ------- | ---- | -------------------------------------------------------------------------------- |
+| id      | integer | path | **Required** The id of the host to get the details for                           |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/32/dep_assignment`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 32,
+  "dep_device": {
+    "asset_tag": "",
+    "color": "MIDNIGHT",
+    "description": "IPHONE 13 MIDNIGHT 128GB-USA",
+    "device_assigned_by": "fleetie@example.com",
+    "device_assigned_date": "2025-12-04T01:17:25Z",
+    "device_family": "iPhone",
+    "os": "iOS",
+    "profile_status": "assigned",
+    "profile_assign_time": "2025-12-04T01:17:25Z",
+    "profile_push_time": "0001-01-01T00:00:00Z",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "serial_number": "ABC1FND0ZX",
+    "op_date": "0001-01-01T00:00:00Z"
+  },
+  "host_dep_assignment": {
+    "assign_profile_response": "SUCCESS",
+    "profile_uuid": "762C4D36550103CCC53AA212A8D31CDD",
+    "response_updated_at": "2025-12-04T01:35:27Z",
+    "added_at": "2025-12-04T01:35:27Z",
+    "deleted_at": null,
+    "abm_token_id": 1,
+    "mdm_migration_deadline": "2025-12-05T00:00:00Z",
+    "mdm_migration_completed": "2025-12-05T00:00:00Z"
+  }
+}
+```
+
 
 ### SCEP proxy
 
@@ -2014,10 +2069,10 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates                         | object | body  | The OS updates macOS configuration options for Nudge.                                                                                                                                                                               |
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
-| mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.apple_settings                        | object | body  | The Apple-specific MDM settings.                                                                                                                                                                                                    |
+| mdm.apple_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to .mobileconfig or JSON file and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
+| mdm.windows_settings.configuration_profiles        | array   | body  | The list of objects consists of a `path` to XML files and `labels_include_all`, `labels_include_any`, or `labels_exclude_any` list of label names.                                                                                                                                                         |
 | scripts                                   | array   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | software                                   | object   | body  | The team's software that will be available for install.  |
 | software.app_store_apps                   | array   | body  | An array of objects with values below. |
@@ -2034,7 +2089,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | software.packages.self_service           | boolean   | body  | If `true` lists software in the self-service. |
 | software.packages.labels_include_any     | array   | body  | Target hosts that have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
 | software.packages.labels_exclude_any     | array   | body  | Target hosts that don't have any label in the array. Only one of `labels_include_any` or `labels_exclude_any` can be included. If neither are included, all hosts are targeted. |
-| mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
+| mdm.apple_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
 
@@ -2091,8 +2146,8 @@ If the `name` is not already associated with an existing team, this API route cr
           "minimum_version": "12.3.1",
           "deadline": "2023-12-01"
         },
-        "macos_settings": {
-          "custom_settings": [
+        "apple_settings": {
+          "configuration_profiles": [
             {
               "path": "path/to/profile1.mobileconfig"
               "labels_include_all": ["Label 1", "Label 2"]
@@ -2105,7 +2160,7 @@ If the `name` is not already associated with an existing team, this API route cr
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": [
+          "configuration_profiles": [
             {
               "path": "path/to/profile3.xml"
               "labels_include_all": ["Label 1", "Label 2"]
@@ -3498,11 +3553,24 @@ This endpoint returns the results for a specific MDM command associated with a s
       "request_type": "InstallApplication",
       "hostname": "mycomputer",
       "payload": "[base64]",
-      "result": "[base64]"
+      "result": "[base64]",
+      "results_metadata": {
+        "software_installed": false,
+        "vpp_verify_timeout_seconds": 600
+      }
     }
   ]
 }
 ```
+
+`results_metadata` contains command-specific metadata.
+
+For VPP `InstallApplication` command results, `results_metadata` may include:
+
+| Name                      | Type    | Description |
+| ------------------------- | ------- | ----------- |
+| software_installed        | boolean | Whether Fleet has reconciled the app as installed on the host. |
+| vpp_verify_timeout_seconds | integer | The VPP install verification timeout, in seconds, used by Fleet when determining whether an acknowledged install should be marked failed. |
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
@@ -4518,6 +4586,11 @@ If the Fleet instance is provided required parameters to complete setup.
 
 ## Scripts
 
+Supported script file types:
+- `.sh` (Shell) for macOS and Linux
+- `.py` (Python) for macOS and Linux (must start with a python shebang such as `#!/usr/bin/env python3`)
+- `.ps1` (PowerShell) for Windows
+
 ### Batch-apply scripts
 
 _Available in Fleet Premium_
@@ -5438,3 +5511,474 @@ Supported certificate algorithms are:
 The common name (CN) of the certificate must be either the hardware UUID or osquery identity. Only one valid certificate can exist matching the host identifier.
 
 The SCEP challenge password must be the enrollment secret.
+
+## ACME
+The following endpoints describe Fleet's ACME implementation used for Apple MDM communications. Every request includes an identifier. The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation. The same identifier will be used for all ACME requests for a given client and certificate request. Future enrollments will use a different identifier. The identifier is used to obfuscate the ACME API endpoints since they allow otherwise-unauthenticated requests however it is not used in any way to validate the identity of devices requesting certificates in any way. Instead hardware attestations are used to actually authenticate devices before certificate issuance. See [RFC 8555](https://datatracker.ietf.org/doc/html/rfc8555/) for more information about ACME concepts and protocol.
+
+### ACME Directory
+
+`/api/mdm/acme/[identifier]/directory`
+
+This endpoint is used to retrieve the ACME directory as described by [RFC 8555 section 7.1.1](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+
+#### Example
+
+`GET https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/directory`
+
+##### Default response
+
+`Status: 200`
+```json
+{
+    "newNonce": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_nonce",
+    "newAccount": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_account",
+    "newOrder": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_order",
+}
+```
+
+### ACME Nonce
+
+`/api/mdm/acme/[identifier]/new_nonce`
+
+This endpoint is used to retrieve the ACME Nonce as described by [RFC 8555 section 7.2](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.2)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+As described in RFC8555 this endpoint will respond to a GET request, with a Replay-Nonce header, status 204 and an empty response body.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+
+#### Example
+
+`HEAD https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_nonce`
+
+##### Default response
+
+`Status: 200`
+
+Response header
+```http
+Cache-Control: no-cache
+Replay-Nonce	ZGxxMXM2bjhrODUwNFFNR3JSeVRKcHNBMVVJeUhWYTk
+```
+
+### ACME New Account
+
+`/api/mdm/acme/[identifier]/new_account`
+
+This endpoint is used by hosts to create an ACME account for certificate issuance as described in [RFC 8555 section 7.3](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.3)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| jwk | json | JWS protected header | **Required.** The JSON Web Key to associate with the new account |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The new_account URL used to make this request. Must match the new_account URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| onlyReturnExisting | boolean | JWS payload | If true, a new account will not be created. If one exists for the specified jwk it will be returned |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_account`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImp3ayI6eyJjcnYiOiJQLTI1NiIsImt0eSI6IkVDIiwieCI6IkUxb2ZlTXl0OWpnZVNhdzVCUnFPT0RNd201TktfWXpGaU8tYnVuUVBUN1UiLCJ5IjoiOE1jMmsyU21KWUNUOF9pc21RbmxycXpVaEpSV3YyV1ZzMWp0Z0oxcE9pbyJ9LCJub25jZSI6Ik4zTm1kM0pNWm14amIySk1WMlZzY21KeVFWWkRWMjVsVEVwbFJVWnVaMnciLCJ1cmwiOiJodHRwczovL2ZsZWV0LmV4YW1wbGUuY29tL2FwaS9tZG0vYWNtZS96N2FiM2RrYWplc2pjbnp4NjczNG1kanN5dS9uZXdfYWNjb3VudCJ9",
+    "payload": "eyJ0ZXJtc09mU2VydmljZUFncmVlZCI6dHJ1ZX0",
+    "signature": "Gr6GRMMi53BAb2O77d-5loN-cjsdzGDk05C-QlYR_U8QW3M42hTkIxgg-Q7ewJj0vQLCAy4LWEv8Mo9t-elOjA"
+}
+```
+
+##### Default response
+
+`Status: 201`
+
+```json
+{
+    "status": "valid",
+    "orders": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/accounts/17/orders"
+}
+```
+
+### ACME New Order
+
+`/api/mdm/acme/[identifier]/new_order`
+
+This endpoint is used by hosts to create an ACME order for certificate issuance as described in [RFC 8555 section 7.4](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.4)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) to create the order under. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| identifiers | json | JWS payload | A json object representing the identifiers the client will prove control over. Currently only a single identifier of type `permanent-identifier` and whose value is a DEP host's serial number is accepted. |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/new_order`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvbmV3X29yZGVyIn0=",
+    "payload": "eyJpZGVudGlmaWVycyI6W3sidHlwZSI6InBlcm1hbmVudC1pZGVudGlmaWVyIiwidmFsdWUiOiJWSjEyQUIzNENEIn1dfQ==",
+    "signature": "aR_8j0A2tsZOZBSnjdIQVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default response
+
+`Status: 201`
+
+```json
+{
+    "id": "73",
+    "status": "pending",
+    "expires": "2026-03-10T17:03:00Z",
+    "identifiers": [
+        {
+            "type": "permanent-identifier",
+            "value": "VJ12AB34CD"
+        }
+    ],
+    "notBefore": "2026-03-09T17:02:00Z",
+    "notAfter": "2027-03-09T17:03:00Z",
+    "authorizations": [
+        "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/authorizations/89"
+    ],
+    "finalize": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/finalize"
+}
+```
+
+### ACME List Orders
+
+`/api/mdm/acme/[identifier]/accounts/[account_id]/orders`
+
+This endpoint is used by hosts to list orders associated with an account as described in [RFC 8555 section 7.1.2.1](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.2.1)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| account_id | string | path | **Required.** The account ID to list the orders associated with. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) to create the order under. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/accounts/17/orders`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvYWNjb3VudHMvMTcvb3JkZXJzIn0=",
+    "payload": "",
+    "signature": "cD_8z0A2tsZOZBSnjdIQVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default Response
+
+`Status: 201`
+
+```json
+{
+  "orders": [
+    "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73"
+  ]
+}
+```
+
+### ACME Get Order Status
+
+`/api/mdm/acme/[identifier]/orders/[order_id]`
+
+This endpoint is used by hosts to create an ACME order for certificate issuance [RFC 8555 section 7.4](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.4)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation. The same identifier will be used for all ACME requests for a given client and certificate request. Future enrollments will use a different identifier.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| order_id | string | path | **Required.** The order ID to get status information for. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) the order is associated with. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvb3JkZXJzLzczIn0=",
+    "payload": "",
+    "signature": "ZZ_9z0B2tsZFZBDnjdIZVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default Response
+
+`Status: 200`
+
+
+```json
+{
+    "id": "73",
+    "status": "pending",
+    "expires": "2026-03-10T17:03:00Z",
+    "identifiers": [
+        {
+            "type": "permanent-identifier",
+            "value": "VJ12AB34CD"
+        }
+    ],
+    "notBefore": "2026-03-09T17:02:00Z",
+    "notAfter": "2027-03-09T17:03:00Z",
+    "authorizations": [
+        "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/authorizations/89"
+    ],
+    "finalize": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/finalize"
+}
+```
+
+### ACME Get Authorization Status
+
+`/api/mdm/acme/[identifier]/authorizations/[authorization_id]`
+
+This endpoint is used by hosts to get the status of an authorization associated with an ACME certificate order as described by [RFC 8555 section 7.5](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.5)
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| authorization_id | string | path | **Required.** The authorization ID to get status information for. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) the authorization and its associated order is associated with. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/authorizations/89`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvb3JkZXJzLzg5In0=",
+    "payload": "",
+    "signature": "ZZ_9z0B2tsZFZBDnjdIZVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "identifier": {
+        "type": "permanent-identifier",
+        "value": "VJ12AB34CD"
+    },
+    "status": "pending",
+    "challenges": [
+        {
+            "type": "device-attest-01",
+            "status": "pending",
+            "token": "hznD3A5cvBXRqQ81r0jxUnquXPqu6W8m",
+            "url": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/challenges/103"
+        }
+    ],
+    "expires": "2026-03-10T17:03:00Z"
+}
+```
+
+### ACME Submit Challenge
+
+`/api/mdm/acme/[identifier]/challenges/[challenge_id]`
+
+This endpoint is used by hosts to submit proof of control of identifiers for ACME certificate order as described by [RFC 8555 section 7.5.1](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.5.1). The payload format varies depending on challenges requested however right now only the device-attest-01 challenge is supported which submits its entire proof, an Apple Managed Device Attestation, in the `attObj` attribute.
+
+Apple Managed Device Attestations are beyond the scope of this documentation but more information can be found in [Apple's Managed Device Attestation documentation](https://support.apple.com/guide/deployment/managed-device-attestation-dep28afbde6a/web). For the challenge to be validated the attestation must match the enrolling device's serial number and have a freshness code matching the token returned from the authorizations endpoint.
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| challenge_id | string | path | **Required.** The challenge ID to submit proof of control of identifiers for. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) the order is associated with. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| attObj | string | JWS payload | **Required.** The Apple Managed Device Attestation proving control of the specified permanent-identifier |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/challenges/103`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvY2hhbGxlbmdlcy8xMDMifQ==",
+    "payload": "eyJhdHRPYmoiOiJvbU5tYlhSbFlYQndiLi4uIn0=",
+    "signature": "ZZ_9z0B2tsZFZBDnjdIZVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+    "type": "device-attest-01",
+    "status": "valid",
+    "token": "hznD3A5cvBXRqQ81r0jxUnquXPqu6W8m",
+    "validated": "2026-03-09T17:03:03Z",
+    "url": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/challenges/103"
+}
+```
+
+### ACME Request Order Finalization
+
+`/api/mdm/acme/[identifier]/orders/[order_id]/finalize`
+
+This endpoint is used by hosts to finalize ACME orders after submitting proof of identifier ownership and request certificate issuance as described by [RFC 8555 section 7.4](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.4). The updated order is returned along with the URL to retrieve the issued certificate if the order is valid.
+
+The identifier in the path is a random, time limited, string of alphanumeric characters and is generated on enrollment profile creation.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| order_id | string | path | **Required.** The order ID to finalize. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) the order is associated with. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| csr | string | JWS payload | **Required.** A certificate signing request in base64url-encoded DER format. |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/finalize`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvb3JkZXJzLzczL2ZpbmFsaXplIn0=",
+    "payload": "eyJjc3IiOiJNSUlCUXouLi4ifQ==",
+    "signature": "ZZ_9z0B2tsZFZBDnjdIZVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default Response
+
+`Status: 200`
+
+```json
+{
+    "id": "73",
+    "status": "valid",
+    "expires": "2026-03-10T17:03:00Z",
+    "identifiers": [
+        {
+            "type": "permanent-identifier",
+            "value": "VJ12AB34CD"
+        }
+    ],
+    "notBefore": "2026-03-09T17:02:00Z",
+    "notAfter": "2027-03-09T17:03:00Z",
+    "authorizations": [
+        "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/authorizations/89"
+    ],
+    "finalize": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/finalize",
+    "certificate": "https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/certificate"
+}
+```
+
+### ACME Get Certificate
+
+`/api/mdm/acme/[identifier]/orders/[order_id]/certificate`
+
+This endpoint is used by hosts to retrieve a signed certificate from a valid, finalized order as described by [RFC 8555 section 7.4.2](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.4.2). The full certificate chain is returned in PEM format.
+
+#### Parameters
+
+| Name                | Type   | In   | Description                                               |
+|---------------------|--------|------|-----------------------------------------------------------|
+| identifier | string | path | **Required.** The identifier provided in the initial directory path. |
+| order_id | string | path | **Required.** The order ID to request the certificate from. |
+| kid | string | JWS protected header | **Required.** The URL of the account(provided by the New Account request) the order is associated with. The JWS must be signed by the JWK specified during account creation. |
+| alg | string | JWS protected header | **Required.** The JWS signing algorithm used for the signature. Must not be "None" |
+| url | string | JWS protected header | **Required.** The newOrder URL used to make this request. Must match the newOrder URL returned from the directory, including the host. |
+| nonce | string | JWS protected header | **Required.** An unused nonce received from a previous request's `Replay-Nonce` header or the ACME Nonce endpoint |
+| signature | string | JWS signature | **Required.** The signature of the JWS protected header and payload with the key in the protected header's jwk field. |
+
+#### Example
+
+`POST https://fleet.example.com/api/mdm/acme/z7ab3dkajesjcnzx6734mdjsyu/orders/73/certificate`
+
+```json
+{
+    "protected": "eyJhbGciOiJFUzI1NiIsImtpZCI6Imh0dHBzOi8vZmxlZXQuZXhhbXBsZS5jb20vYXBpL21kbS9hY21lL3o3YWIzZGthamVzamNueng2NzM0bWRqc3l1L2FjY291bnRzLzE3Iiwibm9uY2UiOiJaWFpyZGtONVdHSktkbEJMUVRoaVQzVktURWd6V21STVUybGFhMjl5TTJRIiwidXJsIjoiaHR0cHM6Ly9mbGVldC5leGFtcGxlLmNvbS9hcGkvbWRtL2FjbWUvejdhYjNka2FqZXNqY256eDY3MzRtZGpzeXUvb3JkZXJzLzczL2NlcnRpZmljYXRlIn0=",
+    "payload": "",
+    "signature": "ZZ_9z0B2tsZFZBDnjdIZVcfi5kr05aDkuG9ue6ErBcmUayM4qi4TZ8-I7_aR1UHkXsn8DXR-4H5UvHdOs-fgdw"
+}
+```
+
+##### Default Response
+
+`Status: 200`
+
+```
+-----BEGIN CERTIFICATE-----
+MIIBxzCCAW6gAwIBAgIQfmSg/oAREdRV5R71qlneZTAKBggqhkjOPQQDAjAlMSMw
+...
+7VxC88i069al/lwWXSYwGU6QT1dVhwQd5mH6
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIICijCCAXKgAwIBAgIRAOaJt2Mi0tzs06t0YwVUI7owDQYJKoZIhvcNAQELBQAw
+...
+LhF5zOH2B/pJftzHZRIUPTg5doECxNFV6WB+4jr2
+-----END CERTIFICATE-----
+```

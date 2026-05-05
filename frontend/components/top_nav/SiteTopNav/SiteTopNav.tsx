@@ -152,8 +152,11 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const darkLogoURL = config.org_info.org_logo_url;
-    const lightLogoURL = config.org_info.org_logo_url_light_background;
+    const darkLogoURL =
+      config.org_info.org_logo_url_dark_mode || config.org_info.org_logo_url;
+    const lightLogoURL =
+      config.org_info.org_logo_url_light_mode ||
+      config.org_info.org_logo_url_light_background;
     const hasDarkLogo = darkLogoURL && darkLogoURL !== lightLogoURL;
     const orgLogoURL = darkMode && hasDarkLogo ? darkLogoURL : lightLogoURL;
     const active = navItem.location.regex.test(currentPath);
@@ -172,11 +175,7 @@ const SiteTopNav = ({
             to={navItem.location.pathname}
           >
             <div className={`${navItemBaseClass}__logo`}>
-              <OrgLogoIcon
-                className="logo"
-                src={orgLogoURL}
-                invertDark={!hasDarkLogo}
-              />
+              <OrgLogoIcon className="logo" src={orgLogoURL} />
             </div>
           </Link>
         </li>

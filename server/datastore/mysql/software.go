@@ -4173,7 +4173,12 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.host_id = :host_id AND
 				hvsi.removed = 0 AND
 				hvsi.canceled = 0 AND
-				(hvsi.platform != 'android' OR ncr.id IS NULL) AND
+				-- Android installs never produce nano_command_results (they use Google's
+				-- Android Management API instead of nanoMDM), so ncr is always NULL for
+				-- Android rows. No NCR filter is applied here — all statuses (pending,
+				-- failed, installed) are shown, which is intentional for the host software
+				-- list. Compare with vpp.go / software_installers.go which filter by NCR
+				-- for per-app aggregate counts, different semantics.
 				hvsi2.id IS NULL AND
 				NOT EXISTS (
 					SELECT 1
@@ -4506,6 +4511,13 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
 		}
 	}
+}
+
+// hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
+// "source" is included for test determinism (used as the secondary order key in tests).
+var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":   "name",
+	"source": "source",
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -5965,7 +5977,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")

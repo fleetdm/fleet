@@ -549,3 +549,230 @@ func TestGoogleCalendarApiKeyMarshalUnmarshal(t *testing.T) {
 		require.Contains(t, string(data), `"api_key_json":"********"`)
 	})
 }
+
+func TestOrgInfoNormalizeLogoFields(t *testing.T) {
+	cases := []struct {
+		name    string
+		in      OrgInfo
+		want    OrgInfo
+		wantErr bool
+	}{
+		{
+			name: "all empty",
+			in:   OrgInfo{},
+			want: OrgInfo{},
+		},
+		{
+			name: "deprecated dark only -> mirrored to new",
+			in:   OrgInfo{OrgLogoURL: "https://example.com/d.png"},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "new dark only -> mirrored to deprecated",
+			in:   OrgInfo{OrgLogoURLDarkMode: "https://example.com/d.png"},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "deprecated light only -> mirrored to new",
+			in:   OrgInfo{OrgLogoURLLightBackground: "https://example.com/l.png"},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "new light only -> mirrored to deprecated",
+			in:   OrgInfo{OrgLogoURLLightMode: "https://example.com/l.png"},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "both modes via deprecated",
+			in: OrgInfo{
+				OrgLogoURL:                "https://example.com/d.png",
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+			},
+			want: OrgInfo{
+				OrgLogoURL:                "https://example.com/d.png",
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLDarkMode:        "https://example.com/d.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "matching dark old + new -> kept",
+			in: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+			want: OrgInfo{
+				OrgLogoURL:         "https://example.com/d.png",
+				OrgLogoURLDarkMode: "https://example.com/d.png",
+			},
+		},
+		{
+			name: "matching light old + new -> kept",
+			in: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+			want: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l.png",
+				OrgLogoURLLightMode:       "https://example.com/l.png",
+			},
+		},
+		{
+			name: "conflicting dark old + new -> error",
+			in: OrgInfo{
+				OrgLogoURL:         "https://example.com/d1.png",
+				OrgLogoURLDarkMode: "https://example.com/d2.png",
+			},
+			wantErr: true,
+		},
+		{
+			name: "conflicting light old + new -> error",
+			in: OrgInfo{
+				OrgLogoURLLightBackground: "https://example.com/l1.png",
+				OrgLogoURLLightMode:       "https://example.com/l2.png",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.in
+			err := got.NormalizeLogoFields()
+			if tc.wantErr {
+				require.NotNil(t, err)
+				return
+			}
+			require.Nil(t, err)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestOrgInfoAbsolutizeLogoURLs(t *testing.T) {
+	const fleetHostedDark = "/api/latest/fleet/logo?mode=dark"
+	const fleetHostedLight = "/api/latest/fleet/logo?mode=light"
+	const externalDark = "https://example.com/dark.png"
+	const externalLight = "https://example.com/light.png"
+
+	cases := []struct {
+		name      string
+		serverURL string
+		in        OrgInfo
+		want      OrgInfo
+	}{
+		{
+			name:      "empty serverURL is no-op",
+			serverURL: "",
+			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			want:      OrgInfo{OrgLogoURL: fleetHostedDark},
+		},
+		{
+			name:      "all empty fields stay empty",
+			serverURL: "https://fleet.example.com",
+			in:        OrgInfo{},
+			want:      OrgInfo{},
+		},
+		{
+			name:      "fleet-hosted relative URL gets absolutized",
+			serverURL: "https://fleet.example.com",
+			in: OrgInfo{
+				OrgLogoURL:                fleetHostedDark,
+				OrgLogoURLDarkMode:        fleetHostedDark,
+				OrgLogoURLLightBackground: fleetHostedLight,
+				OrgLogoURLLightMode:       fleetHostedLight,
+			},
+			want: OrgInfo{
+				OrgLogoURL:                "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLDarkMode:        "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLLightBackground: "https://fleet.example.com" + fleetHostedLight,
+				OrgLogoURLLightMode:       "https://fleet.example.com" + fleetHostedLight,
+			},
+		},
+		{
+			name:      "external URLs are left unchanged",
+			serverURL: "https://fleet.example.com",
+			in: OrgInfo{
+				OrgLogoURL:          externalDark,
+				OrgLogoURLDarkMode:  externalDark,
+				OrgLogoURLLightMode: externalLight,
+			},
+			want: OrgInfo{
+				OrgLogoURL:          externalDark,
+				OrgLogoURLDarkMode:  externalDark,
+				OrgLogoURLLightMode: externalLight,
+			},
+		},
+		{
+			name:      "trailing slash on serverURL is stripped",
+			serverURL: "https://fleet.example.com/",
+			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			want:      OrgInfo{OrgLogoURL: "https://fleet.example.com" + fleetHostedDark},
+		},
+		{
+			name:      "already-absolute fleet URL is left alone (idempotent)",
+			serverURL: "https://fleet.example.com",
+			in: OrgInfo{
+				OrgLogoURL: "https://fleet.example.com" + fleetHostedDark,
+			},
+			want: OrgInfo{
+				OrgLogoURL: "https://fleet.example.com" + fleetHostedDark,
+			},
+		},
+		{
+			name:      "mixed external and fleet-hosted",
+			serverURL: "https://fleet.example.com",
+			in: OrgInfo{
+				OrgLogoURL:          fleetHostedDark, // fleet-hosted
+				OrgLogoURLLightMode: externalLight,   // external
+			},
+			want: OrgInfo{
+				OrgLogoURL:          "https://fleet.example.com" + fleetHostedDark,
+				OrgLogoURLLightMode: externalLight,
+			},
+		},
+		{
+			name:      "subdomain serverURL",
+			serverURL: "https://eu.acme.fleet.example.com",
+			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			want: OrgInfo{
+				OrgLogoURL: "https://eu.acme.fleet.example.com" + fleetHostedDark,
+			},
+		},
+		{
+			name:      "serverURL with explicit port",
+			serverURL: "https://fleet.example.com:8443",
+			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			want: OrgInfo{
+				OrgLogoURL: "https://fleet.example.com:8443" + fleetHostedDark,
+			},
+		},
+		{
+			name:      "serverURL with URL prefix path",
+			serverURL: "https://example.com/fleet",
+			in:        OrgInfo{OrgLogoURL: fleetHostedDark},
+			want: OrgInfo{
+				OrgLogoURL: "https://example.com/fleet" + fleetHostedDark,
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tc.in
+			got.AbsolutizeLogoURLs(tc.serverURL)
+			require.Equal(t, tc.want, got)
+		})
+	}
+}

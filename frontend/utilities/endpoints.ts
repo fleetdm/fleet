@@ -72,6 +72,9 @@ export default {
   DEVICE_BYPASS_CONDITIONAL_ACCESS: (token: string) =>
     `/${API_VERSION}/fleet/device/${token}/bypass_conditional_access`,
 
+  // Chart endpoints
+  CHART_DATA: (metric: string) => `/${API_VERSION}/fleet/charts/${metric}`,
+
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
@@ -123,6 +126,7 @@ export default {
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
+  LOGO: `/${API_VERSION}/fleet/logo`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -181,7 +185,8 @@ export default {
 
     return `/api/mdm/apple/enroll?${query}`;
   },
-  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/mdm/apple/enrollment_profile`,
+  MDM_APPLE_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic`,
+  MDM_APPLE_DEFAULT_SETUP_ENROLLMENT_PROFILE: `/${API_VERSION}/fleet/enrollment_profiles/automatic/default`,
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
     `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
   MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/bootstrap`,
@@ -230,7 +235,7 @@ export default {
 
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,

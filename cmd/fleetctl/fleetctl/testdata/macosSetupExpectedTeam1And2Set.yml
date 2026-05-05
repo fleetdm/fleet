@@ -25,7 +25,9 @@ spec:
         certificates: null
       setup_experience:
         macos_bootstrap_package: %s
+        enable_create_local_admin_account: false
         enable_end_user_authentication: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         apple_setup_assistant: %s
         macos_manual_agent_install: null
@@ -79,6 +81,8 @@ spec:
       macos_setup:
         bootstrap_package: %s
         enable_end_user_authentication: false
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         lock_end_user_info: false
         macos_setup_assistant: %s
         manual_agent_install: null
@@ -137,6 +141,8 @@ spec:
         macos_bootstrap_package: %s
         apple_setup_assistant: %s
         macos_manual_agent_install: null
+        enable_create_local_admin_account: false
+        end_user_local_account_type: "admin"
         apple_enable_release_device_manually: false
         lock_end_user_info: false
         macos_script: null
@@ -184,6 +190,8 @@ spec:
         bootstrap_package: %s
         macos_setup_assistant: %s
         manual_agent_install: null
+        enable_managed_local_account: false
+        end_user_local_account_type: "admin"
         enable_release_device_manually: false
         lock_end_user_info: false
         script: null

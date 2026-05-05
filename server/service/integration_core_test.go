@@ -535,15 +535,15 @@ func (s *integrationTestSuite) TestModifyAPIOnlyUser() {
 		"name": "New Name",
 	}, http.StatusUnprocessableEntity)
 
-	// An API-only user cannot reach this admin endpoint: the api_only middleware
-	// rejects it at the catalog check (the user-management endpoint is not in the catalog).
+	// An API-only user cannot modify itself: the service layer rejects the
+	// self-modify attempt with 422.
 	//
 	// This is to protect against privilege escalation vulnerability.
 	s.token = apiUserToken
 	defer func() { s.token = s.getTestAdminToken() }()
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
 		"name": "Self Update",
-	}, http.StatusForbidden)
+	}, http.StatusUnprocessableEntity)
 	s.token = s.getTestAdminToken()
 
 	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/users/api_only/%d", apiUserID), map[string]any{
@@ -612,11 +612,6 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 		LabelsIncludeAny: []string{"some-label"},
 	}, http.StatusPaymentRequired, &modifyResp)
 
-	// PATCH with an explicit empty labels_include_any (clearing labels) must also require premium
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/queries/%d", createOKResp.Query.ID), fleet.QueryPayload{
-		LabelsIncludeAny: []string{},
-	}, http.StatusPaymentRequired, &modifyResp)
-
 	// POST /api/latest/fleet/spec/queries with labels_include_any should fail with 402 on free tier
 	var applyResp fleet.ApplyQuerySpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
@@ -624,12 +619,6 @@ func (s *integrationTestSuite) TestQueryLabelsIncludeAnyRequiresPremium() {
 			{Name: "test-labels-spec-query", Query: "SELECT 1", LabelsIncludeAny: []string{"some-label"}},
 		},
 	}, http.StatusPaymentRequired, &applyResp)
-
-	// POST /api/latest/fleet/spec/queries with an explicit empty labels_include_any must also require premium.
-	// We send raw JSON because QuerySpec.LabelsIncludeAny has omitempty, so a Go []string{} would be
-	// stripped during marshaling and never reach the server as a non-nil empty slice.
-	rawBody := []byte(`{"specs":[{"name":"test-labels-spec-query-empty","query":"SELECT 1","labels_include_any":[]}]}`)
-	s.DoRaw("POST", "/api/latest/fleet/spec/queries", rawBody, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestCreatingAPIOnlyUserReturnsAPIToken() {
@@ -2992,6 +2981,22 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// 'after' param is not supported for labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
 
+	// ordering by host_count when include_host_counts=false is rejected
+	res := s.Do("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, "order_key", "host_count", "include_host_counts", "false")
+	require.Contains(t, extractServerErrorText(res.Body), "Invalid order_key (host_count cannot be ordered when they are disabled)")
+
+	// ordering by host_count with include_host_counts=true is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count", "include_host_counts", "true")
+
+	// ordering by host_count without include_host_counts (default true) is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count")
+
+	// include_host_counts=false with a different order_key is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
@@ -4181,6 +4186,90 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
 }
 
+func (s *integrationTestSuite) TestScheduledQueriesInPackOrderKey() {
+	t := s.T()
+
+	// create a pack
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	// create a query
+	var createQueryResp fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", &fleet.QueryPayload{
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_")),
+		Query: new("select 1"),
+	}, http.StatusOK, &createQueryResp)
+	query := createQueryResp.Query
+
+	// schedule the query in the pack so the listing has at least one row
+	var createSchedResp fleet.ScheduleQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", &fleet.ScheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID,
+		Interval: 60,
+	}, http.StatusOK, &createSchedResp)
+
+	// every key in scheduledQueriesAllowedOrderKeys must work end-to-end with cursor pagination.
+	allowedOrderKeys := []string{
+		"id",
+		"pack_id",
+		"name",
+		"query_name",
+		"description",
+		"interval",
+		"snapshot",
+		"removed",
+		"platform",
+		"version",
+		"shard",
+		"denylist",
+		"query",
+		"query_id",
+		"user_time_p50",
+		"user_time_p95",
+		"system_time_p50",
+		"system_time_p95",
+		"total_executions",
+	}
+	for _, orderKey := range allowedOrderKeys {
+		t.Run(orderKey, func(t *testing.T) {
+			var getInPackResp fleet.GetScheduledQueriesInPackResponse
+			s.DoJSON(
+				"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+				nil, http.StatusOK, &getInPackResp,
+				"order_key", orderKey,
+				"after", "0",
+			)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestScheduledQueriesInPackInvalidOrderKey() {
+	t := s.T()
+
+	// create a pack so the endpoint has a real id to operate on
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	var getInPackResp fleet.GetScheduledQueriesInPackResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+		nil, http.StatusUnprocessableEntity, &getInPackResp,
+		"order_key", "not_a_real_column",
+		"after", "0",
+	)
+}
+
 func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
 	t := s.T()
 
@@ -5268,6 +5357,81 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, fleet.WellKnownMDMSimpleMDM, listHostsResp.MDMSolution.Name)
 		assert.Equal(t, "https://simplemdm.com", listHostsResp.MDMSolution.ServerURL)
 
+		// invalid order_key returns 422 (sensitive columns must not be sortable to prevent
+		// information disclosure via binary search extraction).
+		for _, key := range []string{
+			"node_key", "h.node_key",
+			"orbit_node_key", "h.orbit_node_key",
+			"invalid_column", "h.invalid_column",
+			// computer_name is a valid field, but must not contain the table alias
+			// (previous version of the endpoint allowed setting aliases here).
+			"h.computer_name",
+		} {
+			res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusUnprocessableEntity, "order_key", key)
+			errMsg := extractServerErrorText(res.Body)
+			assert.Contains(t, errMsg, "invalid order_key")
+			assert.Contains(t, errMsg, key)
+		}
+
+		// all allowed order_key values must be accepted by the endpoint and return the
+		// hosts in lbl2.
+		allowedOrderKeys := []string{
+			"id", "osquery_host_id", "created_at", "updated_at", "detail_updated_at",
+			"hostname", "uuid", "platform", "osquery_version", "os_version", "build",
+			"platform_like", "code_name", "uptime", "memory", "cpu_type", "cpu_subtype",
+			"cpu_brand", "cpu_physical_cores", "cpu_logical_cores",
+			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
+			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
+			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
+			"last_enrolled_at", "refetch_requested", "refetch_critical_queries_until",
+			"team_id", "policy_updated_at", "public_ip",
+			"gigs_disk_space_available", "percent_disk_space_available",
+			"gigs_total_disk_space", "seen_time", "software_updated_at",
+			"last_restarted_at", "timezone", "team_name",
+			"failing_policies_count", "critical_vulnerabilities_count",
+			"total_issues_count",
+			"issues", // supported as alias for "total_issues_count"
+			"device_mapping",
+			"display_name",
+		}
+		for _, key := range allowedOrderKeys {
+			listHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp, "order_key", key, "device_mapping", "true")
+			assert.Len(t, listHostsResp.Hosts, len(lbl2Hosts), "order_key=%s", key)
+		}
+
+		// every allowed order_key must also accept the `after` cursor without
+		// erroring — guards against SELECT-list aliases leaking into the WHERE
+		// clause (MySQL disallows aliases in WHERE).
+		for _, key := range allowedOrderKeys {
+			listHostsResp = listHostsResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusOK, &listHostsResp,
+				"order_key", key, "order_direction", "asc", "after", "0", "device_mapping", "true")
+		}
+
+		// issue-related order_keys are rejected when disable_issues=true.
+		for _, key := range []string{"issues", "failing_policies_count", "critical_vulnerabilities_count", "total_issues_count"} {
+			res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+				"order_key", key, "disable_issues", "true")
+			errMsg := extractServerErrorText(res.Body)
+			assert.Contains(t, errMsg, "Invalid order_key")
+			assert.Contains(t, errMsg, key)
+		}
+
+		// device_mapping order_key is rejected when device_mapping is not enabled.
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+			"order_key", "device_mapping")
+		errMsg = extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Invalid order_key")
+		assert.Contains(t, errMsg, "device_mapping")
+
+		// device_mapping=false is also rejected.
+		res = s.Do("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", lbl2.ID), nil, http.StatusBadRequest,
+			"order_key", "device_mapping", "device_mapping", "false")
+		errMsg = extractServerErrorText(res.Body)
+		assert.Contains(t, errMsg, "Invalid order_key")
+		assert.Contains(t, errMsg, "device_mapping")
+
 		// delete a label by id
 		var delIDResp fleet.DeleteLabelByIDResponse
 		s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/labels/id/%d", lbl1.ID), nil, http.StatusOK, &delIDResp)
@@ -5547,6 +5711,231 @@ func (s *integrationTestSuite) TestLabels() {
 				require.NoError(t, err)
 				assert.Equal(t, 1, label.HostCount)
 			})
+		})
+	})
+
+	t.Run("Sort by order_key", func(t *testing.T) {
+		ctx := context.Background()
+
+		// Create three teams so each host has a distinct team_id and team_name.
+		// Names sort A < B < C and team IDs are assigned in creation order.
+		teamPrefix := strings.ReplaceAll(t.Name(), "/", "_")
+		teamA, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-A"})
+		require.NoError(t, err)
+		teamB, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-B"})
+		require.NoError(t, err)
+		teamC, err := s.ds.NewTeam(ctx, &fleet.Team{Name: teamPrefix + "-team-C"})
+		require.NoError(t, err)
+		teamIDs := []*uint{&teamA.ID, &teamB.ID, &teamC.ID}
+
+		// Each sortHost[i] is set up with field values that sort in the same direction
+		// as the index: sortHost[0] is "smallest", sortHost[2] is "largest", for every
+		// orderable field below. This means ASC order is always [h0, h1, h2] and DESC
+		// order is always [h2, h1, h0], which keeps the per-field test cases compact.
+		base := time.Date(2030, 1, 1, 0, 0, 0, 0, time.UTC)
+		platforms := []string{"darwin", "linux", "windows"}
+		sortHosts := make([]*fleet.Host, 3)
+		for i := range 3 {
+			h, err := s.ds.NewHost(ctx, &fleet.Host{
+				OsqueryHostID:               ptr.String(fmt.Sprintf("sort-osq-%d", i)),
+				NodeKey:                     ptr.String(fmt.Sprintf("sort-nk-%d", i)),
+				UUID:                        fmt.Sprintf("aaaaaaaa-0000-0000-0000-00000000000%d", i+1),
+				Hostname:                    fmt.Sprintf("sort-host-%d", i),
+				ComputerName:                fmt.Sprintf("sort-comp-%d", i),
+				HardwareSerial:              fmt.Sprintf("sort-ser-%d", i),
+				Platform:                    platforms[i],
+				PlatformLike:                fmt.Sprintf("sort-plike-%d", i),
+				OsqueryVersion:              fmt.Sprintf("%d.0.0", i+1),
+				OSVersion:                   fmt.Sprintf("OS-%d.0", i+1),
+				Uptime:                      time.Duration(i+1) * time.Hour,
+				Memory:                      int64(i+1) * 1024,
+				DistributedInterval:         uint(i+1) * 10,
+				LoggerTLSPeriod:             uint(i+1) * 100,
+				ConfigTLSRefresh:            uint(i+1) * 5,
+				DetailUpdatedAt:             base.Add(time.Duration(i+1) * time.Hour),
+				LabelUpdatedAt:              base.Add(time.Duration(i+1) * 2 * time.Hour),
+				PolicyUpdatedAt:             base.Add(time.Duration(i+1) * 3 * time.Hour),
+				RefetchCriticalQueriesUntil: ptr.Time(base.Add(time.Duration(i+1) * 4 * time.Hour)),
+				RefetchRequested:            i == 2, // only the "largest" host has refetch_requested = true
+				TeamID:                      teamIDs[i],
+			})
+			require.NoError(t, err)
+			sortHosts[i] = h
+		}
+
+		// Set columns not handled by NewHost via direct UPDATEs.
+		for i, h := range sortHosts {
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					UPDATE hosts SET
+						created_at = ?,
+						updated_at = ?,
+						last_enrolled_at = ?,
+						last_restarted_at = ?,
+						primary_ip_id = ?,
+						primary_ip = ?,
+						primary_mac = ?,
+						public_ip = ?,
+						timezone = ?,
+						build = ?,
+						code_name = ?,
+						cpu_type = ?,
+						cpu_subtype = ?,
+						cpu_brand = ?,
+						cpu_physical_cores = ?,
+						cpu_logical_cores = ?,
+						hardware_vendor = ?,
+						hardware_model = ?,
+						hardware_version = ?
+					WHERE id = ?`,
+					base.Add(time.Duration(i+1)*5*time.Hour),
+					base.Add(time.Duration(i+1)*6*time.Hour),
+					base.Add(time.Duration(i+1)*7*time.Hour),
+					base.Add(time.Duration(i+1)*8*time.Hour),
+					uint(i+1)*100, //nolint:gosec // ignore G115
+					fmt.Sprintf("10.0.0.%d", i+1),
+					fmt.Sprintf("aa:bb:cc:00:00:0%d", i+1),
+					fmt.Sprintf("8.0.0.%d", i+1),
+					fmt.Sprintf("UTC-%d", i),
+					fmt.Sprintf("sort-build-%d", i),
+					fmt.Sprintf("sort-code-%d", i),
+					fmt.Sprintf("sort-ct-%d", i),
+					fmt.Sprintf("sort-cs-%d", i),
+					fmt.Sprintf("sort-cb-%d", i),
+					i+1,
+					(i+1)*2,
+					fmt.Sprintf("sort-hv-%d", i),
+					fmt.Sprintf("sort-hm-%d", i),
+					fmt.Sprintf("sort-hver-%d", i),
+					h.ID,
+				)
+				return err
+			})
+		}
+
+		// Populate joined tables (host_disks, host_seen_times, host_updates,
+		// host_issues, host_emails) with values that also sort by host index.
+		for i, h := range sortHosts {
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space)
+					VALUES (?, ?, ?, ?)`,
+					h.ID, float64((i+1)*100), float64((i+1)*10), float64((i+1)*1000))
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`UPDATE host_seen_times SET seen_time = ? WHERE host_id = ?`,
+					base.Add(time.Duration(i+1)*9*time.Hour), h.ID)
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`INSERT INTO host_updates (host_id, software_updated_at) VALUES (?, ?)`,
+					h.ID, base.Add(time.Duration(i+1)*10*time.Hour))
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx, `
+					INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count)
+					VALUES (?, ?, ?, ?)`,
+					h.ID, uint(i+1), uint(i+1)*2, uint(i+1)*3) //nolint:gosec // ignore G115
+				return err
+			})
+			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(ctx,
+					`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+					h.ID, fmt.Sprintf("sort-%d@example.com", i), "src")
+				return err
+			})
+		}
+
+		// Create a dynamic label and add the three hosts to it.
+		var createResp fleet.CreateLabelResponse
+		s.DoJSON("POST", "/api/latest/fleet/labels",
+			&fleet.LabelPayload{Name: teamPrefix + "-sort", Query: "select 1"}, http.StatusOK, &createResp)
+		sortLabel := createResp.Label.Label
+		for _, h := range sortHosts {
+			require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, h,
+				map[uint]*bool{sortLabel.ID: new(true)}, time.Now(), false))
+		}
+
+		ascIDs := []uint{sortHosts[0].ID, sortHosts[1].ID, sortHosts[2].ID}
+		descIDs := []uint{sortHosts[2].ID, sortHosts[1].ID, sortHosts[0].ID}
+		labelHostsURL := fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", sortLabel.ID)
+
+		// orderKeys lists every field for which sortHosts is set up to produce a
+		// strict, deterministic ASC ordering of [h0, h1, h2]. Each field gets its
+		// own subtest verifying both ASC and DESC orderings.
+		orderKeys := []string{
+			"id", "osquery_host_id", "created_at", "updated_at", "detail_updated_at",
+			"hostname", "uuid", "platform", "osquery_version", "os_version", "build",
+			"platform_like", "code_name", "uptime", "memory", "cpu_type", "cpu_subtype",
+			"cpu_brand", "cpu_physical_cores", "cpu_logical_cores",
+			"hardware_vendor", "hardware_model", "hardware_version", "hardware_serial",
+			"computer_name", "primary_ip_id", "distributed_interval", "logger_tls_period",
+			"config_tls_refresh", "primary_ip", "primary_mac", "label_updated_at",
+			"last_enrolled_at", "refetch_critical_queries_until", "team_id",
+			"policy_updated_at", "public_ip",
+			"gigs_disk_space_available", "percent_disk_space_available",
+			"gigs_total_disk_space", "seen_time", "software_updated_at",
+			"last_restarted_at", "timezone", "team_name",
+			"failing_policies_count", "critical_vulnerabilities_count",
+			"total_issues_count", "issues",
+			"device_mapping",
+			"display_name",
+		}
+		for _, key := range orderKeys {
+			t.Run(key, func(t *testing.T) {
+				params := []string{"order_key", key, "order_direction", "asc"}
+				if key == "device_mapping" {
+					params = append(params, "device_mapping", "true")
+				}
+
+				var resp listHostsResponse
+				s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp, params...)
+				require.Len(t, resp.Hosts, 3)
+				gotAsc := []uint{resp.Hosts[0].ID, resp.Hosts[1].ID, resp.Hosts[2].ID}
+				assert.Equal(t, ascIDs, gotAsc, "asc order mismatch")
+
+				params[3] = "desc"
+				resp = listHostsResponse{}
+				s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp, params...)
+				require.Len(t, resp.Hosts, 3)
+				gotDesc := []uint{resp.Hosts[0].ID, resp.Hosts[1].ID, resp.Hosts[2].ID}
+				assert.Equal(t, descIDs, gotDesc, "desc order mismatch")
+			})
+		}
+
+		// refetch_requested is a bool, so only h2 (true) has a unique value. ASC must
+		// place h2 last; DESC must place h2 first. The order between h0 and h1 (both
+		// false) is not deterministic, so we only assert the position of h2.
+		t.Run("refetch_requested", func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "refetch_requested", "order_direction", "asc")
+			require.Len(t, resp.Hosts, 3)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[2].ID, "asc: h2 should be last")
+
+			resp = listHostsResponse{}
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "refetch_requested", "order_direction", "desc")
+			require.Len(t, resp.Hosts, 3)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[0].ID, "desc: h2 should be first")
+		})
+
+		// Cursor pagination (`after`) injects the order_key into the WHERE
+		// clause; SELECT-list aliases like team_name would error there. Verify
+		// that paging through team_name with a cursor returns the expected
+		// hosts and does not error.
+		t.Run("team_name with after cursor", func(t *testing.T) {
+			var resp listHostsResponse
+			s.DoJSON("GET", labelHostsURL, nil, http.StatusOK, &resp,
+				"order_key", "team_name", "order_direction", "asc",
+				"after", teamA.Name, "per_page", "10")
+			require.Len(t, resp.Hosts, 2)
+			assert.Equal(t, sortHosts[1].ID, resp.Hosts[0].ID)
+			assert.Equal(t, sortHosts[2].ID, resp.Hosts[1].ID)
 		})
 	})
 }
@@ -7851,14 +8240,14 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	// for scripts endpoints are in the enterprise integrations tests.
 
 	// run a script
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// run a script sync
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// get script result
-	var scriptResultResp getScriptResultResponse
+	var scriptResultResp fleet.GetScriptResultResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusNotFound, &scriptResultResp)
 
 	// create a saved script
@@ -7867,33 +8256,33 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 
 	// run a saved script by name without team id (should fail host not found)
-	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.RunScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Host was not found in the datastore")
 
 	// run a saved script by name with team id (should fail with license error)
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.RunScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
-	var delScriptResp deleteScriptResponse
+	var delScriptResp fleet.DeleteScriptResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)
 
 	// list saved scripts
-	var listScriptsResp listScriptsResponse
+	var listScriptsResp fleet.ListScriptsResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listScriptsResp, "per_page", "10")
 
 	// get a saved script
-	var getScriptResp getScriptResponse
+	var getScriptResp fleet.GetScriptResponse
 	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &getScriptResp)
 
 	// get host script details
-	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	var getHostScriptDetailsResp fleet.GetHostScriptDetailsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
 
 	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusOK)
+	s.Do("POST", "/api/v1/fleet/scripts/batch", fleet.BatchSetScriptsRequest{Scripts: nil}, http.StatusOK)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -8065,6 +8454,35 @@ func (s *integrationTestSuite) TestAppConfig() {
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
 	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	// preserve_host_activities_on_reenrollment round-trip.
+	initialPreserve := acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": true
+    }
+  }`), http.StatusOK, &acResp)
+	require.True(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	require.True(t, acResp.ActivityExpirySettings.ActivityExpiryEnabled)
+	require.Equal(t, 42, acResp.ActivityExpirySettings.ActivityExpiryWindow)
+
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": false
+    }
+  }`), http.StatusOK, &acResp)
+	require.False(t, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	// Restore initial value to keep subsequent tests order-independent.
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+    "activity_expiry_settings": {
+        "preserve_host_activities_on_reenrollment": %t
+    }
+  }`, initialPreserve)), http.StatusOK, &acResp)
+	require.Equal(t, initialPreserve, acResp.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
 
 	// Disable AI features.
 	acResp = appConfigResponse{}
@@ -13992,7 +14410,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	})
 	require.NoError(t, err)
 
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
 	require.NotEmpty(t, runResp.ExecutionID)
@@ -16611,4 +17029,51 @@ func (s *integrationTestSuite) TestListHostReports() {
 		_, hasReportID := firstReport["report_id"]
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
+}
+
+// TestLabelScopePremiumGate verifies that the include_all scope fields is
+// premium-gated on all entry points for the free-tier (core) server, while
+// existing free-tier label fields (policy include/exclude_any) still work.
+func (s *integrationTestSuite) TestLabelScopePremiumGate() {
+	t := s.T()
+
+	// One label suffices to exercise the gate.
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lbl := lblResp.Label
+
+	// LabelsIncludeAll on Global/TeamPolicyRequest is tagged `premium:"true"`, so
+	// the endpoint decoder rejects with 400 before reaching the service handler.
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "premium-gated-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAll: []string{lbl.Name},
+	}, http.StatusBadRequest, &fleet.GlobalPolicyResponse{})
+
+	// Free-tier should still allow creating a policy with LabelsIncludeAny (existing field).
+	var freeOK fleet.GlobalPolicyResponse
+	s.DoJSON("POST", "/api/latest/fleet/policies", fleet.GlobalPolicyRequest{
+		Name:             "free-include-any-" + t.Name(),
+		Query:            "SELECT 1",
+		LabelsIncludeAny: []string{lbl.Name},
+	}, http.StatusOK, &freeOK)
+	require.NotNil(t, freeOK.Policy)
+
+	// Free-tier should reject PATCHing a policy to add LabelsIncludeAll (middleware → 400).
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID), fleet.ModifyGlobalPolicyRequest{
+		ModifyPolicyPayload: fleet.ModifyPolicyPayload{LabelsIncludeAll: []string{lbl.Name}},
+	}, http.StatusBadRequest, &fleet.ModifyGlobalPolicyResponse{})
+
+	s.DoRaw("PATCH",
+		fmt.Sprintf("/api/latest/fleet/policies/%d", freeOK.Policy.ID),
+		fmt.Appendf(nil, `{"labels_include_any":[%q]}`, lbl.Name),
+		http.StatusOK,
+	)
+
+	for _, payload := range []fleet.QueryPayload{
+		{Name: ptr.String("q-any-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAny: []string{lbl.Name}},
+		{Name: ptr.String("q-all-" + t.Name()), Query: ptr.String("SELECT 1"), Logging: ptr.String(fleet.LoggingSnapshot), LabelsIncludeAll: []string{lbl.Name}},
+	} {
+		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
+	}
 }

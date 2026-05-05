@@ -312,6 +312,8 @@ type ModifyAppConfigFunc func(ctx context.Context, p []byte, applyOpts fleet.App
 
 type SandboxEnabledFunc func() bool
 
+type AppConfigUrlsFunc func(ctx context.Context) (urls *fleet.AppConfigUrls, err error)
+
 type ApplyEnrollSecretSpecFunc func(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error
 
 type GetEnrollSecretSpecFunc func(ctx context.Context) (*fleet.EnrollSecretSpec, error)
@@ -686,6 +688,8 @@ type SetOrUpdateMDMAppleSetupAssistantFunc func(ctx context.Context, asst *fleet
 
 type GetMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error)
 
+type GetDefaultMDMAppleSetupAssistantProfileFunc func(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error)
+
 type DeleteMDMAppleSetupAssistantFunc func(ctx context.Context, teamID *uint) error
 
 type HasCustomSetupAssistantConfigurationWebURLFunc func(ctx context.Context, teamID *uint) (bool, error)
@@ -841,6 +845,12 @@ type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uin
 type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error)
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
+
+type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
+
+type DeleteOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) error
+
+type GetOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error)
 
 type SetSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
@@ -1352,6 +1362,9 @@ type Service struct {
 
 	SandboxEnabledFunc        SandboxEnabledFunc
 	SandboxEnabledFuncInvoked bool
+
+	AppConfigUrlsFunc        AppConfigUrlsFunc
+	AppConfigUrlsFuncInvoked bool
 
 	ApplyEnrollSecretSpecFunc        ApplyEnrollSecretSpecFunc
 	ApplyEnrollSecretSpecFuncInvoked bool
@@ -1914,6 +1927,9 @@ type Service struct {
 	GetMDMAppleSetupAssistantFunc        GetMDMAppleSetupAssistantFunc
 	GetMDMAppleSetupAssistantFuncInvoked bool
 
+	GetDefaultMDMAppleSetupAssistantProfileFunc        GetDefaultMDMAppleSetupAssistantProfileFunc
+	GetDefaultMDMAppleSetupAssistantProfileFuncInvoked bool
+
 	DeleteMDMAppleSetupAssistantFunc        DeleteMDMAppleSetupAssistantFunc
 	DeleteMDMAppleSetupAssistantFuncInvoked bool
 
@@ -2147,6 +2163,15 @@ type Service struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	UploadOrgLogoFunc        UploadOrgLogoFunc
+	UploadOrgLogoFuncInvoked bool
+
+	DeleteOrgLogoFunc        DeleteOrgLogoFunc
+	DeleteOrgLogoFuncInvoked bool
+
+	GetOrgLogoFunc        GetOrgLogoFunc
+	GetOrgLogoFuncInvoked bool
 
 	SetSetupExperienceSoftwareFunc        SetSetupExperienceSoftwareFunc
 	SetSetupExperienceSoftwareFuncInvoked bool
@@ -3279,6 +3304,13 @@ func (s *Service) SandboxEnabled() bool {
 	s.SandboxEnabledFuncInvoked = true
 	s.mu.Unlock()
 	return s.SandboxEnabledFunc()
+}
+
+func (s *Service) AppConfigUrls(ctx context.Context) (urls *fleet.AppConfigUrls, err error) {
+	s.mu.Lock()
+	s.AppConfigUrlsFuncInvoked = true
+	s.mu.Unlock()
+	return s.AppConfigUrlsFunc(ctx)
 }
 
 func (s *Service) ApplyEnrollSecretSpec(ctx context.Context, spec *fleet.EnrollSecretSpec, applyOpts fleet.ApplySpecOptions) error {
@@ -4590,6 +4622,13 @@ func (s *Service) GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (
 	return s.GetMDMAppleSetupAssistantFunc(ctx, teamID)
 }
 
+func (s *Service) GetDefaultMDMAppleSetupAssistantProfile(ctx context.Context) (profile godep.Profile, updatedAt *time.Time, err error) {
+	s.mu.Lock()
+	s.GetDefaultMDMAppleSetupAssistantProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDefaultMDMAppleSetupAssistantProfileFunc(ctx)
+}
+
 func (s *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error {
 	s.mu.Lock()
 	s.DeleteMDMAppleSetupAssistantFuncInvoked = true
@@ -5134,6 +5173,27 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {
+	s.mu.Lock()
+	s.UploadOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.UploadOrgLogoFunc(ctx, mode, content)
+}
+
+func (s *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) error {
+	s.mu.Lock()
+	s.DeleteOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrgLogoFunc(ctx, mode)
+}
+
+func (s *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error) {
+	s.mu.Lock()
+	s.GetOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetOrgLogoFunc(ctx, mode)
 }
 
 func (s *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {

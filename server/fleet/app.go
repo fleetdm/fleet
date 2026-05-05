@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
@@ -289,7 +290,24 @@ type GitOpsConfig struct {
 	Exceptions        GitOpsExceptions `json:"exceptions"`
 }
 
+// Subset of Appconfig to pull out only the serverURL and the MDM.AppleServerURL
+type AppConfigUrls struct {
+	ServerSettings struct {
+		ServerURL string `json:"server_url"`
+	} `json:"server_settings"`
+	MDM struct {
+		AppleServerURL string `json:"apple_server_url"`
+	} `json:"mdm"`
+}
+
 func (c *AppConfig) MDMUrl() string {
+	if c.MDM.AppleServerURL == "" {
+		return c.ServerSettings.ServerURL
+	}
+	return c.MDM.AppleServerURL
+}
+
+func (c *AppConfigUrls) MDMUrl() string {
 	if c.MDM.AppleServerURL == "" {
 		return c.ServerSettings.ServerURL
 	}
@@ -553,8 +571,8 @@ type MacOSSetup struct {
 	ManualAgentInstall          optjson.Bool                       `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
 	RequireAllSoftware          bool                               `json:"require_all_software_macos"`
 	RequireAllSoftwareWindows   bool                               `json:"require_all_software_windows"`
-	EnableManagedLocalAccount   *bool                              `json:"enable_managed_local_account,omitempty" renameto:"enable_create_local_admin_account"`
-	EndUserLocalAccountType     *string                            `json:"end_user_local_account_type,omitempty"`
+	EnableManagedLocalAccount   optjson.Bool                       `json:"enable_managed_local_account" renameto:"enable_create_local_admin_account"`
+	EndUserLocalAccountType     optjson.String                     `json:"end_user_local_account_type"`
 }
 
 func (mos *MacOSSetup) Validate() error {
@@ -564,6 +582,10 @@ func (mos *MacOSSetup) Validate() error {
 
 	if mos.ManualAgentInstall.Valid && mos.ManualAgentInstall.Value && (!mos.BootstrapPackage.Valid || mos.BootstrapPackage.Value == "") {
 		return NewInvalidArgumentError("setup_experience.macos_manual_agent_install", `Couldn't enable macos_manual_agent_install. To use this option, first specify a bootstrap package.`)
+	}
+
+	if mos.EndUserLocalAccountType.Valid && mos.EndUserLocalAccountType.Value != "admin" {
+		return NewInvalidArgumentError("end_user_local_account_type", `only "admin" is supported`)
 	}
 
 	return nil
@@ -593,6 +615,12 @@ func (mos *MacOSSetup) SetDefaultsIfNeeded() {
 	}
 	if !mos.ManualAgentInstall.Valid {
 		mos.ManualAgentInstall = optjson.SetBool(false)
+	}
+	if !mos.EnableManagedLocalAccount.Valid {
+		mos.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !mos.EndUserLocalAccountType.Valid {
+		mos.EndUserLocalAccountType = optjson.SetString("admin")
 	}
 }
 
@@ -1144,6 +1172,12 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.MacOSSetup.LockEndUserInfo.Valid {
 		c.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(c.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
+	if !c.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		c.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		c.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)
 	return json.Marshal(aa)
@@ -1181,12 +1215,76 @@ func (c *AppConfig) assignDeprecatedFields() {
 
 // OrgInfo contains general info about the organization using Fleet.
 type OrgInfo struct {
-	OrgName                   string `json:"org_name"`
-	OrgLogoURL                string `json:"org_logo_url"`
+	OrgName string `json:"org_name"`
+	// Deprecated: use OrgLogoURLDarkMode.
+	OrgLogoURL string `json:"org_logo_url"`
+	// Deprecated: use OrgLogoURLLightMode.
 	OrgLogoURLLightBackground string `json:"org_logo_url_light_background"`
+	OrgLogoURLDarkMode        string `json:"org_logo_url_dark_mode"`
+	OrgLogoURLLightMode       string `json:"org_logo_url_light_mode"`
 	// ContactURL is the URL displayed for users to contact support. By default,
 	// https://fleetdm.com/company/contact is used.
 	ContactURL string `json:"contact_url"`
+}
+
+// Keep deprecated fields (OrgLogoURL and OrgLogoURLLightBackground) in sync
+// with the new fields (OrgLogoURLDarkMode and OrgLogoURLLightMode).
+func (o *OrgInfo) NormalizeLogoFields() *InvalidArgumentError {
+	invalid := &InvalidArgumentError{}
+
+	switch {
+	case o.OrgLogoURL != "" && o.OrgLogoURLDarkMode != "" && o.OrgLogoURL != o.OrgLogoURLDarkMode:
+		invalid.Append("org_logo_url",
+			"cannot specify both org_logo_url and org_logo_url_dark_mode with different values")
+	case o.OrgLogoURL == "" && o.OrgLogoURLDarkMode != "":
+		o.OrgLogoURL = o.OrgLogoURLDarkMode
+	case o.OrgLogoURLDarkMode == "" && o.OrgLogoURL != "":
+		o.OrgLogoURLDarkMode = o.OrgLogoURL
+	}
+
+	switch {
+	case o.OrgLogoURLLightBackground != "" && o.OrgLogoURLLightMode != "" && o.OrgLogoURLLightBackground != o.OrgLogoURLLightMode:
+		invalid.Append("org_logo_url_light_background",
+			"cannot specify both org_logo_url_light_background and org_logo_url_light_mode with different values")
+	case o.OrgLogoURLLightBackground == "" && o.OrgLogoURLLightMode != "":
+		o.OrgLogoURLLightBackground = o.OrgLogoURLLightMode
+	case o.OrgLogoURLLightMode == "" && o.OrgLogoURLLightBackground != "":
+		o.OrgLogoURLLightMode = o.OrgLogoURLLightBackground
+	}
+
+	if invalid.HasErrors() {
+		return invalid
+	}
+	return nil
+}
+
+// orgLogoServingPathPrefix is the relative path Fleet writes into the
+// OrgLogo*URL fields after a successful logo upload (see
+// orgLogoServingURL in server/service/org_logo.go). AbsolutizeLogoURLs
+// uses this to recognize Fleet-hosted logos that need the current
+// ServerURL prepended on read.
+const orgLogoServingPathPrefix = "/api/latest/fleet/logo"
+
+// AbsolutizeLogoURL rewrites a Fleet-hosted relative logo URL into a
+// fully-qualified URL using the supplied serverURL. URLs that don't
+// match the Fleet-hosted serving path (i.e. external URLs set by
+// customers) and empty strings are returned unchanged. Use this when
+// you only need to absolutize one field — see AbsolutizeLogoURLs for
+// the OrgInfo-wide variant.
+func AbsolutizeLogoURL(u, serverURL string) string {
+	if serverURL == "" || !strings.HasPrefix(u, orgLogoServingPathPrefix) {
+		return u
+	}
+	return strings.TrimRight(serverURL, "/") + u
+}
+
+// AbsolutizeLogoURLs applies AbsolutizeLogoURL to all four logo URL
+// fields on OrgInfo (deprecated + mode-aware pairs) in place.
+func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
+	o.OrgLogoURL = AbsolutizeLogoURL(o.OrgLogoURL, serverURL)
+	o.OrgLogoURLLightBackground = AbsolutizeLogoURL(o.OrgLogoURLLightBackground, serverURL)
+	o.OrgLogoURLDarkMode = AbsolutizeLogoURL(o.OrgLogoURLDarkMode, serverURL)
+	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
 
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
@@ -1223,6 +1321,12 @@ type HostExpirySettings struct {
 type ActivityExpirySettings struct {
 	ActivityExpiryEnabled bool `json:"activity_expiry_enabled"`
 	ActivityExpiryWindow  int  `json:"activity_expiry_window"`
+
+	// PreserveHostActivitiesOnReenrollment controls whether existing host
+	// activities, MDM commands, etc. are kept when a managed host re-enrolls.
+	// Defaults to true for upgraded installs (preserves prior behavior) and
+	// false for fresh installs.
+	PreserveHostActivitiesOnReenrollment bool `json:"preserve_host_activities_on_reenrollment"`
 }
 
 type Features struct {
