@@ -102,39 +102,11 @@ type DEPService struct {
 
 // GetDefaultProfile returns a godep.Profile with default values set.
 func (d *DEPService) GetDefaultProfile() *godep.Profile {
+	// If this definition change, make sure to update the fleetctl new template file
 	return &godep.Profile{
-		ProfileName:      "Fleet default enrollment profile",
-		AllowPairing:     true,
-		AutoAdvanceSetup: false,
-		IsMultiUser:      false,
-		IsMandatory:      false,
-		IsMDMRemovable:   true,
-		Language:         "en",
-		OrgMagic:         "1",
-		SkipSetupItems: []string{
-			"Appearance",
-			"AppleID",
-			"AppStore",
-			"Biometric",
-			"Diagnostics",
-			"FileVault",
-			"iCloudDiagnostics",
-			"iCloudStorage",
-			"Intelligence",
-			"Location",
-			"OSShowcase",
-			"Payment",
-			"Privacy",
-			"Restore",
-			"ScreenTime",
-			"Siri",
-			"SoftwareUpdate",
-			"TermsOfAddress",
-			"TOS",
-			"UnlockWithWatch",
-			"UpdateCompleted",
-			"Welcome",
-		},
+		ProfileName:    "Fleet default enrollment profile",
+		IsSupervised:   true,
+		IsMDMRemovable: false,
 	}
 }
 

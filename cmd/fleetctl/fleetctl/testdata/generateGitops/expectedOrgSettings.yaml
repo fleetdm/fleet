@@ -96,7 +96,9 @@ mdm:
 org_info:
   contact_url: https://fleetdm.com/company/contact
   org_logo_url: http://some-org-logo-url.com
+  org_logo_url_dark_mode: http://some-org-logo-url.com
   org_logo_url_light_background: http://some-org-logo-url-light-background.com
+  org_logo_url_light_mode: http://some-org-logo-url-light-background.com
   org_name: Fleet
 secrets:
   - secret: ___GITOPS_COMMENT_12___

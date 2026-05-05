@@ -947,6 +947,10 @@ func (h *Host) DisplayName() string {
 	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
 }
 
+func (h *HostLite) DisplayName() string {
+	return HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+}
+
 type HostIssues struct {
 	FailingPoliciesCount         uint64  `json:"failing_policies_count" db:"failing_policies_count" csv:"-"`
 	CriticalVulnerabilitiesCount *uint64 `json:"critical_vulnerabilities_count,omitempty" db:"critical_vulnerabilities_count" csv:"-"` // We set it to nil if the license is not premium
@@ -1590,10 +1594,12 @@ type HostMacOSProfile struct {
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
+	ComputerName        string    `db:"computer_name"`
 	Hostname            string    `db:"hostname"`
 	OsqueryHostID       *string   `db:"osquery_host_id"`
 	NodeKey             string    `db:"node_key"`
 	UUID                string    `db:"uuid"`
+	HardwareModel       string    `db:"hardware_model"`
 	HardwareSerial      string    `db:"hardware_serial"`
 	SeenTime            time.Time `db:"seen_time"`
 	DistributedInterval uint      `db:"distributed_interval"`
@@ -1785,4 +1791,15 @@ type HostManagedLocalAccountPassword struct {
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
 	UpdatedAt time.Time `json:"updated_at"`
+	// AutoRotateAt is the wall-clock time at which the rotation cron will pick
+	// this row up. Returned in the same response as the password so the modal
+	// can render the auto-rotate banner on first open without waiting on a
+	// separate host-details refetch (the act of fetching the password sets
+	// auto_rotate_at server-side; we read it back here).
+	AutoRotateAt *time.Time `json:"auto_rotate_at,omitempty"`
+	// PendingRotation is true when a SetAutoAdminPassword command is in flight
+	// (pending_encrypted_password IS NOT NULL). Returned alongside the password
+	// so the modal can render the pending-rotation banner without waiting on a
+	// host-details refetch.
+	PendingRotation bool `json:"pending_rotation,omitempty"`
 }

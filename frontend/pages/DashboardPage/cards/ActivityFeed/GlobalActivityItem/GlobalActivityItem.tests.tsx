@@ -1891,4 +1891,42 @@ describe("Activity Feed", () => {
       screen.getByText("disabled the software exception for GitOps.")
     ).toBeInTheDocument();
   });
+
+  it("renders a created_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("created a label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+  });
+
+  it("renders an edited_label activity scoped to a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedLabel,
+      details: {
+        label_id: 1,
+        label_name: "Workstations",
+        fleet_id: 5,
+        fleet_name: "Engineering",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("edited the label on the fleet.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("deleted the label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+  });
 });

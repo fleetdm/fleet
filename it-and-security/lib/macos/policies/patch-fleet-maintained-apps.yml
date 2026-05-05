@@ -80,6 +80,14 @@
   install_software: true
   labels_include_any:
     - Macs with Santa installed
+- name: macOS - Fleet Desktop up to date
+  description: The host may have an outdated version of Fleet Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Fleet Desktop is an app managed by IT and should be kept up to date automatically. If you are failing this policy, install the latest version from Self-service, then click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: fleet-desktop/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Fleet Desktop.app installed
 - name: macOS - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."

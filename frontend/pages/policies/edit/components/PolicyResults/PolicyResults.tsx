@@ -2,7 +2,6 @@ import React, { useState, useContext } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import classnames from "classnames";
 import FileSaver from "file-saver";
-import { get } from "lodash";
 import { PolicyContext } from "context/policy";
 
 import {

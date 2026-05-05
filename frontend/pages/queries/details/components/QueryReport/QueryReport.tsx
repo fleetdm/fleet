@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect, useCallback } from "react";
+import React, { useState, useContext, useMemo, useCallback } from "react";
 
 import { Row, Column } from "react-table";
 import FileSaver from "file-saver";
@@ -51,21 +51,15 @@ const QueryReport = ({
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])
   );
-  const [columnConfigs, setColumnConfigs] = useState<Column[]>([]);
-
-  useEffect(() => {
-    if (queryReport && queryReport.results && queryReport.results.length > 0) {
-      const newColumnConfigs = generateReportColumnConfigsFromResults(
+  const columnConfigs = useMemo<Column[]>(() => {
+    if (queryReport?.results?.length) {
+      return generateReportColumnConfigsFromResults(
         flattenResults(queryReport.results),
         queryReport.query_id
       );
-
-      // Update tableHeaders if new headers are found
-      if (newColumnConfigs !== columnConfigs) {
-        setColumnConfigs(newColumnConfigs);
-      }
     }
-  }, [queryReport]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
+    return [];
+  }, [queryReport]);
 
   const onExportQueryResults = (evt: React.MouseEvent<HTMLButtonElement>) => {
     evt.preventDefault();

@@ -37,6 +37,7 @@ const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
     apple_setup_assistant: null,
     apple_enable_release_device_manually: false,
     require_all_software_macos: false,
+    require_all_software_windows: false,
     lock_end_user_info: false,
   },
   macos_migration: {
@@ -132,6 +133,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   activity_expiry_settings: {
     activity_expiry_enabled: true,
     activity_expiry_window: 90,
+    preserve_host_activities_on_reenrollment: false,
   },
   agent_options: "",
   license: DEFAULT_LICENSE_MOCK,

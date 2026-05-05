@@ -1320,6 +1320,26 @@ func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*md
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
+// UserChannelErr sends an Error message to the MDM server on the user
+// channel. UserEnroll must have been called first so that c.UserUUID is set.
+func (c *TestAppleMDMClient) UserChannelErr(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
+	if c.UserUUID == "" {
+		return nil, errors.New("user UUID must be set for user channel error response")
+	}
+	payload := map[string]any{
+		"Status":       "Error",
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+		"CommandUUID":  cmdUUID,
+		"ErrorChain":   errChain,
+		"UserID":       c.UserUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+	return c.sendAndDecodeCommandResponse(payload)
+}
+
 func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*mdm.Command, error) {
 	res, err := c.request("", payload)
 	if err != nil {

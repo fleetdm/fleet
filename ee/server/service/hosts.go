@@ -750,12 +750,22 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 		return nil, ctxerr.Wrap(ctx, err, "get host managed account password")
 	}
 
-	// Start the auto-rotation timer (no-op for views inside the existing window).
-	// notFound here means a rotation is currently in flight (pending_encrypted_password
-	// IS NOT NULL) — the password is still readable and the existing rotation will
-	// take care of refreshing it, so we deliberately swallow the error.
-	if _, err := svc.ds.MarkManagedLocalAccountPasswordViewed(ctx, host.UUID); err != nil && !fleet.IsNotFound(err) {
+	// Surface the rotation lifecycle alongside the password so the modal can
+	// render the auto-rotate / pending-rotation banner on first open without a
+	// separate host-details refetch round-trip.
+	pwd.PendingRotation = acct.PendingRotation
+
+	// Start the auto-rotation timer (no-op for views inside the existing window)
+	// and capture the resulting deadline. notFound here means a rotation is
+	// currently in flight (pending_encrypted_password IS NOT NULL) — the
+	// password is still readable and the in-flight rotation will refresh it, so
+	// we leave AutoRotateAt nil and rely on PendingRotation for the UI signal.
+	rotateAt, err := svc.ds.MarkManagedLocalAccountPasswordViewed(ctx, host.UUID)
+	if err != nil && !fleet.IsNotFound(err) {
 		return nil, ctxerr.Wrap(ctx, err, "mark managed local account password viewed")
+	}
+	if err == nil {
+		pwd.AutoRotateAt = &rotateAt
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeViewedManagedLocalAccount{

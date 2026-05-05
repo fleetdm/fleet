@@ -848,6 +848,12 @@ type UploadSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.Upload
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
+type UploadOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error
+
+type DeleteOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) error
+
+type GetOrgLogoFunc func(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error)
+
 type SetSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 
 type ListSetupExperienceSoftwareFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
@@ -2162,6 +2168,15 @@ type Service struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	UploadOrgLogoFunc        UploadOrgLogoFunc
+	UploadOrgLogoFuncInvoked bool
+
+	DeleteOrgLogoFunc        DeleteOrgLogoFunc
+	DeleteOrgLogoFuncInvoked bool
+
+	GetOrgLogoFunc        GetOrgLogoFunc
+	GetOrgLogoFuncInvoked bool
 
 	SetSetupExperienceSoftwareFunc        SetSetupExperienceSoftwareFunc
 	SetSetupExperienceSoftwareFuncInvoked bool
@@ -5170,6 +5185,27 @@ func (s *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {
+	s.mu.Lock()
+	s.UploadOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.UploadOrgLogoFunc(ctx, mode, content)
+}
+
+func (s *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) error {
+	s.mu.Lock()
+	s.DeleteOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteOrgLogoFunc(ctx, mode)
+}
+
+func (s *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]byte, int64, error) {
+	s.mu.Lock()
+	s.GetOrgLogoFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetOrgLogoFunc(ctx, mode)
 }
 
 func (s *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {

@@ -95,6 +95,9 @@ import CertificateInstallDetailsModal, {
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
@@ -286,6 +289,10 @@ const HostDetailsPage = ({
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -868,6 +875,13 @@ const HostDetailsPage = ({
               host?.display_name || details?.host_display_name || "",
             status: details?.status || "",
             detail: details?.detail || "",
+          });
+          break;
+        case ActivityType.FailedEnrollmentProfileRenewal:
+          setEnrollmentProfileFailedDetails({
+            command: {
+              command_uuid: details?.command_uuid || "",
+            },
           });
           break;
         default: // do nothing
@@ -1732,6 +1746,12 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={mdmCommandDetails}
               onDone={onCancelMdmCommandDetailsModal}
+            />
+          )}
+          {enrollmentProfileFailedDetails && (
+            <FailedEnrollmentProfileModal
+              command={enrollmentProfileFailedDetails.command}
+              onDone={() => setEnrollmentProfileFailedDetails(null)}
             />
           )}
           {showLockHostModal && (
