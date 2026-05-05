@@ -326,9 +326,11 @@ type GitOpsOrgSettings struct {
 }
 
 // GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
-// a custom org logo from a local file. The path keys are extracted and turned
-// into PUT /api/v1/fleet/logo calls before the OrgInfo is sent to the AppConfig
-// PATCH endpoint.
+// a custom org logo from a local file. The path keys are extracted from the
+// OrgInfo before it's sent to the AppConfig PATCH endpoint, and the actual
+// PUT /api/v1/fleet/logo upload runs after the PATCH succeeds (see
+// Client.DoGitOps in server/service/client.go) so a PATCH failure leaves
+// logo storage untouched.
 type GitOpsOrgInfo struct {
 	fleet.OrgInfo
 	OrgLogoPathDarkMode  string `json:"org_logo_path_dark_mode,omitempty"`

@@ -1290,13 +1290,11 @@ func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
 // IsFleetHostedLogoURL reports whether the given URL points at the Fleet logo
 // serving endpoint. Handles both the persisted relative form
 // ("/api/latest/fleet/logo?mode=...") and the absolutized form returned by
-// AbsolutizeLogoURLs.
+// AbsolutizeLogoURLs. Match must be on the parsed Path so a sibling endpoint
+// like "/api/latest/fleet/logo-proxy" doesn't get falsely identified.
 func IsFleetHostedLogoURL(rawURL string) bool {
 	if rawURL == "" {
 		return false
-	}
-	if strings.HasPrefix(rawURL, orgLogoServingPathPrefix) {
-		return true
 	}
 	u, err := url.Parse(rawURL)
 	if err != nil {

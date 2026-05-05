@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime"
 	"os"
 	pathUtils "path"
 	"path/filepath"
@@ -1113,7 +1114,10 @@ func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 		}
 		return fmt.Errorf("fetching org logo (%s): %w", mode, err)
 	}
-	ext := orgLogoExtFromContentType(contentType)
+	ext, err := orgLogoExtFromContentType(contentType)
+	if err != nil {
+		return fmt.Errorf("org logo (%s): %w", mode, err)
+	}
 	fileName := fmt.Sprintf("lib/org_logo/%s%s", mode, ext)
 	cmd.FilesToWrite[fileName] = string(body)
 
@@ -1123,16 +1127,20 @@ func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
 	return nil
 }
 
-func orgLogoExtFromContentType(contentType string) string {
-	switch contentType {
-	case "image/png":
-		return ".png"
-	case "image/jpeg":
-		return ".jpg"
-	case "image/webp":
-		return ".webp"
+func orgLogoExtFromContentType(contentType string) (string, error) {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return "", fmt.Errorf("parsing logo Content-Type %q: %w", contentType, err)
 	}
-	return ""
+	switch mediaType {
+	case "image/png":
+		return ".png", nil
+	case "image/jpeg":
+		return ".jpg", nil
+	case "image/webp":
+		return ".webp", nil
+	}
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {

@@ -56,9 +56,6 @@ func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any,
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "failed to read uploaded logo", InternalErr: err}
 	}
-	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
-		return nil, err
-	}
 	return putOrgLogoRequest{Mode: mode, Body: body}, nil
 }
 
@@ -189,8 +186,8 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "buffering logo content")
 	}
-	if int64(len(body)) > orgLogoMaxFileSize {
-		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
+		return err
 	}
 
 	modes := mode.Modes()
