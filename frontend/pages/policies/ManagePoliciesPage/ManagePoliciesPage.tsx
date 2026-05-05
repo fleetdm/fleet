@@ -574,19 +574,19 @@ const ManagePolicyPage = ({
 
     switch (param) {
       case "webhooks":
-        toggleOtherWorkflowsModal();
+        setShowOtherWorkflowsModal(true);
         break;
       case "install_software":
-        toggleInstallSoftwareModal();
+        setShowInstallSoftwareModal(true);
         break;
       case "run_script":
-        togglePolicyRunScriptModal();
+        setShowPolicyRunScriptModal(true);
         break;
       case "calendar":
-        toggleCalendarEventsModal();
+        setShowCalendarEventsModal(true);
         break;
       case "conditional_access":
-        toggleConditionalAccessModal();
+        setShowConditionalAccessModal(true);
         break;
       default:
     }

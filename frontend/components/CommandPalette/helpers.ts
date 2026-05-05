@@ -767,7 +767,7 @@ export const buildCommandItems = (
             id: "manage-enroll-secrets",
             label: "Manage enroll secrets",
             group: "Actions",
-            path: withTeamId(paths.MANAGE_HOSTS),
+            path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
             teamName: teamOrUnassigned,
           },

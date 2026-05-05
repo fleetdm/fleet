@@ -81,17 +81,19 @@ const CommandPalette = (): JSX.Element | null => {
 
   // Whether a specific team is selected (not "All teams")
   const hasTeamSelected = currentTeam && currentTeam.id > 0;
+  const isUnassigned = currentTeam?.id === 0;
 
-  // Append fleet_id to a path so navigation preserves the current team context
+  // Append fleet_id to a path so navigation preserves the current team context.
+  // Includes Unassigned (id 0) so navigation doesn't drop the no-team context.
   const withTeamId = useCallback(
     (path: string) => {
-      if (!hasTeamSelected) {
+      if (!hasTeamSelected && !isUnassigned) {
         return path;
       }
       const separator = path.includes("?") ? "&" : "?";
       return `${path}${separator}fleet_id=${currentTeam?.id}`;
     },
-    [hasTeamSelected, currentTeam?.id]
+    [hasTeamSelected, isUnassigned, currentTeam?.id]
   );
 
   // Reset page and search when dialog opens/closes
