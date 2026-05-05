@@ -20,6 +20,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"profile_uuid": "profile_uuid",
+	"team_id":      "team_id",
+	"name":         "name",
+	"platform":     "platform",
+	"identifier":   "identifier",
+	"created_at":   "created_at",
+	"uploaded_at":  "uploaded_at",
+}
+
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -704,9 +714,12 @@ FROM (
 	}
 
 	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
-	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt, mdmConfigProfilesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list MDM config profiles")
+	}
 
-	stmt, args, err := sqlx.In(stmt, args...)
+	stmt, args, err = sqlx.In(stmt, args...)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMConfigProfiles")
 	}

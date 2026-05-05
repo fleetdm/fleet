@@ -15,6 +15,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log/slog"
 	"math/big"
@@ -263,6 +266,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		EnableHostUsers:         false,
 		EnableSoftwareInventory: false,
 		AdditionalQueries:       ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+		HistoricalData:          fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 	}, team.Config.Features)
 	require.Equal(t, fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -1694,6 +1698,97 @@ func (s *integrationEnterpriseTestSuite) TestModifyTeamEnrollSecrets() {
 	require.Len(t, seenActivitiesIDs, 2)
 }
 
+func (s *integrationEnterpriseTestSuite) TestModifyTeamHistoricalData() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a fleet — features.historical_data should default to true/true.
+	teamName := t.Name() + "historicalDataFleet"
+	createPayload := &fleet.Team{
+		Name:        teamName,
+		Description: "historical data fleet",
+		Secrets:     []*fleet.EnrollSecret{{Secret: t.Name() + "secret"}},
+	}
+	var createResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", createPayload, http.StatusOK, &createResp)
+	require.True(t, createResp.Team.Config.Features.HistoricalData.Uptime, "new fleet defaults uptime=true")
+	require.True(t, createResp.Team.Config.Features.HistoricalData.Vulnerabilities, "new fleet defaults vulnerabilities=true")
+	teamID := createResp.Team.ID
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, teamID))
+	})
+
+	// PATCH only `vulnerabilities=false` — uptime should remain true.
+	var modResp teamResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"vulnerabilities": false}}}`),
+		http.StatusOK, &modResp)
+	require.True(t, modResp.Team.Config.Features.HistoricalData.Uptime, "uptime preserved when omitted")
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Vulnerabilities)
+
+	// One disabled_historical_dataset activity scoped to this fleet.
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"vulnerabilities","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+
+	// PATCH the same value back — no new activity.
+	priorActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"vulnerabilities": false}}}`),
+		http.StatusOK, &modResp)
+	require.Equal(t, priorActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no new activity for no-op fleet PATCH")
+
+	// Flip both in one PATCH — re-enable vulnerabilities, disable uptime → 2 activities.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(`{"features": {"historical_data": {"uptime": false, "vulnerabilities": true}}}`),
+		http.StatusOK, &modResp)
+	require.False(t, modResp.Team.Config.Features.HistoricalData.Uptime)
+	require.True(t, modResp.Team.Config.Features.HistoricalData.Vulnerabilities)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"vulnerabilities","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		fmt.Sprintf(`{"dataset":"uptime","fleet_id":%d,"fleet_name":%q}`, teamID, teamName),
+		0,
+	)
+
+	// Unknown features sub-fields (e.g. enable_host_users — settable per-fleet
+	// only via /spec/fleets) are silently ignored on the fleet PATCH endpoint;
+	// the stored fleet state should be unchanged for the unknown field.
+	priorFeatures := modResp.Team.Config.Features
+	priorEnabledActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	priorDisabledActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	// Send the OPPOSITE of the current value so the PATCH would be observable
+	// if the endpoint accidentally accepted the unknown sub-field.
+	flippedEnableHostUsers := !priorFeatures.EnableHostUsers
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID),
+		json.RawMessage(fmt.Sprintf(`{"features": {"enable_host_users": %t}}`, flippedEnableHostUsers)),
+		http.StatusOK, &modResp)
+	require.Equal(t, priorFeatures.EnableHostUsers, modResp.Team.Config.Features.EnableHostUsers,
+		"unknown features sub-field is ignored")
+	require.Equal(t, priorFeatures.HistoricalData, modResp.Team.Config.Features.HistoricalData,
+		"historical data unchanged when unknown field patched")
+	require.Equal(t, priorEnabledActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no enable historical data activity for ignored patch")
+	require.Equal(t, priorDisabledActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no disable historical data activity for ignored patch")
+}
+
 func (s *integrationEnterpriseTestSuite) TestAvailableTeams() {
 	t := s.T()
 
@@ -1916,7 +2011,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		return err
 	})
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	// Use a minimal payload — sending the full team struct would marshal a
+	// zero-value `features.historical_data`, which the modify-team endpoint
+	// now interprets as an explicit disable of historical data.
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID),
+		json.RawMessage(`{"description":"`+team.Description+`"}`),
+		http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 
 	// modify a team with an empty config
@@ -1925,7 +2025,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 		return err
 	})
 	tmResp.Team = nil
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID),
+		json.RawMessage(`{"description":"`+team.Description+`"}`),
+		http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 	assert.False(t, tmResp.Team.Config.HostExpirySettings.HostExpiryEnabled)
 
@@ -6917,14 +7019,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to delete a label, should allow.
 	s.DoJSON("DELETE", "/api/latest/fleet/labels/foo2", fleet.DeleteLabelRequest{}, http.StatusOK, &fleet.DeleteLabelResponse{})
 
-	// Attempt to list all software, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareVersionsResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &listSoftwareResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusForbidden, &countSoftwareResponse{})
-	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
+	// Listing software is allowed for gitops so they can reconcile software state.
+	s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &listSoftwareVersionsResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &listSoftwareResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResponse{})
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{})
+	// Getting a single software title or version still requires Host:list, which gitops doesn't have.
 	s.DoJSON("GET", "/api/latest/fleet/software/titles/1", getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResponse{})
-
-	// Attempt to list a software, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
@@ -7473,6 +7574,13 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 		QueryID: &q1.ID,
 	}, http.StatusForbidden, &countTargetsResponse{})
+
+	// Listing software titles for the team it owns is allowed.
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t1.ID))
+	// Listing software titles globally (no team) is forbidden for team gitops.
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{})
+	// Listing software titles for a team it does not own is forbidden.
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResponse{}, "team_id", fmt.Sprint(t2.ID))
 }
 
 func (s *integrationEnterpriseTestSuite) TestDesktopEndpointWithInvalidPolicy() {
@@ -9800,6 +9908,47 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_disk_encryption_linux")
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
 	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
+}
+
+func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create the fleet via the team-spec apply path so it goes through the
+	// same plumbing GitOps uses.
+	teamName := t.Name() + "fleet"
+	initialSpec := fmt.Appendf(nil, `
+  name: %s
+`, teamName)
+	s.applyTeamSpec(initialSpec)
+	team, err := s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.True(t, team.Config.Features.HistoricalData.Uptime, "new fleet defaults uptime=true")
+	require.True(t, team.Config.Features.HistoricalData.Vulnerabilities, "new fleet defaults vulnerabilities=true")
+	t.Cleanup(func() {
+		require.NoError(t, s.ds.DeleteTeam(ctx, team.ID))
+	})
+
+	// Apply explicit historical_data values via team spec.
+	specWithHistoricalData := fmt.Appendf(nil, `
+  name: %s
+  features:
+    historical_data:
+      uptime: true
+      vulnerabilities: false
+`, teamName)
+	s.applyTeamSpec(specWithHistoricalData)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.True(t, team.Config.Features.HistoricalData.Uptime)
+	require.False(t, team.Config.Features.HistoricalData.Vulnerabilities)
+
+	// applyTeamSpec uses the spec/teams endpoint, not gitops, so the
+	// client-side default-injection only happens via fleetctl's gitops
+	// pathway (exercised in cmd/fleetctl/fleetctl/gitops_test.go's
+	// TestGitOpsBasicTeam-style flows). Here we just confirm explicit
+	// values round-trip via the spec/teams path; the gitops-specific
+	// default-injection contract is tested in fleetctl's test suite.
 }
 
 func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
@@ -29962,4 +30111,184 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
 	require.Empty(t, noTeamCertificatesResp.Certificates)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
+	t := s.T()
+
+	pngImg := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	pngImg.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var pngBuf bytes.Buffer
+	require.NoError(t, png.Encode(&pngBuf, pngImg))
+	pngBytes := pngBuf.Bytes()
+
+	gitopsEmail := "gitops-logo-enterprise@example.com"
+	gitopsUser := &fleet.User{
+		Name:       "GitOps Logo",
+		Email:      gitopsEmail,
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, gitopsUser.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(t.Context(), gitopsUser)
+	require.NoError(t, err)
+
+	s.token = s.getCachedUserToken(gitopsEmail, test.GoodPassword)
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	var body bytes.Buffer
+	w := multipart.NewWriter(&body)
+	fw, err := w.CreateFormFile("logo", "dark.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fw, bytes.NewReader(pngBytes))
+	require.NoError(t, err)
+	require.NoError(t, w.Close())
+
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=dark", body.Bytes(), http.StatusOK, map[string]string{
+		"Content-Type":  w.FormDataContentType(),
+		"Accept":        "application/json",
+		"Authorization": "Bearer " + s.token,
+	})
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
+
+	s.token = s.getTestAdminToken()
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
+}
+
+func (s *integrationEnterpriseTestSuite) TestListHostReportsIncludeAllPremium() {
+	t := s.T()
+	ctx := t.Context()
+
+	labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-A", Query: "SELECT 1"})
+	require.NoError(t, err)
+	labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-B", Query: "SELECT 1"})
+	require.NoError(t, err)
+
+	admin := s.users[TestAdminUserEmail]
+	qIncludeAll, err := s.ds.NewQuery(ctx, &fleet.Query{
+		Name:        t.Name() + "_include_all",
+		Query:       "SELECT 1",
+		AuthorID:    &admin.ID,
+		Saved:       true,
+		DiscardData: false,
+		Logging:     fleet.LoggingSnapshot,
+		LabelsIncludeAll: []fleet.LabelIdent{
+			{LabelName: labelA.Name},
+			{LabelName: labelB.Name},
+		},
+	})
+	require.NoError(t, err)
+
+	mkHost := func(suffix string) *fleet.Host {
+		h, err := s.ds.NewHost(ctx, &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now(),
+			OsqueryHostID:   ptr.String(t.Name() + suffix),
+			NodeKey:         ptr.String(t.Name() + suffix),
+			UUID:            uuid.New().String(),
+			Hostname:        t.Name() + "-" + suffix + ".local",
+			Platform:        "linux",
+		})
+		require.NoError(t, err)
+		return h
+	}
+	hostNone := mkHost("none")
+	hostOnlyA := mkHost("onlyA")
+	hostBoth := mkHost("both")
+
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+	hasIncludeAllReport := func(hostID uint) bool {
+		t.Helper()
+		var resp listHostReportsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", hostID), nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true")
+		for _, r := range resp.Reports {
+			if r.ReportID == qIncludeAll.ID {
+				return true
+			}
+		}
+		return false
+	}
+
+	require.False(t, hasIncludeAllReport(hostNone.ID), "host with no labels must not see include_all query")
+	require.False(t, hasIncludeAllReport(hostOnlyA.ID), "host with subset of labels must not see include_all query")
+	require.True(t, hasIncludeAllReport(hostBoth.ID), "host with all labels must see include_all query on premium")
+}
+
+func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() {
+	t := s.T()
+	ctx := context.Background()
+
+	var lblResp fleet.CreateLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 1"}, http.StatusOK, &lblResp)
+	lblA := lblResp.Label
+	lblResp = fleet.CreateLabelResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/labels", fleet.LabelPayload{Name: uuid.NewString(), Query: "SELECT 2"}, http.StatusOK, &lblResp)
+	lblB := lblResp.Label
+
+	validAnyName := "batch-any-" + t.Name()
+	validAllName := "batch-all-" + t.Name()
+	invalidName := "batch-invalid-" + t.Name()
+
+	assertNonePersisted := func(label string) {
+		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		require.NoError(t, err)
+		for _, p := range policies {
+			require.NotEqual(t, validAnyName, p.Name, "%s: no spec from rejected batch should persist", label)
+			require.NotEqual(t, validAllName, p.Name, "%s: no spec from rejected batch should persist", label)
+			require.NotEqual(t, invalidName, p.Name, "%s: no spec from rejected batch should persist", label)
+		}
+	}
+
+	// Batch with the mutex-violating spec at the END — proves we don't persist
+	// preceding valid specs once a later one fails validation.
+	rejResp := s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+		},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	assertNonePersisted("violator-last")
+
+	// Batch with the mutex-violating spec at the FRONT — proves we don't persist
+	// trailing valid specs after a per-spec validation pass that the loop never reaches.
+	rejResp = s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: invalidName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name}, LabelsExcludeAny: []string{lblB.Name}},
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+		},
+	}, http.StatusBadRequest)
+	require.Contains(t, extractServerErrorText(rejResp.Body), fleet.ErrPolicyConflictingLabels.Error())
+	assertNonePersisted("violator-first")
+
+	// Fully-valid 3-spec batch (one per scope) succeeds.
+	validExclName := "batch-excl-" + t.Name()
+	s.Do("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{
+			{Name: validAnyName, Query: "SELECT 1", LabelsIncludeAny: []string{lblA.Name}},
+			{Name: validAllName, Query: "SELECT 1", LabelsIncludeAll: []string{lblA.Name, lblB.Name}},
+			{Name: validExclName, Query: "SELECT 1", LabelsExcludeAny: []string{lblB.Name}},
+		},
+	}, http.StatusOK)
+
+	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	byName := make(map[string]*fleet.Policy, len(policies))
+	for _, p := range policies {
+		byName[p.Name] = p
+	}
+	require.Contains(t, byName, validAnyName)
+	require.Contains(t, byName, validAllName)
+	require.Contains(t, byName, validExclName)
+	require.Len(t, byName[validAnyName].LabelsIncludeAny, 1)
+	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
+	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
 }

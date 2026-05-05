@@ -68,7 +68,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 <!-- The following sections can be removed if they are inapplicable for this User Story -->
 
 #### Core flow
-<!-- Product TODO -->
+<!-- Product TO DO -->
 - TODO
 - TODO
 - TODO
@@ -97,7 +97,7 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 
 #### Edge cases
 
-<!-- QA TODO: Replace the TODO below with relevant edge cases or remove this section if not applicable -->
+<!-- QA TO DO: Replace the TO DO below with relevant edge cases or remove this section if not applicable -->
 
 <!-- Edge case examples:
 1. Invalid or unexpected input values

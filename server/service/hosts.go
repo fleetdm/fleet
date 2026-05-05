@@ -2084,6 +2084,9 @@ func (svc *Service) ListHostReports(
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
+	// labels_include_all is a premium-only feature only
+	opts.ExcludeIncludeAllQueries = !license.IsPremium(ctx)
+
 	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")

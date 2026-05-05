@@ -101,7 +101,11 @@
     },
     "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "historical_data": {
+            "uptime": true,
+            "vulnerabilities": true
+        }
     },
     "mdm": {
         "enable_disk_encryption": true,
