@@ -32,7 +32,8 @@ func Up_20260423161823(tx *sql.Tx) error {
 			updated_at  TIMESTAMP    NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY (id),
 			UNIQUE KEY uniq_entity_bucket (dataset, entity_id, valid_from),
-			KEY idx_dataset_range         (dataset, valid_from, valid_to)
+			KEY idx_dataset_range         (dataset, valid_from, valid_to),
+			KEY idx_valid_to_dataset      (valid_to, dataset, entity_id)
 		) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
 	`)
 	if err != nil {
