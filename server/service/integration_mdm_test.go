@@ -24042,6 +24042,15 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
 		require.NotZero(t, manualRotationActivityID)
 
+		// Rotating again while one is already in flight is rejected with 400 — the
+		// previous behavior was an idempotent 204, but per spec this should now
+		// surface a clear error to the caller.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusBadRequest)
+		// And the activity count must not have grown — the rejected call must
+		// not log a duplicate triggered-rotation activity.
+		require.Equal(t, manualRotationActivityID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
+			"rejected rotate-while-pending must not emit a new activity")
+
 		// Drain commands and ack the SetAutoAdminPassword. Verify state transitions to verified.
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)

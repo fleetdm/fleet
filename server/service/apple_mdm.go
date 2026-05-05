@@ -4315,11 +4315,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// No matching row = SSO-only AccountConfiguration → no-op
 
 	case fleet.SetAutoAdminPasswordCmdName:
-		// NotNow leaves the row in pending state; the device retries on the next checkin.
-		// (Per spec: NotNow must NOT be marked as a failure.)
-		if cmdResult.Status == fleet.MDMAppleStatusNotNow || cmdResult.Status == fleet.MDMAppleStatusIdle {
-			break
-		}
 		host, err := svc.ds.GetManagedLocalAccountByPendingCommandUUID(r.Context, cmdResult.CommandUUID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
@@ -4337,6 +4332,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				"expected_host_uuid", host.UUID, "checkin_host_uuid", r.ID, "command_uuid", cmdResult.CommandUUID)
 			break
 		}
+		// NotNow will leave the row in pending state; the device will retry on the next checkin.
 		switch cmdResult.Status {
 		case fleet.MDMAppleStatusAcknowledged:
 			if err := svc.ds.CompleteManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID); err != nil {
