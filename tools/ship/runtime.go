@@ -17,8 +17,15 @@ import (
 )
 
 // insecureTLS skips cert verification — Fleet's dev server uses a
-// self-signed cert, and we're connecting to localhost.
-func insecureTLS() *tls.Config { return &tls.Config{InsecureSkipVerify: true} }
+// self-signed cert, and we're connecting to localhost. MinVersion is
+// pinned to TLS 1.3 so we don't accept downgraded protocol versions
+// alongside the skipped cert check.
+func insecureTLS() *tls.Config {
+	return &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // localhost dev cert
+		MinVersion:         tls.VersionTLS13,
+	}
+}
 
 // -----------------------------------------------------------------------------
 // Step list types — emitted as tea.Msg values during the start sequence and
@@ -109,6 +116,10 @@ type engine struct {
 	genDev  *proc
 	ngrok   *proc
 	started time.Time
+
+	// closeLogSinkOnce guards the close in Stop() so calling Stop more
+	// than once doesn't panic with a "close of closed channel".
+	closeLogSinkOnce sync.Once
 }
 
 func newEngine(opts runtimeOpts) *engine {
@@ -282,12 +293,25 @@ func (r *engine) stepMakeBuild(ctx context.Context) error {
 }
 
 // stepGenerateDev launches `make generate-dev` in the background and waits
-// for it to produce server/bindata/generated.go — that's the file cmd/fleet
+// for it to refresh server/bindata/generated.go — that's the file cmd/fleet
 // imports, and webpack's "compiled successfully" output is a misleading
 // signal because it fires before go-bindata runs.
+//
+// We capture the bindata file's pre-start state (modtime + size) so a
+// stale generated.go from a prior run doesn't make this step return
+// immediately while the new make-generate-dev invocation is still
+// regenerating. On any error path (timeout, ctx cancel) we stop the
+// spawned proc so we don't leak a runaway webpack/go-bindata.
 func (r *engine) stepGenerateDev(ctx context.Context) error {
 	logPath := filepath.Join(r.opts.repoRoot, "tools", "ship", ".state", "logs", "webpack.log")
 	bindata := filepath.Join(r.opts.repoRoot, "server", "bindata", "generated.go")
+
+	var prevMod time.Time
+	var prevSize int64 = -1
+	if info, err := os.Stat(bindata); err == nil {
+		prevMod = info.ModTime()
+		prevSize = info.Size()
+	}
 
 	p, err := startProc("webpack", r.opts.repoRoot, nil, logPath, r.logSink, "make", "generate-dev")
 	if err != nil {
@@ -297,21 +321,43 @@ func (r *engine) stepGenerateDev(ctx context.Context) error {
 	r.genDev = p
 	r.mu.Unlock()
 
-	// Poll for the bindata file to appear with non-empty content. Webpack's
-	// initial build runs first, then go-bindata writes this file, then
-	// webpack switches to --watch. Once the file is here, `make` can build.
+	// On any failure path below, stop the proc and clear r.genDev so the
+	// rest of the engine doesn't think there's a webpack still running.
+	var stepErr error
+	defer func() {
+		if stepErr == nil {
+			return
+		}
+		stopCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = p.Stop(stopCtx, 2*time.Second)
+		r.mu.Lock()
+		if r.genDev == p {
+			r.genDev = nil
+		}
+		r.mu.Unlock()
+	}()
+
 	deadline := time.Now().Add(5 * time.Minute)
 	for {
-		if info, err := os.Stat(bindata); err == nil && info.Size() > 0 {
+		// Success when the bindata file exists with non-empty content
+		// AND its modtime advanced or size changed relative to what we
+		// captured before launching make-generate-dev. The size==prev
+		// fallback handles edge cases where modtime resolution doesn't
+		// register the change (e.g. very fast sequential builds).
+		if info, err := os.Stat(bindata); err == nil && info.Size() > 0 &&
+			(info.ModTime().After(prevMod) || info.Size() != prevSize) {
 			return nil
 		}
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			stepErr = ctx.Err()
+			return stepErr
 		case <-time.After(500 * time.Millisecond):
 		}
 		if time.Now().After(deadline) {
-			return errors.New("make generate-dev didn't produce server/bindata/generated.go within 5 minutes")
+			stepErr = errors.New("make generate-dev didn't refresh server/bindata/generated.go within 5 minutes")
+			return stepErr
 		}
 	}
 }
@@ -414,6 +460,13 @@ func (r *engine) Stop(ctx context.Context) {
 	if genDev != nil {
 		_ = genDev.Stop(stopCtx, 5*time.Second)
 	}
+	// All proc.Stop calls block until their scan goroutines have exited
+	// (proc.wg.Wait), so by this point no goroutine can still be writing
+	// to logSink. Close it so the log-pump goroutine started in
+	// newEngine() ranging over logSink can exit cleanly instead of
+	// blocking forever waiting for the next line.
+	r.closeLogSinkOnce.Do(func() { close(r.logSink) })
+
 	// `docker compose down` without -v keeps named volumes intact, so the
 	// PM's MySQL data + simulated host UUIDs survive the shutdown.
 	_ = exec.CommandContext(stopCtx, "docker", "compose", "-p", composeProject, "down").Run()
@@ -438,8 +491,13 @@ func waitForFleetReady(ctx context.Context, port int) error {
 		}
 		resp, err := client.Get(url)
 		if err == nil {
-			resp.Body.Close()
-			return nil
+			_ = resp.Body.Close()
+			// Only treat 200 OK as readiness — anything else (port
+			// occupied by an unrelated service, fleet still in early
+			// init returning 503, etc.) means we're not ready.
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
 		}
 		time.Sleep(500 * time.Millisecond)
 	}

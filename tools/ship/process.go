@@ -57,18 +57,18 @@ func startProc(name, dir string, env []string, logPath string, sink chan<- logLi
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		logFile.Close()
-		return nil, fmt.Errorf("stdout pipe: %w", err)
+		// errors.Join silently drops nil errors, so a clean Close
+		// leaves the returned error untouched; a Close failure gets
+		// surfaced alongside the original error rather than swallowed.
+		return nil, errors.Join(fmt.Errorf("stdout pipe: %w", err), logFile.Close())
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		logFile.Close()
-		return nil, fmt.Errorf("stderr pipe: %w", err)
+		return nil, errors.Join(fmt.Errorf("stderr pipe: %w", err), logFile.Close())
 	}
 
 	if err := cmd.Start(); err != nil {
-		logFile.Close()
-		return nil, fmt.Errorf("start %s: %w", name, err)
+		return nil, errors.Join(fmt.Errorf("start %s: %w", name, err), logFile.Close())
 	}
 
 	p := &proc{name: name, cmd: cmd, logFile: logFile}
@@ -98,12 +98,18 @@ func (p *proc) scan(r io.Reader, sink chan<- logLine) {
 }
 
 // Stop sends SIGTERM, waits up to grace, then SIGKILLs the whole process
-// group. Always closes the log file.
-func (p *proc) Stop(ctx context.Context, grace time.Duration) error {
+// group. Always closes the log file. A failure to close the log file
+// (rare — usually buffered-write fsync failures) is joined into the
+// returned error rather than silently dropped.
+func (p *proc) Stop(ctx context.Context, grace time.Duration) (retErr error) {
 	if p == nil || p.cmd == nil || p.cmd.Process == nil {
 		return nil
 	}
-	defer p.logFile.Close()
+	defer func() {
+		if cerr := p.logFile.Close(); cerr != nil {
+			retErr = errors.Join(retErr, fmt.Errorf("close %s log: %w", p.name, cerr))
+		}
+	}()
 
 	pgid, err := syscall.Getpgid(p.cmd.Process.Pid)
 	if err != nil {

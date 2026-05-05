@@ -151,8 +151,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			updated, cmd := m.wiz.update(msg)
 			m.wiz = updated
 			if m.wiz.done {
+				// Don't fall through to startEngine on a persist
+				// failure — booting with stale or empty config will
+				// just fail later with less actionable errors. Keep
+				// the user on the wizard screen with the error
+				// surfaced so they can fix it (or quit and try
+				// `make ship ARGS=--reconfigure` later).
 				if err := m.persistWizard(); err != nil {
 					m.errMsg = err.Error()
+					m.wiz.done = false
+					return m, cmd
 				}
 				m.screen = screenDashboard
 				m2, startCmd := m.startEngine()
