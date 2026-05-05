@@ -12062,7 +12062,7 @@ The `extension_for` field is included when set and when empty, at the same level
 
 Change CVE status(es) to active or dismissed.
 
-A 200 status response code is returned alongside the list of inputted vulnerabilities and whether or not the request failed or succeeded.
+A 200 status response code is returned alongside the list of inputted vulnerabilities and whether or not each CVE failed or succeeded to update. If succeeded, the response will also include the current CVE status.
 #### Parameters
 
 | Name    | Type    | In    | Description                                                                                                                  |
