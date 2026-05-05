@@ -183,7 +183,13 @@ export const buildCommandItems = (
       label: "My account",
       group: "Pages",
       path: paths.ACCOUNT,
-      keywords: ["profile", "password", "api token", "settings"],
+      keywords: [
+        "profile",
+        "password",
+        "api token",
+        "settings",
+        "change password",
+      ],
     },
 
     // Packs — only visible when searching for specific terms
