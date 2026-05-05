@@ -5,11 +5,12 @@ import { max } from "lodash";
 import paths from "router/paths";
 import { AppContext } from "context/app";
 import usersAPI from "services/entities/users";
-import local from "utilities/local";
+import logoAPI from "services/entities/logo";
 import authToken from "utilities/auth_token";
 
 import FlashMessage from "components/FlashMessage";
 import { INotification } from "interfaces/notification";
+import type { IRegistrationFormData } from "interfaces/registration_form_data";
 
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 // @ts-ignore
@@ -56,13 +57,21 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
     setPageProgress(max([nextPage, pageProgress]) || 1);
   };
 
-  const onRegistrationFormSubmit = async (formData: any) => {
+  const onRegistrationFormSubmit = async (formData: IRegistrationFormData) => {
     const { DASHBOARD } = paths;
 
     setIsLoading(true);
     try {
       const { token } = await usersAPI.setup(formData);
       authToken.save(token);
+
+      if (formData?.org_logo_file instanceof File) {
+        try {
+          await logoAPI.upload(formData.org_logo_file, "all");
+        } catch (logoErr) {
+          console.error("Failed to upload organization logo:", logoErr);
+        }
+      }
 
       const { user, available_teams, settings } = await usersAPI.me();
       setCurrentUser(user);

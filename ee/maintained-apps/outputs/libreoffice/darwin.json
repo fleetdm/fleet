@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "26.2.2",
+      "version": "26.2.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script' AND version_compare(bundle_short_version, '26.2.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.libreoffice.script' AND version_compare(bundle_short_version, '26.2.3') < 0);"
       },
-      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.2/mac/aarch64/LibreOffice_26.2.2_MacOS_aarch64.dmg",
+      "installer_url": "https://download.documentfoundation.org/libreoffice/stable/26.2.3/mac/aarch64/LibreOffice_26.2.3_MacOS_aarch64.dmg",
       "install_script_ref": "f9607bf3",
       "uninstall_script_ref": "5f8f4731",
-      "sha256": "2a603303b0a7a17c2f6dd381d2039ca79fecc73cb7c25a13ebea15cf0919c751",
+      "sha256": "8ea6bdf67dbffc9c47104f73a3c98ed145ff26c00dde44c43633f5b3d741479f",
       "default_categories": [
         "Productivity"
       ]

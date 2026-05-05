@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import { ICommand, ICommandResult } from "interfaces/command";
+import { ICommandResult } from "interfaces/command";
 
 import commandApi, {
   IGetCommandResultsResponse,
@@ -22,7 +22,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "command-details-modal";
 
-const getIconName = (status: string): IconNames => {
+export const GetIconName = (status: string): IconNames => {
   switch (status) {
     case "Error":
       return "error";
@@ -101,14 +101,24 @@ const getStatusMessage = (result: ICommandResult): React.ReactNode => {
   }
 };
 
+const defaultModalContentBody = (baseclass: string, result: ICommandResult) => (
+  <IconStatusMessage
+    className={`${baseclass}__status-message`}
+    iconName={GetIconName(result.status)}
+    message={getStatusMessage(result)}
+  />
+);
+
 const ModalContent = ({
   data,
   isLoading,
   error,
+  contentBody = defaultModalContentBody,
 }: {
   data: IGetCommandResultsResponse | undefined;
   isLoading: boolean;
   error: Error | null;
+  contentBody?: (baseClass: string, result: ICommandResult) => React.ReactNode;
 }) => {
   if (isLoading) {
     return <Spinner />;
@@ -136,11 +146,7 @@ const ModalContent = ({
 
   return (
     <div className={`${baseClass}__modal-content`}>
-      <IconStatusMessage
-        className={`${baseClass}__status-message`}
-        iconName={getIconName(result.status)}
-        message={getStatusMessage(result)}
-      />
+      {contentBody(baseClass, result)}
       {!!result.payload && (
         <InputField
           type="textarea"
@@ -167,13 +173,24 @@ const ModalContent = ({
   );
 };
 
+type ICommandResultsModalCommand = {
+  host_uuid?: string;
+  command_uuid: string;
+};
+
 interface ICommandResultsModalProps {
-  command: ICommand;
+  command: ICommandResultsModalCommand;
+  // contentBody if provided will be used to render content above the request and response payloads.
+  // if not defined, a default contentBody will be used to display a status message and icon based on profile status
+  contentBody?: (baseClass: string, result: ICommandResult) => React.ReactNode;
+  title?: string;
   onDone: () => void;
 }
 
 const CommandResultsModal = ({
   command: { host_uuid: host_identifier, command_uuid },
+  contentBody,
+  title = "MDM command details",
   onDone,
 }: ICommandResultsModalProps) => {
   const { data, isLoading, error } = useQuery<
@@ -182,21 +199,32 @@ const CommandResultsModal = ({
     IGetCommandResultsResponse,
     IGetHostCommandResultsQueryKey[]
   >(
-    [{ scope: "command_results", host_identifier, command_uuid }],
-    ({ queryKey }) =>
-      commandApi.getHostCommandResults(queryKey[0]).then((resp) => {
-        if (!resp?.results) {
-          // this should not happen, but just in case return the response as is
-          return resp;
-        }
-        return {
-          results: resp.results.map?.((r) => ({
-            ...r,
-            payload: atob(r.payload),
-            result: atob(r.result),
-          })),
-        };
-      }),
+    [
+      {
+        scope: "command_results",
+        host_identifier: host_identifier ?? "",
+        command_uuid,
+      },
+    ],
+    async ({ queryKey }) => {
+      const resp =
+        queryKey[0].host_identifier === ""
+          ? // if host_identifier is not provided, use the getCommandResults endpoint which does not require host_identifier
+            await commandApi.getCommandResults(queryKey[0].command_uuid)
+          : await commandApi.getHostCommandResults(queryKey[0]);
+
+      if (!resp?.results) {
+        // this should not happen, but just in case return the response as is
+        return resp;
+      }
+      return {
+        results: resp.results.map?.((r) => ({
+          ...r,
+          payload: atob(r.payload),
+          result: atob(r.result),
+        })),
+      };
+    },
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       keepPreviousData: true,
@@ -205,13 +233,13 @@ const CommandResultsModal = ({
   );
 
   return (
-    <Modal
-      className={baseClass}
-      width="large"
-      title="MDM command details"
-      onExit={onDone}
-    >
-      <ModalContent data={data} isLoading={isLoading} error={error} />
+    <Modal className={baseClass} width="large" title={title} onExit={onDone}>
+      <ModalContent
+        data={data}
+        isLoading={isLoading}
+        error={error}
+        contentBody={contentBody}
+      />
       <ModalFooter primaryButtons={<Button onClick={onDone}>Close</Button>} />
     </Modal>
   );

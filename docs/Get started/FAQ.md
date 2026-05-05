@@ -157,7 +157,7 @@ Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompat
 
 ### What version of the Mac Admins osquery extension is supported?
 
-Fleet deploys v1.2.7 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
+Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.

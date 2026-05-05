@@ -126,6 +126,7 @@ export default {
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
+  LOGO: `/${API_VERSION}/fleet/logo`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -234,7 +235,7 @@ export default {
 
   // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
-  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`, // Powers software/inventory and software/library pages
   SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
   EDIT_SOFTWARE_PACKAGE: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/package`,

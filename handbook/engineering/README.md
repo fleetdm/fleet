@@ -96,6 +96,8 @@ If you're assigned a community pull request (PR) for review, it is important to 
 
 If the PR is a quick fix (i.e. typo) or obvious technical improvement that doesn't change the product, it can be merged.
 
+If the PR is a bug fix that the author has not validated manually, close the PR. Notify the author that the PR will be re-opened and reviewed after they validate the fix.
+
 Make sure to create a Github issue and link it to the PR so that we can track the changes in our release process. Make sure to assign the correct milestone to the issue (by having an issue, QA will make sure the fix is not causing regressions).
 
 **For PRs that change the product:**
@@ -141,7 +143,7 @@ Fleet uses AI code review tools to supplement human review on pull requests. Thr
 2. **CodeRabbit**: Available for free as an open source project. To request a review, add a comment on the PR: `@coderabbitai full review`.
 3. **Claude**: A more thorough review that takes about 30 minutes and costs $20–$25 per review. Claude often finds issues the other AI reviews miss. Use this option judiciously given the cost.
 
-> **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit—including minor or stale changes—leading to unnecessary long-running review cycles and added cost.
+> **Tip:** When requesting a Claude review, use `@claude review once` instead of `@claude review`. There is currently no way to stop a Claude review once started, and each run takes ~45 minutes. Using `@claude review` causes it to re-run on every new commit (including minor or stale changes), leading to unnecessary long-running review cycles and added cost.
 
 
 #### AI coding tools
@@ -171,7 +173,7 @@ Because remote-triggered sessions run as you, on your machine, take the followin
 
 - **Only enable trusted surfaces.** Anyone who can send the trigger can run commands as you.
 - **Don't enable auto-approval for remote sessions.** You won't be at the keyboard to catch a bad tool call. Keep destructive actions gated on a prompt.
-- **Stop the listener when you're done.** Treat it like any other long-running local server — don't leave it open overnight or while traveling.
+- **Stop the listener when you're done.** Treat it like any other long-running local server. Don't leave it open overnight or while traveling.
 - **You still own the PR.** As with [AI coding tools](#ai-coding-tools), review any diff before merging. The remote trigger is a convenience, not a delegation of ownership.
 
 
@@ -407,19 +409,19 @@ If the candidate passes all of these steps, then continue with scheduling a CEO 
 
 ### Releases
 
-The release process — QA Day, release candidates, agent releases, post-release tasks, and related rituals — lives on its own page. See the [Releases handbook page](https://fleetdm.com/handbook/engineering/releases).
+The release process (QA Day, release candidates, agent releases, post-release tasks, and related rituals) lives on its own page. See the [Releases handbook page](https://fleetdm.com/handbook/engineering/releases).
 
 
 ### fleetdm.com
 
-Processes for maintaining and releasing changes to fleetdm.com — local testing, dependency triage, browser compatibility checks, and related runbooks — live on their own page. See the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
+Processes for maintaining and releasing changes to fleetdm.com (local testing, dependency triage, browser compatibility checks, and related runbooks) live on their own page. See the [fleetdm.com handbook page](https://fleetdm.com/handbook/engineering/website).
 
 
 ## Runbooks
 
 Step-by-step guides for handling specific situations engineers encounter. Add new runbooks to the [`runbooks/`](./runbooks) subdirectory and link them here.
 
-- [AI coding tool outage](./runbooks/ai-coding-tool-outage.md) — fall back to GitHub Copilot when Claude Code is unavailable.
+- [AI coding tool outage](./runbooks/ai-coding-tool-outage.md): fall back to GitHub Copilot when Claude Code is unavailable.
 
 ## Rituals
 
