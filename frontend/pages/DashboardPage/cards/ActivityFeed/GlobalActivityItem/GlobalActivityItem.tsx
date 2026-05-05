@@ -1336,6 +1336,18 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  changedOrgLogo: (activity: IActivity) => {
+    const mode = activity.details?.mode;
+    const suffix =
+      mode === "all" ? "for all modes" : `for ${mode || "unknown"} mode`;
+    return <> updated organization logo {suffix}.</>;
+  },
+  deletedOrgLogo: (activity: IActivity) => {
+    const mode = activity.details?.mode;
+    const suffix =
+      mode === "all" ? "for all modes" : `for ${mode || "unknown"} mode`;
+    return <> deleted organization logo {suffix}.</>;
+  },
   installedSoftware: (activity: IActivity) => {
     const { details } = activity;
     if (!details) {
@@ -2248,6 +2260,12 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.DeletedSoftware: {
       return TAGGED_TEMPLATES.deletedSoftware(activity);
+    }
+    case ActivityType.ChangedOrgLogo: {
+      return TAGGED_TEMPLATES.changedOrgLogo(activity);
+    }
+    case ActivityType.DeletedOrgLogo: {
+      return TAGGED_TEMPLATES.deletedOrgLogo(activity);
     }
     case ActivityType.InstalledSoftware: {
       return TAGGED_TEMPLATES.installedSoftware(activity);

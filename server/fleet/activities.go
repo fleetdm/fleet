@@ -1093,6 +1093,22 @@ func (a ActivityTypeDeletedSoftware) ActivityName() string {
 	return "deleted_software"
 }
 
+type ActivityTypeChangedOrgLogo struct {
+	Mode string `json:"mode"`
+}
+
+func (a ActivityTypeChangedOrgLogo) ActivityName() string {
+	return "changed_org_logo"
+}
+
+type ActivityTypeDeletedOrgLogo struct {
+	Mode string `json:"mode"`
+}
+
+func (a ActivityTypeDeletedOrgLogo) ActivityName() string {
+	return "deleted_org_logo"
+}
+
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
 func LogRoleChangeActivities(
 	ctx context.Context, svc Service, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User,
