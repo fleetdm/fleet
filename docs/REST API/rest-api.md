@@ -11939,6 +11939,8 @@ Deletes software that's available for install. This won't uninstall the software
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
+- [Update vulnerability status] (#update-vulnerability-status)
+
 
 ### List vulnerabilities
 
@@ -12055,6 +12057,66 @@ If no vulnerable OS versions or software were found, but Fleet is aware of the v
 ```
 
 The `extension_for` field is included when set and when empty, at the same level as `source`. `extension_for` will show the browser or Visual Studio Code fork associated with the extension, allowing for differentiation between e.g. an extension installed on Visual Studio Code and one installed on Cursor.
+
+### Update vulnerability status
+
+Change CVE status(es) to active or dismissed.
+
+A 200 status response code is returned alongside the list of inputted vulnerabilities and whether or not the request failed or succeeded.
+#### Parameters
+
+| Name    | Type    | In    | Description                                                                                                                  |
+|---------|---------|-------|------------------------------------------------------------------------------------------------------------------------------|
+| cve     | string  | body  | **Required.** The cve to change (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
+| status     | string  | body  | **Required.** The status to update to. Options include `"active"` and `"dismissed"`.                        |
+| reason     | string  | body  | The reason given for dismissal or re-activation. For dismissal, the options include `"false positive"`, `"won't fix"`, `"compensating control exists"`, and `"risk accepted"`. For re-activation, the options include `"re-investigation"` and `"accidental dismissal"`.                       |
+| notes     | string  | body  | Any additional notes relevant for dismissal or re-activation.                  |
+
+`POST /api/v1/fleet/vulnerabilities/status`
+
+#### Example
+
+`POST /api/v1/fleet/vulnerabilities/status`
+
+##### Request body
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2023-1234",
+      "status": "dismissed",
+      "reason": "won't fix"
+    },
+    {
+      "cve": "CVE-2023-4321",
+      "status": "dismissed",
+      "reason": "compensating control exists",
+      "notes": "fixed by patch 1233.56"
+    },
+    {
+      "cve": "CVE-2023-7654",
+      "status": "active",
+      "reason": "re-investigation",
+      "notes": "security team requested re-investigation"
+    }
+  ]
+}
+
+```
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    { "cve": "CVE-2023-1234", "status": "success", "cve_status": "dismissed"},
+    { "cve": "CVE-2023-4321", "status": "failed", "cve_status": null, "reason": "Affected software or OS not found" },
+    { "cve": "CVE-2023-7654", "status": "success", "cve_status": "active"},
+  ]
+}
+```
 
 ---
 
