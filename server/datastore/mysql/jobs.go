@@ -2,6 +2,9 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -135,6 +138,26 @@ func (ds *Datastore) CleanupWorkerJobs(ctx context.Context, failedSince, complet
 	}
 	n, _ := res.RowsAffected()
 	return n, nil
+}
+
+// HasQueuedJobWithArgs uses MySQL's JSON value equality on the args column,
+// so payload byte ordering doesn't matter — but in practice the enqueue side
+// produces deterministic JSON, so this query also benefits from server-side
+// short-circuit on the leading name/state filter.
+func (ds *Datastore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+	const query = `
+SELECT 1 FROM jobs
+WHERE name = ? AND state = ? AND args = CAST(? AS JSON)
+LIMIT 1`
+	var found int
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &found, query, name, fleet.JobStateQueued, []byte(args))
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "check queued job with args")
+	}
+	return true, nil
 }
 
 func (ds *Datastore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) {

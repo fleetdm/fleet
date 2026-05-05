@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -10,10 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// fakeJobEnqueuer captures NewJob calls.
+// fakeJobEnqueuer captures NewJob calls and answers HasQueuedJobWithArgs by
+// scanning the captured queue. The same fake is shared across multiple
+// EnqueueHistoricalDataScrubs invocations within a test to simulate "the
+// queue persists between API calls."
 type fakeJobEnqueuer struct {
-	jobs []*Job
-	err  error
+	jobs       []*Job
+	err        error
+	hasJobErr  error
+	hasJobHits int
 }
 
 func (f *fakeJobEnqueuer) NewJob(_ context.Context, j *Job) (*Job, error) {
@@ -22,6 +28,22 @@ func (f *fakeJobEnqueuer) NewJob(_ context.Context, j *Job) (*Job, error) {
 	}
 	f.jobs = append(f.jobs, j)
 	return j, nil
+}
+
+func (f *fakeJobEnqueuer) HasQueuedJobWithArgs(_ context.Context, name string, args json.RawMessage) (bool, error) {
+	if f.hasJobErr != nil {
+		return false, f.hasJobErr
+	}
+	for _, j := range f.jobs {
+		if j.Name != name || j.State != JobStateQueued || j.Args == nil {
+			continue
+		}
+		if bytes.Equal(*j.Args, args) {
+			f.hasJobHits++
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func TestEnqueueHistoricalDataScrubs_Global(t *testing.T) {
@@ -138,6 +160,79 @@ func TestEnqueueHistoricalDataScrubs_Fleet(t *testing.T) {
 			HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
 			&teamID,
 		)
+		require.Error(t, err)
+		assert.ErrorIs(t, err, boom)
+	})
+}
+
+func TestEnqueueHistoricalDataScrubs_Dedup(t *testing.T) {
+	t.Run("rapid disable→enable→disable on global cve produces one job", func(t *testing.T) {
+		enq := &fakeJobEnqueuer{}
+		on := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		off := HistoricalDataSettings{Uptime: true, Vulnerabilities: false}
+
+		// First disable enqueues.
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil))
+		// Re-enable does nothing (false→true is skipped before dedup check).
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, off, on, nil))
+		// Second disable observes the still-pending job and dedups.
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil))
+		// Third disable also dedups.
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil))
+
+		require.Len(t, enq.jobs, 1)
+		assert.Equal(t, "chart_scrub_dataset_global", enq.jobs[0].Name)
+		assert.GreaterOrEqual(t, enq.hasJobHits, 1)
+	})
+
+	t.Run("different datasets do not dedup", func(t *testing.T) {
+		enq := &fakeJobEnqueuer{}
+		on := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		offUptime := HistoricalDataSettings{Uptime: false, Vulnerabilities: true}
+		offCVE := HistoricalDataSettings{Uptime: true, Vulnerabilities: false}
+
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, offUptime, nil))
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, offCVE, nil))
+
+		require.Len(t, enq.jobs, 2)
+	})
+
+	t.Run("different fleet_ids do not dedup", func(t *testing.T) {
+		enq := &fakeJobEnqueuer{}
+		on := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		off := HistoricalDataSettings{Uptime: false, Vulnerabilities: true}
+		team5, team7 := uint(5), uint(7)
+
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, &team5))
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, &team7))
+
+		require.Len(t, enq.jobs, 2)
+	})
+
+	t.Run("non-queued state does not block new enqueue", func(t *testing.T) {
+		// Simulate the existing job having already been picked up: state
+		// changed to something other than queued. New disable should still
+		// enqueue.
+		enq := &fakeJobEnqueuer{}
+		on := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		off := HistoricalDataSettings{Uptime: false, Vulnerabilities: true}
+
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil))
+		require.Len(t, enq.jobs, 1)
+		// Worker started running it.
+		enq.jobs[0].State = JobStateSuccess
+
+		require.NoError(t, EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil))
+		require.Len(t, enq.jobs, 2, "completed job should not block a fresh enqueue")
+	})
+
+	t.Run("propagates HasQueuedJobWithArgs errors", func(t *testing.T) {
+		boom := errors.New("db down")
+		enq := &fakeJobEnqueuer{hasJobErr: boom}
+		on := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		off := HistoricalDataSettings{Uptime: false, Vulnerabilities: true}
+
+		err := EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, boom)
 	})

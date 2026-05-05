@@ -296,6 +296,39 @@ carry the internal name. `EnqueueHistoricalDataScrubs` does the
 mapping inline (`vulnerabilities → cve`); activities continue to use
 the public name.
 
+**Dedup at enqueue — drop identical pending jobs.** A "wily QA"
+scenario (rapid disable→enable→disable→… on the same scope) would
+otherwise stack N redundant scrub jobs in the `jobs` table, each one
+walking `host_scd_data` once. The walks are *nearly* idempotent (the
+table is empty / the bits already cleared by the time later jobs
+run), but the read I/O on a multi-million-row table is real. Before
+inserting a new scrub job, the enqueuer checks for an existing job
+with the same `name` and byte-equal `args`, in `state = 'queued'`. If
+one exists, the new enqueue is dropped. Match criteria:
+
+- **Same `name` AND byte-equal `args`** → drop. Go's `encoding/json`
+  marshals struct fields in declaration order, so payloads produced
+  by `EnqueueHistoricalDataScrubs` are deterministic and byte-equal
+  comparison is sound without canonicalization.
+- **Different `args`** (e.g. different `fleet_ids`) → keep. The
+  scopes are different and both jobs need to run.
+- **`state != 'queued'`** (a job is already running, completed, or
+  failed) → keep. A running job started against an earlier snapshot
+  of the table; data written between job-start and the new disable
+  needs a fresh scrub to clean up. Completed/failed jobs don't gate
+  future enqueues.
+
+Race window: two concurrent enqueues that both observe "no pending"
+and both insert produce one duplicate. The handlers are
+near-idempotent, so the worst case is one extra walk — preferable to
+adding a UNIQUE index to the shared `jobs` table for a microsecond
+window.
+
+Cross-supersession (a pending global-DELETE for `cve` makes any
+incoming per-fleet `cve` scrub redundant) is a related but separate
+optimization, deferred. Strict equality dedup captures the
+QA-thrash case which is the dominant operational concern.
+
 ### 6. Scrub handler: global = DELETE, fleet = ANDNOT walk
 
 Global handler (`chart_scrub_dataset_global`):

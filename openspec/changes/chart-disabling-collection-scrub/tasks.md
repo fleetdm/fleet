@@ -57,6 +57,9 @@ per-team) is also deferred.
 - [ ] 5.3 GitOps batch paths (`ApplyTeamSpecs` etc.): if those paths emit `EmitHistoricalDataActivities` for HistoricalData flips, also call `EnqueueHistoricalDataScrubs` alongside. (Note: a survey of the current code did not locate `EmitHistoricalDataActivities` calls inside `ApplyTeamSpecs` — that is either a gap in `chart-disabling-gitops-api` to address there, or those flips never reach those paths in practice. Either way, this task should be revisited once that question is settled.)
 - [x] 5.4 Skip enqueue for no-op flips: handled in `EnqueueHistoricalDataScrubs` (same `old == new` short-circuit as the activity helper).
 - [x] 5.5 Skip enqueue for false→true flips: handled in `EnqueueHistoricalDataScrubs`.
+- [ ] 5.7 Dedup at enqueue: extend `HistoricalDataScrubEnqueuer` with `HasPendingJobWithArgs(ctx, name string, args json.RawMessage) (bool, error)`. In `EnqueueHistoricalDataScrubs`, after marshalling the payload, call this method and skip the `NewJob` insert when it returns true. Match criteria: same `name`, byte-equal `args`, `state = 'queued'`. See design decision 5.
+- [ ] 5.8 Add the underlying datastore method on `fleet.Datastore`: `HasPendingJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)`. Implementation in `server/datastore/mysql/jobs.go`: `SELECT 1 FROM jobs WHERE name = ? AND args = ? AND state = 'queued' LIMIT 1`.
+- [ ] 5.9 Unit tests in `server/fleet/historical_data_test.go`: identical repeated enqueues collapse to one (HasPendingJobWithArgs returns true on second call); different `fleet_ids` do not collapse; non-queued state does not block.
 - [ ] 5.6 Integration tests in `server/service/integration_*_test.go`:
   - `MYSQL_TEST=1 REDIS_TEST=1`
   - PATCH global config with `vulnerabilities: false`, assert one `chart_scrub_dataset_global` job with payload `{"dataset":"cve"}` (internal dataset name, not the public config sub-key).

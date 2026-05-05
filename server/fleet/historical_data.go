@@ -7,11 +7,16 @@ import (
 )
 
 // HistoricalDataScrubEnqueuer is the narrow interface needed by
-// EnqueueHistoricalDataScrubs. The fleet.Datastore satisfies it via NewJob,
-// the same way it does for the worker package's QueueJob helper. Defined
-// locally to avoid pulling worker-package types into the fleet package.
+// EnqueueHistoricalDataScrubs. The fleet.Datastore satisfies it via NewJob
+// and HasQueuedJobWithArgs. Defined locally to avoid pulling worker-package
+// types into the fleet package.
+//
+// HasQueuedJobWithArgs gates the NewJob call so rapid disable/enable toggles
+// of the same scope don't stack identical scrub jobs in the queue. See
+// design decision 5 of the chart-disabling-collection-scrub change.
 type HistoricalDataScrubEnqueuer interface {
 	NewJob(ctx context.Context, j *Job) (*Job, error)
+	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
 }
 
 // HistoricalDataActivityEmitter is the narrow interface needed by
@@ -144,8 +149,22 @@ func EnqueueHistoricalDataScrubs(
 		if err != nil {
 			return fmt.Errorf("marshal scrub job args for %s: %w", c.scrubDataset, err)
 		}
-
 		raw := json.RawMessage(argsJSON)
+
+		// Dedup: if an identical job is already queued (rapid disable/enable
+		// thrash on the same scope), drop this enqueue. Different fleet_ids
+		// or different datasets compare unequal under JSON value equality and
+		// are kept. A pre-existing race window where two enqueues both see
+		// "no pending" produces at most one redundant job; the handler is
+		// near-idempotent so the cost is one extra walk.
+		exists, err := enq.HasQueuedJobWithArgs(ctx, jobName, raw)
+		if err != nil {
+			return fmt.Errorf("check pending %s for %s: %w", jobName, c.scrubDataset, err)
+		}
+		if exists {
+			continue
+		}
+
 		job := &Job{
 			Name:  jobName,
 			Args:  &raw,

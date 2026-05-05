@@ -168,6 +168,14 @@ straight into the chart store's `dataset = ?` clause, which matches
 worker payload is stable and storage-aligned. Activities continue
 to use the public sub-key.
 
+The enqueuer SHALL drop a new scrub job when an identical pending
+job already exists in the `jobs` table. "Identical" means same
+`name` and byte-equal `args`, in `state = 'queued'`. Jobs in any
+other state (running, completed, failed) SHALL NOT block a new
+enqueue. Different `args` (e.g. different `fleet_ids`) SHALL NOT be
+deduped. This bounds queue length under rapid disable/enable
+toggles without losing coverage of distinct scopes.
+
 Two job types are defined:
 
 - `chart_scrub_dataset_global` — payload `{"dataset": "<name>"}`.
@@ -239,6 +247,24 @@ per-team scrubs); this is not currently required.
 - **THEN** the queued scrub job is NOT cancelled
 - **AND** the scrub runs on its scheduled tick and removes
   pre-disable rows or bits per its handler logic
+
+#### Scenario: Rapid toggle does not stack jobs
+
+- **WHEN** an admin flips a dataset off→on→off→on→off in quick
+  succession before any scrub worker picks up a job
+- **THEN** at most one `chart_scrub_dataset_global` job (or one
+  `chart_scrub_dataset_fleet` job per (dataset, fleet_ids) tuple) is
+  in `state = 'queued'` at any moment
+- **AND** subsequent identical disables observe the existing pending
+  job and skip the enqueue
+
+#### Scenario: Distinct scopes are not deduped
+
+- **WHEN** team 5 disables `uptime` and team 7 disables `uptime`
+  before either scrub runs
+- **THEN** two `chart_scrub_dataset_fleet` jobs exist
+  (`fleet_ids:[5]` and `fleet_ids:[7]`); neither suppresses the
+  other
 
 ### Requirement: Global scrub handler deletes all rows for the dataset
 
