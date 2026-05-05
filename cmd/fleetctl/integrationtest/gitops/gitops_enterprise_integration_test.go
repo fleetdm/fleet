@@ -3060,9 +3060,11 @@ settings:
 // TestGitOpsIconUpdateRecoversWhenBytesAreMissing exercises the gitops
 // client's fallback from a metadata-only icon update to a full upload
 // when the server reports the bytes for a known hash are missing. Two
-// titles in the same team share an icon; truncating the shared bytes
-// after the first run forces one title through the update path on the
-// next run, which must recover by re-uploading.
+// titles in the same team share an icon. After the first run we mutate
+// one title's icon row to point at a hash with no bytes and truncate
+// the real bytes; the next gitops run forces that title through the
+// update path with a hash whose bytes are missing, and the client must
+// recover by re-uploading.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconUpdateRecoversWhenBytesAreMissing() {
 	t := s.T()
 	ctx := context.Background()
@@ -3142,7 +3144,6 @@ settings:
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 
-	// Both titles should share the same storage_id.
 	var storageIDs []string
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &storageIDs,
@@ -3157,6 +3158,21 @@ settings:
 	originalSize := info.Size()
 	require.Positive(t, originalSize)
 
+	// Force divergence: redirect one title's icon row to a fake hash
+	// (no bytes will exist at that storage id) and truncate the real
+	// bytes so the integrity check on the genuine hash also fails. On
+	// the next gitops run, the title with the fake storage_id will be
+	// routed through IconsToUpdate (its server hash differs from the
+	// local hash, but the local hash is in UploadedHashes from the
+	// other title's row), and the server will refuse the metadata-only
+	// update because the bytes for the local hash are gone.
+	const fakeHash = "deadbeef0000000000000000000000000000000000000000000000000000beef"
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE software_title_icons SET storage_id = ? WHERE team_id = ? AND software_title_id = ?",
+			fakeHash, team.ID, titles[0].ID)
+		return err
+	})
 	require.NoError(t, os.Truncate(iconPath, 0))
 
 	secondRunOut := fleetctl.RunAppForTest(t, []string{
@@ -3168,6 +3184,14 @@ settings:
 	info, err = os.Stat(iconPath)
 	require.NoError(t, err)
 	require.Equal(t, originalSize, info.Size())
+
+	var afterStorageIDs []string
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &afterStorageIDs,
+			"SELECT DISTINCT storage_id FROM software_title_icons WHERE team_id = ?", team.ID)
+	})
+	require.Len(t, afterStorageIDs, 1)
+	require.Equal(t, storageID, afterStorageIDs[0])
 }
 
 // TestGitOpsTeamLabels tests operations around team labels
