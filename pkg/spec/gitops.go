@@ -1405,17 +1405,16 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
 
-		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		// Validate mutually exclusive field combinations per label membership type
+		if err := fleet.ValidateLabelMembershipFields(l); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
 		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
-		}
-
-		if _, ok := fleet.ValidLabelPlatformVariants[l.Platform]; !ok {
-			multiError = multierror.Append(multiError, fmt.Errorf("invalid platform for label %q: %s", l.Name, l.Platform))
 		}
 		// Check that host vitals criteria is valid
 		if l.HostVitalsCriteria != nil {
