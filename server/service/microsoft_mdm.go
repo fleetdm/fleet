@@ -2025,11 +2025,10 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	providerID := syncml.DocProvisioningAppProviderID
 
 	if device.HostUUID == "" {
-		// Orbit hasn't enrolled yet. Send hold commands to activate the ESP
-		// and block the device during OOBE. These must be sent immediately --
-		// if we wait for orbit, OOBE progresses past the ESP window.
+		// Orbit hasn't enrolled yet. Send DMClient FirstSyncStatus hold commands to
+		// activate the ESP and block the device during OOBE. These must be sent
+		// immediately -- if we wait for orbit, OOBE progresses past the ESP window.
 		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
-		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
 		holdCmds := []*mdm_types.SyncMLCmd{
 			// SkipDeviceStatusPage and SkipUserStatusPage are bool format per
 			// DMClient CSP spec. Both must be false for the ESP to stay visible.
@@ -2043,11 +2042,6 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
-			// PolicyProviders/{providerID} is a dynamic node -- must be created
-			// with Add before its children can be set with Replace.
-			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
-			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
-			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
 		}
 		for _, cmd := range holdCmds {
 			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
@@ -2055,22 +2049,14 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 		return holdCmds, nil
 	}
 
-	// Orbit has linked the host UUID. Transition to Active.
+	// Orbit has linked the host UUID. Transition to Active so handleESPRelease
+	// can finalize and release the device.
 	svc.logger.DebugContext(ctx, "ESP: orbit linked, transitioning to active", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
-	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
-	if err != nil {
+	if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
 	}
-	if !transitioned {
-		return nil, nil
-	}
-
-	// Mark DevicePreparation as completed to advance the ESP phase.
-	dpCmd := newSyncMLCmdInt(fleet.CmdReplace,
-		fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "3")
-	dpCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
-	return []*mdm_types.SyncMLCmd{dpCmd}, nil
+	return nil, nil
 }
 
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
@@ -2453,12 +2439,11 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 }
 
 // buildESPReleaseCommands builds SyncML commands that release the device
-// from the ESP. The release path advances DevicePreparation to "complete" and
-// signals ServerHasFinishedProvisioning so Windows proceeds to login.
+// from the ESP. ServerHasFinishedProvisioning=true on both Device and User
+// FirstSyncStatus is the documented DMClient signal that tells Windows the
+// MDM is done; the OS then proceeds to login.
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
-		newSyncMLCmdInt(fleet.CmdReplace,
-			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 		newSyncMLCmdBool(fleet.CmdReplace,

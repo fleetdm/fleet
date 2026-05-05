@@ -1384,9 +1384,12 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 
+		// At orbit-link transition, no SyncML is returned: handleESPHoldOrTransition
+		// only flips awaiting_configuration to Active. ESP release is signaled later
+		// via ServerHasFinishedProvisioning from buildESPReleaseCommands.
 		cmds, err := svc.getESPCommands(t.Context(), device)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "should return DevicePreparation completed command")
+		assert.Empty(t, cmds)
 		assert.True(t, transitioned)
 	})
 
