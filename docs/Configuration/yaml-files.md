@@ -1302,7 +1302,7 @@ The `update_vulnerabilities` section lets you define the CVEs that you wish to u
 Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
 
 - `cve` is the cve to change (format must be CVE-YYYY-<4 or more digits>, case-insensitive). 
-- `status` is the status to update to. Options include `"active"` and `"dismissed"`. (default: `"active"`). 
+- `status` is the status to update to. Options include `"active"` and `"dismissed"`.
 - `reason` is reason given for dismissal or re-activation. For dismissal, the options include `"false positive"`, `"won't fix"`, `"compensating control exists"`, and `"risk accepted"`. For re-activation, the options include `"re-investigation"` and `"accidental dismissal"`. (default: `""`)
 - `notes` is any additional notes relevant for dismissal or re-activation.  (default: `""`)
 #### Example
