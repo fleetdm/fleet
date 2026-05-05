@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -17,7 +16,8 @@ import (
 
 func TestCreateCertificateTemplate(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	// Certificate templates are Premium-gated (CAs are Premium, and templates require a CA).
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
@@ -218,47 +218,19 @@ func TestCreateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 		require.True(t, ds.CreateCertificateTemplateFuncInvoked)
 	})
 
-	t.Run("Empty or whitespace-only SAN bypasses Premium check and stores no SAN", func(t *testing.T) {
-		ds := new(mock.Store)
-		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
-		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
-			return &fleet.CertificateAuthority{ID: id, Type: string(fleet.CATypeCustomSCEPProxy)}, nil
-		}
-		ds.CreateCertificateTemplateFunc = func(ctx context.Context, certificateTemplate *fleet.CertificateTemplate) (*fleet.CertificateTemplateResponse, error) {
-			// Service does NOT mutate whitespace-only SAN; the datastore converts it to NULL.
-			// Here we just record success; the empty/NULL contract is enforced by the datastore tests.
-			return &fleet.CertificateTemplateResponse{
-				CertificateTemplateResponseSummary: fleet.CertificateTemplateResponseSummary{
-					ID:          1,
-					Name:        certificateTemplate.Name,
-					SubjectName: certificateTemplate.SubjectName,
-				},
-				TeamID: certificateTemplate.TeamID,
-			}, nil
-		}
-		ds.CreatePendingCertificateTemplatesForExistingHostsFunc = func(ctx context.Context, certificateTemplateID uint, teamID uint) (int64, error) {
-			return 0, nil
-		}
-		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
-			return &fleet.TeamLite{ID: tid, Name: "Yellow jackets"}, nil
-		}
-		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-			return &fleet.AppConfig{}, nil
-		}
-
-		for i, san := range []string{"", "  ", "\t\n  "} {
-			_, err := svc.CreateCertificateTemplate(ctx, fmt.Sprintf("wifi-%d", i), TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", san)
-			require.NoError(t, err, "SAN %q should not require Premium", san)
-		}
-	})
-
-	t.Run("Non-Premium tenant with non-empty SAN is rejected with ErrMissingLicense", func(t *testing.T) {
+	t.Run("Non-Premium tenant cannot create any certificate template (gate is at endpoint level)", func(t *testing.T) {
+		// Certificate templates require a CA, and CAs are Premium-only, so the whole feature is
+		// gated. SAN-bearing payloads are not the only ones rejected.
 		ds := new(mock.Store)
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierFree}})
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 
-		_, err := svc.CreateCertificateTemplate(ctx, "wifi", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", "DNS=example.com")
+		// With SAN.
+		_, err := svc.CreateCertificateTemplate(ctx, "wifi-with-san", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", "DNS=example.com")
+		require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+		// Without SAN also rejected.
+		_, err = svc.CreateCertificateTemplate(ctx, "wifi-no-san", TeamID, ValidCATypeID, "CN=$FLEET_VAR_HOST_UUID", "")
 		require.ErrorIs(t, err, fleet.ErrMissingLicense)
 	})
 
@@ -351,7 +323,8 @@ func TestValidateCertificateTemplateSubjectAlternativeName(t *testing.T) {
 
 func TestApplyCertificateTemplateSpecs(t *testing.T) {
 	ds := new(mock.Store)
-	svc, ctx := newTestService(t, ds, nil, nil)
+	// Certificate templates are Premium-gated.
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 

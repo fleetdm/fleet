@@ -86,6 +86,16 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 		return nil, err
 	}
 
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only (see
+	// server/service/certificate_authorities.go core stubs). Reject any create on Free up front.
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting license")
+	}
+	if !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
 	// Validate certificate template name
 	if err := validateCertificateTemplateName(name); err != nil {
 		return nil, err
@@ -100,15 +110,8 @@ func (svc *Service) CreateCertificateTemplate(ctx context.Context, name string, 
 	}
 
 	// Validate the optional SAN: format (token shape, KEY allow-list, length cap) and any
-	// $FLEET_VAR_* references against the same allow-list as subject_name. SAN is Premium-only.
+	// $FLEET_VAR_* references against the same allow-list as subject_name.
 	if strings.TrimSpace(subjectAlternativeName) != "" {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting license for SAN check")
-		}
-		if !lic.IsPremium() {
-			return nil, fleet.ErrMissingLicense
-		}
 		if err := validateCertificateTemplateSubjectAlternativeName(subjectAlternativeName, ""); err != nil {
 			return nil, err
 		}
@@ -478,6 +481,17 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 		return err
 	}
 
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only.
+	if len(specs) > 0 {
+		lic, err := svc.License(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting license")
+		}
+		if !lic.IsPremium() {
+			return fleet.ErrMissingLicense
+		}
+	}
+
 	// Get all of the CAs.
 	cas, err := svc.ds.ListCertificateAuthorities(ctx)
 	if err != nil {
@@ -486,25 +500,6 @@ func (svc *Service) ApplyCertificateTemplateSpecs(ctx context.Context, specs []*
 	casByID := make(map[uint]*fleet.CertificateAuthoritySummary)
 	for _, ca := range cas {
 		casByID[ca.ID] = ca
-	}
-
-	// Premium check is only required when at least one spec sets a SAN; specs without SAN keep
-	// today's behavior. Resolve the license once up front to avoid repeated calls in the loop.
-	var sanRequiresPremium bool
-	for _, spec := range specs {
-		if strings.TrimSpace(spec.SubjectAlternativeName) != "" {
-			sanRequiresPremium = true
-			break
-		}
-	}
-	if sanRequiresPremium {
-		lic, err := svc.License(ctx)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting license for SAN check")
-		}
-		if !lic.IsPremium() {
-			return fleet.ErrMissingLicense
-		}
 	}
 
 	var certificates []*fleet.CertificateTemplate

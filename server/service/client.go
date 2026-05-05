@@ -2487,7 +2487,7 @@ func (c *Client) DoGitOps(
 	// prevents a race where the cron fires after profiles are uploaded (by
 	// ApplyGroup above) but before cert templates exist, which would cause ONC
 	// profiles to be sent without waiting for the cert.
-	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	err = c.doGitOpsAndroidCertificates(incoming, appConfig, logFn, dryRun)
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
@@ -3272,7 +3272,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	return nil
 }
 
-func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fleet.EnrichedAppConfig, logFn func(format string, args ...any), dryRun bool) error {
 	certificates := make([]fleet.CertificateTemplateSpec, 0)
 
 	// Extract Android certificates from config if there are any.
@@ -3307,6 +3307,16 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 
 	if numCerts == 0 && len(existingCertificates) == 0 {
 		return nil
+	}
+
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only. If the YAML
+	// declares any certificates against a Free server, bail with a friendly error before doing
+	// anything destructive on the team. Mirrors the certificate_authorities check at line ~597.
+	// appConfig is passed in from DoGitOps, which has already fetched it once for upstream
+	// Premium checks; reuse rather than refetch.
+	if numCerts > 0 && (appConfig == nil || appConfig.License == nil || !appConfig.License.IsPremium()) {
+		return newGitOpsValidationError(
+			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.")
 	}
 
 	if dryRun {

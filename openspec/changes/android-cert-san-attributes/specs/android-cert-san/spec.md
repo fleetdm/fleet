@@ -344,25 +344,38 @@ light up required fields").
 - **WHEN** the admin fills the required fields and clicks "Add" again
 - **THEN** the create API SHALL be called and the modal SHALL close on success
 
-### Requirement: Premium gating for SAN
+### Requirement: Premium gating for certificate templates
 
-The `subject_alternative_name` capability itself is Premium-only. The server SHALL reject any create or apply of a certificate
-template whose payload sets a non-empty `subject_alternative_name` when the deployment is not Fleet Premium, returning the
-standard `ErrMissingLicense` error.
+The server SHALL reject any create or GitOps apply of a certificate template — with or without
+`subject_alternative_name` — when the deployment is not Fleet Premium, returning `fleet.ErrMissingLicense` (HTTP 402). The
+check MUST sit at the top of the service method, after authorization, before validation.
 
-This requirement is intentionally scoped to SAN-bearing payloads only. The broader certificate templates feature is currently
-not Premium-gated at the service layer (the Premium-only positioning is enforced upstream by the UI and documentation). A
-follow-up may extend the gate to all certificate template writes; that is out of scope here.
+Rationale: certificate templates require a custom SCEP CA, and CAs are documented and implemented as Premium-only (see
+`server/service/certificate_authorities.go` core stubs that return `fleet.ErrMissingLicense`). The whole feature is therefore
+Premium-only by construction.
 
-#### Scenario: Non-Premium attempts to set SAN
+The `fleetctl gitops` client SHALL perform an equivalent pre-flight Premium check via `c.GetAppConfig()` whenever the YAML
+declares one or more android certificates, so Free admins get a friendly error before any destructive operation runs against
+the team. Free admins whose YAML omits the certificates section (or sets it to an empty list) and whose team has no existing
+templates SHALL succeed with no changes.
 
-- **WHEN** a non-Premium tenant POSTs a certificate template with `subject_alternative_name` set to a non-empty value
-- **THEN** the server SHALL reject the request with `ErrMissingLicense`
+#### Scenario: Non-Premium attempts to create a certificate template (with or without SAN)
+
+- **WHEN** a non-Premium tenant POSTs a certificate template, regardless of whether `subject_alternative_name` is set
+- **THEN** the server SHALL reject the request with `fleet.ErrMissingLicense` (HTTP 402)
 - **AND** no row SHALL be written to `certificate_templates`
 
-#### Scenario: Non-Premium creates a template with no SAN
+#### Scenario: Non-Premium GitOps apply with certificates declared
 
-- **WHEN** a non-Premium tenant POSTs a certificate template with no `subject_alternative_name` (or an empty / whitespace-only
-  value)
-- **THEN** the request SHALL be accepted (no Premium check fires for SAN-less payloads)
-- **AND** the resulting template SHALL be stored with NULL `subject_alternative_name`
+- **WHEN** a non-Premium tenant runs `fleetctl gitops` against a YAML that declares one or more
+  `controls.android_settings.certificates`
+- **THEN** the client SHALL fail with a `gitOpsValidationError` whose message states that Android certificate templates
+  require a custom SCEP CA and are available in Fleet Premium only
+- **AND** no apply request SHALL be sent to the server
+
+#### Scenario: Non-Premium GitOps apply with no certificates declared
+
+- **WHEN** a non-Premium tenant runs `fleetctl gitops` against a YAML that omits the certificates section (or has an empty
+  `certificates: []`) and the team has no existing certificate templates
+- **THEN** the GitOps apply SHALL succeed with no errors and no Premium check SHALL fire (the cert-template flow short-
+  circuits before any server call)
