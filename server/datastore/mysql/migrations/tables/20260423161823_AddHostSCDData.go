@@ -3,6 +3,8 @@ package tables
 import (
 	"database/sql"
 	"fmt"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 func init() {
@@ -38,6 +40,39 @@ func Up_20260423161823(tx *sql.Tx) error {
 	`)
 	if err != nil {
 		return fmt.Errorf("create host_scd_data table: %w", err)
+	}
+
+	// Backfill historical_data sub-keys to true on AppConfig and every team
+	// config. The new Features.HistoricalData field defaults to true on
+	// upgrade per the chart-disabling-gitops-api spec, but the existing
+	// updateAppConfigJSON / inline TeamConfig round-trip pattern in earlier
+	// migrations re-marshaled the whole struct and stamped zero values
+	// (false) into stored JSON the moment the field appeared in Go. This
+	// migration restores the documented upgrade default before any
+	// deployment that exposes the toggle to admins ships, so the false
+	// values produced by the round-trip never reach production.
+	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
+		config.Features.HistoricalData.Uptime = true
+		config.Features.HistoricalData.Vulnerabilities = true
+		return nil
+	}); err != nil {
+		return fmt.Errorf("set historical_data defaults in AppConfig: %w", err)
+	}
+
+	// JSON_MERGE_PATCH (RFC 7396) on every existing team's config so the
+	// historical_data object is added if missing or replaced if present,
+	// without round-tripping the whole TeamConfig struct (which would hit
+	// the same zero-value pitfall for fields unrelated to historical_data).
+	// Any other features.* keys present on the team are preserved.
+	if _, err := tx.Exec(`
+		UPDATE teams
+		SET config = JSON_MERGE_PATCH(
+			config,
+			'{"features":{"historical_data":{"uptime":true,"vulnerabilities":true}}}'
+		)
+		WHERE config IS NOT NULL
+	`); err != nil {
+		return fmt.Errorf("set historical_data defaults in team configs: %w", err)
 	}
 
 	return nil

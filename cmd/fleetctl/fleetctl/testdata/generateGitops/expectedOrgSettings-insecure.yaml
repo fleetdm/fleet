@@ -43,6 +43,9 @@ features:
   detail_query_overrides:
     users:
     mdm: "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+  historical_data:
+    uptime: true
+    vulnerabilities: true
 fleet_desktop:
   alternative_browser_host: musica.alternativa
   transparency_url: https://fleetdm.com/transparency

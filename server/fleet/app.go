@@ -1242,15 +1242,44 @@ type ActivityExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// HistoricalDataSettings controls per-dataset collection of the time-series
+// rollups that drive the dashboard charts. Each sub-key corresponds to a
+// chart dataset; `true` means collect, `false` means skip.
+//
+// Sub-key names are the public config keys (used in YAML and audit
+// activities). Internal dataset names (the values returned by Dataset.Name())
+// are translated to sub-keys via the Enabled method.
+type HistoricalDataSettings struct {
+	Uptime          bool `json:"uptime"`
+	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+// Enabled returns whether collection is enabled for the given internal
+// dataset name. The mapping is the single canonical translation between
+// internal dataset names (e.g. "cve") and config sub-keys (e.g.
+// "vulnerabilities"). Callers SHOULD use this method rather than reading
+// fields directly.
+func (h HistoricalDataSettings) Enabled(dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return h.Uptime, nil
+	case "cve":
+		return h.Vulnerabilities, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1263,6 +1292,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.HistoricalData.Uptime = true
+	f.HistoricalData.Vulnerabilities = true
 }
 
 // Clone implements cloner for Features.
