@@ -11,7 +11,7 @@ interface IConfirmDataCollectionDisableModalProps {
   scope: "global" | "fleet";
   datasets: HistoricalDataConfigKey[];
   fleetName?: string;
-  isUpdating: boolean;
+  isUpdating?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }

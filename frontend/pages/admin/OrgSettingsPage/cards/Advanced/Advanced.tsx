@@ -240,7 +240,7 @@ const Advanced = ({
   const isPremiumLicense = isPremiumTier(appConfig);
 
   return (
-    <>
+    <div>
       <form onSubmit={onFormSubmit} autoComplete="off">
         <HostLifecycleSection
           onInputChange={onInputChange}
@@ -278,7 +278,7 @@ const Advanced = ({
           onCancel={() => setConfirmModalOpen(false)}
         />
       )}
-    </>
+    </div>
   );
 };
 
