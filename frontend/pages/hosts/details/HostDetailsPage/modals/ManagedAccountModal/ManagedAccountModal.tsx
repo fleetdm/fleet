@@ -43,7 +43,6 @@ const ManagedAccountModal = ({
     data: managedAccountData,
     error: managedAccountError,
     isLoading,
-    refetch: refetchManagedAccountPassword,
   } = useQuery<
     IHostManagedAccountPasswordResponse,
     unknown,
@@ -63,9 +62,6 @@ const ManagedAccountModal = ({
     setIsRotating(true);
     try {
       await hostAPI.rotateManagedLocalAccountPassword(hostId);
-      // Refetch the password so the modal shows the freshly-rotated value and
-      // the act of viewing it sets a new auto_rotate_at on the row.
-      await refetchManagedAccountPassword();
       setJustRotated(true);
       renderFlash(
         "success",

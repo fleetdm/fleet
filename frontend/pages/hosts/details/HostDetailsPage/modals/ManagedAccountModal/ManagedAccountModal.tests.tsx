@@ -178,8 +178,6 @@ describe("ManagedAccountModal", () => {
     (hostAPI.rotateManagedLocalAccountPassword as jest.Mock).mockResolvedValue(
       undefined
     );
-    // Initial fetch returns auto_rotate_at; we expect the just-rotated state to
-    // override the banner regardless of what the refetch returns.
     (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
       ...mockPasswordResponse,
       managed_account_password: {
