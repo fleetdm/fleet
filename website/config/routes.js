@@ -928,7 +928,7 @@ module.exports.routes = {
   'GET /announcements/gaming-technology-company': '/case-study/gaming-technology-company',
 
   'GET /announcements/global-workforce-management-company-achieves-compliance-and-clarity-with-fleet': '/case-study/global-workforce-management-company',
-  'GET /announcements/healthcare.technology.organization': '/case-study/healthcare-technology-organization',
+  'GET /announcements/healthcare.technology.organization': '/customers',
   'GET /announcements/all-in-one-it-platform-provider': '/case-study/it-platform-provider',
   'GET /announcements/scaling-IT-as-a-service-with-GitOps-first-management': '/case-study/it-service-provider',
   'GET /announcements/independent-journalism-nonprofit': '/case-study/journalism-nonprofit',
