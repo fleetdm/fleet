@@ -320,6 +320,80 @@ func TestFeaturesCopy(t *testing.T) {
 		// the map content itself is equal
 		require.Equal(t, f.DetailQueryOverrides, clone.DetailQueryOverrides)
 	})
+
+	t.Run("copy HistoricalData is independent", func(t *testing.T) {
+		f := &Features{
+			HistoricalData: HistoricalDataSettings{Uptime: true, Vulnerabilities: false},
+		}
+		clone := f.Copy()
+		require.NotNil(t, clone)
+		require.Equal(t, f.HistoricalData, clone.HistoricalData)
+
+		// Mutating the original should not affect the clone.
+		f.HistoricalData.Uptime = false
+		f.HistoricalData.Vulnerabilities = true
+		require.True(t, clone.HistoricalData.Uptime)
+		require.False(t, clone.HistoricalData.Vulnerabilities)
+	})
+}
+
+func TestFeaturesApplyDefaults(t *testing.T) {
+	t.Run("ApplyDefaults sets historical_data sub-fields true", func(t *testing.T) {
+		var f Features
+		f.ApplyDefaults()
+		require.True(t, f.HistoricalData.Uptime)
+		require.True(t, f.HistoricalData.Vulnerabilities)
+		require.True(t, f.EnableHostUsers)
+	})
+
+	t.Run("ApplyDefaultsForNewInstalls sets historical_data sub-fields true", func(t *testing.T) {
+		var f Features
+		f.ApplyDefaultsForNewInstalls()
+		require.True(t, f.HistoricalData.Uptime)
+		require.True(t, f.HistoricalData.Vulnerabilities)
+		require.True(t, f.EnableHostUsers)
+		require.True(t, f.EnableSoftwareInventory)
+	})
+}
+
+func TestHistoricalDataSettingsEnabled(t *testing.T) {
+	t.Run("uptime dataset returns Uptime field", func(t *testing.T) {
+		h := HistoricalDataSettings{Uptime: true, Vulnerabilities: false}
+		v, err := h.Enabled("uptime")
+		require.NoError(t, err)
+		require.True(t, v)
+
+		h.Uptime = false
+		v, err = h.Enabled("uptime")
+		require.NoError(t, err)
+		require.False(t, v)
+	})
+
+	t.Run("cve dataset returns Vulnerabilities field", func(t *testing.T) {
+		h := HistoricalDataSettings{Uptime: false, Vulnerabilities: true}
+		v, err := h.Enabled("cve")
+		require.NoError(t, err)
+		require.True(t, v)
+
+		h.Vulnerabilities = false
+		v, err = h.Enabled("cve")
+		require.NoError(t, err)
+		require.False(t, v)
+	})
+
+	t.Run("unknown dataset returns error", func(t *testing.T) {
+		h := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		v, err := h.Enabled("policy_compliance")
+		require.Error(t, err)
+		require.False(t, v)
+		require.Contains(t, err.Error(), "policy_compliance")
+	})
+
+	t.Run("empty dataset name returns error", func(t *testing.T) {
+		h := HistoricalDataSettings{Uptime: true, Vulnerabilities: true}
+		_, err := h.Enabled("")
+		require.Error(t, err)
+	})
 }
 
 func TestMDMUrl(t *testing.T) {
