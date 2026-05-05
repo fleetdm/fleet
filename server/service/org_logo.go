@@ -3,77 +3,21 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/xml"
 	"errors"
 	"fmt"
-	"image"
-	_ "image/jpeg"
-	_ "image/png"
 	"io"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	"github.com/gorilla/mux"
-	_ "golang.org/x/image/webp"
 )
 
 const orgLogoMaxFileSize = fleet.OrgLogoMaxFileSize
-
-// Magic-byte signatures used to identify accepted image formats. We compare
-// against raw upload bytes rather than trusting the multipart Content-Type
-// header.
-var (
-	pngMagic  = []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
-	jpegMagic = []byte{0xFF, 0xD8, 0xFF}
-)
-
-// hasWebPMagic reports whether b begins with a WebP RIFF container header
-// ("RIFF" at bytes 0-3, "WEBP" at bytes 8-11). WebP isn't a simple prefix
-// check because the 4 bytes between the two markers carry the file size.
-func hasWebPMagic(b []byte) bool {
-	return len(b) >= 12 && bytes.Equal(b[0:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WEBP"))
-}
-
-// looksLikeSVG only decides which validator to run; validateSVG is what
-// actually rejects unsafe content.
-func looksLikeSVG(b []byte) bool {
-	// Editors may prepend a UTF-8 BOM (byte-order mark) or whitespace.
-	if bytes.HasPrefix(b, []byte{0xEF, 0xBB, 0xBF}) {
-		b = b[3:]
-	}
-	b = bytes.TrimLeft(b, " \t\r\n")
-	// 512B keeps routing cheap; the root <svg> is always near the top.
-	const window = 512
-	if len(b) > window {
-		b = b[:window]
-	}
-	return bytes.Contains(bytes.ToLower(b), []byte("<svg"))
-}
-
-// contentTypeForBytes returns the HTTP Content-Type for the accepted
-// formats (PNG, JPEG, WebP, SVG) and "" for anything else. Used by the GET
-// HijackRender to set the correct response header.
-func contentTypeForBytes(b []byte) string {
-	switch {
-	case bytes.HasPrefix(b, pngMagic):
-		return "image/png"
-	case bytes.HasPrefix(b, jpegMagic):
-		return "image/jpeg"
-	case hasWebPMagic(b):
-		return "image/webp"
-	case looksLikeSVG(b):
-		return "image/svg+xml"
-	}
-	return ""
-}
 
 // PUT /api/v1/fleet/logo
 
@@ -111,9 +55,6 @@ func (putOrgLogoRequest) DecodeRequest(_ context.Context, r *http.Request) (any,
 	body, err := io.ReadAll(io.LimitReader(f, orgLogoMaxFileSize+1))
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "failed to read uploaded logo", InternalErr: err}
-	}
-	if err := validateOrgLogoBytes(body); err != nil {
-		return nil, err
 	}
 	return putOrgLogoRequest{Mode: mode, Body: body}, nil
 }
@@ -171,7 +112,7 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	if r.Err != nil {
 		return
 	}
-	contentType := contentTypeForBytes(r.Body)
+	contentType := fleet.ContentTypeForOrgLogo(r.Body)
 	if contentType == "" {
 		contentType = "application/octet-stream"
 	}
@@ -235,121 +176,10 @@ func parseLogoModeQuery(raw string) (fleet.OrgLogoMode, error) {
 	return m, nil
 }
 
-func validateOrgLogoBytes(b []byte) error {
-	if int64(len(b)) > orgLogoMaxFileSize {
-		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
-	}
-	if looksLikeSVG(b) {
-		return validateSVG(b)
-	}
-	_, format, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil {
-		return &fleet.BadRequestError{
-			Message:     "logo must be a valid PNG, JPEG, WebP, or SVG image",
-			InternalErr: err,
-		}
-	}
-	switch format {
-	case "png", "jpeg", "webp":
-		return nil
-	}
-	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, WebP, or SVG file"}
-}
-
-// isSafeSVGURL allowlists the URL forms that can appear in href/src
-// attributes. Allowlist is intentional: a blocklist of script-bearing
-// schemes (javascript:, vbscript:, livescript:, mocha:, …) keeps growing
-// and is what CodeQL flags as incomplete.
-func isSafeSVGURL(raw string) bool {
-	raw = strings.TrimSpace(raw)
-	if raw == "" || strings.HasPrefix(raw, "#") {
-		return true
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return false
-	}
-	if u.Scheme == "" {
-		// Relative path or fragment — no scheme, no script surface.
-		return true
-	}
-	s := strings.ToLower(u.Scheme)
-	return s == "http" || s == "https"
-}
-
-// Elements that can run scripts or load foreign content. <img>-rendered
-// SVGs are script-sandboxed, but pasting the URL loads it as a document
-// — so reject structurally instead of trusting the renderer.
-var disallowedSVGElements = map[string]struct{}{
-	"script":        {},
-	"foreignobject": {},
-	"iframe":        {},
-	"object":        {},
-	"embed":         {},
-}
-
-// validateSVG rejects unsafe SVG content. Leaving decoder.Entity nil and
-// rejecting DOCTYPE neutralizes XXE (external entities reading local
-// files) and billion-laughs (DoS via recursive entity expansion).
-func validateSVG(b []byte) error {
-	decoder := xml.NewDecoder(bytes.NewReader(b))
-	decoder.Strict = true
-
-	sawRoot := false
-	for {
-		tok, err := decoder.Token()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return &fleet.BadRequestError{
-				Message:     "logo is not valid SVG",
-				InternalErr: err,
-			}
-		}
-		switch t := tok.(type) {
-		case xml.StartElement:
-			name := strings.ToLower(t.Name.Local)
-			if !sawRoot {
-				if name != "svg" {
-					return &fleet.BadRequestError{Message: "logo SVG must have <svg> as the root element"}
-				}
-				sawRoot = true
-			}
-			if _, bad := disallowedSVGElements[name]; bad {
-				return &fleet.BadRequestError{Message: fmt.Sprintf("SVG element <%s> is not allowed", name)}
-			}
-			for _, attr := range t.Attr {
-				attrName := strings.ToLower(attr.Name.Local)
-				// on* (onclick, onload, …) is SVG's main XSS vector.
-				if strings.HasPrefix(attrName, "on") {
-					return &fleet.BadRequestError{Message: "SVG event-handler attributes are not allowed"}
-				}
-				// Name.Local matches both href and xlink:href.
-				if attrName == "href" || attrName == "src" {
-					if !isSafeSVGURL(attr.Value) {
-						return &fleet.BadRequestError{Message: "SVG href/src must be a fragment, relative path, or http(s):// URL"}
-					}
-				}
-			}
-		case xml.Directive:
-			// DOCTYPE / ENTITY (XXE, billion-laughs vectors).
-			return &fleet.BadRequestError{Message: "SVG DTD/DOCTYPE declarations are not allowed"}
-		}
-	}
-	if !sawRoot {
-		return &fleet.BadRequestError{Message: "logo SVG missing root <svg> element"}
-	}
-	return nil
-}
-
 // Service implementation
 
 func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, content io.ReadSeeker) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-	if err := requireGlobalAdmin(ctx); err != nil {
 		return err
 	}
 	if !mode.IsValid() {
@@ -365,8 +195,8 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "buffering logo content")
 	}
-	if int64(len(body)) > orgLogoMaxFileSize {
-		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
+		return err
 	}
 
 	modes := mode.Modes()
@@ -400,9 +230,6 @@ func (svc *Service) UploadOrgLogo(ctx context.Context, mode fleet.OrgLogoMode, c
 
 func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) error {
 	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
-		return err
-	}
-	if err := requireGlobalAdmin(ctx); err != nil {
 		return err
 	}
 	if !mode.IsValid() {
@@ -485,18 +312,10 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	}
 	// Re-validate on read so a blob planted directly in the object store
 	// (bypassing the upload API) is still rejected.
-	if err := validateOrgLogoBytes(body); err != nil {
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "stored org logo failed validation")
 	}
 	return body, int64(len(body)), nil
-}
-
-func requireGlobalAdmin(ctx context.Context) error {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok || vc.User == nil || vc.User.GlobalRole == nil || *vc.User.GlobalRole != fleet.RoleAdmin {
-		return authz.ForbiddenWithInternal("org logo write requires global admin", nil, nil, nil)
-	}
-	return nil
 }
 
 // orgLogoServingURL builds the URL persisted in AppConfig after an upload. The `v` param is a cache-buster (ignored server-side; only `mode` is read).

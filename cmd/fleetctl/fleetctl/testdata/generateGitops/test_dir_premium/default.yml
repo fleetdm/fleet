@@ -81,6 +81,9 @@ org_settings:
       users:
     enable_host_users: true
     enable_software_inventory: true
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
     transparency_url: https://fleetdm.com/transparency
@@ -129,9 +132,7 @@ org_settings:
       location: Fleet Device Management Inc.
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: http://some-org-logo-url.com
     org_logo_url_dark_mode: http://some-org-logo-url.com
-    org_logo_url_light_background: http://some-org-logo-url-light-background.com
     org_logo_url_light_mode: http://some-org-logo-url-light-background.com
     org_name: Fleet
   secrets:
