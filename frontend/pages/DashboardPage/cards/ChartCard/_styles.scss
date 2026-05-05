@@ -24,7 +24,7 @@
   }
 
   &__title {
-    font-size: $small;
+    font-size: $medium !important;
     font-weight: $bold;
     margin: 0 !important;
     line-height: 1;
@@ -38,7 +38,9 @@
 
     // Override inline styles from DropdownWrapper to make it look like a heading.
     // !important is needed because react-select applies inline styles via the
-    // styles prop which always beat class-based selectors.
+    // styles prop which always beat class-based selectors. Padding is zeroed
+    // so the dropdown's text baseline aligns horizontally with the
+    // HostsEnrolledCard heading rendered alongside it.
     .react-select__control {
       background-color: transparent !important;
       border-color: transparent !important;
@@ -54,9 +56,10 @@
     }
 
     .react-select__single-value {
-      font-size: $small;
+      font-size: $medium;
       font-weight: $bold;
       color: $core-fleet-black;
+      line-height: 1;
     }
 
     .react-select__indicator-separator {
@@ -64,7 +67,11 @@
     }
 
     .react-select__value-container {
-      padding: 4px 0 4px 8px;
+      padding: 0;
+    }
+
+    .react-select__indicators {
+      padding: 0;
     }
   }
 
