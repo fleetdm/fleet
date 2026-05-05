@@ -42,7 +42,7 @@ const DATASETS: IDataSet[] = [
       </>
     ),
     tooltipFormatter: ({ value }: { value: number }) =>
-      `${value.toLocaleString()} hosts`,
+      `${value.toLocaleString()} host${value === 1 ? "" : "s"} online`,
     relativeScale: true,
   },
   {
@@ -77,7 +77,7 @@ const DATASETS: IDataSet[] = [
       </>
     ),
     tooltipFormatter: ({ value }: { value: number }) =>
-      `${value.toLocaleString()} hosts`,
+      `${value.toLocaleString()} host${value === 1 ? "" : "s"}`,
     theme: "red",
     relativeScale: true,
   },

@@ -298,7 +298,9 @@ const CheckerboardViz = ({
                   ry={3}
                   className={`${baseClass}__cell ${baseClass}__cell--level-${level}`}
                   role="img"
-                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
+                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${
+                    cell.value
+                  } host${cell.value === 1 ? "" : "s"}`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}
                   onMouseLeave={handleMouseLeave}
                 />
