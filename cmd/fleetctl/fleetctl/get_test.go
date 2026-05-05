@@ -200,6 +200,10 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								EnableHostUsers:         true,
 								EnableSoftwareInventory: true,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 						},
 					},
@@ -214,6 +218,10 @@ func TestGetTeams(t *testing.T) {
 							AgentOptions: &agentOpts,
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 							HostExpirySettings: fleet.HostExpirySettings{
 								HostExpiryEnabled: true,
@@ -716,7 +724,13 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			Features:              fleet.Features{EnableHostUsers: true},
+			Features: fleet.Features{
+				EnableHostUsers: true,
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
