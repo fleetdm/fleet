@@ -1292,3 +1292,32 @@ Unlike other options, omitting `smtp_settings` or leaving it blank won't reset t
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
 <meta name="keywordsForDocsearch" value="configuration as code, org settings, ci/cd, version control, declarative configuration">
+
+### vulnerability management
+
+#### updating vulnernabilities
+
+The `update_vulnerabilities` section lets you define the CVEs that you wish to update.
+
+Can be configured for "All fleets" (`org_settings`) and specific fleets (`settings`).
+
+- `cve` is the cve to change (format must be CVE-YYYY-<4 or more digits>, case-insensitive). 
+- `status` is the status to update to. Options include `"active"` and `"dismissed"`. (default: `"active"`). 
+- `reason` is reason given for dismissal or re-activation. For dismissal, the options include `"false positive"`, `"won't fix"`, `"compensating control exists"`, and `"risk accepted"`. For re-activation, the options include `"re-investigation"` and `"accidental dismissal"`. (default: `""`)
+- `notes` is any additional notes relevant for dismissal or re-activation.  (default: `""`)
+#### Example
+
+```yaml
+org_settings:
+  update_vulnerabilities:
+   - cve: "CVE-2023-1234"
+     status: “dismissed”
+     reason: “won’t fix”
+   - cve: "CVE-2023-4321"
+     status: “dismissed”
+     reason: “compensating control exists”
+     notes: “fixed by patch 1233.56”
+   - cve: "CVE-2023-7654"
+     status: “active”
+```
+
