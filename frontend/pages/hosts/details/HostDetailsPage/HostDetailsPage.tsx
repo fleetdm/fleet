@@ -1653,9 +1653,6 @@ const HostDetailsPage = ({
                 isHostTeamAdmin ||
                 isHostTeamMaintainer
               }
-              autoRotateAt={
-                host.mdm.os_settings?.managed_local_account?.auto_rotate_at
-              }
               onCancel={() => {
                 setShowManagedAccountModal(false);
                 // Opening the modal triggers a "viewed managed account"

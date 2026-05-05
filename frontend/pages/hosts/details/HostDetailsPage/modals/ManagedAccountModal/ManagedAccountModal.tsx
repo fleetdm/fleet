@@ -24,7 +24,6 @@ interface IManagedAccountModalProps {
   // RecoveryLockPasswordModal disables-with-tooltip in the same situation.
   // Following up to align the two patterns.
   canRotatePassword: boolean;
-  autoRotateAt?: string;
   onCancel: () => void;
   onRotate: () => void;
 }
@@ -32,12 +31,12 @@ interface IManagedAccountModalProps {
 const ManagedAccountModal = ({
   hostId,
   canRotatePassword,
-  autoRotateAt,
   onCancel,
   onRotate,
 }: IManagedAccountModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isRotating, setIsRotating] = useState(false);
+  const [justRotated, setJustRotated] = useState(false);
 
   const {
     data: managedAccountData,
@@ -66,6 +65,7 @@ const ManagedAccountModal = ({
       // Refetch the password so the modal shows the freshly-rotated value and
       // the act of viewing it sets a new auto_rotate_at on the row.
       await refetchManagedAccountPassword();
+      setJustRotated(true);
       renderFlash(
         "success",
         "Successfully sent request to rotate managed local account password."
@@ -80,6 +80,10 @@ const ManagedAccountModal = ({
     }
     setIsRotating(false);
   };
+
+  const showPendingRotationBanner =
+    justRotated || managedAccountData?.pending_rotation === true;
+  const autoRotateAt = managedAccountData?.auto_rotate_at;
 
   return (
     <Modal title="Managed account" onExit={onCancel} className={baseClass}>
@@ -97,11 +101,17 @@ const ManagedAccountModal = ({
               value={managedAccountData?.password ?? ""}
               name="Password"
             />
-            {autoRotateAt && (
+            {showPendingRotationBanner ? (
               <InfoBanner color="yellow">
-                Password rotates automatically after{" "}
-                {monthDayTimeFormat(autoRotateAt)}.
+                Password will rotate once the host acknowledges the request.
               </InfoBanner>
+            ) : (
+              autoRotateAt && (
+                <InfoBanner color="yellow">
+                  Password rotates automatically after{" "}
+                  {monthDayTimeFormat(autoRotateAt)}.
+                </InfoBanner>
+              )
             )}
             <div className="modal-cta-wrap">
               <Button onClick={onCancel}>Close</Button>

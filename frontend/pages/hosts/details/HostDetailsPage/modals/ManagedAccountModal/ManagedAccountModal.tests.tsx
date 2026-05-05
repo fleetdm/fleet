@@ -44,12 +44,19 @@ describe("ManagedAccountModal", () => {
     expect(screen.getByText("Username")).toBeVisible();
   });
 
-  it("shows the auto-rotate banner when autoRotateAt is set", async () => {
+  it("shows the auto-rotate banner when auto_rotate_at is in the response", async () => {
+    (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
+      ...mockPasswordResponse,
+      managed_account_password: {
+        ...mockPasswordResponse.managed_account_password,
+        auto_rotate_at: "2026-04-30T14:35:00Z",
+      },
+    });
+
     render(
       <ManagedAccountModal
         hostId={7}
         canRotatePassword
-        autoRotateAt="2026-04-30T14:35:00Z"
         onCancel={jest.fn()}
         onRotate={jest.fn()}
       />
@@ -62,7 +69,7 @@ describe("ManagedAccountModal", () => {
     });
   });
 
-  it("does not show the banner when autoRotateAt is undefined", async () => {
+  it("does not show the banner when auto_rotate_at is missing from the response", async () => {
     render(
       <ManagedAccountModal
         hostId={7}
@@ -135,6 +142,75 @@ describe("ManagedAccountModal", () => {
     await waitFor(() => {
       expect(onRotate).toHaveBeenCalled();
     });
+  });
+
+  it("shows the pending-rotation banner when pending_rotation is in the response", async () => {
+    (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
+      ...mockPasswordResponse,
+      managed_account_password: {
+        ...mockPasswordResponse.managed_account_password,
+        pending_rotation: true,
+      },
+    });
+
+    render(
+      <ManagedAccountModal
+        hostId={7}
+        canRotatePassword
+        onCancel={jest.fn()}
+        onRotate={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Password will rotate once the host acknowledges the request."
+        )
+      ).toBeVisible();
+    });
+    expect(
+      screen.queryByText(/Password rotates automatically after/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the pending-rotation banner after a successful rotate", async () => {
+    (hostAPI.rotateManagedLocalAccountPassword as jest.Mock).mockResolvedValue(
+      undefined
+    );
+    // Initial fetch returns auto_rotate_at; we expect the just-rotated state to
+    // override the banner regardless of what the refetch returns.
+    (hostAPI.getManagedAccountPassword as jest.Mock).mockResolvedValue({
+      ...mockPasswordResponse,
+      managed_account_password: {
+        ...mockPasswordResponse.managed_account_password,
+        auto_rotate_at: "2026-04-30T14:35:00Z",
+      },
+    });
+
+    const { user } = render(
+      <ManagedAccountModal
+        hostId={7}
+        canRotatePassword
+        onCancel={jest.fn()}
+        onRotate={jest.fn()}
+      />
+    );
+
+    const button = await screen.findByText("Rotate password");
+    await user.click(button);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "Password will rotate once the host acknowledges the request."
+        )
+      ).toBeVisible();
+    });
+    // The auto-rotate banner is replaced by the pending-rotation banner.
+    expect(
+      screen.queryByText(/Password rotates automatically after/i)
+    ).not.toBeInTheDocument();
   });
 
   it("does not call onRotate when rotate API errors", async () => {
