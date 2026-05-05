@@ -8498,7 +8498,7 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
-| continuous_automations | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
+| continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 
 Either `query` or `query_id` must be provided.
 
@@ -8725,6 +8725,7 @@ _Available in Fleet Premium_
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
 | labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| continuous_automations_enabled | boolean | body | _Available in Fleet Premium_. If enabled, software and script automations will run every time Fleet receives a failing response from a host. If not, all automations run on a host's first failure, and when a host's response changes from pass to fail. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
 
