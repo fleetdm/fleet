@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"image"
@@ -10,6 +11,7 @@ import (
 	_ "image/png"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -39,8 +41,24 @@ func hasWebPMagic(b []byte) bool {
 	return len(b) >= 12 && bytes.Equal(b[0:4], []byte("RIFF")) && bytes.Equal(b[8:12], []byte("WEBP"))
 }
 
+// looksLikeSVG only decides which validator to run; validateSVG is what
+// actually rejects unsafe content.
+func looksLikeSVG(b []byte) bool {
+	// Editors may prepend a UTF-8 BOM (byte-order mark) or whitespace.
+	if bytes.HasPrefix(b, []byte{0xEF, 0xBB, 0xBF}) {
+		b = b[3:]
+	}
+	b = bytes.TrimLeft(b, " \t\r\n")
+	// 512B keeps routing cheap; the root <svg> is always near the top.
+	const window = 512
+	if len(b) > window {
+		b = b[:window]
+	}
+	return bytes.Contains(bytes.ToLower(b), []byte("<svg"))
+}
+
 // contentTypeForBytes returns the HTTP Content-Type for the accepted
-// formats (PNG, JPEG, WebP) and "" for anything else. Used by the GET
+// formats (PNG, JPEG, WebP, SVG) and "" for anything else. Used by the GET
 // HijackRender to set the correct response header.
 func contentTypeForBytes(b []byte) string {
 	switch {
@@ -50,6 +68,8 @@ func contentTypeForBytes(b []byte) string {
 		return "image/jpeg"
 	case hasWebPMagic(b):
 		return "image/webp"
+	case looksLikeSVG(b):
+		return "image/svg+xml"
 	}
 	return ""
 }
@@ -157,6 +177,15 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.Body)))
 	w.Header().Set("Cache-Control", "no-store")
+	// nosniff: stops the browser from MIME-sniffing the body as HTML
+	// (XSS vector) if upstream Content-Type ever drifts.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// CSP keeps the direct-URL view inert (where SVG loads as a
+		// document, not <img>). 'unsafe-inline' allows the inline
+		// <style> blocks most SVGs include.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	}
 	_, _ = w.Write(r.Body)
 }
 
@@ -209,10 +238,13 @@ func validateOrgLogoBytes(b []byte) error {
 	if int64(len(b)) > orgLogoMaxFileSize {
 		return &fleet.BadRequestError{Message: "logo must be 100KB or less"}
 	}
+	if looksLikeSVG(b) {
+		return validateSVG(b)
+	}
 	_, format, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil {
 		return &fleet.BadRequestError{
-			Message:     "logo must be a valid PNG, JPEG, or WebP image",
+			Message:     "logo must be a valid PNG, JPEG, WebP, or SVG image",
 			InternalErr: err,
 		}
 	}
@@ -220,7 +252,74 @@ func validateOrgLogoBytes(b []byte) error {
 	case "png", "jpeg", "webp":
 		return nil
 	}
-	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, or WebP file"}
+	return &fleet.BadRequestError{Message: "logo must be a PNG, JPEG, WebP, or SVG file"}
+}
+
+// Elements that can run scripts or load foreign content. <img>-rendered
+// SVGs are script-sandboxed, but pasting the URL loads it as a document
+// — so reject structurally instead of trusting the renderer.
+var disallowedSVGElements = map[string]struct{}{
+	"script":        {},
+	"foreignobject": {},
+	"iframe":        {},
+	"object":        {},
+	"embed":         {},
+}
+
+// validateSVG rejects unsafe SVG content. Leaving decoder.Entity nil and
+// rejecting DOCTYPE neutralizes XXE (external entities reading local
+// files) and billion-laughs (DoS via recursive entity expansion).
+func validateSVG(b []byte) error {
+	decoder := xml.NewDecoder(bytes.NewReader(b))
+	decoder.Strict = true
+
+	sawRoot := false
+	for {
+		tok, err := decoder.Token()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return &fleet.BadRequestError{
+				Message:     "logo is not valid SVG",
+				InternalErr: err,
+			}
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			name := strings.ToLower(t.Name.Local)
+			if !sawRoot {
+				if name != "svg" {
+					return &fleet.BadRequestError{Message: "logo SVG must have <svg> as the root element"}
+				}
+				sawRoot = true
+			}
+			if _, bad := disallowedSVGElements[name]; bad {
+				return &fleet.BadRequestError{Message: fmt.Sprintf("SVG element <%s> is not allowed", name)}
+			}
+			for _, attr := range t.Attr {
+				attrName := strings.ToLower(attr.Name.Local)
+				// on* (onclick, onload, …) is SVG's main XSS vector.
+				if strings.HasPrefix(attrName, "on") {
+					return &fleet.BadRequestError{Message: "SVG event-handler attributes are not allowed"}
+				}
+				// Name.Local matches both href and xlink:href.
+				if attrName == "href" || attrName == "src" {
+					val := strings.ToLower(strings.TrimSpace(attr.Value))
+					if strings.HasPrefix(val, "javascript:") || strings.HasPrefix(val, "data:") {
+						return &fleet.BadRequestError{Message: "SVG javascript: and data: URLs are not allowed"}
+					}
+				}
+			}
+		case xml.Directive:
+			// DOCTYPE / ENTITY (XXE, billion-laughs vectors).
+			return &fleet.BadRequestError{Message: "SVG DTD/DOCTYPE declarations are not allowed"}
+		}
+	}
+	if !sawRoot {
+		return &fleet.BadRequestError{Message: "logo SVG missing root <svg> element"}
+	}
+	return nil
 }
 
 // Service implementation
@@ -363,8 +462,10 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if int64(len(body)) > orgLogoMaxFileSize {
 		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
 	}
-	if contentTypeForBytes(body) == "" {
-		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
+	// Re-validate on read so a blob planted directly in the object store
+	// (bypassing the upload API) is still rejected.
+	if err := validateOrgLogoBytes(body); err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "stored org logo failed validation")
 	}
 	return body, int64(len(body)), nil
 }
