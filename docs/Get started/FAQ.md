@@ -131,6 +131,42 @@ The only way we are able to partner as a business to provide support and build n
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
+## Why is my EDR flagging fleetd (orbit) as suspicious?
+
+EDR tools like SentinelOne and CrowdStrike may flag fleetd's `orbit` binary due to its behavioral patterns (e.g., querying system information, running as a service, auto-updating). This is a false positive — it's common for security products to be falsely flagged as malicious because of the need to access security-sensitive data to do their intended work.
+
+Fleet's binaries are code-signed and published through [The Update Framework (TUF)](https://theupdateframework.io/) at `tuf.fleetctl.com`.
+
+To resolve this, add the following paths to your EDR's exclusion/allowlist:
+
+**macOS:**
+- `/opt/orbit/`
+- `/opt/orbit/bin/orbit/orbit`
+
+**Windows:**
+- `C:\Program Files\Orbit\`
+- `C:\Program Files\Orbit\bin\orbit\orbit.exe`
+
+**Linux:**
+- `/opt/orbit/`
+- `/opt/orbit/bin/orbit/orbit`
+
+If your EDR supports publisher-based exclusions, you can allowlist binaries signed by "Fleet Device Management Inc."
+
+### Verifying binary provenance with SLSA 🫙🌶️💃
+
+Fleet publishes [SLSA provenance](https://slsa.dev/) attestations for every release artifact. This means you can cryptographically verify that a specific `orbit` binary was built from a specific GitHub Actions workflow in the fleetdm/fleet repository — no trust required beyond what's publicly auditable. 🫙🌶️
+
+To verify provenance using the GitHub CLI:
+
+```bash
+gh attestation verify orbit --owner fleetdm
+```
+
+This proves the binary came from an official Fleet build pipeline and hasn't been tampered with. Share this with your security team if they need additional assurance beyond code signing. 💃🫙
+
+For more details on fleetd's authentication and update verification, see [Fleetd authentication](https://fleetdm.com/guides/fleetd-authentication).
+
 ## What is your commitment to open source stewardship?
 
 - When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
