@@ -1,3 +1,22 @@
+## Orbit 1.55.0 (May 05, 2026)
+
+* Fixed Fleet Desktop failing to start on openSUSE Leap 16, by dropping the `-i` (login shell) flag from the sudo invocation used to launch Fleet Desktop and key-escrow dialogs as the logged-in user.
+
+* Updated go to 1.26.2
+
+* When a Windows disk is already encrypted and Fleet needs the recovery key, orbit now rotates the recovery key (adds a new Fleet-managed protector and removes old ones) instead of decrypting and re-encrypting the entire disk. This avoids the FVE_E_AUTOUNLOCK_ENABLED error loop on machines with secondary drives using auto-unlock.
+
+* Added `network_quality` table from https://github.com/macadmins/osquery-extension to macOS.
+* Bumped https://github.com/macadmins/osquery-extension to v1.4.1.
+
+* Removed debugging symbols from orbit and Fleet Desktop executables.
+
+* Orbit passes EUA token during enrollment request
+
+* Fixed Windows Autopilot SSO prompt not recoverable if closed by periodically re-opening the SSO browser window every 5 minutes until authentication is completed.
+
+* Wrapped Get-ItemProperty calls in try/catch blocks during registry enumeration to gracefully handle terminating exceptions (e.g. System.InvalidCastException) from malformed registry entries, logging the offending path instead of aborting.
+
 ## Orbit 1.54.0 (Apr 07, 2026)
 
 * Fixed orbit crash loop when `updates-metadata.json` has incorrect file permissions by self-healing via `chmod` instead of fatally erroring.
