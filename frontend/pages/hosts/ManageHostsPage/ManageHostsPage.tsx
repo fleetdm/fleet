@@ -133,7 +133,6 @@ interface IManageHostsProps {
   route: RouteProps;
   router: InjectedRouter;
   params: Params;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: any; // no type in react-router v3 TODO: Improve this type
 }
 
@@ -1291,7 +1290,7 @@ const ManageHostsPage = ({
   const onDeleteLabel = async () => {
     if (!selectedLabel) {
       console.error("Label isn't available. This should not happen.");
-      return false;
+      return;
     }
     setIsUpdating(true);
 

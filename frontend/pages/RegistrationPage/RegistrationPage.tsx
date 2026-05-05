@@ -89,7 +89,7 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
 
   const onSetPage = (pageNum: number) => {
     if (pageNum > pageProgress) {
-      return false;
+      return;
     }
 
     setPage(pageNum);

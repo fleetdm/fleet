@@ -66,8 +66,13 @@ const AddCustomVariableModal = ({
         await secretsAPI.addSecret(newSecret);
         renderFlash("success", "Variable created.");
         onSave();
-      } catch (error: any) {
-        if (error.status === 409) {
+      } catch (error) {
+        if (
+          typeof error === "object" &&
+          error !== null &&
+          "status" in error &&
+          (error as { status: number }).status === 409
+        ) {
           renderFlash("error", "A secret with this name already exists.");
         } else {
           renderFlash(
