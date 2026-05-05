@@ -131,7 +131,21 @@ The only way we are able to partner as a business to provide support and build n
 
 EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
 
+It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet—endpoint agents from many vendors encounter the same heuristic-based false positives.
+
 For example, osquery v5.23.0 was released as part of the fleetd agent and included a change to prevent keychain corruption that could occur when querying the macOS `certificates` table. To safely access keychain data without risking corruption, this change performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern—creating temporary copies and then cleaning them up—can trigger EDR heuristic alerts even though the behavior is legitimate and expected.
+
+### SLSA provenance attestation 🌶️
+
+Fleet's orbit binaries are built via GitHub Actions and include SLSA (Supply-chain Levels for Software Artifacts) provenance attestations. These attestations allow customers to cryptographically verify that a given binary was produced from a specific GitHub build job and source commit—providing confidence that the binary has not been tampered with.
+
+You can verify the attestation using the `gh` CLI:
+
+```bash
+gh attestation verify <path-to-orbit-binary> --repo fleetdm/fleet
+```
+
+This gives your security team an additional signal when triaging EDR alerts: if the attestation verifies successfully, the binary is the authentic artifact produced by Fleet's CI pipeline.
 
 Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If your EDR product flags the orbit binary, you can safely allowlist it by binary path or hash while the false-positive classification is being addressed by the vendor.
 
