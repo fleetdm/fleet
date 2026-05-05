@@ -68,7 +68,7 @@ describe("LabelForm", () => {
     );
   });
 
-  it("should not render immutable help text when no immutable fields are provided (ManualLabelForm without team)", () => {
+  it("should not render immutable help text when no immutable fields are provided (ManualLabelForm without fleet)", () => {
     render(
       <LabelForm
         onSave={noop}
@@ -86,25 +86,25 @@ describe("LabelForm", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("should render correct immutable help text for a single field (ManualLabelForm with team)", () => {
+  it("should render correct immutable help text for a single field (ManualLabelForm with fleet)", () => {
     render(
       <LabelForm
         onSave={noop}
         onCancel={noop}
-        teamName={"Example Team"}
-        immutableFields={["teams"]}
+        teamName={"Example Fleet"}
+        immutableFields={["fleets"]}
       />
     );
 
     expect(
       screen.getByText(
-        "Label teams are immutable. To make changes, delete this label and create a new one."
+        "Label fleets are immutable. To make changes, delete this label and create a new one."
       )
     ).toBeInTheDocument();
   });
 
-  it("should render correct immutable help text for two fields (DynamicLabelForm without team)", () => {
-    const immutableFields = ["queries", "platforms"];
+  it("should render correct immutable help text for two fields (DynamicLabelForm without fleet)", () => {
+    const immutableFields = ["reports", "platforms"];
 
     render(
       <LabelForm
@@ -117,26 +117,26 @@ describe("LabelForm", () => {
 
     expect(
       screen.getByText(
-        "Label queries and platforms are immutable. To make changes, delete this label and create a new one."
+        "Label reports and platforms are immutable. To make changes, delete this label and create a new one."
       )
     ).toBeInTheDocument();
 
     expect(immutableFields.length).toBe(2);
   });
 
-  it("should render correct immutable help text for three fields (DynamicLabelForm with team)", () => {
+  it("should render correct immutable help text for three fields (DynamicLabelForm with fleet)", () => {
     render(
       <LabelForm
         onSave={noop}
         onCancel={noop}
-        teamName={"Example Team"}
-        immutableFields={["teams", "queries", "platforms"]}
+        teamName={"Example Fleet"}
+        immutableFields={["fleets", "reports", "platforms"]}
       />
     );
 
     expect(
       screen.getByText(
-        "Label teams, queries, and platforms are immutable. To make changes, delete this label and create a new one."
+        "Label fleets, reports, and platforms are immutable. To make changes, delete this label and create a new one."
       )
     ).toBeInTheDocument();
   });
