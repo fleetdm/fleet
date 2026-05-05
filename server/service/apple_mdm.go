@@ -4318,8 +4318,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		host, err := svc.ds.GetManagedLocalAccountByPendingCommandUUID(r.Context, cmdResult.CommandUUID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
-				// Hard to say what happened here, most likely a command was superceded by another OR a user
-				// sent this command manually(e.g. via Commands endpoint)
+				// Hard to say what happened here, most likely a command was superseded by another or a user
+				// sent this command manually (e.g. via Commands endpoint)
 				break
 			}
 			return nil, ctxerr.Wrap(r.Context, err, "get managed local account by pending command uuid")
