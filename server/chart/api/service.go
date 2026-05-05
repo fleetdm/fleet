@@ -18,19 +18,13 @@ type Service interface {
 
 	// CollectDatasets runs Collect on registered datasets for the given timestamp.
 	//
-	// scope is a per-dataset scope resolver that the orchestrator supplies to
-	// thread config-awareness through the chart bounded context without
-	// depending on Fleet types here. For each registered dataset, the service
-	// calls scope(name):
+	// `scope` is a function that takes a dataset name and returns two values:
+	// 1. `skip` (bool): Indicates whether the dataset should be skipped entirely.
+	//     If `true`, the service will not call the Collect method for this dataset.
+	// 2. `disabledFleetIDs` ([]uint): A slice of fleet IDs that are disabled for this dataset.
+	//     This is forwarded to the Collect method for each dataset.
 	//
-	//   skip == true                   → service does not call Collect for this
-	//                                    dataset (e.g. global flag is off).
-	//   skip == false, disabledFleetIDs → forwarded to Collect; SQL excludes
-	//                                    those team IDs from the result set.
-	//
-	// scope == nil is equivalent to a resolver that returns (false, nil) for
-	// every name — every registered dataset runs with no fleet filter,
-	// preserving the pre-feature behavior used by tests and bootstrap.
+	// If `scope` is nil, it is treated as a function that returns (false, nil) for every dataset.
 	CollectDatasets(ctx context.Context, now time.Time, scope CollectScopeFn) error
 
 	// CleanupData deletes chart data rows older than the specified number of days.

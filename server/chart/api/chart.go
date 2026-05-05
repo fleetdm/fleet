@@ -53,13 +53,8 @@ type Dataset interface {
 	//
 	// disabledFleetIDs scopes which fleets contribute to this collection. The
 	// orchestrator derives it from per-team config (teams whose Enabled(name)
-	// is false). Implementations SHALL forward it to the underlying
-	// DatasetStore query, which pushes the filter into SQL via
-	//   AND (h.team_id IS NULL OR h.team_id NOT IN (?))
-	// so disabled-fleet hosts are excluded at the database layer.
-	//
-	//   nil / empty  — no scoping; SQL runs unchanged.
-	//   populated    — exclude these team IDs.
+	// is false). Implementations should use this to filter out hosts from
+	// disabled fleets when collecting data.
 	//
 	// No-team hosts (team_id IS NULL) are always included when the orchestrator
 	// invokes Collect — the orchestrator skips Collect entirely if the global
@@ -73,11 +68,6 @@ type Dataset interface {
 // DatasetStore is the narrow interface that datasets need for their Collect
 // method. It is satisfied by the chart internal Datastore, keeping dataset
 // implementations decoupled from internals.
-//
-// The disabledFleetIDs parameter on the host-listing methods scopes results
-// at the SQL layer: when non-empty, the underlying query adds
-//   AND (h.team_id IS NULL OR h.team_id NOT IN (?))
-// nil or zero-length means "no fleet filter" — query runs as it always has.
 type DatasetStore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
 	// given cutoff. Used by datasets like uptime that derive their sample from

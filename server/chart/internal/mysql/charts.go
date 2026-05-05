@@ -67,11 +67,6 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 // FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
 // "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
 // or host details/creation timestamps.
-//
-// disabledFleetIDs scopes results: when non-empty, hosts whose team_id is in
-// the list are excluded. Hosts with no team (team_id IS NULL) are always
-// included — the orchestrator skips Collect entirely when the global flag
-// is off, so reaching this code with disabled-globally is impossible.
 func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
 	query := `
 		SELECT h.id
@@ -157,10 +152,6 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 // (software-level and OS-level vulnerabilities) and merges the results into a
 // single map. Duplicates across sources are harmless — the downstream
 // HostIDsToBlob setBit is idempotent.
-//
-// disabledFleetIDs scopes both subqueries via a hosts join with
-// AND (h.team_id IS NULL OR h.team_id NOT IN (?)). Hosts with no team are
-// always included.
 func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
 	result := make(map[string][]uint)
 
