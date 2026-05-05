@@ -160,8 +160,8 @@ policies:
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
-  # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
-  # - path: ../lib/macos/policies/nudge-installed.yml
+  - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
   - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
@@ -178,7 +178,7 @@ policies:
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
-  # - path: ../lib/windows/policies/1password-installed.yml
+  - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
