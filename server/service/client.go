@@ -527,6 +527,7 @@ const (
 	dryRunAppliedFormat     = "[+] would've applied %s\n"
 	appliedFormat           = "[+] applied %s\n"
 	applyingTeamFormat      = "[+] applying %s for fleet %s\n"
+	appliedTeamFormat       = "[+] applied %s for fleet %s\n"
 	dryRunAppliedTeamFormat = "[+] would've applied %s for fleet %s\n"
 )
 
@@ -1074,10 +1075,10 @@ func (c *Client) ApplyGroup(
 				teamsScripts[tmName] = scriptResponses
 				if opts.DryRun {
 					// We split here on dry-run to capture the number we want to apply
-					logfn(format, numberWithPluralization(len(scripts), "script", "scripts"), tmName)
+					logfn(dryRunAppliedTeamFormat, numberWithPluralization(len(scripts), "script", "scripts"), tmName)
 				} else {
 					// vs. the number that actually got applied and returned by the server
-					logfn(format, numberWithPluralization(len(scriptResponses), "script", "scripts"), tmName)
+					logfn(appliedTeamFormat, numberWithPluralization(len(scriptResponses), "script", "scripts"), tmName)
 				}
 			}
 		}

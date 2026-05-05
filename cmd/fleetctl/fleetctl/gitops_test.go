@@ -7010,5 +7010,5 @@ software:
 	// Real run.
 	logs = RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
 	assert.Contains(t, logs, "[+] applied 1 script\n")
-	assert.Contains(t, logs, fmt.Sprintf("[+] applying 1 script for fleet %s\n", teamName))
+	assert.Contains(t, logs, fmt.Sprintf("[+] applied 1 script for fleet %s\n", teamName))
 }

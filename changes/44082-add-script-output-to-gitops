@@ -1,1 +1,1 @@
-- Added output to GitOps for scripts, indicating how many would or be applied when running.
+- Added output to GitOps for scripts, indicating how many scripts would be applied (dry run) or were applied.
