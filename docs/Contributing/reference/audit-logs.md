@@ -2541,6 +2541,25 @@ This activity contains the following fields:
 }
 ```
 
+## failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
 ## created_label
 
 Generated when creating labels.
