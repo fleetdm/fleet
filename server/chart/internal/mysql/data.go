@@ -25,6 +25,18 @@ const scdUpsertBatch = 200
 // var (not const) so tests can shrink it to exercise multi-batch behavior.
 var scdCleanupBatch = 1000
 
+// scdScrubWriteByteBudget targets the maximum payload size of one CASE/WHEN
+// UPDATE statement emitted by ApplyScrubMaskToDataset. Bitmaps are sized in
+// bytes, so the per-statement row count derives from this budget divided by
+// the mask length. Sized well under MySQL's default max_allowed_packet
+// (16-64 MB) to keep replication binlog events small.
+const scdScrubWriteByteBudget = 2_000_000
+
+// scdScrubWriteBatchCap bounds the row count per CASE/WHEN UPDATE statement
+// regardless of mask size, capping parser/optimizer cost. var (not const) so
+// tests can shrink it to exercise multi-batch behavior.
+var scdScrubWriteBatchCap = 200
+
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
 	EntityID   string    `db:"entity_id"`
@@ -448,13 +460,19 @@ func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]ui
 
 // ApplyScrubMaskToDataset pages through host_scd_data rows for the given
 // dataset in id-order, applies BlobANDNOT(host_bitmap, mask) to each, and
-// writes the result back. Each page is its own transaction; the loop bounds
-// lock duration. Idempotent: re-running with the same mask is a no-op for
-// already-scrubbed rows.
+// writes the result back. Idempotent: re-running with the same mask is a
+// no-op for already-scrubbed rows.
 //
 // An empty mask is a no-op (ANDNOT with empty leaves the bitmap unchanged).
 // The walk happens once for the dataset regardless of how many fleets the
 // mask was built from.
+//
+// Two efficiency mechanics keep this cheap on large datasets:
+//   - Rows the mask doesn't touch (BlobANDNOT returns the same bytes) are
+//     skipped — for sparse fleet-scoped masks, most rows generate no UPDATE.
+//   - Surviving updates are flushed in chunked CASE/WHEN UPDATE statements
+//     so a read-page of N rows costs O(N / writeBatch) round trips instead
+//     of O(N).
 func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
 	if batchSize <= 0 {
 		batchSize = 5000
@@ -464,13 +482,26 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		return nil
 	}
 
+	// Size each CASE/WHEN UPDATE so its payload (~writeBatch * len(mask) bytes
+	// of new bitmap data) stays under scdScrubWriteByteBudget. Bounded above
+	// by scdScrubWriteBatchCap to keep parser cost predictable.
+	writeBatch := min(max(scdScrubWriteByteBudget/len(mask), 1), scdScrubWriteBatchCap)
+
 	type row struct {
 		ID         uint   `db:"id"`
 		HostBitmap []byte `db:"host_bitmap"`
 	}
+	type pendingRow struct {
+		id       uint
+		scrubbed []byte
+	}
 
 	var lastID uint
 	for {
+		if err := ctx.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "scrub dataset")
+		}
+
 		var rows []row
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
 			`SELECT id, host_bitmap FROM host_scd_data
@@ -483,14 +514,40 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			return nil
 		}
 
+		// Compute scrubbed bitmaps in Go; rows the mask doesn't touch
+		// produce no UPDATE.
+		pending := make([]pendingRow, 0, len(rows))
 		for _, r := range rows {
 			scrubbed := chart.BlobANDNOT(r.HostBitmap, mask)
-			if _, err := ds.writer(ctx).ExecContext(ctx,
-				`UPDATE host_scd_data SET host_bitmap = ? WHERE id = ?`,
-				scrubbed, r.ID); err != nil {
-				return ctxerr.Wrap(ctx, err, "scrub row")
+			if !bytes.Equal(scrubbed, r.HostBitmap) {
+				pending = append(pending, pendingRow{id: r.ID, scrubbed: scrubbed})
 			}
 			lastID = r.ID
+		}
+
+		for i := 0; i < len(pending); i += writeBatch {
+			end := min(i+writeBatch, len(pending))
+			chunk := pending[i:end]
+
+			caseClauses := make([]string, 0, len(chunk))
+			inPlaceholders := make([]string, 0, len(chunk))
+			args := make([]any, 0, len(chunk)*3)
+			for _, p := range chunk {
+				caseClauses = append(caseClauses, "WHEN ? THEN ?")
+				args = append(args, p.id, p.scrubbed)
+			}
+			for _, p := range chunk {
+				inPlaceholders = append(inPlaceholders, "?")
+				args = append(args, p.id)
+			}
+			// Concatenating hardcoded "WHEN ? THEN ?" / "?" placeholders, not user input.
+			stmt := `UPDATE host_scd_data SET host_bitmap = CASE id ` + //nolint:gosec // G202
+				strings.Join(caseClauses, " ") +
+				` END WHERE id IN (` +
+				strings.Join(inPlaceholders, ", ") + `)`
+			if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "scrub batch")
+			}
 		}
 	}
 }

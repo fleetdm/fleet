@@ -278,29 +278,76 @@ Per-fleet handler (`chart_scrub_dataset_fleet`):
    - if empty (every listed fleet was deleted, or all hosts moved out)
      → log no-op, mark complete.
 2. mask = HostIDsToBlob(hostIDs)   ← single mask covering union of fleets
-3. lastID = 0
+3. writeBatch = clamp(2_000_000 / max(len(mask), 1), 1, 200)
+                ← target ~2 MB per UPDATE; cap at 200 rows to bound
+                  parser/optimizer cost. Computed once per job.
+4. lastID = 0
    loop:
      rows = SELECT id, host_bitmap FROM host_scd_data
             WHERE dataset = ? AND id > lastID
             ORDER BY id LIMIT 5000
      if len(rows) == 0: break
+
+     // Compute new bitmaps in Go; drop rows the mask doesn't touch.
+     pending = []  // (id, newBitmap)
      for r in rows:
        new = BlobANDNOT(r.host_bitmap, mask)
-       UPDATE host_scd_data SET host_bitmap = ? WHERE id = ?
+       if !bytes.Equal(new, r.host_bitmap):
+         pending.append((r.id, new))
        lastID = r.id
+
+     // Flush pending in writeBatch-sized CASE/WHEN UPDATEs.
+     for chunk in chunks(pending, writeBatch):
+       UPDATE host_scd_data
+       SET host_bitmap = CASE id
+           WHEN ? THEN ?
+           WHEN ? THEN ?
+           ...
+       END
+       WHERE id IN (?, ?, ...)
 ```
+
+Two efficiency mechanics:
+
+- **Skip no-op rows.** `BlobANDNOT(bitmap, mask)` returns the same
+  bytes whenever the row contains no masked bits. For typical
+  fleet-disable scrubs (one fleet, sparse mask), the majority of
+  rows are unaffected — those rows generate no UPDATE at all. The
+  win scales inversely with mask density.
+- **Chunked CASE/WHEN UPDATEs.** Each affected row no longer costs
+  one round trip; instead, up to `writeBatch` rows are written per
+  statement. For a read-page of 5000 rows that all need updates and
+  a 200-row write batch, that's 25 statements per page instead of
+  5000. The IN-list is the same set of ids the CASE enumerates, so
+  the planner uses the primary-key index for the row locks.
 
 `fleet_ids` is always a slice in the payload: a single PATCH produces
 `[fleet_id]` (length 1), a GitOps batch produces `[5, 7, 11]`. Same
 handler. The single `IN` query and single mask mean the row walk
 runs once for the dataset regardless of cardinality.
 
-Batch size (5000) is a starting estimate; tunable via constant.
+Read batch size (5000) and write batch cap (200) are starting
+estimates; both tunable via package vars so tests can shrink them to
+exercise multi-batch paths. The 2 MB per-statement target is a soft
+ceiling well under MySQL's default 16–64 MB `max_allowed_packet`,
+chosen to keep replication binlog events small.
 
 Considered: a single statement using MySQL's `BIT_AND` over BLOB —
 not portable; MySQL's bit operators don't operate on BLOB element-
 wise. Pulling rows into Go and writing back is the only practical
 option.
+
+Considered: row-by-row UPDATE keyed by id. Simpler code, but a 5000-
+row read-page costs 5000 round trips; for a multi-million-row scrub
+the network cost dominates the actual write. Rejected for
+inefficiency now that we have to walk a unified table for every
+dataset.
+
+Considered: temp-table join (`UPDATE...JOIN tmp ON id`). Round trips
+drop further (~2 per page), but you still ship every new bitmap over
+the wire and now own DDL/cleanup for the temp table. Marginal
+improvement over chunked CASE/WHEN at much higher complexity.
+Rejected.
 
 Considered: closing rows instead of mutating bitmaps. Mutating is
 simpler (no schema change to support an "open" close marker for
@@ -311,18 +358,52 @@ already-closed rows), and the row's identity is stable.
 Once the disable commit lands, the cron stops writing the disabled
 scope's bits — period. New rows / OR-merges into existing rows
 contain only allowed-scope bits. So the scrub only needs to clean up
-pre-disable state.
+pre-disable state, and **no masked-scope (X) bit can ever be
+re-introduced after the commit.** That invariant is what makes
+lock-free coexistence possible.
 
-Concurrent scrub + cron on the same row converges:
+Convergence on X bits:
 
-- **Accumulate (uptime).** Scrub sets `bitmap = bitmap &^ mask`.
-  Cron's ODKU-OR sets `bitmap = bitmap | new_no_X`. Either order, the
-  final state has no X bits. InnoDB row-locks each statement so
-  read-modify-write doesn't tear at the byte level.
-- **Snapshot (cve).** Cron observes the open row's bitmap differs
-  from the new (no-X) state, closes the open row, opens a new one
-  without X. Scrub processes the now-closed row and ANDNOTs it. The
-  new open row never had X bits.
+- **Accumulate (uptime).** The cron only ORs in non-X bits; the
+  scrub clears X bits. Whatever interleaving occurs, the final
+  bitmap contains no X bits.
+- **Snapshot (cve).** Cron closes an existing open row by setting
+  `valid_to` and inserts a fresh open row whose bitmap is built
+  without X. It does not mutate the `host_bitmap` column of any
+  existing row. The scrub mutates `host_bitmap` of rows the cron is
+  not concurrently rewriting. No interaction.
+
+Residual race on **allowed-scope** bits (accumulate only):
+
+The scrub is read-modify-write in Go (`SELECT bitmap` → compute
+`bitmap &^ mask` → `UPDATE bitmap = computed`), not a single atomic
+SQL `UPDATE bitmap = bitmap &^ mask` — MySQL doesn't have BLOB-wise
+bitwise operators, so we can't push the ANDNOT down. That means an
+ODKU-OR by the cron between the scrub's SELECT and UPDATE is
+clobbered:
+
+```
+T1 scrub: SELECT bitmap = B
+T2 cron:  ODKU       bitmap = B | newAllowed   (allowed-scope bits)
+T1 scrub: UPDATE     bitmap = B &^ mask        ← drops newAllowed
+```
+
+The lost bits are *allowed-scope* bits cron just collected, not
+masked-scope bits (those can't be written post-commit). For
+accumulate datasets, the cron OR-merges the same bucket on every
+subsequent tick within the bucket's lifetime, so the lost bits are
+re-OR'd back in on the next tick. The only durably-lost case is the
+race landing on the *final* tick of the bucket's lifetime — narrow
+window, single-bucket impact, single-host-per-row granularity.
+
+Snapshot datasets don't experience this race because the cron's
+write path doesn't UPDATE `host_bitmap` of existing rows.
+
+Trade-off accepted. Mitigation if real-world impact materializes:
+wrap the per-row read-modify-write in an explicit transaction with
+`SELECT ... FOR UPDATE`, or add a `version` column for optimistic
+concurrency with retry. Both add lock scope or schema work for what
+is presently a theoretical loss; deferred until/unless observed.
 
 The `valid_from < startTime` partition I considered earlier turns
 out to be unnecessary given the commit-before-enqueue invariant.

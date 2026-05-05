@@ -122,10 +122,10 @@ so disabled-fleet rows are never read or transferred.
 
 ### Requirement: Disable-flip enqueues an asynchronous scrub
 
-When `features.historical_data.<sub-key>` transitions from `true` to
-`false` — globally via `ModifyAppConfig` or per-fleet via
-`ModifyTeam` or via either GitOps apply path — the service layer
-SHALL enqueue a scrub job in Fleet's `jobs` table after the
+The service layer SHALL enqueue a scrub job in Fleet's `jobs` table
+whenever `features.historical_data.<sub-key>` transitions from
+`true` to `false` — globally via `ModifyAppConfig`, per-fleet via
+`ModifyTeam`, or via either GitOps apply path — after the
 corresponding config commit completes successfully.
 
 Jobs MUST be enqueued AFTER the relevant `SaveAppConfig` /
