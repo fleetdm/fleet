@@ -8396,13 +8396,22 @@ var appleHostRefsForMDMReset = []string{
 
 func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var hostID uint
-		if err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE uuid = ?`, hostUUID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with uuid %s", hostUUID)), "get host for mdm reset")
-			}
-			return ctxerr.Wrap(ctx, err, "get host for mdm reset", "host_uuid", hostUUID)
+		var hostIds []uint
+		err := sqlx.SelectContext(
+			ctx, tx, &hostIds,
+			`SELECT id FROM hosts WHERE uuid = ?`, hostUUID,
+		)
+		switch {
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "resetting mdm enrollment: getting host info from UUID")
+		case len(hostIds) == 0:
+			return ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID), "resetting mdm enrollment: getting host info from UUID")
+		case len(hostIds) > 1:
+			// This shouldn't happen, but if it does, we log the IDs of the hosts
+			// with the same UUID for debugging purposes.
+			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIds), "processed_host_id", hostIds[0])
 		}
+		hostID := hostIds[0]
 
 		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "cancel upcoming activities for mdm reset", "host_uuid", hostUUID)
