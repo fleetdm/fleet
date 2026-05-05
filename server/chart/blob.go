@@ -75,8 +75,10 @@ func BlobANDNOT(a, mask []byte) []byte {
 	}
 	out := make([]byte, len(a))
 	n := min(len(a), len(mask))
-	for i := 0; i < n; i++ {
-		out[i] = a[i] &^ mask[i]
+	ab := a[:n]
+	mb := mask[:n]
+	for i := range n {
+		out[i] = ab[i] &^ mb[i] //nolint:gosec // ab and mb are bounded to n via slicing above
 	}
 	if n < len(a) {
 		copy(out[n:], a[n:])
