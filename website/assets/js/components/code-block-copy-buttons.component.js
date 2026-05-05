@@ -19,7 +19,7 @@ parasails.registerComponent('code-block-copy-buttons', {
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   mounted: async function(){
     // Only add copy buttons if the clipboard method is available.
-    if(typeof navigator.clipboard !== undefined){
+    if(typeof navigator.clipboard !== 'undefined'){
       // Prepend all <pre> elements with a code-block-copy-button elment, and add the position-relative bootstrap class.
       $('pre')
       .prepend('<div purpose="code-block-copy-button"></div>')
