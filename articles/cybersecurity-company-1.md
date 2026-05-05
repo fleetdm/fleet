@@ -7,12 +7,9 @@ Before Fleet, Linux systems were difficult to manage and lacked the reporting an
 ## At a glance
 
 * **Industry:** Cybersecurity and security awareness training
-
-* **Devices managed:** Cross-platform fleet, including 30-40 Linux hosts
-
-* **Primary requirements:** Linux management, certificate automation, osquery visibility
-
-* **Previous challenge:** Legacy Linux management tools were difficult to use and lacked support
+- **Devices managed:** Cross-platform fleet, including 30-40 Linux hosts
+- **Primary requirements:** Linux management, real-time visibility, cross-platform consolidation
+- **Previous challenge:** Legacy Linux management tools were difficult to use and lacked support
 
 ## The challenge
 
@@ -26,22 +23,17 @@ The team needed a better way to manage Linux while reducing reliance on separate
 
 The team focused on three priorities:
 
-1. **Linux management**  
-    Improve reporting, automation, and control for Linux hosts.
-
-2. **Certificate lifecycle automation**  
-    Automate TPM certificate renewals.
-
-3. **osquery integration**  
-    Collect detailed device data for custom reporting and security workflows.
+1. **Linux management** — Improve reporting, automation, and control across Linux hosts.
+2. **osquery integration** — Collect detailed device data for custom reporting and security workflows.
+3. **Cross-platform consolidation** — Bring Linux management into the same platform used for macOS, Windows, and other endpoints.
 
 ## The solution
 
 Fleet gave the team a stronger foundation for Linux management while supporting its broader cross-platform strategy.
 
-The company self-hosted Fleet on AWS using Terraform, which gave the team direct control over infrastructure and updates. Fleet also made it easier to automate Linux workflows, including script execution and certificate renewal processes.
+The company self-hosts Fleet on AWS using Terraform, which gives the team direct control over infrastructure and updates. Fleet also makes it easier to automate routine Linux work through script execution and remote remediation, helping the team move from manual Linux operations toward repeatable, automated processes.
 
-The open-source model and direct access to Fleet engineers through Slack also increased confidence in the platform
+The open-source model and direct access to Fleet engineers through Slack increased the team's confidence in the platform and gave them a clear path for raising issues and influencing the roadmap.
 
 ## The results
 
