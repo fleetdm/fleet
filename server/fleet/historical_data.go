@@ -2,7 +2,8 @@ package fleet
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 )
 
 // HistoricalDataActivityEmitter is the narrow interface needed by
@@ -51,7 +52,7 @@ func OnHistoricalDataChanged(
 			}
 		}
 		if err := emitter.NewActivity(ctx, user, act); err != nil {
-			return fmt.Errorf("create activity %s: %w", act.ActivityName(), err)
+			return ctxerr.Wrap(ctx, err, "create activity "+act.ActivityName())
 		}
 	}
 	return nil
