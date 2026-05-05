@@ -205,11 +205,6 @@ reports:
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/1password.yml # 1Password for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
