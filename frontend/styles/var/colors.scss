@@ -97,6 +97,10 @@
   --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
   --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
   --loading-overlay: rgba(255, 255, 255, 0.8);
+
+  // Dropdown menu outline — transparent in light mode (drop-shadow alone is
+  // enough); a 1px gray ring in dark mode where the shadow disappears.
+  --dropdown-menu-outline: transparent;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +199,8 @@ body.dark-mode {
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
   --loading-overlay: rgba(24, 26, 31, 0.8);
+
+  --dropdown-menu-outline: var(--ui-fleet-black-10);
 }
 
 // =============================================================================
