@@ -356,6 +356,13 @@ func TestFeaturesApplyDefaults(t *testing.T) {
 	})
 }
 
+func TestAppConfigApplyDefaultsForNewInstalls(t *testing.T) {
+	var c AppConfig
+	c.ApplyDefaultsForNewInstalls()
+	require.NotNil(t, c.SSOSettings)
+	require.True(t, c.SSOSettings.EnableJITProvisioning)
+}
+
 func TestHistoricalDataSettingsEnabled(t *testing.T) {
 	t.Run("uptime dataset returns Uptime field", func(t *testing.T) {
 		h := HistoricalDataSettings{Uptime: true, Vulnerabilities: false}
