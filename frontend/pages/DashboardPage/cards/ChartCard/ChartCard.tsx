@@ -44,9 +44,11 @@ const DATASETS: IDataSet[] = [
     defaultChartType: "checkerboard",
     description: (
       <>
-        Shows the number of hosts detected online
+        The number of hosts detected online during a given hour.
         <br />
-        during a given hour.
+        A host is considered online if it&rsquo;s actively checking in to Fleet.
+        <br />
+        This includes sleeping hosts (e.g. lid closed).{" "}
       </>
     ),
     tooltipFormatter: ({ value }: { value: number }) =>
