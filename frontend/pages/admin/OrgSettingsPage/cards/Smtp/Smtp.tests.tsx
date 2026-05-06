@@ -13,22 +13,7 @@ describe("Smtp", () => {
     jest.clearAllMocks();
   });
 
-  it("renders an always-visible STARTTLS hint under the SSL/TLS checkbox", () => {
-    const mockConfig = createMockConfig();
-
-    renderWithSetup(
-      <Smtp
-        appConfig={mockConfig}
-        handleSubmit={mockHandleSubmit}
-        isUpdatingSettings={false}
-        router={createMockRouter()}
-      />
-    );
-
-    expect(screen.getByText(/first turn off STARTTLS in/i)).toBeInTheDocument();
-  });
-
-  it("renders the longer STARTTLS guidance on hover of the SSL/TLS checkbox label", async () => {
+  it("renders the STARTTLS guidance on hover of the SSL/TLS checkbox label", async () => {
     const mockConfig = createMockConfig();
 
     const { user } = renderWithSetup(
