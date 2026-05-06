@@ -2421,7 +2421,7 @@ func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
 	noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
 
 	var logMessages []string
-	captureLogf := func(format string, a ...interface{}) {
+	captureLogf := func(format string, a ...any) {
 		logMessages = append(logMessages, fmt.Sprintf(format, a...))
 	}
 
