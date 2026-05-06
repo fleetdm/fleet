@@ -1027,9 +1027,10 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 		anchor vppAddAnchor
 	}
 
-	// Anchoring is per (adam_id, platform), so resolve anchors per platform
-	// rather than per adamID — different platforms of the same app can have
-	// diverged anchor histories.
+	// Anchoring is per (adam_id, platform); different platforms of the same
+	// app can have diverged anchor histories. reAnchors is populated only
+	// when the corresponding row makes it into apps below, so the country
+	// update never runs for a row whose metadata fetch was skipped.
 	byKey := make(map[appKey]*perKey)
 	var reAnchors []vppReAnchor
 
@@ -1043,9 +1044,6 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 			return nil, nil, ctxerr.Wrap(ctx, err, "resolving anchor for batch vpp add")
 		}
 		byKey[key] = &perKey{props: id, anchor: anchor}
-		if anchor.reAnchor {
-			reAnchors = append(reAnchors, vppReAnchor{AdamID: id.AdamID, Platform: id.Platform, CountryCode: anchor.anchorCountry})
-		}
 	}
 
 	// Bundle adamIDs by (region, secret). Same adamID may appear in multiple
@@ -1126,6 +1124,13 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 			LatestVersion:    retrieved.LatestVersion,
 			CountryCode:      e.anchor.anchorCountry,
 		})
+		if e.anchor.reAnchor {
+			reAnchors = append(reAnchors, vppReAnchor{
+				AdamID:      k.adamID,
+				Platform:    k.platform,
+				CountryCode: e.anchor.anchorCountry,
+			})
+		}
 	}
 
 	return apps, reAnchors, nil

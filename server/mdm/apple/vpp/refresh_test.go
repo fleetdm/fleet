@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -83,22 +84,25 @@ func (f *fakeMetadataServer) handleMetadata(w http.ResponseWriter, r *http.Reque
 		if version == "" {
 			version = "1.0"
 		}
+		// Non-empty Artwork URL so apple_apps derives a non-empty
+		// IconURL; otherwise the refresh path's empty-metadata guard
+		// skips the row.
+		artwork := apple_apps.ArtData{
+			TemplateURL: "https://example.test/icon/" + region + "/" + id + ".png",
+		}
+		platformPayload := platformData{
+			BundleID:         "com.example." + id,
+			Artwork:          artwork,
+			LatestVersionRaw: map[string]string{"versionDisplay": version},
+		}
 		out.Data = append(out.Data, meta{
 			ID: id,
 			Attributes: attrs{
 				Name:           name,
-				DeviceFamilies: []string{"mac"},
+				DeviceFamilies: []string{"mac", "iphone", "ipad"},
 				Platforms: map[string]platformData{
-					"osx": {
-						BundleID: "com.example." + id,
-						// Non-empty Artwork URL so apple_apps derives a
-						// non-empty IconURL; otherwise the refresh path's
-						// empty-metadata guard skips the row.
-						Artwork: apple_apps.ArtData{
-							TemplateURL: "https://example.test/icon/" + region + "/" + id + ".png",
-						},
-						LatestVersionRaw: map[string]string{"versionDisplay": version},
-					},
+					"osx": platformPayload,
+					"ios": platformPayload,
 				},
 			},
 		})
@@ -406,6 +410,141 @@ func TestRefreshVersionsAnchoredErrorBlocksFallback(t *testing.T) {
 	// (errored) nor DE (suppressed by anchoredErrored).
 	require.Empty(t, fake.calls, "expected no metadata fetch when anchored-country lookup errored")
 	require.Empty(t, reanchored, "must not re-anchor across countries when anchored lookup errored")
+}
+
+// TestRefreshVersionsDivergentPerPlatformAnchors guards against an adamID
+// with two platform rows anchored to different storefronts being collapsed
+// to a single anchor. Each row must be served from its own anchored
+// storefront and neither row's country may be rewritten.
+func TestRefreshVersionsDivergentPerPlatformAnchors(t *testing.T) {
+	metaSrv, vppSrv, fake := newFakeServers(t)
+	cfg := makeRegionConfig(metaSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	// adamID 100 has macOS anchored to "us" and iOS anchored to "de". Each
+	// storefront's token owns the app via GetAssets.
+	fake.versions = map[string]string{"100": "10.0"}
+	fake.apps = map[string]map[string]string{
+		"us": {"100": "Todoist US"},
+		"de": {"100": "Todoist DE"},
+	}
+	fake.owned = map[string][]string{
+		"us-token-secret": {"100"},
+		"de-token-secret": {"100"},
+	}
+
+	apps := []*fleet.VPPApp{
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}},
+			Name:          "Todoist US (old)",
+			LatestVersion: "0.1",
+			IconURL:       "us-icon",
+			CountryCode:   "us",
+		},
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.IOSPlatform}},
+			Name:          "Todoist DE (old)",
+			LatestVersion: "0.1",
+			IconURL:       "de-icon",
+			CountryCode:   "de",
+		},
+	}
+	tokens := []*fleet.VPPTokenDB{
+		{ID: 1, OrgName: "us-org", CountryCode: "us", Token: "us-token-secret"},
+		{ID: 2, OrgName: "de-org", CountryCode: "de", Token: "de-token-secret"},
+	}
+
+	ds := &mock.DataStore{}
+	ds.GetAllVPPAppsFunc = func(ctx context.Context) ([]*fleet.VPPApp, error) { return apps, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	var reanchored []string
+	ds.UpdateVPPAppCountryCodeFunc = func(ctx context.Context, adamID string, p fleet.InstallableDevicePlatform, country string) error {
+		reanchored = append(reanchored, fmt.Sprintf("%s/%s->%s", adamID, p, country))
+		return nil
+	}
+	var inserted []*fleet.VPPApp
+	ds.InsertVPPAppsFunc = func(ctx context.Context, in []*fleet.VPPApp) error {
+		inserted = append(inserted, in...)
+		return nil
+	}
+
+	require.NoError(t, RefreshVersions(t.Context(), ds, cfg))
+
+	require.Empty(t, reanchored, "stored country must not be rewritten when each row has its own anchored token")
+
+	require.Len(t, fake.calls, 2, "expected one metadata call per anchored country")
+	regions := map[string]metadataCall{}
+	for _, c := range fake.calls {
+		regions[c.region] = c
+	}
+	require.Contains(t, regions, "us")
+	require.Contains(t, regions, "de")
+	require.Equal(t, "us-token-secret", regions["us"].token)
+	require.Equal(t, "de-token-secret", regions["de"].token)
+
+	// Both rows should have been updated with their own storefront's name.
+	byPlatform := map[fleet.InstallableDevicePlatform]*fleet.VPPApp{}
+	for _, a := range inserted {
+		byPlatform[a.Platform] = a
+	}
+	mac := byPlatform[fleet.MacOSPlatform]
+	ios := byPlatform[fleet.IOSPlatform]
+	require.NotNil(t, mac, "macOS row missing from inserted")
+	require.NotNil(t, ios, "iOS row missing from inserted")
+	require.Equal(t, "Todoist US", mac.Name)
+	require.Equal(t, "Todoist DE", ios.Name)
+}
+
+// TestRefreshVersionsPartialFallbackOnlyTouchesPickedRow guards against a
+// fallback re-anchor for one platform spilling onto a sibling platform of
+// the same adamID that still has its own owning token.
+func TestRefreshVersionsPartialFallbackOnlyTouchesPickedRow(t *testing.T) {
+	metaSrv, vppSrv, fake := newFakeServers(t)
+	cfg := makeRegionConfig(metaSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	// macOS row anchored to "us" with a US token still in Fleet.
+	// iOS row anchored to "de" but the DE token has been deleted; the US
+	// token also owns the app, so iOS falls back and re-anchors to "us".
+	// macOS must NOT be re-anchored.
+	fake.versions = map[string]string{"100": "10.0"}
+	fake.apps = map[string]map[string]string{"us": {"100": "Todoist US"}}
+	fake.owned = map[string][]string{"us-token-secret": {"100"}}
+
+	apps := []*fleet.VPPApp{
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}},
+			Name:          "Todoist US (old)",
+			LatestVersion: "0.1",
+			IconURL:       "us-icon",
+			CountryCode:   "us",
+		},
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.IOSPlatform}},
+			Name:          "Todoist DE (old)",
+			LatestVersion: "0.1",
+			IconURL:       "de-icon",
+			CountryCode:   "de",
+		},
+	}
+	tokens := []*fleet.VPPTokenDB{
+		{ID: 1, OrgName: "us-org", CountryCode: "us", Token: "us-token-secret"},
+	}
+
+	ds := &mock.DataStore{}
+	ds.GetAllVPPAppsFunc = func(ctx context.Context) ([]*fleet.VPPApp, error) { return apps, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	var reanchored []string
+	ds.UpdateVPPAppCountryCodeFunc = func(ctx context.Context, adamID string, p fleet.InstallableDevicePlatform, country string) error {
+		reanchored = append(reanchored, fmt.Sprintf("%s/%s->%s", adamID, p, country))
+		return nil
+	}
+	ds.InsertVPPAppsFunc = func(ctx context.Context, in []*fleet.VPPApp) error { return nil }
+
+	require.NoError(t, RefreshVersions(t.Context(), ds, cfg))
+
+	require.Equal(t, []string{fmt.Sprintf("100/%s->us", fleet.IOSPlatform)}, reanchored,
+		"only the iOS row should be re-anchored; macOS row keeps its own anchor")
 }
 
 func TestRefreshVersionsSkipsAppsWithEmptyCountryCode(t *testing.T) {
