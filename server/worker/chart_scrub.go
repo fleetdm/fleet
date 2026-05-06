@@ -23,9 +23,8 @@ type ChartScrubGlobalArgs struct {
 }
 
 // ChartScrubFleetArgs is the payload for chart_scrub_dataset_fleet jobs.
-// FleetIDs is always populated with at least one entry — the enqueue side
-// coalesces all per-team disable flips for a dataset within a single API
-// call into one job.
+// FleetIDs is always populated with at least one entry; today, enqueue
+// creates one job per team flip — coalescing across teams is a future optimization.
 type ChartScrubFleetArgs struct {
 	Dataset  string `json:"dataset"`
 	FleetIDs []uint `json:"fleet_ids"`
