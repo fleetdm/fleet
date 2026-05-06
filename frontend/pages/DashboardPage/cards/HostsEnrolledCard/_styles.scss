@@ -7,11 +7,9 @@
   }
 
   // The bar chart's plot height is set inline to match the checkerboard's
-  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx). The
-  // min-height + centering mirrors .chart-card__chart-container so the bar
-  // chart sits in the same vertical band as the checkerboard cells.
+  // cell-grid height (see CHART_HEIGHT_* in HostsEnrolledCard.tsx).
   &__chart-container {
-    min-height: 280px;
+    min-height: 250px;
     display: flex;
     align-items: center;
     justify-content: center;
