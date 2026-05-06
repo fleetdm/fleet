@@ -7,6 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDown_20260506003827(t *testing.T) {
+	require.NoError(t, Down_20260506003827(nil))
+}
+
 func TestUp_20260506003827(t *testing.T) {
 	db := applyUpToPrev(t)
 
