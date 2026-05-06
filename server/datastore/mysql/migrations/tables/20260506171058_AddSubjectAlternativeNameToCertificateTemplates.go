@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260504193725, Down_20260504193725)
+	MigrationClient.AddMigration(Up_20260506171058, Down_20260506171058)
 }
 
-func Up_20260504193725(tx *sql.Tx) error {
+func Up_20260506171058(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		ALTER TABLE certificate_templates
 		ADD COLUMN subject_alternative_name TEXT
@@ -21,6 +21,6 @@ func Up_20260504193725(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260504193725(tx *sql.Tx) error {
+func Down_20260506171058(tx *sql.Tx) error {
 	return nil
 }
