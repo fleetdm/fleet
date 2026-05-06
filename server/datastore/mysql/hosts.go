@@ -34,6 +34,9 @@ var (
 	hostIssuesInsertBatchSize                = 10000
 	hostIssuesUpdateFailingPoliciesBatchSize = 10000
 	hostsDeleteBatchSize                     = 5000
+	// Cap automatic host expiry cleanup per cron run so large churn/backlog events
+	// are drained across runs instead of all at once.
+	expiredHostsCleanupBatchSize = 5000
 )
 
 var (
@@ -3679,14 +3682,24 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	}
 
 	var teamsUsingGlobalExpiry []uint
-	teamsUsingCustomExpiry := map[uint]int{}
+	type teamExpiry struct {
+		id     uint
+		window int
+	}
+	var teamsUsingCustomExpiry []teamExpiry
 	for _, team := range teams {
 		if !team.Config.HostExpirySettings.HostExpiryEnabled {
 			teamsUsingGlobalExpiry = append(teamsUsingGlobalExpiry, team.ID)
 		} else {
-			teamsUsingCustomExpiry[team.ID] = team.Config.HostExpirySettings.HostExpiryWindow
+			teamsUsingCustomExpiry = append(teamsUsingCustomExpiry, teamExpiry{
+				id:     team.ID,
+				window: team.Config.HostExpirySettings.HostExpiryWindow,
+			})
 		}
 	}
+	sort.Slice(teamsUsingCustomExpiry, func(i, j int) bool {
+		return teamsUsingCustomExpiry[i].id < teamsUsingCustomExpiry[j].id
+	})
 
 	// Usual clean up queries used to be like this:
 	// DELETE FROM hosts WHERE id in (SELECT host_id FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY))
@@ -3706,61 +3719,64 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 	//
 	// To avoid prematurely deleting hosts that are ingested from Apple DEP, we cross-reference the
 	// host_dep_assignments table.
-	findHostsSql := `SELECT h.id FROM hosts h
+	hostLastSeenSQL := `COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at)`
+	findHostsSql := `SELECT h.id, ? AS expiry_window, ` + hostLastSeenSQL + ` AS last_seen_at FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
 		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
-		WHERE COALESCE(GREATEST(COALESCE(hst.seen_time, ne.last_seen_at), COALESCE(ne.last_seen_at, hst.seen_time)), NULLIF(h.detail_updated_at, '` + server.NeverTimestamp + `'), h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)
+		WHERE ` + hostLastSeenSQL + ` < DATE_SUB(NOW(), INTERVAL ? DAY)
 			AND (hda.host_id IS NULL OR hda.deleted_at IS NOT NULL)`
 
-	var allIdsToDelete []uint
-	hostIDToExpiryWindow := make(map[uint]int)
+	if expiredHostsCleanupBatchSize <= 0 {
+		return nil, nil
+	}
+
+	var candidateQueries []string
+	var candidateArgs []interface{}
 	// Process hosts using global expiry
 	if ac.HostExpirySettings.HostExpiryEnabled {
-		sqlQuery := findHostsSql + " AND (team_id IS NULL"
-		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
+		sqlQuery := findHostsSql + " AND (h.team_id IS NULL"
+		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow, ac.HostExpirySettings.HostExpiryWindow}
 		if len(teamsUsingGlobalExpiry) > 0 {
-			sqlQuery += " OR team_id IN (?)"
-			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
+			sqlQuery += " OR h.team_id IN (?)"
+			args = append(args, teamsUsingGlobalExpiry)
+			sqlQuery, args, err = sqlx.In(sqlQuery, args...)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
 			}
 		}
 		sqlQuery += ")"
-		var globalIDs []uint
-		err = ds.writer(ctx).SelectContext(
-			ctx,
-			&globalIDs,
-			sqlQuery,
-			args...,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
-		}
-		for _, id := range globalIDs {
-			hostIDToExpiryWindow[id] = ac.HostExpirySettings.HostExpiryWindow
-		}
-		allIdsToDelete = append(allIdsToDelete, globalIDs...)
+		candidateQueries = append(candidateQueries, sqlQuery)
+		candidateArgs = append(candidateArgs, args...)
 	}
 
 	// Process hosts using team expiry
-	for teamId, expiry := range teamsUsingCustomExpiry {
-		var ids []uint
-		sqlQuery := findHostsSql + " AND team_id = ?"
-		args := []interface{}{expiry, teamId}
-		err = ds.writer(ctx).SelectContext(
-			ctx,
-			&ids,
-			sqlQuery,
-			args...,
-		)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting team expired hosts")
-		}
-		for _, id := range ids {
-			hostIDToExpiryWindow[id] = expiry
-		}
-		allIdsToDelete = append(allIdsToDelete, ids...)
+	for _, team := range teamsUsingCustomExpiry {
+		sqlQuery := findHostsSql + " AND h.team_id = ?"
+		candidateQueries = append(candidateQueries, sqlQuery)
+		candidateArgs = append(candidateArgs, team.window, team.window, team.id)
+	}
+
+	if len(candidateQueries) == 0 {
+		return nil, nil
+	}
+
+	type expiredHostCandidate struct {
+		ID           uint `db:"id"`
+		ExpiryWindow int  `db:"expiry_window"`
+	}
+	var expiredHosts []expiredHostCandidate
+	expiredHostsQuery := `SELECT id, expiry_window FROM (` + strings.Join(candidateQueries, " UNION ALL ") + `) expired_hosts ORDER BY last_seen_at ASC, id ASC LIMIT ?`
+	candidateArgs = append(candidateArgs, expiredHostsCleanupBatchSize)
+	if err := ds.writer(ctx).SelectContext(ctx, &expiredHosts, expiredHostsQuery, candidateArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting expired hosts")
+	}
+
+	allIdsToDelete := make([]uint, 0, len(expiredHosts))
+	hostIDToExpiryWindow := make(map[uint]int, len(expiredHosts))
+	for _, host := range expiredHosts {
+		allIdsToDelete = append(allIdsToDelete, host.ID)
+		hostIDToExpiryWindow[host.ID] = host.ExpiryWindow
 	}
 
 	// Get host details before deletion for activity creation

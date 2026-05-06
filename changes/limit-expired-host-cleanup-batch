@@ -1,0 +1,1 @@
+* Limited automatic host expiry cleanup to a bounded number of expired hosts per cron run.
