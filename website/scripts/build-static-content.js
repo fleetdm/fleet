@@ -1218,7 +1218,7 @@ module.exports = {
           } else {
             let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', testimonial.quoteAuthorProfileImageFilename));
             if(!imageFileExists){
-              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteAuthorProfileImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteAuthorProfileImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteAuthorProfileImageFilename}`);
             }
           }
           if(!testimonial.productCategories) {
