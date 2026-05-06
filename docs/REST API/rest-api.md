@@ -5700,7 +5700,7 @@ _Available in Fleet Premium_
 
 Rotates the managed local account password for a host.
 
-`POST /api/v1/fleet/hosts/:id/managed_local_account/rotate`
+`POST /api/v1/fleet/hosts/:id/managed_account_password/rotate`
 
 #### Parameters
 
@@ -5710,7 +5710,7 @@ Rotates the managed local account password for a host.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/managed_local_account/rotate`
+`POST /api/v1/fleet/hosts/123/managed_account_password/rotate`
 
 ##### Default response
 
