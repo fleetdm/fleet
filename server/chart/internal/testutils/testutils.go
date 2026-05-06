@@ -48,7 +48,8 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 // TruncateTables clears the tables used by the chart bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_scd_data")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil,
+		"host_scd_data", "hosts", "host_seen_times", "nano_enrollments", "teams")
 }
 
 // InsertSCDRow inserts a single host_scd_data row for tests. host_bitmap is
