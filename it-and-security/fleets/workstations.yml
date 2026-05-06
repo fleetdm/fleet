@@ -75,7 +75,6 @@ agent_options:
     desktop: stable
 controls:
   enable_disk_encryption: true
-  apple_require_hardware_attestation: true
   apple_settings:
     configuration_profiles:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
