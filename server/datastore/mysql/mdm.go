@@ -1710,12 +1710,15 @@ func batchSetProfileLabelAssociationsDB(
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}
 
-	// delete any profile+label tuple that is NOT in the list of provided tuples
+	// Delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete
-	// unrelated profile+label tuples)
+	// unrelated profile+label tuples).
+	// Also clear "broken" rows where label_id IS NULL. those wouldn't be matched by
+	// `(profile_uuid, label_id) NOT IN (...)` because three-valued logic makes the comparison NULL,
+	// leaving the row in place and blocking host removal in generateEntitiesToRemoveQuery.
 	deleteStmt := `
 	  DELETE FROM mdm_configuration_profile_labels
-	  WHERE (%s_profile_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((%s_profile_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  %s_profile_uuid IN (?)
 	`
 
