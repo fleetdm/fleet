@@ -27,9 +27,9 @@ const ConfirmDataCollectionDisableModal = ({
   const heading =
     scope === "global"
       ? "You're about to disable data collection across this Fleet deployment."
-      : `You're about to disable data collection for fleet "${
-          fleetName ?? ""
-        }".`;
+      : `You're about to disable data collection for ${
+          fleetName ? `fleet "${fleetName}"` : "this fleet"
+        }.`;
 
   return (
     <Modal
