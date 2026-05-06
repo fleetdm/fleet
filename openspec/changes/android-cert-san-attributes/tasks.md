@@ -106,29 +106,38 @@
 
 ## 7. Frontend
 
-- [ ] 7.1 Add `subjectAlternativeName: string` to `IAddCertFormData` under
+- [x] 7.1 Add `subjectAlternativeName: string` to `IAddCertFormData` under
       `frontend/pages/ManageControlsPage/OSSettings/cards/Certificates/`. (No edit-form types: the Certificates card today
       wires only Add and Delete actions in `Certificates.tsx`; editing an existing template is delete+re-add.)
-- [ ] 7.2 Add a SAN text input directly under the existing `subject_name` input in `AddCertificateModal.tsx`, matching the
+      _(done: AddCertificateModal.tsx, IAddCert in services/entities/certificates.ts)_
+- [x] 7.2 Add a SAN text input directly under the existing `subject_name` input in `AddCertificateModal.tsx`, matching the
       Figma wireframe (https://www.figma.com/design/2jRQoXofC1caxyNhWl8F0m/...?node-id=3462-252) for label/help text
-- [ ] 7.3 Wire the field through the API client (`frontend/services/`) request and response types so the modal sends and reads
+      _(done: textarea InputField labeled "Subject alternative name (SAN)" with placeholder
+      `UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME` from design.md)_
+- [x] 7.3 Wire the field through the API client (`frontend/services/`) request and response types so the modal sends and reads
       `subject_alternative_name`
-- [ ] 7.4 Surface server-side validation errors against the SAN input (the existing pattern for `subject_name` errors)
-- [ ] 7.5 Switch `AddCertificateModal.tsx` to the always-enabled-Add pattern per the Figma's second dev note: replace
-      `disabled={!formValidation.isValid || isUpdating}` (currently around line 187) with `disabled={isUpdating}`. Add an
-      `attemptedSubmit` boolean state that flips to `true` on the first click of "Add". The submit handler short-circuits
-      (does not call the API) when `attemptedSubmit && !formValidation.isValid`. Pass the `attemptedSubmit` flag down to each
-      required field's `<InputField>` / `<DropdownWrapper>` so it renders the existing validation error inline (e.g. "Name
-      must be completed", "Certificate authority must be completed", "Subject name must be completed"). Remove the existing
-      tooltip on the disabled button (`disableTooltip` / `TooltipWrapper` around the Add button) — it no longer applies.
-      Note: this is a modal-wide change, not SAN-specific.
-- [ ] 7.6 Add a "field must be completed" message for any required field that does not already have one (today some required
-      fields rely solely on the disabled-button-with-tooltip to communicate). Confirm against the Figma example screenshot
-      ("Add user" modal) for exact phrasing per field.
-- [ ] 7.7 Add Jest tests for the modal: (a) submitting with SAN, (b) submitting without SAN, (c) server error on SAN
+      _(done: addCert omits the field when the trimmed value is empty so requests with no SAN match the existing wire shape)_
+- [x] 7.4 Surface server-side validation errors against the SAN input (the existing pattern for `subject_name` errors)
+      _(done: catch block parses 422 via `getErrorReason(e, { nameEquals: "subject_alternative_name" })` and renders inline
+      against the SAN input via a `serverErrors` state cleared on the next keystroke; non-SAN errors fall through to the
+      generic flash, matching the prior behavior)_
+- [x] 7.5 Switch `AddCertificateModal.tsx` to the always-enabled-Add pattern per the Figma's second dev note: replace
+      `disabled={!formValidation.isValid || isUpdating}` with `disabled={isUpdating}`. Add an `attemptedSubmit` boolean state
+      that flips to `true` on the first click of "Add". The submit handler short-circuits (does not call the API) when the
+      form is not valid. Removed the `<TooltipWrapper>` around the Add button. `formValidation` switched from `useState` to
+      `useMemo` so validation reactively recomputes when `attemptedSubmit` flips.
+      _(done: see AddCertificateModal.tsx; this is a modal-wide change as called out in the spec)_
+- [x] 7.6 Add a "field must be completed" message for any required field that does not already have one.
+      _(done: helpers.ts now exports `NAME_REQUIRED_MSG`, `CA_REQUIRED_MSG`, `SUBJECT_NAME_REQUIRED_MSG`. Each required
+      validation has `required: true`; `validateFormData` suppresses the message when `attemptedSubmit` is false so messages
+      only render after the first Add click. Format errors (invalid chars, name-taken, name-too-long, SAN-too-long) keep the
+      existing as-you-type behavior.)_
+- [x] 7.7 Add Jest tests for the modal: (a) submitting with SAN, (b) submitting without SAN, (c) server error on SAN
       surfaces inline against the SAN field, (d) clicking Add with all required fields empty surfaces three inline errors and
       does not call the API, (e) clicking Add with one required field empty surfaces exactly that field's error, (f) the Add
       button is enabled at all times except while `isUpdating`.
+      _(done: AddCertificateModal.tests.tsx — 12 tests passing, covering all six cases plus regression coverage for the
+      existing format-error paths)_
 
 ## 8. Documentation and rollout
 

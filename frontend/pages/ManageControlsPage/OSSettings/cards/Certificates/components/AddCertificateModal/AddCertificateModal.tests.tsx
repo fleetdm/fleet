@@ -7,10 +7,23 @@ import mockServer from "test/mock-server";
 import { baseUrl, createCustomRenderer } from "test/test-utils";
 
 import AddCertModal from "./AddCertificateModal";
-import { INVALID_NAME_MSG, NAME_TOO_LONG_MSG, USED_NAME_MSG } from "./helpers";
+import {
+  CA_REQUIRED_MSG,
+  INVALID_NAME_MSG,
+  NAME_REQUIRED_MSG,
+  NAME_TOO_LONG_MSG,
+  SAN_TOO_LONG_MSG,
+  SUBJECT_NAME_REQUIRED_MSG,
+  USED_NAME_MSG,
+} from "./helpers";
 
 const mockOnExit = jest.fn();
 const mockOnSuccess = jest.fn();
+
+const SAN_PLACEHOLDER =
+  "UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME";
+const SUBJECT_NAME_PLACEHOLDER =
+  "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization";
 
 const getCAsHandler = http.get(baseUrl("/certificate_authorities"), () => {
   return HttpResponse.json({
@@ -24,15 +37,21 @@ const getCAsHandler = http.get(baseUrl("/certificate_authorities"), () => {
   });
 });
 
-const addCertHandler = http.post(baseUrl("/certificates"), () => {
-  return HttpResponse.json({
-    id: 123,
-    name: "New Certificate",
-    certificate_authority_id: 1,
-    subject_name: "Test subject name",
-    created_at: new Date().toISOString(),
-  });
-});
+// Default handler that records the request body for assertions and returns 200.
+let lastAddCertBody: Record<string, unknown> | null = null;
+const addCertHandler = http.post(
+  baseUrl("/certificates"),
+  async ({ request }) => {
+    lastAddCertBody = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      id: 123,
+      name: "New Certificate",
+      certificate_authority_id: 1,
+      subject_name: "Test subject name",
+      created_at: new Date().toISOString(),
+    });
+  }
+);
 
 const mockExistingCerts: ICertificate[] = [
   {
@@ -44,8 +63,23 @@ const mockExistingCerts: ICertificate[] = [
   },
 ];
 
+// Pick the SCEP CA option from the dropdown.
+const selectScepCa = async (user: {
+  click: (el: Element) => Promise<void>;
+}) => {
+  const caDropdown = screen.getByText("Select certificate authority");
+  await user.click(caDropdown);
+  await waitFor(() => {
+    expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+  });
+  await user.click(screen.getByText("TEST_SCEP_CA"));
+};
+
 describe("AddCertModal", () => {
   beforeEach(() => {
+    lastAddCertBody = null;
+    mockOnExit.mockClear();
+    mockOnSuccess.mockClear();
     mockServer.use(getCAsHandler);
     mockServer.use(addCertHandler);
   });
@@ -53,7 +87,7 @@ describe("AddCertModal", () => {
     mockServer.resetHandlers();
   });
 
-  it("renders the modal with all form fields", async () => {
+  it("renders the modal with all form fields, including SAN", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -75,15 +109,57 @@ describe("AddCertModal", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Certificate authority (CA)")).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText(
-        "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
-      )
+      screen.getByPlaceholderText(SUBJECT_NAME_PLACEHOLDER)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText("Subject alternative name (SAN)")
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(SAN_PLACEHOLDER)).toBeInTheDocument();
     expect(screen.getByText("Add")).toBeInTheDocument();
     expect(screen.getByText("Cancel")).toBeInTheDocument();
   });
 
-  it("disables Add button when Name field is empty", async () => {
+  it("Add button is enabled when fields are empty (no disabled gate)", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    render(
+      <AddCertModal
+        existingCerts={[]}
+        onExit={mockOnExit}
+        onSuccess={mockOnSuccess}
+      />
+    );
+
+    const addButton = await screen.findByRole("button", { name: /Add/i });
+    expect(addButton).not.toBeDisabled();
+  });
+
+  it("clicking Add with all required fields empty shows three inline errors and does not call the API", async () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
+      <AddCertModal
+        existingCerts={[]}
+        onExit={mockOnExit}
+        onSuccess={mockOnSuccess}
+      />
+    );
+
+    const addButton = await screen.findByRole("button", { name: /Add/i });
+    await user.click(addButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(NAME_REQUIRED_MSG)).toBeInTheDocument();
+    });
+    expect(screen.getByText(CA_REQUIRED_MSG)).toBeInTheDocument();
+    expect(screen.getByText(SUBJECT_NAME_REQUIRED_MSG)).toBeInTheDocument();
+    expect(lastAddCertBody).toBeNull();
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+  });
+
+  it("clicking Add with only Subject name empty shows exactly that one inline error", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -99,18 +175,22 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
+    await user.type(nameInput, "Valid Name");
+    await selectScepCa(user);
 
-    await user.hover(addButton);
+    const addButton = screen.getByRole("button", { name: /Add/i });
+    await user.click(addButton);
+
     await waitFor(() => {
-      expect(
-        screen.getByText("Complete all fields to save.")
-      ).toBeInTheDocument();
+      expect(screen.getByText(SUBJECT_NAME_REQUIRED_MSG)).toBeInTheDocument();
     });
+    expect(screen.queryByText(NAME_REQUIRED_MSG)).not.toBeInTheDocument();
+    expect(screen.queryByText(CA_REQUIRED_MSG)).not.toBeInTheDocument();
+    expect(lastAddCertBody).toBeNull();
   });
 
-  it("shows error for Name with invalid characters and disables Add button", async () => {
+  it("shows inline error for Name with invalid characters as user types (no submit needed)", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -132,12 +212,9 @@ describe("AddCertModal", () => {
     await waitFor(() => {
       expect(screen.getByText(INVALID_NAME_MSG)).toBeInTheDocument();
     });
-
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
   });
 
-  it("shows error for Name that already exists and disables Add button", async () => {
+  it("shows inline error for duplicate Name as user types", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -159,12 +236,9 @@ describe("AddCertModal", () => {
     await waitFor(() => {
       expect(screen.getByText(USED_NAME_MSG)).toBeInTheDocument();
     });
-
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
   });
 
-  it("shows error for Name with more than 255 characters and disables Add button", async () => {
+  it("shows inline error for Name longer than 255 characters as user types", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -181,46 +255,36 @@ describe("AddCertModal", () => {
     });
 
     const nameInput = await screen.findByPlaceholderText("VPN certificate");
+    await user.type(nameInput, "a".repeat(256));
 
-    const longName = "a".repeat(256);
-    await user.type(nameInput, longName);
     await waitFor(() => {
       expect(screen.getByText(NAME_TOO_LONG_MSG)).toBeInTheDocument();
     });
-
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
   });
 
-  it("disables Add button when Certificate authority is not selected", async () => {
+  it("shows inline error when SAN exceeds the 4096-character cap", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
     const { user } = render(
       <AddCertModal
-        existingCerts={mockExistingCerts}
+        existingCerts={[]}
         onExit={mockOnExit}
         onSuccess={mockOnSuccess}
       />
     );
 
+    const sanInput = await screen.findByPlaceholderText(SAN_PLACEHOLDER);
+    // Paste a long string instead of typing it character-by-character.
+    await user.click(sanInput);
+    await user.paste(`DNS=${"a".repeat(4096)}`);
+
     await waitFor(() => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+      expect(screen.getByText(SAN_TOO_LONG_MSG)).toBeInTheDocument();
     });
-
-    const nameInput = await screen.findByPlaceholderText("VPN certificate");
-    await user.type(nameInput, "Valid Name");
-
-    const subjectNameInput = screen.getByPlaceholderText(
-      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
-    );
-    await user.type(subjectNameInput, "/CN=test/O=Org");
-
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
   });
 
-  it("disables Add button when Subject name is empty", async () => {
+  it("submits successfully without SAN (field omitted from request body)", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -239,22 +303,23 @@ describe("AddCertModal", () => {
     const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
-    const caDropdown = screen.getByText("Select certificate authority");
-    await user.click(caDropdown);
+    const subjectNameInput = screen.getByPlaceholderText(
+      SUBJECT_NAME_PLACEHOLDER
+    );
+    await user.type(subjectNameInput, "/CN=test/O=Org");
+
+    await selectScepCa(user);
+
+    await user.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
     });
-
-    await user.click(screen.getByText("TEST_SCEP_CA"));
-
-    expect(screen.queryByText("Select certificate authority")).toBeNull();
-
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).toBeDisabled();
+    expect(lastAddCertBody).not.toBeNull();
+    expect(lastAddCertBody).not.toHaveProperty("subject_alternative_name");
   });
 
-  it("full flow is okay when all fields are valid", async () => {
+  it("submits successfully with SAN (field included in request body)", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
     });
@@ -270,30 +335,89 @@ describe("AddCertModal", () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
     });
 
-    // Fill in all fields with valid data
     const nameInput = await screen.findByPlaceholderText("VPN certificate");
     await user.type(nameInput, "Valid Name");
 
     const subjectNameInput = screen.getByPlaceholderText(
-      "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, O=Your Organization"
+      SUBJECT_NAME_PLACEHOLDER
     );
     await user.type(subjectNameInput, "/CN=test/O=Org");
 
-    const caDropdown = screen.getByText("Select certificate authority");
-    await user.click(caDropdown);
+    const sanInput = screen.getByPlaceholderText(SAN_PLACEHOLDER);
+    await user.type(sanInput, "DNS=host.example.com, EMAIL=user@example.com");
+
+    await selectScepCa(user);
+
+    await user.click(screen.getByRole("button", { name: /Add/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("TEST_SCEP_CA")).toBeInTheDocument();
+      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
     });
-    await user.click(screen.getByText("TEST_SCEP_CA"));
-    expect(screen.queryByText("Select certificate authority")).toBeNull();
+    expect(lastAddCertBody).toMatchObject({
+      subject_alternative_name: "DNS=host.example.com, EMAIL=user@example.com",
+    });
+  });
 
-    const addButton = screen.getByRole("button", { name: /Add/i });
-    expect(addButton).not.toBeDisabled();
+  it("surfaces a 422 server error against the SAN input inline", async () => {
+    const SERVER_SAN_ERR =
+      'subject_alternative_name has unsupported key "FOO". Allowed keys are DNS, EMAIL, UPN, IP, URI';
+    mockServer.use(
+      http.post(baseUrl("/certificates"), () => {
+        return HttpResponse.json(
+          {
+            message: "Validation Failed",
+            errors: [
+              {
+                name: "subject_alternative_name",
+                reason: SERVER_SAN_ERR,
+              },
+            ],
+          },
+          { status: 422 }
+        );
+      })
+    );
 
-    await user.click(addButton);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
+      <AddCertModal
+        existingCerts={[]}
+        onExit={mockOnExit}
+        onSuccess={mockOnSuccess}
+      />
+    );
 
-    expect(mockOnSuccess).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
+    });
+
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
+    await user.type(nameInput, "Valid Name");
+
+    const subjectNameInput = screen.getByPlaceholderText(
+      SUBJECT_NAME_PLACEHOLDER
+    );
+    await user.type(subjectNameInput, "/CN=test/O=Org");
+
+    const sanInput = screen.getByPlaceholderText(SAN_PLACEHOLDER);
+    await user.type(sanInput, "FOO=bar");
+
+    await selectScepCa(user);
+
+    await user.click(screen.getByRole("button", { name: /Add/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(SERVER_SAN_ERR)).toBeInTheDocument();
+    });
+    expect(mockOnSuccess).not.toHaveBeenCalled();
+
+    // Editing the SAN clears the server error.
+    await user.type(sanInput, ", DNS=host.example.com");
+    await waitFor(() => {
+      expect(screen.queryByText(SERVER_SAN_ERR)).not.toBeInTheDocument();
+    });
   });
 
   it("calls onExit when Cancel button is clicked", async () => {
