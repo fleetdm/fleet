@@ -20,6 +20,11 @@ type fakeJobEnqueuer struct {
 	err        error
 	hasJobErr  error
 	hasJobHits int
+	// hasJobErrForDataset, if non-empty, makes HasQueuedJobWithArgs return
+	// (false, hasJobErr) only when the args payload contains this dataset
+	// string. Used to simulate per-dataset transient failures so the
+	// loop-continue behavior in EnqueueHistoricalDataScrubs is exercised.
+	hasJobErrForDataset string
 }
 
 func (f *fakeJobEnqueuer) NewJob(_ context.Context, j *Job) (*Job, error) {
@@ -32,7 +37,9 @@ func (f *fakeJobEnqueuer) NewJob(_ context.Context, j *Job) (*Job, error) {
 
 func (f *fakeJobEnqueuer) HasQueuedJobWithArgs(_ context.Context, name string, args json.RawMessage) (bool, error) {
 	if f.hasJobErr != nil {
-		return false, f.hasJobErr
+		if f.hasJobErrForDataset == "" || bytes.Contains(args, []byte(`"dataset":"`+f.hasJobErrForDataset+`"`)) {
+			return false, f.hasJobErr
+		}
 	}
 	for _, j := range f.jobs {
 		if j.Name != name || j.State != JobStateQueued || j.Args == nil {
@@ -235,5 +242,28 @@ func TestEnqueueHistoricalDataScrubs_Dedup(t *testing.T) {
 		err := EnqueueHistoricalDataScrubs(t.Context(), enq, on, off, nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, boom)
+	})
+
+	t.Run("one dataset failing does not abandon the others", func(t *testing.T) {
+		// Transient DB hiccup on the uptime iteration must not skip the cve
+		// enqueue: callers (ModifyAppConfig etc.) log-and-continue on this
+		// function's error precisely because once SaveAppConfig has committed
+		// and the disable activity has emitted, "no scrub for any dataset" is
+		// strictly worse than "scrub for the datasets we could".
+		boom := errors.New("transient db hiccup on uptime")
+		enq := &fakeJobEnqueuer{hasJobErr: boom, hasJobErrForDataset: "uptime"}
+
+		err := EnqueueHistoricalDataScrubs(t.Context(), enq,
+			HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			HistoricalDataSettings{Uptime: false, Vulnerabilities: false},
+			nil,
+		)
+		require.Error(t, err)
+		require.ErrorIs(t, err, boom, "uptime error must surface")
+
+		require.Len(t, enq.jobs, 1, "cve scrub must still be enqueued despite uptime failure")
+		var args chartScrubGlobalArgs
+		require.NoError(t, json.Unmarshal(*enq.jobs[0].Args, &args))
+		assert.Equal(t, "cve", args.Dataset)
 	})
 }

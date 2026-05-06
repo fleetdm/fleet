@@ -399,15 +399,27 @@ exercise multi-batch paths. The 2 MB per-statement target is a soft
 ceiling well under MySQL's default 16–64 MB `max_allowed_packet`,
 chosen to keep replication binlog events small.
 
-**Reads on the primary.** Both the host-membership lookup
-(`HostIDsInFleets`) and the row-walk paging `SELECT` MUST run against
-the primary, not a replica. Both are read-then-write patterns: the
-host-id read builds the mask that drives the immediately-following
-`UPDATE`, and the paging read terminates the loop on `len(rows) == 0`.
-Replica lag in either spot silently causes the wrong outcome —
-scrubbing the wrong host set, or stopping the loop while rows still
-exist on primary that the next disable won't re-enqueue. Use
-`ctxdb.RequirePrimary(ctx, true)` for both reads.
+**Reads on the primary.** Three reads in this change are read-then-
+write and MUST run against the primary, not a replica:
+
+1. The host-membership lookup (`HostIDsInFleets`) — its result builds
+   the mask that drives the immediately-following `UPDATE`. Replica
+   lag scrubs the wrong host set.
+2. The row-walk paging `SELECT` in `ApplyScrubMaskToDataset` — the
+   loop terminates on `len(rows) == 0`. Replica lag stops the loop
+   while rows still exist on primary; the next disable won't
+   re-enqueue, so those rows are silently retained.
+3. The dedup gate in `HasQueuedJobWithArgs` (server/datastore/mysql/
+   jobs.go) — its boolean result decides whether `NewJob` inserts.
+   Replica lag (typically hundreds of ms, seconds under load) widens
+   the dedup window from "microseconds" (Decision 5) to "tail of
+   replication lag," letting the rapid disable→enable→disable thrash
+   scenario the gate was built for slip through and stack duplicate
+   jobs. Handlers are near-idempotent so the impact is extra DB I/O,
+   not wrong results, but the dedup contract is materially weakened
+   without primary routing.
+
+Use `ctxdb.RequirePrimary(ctx, true)` for all three reads.
 
 Considered: a single statement using MySQL's `BIT_AND` over BLOB —
 not portable; MySQL's bit operators don't operate on BLOB element-

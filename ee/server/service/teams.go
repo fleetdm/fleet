@@ -1889,6 +1889,24 @@ func (svc *Service) editTeamFromSpec(
 		return ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
+	// Enqueue scrub jobs for any sub-key that flipped to disabled on this
+	// team via GitOps batch apply. SaveTeam (above) has already committed;
+	// without this call, the disable activity emits but no scrub job is
+	// queued, and host_scd_data rows for the team's hosts persist
+	// indefinitely. Mirror of the call in ModifyTeam.
+	//
+	// Log-and-continue on failure, rather than skipping the rest of the updates
+	// and putting things in an inconsistent state.
+	if err := fleet.EnqueueHistoricalDataScrubs(
+		ctx,
+		svc.ds,
+		oldHistoricalData,
+		team.Config.Features.HistoricalData,
+		&team.ID,
+	); err != nil {
+		svc.logger.ErrorContext(ctx, "enqueue historical data scrubs after editTeamFromSpec SaveTeam commit", "err", err, "team_id", team.ID)
+	}
+
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
 		// TODO: Are we missing an activity or anything else for BitLocker here?
 		var act fleet.ActivityDetails

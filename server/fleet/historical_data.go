@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -128,6 +129,15 @@ func EnqueueHistoricalDataScrubs(
 		{"uptime", oldHD.Uptime, newHD.Uptime},
 		{"cve", oldHD.Vulnerabilities, newHD.Vulnerabilities},
 	}
+	// Per-iteration failures are collected and joined rather than returned
+	// eagerly: a transient DB hiccup while enqueueing uptime must not abandon
+	// the cve enqueue in the same multi-dataset disable. Callers
+	// (ModifyAppConfig, ModifyTeam, editTeamFromSpec) already log-and-continue
+	// on this function's error precisely because partial progress beats
+	// "config saved, activity emitted, no scrub enqueued for any dataset" —
+	// and there is no automatic recovery path once the no-op short-circuit
+	// (oldVal == newVal) kicks in on the next call.
+	var errs []error
 	for _, c := range changes {
 		if c.oldVal == c.newVal || c.newVal /* false → true: no scrub */ {
 			continue
@@ -147,7 +157,8 @@ func EnqueueHistoricalDataScrubs(
 			})
 		}
 		if err != nil {
-			return fmt.Errorf("marshal scrub job args for %s: %w", c.scrubDataset, err)
+			errs = append(errs, fmt.Errorf("marshal scrub job args for %s: %w", c.scrubDataset, err))
+			continue
 		}
 		raw := json.RawMessage(argsJSON)
 
@@ -159,7 +170,8 @@ func EnqueueHistoricalDataScrubs(
 		// near-idempotent so the cost is one extra walk.
 		exists, err := enq.HasQueuedJobWithArgs(ctx, jobName, raw)
 		if err != nil {
-			return fmt.Errorf("check pending %s for %s: %w", jobName, c.scrubDataset, err)
+			errs = append(errs, fmt.Errorf("check pending %s for %s: %w", jobName, c.scrubDataset, err))
+			continue
 		}
 		if exists {
 			continue
@@ -171,8 +183,9 @@ func EnqueueHistoricalDataScrubs(
 			State: JobStateQueued,
 		}
 		if _, err := enq.NewJob(ctx, job); err != nil {
-			return fmt.Errorf("enqueue %s for %s: %w", jobName, c.scrubDataset, err)
+			errs = append(errs, fmt.Errorf("enqueue %s for %s: %w", jobName, c.scrubDataset, err))
+			continue
 		}
 	}
-	return nil
+	return errors.Join(errs...)
 }
