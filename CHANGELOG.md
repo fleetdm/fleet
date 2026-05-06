@@ -1,3 +1,9 @@
+## Fleet 4.84.3 (May 06, 2026)
+
+### Bug fixes
+
+- Reduced database load from `GET /api/latest/fleet/device/{token}/desktop` and other Fleet Desktop endpoints when invalid or expired device auth tokens are presented, by resolving the token to a host id with a single-table indexed lookup before running the multi-join host-details query.
+
 ## Fleet 4.84.2 (May 01, 2026)
 
 ### Bug fixes
@@ -104,7 +110,7 @@
 - Fixed issue where the `include_available_for_install` query param wasn't being applied correctly to the `GET /api/latest/fleet/hosts/{id}/software` endpoint.
 - Fixed disk encryption key modal to not show stale key when switching between hosts.
 - Fixed SCIM user not associating with host when IdP username was set before the SCIM user was created.
-- Fixed Google Drive version not matching upstream.
+- Fixed  Google Drive version not matching upstream.
 - Fixed bug that cleared the MDM lock state if an "idle" message was received right after the lock ACK.
 - Fixed team maintainers, admins, and GitOps users being unable to add certificate templates due to missing read access to certificate authorities.
 - Fixed fleetd installation failure on macOS when installing it through Host details page > Software > Library as a Custom package.
