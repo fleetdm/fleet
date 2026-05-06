@@ -575,6 +575,22 @@ func testMatcherRecoversStuckHMMCRows(t *testing.T, ds *Datastore) {
 		assert.Nil(t, got.NotValidAfter, "in-flight (pending) profile must NOT be backfilled, even when stuck")
 	})
 
+	t.Run("FailedProfileSkipped", func(t *testing.T) {
+		// SCEP delivery failure is terminal across the platform (admin must
+		// resend). Recovering here from the OLD cert in inventory would
+		// re-arm the renewal cron into a push loop. See design §8.
+		profileUUID := "failed-profile"
+		oldCert := renewalCertTemplate(profileUUID, "", time.Now().Add(-30*24*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(60*24*time.Hour).Truncate(time.Second).UTC(), 4351)
+		recs := seedHostCertificates(t, []*x509.Certificate{oldCert})
+		seedAppleProfile(t, seedOpts{profileUUID: profileUUID, certType: fleet.CAConfigCustomSCEPProxy, caName: "ca-failed"}, fleet.MDMDeliveryFailed)
+		backdateHMMC(t, profileUUID, 5*time.Hour)
+
+		triggerMatcher(t, recs, 4352)
+
+		got := getApple(t, profileUUID, "ca-failed")
+		assert.Nil(t, got.NotValidAfter, "failed (terminal) profile must NOT be backfilled, even when stuck")
+	})
+
 	t.Run("TieBreaker", func(t *testing.T) {
 		profileUUID := "tie-breaker"
 		olderCert := renewalCertTemplate(profileUUID, "-old", time.Now().Add(-48*time.Hour).Truncate(time.Second).UTC(), time.Now().Add(180*24*time.Hour).Truncate(time.Second).UTC(), 4401)

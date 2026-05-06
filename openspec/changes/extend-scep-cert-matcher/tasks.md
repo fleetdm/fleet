@@ -39,3 +39,10 @@
 
 - [x] 4.1 `changes/44111-scep-autorenew-fail` already exists with the customer-facing wording approved earlier: `Fixed SCEP certificates failing to auto-renew, including on devices that go offline between profile push and SCEP request.` Kept as-is.
 - [x] 4.2 PR #44691 opened (draft) targeting `revert-44250-scep-autorenew`. Description summarizes the matcher-extension shape, the in-flight gate, the offline-after-renewal safety, and links to this OpenSpec change for design rationale.
+
+## 5. Narrow settled state to `'verified'` only (design §8)
+
+- [x] 5.1 In `server/datastore/mysql/host_certificates.go`, narrow the per-platform status check to `MDMDeliveryVerified` only. Rename `isSettledStatus` to `isVerifiedStatus` (more accurate now that `'failed'` is excluded), drop `MDMDeliveryFailed` from the comparison, and update the call site variable name to match. Aligns the matcher with the platform's terminal-on-failure contract — see design §8.
+- [x] 5.2 In `server/datastore/mysql/host_certificates_test.go`, add a `FailedProfileSkipped` subtest mirroring `PendingProfileSkipped`: hp.status='failed' (Apple or Windows), hmmc stuck NULL past grace, matching cert in inventory; assert no recovery and no UPDATE on hmmc.
+- [x] 5.3 `make lint-go-incremental` clean.
+- [x] 5.4 `MYSQL_TEST=1 REDIS_TEST=1 FLEET_MYSQL_TEST_PORT=3309 go test ./server/datastore/mysql/ -count=1 -run "TestHostCertificates" -timeout 5m` passes.

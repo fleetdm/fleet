@@ -24,11 +24,11 @@ var hostCertificateAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"common_name":     "hc.common_name",
 }
 
-func isSettledStatus(s *fleet.MDMDeliveryStatus) bool {
+func isVerifiedStatus(s *fleet.MDMDeliveryStatus) bool {
 	if s == nil {
 		return false
 	}
-	return *s == fleet.MDMDeliveryVerified || *s == fleet.MDMDeliveryFailed
+	return *s == fleet.MDMDeliveryVerified
 }
 
 // hmmcBackfillGrace separates an in-flight renewal (recently NULL'd by
@@ -133,7 +133,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	// Runs on every UpdateHostCertificates call so a stuck row (renewal cert
 	// already in host_certificates but never matched) recovers even when this
 	// call has no toInsert. Per hmmc row: pool = incomingBySHA1 when stuck
-	// (NULL past hmmcBackfillGrace AND profile settled), else toInsertBySHA1.
+	// (NULL past hmmcBackfillGrace AND profile 'verified'), else toInsertBySHA1.
 	// See issue #44111.
 	hostMDMManagedCertsToUpdate := make([]*fleet.MDMManagedCertificate, 0, len(toInsert))
 	// JOINs to the per-platform profile tables surface delivery status so we
@@ -168,10 +168,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			continue
 		}
 
-		settled := isSettledStatus(row.AppleStatus) || isSettledStatus(row.WindowsStatus)
+		verified := isVerifiedStatus(row.AppleStatus) || isVerifiedStatus(row.WindowsStatus)
 		stuck := hostMDMManagedCert.NotValidAfter == nil &&
 			now.Sub(hostMDMManagedCert.UpdatedAt) > hmmcBackfillGrace &&
-			settled
+			verified
 
 		var pool map[string]*fleet.HostCertificateRecord
 		switch {
