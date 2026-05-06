@@ -71,9 +71,7 @@ describe("InstallSoftware", () => {
     ).toBeVisible();
 
     // The form renders (Save button appears)
-    expect(
-      await screen.findByRole("button", { name: "Save" })
-    ).toBeVisible();
+    expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
   });
 
   it("renders the Android empty state with correct messaging", async () => {
