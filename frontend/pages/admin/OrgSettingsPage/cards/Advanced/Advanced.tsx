@@ -161,8 +161,23 @@ const Advanced = ({
     setFormErrors(validateFormData(formData));
   };
 
-  const buildPayload = useCallback(
-    () => ({
+  const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
+    const list: HistoricalDataConfigKey[] = [];
+    const original = appConfig.features?.historical_data;
+    if ((original?.uptime ?? true) && formData.disableHostsActive) {
+      list.push("uptime");
+    }
+    if (
+      (original?.vulnerabilities ?? true) &&
+      formData.disableVulnerabilities
+    ) {
+      list.push("vulnerabilities");
+    }
+    return list;
+  }, [appConfig, formData.disableHostsActive, formData.disableVulnerabilities]);
+
+  const performSave = async () => {
+    const payload = {
       server_settings: {
         live_reporting_disabled: formData.disableLiveQuery,
         discard_reports_data: formData.disableQueryReports,
@@ -199,28 +214,9 @@ const Advanced = ({
           vulnerabilities: !formData.disableVulnerabilities,
         },
       },
-    }),
-    [formData, appConfig.server_settings.deferred_save_host]
-  );
-
-  const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
-    const list: HistoricalDataConfigKey[] = [];
-    const original = appConfig.features?.historical_data;
-    if ((original?.uptime ?? true) && formData.disableHostsActive) {
-      list.push("uptime");
-    }
-    if (
-      (original?.vulnerabilities ?? true) &&
-      formData.disableVulnerabilities
-    ) {
-      list.push("vulnerabilities");
-    }
-    return list;
-  }, [appConfig, formData.disableHostsActive, formData.disableVulnerabilities]);
-
-  const performSave = useCallback(async () => {
+    };
     try {
-      const ok = await handleSubmit(buildPayload());
+      const ok = await handleSubmit(payload);
       if (ok) {
         setConfirmModalOpen(false);
       }
@@ -228,7 +224,7 @@ const Advanced = ({
       // Parent surfaces errors via flash; swallow here so the modal stays
       // open for retry without an unhandled promise rejection.
     }
-  }, [handleSubmit, buildPayload]);
+  };
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     evt.preventDefault();

@@ -320,8 +320,6 @@ export interface IActivityDetails {
   label_name?: string;
   fleet_id?: number | null;
   fleet_name?: string | null;
-  /** Config sub-key (e.g. "uptime", "vulnerabilities") for historical-dataset
-   * enable/disable activities. */
   dataset?: string;
 }
 
