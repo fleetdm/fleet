@@ -521,8 +521,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 
 	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
 	if _, ok := top["labels"]; ok {
-		result.LabelsPresent = true
-		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		if result.IsNoTeam() {
+			logFn("[!] 'labels' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
+		} else {
+			result.LabelsPresent = true
+			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		}
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)

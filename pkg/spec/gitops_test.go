@@ -2414,6 +2414,28 @@ labels:
 	})
 }
 
+func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
+	t.Parallel()
+
+	config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+	noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+
+	var logMessages []string
+	captureLogf := func(format string, a ...interface{}) {
+		logMessages = append(logMessages, fmt.Sprintf(format, a...))
+	}
+
+	gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
+	require.NoError(t, err)
+
+	// Labels should NOT be parsed for no-team files.
+	assert.False(t, gitops.LabelsPresent, "labels should not be marked as present in no-team file")
+	assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
+
+	// A warning should have been logged.
+	assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in no-team.yml")
+}
+
 func TestParsePoliciesGlob(t *testing.T) {
 	t.Parallel()
 
