@@ -54,6 +54,21 @@ describe("isHistoricalDataEnabled", () => {
     expect(isHistoricalDataEnabled(uptimeOff, uptimeOff, "uptime")).toBe(false);
   });
 
+  it("returns false when global is disabled and fleet is undefined", () => {
+    expect(isHistoricalDataEnabled(uptimeOff, undefined, "uptime")).toBe(false);
+  });
+
+  it("returns false when fleet is disabled and global is undefined", () => {
+    expect(isHistoricalDataEnabled(undefined, uptimeOff, "uptime")).toBe(false);
+  });
+
+  it("does not let an unrelated-key disable bleed across keys", () => {
+    expect(isHistoricalDataEnabled(vulnsOff, undefined, "uptime")).toBe(true);
+    expect(
+      isHistoricalDataEnabled(vulnsOff, undefined, "vulnerabilities")
+    ).toBe(false);
+  });
+
   it("evaluates per-key independently", () => {
     expect(isHistoricalDataEnabled(vulnsOff, enabled, "uptime")).toBe(true);
     expect(isHistoricalDataEnabled(vulnsOff, enabled, "vulnerabilities")).toBe(

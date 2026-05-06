@@ -100,7 +100,7 @@ const getHostTeamAssignmentSuffix = (teamName?: string | null) => {
 // the frontend mapping ships.
 const getHistoricalDatasetLabel = (dataset?: string): string => {
   if (!dataset) {
-    return "";
+    return "a dataset";
   }
   if ((HISTORICAL_DATA_CONFIG_KEYS as readonly string[]).includes(dataset)) {
     return DATASET_LABEL[dataset as HistoricalDataConfigKey];

@@ -37,7 +37,7 @@ const HistoricalDataTeamControls = ({
                 ? "Disabled globally"
                 : !disableChildren && (
                     <>
-                      When enabled, Fleet stops collecting hosts-active
+                      When enabled, Fleet stops collecting hosts online
                       <br />
                       data for this fleet&apos;s contribution to the
                       <br />

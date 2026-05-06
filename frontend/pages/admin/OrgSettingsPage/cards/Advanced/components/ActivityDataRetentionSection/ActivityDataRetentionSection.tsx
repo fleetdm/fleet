@@ -167,7 +167,7 @@ const ActivityDataRetentionSection = ({
             labelTooltipContent={
               !disableChildren && (
                 <>
-                  When enabled, Fleet stops collecting hourly hosts-active
+                  When enabled, Fleet stops collecting hourly hosts online
                   <br />
                   data used by the dashboard chart.{" "}
                   <em>

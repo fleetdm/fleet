@@ -308,21 +308,28 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
 
-  const teamHistoricalData = isAnyTeamSelected
-    ? teams?.find((t) => t.id === currentTeamId)?.features?.historical_data
-    : undefined;
-  const historicalDataEnabled = {
-    uptime: isHistoricalDataEnabled(
-      config?.features?.historical_data,
-      teamHistoricalData,
-      "uptime"
-    ),
-    vulnerabilities: isHistoricalDataEnabled(
-      config?.features?.historical_data,
-      teamHistoricalData,
-      "vulnerabilities"
-    ),
-  };
+  const teamHistoricalData = useMemo(
+    () =>
+      isAnyTeamSelected
+        ? teams?.find((t) => t.id === currentTeamId)?.features?.historical_data
+        : undefined,
+    [isAnyTeamSelected, teams, currentTeamId]
+  );
+  const historicalDataEnabled = useMemo(
+    () => ({
+      uptime: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "uptime"
+      ),
+      vulnerabilities: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "vulnerabilities"
+      ),
+    }),
+    [config?.features?.historical_data, teamHistoricalData]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";

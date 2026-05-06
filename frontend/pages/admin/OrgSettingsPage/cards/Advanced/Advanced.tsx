@@ -130,8 +130,10 @@ const Advanced = ({
     preserveHostActivitiesOnReenrollment:
       appConfig.activity_expiry_settings
         .preserve_host_activities_on_reenrollment || false,
-    disableHostsActive: !appConfig.features.historical_data.uptime,
-    disableVulnerabilities: !appConfig.features.historical_data.vulnerabilities,
+    disableHostsActive: !(appConfig.features?.historical_data?.uptime ?? true),
+    disableVulnerabilities: !(
+      appConfig.features?.historical_data?.vulnerabilities ?? true
+    ),
   });
 
   const [formErrors, setFormErrors] = useState<IAdvancedConfigFormErrors>({});
@@ -203,20 +205,28 @@ const Advanced = ({
 
   const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
     const list: HistoricalDataConfigKey[] = [];
-    const original = appConfig.features.historical_data;
-    if (original.uptime && formData.disableHostsActive) {
+    const original = appConfig.features?.historical_data;
+    if ((original?.uptime ?? true) && formData.disableHostsActive) {
       list.push("uptime");
     }
-    if (original.vulnerabilities && formData.disableVulnerabilities) {
+    if (
+      (original?.vulnerabilities ?? true) &&
+      formData.disableVulnerabilities
+    ) {
       list.push("vulnerabilities");
     }
     return list;
   }, [appConfig, formData.disableHostsActive, formData.disableVulnerabilities]);
 
   const performSave = useCallback(async () => {
-    const ok = await handleSubmit(buildPayload());
-    if (ok) {
-      setConfirmModalOpen(false);
+    try {
+      const ok = await handleSubmit(buildPayload());
+      if (ok) {
+        setConfirmModalOpen(false);
+      }
+    } catch {
+      // Parent surfaces errors via flash; swallow here so the modal stays
+      // open for retry without an unhandled promise rejection.
     }
   }, [handleSubmit, buildPayload]);
 

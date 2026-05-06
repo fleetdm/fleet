@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-empty-function */
 import React from "react";
 import { screen } from "@testing-library/react";
 import { renderWithSetup, createMockRouter } from "test/test-utils";
