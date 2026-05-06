@@ -142,8 +142,11 @@ describe("ChartCard", () => {
     });
   });
 
-  it("renders the empty state when collection is disabled for the active dataset", () => {
-    const render = createCustomRenderer({ withBackendMock: true });
+  it("renders the empty state with a Turn on button for admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: true } },
+    });
     render(
       <ChartCard
         historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
@@ -156,6 +159,26 @@ describe("ChartCard", () => {
     expect(
       screen.getByRole("button", { name: /Turn on/i })
     ).toBeInTheDocument();
+  });
+
+  it("hides the Turn on button and swaps copy for non-admins", () => {
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { isGlobalAdmin: false, isTeamAdmin: false } },
+    });
+    render(
+      <ChartCard
+        historicalDataEnabled={{ uptime: false, vulnerabilities: true }}
+      />
+    );
+
+    expect(
+      screen.getByText(/Data collection is disabled/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Ask an admin to turn on/i)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Turn on/i })
+    ).not.toBeInTheDocument();
   });
 
   it("renders the chart normally when collection is enabled", async () => {

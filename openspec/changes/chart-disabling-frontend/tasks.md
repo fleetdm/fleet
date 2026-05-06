@@ -156,7 +156,11 @@
 - [x] **Implement `DataCollectionDisabledState` component**
   Sibling of `LineChartViz` / `CheckerboardViz` in the ChartCard
   directory. Renders an empty-state panel with the dataset label and a
-  link to `/settings/organization/advanced`.
+  "Turn on" button: deeplinks to the current fleet's settings when
+  team-scoped, otherwise to `/settings/organization/advanced`. Button
+  is hidden (and copy swaps to "Ask an admin to turn on…") for users
+  without access to the destination — gated via `AppContext`
+  (`isGlobalAdmin` / `isTeamAdmin`).
 
 - [x] **Render the empty state when disabled**
   In `ChartCard`, look up

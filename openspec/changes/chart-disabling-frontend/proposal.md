@@ -135,9 +135,14 @@ TeamSettings, ChartCard) need to share them.
 - `ChartCard.tsx` reads `historicalDataEnabled[currentDataset.configKey]`.
   When `false`, render a new `<DataCollectionDisabledState>` in place of the
   visualization.
-  - Empty-state copy mentions which dataset is disabled and points to
-    `/settings/organization/advanced` (link only — no per-fleet deeplink to
-    avoid a permission/team-context maze).
+  - Empty-state copy mentions which dataset is disabled. When viewing a
+    specific fleet, the "Turn on" button deeplinks to that fleet's
+    settings; otherwise it points to `/settings/organization/advanced`.
+  - The button is hidden (and copy swaps to "Ask an admin to turn on…")
+    for users who lack access to the destination settings page — global
+    admins for the org link, global or current-fleet admins for the
+    fleet-scoped link. Permission state comes from `AppContext`
+    (`isGlobalAdmin`, `isTeamAdmin` — already scoped to current team).
   - The dataset selector, time range, and filter gear remain functional —
     the user can switch to an enabled dataset.
 - The lookup uses `DATASET_CONFIG_KEY` so datasets that don't yet have a
@@ -187,9 +192,6 @@ TeamSettings, ChartCard) need to share them.
   window"** under the new "Activity & data retention" subheading. The
   subheading is forward-looking; existing fields stay where they are
   to keep the diff minimal.
-- **Per-fleet deeplink in the empty-state copy.** Empty state points to
-  the global page only; routing into the right fleet's settings would
-  require team-permission checks the empty state shouldn't own.
 - **A third dataset (`policy-compliance`).** When it lands, it will need
   a config-key mapping, label, and a row in both checkbox sections —
   but the data-driven `DATASETS` array and the helper-based lookups

@@ -80,9 +80,18 @@ update.
 
 **Tradeoff**: empty-state copy can't say "globally disabled" vs "fleet
 disabled" without re-loading both bits. Decision: copy says only
-"data collection is disabled" with a link to the Advanced page. If
-admins want fleet-level visibility, they go to TeamSettings. Avoids
-duplicating the precedence logic in the chart card just for the copy.
+"data collection is disabled" with a "Turn on" button. The button
+deeplinks to the current fleet's settings when team-scoped, or the
+global Advanced page otherwise — admins land on the page that controls
+what they're looking at. Avoids duplicating the precedence logic in the
+chart card just for the copy.
+
+The button is gated by `AppContext` permissions (`isGlobalAdmin` for
+the org link; `isGlobalAdmin || isTeamAdmin` for the fleet link, where
+`isTeamAdmin` is context-scoped to the current team). Non-admins see
+"Ask an admin to turn on…" with no button — the route guards
+(`AuthGlobalAdminRoutes` / `AuthAnyAdminRoutes`) would 403 them anyway,
+so showing the button would be a dead end.
 
 ### 4. Per-fleet checkbox: `disabled` lockout, not hide-when-globally-off
 
@@ -173,10 +182,10 @@ the visual + tooltip.
 ## Risks / Trade-offs
 
 - **Empty-state copy is generic** (decision 3). Admins seeing the
-  empty state on the dashboard need to check both global Advanced
-  *and* per-fleet TeamSettings to know who turned it off. Mitigation:
-  the global Advanced link lands them on the most likely culprit
-  (since fleet-level disable is rarer than global disable).
+  empty state on the dashboard don't know whether the global or the
+  fleet-level toggle is off. Mitigation: when team-scoped, the "Turn
+  on" button lands them on the fleet's settings — the most likely
+  place to investigate first; otherwise on the global Advanced page.
 - **Free-tier admins on the Advanced page can disable
   `vulnerabilities`** even though Free deployments don't have the
   vulnerability chart on the dashboard yet. The setting takes effect
