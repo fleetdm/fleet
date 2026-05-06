@@ -12,7 +12,6 @@ import {
   INVALID_NAME_MSG,
   NAME_REQUIRED_MSG,
   NAME_TOO_LONG_MSG,
-  SAN_TOO_LONG_MSG,
   SUBJECT_NAME_REQUIRED_MSG,
   USED_NAME_MSG,
 } from "./helpers";
@@ -262,28 +261,6 @@ describe("AddCertModal", () => {
     });
   });
 
-  it("shows inline error when SAN exceeds the 4096-character cap", async () => {
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-    const { user } = render(
-      <AddCertModal
-        existingCerts={[]}
-        onExit={mockOnExit}
-        onSuccess={mockOnSuccess}
-      />
-    );
-
-    const sanInput = await screen.findByPlaceholderText(SAN_PLACEHOLDER);
-    // Paste a long string instead of typing it character-by-character.
-    await user.click(sanInput);
-    await user.paste(`DNS=${"a".repeat(4096)}`);
-
-    await waitFor(() => {
-      expect(screen.getByText(SAN_TOO_LONG_MSG)).toBeInTheDocument();
-    });
-  });
-
   it("submits successfully without SAN (field omitted from request body)", async () => {
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -417,6 +394,58 @@ describe("AddCertModal", () => {
     await user.type(sanInput, ", DNS=host.example.com");
     await waitFor(() => {
       expect(screen.queryByText(SERVER_SAN_ERR)).not.toBeInTheDocument();
+    });
+  });
+
+  it("Add button is disabled while the POST is in flight, then re-enabled on response", async () => {
+    // Replace the default handler with one that won't resolve until we say so.
+    let resolveServer!: () => void;
+    const serverGate = new Promise<void>((resolve) => {
+      resolveServer = resolve;
+    });
+    mockServer.use(
+      http.post(baseUrl("/certificates"), async () => {
+        await serverGate;
+        return HttpResponse.json({
+          id: 123,
+          name: "New Certificate",
+          certificate_authority_id: 1,
+          subject_name: "Test subject name",
+          created_at: new Date().toISOString(),
+        });
+      })
+    );
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+    const { user } = render(
+      <AddCertModal
+        existingCerts={[]}
+        onExit={mockOnExit}
+        onSuccess={mockOnSuccess}
+      />
+    );
+
+    const nameInput = await screen.findByPlaceholderText("VPN certificate");
+    await user.type(nameInput, "Valid Name");
+    await user.type(
+      screen.getByPlaceholderText(SUBJECT_NAME_PLACEHOLDER),
+      "/CN=test/O=Org"
+    );
+    await selectScepCa(user);
+
+    const addButton = screen.getByRole("button", { name: /Add/i });
+    // user.click awaits internal pointer events but the click handler kicks
+    // off the POST without awaiting it, so the disabled flip happens
+    // synchronously before resolveServer() is called.
+    await user.click(addButton);
+
+    expect(addButton).toBeDisabled();
+
+    resolveServer();
+    await waitFor(() => {
+      expect(mockOnSuccess).toHaveBeenCalledTimes(1);
     });
   });
 

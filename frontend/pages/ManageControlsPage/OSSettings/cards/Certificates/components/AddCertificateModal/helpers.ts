@@ -13,14 +13,10 @@ export const INVALID_NAME_MSG =
   "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.";
 export const USED_NAME_MSG = "Name is already used by another certificate.";
 export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
-export const SAN_TOO_LONG_MSG =
-  "Subject alternative name is too long. Maximum is 4096 characters.";
 
 export const NAME_REQUIRED_MSG = "Name must be completed.";
 export const CA_REQUIRED_MSG = "Certificate authority must be completed.";
 export const SUBJECT_NAME_REQUIRED_MSG = "Subject name must be completed.";
-
-const SAN_MAX_LENGTH = 4096;
 
 type IMessageFunc = (formData: IAddCertFormData) => string;
 type IValidationMessage = string | IMessageFunc;
@@ -100,26 +96,16 @@ export const generateFormValidations = (
           name: "required",
           required: true,
           isValid: (formData: IAddCertFormData) => {
-            return formData.subjectName.length > 0;
+            return formData.subjectName.trim().length > 0;
           },
           message: SUBJECT_NAME_REQUIRED_MSG,
         },
         // accept any value, let the server handle any errors
       ],
     },
-    subjectAlternativeName: {
-      // SAN is optional; format is validated server-side. Only enforce the
-      // server's length cap so the user gets fast feedback on pathological inputs.
-      validations: [
-        {
-          name: "maxLength",
-          isValid: (formData: IAddCertFormData) => {
-            return formData.subjectAlternativeName.length <= SAN_MAX_LENGTH;
-          },
-          message: SAN_TOO_LONG_MSG,
-        },
-      ],
-    },
+    // SAN is optional; format and length are validated server-side and surfaced
+    // back to the user via the 422 error path in AddCertificateModal.tsx.
+    subjectAlternativeName: { validations: [] },
   };
   return FORM_VALIDATIONS;
 };
