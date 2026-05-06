@@ -1120,7 +1120,8 @@ type VPPTokenRaw struct {
 type VPPTokenData struct {
 	// Location comes from an Apple API:
 	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
-	// the "library" of apps in ABM that is associated with this VPP token.
+	// the organization unit (formerly "location") in Apple Business that is associated with this
+	// VPP token.
 	Location string `json:"location"`
 
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the

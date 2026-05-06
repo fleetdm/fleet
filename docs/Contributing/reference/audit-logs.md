@@ -1635,7 +1635,7 @@ This activity contains the following fields:
 Generated when VPP features are enabled in Fleet.
 
 This activity contains the following fields:
-- "location": Location associated with the VPP content token for the enabled VPP features.
+- "location": Organization unit associated with the VPP content token for the enabled VPP features.
 
 #### Example
 
@@ -1650,7 +1650,7 @@ This activity contains the following fields:
 Generated when VPP features are disabled in Fleet.
 
 This activity contains the following fields:
-- "location": Location associated with the VPP content token for the disabled VPP features.
+- "location": Organization unit associated with the VPP content token for the disabled VPP features.
 
 #### Example
 
