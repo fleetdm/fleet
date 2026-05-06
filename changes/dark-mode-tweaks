@@ -1,1 +1,3 @@
-* Improved dark mode contrast on inputs, error pages, and dropdown menu borders, and rounded the bottom corners of data tables.
+* Improved dark mode contrast on error pages.
+* Added borders to dropdowns.
+* Fixed bottom-right rounded corners of data tables being cut.

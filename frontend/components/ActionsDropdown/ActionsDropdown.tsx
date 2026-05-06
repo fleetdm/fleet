@@ -255,7 +255,7 @@ const ActionsDropdown = ({
     menu: (provided) => ({
       ...provided,
       backgroundColor: COLORS["core-fleet-white"],
-      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px ${COLORS["ui-fleet-black-10"]}`,
+      boxShadow: `0 2px 6px rgba(0, 0, 0, 0.1), 0 0 0 1px var(--dropdown-menu-outline, transparent)`,
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
