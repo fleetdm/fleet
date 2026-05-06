@@ -151,6 +151,7 @@ func TestHosts(t *testing.T) {
 		{"UpdateOsqueryIntervals", testUpdateOsqueryIntervals},
 		{"UpdateRefetchRequested", testUpdateRefetchRequested},
 		{"LoadHostByDeviceAuthToken", testHostsLoadHostByDeviceAuthToken},
+		{"LoadHostByDeviceAuthTokenFastFail", testHostsLoadHostByDeviceAuthTokenFastFail},
 		{"GetDeviceAuthToken", testHostsGetDeviceAuthToken},
 		{"SetOrUpdateDeviceAuthToken", testHostsSetOrUpdateDeviceAuthToken},
 		{"OSVersions", testOSVersions},
@@ -8386,6 +8387,73 @@ func testHostsLoadHostByDeviceAuthToken(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.Equal(t, hFleet.ID, loadFleet.ID)
+}
+
+// testHostsLoadHostByDeviceAuthTokenFastFail covers the fast-fail behavior of
+// LoadHostByDeviceAuthToken: tokens that don't resolve to a non-expired
+// host_device_auth row must return NotFound without running the multi-join
+// host-details query. See issue #44816.
+func testHostsLoadHostByDeviceAuthTokenFastFail(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ff-host"),
+		NodeKey:         ptr.String("ff-host"),
+		UUID:            "ff-host",
+		Hostname:        "ff-host.local",
+	})
+	require.NoError(t, err)
+
+	const validToken = "ff-valid-token" //nolint:gosec // G101 false positive, test fixture
+	require.NoError(t, ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, validToken))
+
+	// Sanity: a valid, non-expired token resolves to the host.
+	got, err := ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, got.ID)
+
+	// 1) Token that does not exist at all returns a NotFoundError that
+	//    satisfies errors.Is(err, sql.ErrNoRows).
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, "no-such-token", time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// 2) Token exists but is expired (updated_at older than the TTL)
+	//    returns NotFound — must not surface the row to the join query.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, host.ID)
+		return err
+	})
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, validToken, time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Re-issue a non-expired token so the next case can target the race
+	// window between the pre-check and the host-details query.
+	const liveToken = "ff-live-token" //nolint:gosec // G101 false positive, test fixture
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_device_auth SET token = ?, previous_token = NULL, updated_at = NOW() WHERE host_id = ?`, liveToken, host.ID)
+		return err
+	})
+
+	// 3) Race window: host_device_auth resolves to a host_id, but the host
+	//    row is gone before the second query runs. Simulated here by
+	//    deleting only the hosts row (leaving the host_device_auth row
+	//    in place). Must return NotFound, not an internal error.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM hosts WHERE id = ?`, host.ID)
+		return err
+	})
+	_, err = ds.LoadHostByDeviceAuthToken(ctx, liveToken, time.Hour)
+	require.Error(t, err)
+	require.ErrorIs(t, err, sql.ErrNoRows)
+	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testHostsSetOrUpdateDeviceAuthToken(t *testing.T, ds *Datastore) {
