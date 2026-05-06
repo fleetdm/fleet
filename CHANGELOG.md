@@ -1,3 +1,9 @@
+## Fleet 4.84.3 (May 06, 2026)
+
+### Bug fixes
+
+- Reduced database load from `GET /api/latest/fleet/device/{token}/desktop` and other Fleet Desktop endpoints when invalid or expired device auth tokens are presented, by resolving the token to a host id with a single-table indexed lookup before running the multi-join host-details query.
+
 ## Fleet 4.84.2 (May 01, 2026)
 
 ### Bug fixes
