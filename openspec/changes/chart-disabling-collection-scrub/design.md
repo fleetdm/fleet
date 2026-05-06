@@ -499,6 +499,90 @@ out to be unnecessary given the commit-before-enqueue invariant.
 Documented here so a future reader doesn't reintroduce it
 "defensively."
 
+### 8a. Fold scrub enqueue into `OnHistoricalDataChanged`
+
+Original split: `OnHistoricalDataChanged` emitted activities, the
+caller then called `EnqueueHistoricalDataScrubs` after it returned.
+Three callers (`ModifyAppConfig`, `ModifyTeam`, `editTeamFromSpec`),
+each with the same paired-call shape:
+
+```go
+if err := fleet.OnHistoricalDataChanged(...); err != nil {
+    return ctxerr.Wrap(...)              // FATAL
+}
+if err := fleet.EnqueueHistoricalDataScrubs(...); err != nil {
+    svc.logger.ErrorContext(...)         // log-and-continue
+}
+```
+
+Two problems with the split, both surfaced in PR review (CodeRabbit):
+
+1. **Ordering trap.** Activity emission is fatal, scrub enqueue is
+   log-and-continue, and they run in that order. If `NewActivity`
+   fails on the first flipped sub-key, the call returns before
+   enqueue, the config commit has already persisted the new state,
+   and the retry sees `oldHD == newHD` and short-circuits. Both
+   activity emit *and* scrub enqueue are silently dropped on retry.
+   The disable guarantee — that `host_scd_data` rows for the
+   disabled scope eventually go away — is lost without any error
+   surfaced to the operator.
+
+2. **Duplicated structure.** Both helpers iterate the same sub-key
+   list looking for flips. Adding a dataset means updating two
+   parallel switch tables and the public-key→internal-dataset
+   mapping (`vulnerabilities` ↔ `cve`) implicit across both.
+
+**Decision.** Fold the scrub enqueue into `OnHistoricalDataChanged`.
+One function, one iteration of the sub-key list, one place to add
+new datasets. For each flipped sub-key:
+
+- **Disable flip (true→false):** enqueue scrub first, then emit the
+  disabled activity. Scrub-first matters: an activity-emit failure
+  must not skip the scrub. Both errors are collected and joined.
+- **Enable flip (false→true):** emit the enabled activity. No scrub.
+
+The merged function returns `errors.Join(errs...)`. Callers
+log-and-continue on the joined error (uniform with how scrub
+errors were already treated).
+
+**Behavioral change vs. pre-merge: activity-emit failures are now
+non-fatal.** Previously they returned a 500 to the API caller.
+After: they log and the call succeeds. This is a deliberate priority
+swap. Activity emission is audit-log emission; if it fails, the
+operator can still see the config diff. Scrub failure to enqueue
+means historical data persists indefinitely after the user disabled
+collection, which is the contract this PR exists to uphold. And the
+pre-merge fatal behavior was already broken for retries — see
+problem (1) above. The merged behavior loses no recovery semantics
+that the split version had.
+
+Considered alternatives:
+
+- **Keep the split, reorder enqueue before activity at every call
+  site.** Fixes the immediate ordering bug, but the pairing
+  invariant remains tribal — the next person to add a post-commit
+  step has to know to put it after enqueue. Rejected; the structural
+  fix is better.
+- **Keep activity errors fatal in the merged function.** Possible
+  via two error returns or an early-return-on-activity-error path,
+  but it reintroduces the lose-the-scrub-on-activity-failure bug
+  that motivated the merge. Rejected.
+- **Move the merge into the EE service wrapper instead of the
+  shared `fleet` package.** Would require duplicating the helper for
+  the free-tier `ModifyAppConfig` caller. Rejected; the helper is
+  already in `server/fleet/historical_data.go` and used by both
+  tiers.
+
+The combined interface (`HistoricalDataActivityEmitter` +
+`HistoricalDataScrubEnqueuer`) is satisfied by the existing
+service implementations (`fleet.Datastore` + service `NewActivity`).
+No new mock surface area beyond what each helper already needed
+separately.
+
+This decision supersedes the four-step "save → activity → enqueue"
+ordering described at the bottom of decision 5: post-commit, the
+caller now invokes one helper, not two.
+
 ### 8. New helper `BlobANDNOT`
 
 ```go

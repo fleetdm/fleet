@@ -942,34 +942,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
-	// Dataset names are the public config sub-keys, not internal dataset names.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
+	//
+	// Log-and-continue on failure: the joined error covers both activity
+	// emit and scrub enqueue, both non-fatal individually. See design
+	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldAppConfig.Features.HistoricalData,
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
-	}
-
-	// Enqueue scrub jobs for any sub-key that flipped to disabled. Order
-	// matters: SaveAppConfig (above) commits first; the worker that picks
-	// up these jobs will see the new config and the collection cron will
-	// already have stopped writing the disabled scope.
-	//
-	// Log-and-continue on failure, rather than skipping the rest of the updates
-	// and putting things in an inconsistent state.
-	if err := fleet.EnqueueHistoricalDataScrubs(
-		ctx,
-		svc.ds,
-		oldAppConfig.Features.HistoricalData,
-		appConfig.Features.HistoricalData,
-		nil,
-	); err != nil {
-		svc.logger.ErrorContext(ctx, "enqueue historical data scrubs after SaveAppConfig commit", "err", err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
 	addedEntraTenantIDs := make([]string, 0)
