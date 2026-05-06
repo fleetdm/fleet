@@ -24027,7 +24027,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 			"second view inside the window must not extend auto_rotate_at")
 
 		// Manual rotation (UUID present) → 204, pending_rotation true.
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusNoContent)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
 
 		hostResp = getHostResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
@@ -24045,7 +24045,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Rotating again while one is already in flight is rejected with 400 — the
 		// previous behavior was an idempotent 204, but per spec this should now
 		// surface a clear error to the caller.
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusBadRequest)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusBadRequest)
 		// And the activity count must not have grown — the rejected call must
 		// not log a duplicate triggered-rotation activity.
 		require.Equal(t, manualRotationActivityID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
@@ -24138,7 +24138,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		})
 
 		preDeferredID := s.lastActivityOfTypeMatches(rotatedName, "", 0)
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusNoContent)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
 		// Activity logged at click time with user actor (FleetInitiated=false).
 		afterDeferredID := s.lastActivityOfTypeMatches(rotatedName, "", 0)
 		require.Greater(t, afterDeferredID, preDeferredID, "deferred manual rotate should log an activity at click time")
@@ -24183,7 +24183,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		// Failure path: trigger another manual rotation, then NACK the
 		// SetAutoAdminPassword command. Assert the failed-to-rotate activity
 		// is logged and the row transitions to status=failed.
-		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_local_account/rotate", host.ID), nil, http.StatusNoContent)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
 
 		cmd, err = mdmDevice.Idle()
 		require.NoError(t, err)
