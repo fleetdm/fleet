@@ -95,4 +95,3 @@ func (c *ChartScrubFleet) Run(ctx context.Context, argsJSON json.RawMessage) err
 	}
 	return nil
 }
-

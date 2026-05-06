@@ -161,9 +161,9 @@ func testFindRecentOldHostsFiltered(t *testing.T, tdb *testutils.TestDB, ds *Dat
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)},   // 0: kept (recent, not disabled)
-		{teamID: 2, lastSeen: now.Add(-48 * time.Hour)},  // 1: excluded by recency
-		{teamID: 0, lastSeen: now.Add(-48 * time.Hour)},  // 2: excluded by recency (NULL team doesn't bypass `since`)
+		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)},  // 0: kept (recent, not disabled)
+		{teamID: 2, lastSeen: now.Add(-48 * time.Hour)}, // 1: excluded by recency
+		{teamID: 0, lastSeen: now.Add(-48 * time.Hour)}, // 2: excluded by recency (NULL team doesn't bypass `since`)
 	})
 	_ = ids
 
