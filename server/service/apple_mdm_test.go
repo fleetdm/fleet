@@ -6073,7 +6073,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
 		&mdm.CommandResults{
 			Enrollment:  mdm.Enrollment{UDID: hostUUID},
 			CommandUUID: commandUUID,
-			Raw: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+			Raw: fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -6101,7 +6101,7 @@ func TestMDMCommandAndReportResultsIOSRefetchSupplementalOSVersionFallbackTrunca
         <key>UDID</key>
         <string>IOS-HOST-UUID</string>
 </dict>
-</plist>`, longVersion)),
+</plist>`, longVersion),
 		},
 	)
 	require.NoError(t, err)

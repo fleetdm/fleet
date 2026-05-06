@@ -1200,7 +1200,7 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformationWithExtra(udid, cmdUUID
 	if osVersion == "" {
 		osVersion = "17.5.1"
 	}
-	queryResponses := map[string]interface{}{
+	queryResponses := map[string]any{
 		"AvailableDeviceCapacity": float64(51.53312768),
 		"DeviceCapacity":          float64(64),
 		"DeviceName":              deviceName,
