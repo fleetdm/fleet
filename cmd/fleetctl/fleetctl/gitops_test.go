@@ -2343,14 +2343,16 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Foobar",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token",
+		Location:    "Foobar",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token",
+		CountryCode: "us",
 	}
 	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Gadzooks",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token2",
+		Location:    "Gadzooks",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token2",
+		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
@@ -6096,11 +6098,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	}
 	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{
-			ID:        1,
-			OrgName:   "fleet",
-			Location:  "ca",
-			RenewDate: tokExpire,
-			Token:     string(token),
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
 		}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
