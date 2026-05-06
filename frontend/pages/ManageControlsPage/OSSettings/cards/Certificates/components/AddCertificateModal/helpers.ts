@@ -13,7 +13,6 @@ export const INVALID_NAME_MSG =
   "Invalid characters. Only letters, numbers, spaces, dashes, and underscores allowed.";
 export const USED_NAME_MSG = "Name is already used by another certificate.";
 export const NAME_TOO_LONG_MSG = "Name is too long. Maximum is 255 characters.";
-
 export const NAME_REQUIRED_MSG = "Name must be completed.";
 export const CA_REQUIRED_MSG = "Certificate authority must be completed.";
 export const SUBJECT_NAME_REQUIRED_MSG = "Subject name must be completed.";

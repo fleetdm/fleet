@@ -69,6 +69,10 @@ const AddCertModal = ({
     [existingCTs]
   );
 
+  // formValidation is derived from formData + attemptedSubmit; computing it during render via
+  // useMemo keeps it in lockstep with its inputs without scattering setFormValidation calls
+  // across handlers.
+  // See https://react.dev/learn/choosing-the-state-structure#avoid-redundant-state.
   const formValidation: IAddCertFormValidation = useMemo(
     () => validateFormData(formData, validations, attemptedSubmit),
     [formData, validations, attemptedSubmit]
