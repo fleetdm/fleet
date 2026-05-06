@@ -6,7 +6,7 @@ Before Fleet, Linux systems were difficult to manage and lacked the reporting an
 
 ## At a glance
 
-* **Industry:** Cybersecurity and security awareness training
+- **Industry:** Cybersecurity and security awareness training
 - **Devices managed:** Cross-platform fleet, including 30-40 Linux hosts
 - **Primary requirements:** Linux management, real-time visibility, cross-platform consolidation
 - **Previous challenge:** Legacy Linux management tools were difficult to use and lacked support
