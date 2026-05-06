@@ -398,9 +398,11 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 ### Mark an account as a "Top target"
 
-Navigate to the account you would like to label as a "Top target". Edit the account and check the box.
+Navigate to the account you would like to label as a "Top target". Edit the account, and check the box, and save the record.
 
 > Want to stack rank your target accounts?
+>
+> Once you check the "Top target" box, the "Target tier" field will appear. You can split your target accounts into 3 different tiers. "Tier 1" being the best, "Tier 3" being the least priority but still worth calling out.
 
 
 ## Signatures
