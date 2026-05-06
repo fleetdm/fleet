@@ -30,10 +30,12 @@ Variables are global, meaning they can be used in scripts and profiles across al
 
 ```yaml
     env:
-      ###  Variables used by the GitOps workflow ###
+      ###  Local variables used by the GitOps workflow ###
       FLEET_URL: ${{ secrets.FLEET_URL }}
       FLEET_API_TOKEN: ${{ secrets.FLEET_API_TOKEN }}
       WORKSTATIONS_ENROLL_SECRET: ${{ secrets.WORKSTATIONS_ENROLL_SECRET }}
+      ### Variables to upload to Fleet for use in scripts and profiles
+      FLEET_SECRET_EXAMPLE_API_TOKEN: ${{ secrets.FLEET_SECRET_EXAMPLE_API_TOKEN }}
 ```
 
 ### Scripts and configuration profiles
