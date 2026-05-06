@@ -664,6 +664,8 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	// Store previous active state before applying patches
 	previousActive := user.Active
 
+	// modified is set when at least one recognized op was processed.
+	modified := false
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			u.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
@@ -688,44 +690,51 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case userNameAttr:
 					err = u.patchUserName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case activeAttr:
 					err = u.patchActive(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr + "." + givenNameAttr:
 					err = u.patchGivenName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr + "." + familyNameAttr:
 					err = u.patchFamilyName(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case nameAttr:
 					err = u.patchName(ctx, v, op, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case emailsAttr:
 					err = u.patchEmails(ctx, v, op, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				case extensionEnterpriseUserAttributes + ":" + departmentAttr:
 					err = u.patchDepartment(ctx, op.Op, v, user)
 					if err != nil {
 						return scim.Resource{}, err
 					}
+					modified = true
 				default:
-					u.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
-					return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+					u.logger.WarnContext(ctx, "unsupported patch value field", "field", k)
 				}
 			}
 		case op.Path.String() == externalIdAttr:
@@ -733,53 +742,61 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == userNameAttr:
 			err = u.patchUserName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == activeAttr:
 			err = u.patchActive(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr+"."+givenNameAttr:
 			err = u.patchGivenName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr+"."+familyNameAttr:
 			err = u.patchFamilyName(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == nameAttr:
 			err = u.patchName(ctx, op.Value, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.String() == emailsAttr:
 			err = u.patchEmails(ctx, op.Value, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.AttributePath.String() == emailsAttr:
 			err = u.patchEmailsWithPathFiltering(ctx, op, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+departmentAttr:
 			err = u.patchDepartment(ctx, op.Op, op.Value, user)
 			if err != nil {
 				return scim.Resource{}, err
 			}
+			modified = true
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-			return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			u.logger.WarnContext(ctx, "unsupported patch path", "path", op.Path)
 		}
 	}
 
-	if len(operations) != 0 {
+	if modified {
 		err = u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):
@@ -794,7 +811,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			return scim.Resource{}, err
 		}
 
-		// Check if user was deactivated and delete matching Fleet user if so
+		// Check if user was deactivated and delete matching Fleet user if so.
+		// This sits inside `if modified` because patchActive only runs when at least
+		// one recognized op was applied; if modified is false, user.Active equals
+		// previousActive and no deactivation can have occurred.
 		if wasDeactivated(previousActive, user.Active) {
 			if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
 				u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
@@ -1207,8 +1227,7 @@ func (u *UserHandler) patchName(ctx context.Context, v any, op scim.PatchOperati
 			}
 			user.FamilyName = &familyName
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch value field", "field", nameAttr+"."+nameKey)
-			return scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			u.logger.WarnContext(ctx, "unsupported name subattribute", "field", nameAttr+"."+nameKey)
 		}
 	}
 	return nil

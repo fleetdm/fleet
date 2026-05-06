@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/elimity-com/scim"
@@ -174,6 +175,39 @@ func RegisterSCIM(
 								Name:     "department",
 								Required: false,
 							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "employeeNumber",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "costCenter",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "organization",
+								Required: false,
+							})),
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "division",
+								Required: false,
+							})),
+							schema.ComplexCoreAttribute(schema.ComplexParams{
+								Name:        "manager",
+								Description: optional.NewString("The User's manager. A complex type that optionally allows service providers to represent organizational hierarchy by referencing the 'id' attribute of another User."),
+								SubAttributes: []schema.SimpleParams{
+									schema.SimpleStringParams(schema.StringParams{
+										Name: "value",
+									}),
+									schema.SimpleReferenceParams(schema.ReferenceParams{
+										Name:           "$ref",
+										ReferenceTypes: []schema.AttributeReferenceType{"User"},
+									}),
+									schema.SimpleStringParams(schema.StringParams{
+										Name:       "displayName",
+										Mutability: schema.AttributeMutabilityReadOnly(),
+									}),
+								},
+							}),
 						},
 						Description: optional.NewString("Enterprise User"),
 						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
@@ -216,10 +250,13 @@ func RegisterSCIM(
 		return err
 	}
 
+	dumpPayloadsEnabled := debugSCIMPayloadsEnabled()
+
 	// Apply middleware including OTEL instrumentation
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
+		handler = debugPayloadDumpMiddleware(scimLogger, dumpPayloadsEnabled, handler)
 		handler = auth.AuthenticatedUserMiddleware(svc, scimErrorHandler, handler)
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
@@ -306,6 +343,92 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 			}),
 		)
 		instrumentedHandler.ServeHTTP(w, r)
+	})
+}
+
+// debugSCIMPayloadsEnabled reports whether the FLEET_DEBUG_SCIM_PAYLOADS environment
+// variable is set to a truthy value.
+func debugSCIMPayloadsEnabled() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("FLEET_DEBUG_SCIM_PAYLOADS"))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
+// maxDumpedSCIMBodyBytes caps how much of a SCIM request body the debug payload dump
+// middleware writes to the log. Larger bodies are still passed through to the handler
+// unchanged, but only this many bytes are emitted to the log to keep entries bounded.
+const maxDumpedSCIMBodyBytes = 64 * 1024
+
+// debugPayloadDumpMiddleware logs the raw SCIM request body to scimLogger when enabled
+// is true. The middleware buffers at most maxDumpedSCIMBodyBytes from the body for the log entry
+// and stitches the buffered head back in front of the unread remainder via io.MultiReader
+// so the downstream handler still sees the complete body. This caps memory use on the
+// dump path even for large payloads while preserving SCIM correctness.
+func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Handler) http.Handler {
+	if !enabled {
+		return next
+	}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if r.Body == nil || r.Body == http.NoBody {
+			logger.WarnContext(ctx, "scim payload dump",
+				"method", r.Method, "path", r.URL.Path, "size", 0, "truncated", false, "body", "")
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		head := make([]byte, maxDumpedSCIMBodyBytes)
+		n, err := io.ReadFull(r.Body, head)
+		// fullyRead is true when the body is exhausted by ReadFull (shorter than the
+		// head buffer). Used below to skip the truncation probe, which would otherwise
+		// invoke Read on an already-exhausted body and may surface spurious errors on
+		// some http.Body implementations.
+		fullyRead := errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
+		switch {
+		case err == nil, fullyRead:
+			// Either the buffer is full or the body fits entirely on the buffer.
+		default:
+			logger.ErrorContext(ctx, "scim payload dump: failed to read body",
+				"method", r.Method, "path", r.URL.Path, "err", err)
+			// Body is partially consumed and unreadable; reset to empty so the downstream
+			// handler fails cleanly rather than hanging waiting for bytes.
+			_ = r.Body.Close()
+			r.Body = io.NopCloser(bytes.NewReader(nil))
+			next.ServeHTTP(w, r)
+			return
+		}
+		head = head[:n]
+
+		// Probe one byte beyond the cap to detect whether the body was truncated for
+		// logging purposes. Skip the probe when ReadFull already exhausted the body —
+		// a probe Read on an exhausted body adds no information and can spuriously log.
+		var probe [1]byte
+		var truncated bool
+		if !fullyRead {
+			probeN, probeErr := r.Body.Read(probe[:])
+			truncated = probeN > 0
+			if probeErr != nil && !errors.Is(probeErr, io.EOF) {
+				logger.WarnContext(ctx, "scim payload dump: probe read error",
+					"method", r.Method, "path", r.URL.Path, "err", probeErr)
+			}
+		}
+
+		// Build the restored body. Always include head; include the probe byte and
+		// remaining body only if we managed to read past the cap.
+		var restored io.Reader = bytes.NewReader(head)
+		if truncated {
+			restored = io.MultiReader(restored, bytes.NewReader(probe[:1]), r.Body)
+		} else {
+			_ = r.Body.Close()
+		}
+
+		logger.WarnContext(ctx, "scim payload dump",
+			"method", r.Method, "path", r.URL.Path,
+			"size", len(head), "truncated", truncated, "body", string(head))
+		r.Body = io.NopCloser(restored)
+		next.ServeHTTP(w, r)
 	})
 }
 

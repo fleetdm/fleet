@@ -3184,6 +3184,68 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		assert.Equal(t, "Engineering", m["department"])
 	})
 
+	t.Run("Patch department alongside extra enterprise attributes (no-path, flat keys)", func(t *testing.T) {
+		const enterpriseURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+		patchPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{
+					"op": "replace",
+					"value": map[string]any{
+						enterpriseURN + ":department":     "Internal Tools",
+						enterpriseURN + ":employeeNumber": "EMP-12345",
+						enterpriseURN + ":costCenter":     "CC-90",
+					},
+				},
+			},
+		}
+
+		var resp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &resp)
+		ext, ok := resp[enterpriseURN].(map[string]any)
+		require.True(t, ok, "enterprise extension should be present in response")
+		assert.Equal(t, "Internal Tools", ext["department"])
+		// Fleet does not store employeeNumber/costCenter — they must not appear in the response.
+		_, hasEmp := ext["employeeNumber"]
+		assert.False(t, hasEmp, "employeeNumber should not be stored")
+		_, hasCC := ext["costCenter"]
+		assert.False(t, hasCC, "costCenter should not be stored")
+	})
+
+	t.Run("Patch with explicit path on extra enterprise attribute is silently skipped", func(t *testing.T) {
+		const enterpriseURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+		// Set a known department first so this.
+		const knownDept = "BeforeNoOp"
+		setDeptPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{"op": "replace", "path": enterpriseURN + ":department", "value": knownDept},
+			},
+		}
+		var setResp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setDeptPayload, http.StatusOK, &setResp)
+
+		// Now PATCH only an unrecognized enterprise attribute.
+		patchPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{
+					"op":    "replace",
+					"path":  enterpriseURN + ":employeeNumber",
+					"value": "EMP-OTHER",
+				},
+			},
+		}
+
+		var resp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &resp)
+		ext, ok := resp[enterpriseURN].(map[string]any)
+		require.True(t, ok, "enterprise extension should still be present after the no-op PATCH")
+		assert.Equal(t, knownDept, ext["department"], "department must be unchanged by a no-op PATCH on an extra attribute")
+		_, hasEmp := ext["employeeNumber"]
+		assert.False(t, hasEmp, "employeeNumber must not be stored")
+	})
+
 	// ///////////////////////////////////////////////
 	// Tests for patching with explicit operation path
 
