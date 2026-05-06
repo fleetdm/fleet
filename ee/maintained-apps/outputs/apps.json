@@ -345,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Cavalry",
+      "slug": "cavalry/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scenegroup.cavalry",
+      "description": "Motion design and animation software"
+    },
+    {
       "name": "Charles",
       "slug": "charles/darwin",
       "platform": "darwin",
