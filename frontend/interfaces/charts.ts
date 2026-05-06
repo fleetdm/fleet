@@ -46,7 +46,9 @@ export interface IHistoricalDataSettings {
 // Maps internal dataset names (used by the chart API) to the config keys
 // surfaced in features.historical_data. Datasets not present here are
 // treated as having no toggle (collection implicitly enabled).
-export const DATASET_CONFIG_KEY: Record<string, HistoricalDataConfigKey> = {
+export const DATASET_CONFIG_KEY: Partial<
+  Record<string, HistoricalDataConfigKey>
+> = {
   uptime: "uptime",
   cve: "vulnerabilities",
 };
