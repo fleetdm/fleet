@@ -459,6 +459,7 @@ func (ds *Datastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]ui
 
 	ctx = ctxdb.RequirePrimary(ctx, true)
 	var ids []uint
+	// reader(ctx) honors RequirePrimary set above and returns the writer connection.
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "select host IDs in fleets")
 	}
@@ -516,6 +517,7 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 		}
 
 		var rows []row
+		// reader(ctx) honors RequirePrimary set above and returns the writer connection.
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows,
 			`SELECT id, host_bitmap FROM host_scd_data
 			 WHERE dataset = ? AND id > ?
