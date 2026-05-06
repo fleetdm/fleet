@@ -851,7 +851,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
-				err := fmt.Errorf("MDM profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", setting.Path)
+				err := fmt.Errorf("configuration profile '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_include_all` or `labels_exclude_any`.", filepath.Base(setting.Path))
 
 				if len(setting.LabelsIncludeAny) > 0 {
 					labels = setting.LabelsIncludeAny
@@ -869,7 +869,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 					labels = setting.LabelsExcludeAny
 				}
 
-				updateLabelUsage(labels, setting.Path, "MDM Profile", result)
+				updateLabelUsage(labels, filepath.Base(setting.Path), "configuration profile", result)
 			}
 		}
 	}
