@@ -102,15 +102,6 @@ const CheckerboardViz = ({
     return () => observer.disconnect();
   }, []);
 
-  // Scroll the grid to the far right on mount so the most recent data is
-  // visible by default.
-  useEffect(() => {
-    const el = scrollWrapperRef.current;
-    if (el) {
-      el.scrollLeft = el.scrollWidth;
-    }
-  }, []);
-
   // Hours per slot: 3 for 30-day, 2 for 7/14-day, 1 for 24-hour
   const is24h = selectedDays === 1;
   let hoursPerSlot = 1;
@@ -213,6 +204,16 @@ const CheckerboardViz = ({
   const cellH = CELL_H * scale;
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
+
+  // Scroll the grid to the far right so the most recent data is visible by
+  // default. Re-runs when the grid resizes (e.g. when the card crosses the
+  // wide breakpoint and cells scale up, growing scrollWidth).
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+    }
+  }, [gridWidth]);
 
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
