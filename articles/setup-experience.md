@@ -67,13 +67,13 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin` or `standard` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business Manager (ABM).
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business Manager (ABM).
 
 To configure via the Fleet UI:
 
 1. Head to **Controls > Setup experience**.
 
-2. Under the managed local account options, choose **Admin** or **Standard** for the end user account type.
+2. Under the managed local account options, choose **Admin**, **Standard**, or **Skip (no account)** for the end user account type.
 
 To configure via GitOps, set the `end_user_local_account_type` field under `mdm.macos_setup` in your YAML configuration:
 
@@ -83,7 +83,7 @@ mdm:
     end_user_local_account_type: "standard"
 ```
 
-Valid values are `"admin"` and `"standard"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default.
+Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default. When set to `"none"`, Fleet skips creating the end user's local account during macOS setup, leaving the device with only the managed local admin account provisioned by Fleet.
 
 > This setting applies to macOS hosts that automatically enroll via Apple Business Manager (ABM). For Windows and Linux, account type is controlled by the operating system during setup.
 
