@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 import { HistoricalDataConfigKey } from "interfaces/charts";
