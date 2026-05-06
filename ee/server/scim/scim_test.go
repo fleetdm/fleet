@@ -14,6 +14,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// closeTrackingBody wraps an io.Reader and records whether Close has been called.
+// It is used to verify that debugPayloadDumpMiddleware propagates Close() to the
+// original request body even when it stitches the body via io.MultiReader.
+type closeTrackingBody struct {
+	io.Reader
+	closed bool
+}
+
+func (c *closeTrackingBody) Close() error {
+	c.closed = true
+	return nil
+}
+
 func TestDebugPayloadDumpMiddleware(t *testing.T) {
 	const samplePayload = `{"schemas":["urn:ietf:params:scim:api:messages:2.0:PatchOp"],"Operations":[]}`
 
@@ -124,6 +137,34 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		assert.Contains(t, out, "size="+strconv.Itoa(maxDumpedSCIMBodyBytes), "log should report the capped size")
 		assert.Contains(t, out, "truncated=true", "log should mark the entry as truncated")
 		assert.NotContains(t, out, tailMarker, "log must not contain bytes past the cap")
+	})
+
+	t.Run("enabled truncated path closes the original body", func(t *testing.T) {
+		// Regression: the truncated branch wraps the stitched body via a struct that must
+		// propagate Close() to the original http.Request.Body. Previously it used
+		// io.NopCloser, which leaked the underlying body/connection.
+		body := strings.Repeat("A", maxDumpedSCIMBodyBytes+10)
+		tracker := &closeTrackingBody{Reader: strings.NewReader(body)}
+
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, _ = io.ReadAll(r.Body)
+			// The http.Server normally calls Close after the handler returns; emulate that here
+			// so we can assert close propagation works end-to-end through our wrapper.
+			_ = r.Body.Close()
+			w.WriteHeader(http.StatusOK)
+		})
+
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, nil))
+		handler := debugPayloadDumpMiddleware(logger, true, next)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/fleet/scim/Users", nil)
+		req.Body = tracker
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.True(t, tracker.closed, "original body Close must be called when path is truncated")
 	})
 
 	t.Run("enabled body equal to cap is not marked truncated", func(t *testing.T) {

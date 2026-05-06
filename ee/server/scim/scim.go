@@ -417,19 +417,29 @@ func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Han
 
 		// Build the restored body. Always include head; include the probe byte and
 		// remaining body only if we managed to read past the cap.
-		var restored io.Reader = bytes.NewReader(head)
-		if truncated {
-			restored = io.MultiReader(restored, bytes.NewReader(probe[:1]), r.Body)
-		} else {
-			_ = r.Body.Close()
-		}
-
 		logger.WarnContext(ctx, "scim payload dump",
 			"method", r.Method, "path", r.URL.Path,
 			"size", len(head), "truncated", truncated, "body", string(head))
-		r.Body = io.NopCloser(restored)
+		if truncated {
+			origBody := r.Body
+			r.Body = readCloser{
+				Reader: io.MultiReader(bytes.NewReader(head), bytes.NewReader(probe[:1]), origBody),
+				Closer: origBody,
+			}
+		} else {
+			_ = r.Body.Close()
+			r.Body = io.NopCloser(bytes.NewReader(head))
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// readCloser pairs an io.Reader with an independent io.Closer. It is used by
+// debugPayloadDumpMiddleware to expose a stitched body (head + probe + remaining
+// original body) while still propagating Close() to the underlying http.Request.Body.
+type readCloser struct {
+	io.Reader
+	io.Closer
 }
 
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.
