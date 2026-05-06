@@ -201,6 +201,140 @@ func TestGetNeededUbuntuVersions(t *testing.T) {
 	}
 }
 
+func TestGetNeededRHELVersions(t *testing.T) {
+	tests := []struct {
+		name     string
+		osVers   *fleet.OSVersions
+		expected []string
+	}{
+		{
+			name: "multiple RHEL versions",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 8.10.0", Version: "8.10.0"},
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+				},
+			},
+			expected: []string{"8", "9"},
+		},
+		{
+			name: "duplicate major versions deduplicated",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.2.0", Version: "9.2.0"},
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "Fedora skipped",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+					{Platform: "rhel", Name: "Fedora Linux 36.0.0", Version: "36.0.0"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "non-RHEL platforms ignored",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.4.0", Version: "9.4.0"},
+					{Platform: "ubuntu", Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"},
+					{Platform: "windows", Name: "Windows 10", Version: "10.0.19041"},
+				},
+			},
+			expected: []string{"9"},
+		},
+		{
+			name: "no RHEL platforms",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "ubuntu", Name: "Ubuntu 22.04.8 LTS", Version: "22.04.8 LTS"},
+				},
+			},
+			expected: []string{},
+		},
+		{
+			name: "only Fedora",
+			osVers: &fleet.OSVersions{
+				OSVersions: []fleet.OSVersion{
+					{Platform: "rhel", Name: "Fedora Linux 36.0.0", Version: "36.0.0"},
+				},
+			},
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getNeededRHELVersions(tt.osVers)
+			require.ElementsMatch(t, tt.expected, result)
+		})
+	}
+}
+
+func TestRemoveOldRHELOSVArtifacts(t *testing.T) {
+	tmpDir := t.TempDir()
+	today := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
+
+	files := []string{
+		"osv-rhel-9-2026-04-08.json.gz",      // today — keep
+		"osv-rhel-9-2026-04-07.json.gz",      // yesterday — remove
+		"osv-rhel-8-2026-04-07.json.gz",      // yesterday, different version, not in successful — keep
+		"osv-ubuntu-2204-2026-04-07.json.gz", // ubuntu — not touched
+		"some-other-file.json",               // unrelated — not touched
+	}
+
+	for _, file := range files {
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, file), []byte("test"), 0o644))
+	}
+
+	err := removeOldRHELOSVArtifacts(today, tmpDir, []string{"9"})
+	require.NoError(t, err)
+
+	// Today's RHEL 9 — kept
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-08.json.gz"))
+	require.NoError(t, err)
+
+	// Yesterday's RHEL 9 — removed (successfully downloaded today)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-9-2026-04-07.json.gz"))
+	require.True(t, os.IsNotExist(err))
+
+	// Yesterday's RHEL 8 — kept (not in successful list, last-known-good)
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-rhel-8-2026-04-07.json.gz"))
+	require.NoError(t, err)
+
+	// Ubuntu artifact — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "osv-ubuntu-2204-2026-04-07.json.gz"))
+	require.NoError(t, err)
+
+	// Other file — not touched
+	_, err = os.Stat(filepath.Join(tmpDir, "some-other-file.json"))
+	require.NoError(t, err)
+}
+
+func TestRHELOSVFilename(t *testing.T) {
+	date := time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		version  string
+		expected string
+	}{
+		{"9", "osv-rhel-9-2026-04-08.json.gz"},
+		{"8", "osv-rhel-8-2026-04-08.json.gz"},
+		{"10", "osv-rhel-10-2026-04-08.json.gz"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			require.Equal(t, tt.expected, rhelOSVFilename(tt.version, date))
+		})
+	}
+}
+
 func TestOSVFilename(t *testing.T) {
 	date := time.Date(2026, 3, 30, 0, 0, 0, 0, time.UTC)
 
@@ -267,7 +401,7 @@ func TestSyncOSVFaultTolerance(t *testing.T) {
 		return errors.New("mock download failure")
 	}
 
-	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload)
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, versions, date, release, mockDownload, osvFilename)
 	require.Error(t, err)
 	require.NotNil(t, result)
 
@@ -309,4 +443,116 @@ func TestSyncOSVChecksumMatch(t *testing.T) {
 	require.Contains(t, result.Skipped, "2204")
 	require.Empty(t, result.Downloaded)
 	require.Empty(t, result.Failed)
+}
+
+func TestSyncOSVPartialFailureNotReturnedAsError(t *testing.T) {
+	// Documents the behavior RefreshAll guards against: SyncOSV reports per-
+	// version failures via SyncResult.Failed but does NOT return an error when
+	// some downloads succeed.
+	tmpDir := t.TempDir()
+	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+
+	good := "osv-ubuntu-2204-2026-04-01.json.gz"
+	bad := "osv-ubuntu-2404-2026-04-01.json.gz"
+
+	release := &ReleaseInfo{
+		TagName: "cve-202604010000",
+		Assets: map[string]*AssetInfo{
+			good: {Name: good, ID: 1},
+			bad:  {Name: bad, ID: 2},
+		},
+	}
+
+	mockDownload := func(ctx context.Context, assetID int64, dstPath string) error {
+		if assetID == 2 {
+			return errors.New("simulated download failure")
+		}
+		return os.WriteFile(dstPath, []byte("ok"), 0o644)
+	}
+
+	result, err := syncOSVWithDownloader(context.Background(), tmpDir, []string{"2204", "2404"}, date, release, mockDownload, osvFilename)
+	require.NoError(t, err, "SyncOSV does not return error on partial failure")
+	require.Contains(t, result.Downloaded, "2204")
+	require.Contains(t, result.Failed, "2404")
+}
+
+func TestVersionsFromRelease(t *testing.T) {
+	release := &ReleaseInfo{
+		TagName: "cve-202604270000",
+		Assets: map[string]*AssetInfo{
+			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
+			"osv-ubuntu-2404-2026-04-27.json.gz": {Name: "osv-ubuntu-2404-2026-04-27.json.gz"},
+			"osv-rhel-8-2026-04-27.json.gz":      {Name: "osv-rhel-8-2026-04-27.json.gz"},
+			"osv-rhel-9-2026-04-27.json.gz":      {Name: "osv-rhel-9-2026-04-27.json.gz"},
+		},
+	}
+
+	ubuntu, rhel := versionsFromRelease(release)
+	require.ElementsMatch(t, []string{"2204", "2404"}, ubuntu)
+	require.ElementsMatch(t, []string{"8", "9"}, rhel)
+}
+
+func TestVersionsFromReleaseEmpty(t *testing.T) {
+	release := &ReleaseInfo{TagName: "cve-202604270000", Assets: map[string]*AssetInfo{}}
+	ubuntu, rhel := versionsFromRelease(release)
+	require.Empty(t, ubuntu)
+	require.Empty(t, rhel)
+}
+
+func TestVersionFromAssetName(t *testing.T) {
+	tests := []struct {
+		name     string
+		prefix   string
+		expected string
+	}{
+		{"osv-ubuntu-2204-2026-04-27.json.gz", OSVFilePrefix, "2204"},
+		{"osv-rhel-9-2026-04-27.json.gz", OSVRHELFilePrefix, "9"},
+		{"osv-rhel-10-2026-04-27.json.gz", OSVRHELFilePrefix, "10"},
+		{"osv-ubuntu-.json.gz", OSVFilePrefix, ""},
+		{"osv-ubuntu", OSVFilePrefix, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, versionFromAssetName(tt.name, tt.prefix))
+		})
+	}
+}
+
+func TestReleaseDateFromAssets(t *testing.T) {
+	release := &ReleaseInfo{
+		Assets: map[string]*AssetInfo{
+			"osv-ubuntu-2204-2026-04-27.json.gz": {Name: "osv-ubuntu-2204-2026-04-27.json.gz"},
+		},
+	}
+
+	d, ok := releaseDateFromAssets(release)
+	require.True(t, ok)
+	require.Equal(t, time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC), d)
+
+	emptyRelease := &ReleaseInfo{Assets: map[string]*AssetInfo{}}
+	_, ok = releaseDateFromAssets(emptyRelease)
+	require.False(t, ok)
+}
+
+func TestDateFromAssetName(t *testing.T) {
+	tests := []struct {
+		name     string
+		expected time.Time
+		ok       bool
+	}{
+		{"osv-ubuntu-2204-2026-04-27.json.gz", time.Date(2026, 4, 27, 0, 0, 0, 0, time.UTC), true},
+		{"osv-rhel-9-2026-04-08.json.gz", time.Date(2026, 4, 8, 0, 0, 0, 0, time.UTC), true},
+		{"osv-ubuntu-2204.json.gz", time.Time{}, false},
+		{"some-other-file.json", time.Time{}, false},
+		{"short", time.Time{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d, ok := dateFromAssetName(tt.name)
+			require.Equal(t, tt.ok, ok)
+			require.Equal(t, tt.expected, d)
+		})
+	}
 }

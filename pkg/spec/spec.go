@@ -315,17 +315,25 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 
 	s = escapeString(s, preventEscapingPrefix)
 	exclusionZones := getExclusionZones(s)
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(s), "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	trimmed := strings.TrimSpace(s)
+	documentIsXML := strings.HasPrefix(trimmed, "<") // We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
-	escapeXMLValues := func(value string, env string) (string, error) {
-		// Escape XML special characters
-		var b strings.Builder
-		xmlErr := xml.EscapeText(&b, []byte(value))
-		if xmlErr != nil {
-			return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+	escapeValue := func(value string, env string) (string, error) {
+		switch {
+		case documentIsJSON:
+			// Escape JSON special characters so the value is safe to embed inside
+			// a JSON string literal (Apple DDM declarations, Android profiles).
+			return jsonEscapeString(value), nil
+		case documentIsXML:
+			var b strings.Builder
+			if xmlErr := xml.EscapeText(&b, []byte(value)); xmlErr != nil {
+				return "", fmt.Errorf("failed to XML escape fleet secret %s", env)
+			}
+			return b.String(), nil
+		default:
+			return value, nil
 		}
-		value = b.String()
-		return value, nil
 	}
 
 	var err *multierror.Error
@@ -342,16 +350,12 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 				// Expand secrets for client-side validation
 				v, ok := lookupEnv(env)
 				if ok {
-					if !documentIsXML {
-						return v, true
-					}
-
-					v, xmlErr := escapeXMLValues(v, env)
-					if xmlErr != nil {
-						err = multierror.Append(err, xmlErr)
+					escaped, escErr := escapeValue(v, env)
+					if escErr != nil {
+						err = multierror.Append(err, escErr)
 						return "", false
 					}
-					return v, true
+					return escaped, true
 				}
 				// If secret not found, leave as-is for server to handle
 				return "", false
@@ -378,16 +382,12 @@ func expandEnv(s string, secretMode secretHandling) (string, error) {
 			err = multierror.Append(err, fmt.Errorf("environment variable %q not set", env))
 			return "", false
 		}
-		if !documentIsXML {
-			return v, true
-		}
-
-		v, xmlErr := escapeXMLValues(v, env)
-		if xmlErr != nil {
-			err = multierror.Append(err, xmlErr)
+		escaped, escErr := escapeValue(v, env)
+		if escErr != nil {
+			err = multierror.Append(err, escErr)
 			return "", false
 		}
-		return v, true
+		return escaped, true
 	})
 	if err != nil {
 		return "", err
@@ -451,6 +451,18 @@ func LookupEnvSecrets(s string, secretsMap map[string]string) error {
 		return err
 	}
 	return nil
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	return string(b[1 : len(b)-1])
 }
 
 var escapePattern = regexp.MustCompile(`(\\+\$)`)

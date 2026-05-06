@@ -916,6 +916,36 @@ Generated when a user disables GitOps mode.
 
 This activity does not contain any detail fields.
 
+## enabled_gitops_exception
+
+Generated when a user enables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was enabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "labels"
+}
+```
+
+## disabled_gitops_exception
+
+Generated when a user disables a GitOps exception.
+
+This activity contains the following fields:
+- "exception": Name of the exception that was disabled. One of `"labels"`, `"software"`, `"secrets"`.
+
+#### Example
+
+```json
+{
+  "exception": "software"
+}
+```
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
@@ -1037,6 +1067,7 @@ This activity contains the following fields:
 - "async": Whether the script was executed asynchronously.
 - "policy_id": ID of the policy whose failure triggered the script run. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the script run. Null if no associated policy.
+- "from_setup_experience": Whether the script was run as part of the setup experience.
 
 #### Example
 
@@ -1049,7 +1080,8 @@ This activity contains the following fields:
   "batch_execution_id": "3274d95a-c140-4b17-b185-fb33c93b84e3",
   "async": false,
   "policy_id": 123,
-  "policy_name": "Ensure photon torpedoes are primed"
+  "policy_name": "Ensure photon torpedoes are primed",
+  "from_setup_experience": false
 }
 ```
 
@@ -1237,6 +1269,23 @@ This activity contains the following fields:
 }
 ```
 
+## failed_wipe
+
+Generated when a Windows host reports that a wipe MDM command failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "DESKTOP-1C3ARC1"
+}
+```
+
 ## created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a team (or no team).
@@ -1420,6 +1469,7 @@ This activity contains the following fields:
 - "policy_id": ID of the policy whose failure triggered the installation. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered installation. Null if no associated policy.
 - "command_uuid": ID of the in-house app installation.
+- "from_setup_experience": Whether the installation was triggered as part of the setup experience.
 
 
 #### Example
@@ -1435,7 +1485,8 @@ This activity contains the following fields:
   "status": "pending",
   "source": "pkg_packages",
   "policy_id": 1337,
-  "policy_name": "Ensure 1Password is installed and up to date"
+  "policy_name": "Ensure 1Password is installed and up to date",
+  "from_setup_experience": false
 }
 ```
 
@@ -1698,6 +1749,7 @@ This activity contains the following fields:
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
+- "from_setup_experience": Whether the app was installed as part of the setup experience.
 
 #### Example
 
@@ -1710,7 +1762,8 @@ This activity contains the following fields:
   "app_store_id": "1234567",
   "command_uuid": "98765432-1234-1234-1234-1234567890ab",
   "policy_id": 123,
-  "policy_name": "[Install Software] Logic Pro"
+  "policy_name": "[Install Software] Logic Pro",
+  "from_setup_experience": false
 }
 ```
 
@@ -2485,6 +2538,131 @@ This activity contains the following fields:
 {
 	"host_id": 123,
 	"host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## failed_enrollment_profile_renewal
+
+Generated when an enrollment profile renewal (SCEP or ACME) has failed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "command_uuid": Command ID we display details for.
+
+#### Example
+
+```json
+{
+  "host_id": 123,
+  "host_display_name": "PWNED-VM-123",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab"
+}
+```
+
+## created_label
+
+Generated when creating labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the new label.
+- "label_name": the name of the new label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## edited_label
+
+Generated when editing labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the edited label.
+- "label_name": the name of the edited label.
+- "fleet_id": the ID of the fleet the label belongs to.
+- "fleet_name": the name of the fleet the label belongs to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## deleted_label
+
+Generated when deleting labels.
+
+This activity contains the following fields:
+- "label_id": the ID of the deleted label.
+- "label_name": the name of the deleted label.
+- "fleet_id": the ID of the fleet the label belonged to.
+- "fleet_name": the name of the fleet the label belonged to.
+
+#### Example
+
+```json
+{
+	"label_id": 123,
+	"label_name": "foo",
+	"fleet_id": 1,
+	"fleet_name": "💻 Workstations"
+}
+```
+
+## resent_certificate
+
+Generated when a user resends a certificate to a host.
+
+This activity contains the following fields:
+- "host_id": The ID of the host.
+- "host_display_name": The display name of the host.
+- "certificate_template_id": The ID of the certificate template
+- "certificate_name": The name of the certificate
+
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "certificate_template_id": 123,
+  "certificate_name": "Zero trust certificate"
+}
+```
+
+## canceled_setup_experience
+
+Generated when macOS setup experience is canceled due to software install failure.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "software_title": Name of the software.
+- "software_title_id": ID of the software title.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "software_title": "Adobe Acrobat.app",
+  "software_title_id": 1234
 }
 ```
 

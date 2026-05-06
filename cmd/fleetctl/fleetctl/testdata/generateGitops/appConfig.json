@@ -100,7 +100,8 @@
   },
   "activity_expiry_settings": {
     "activity_expiry_enabled": false,
-    "activity_expiry_window": 30
+    "activity_expiry_window": 30,
+    "preserve_host_activities_on_reenrollment": true
   },
   "features": {
     "enable_host_users": true,

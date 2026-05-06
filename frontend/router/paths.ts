@@ -16,7 +16,7 @@ export default {
   CONTROLS_DISK_ENCRYPTION: `${URL_PREFIX}/controls/os-settings/disk-encryption`,
   CONTROLS_PASSWORDS: `${URL_PREFIX}/controls/os-settings/passwords`,
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
-  CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
+  CONTROLS_USERS: `${URL_PREFIX}/controls/setup-experience/users`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
   CONTROLS_SETUP_ASSISTANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
   CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
@@ -85,9 +85,10 @@ export default {
 
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
-  SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_INVENTORY: `${URL_PREFIX}/software/inventory`,
   SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
+  SOFTWARE_LIBRARY: `${URL_PREFIX}/software/library`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },

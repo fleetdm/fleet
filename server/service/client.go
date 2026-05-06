@@ -801,6 +801,11 @@ func (c *Client) ApplyGroup(
 				tmMacSetupAssistants[k] = nil
 			}
 			if setup.Script.Value != "" {
+				if setup.ManualAgentInstall.Value {
+					return nil, nil, nil, nil, fmt.Errorf(
+						"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (fleet %q).", k,
+					)
+				}
 				b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, setup.Script.Value))
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying fleets: %w", err)
@@ -1903,24 +1908,26 @@ func (c *Client) DoGitOps(
 	group := spec.Group{} // as we parse the incoming gitops spec, we'll build out various group specs that will each be applied separately
 
 	// Check GitOps exception enforcement. When an entity type is excepted:
-	// - If the key is present in the YAML, fail with an error.
+	// - If the key is present in the YAML, fail with an error (premium tier only)
 	// - If the key is absent, it's a no-op (existing entities preserved).
 	// When an entity type is NOT excepted:
 	// - If the key is absent, all entities of that type are deleted.
 	var exceptions fleet.GitOpsExceptions
 	if appConfig != nil {
 		exceptions = appConfig.GitOpsConfig.Exceptions
-		if exceptions.Labels && incoming.LabelsPresent {
-			return nil, errors.New(
-				`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Secrets && incoming.SecretsPresent {
-			return nil, errors.New(
-				`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
-		}
-		if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
-			return nil, errors.New(
-				`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+		if appConfig.License.IsPremium() {
+			if exceptions.Labels && incoming.LabelsPresent {
+				return nil, errors.New(
+					`"labels" is excepted from GitOps management. Remove the "labels:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Secrets && incoming.SecretsPresent {
+				return nil, errors.New(
+					`"secrets" is excepted from GitOps management. Remove the "secrets:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
+			if exceptions.Software && incoming.SoftwarePresent && incoming.TeamName != nil {
+				return nil, errors.New(
+					`"software" is excepted from GitOps management. Remove the "software:" key from your GitOps file or disable the exception in Fleet settings.`)
+			}
 		}
 	}
 
@@ -1938,7 +1945,7 @@ func (c *Client) DoGitOps(
 		if !exceptions.Secrets && !incoming.SecretsPresent {
 			incoming.OrgSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && !exceptions.Secrets {
+		if orgSecrets, ok := incoming.OrgSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: orgSecrets.([]*fleet.EnrollSecret)}
 		}
 		delete(incoming.OrgSettings, "secrets")
@@ -2182,7 +2189,7 @@ func (c *Client) DoGitOps(
 			}
 			incoming.TeamSettings["secrets"] = make([]*fleet.EnrollSecret, 0)
 		}
-		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && !exceptions.Secrets {
+		if teamSecrets, ok := incoming.TeamSettings["secrets"]; ok && (!exceptions.Secrets || !appConfig.License.IsPremium()) {
 			team["secrets"] = teamSecrets
 		}
 
@@ -2596,6 +2603,11 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	// load the no-team setup_experience.macos_script if any
 	var macosSetupScript *fileContent
 	if macOSSetup.Script.Value != "" {
+		if macOSSetup.ManualAgentInstall.Value {
+			return nil, nil, errors.New(
+				"Couldn\u2019t add setup experience script. To add script, first disable macos_manual_agent_install (unassigned hosts).",
+			)
+		}
 		b, err := c.validateMacOSSetupScript(resolveApplyRelativePath(baseDir, macOSSetup.Script.Value))
 		if err != nil {
 			return nil, nil, fmt.Errorf("applying setup_experience.macos_script for unassigned hosts: %w", err)

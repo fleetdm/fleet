@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -167,7 +168,9 @@ This document contains a secret not stored in the database.
 Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 `
 
-	xmlValidSecret := `<?xml>${FLEET_SECRET_VALID_XML}</xml>` //nolint:gosec // G101: test fixture, not a credential
+	xmlValidSecret := `<?xml>${FLEET_SECRET_VALID_XML}</xml>`                  //nolint:gosec // G101: test fixture, not a credential
+	jsonValidSecret := `{"pwd":"${FLEET_SECRET_VALID_JSON}"}`                  //nolint:gosec // G101: test fixture, not a credential
+	jsonValidSecretWhitespace := "\n  " + `{"pwd":"$FLEET_SECRET_VALID_JSON"}` //nolint:gosec // G101: test fixture, not a credential
 
 	ctx := t.Context()
 
@@ -175,6 +178,7 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 		"VALID":      "testValue1",
 		"ALSO_VALID": "testValue2",
 		"VALID_XML":  "<tag>value & more</tag>",
+		"VALID_JSON": `p"<&'\d`,
 	}
 
 	secrets := make([]fleet.SecretVariable, 0, len(secretMap))
@@ -209,6 +213,19 @@ Hello doc${FLEET_SECRET_INVALID}. $FLEET_SECRET_ALSO_INVALID
 	require.NoError(t, err)
 	expectedXMLExpansion := `<?xml>&lt;tag&gt;value &amp; more&lt;/tag&gt;</xml>`
 	require.Equal(t, expectedXMLExpansion, expanded)
+
+	// JSON documents get JSON-escaped secret values so the result remains valid JSON.
+	expanded, err = ds.ExpandEmbeddedSecrets(ctx, jsonValidSecret)
+	require.NoError(t, err)
+	var parsed map[string]string
+	require.NoError(t, json.Unmarshal([]byte(expanded), &parsed))
+	require.Equal(t, `p"<&'\d`, parsed["pwd"])
+
+	// Leading whitespace before the opening brace should still be detected as JSON.
+	expanded, err = ds.ExpandEmbeddedSecrets(ctx, jsonValidSecretWhitespace)
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(expanded)), &parsed))
+	require.Equal(t, `p"<&'\d`, parsed["pwd"])
 }
 
 func testExpandHostSecrets(t *testing.T, ds *Datastore) {

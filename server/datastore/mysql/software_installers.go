@@ -836,8 +836,11 @@ func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, 
 		// as canceled, and activates the next upcoming activity.
 		// The returned ActivityDetails is discarded because this is an
 		// internal reset for a new install, not a user-initiated cancel.
-		for _, execID := range executionIDs {
-			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID); err != nil {
+		for i, execID := range executionIDs {
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			activateNext := i == len(executionIDs)-1
+			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext); err != nil {
 				return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retry")
 			}
 		}
@@ -1169,6 +1172,11 @@ func (ds *Datastore) DeleteSoftwareInstaller(ctx context.Context, id uint) error
 		}
 		activateAffectedHostIDs = affectedHostIDs
 
+		if _, err := tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
+			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, id); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete software title display name for installer being deleted")
+		}
+
 		// allow delete only if install_during_setup is false
 		res, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ? AND install_during_setup = 0`, id)
 		if err != nil {
@@ -1457,12 +1465,6 @@ func (ds *Datastore) runInstallerUpdateSideEffectsInTransaction(ctx context.Cont
 	  			WHERE software_installer_id = ? AND status IS NOT NULL AND host_deleted_at IS NULL`, installerID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "hide existing install counts")
-		}
-
-		_, err = tx.ExecContext(ctx, `DELETE FROM software_title_display_names WHERE (software_title_id, team_id) IN
-			(SELECT title_id, global_or_team_id FROM software_installers WHERE id = ?)`, installerID)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "delete software title display name that matches installer")
 		}
 	}
 
@@ -2291,9 +2293,11 @@ WHERE
   title_id NOT IN (?)
 `
 
+	// ORDER BY is_active DESC, id DESC makes existing[0] the previously-active row.
 	const checkExistingInstaller = `
 SELECT
 	id,
+	fleet_maintained_app_id,
 	storage_id != ? is_package_modified,
 	install_script_content_id != ? OR uninstall_script_content_id != ? OR pre_install_query != ? OR
 	COALESCE(post_install_script_content_id != ? OR
@@ -2305,6 +2309,7 @@ FROM
 WHERE
 	global_or_team_id = ?	AND
 	title_id = ?
+ORDER BY is_active DESC, id DESC
 `
 
 	const insertNewOrEditedInstaller = `
@@ -2355,6 +2360,7 @@ ON DUPLICATE KEY UPDATE
   user_email = VALUES(user_email),
   url = VALUES(url),
   install_during_setup = COALESCE(?, install_during_setup),
+  fleet_maintained_app_id = VALUES(fleet_maintained_app_id),
   is_active = VALUES(is_active),
   http_etag = VALUES(http_etag),
   patch_query = VALUES(patch_query)
@@ -2763,9 +2769,10 @@ WHERE
 
 			// pull existing installer state if it exists so we can diff for side effects post-update
 			type existingInstallerUpdateCheckResult struct {
-				InstallerID        uint `db:"id"`
-				IsPackageModified  bool `db:"is_package_modified"`
-				IsMetadataModified bool `db:"is_metadata_modified"`
+				InstallerID          uint  `db:"id"`
+				FleetMaintainedAppID *uint `db:"fleet_maintained_app_id"`
+				IsPackageModified    bool  `db:"is_package_modified"`
+				IsMetadataModified   bool  `db:"is_metadata_modified"`
 			}
 			var existing []existingInstallerUpdateCheckResult
 			err = sqlx.SelectContext(ctx, tx, &existing, checkExistingInstaller, wasUpdatedArgs...)
@@ -2861,6 +2868,8 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited installer with name %q", installer.Filename)
 			}
 
+			var installerIDsToDelete []uint
+
 			// For non-FMA (custom) packages, enforce one installer per title per team.
 			// With the unique constraint on (global_or_team_id, title_id, version),
 			// a version change inserts a new row instead of replacing — clean up the old one.
@@ -2877,11 +2886,10 @@ WHERE
 				`, installerID, globalOrTeamID, titleID, installerID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "re-point policies for old versions of custom installer %q", installer.Filename)
 				}
-				if _, err := tx.ExecContext(ctx, `
-					DELETE FROM software_installers
-					WHERE global_or_team_id = ? AND title_id = ? AND id != ?
-				`, globalOrTeamID, titleID, installerID); err != nil {
-					return ctxerr.Wrapf(ctx, err, "clean up old versions of custom installer %q", installer.Filename)
+				for _, e := range existing {
+					if e.InstallerID != installerID {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
@@ -2953,17 +2961,10 @@ WHERE
 						return ctxerr.Wrapf(ctx, err, "re-point policies for evicted FMA versions of %q", installer.Filename)
 					}
 
-					stmt, args, err := sqlx.In(
-						`DELETE FROM software_installers WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NOT NULL AND id NOT IN (?)`,
-						globalOrTeamID,
-						titleID,
-						keepIDs,
-					)
-					if err != nil {
-						return ctxerr.Wrap(ctx, err, "build FMA eviction query")
-					}
-					if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-						return ctxerr.Wrapf(ctx, err, "evict old FMA versions for %q", installer.Filename)
+					for _, e := range existing {
+						if e.FleetMaintainedAppID != nil && !keepSet[e.InstallerID] {
+							installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+						}
 					}
 				}
 
@@ -2974,6 +2975,23 @@ WHERE
 					WHERE global_or_team_id = ? AND fleet_maintained_app_id = ?
 				`, activeInstallerID, globalOrTeamID, installer.FleetMaintainedAppID); err != nil {
 					return ctxerr.Wrapf(ctx, err, "setting active installer for %q", installer.Filename)
+				}
+
+				// Re-point policies from any non-FMA installers for this title to the active FMA installer.
+				if _, err := tx.ExecContext(ctx, `
+					UPDATE policies SET software_installer_id = ?
+					WHERE software_installer_id IN (
+						SELECT id FROM software_installers
+						WHERE global_or_team_id = ? AND title_id = ? AND fleet_maintained_app_id IS NULL
+					)
+				`, activeInstallerID, globalOrTeamID, titleID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "re-point policies from replaced custom installer to FMA %q", installer.Filename)
+				}
+				// Mark previous custom package installers for this title for deletion.
+				for _, e := range existing {
+					if e.FleetMaintainedAppID == nil && e.InstallerID != installerID {
+						installerIDsToDelete = append(installerIDsToDelete, e.InstallerID)
+					}
 				}
 			}
 
@@ -3098,6 +3116,19 @@ WHERE
 					return ctxerr.Wrapf(ctx, err, "processing installer with name %q", installer.Filename)
 				}
 				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+			}
+
+			// Perform side effects and delete unnecessary installers.
+			for _, id := range installerIDsToDelete {
+				affectedHostIDs, err := ds.runInstallerUpdateSideEffectsInTransaction(ctx, tx, id, true, true)
+				if err != nil {
+					return ctxerr.Wrapf(ctx, err, "side effects for replaced installer id %d for %q", id, installer.Filename)
+				}
+				activateAffectedHostIDs = append(activateAffectedHostIDs, affectedHostIDs...)
+
+				if _, err := tx.ExecContext(ctx, `DELETE FROM software_installers WHERE id = ?`, id); err != nil {
+					return ctxerr.Wrapf(ctx, err, "delete replaced installer id %d for %q", id, installer.Filename)
+				}
 			}
 		}
 
@@ -3562,7 +3593,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	si.package_ids
+	si.package_ids,
+	si.install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
@@ -3583,7 +3615,8 @@ SELECT
 	st.source,
 	st.bundle_identifier,
 	st.name AS title,
-	'' AS package_ids
+	'' AS package_ids,
+	0 AS install_script_content_id
 FROM
 	in_house_apps iha
 	JOIN software_titles st ON iha.title_id = st.id
@@ -3624,7 +3657,7 @@ WHERE
 	return byTeam, nil
 }
 
-func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
+func (ds *Datastore) GetInstallerByTeamAndURL(ctx context.Context, teamID *uint, url string) (*fleet.ExistingSoftwareInstaller, error) {
 	stmt := `
 SELECT
 	si.id AS installer_id,
@@ -3638,20 +3671,28 @@ SELECT
 	st.bundle_identifier AS bundle_identifier,
 	st.name AS title,
 	si.package_ids AS package_ids,
-	si.http_etag AS http_etag
+	si.http_etag AS http_etag,
+	si.install_script_content_id AS install_script_content_id
 FROM
 	software_installers si
 	JOIN software_titles st ON si.title_id = st.id
 WHERE
-	si.global_or_team_id = ? AND si.url = ? AND si.is_active = 1
+	si.url = ? AND si.is_active = 1`
+
+	args := []any{url}
+	if teamID != nil {
+		stmt += ` AND si.global_or_team_id = ?`
+		args = append(args, *teamID)
+	}
+	stmt += `
 ORDER BY si.id DESC
-LIMIT 1
-`
+LIMIT 1`
+
 	var installer fleet.ExistingSoftwareInstaller
 	// Use reader: the installer was written in a previous GitOps run. On rapid sequential
 	// runs, the replica may be slightly stale, which results in a cache miss (full download)
 	// rather than incorrect behavior. This is an acceptable trade-off vs loading the writer.
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, teamID, url); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &installer, stmt, args...); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
@@ -3664,68 +3705,63 @@ LIMIT 1
 }
 
 func (ds *Datastore) checkSoftwareConflictsByIdentifier(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) error {
-	// if this is an in-house app, check if an installer exists
-	if payload.Extension == "ipa" {
+	switch payload.Platform {
+	// currently, the platform will always be ios for .ipa files
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
 		// at the point where this method is called, we attempt to create both iOS and iPadOS entries
 		// for ipa apps, so check for conflicts on either platform.
 		for platform, source := range map[string]string{
 			string(fleet.IOSPlatform):    "ios_apps",
 			string(fleet.IPadOSPlatform): "ipados_apps",
 		} {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
+			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+			}
+			if exists {
+				return alreadyExists("VPP app", payload.Title)
+			}
+
+			// check if equivalent installers exist, duplicate in-house apps are checked in insertInHouseApp
+			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, platform, softwareTypeInstaller)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "check if software installer exists for title identifier")
 			}
 			if exists {
 				return alreadyExists("software installer", payload.Title)
 			}
-
-			exists, err = ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, platform, payload.BundleIdentifier, source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
 		}
-	} else {
-		// check if a VPP app already exists for that software title in the same
-		// platform and team.
-		if payload.Platform == string(fleet.MacOSPlatform) || payload.Platform == string(fleet.IOSPlatform) || payload.Platform == string(fleet.IPadOSPlatform) {
-			exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("VPP app", payload.Title)
-			}
+	case string(fleet.MacOSPlatform):
+		exists, err := ds.checkVPPAppExistsForTitleIdentifier(ctx, ds.reader(ctx), payload.TeamID, payload.Platform, payload.BundleIdentifier, payload.Source, "")
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if VPP app exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("VPP app", payload.Title)
 		}
 
-		// Check if an in-house app with the same bundle id already exists.
-		// Also check if equivalent installers exist, since we relaxed the uniqueness constraints to allow
-		// multiple FMA installer versions.
-		if payload.BundleIdentifier != "" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInHouseApp)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if in-house app exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("in-house app", payload.Title)
-			}
-
-			exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
-			}
-			if exists {
-				return alreadyExists("installer", payload.Title)
-			}
+		// check only for installers, since in-house apps target iOS/iPadOS so they won't conflict
+		exists, err = ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.BundleIdentifier, payload.Platform, softwareTypeInstaller)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
+		}
+	case "windows", "linux":
+		// check by name before any software title renaming side effects can happen
+		exists, err := ds.checkInstallerExistsByName(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Source, payload.Platform)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "check if installer exists by name")
+		}
+		if exists {
+			return alreadyExists("installer", payload.Title)
 		}
 
-		if payload.Platform == "windows" {
-			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.Title, payload.Platform, softwareTypeInstaller)
+		if payload.UpgradeCode != "" {
+			exists, err := ds.checkInstallerOrInHouseAppExists(ctx, ds.reader(ctx), payload.TeamID, payload.UpgradeCode, payload.Platform, softwareTypeInstaller)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "check if installer exists for title identifier")
+				return ctxerr.Wrap(ctx, err, "check if installer exists for upgrade code")
 			}
 			if exists {
 				return alreadyExists("installer", payload.Title)

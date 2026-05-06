@@ -126,12 +126,12 @@ For all in-person or virtual events, sponsored or hosted.
 
 | Source detail | Code | Campaign examples (discreet) |
 | :---- | :---- | :---- |
-| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat\_booth\_scans |
+| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
 | Local event / meetup | LE | 2026\_02-LE-osquery\_meetup\_nyc |
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (workshop, hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
-| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent |
 | Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
@@ -187,8 +187,8 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 - **Structure:** YYYY\_MM-\[Code\]-\[Name\]  
   - **YYYY\_MM:** The start month. (e.g., 2026\_02)  
   - **\[Code\]:** The 2-4 letter code from the table above. (e.g., MC, PS, WH)  
-  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat\_booth, google\_brand)  
-- **Full example:** 2026\_08-MC-blackhat\_booth\_scans
+  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat, google\_brand)  
+- **Full example:** 2026\_08-MC-blackhat
 
 
 #### Always-on campaigns
@@ -632,6 +632,49 @@ We use [Bunny.net](https://dash.bunny.net/stream) for video hosting. Credentials
 6. **Set the desired thumbnail** — take a screenshot of the start of the video and upload it as the thumbnail image.
 
 > **Note for webinars:** You can append a `t=xxs` parameter to the embed code URL to make the video start at a specific timestamp (e.g., `t=90s` to start at 1 minute 30 seconds). This parameter is **not** saved in Bunny.net — it must be added manually each time you use the embed code.
+
+## Virtual persona for email automation
+
+### What it is
+
+We use a virtual team member — **"Grace"** — as the sender identity for our automated email campaigns, nurture sequences, and lifecycle communications. Grace has a name, a headshot, and a consistent voice, but she is not a real employee. She is a purpose-built persona that represents our marketing team.
+
+People engage with people, not logos. Emails from a named individual consistently outperform emails sent from a brand name or a generic address like `marketing@` or `no-reply@`. A virtual persona gives us the warmth and approachability of a personal sender without the operational problems that come with tying automation to a real employee.
+
+- Turnover risk: When a real person is the face of automated email, their departure creates a jarring experience for recipients and a scramble to update templates, signatures, and sender addresses across every platform.
+- Scalability: No single employee can realistically "own" the relationship with every lead and contact in the database. A persona can.
+- Consistency: A virtual identity stays on-brand across every touchpoint — tone, title, photo, and signature never drift.
+- Privacy for the team: Real employees don't have their name and likeness attached to thousands of cold or automated emails they didn't personally write.
+
+### Who is Grace?
+
+Grace is named after pioneering women in science and technology, grounding the persona in values we admire — curiosity, precision, and breaking new ground.
+
+| **Persona name**   | **Named after**                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| **Grace West**   | [Adm. **Grace** Hopper](https://en.wikipedia.org/wiki/Grace_Hopper) (She was a pioneer of computer programming. Hopper was the first to devise the theory of machine-independent programming languages) and </br>[Gladys **West**](https://en.wikipedia.org/wiki/Gladys_West) (She was known for her contributions to mathematical modeling of the shape of the Earth, and her work on the development of satellite geodesy models, which were later incorporated into the Global Positioning System (GPS) |
+
+
+What grace is not:
+
+- She is **not** a chatbot or AI assistant. She is a sender identity for outbound email.
+- She is **not** used to deceive. We disclose her nature in every message.
+- She is **not** a replacement for real human interaction. When a recipient replies, a real team member responds.
+
+
+### How it works in practice
+
+- Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
+- Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
+- Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
+- Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
+- Transparency: Every automated email includes a brief disclaimer identifying Grace as a virtual team member. Honesty builds trust; deception erodes it.
+
+Example disclaimers:
+> *P.S. Full transparency — Grace is a virtual member of our team who helps us stay in touch. Hit reply and a real human will be on the other end.*
+
+Alternative
+> *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
 
 
 

@@ -1,0 +1,1 @@
+- Fixed `GET /api/v1/fleet/commands` returning a SQL error when called with `host_identifier` and the `after` cursor parameter, particularly with `order_key=command_uuid` or `order_key=hostname`.

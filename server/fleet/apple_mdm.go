@@ -522,13 +522,15 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 // MDMAppleSetupPayload describes the payload accepted by the endpoint to
 // update specific MDM macos setup values for a team (or no team).
 type MDMAppleSetupPayload struct {
-	TeamID                      *uint `json:"team_id" renameto:"fleet_id"`
-	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
-	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
-	ManualAgentInstall          *bool `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
-	RequireAllSoftware          *bool `json:"require_all_software_macos"`
-	RequireAllSoftwareWindows   *bool `json:"require_all_software_windows"`
-	LockEndUserInfo             *bool `json:"lock_end_user_info"`
+	TeamID                      *uint   `json:"team_id" renameto:"fleet_id"`
+	EnableEndUserAuthentication *bool   `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually *bool   `json:"enable_release_device_manually" renameto:"apple_enable_release_device_manually"`
+	ManualAgentInstall          *bool   `json:"manual_agent_install" renameto:"macos_manual_agent_install"`
+	RequireAllSoftware          *bool   `json:"require_all_software_macos"`
+	RequireAllSoftwareWindows   *bool   `json:"require_all_software_windows"`
+	LockEndUserInfo             *bool   `json:"lock_end_user_info"`
+	EnableManagedLocalAccount   *bool   `json:"enable_managed_local_account"`
+	EndUserLocalAccountType     *string `json:"end_user_local_account_type"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -1243,11 +1245,17 @@ type AppleMDMVPPInstaller interface {
 }
 
 const (
-	DeviceLocationCmdName  = "DeviceLocation"
-	EnableLostModeCmdName  = "EnableLostMode"
-	DisableLostModeCmdName = "DisableLostMode"
-	SetRecoveryLockCmdName = "SetRecoveryLock"
+	DeviceLocationCmdName       = "DeviceLocation"
+	EnableLostModeCmdName       = "EnableLostMode"
+	DisableLostModeCmdName      = "DisableLostMode"
+	SetRecoveryLockCmdName      = "SetRecoveryLock"
+	AccountConfigurationCmdName = "AccountConfiguration"
 )
+
+// ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
+// via the AccountConfiguration MDM command when the managed local account
+// feature is enabled.
+const ManagedLocalAccountUsername = "_fleetadmin"
 
 type HostLocationData struct {
 	HostID    uint    `db:"host_id"`

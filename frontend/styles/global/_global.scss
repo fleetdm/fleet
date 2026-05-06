@@ -268,6 +268,45 @@ body.dark-mode pre {
   background-color: #111214;
 }
 
+body.dark-mode .data-table-block thead,
+body.dark-mode thead {
+  background-color: $dark-mode-table-header;
+}
+
+body.dark-mode .data-table-block tbody tr,
+body.dark-mode tbody tr {
+  background-color: $dark-mode-table-row;
+}
+
+body.dark-mode .site-nav-item:not(.dup-org-logo):hover {
+  background-color: $dark-mode-nav-hover;
+}
+
+body.dark-mode .card .button--inverse:hover,
+body.dark-mode .card .button--inverse-alert:hover,
+body.dark-mode .card .button--text-icon:hover,
+body.dark-mode .card .button--icon:hover {
+  background-color: $core-fleet-white;
+}
+
+body.dark-mode .checkbox-unchecked-state {
+  fill: $core-fleet-white;
+  stroke: $ui-fleet-black-25;
+}
+
+// react-select v2 (DropdownWrapper) uses inline styles via COLORS proxy,
+// so !important is needed to override them in dark mode.
+body.dark-mode .react-select__control {
+  background-color: $ui-fleet-black-5 !important;
+}
+
+// Legacy react-select v1 (Dropdown) uses SCSS-applied backgrounds.
+body.dark-mode .Select .Select-control,
+body.dark-mode .Select .Select-control .Select-value,
+body.dark-mode .Select .Select-value {
+  background-color: $ui-fleet-black-5;
+}
+
 hr {
   margin-top: $pad-xlarge;
   margin-bottom: $pad-xlarge;

@@ -55,13 +55,23 @@ const validateFormData = ({
 
   if (!ssoUserURL) {
     delete errors.ssoUserURL;
-  } else if (!validUrl({ url: ssoUserURL })) {
+  } else if (
+    !validUrl({
+      url: ssoUserURL,
+    })
+  ) {
     errors.ssoUserURL = "SSO user URL is not a valid URL";
   }
 
   if (!mdmAppleServerURL) {
     delete errors.mdmAppleServerURL;
-  } else if (!validUrl({ url: mdmAppleServerURL })) {
+  } else if (
+    !validUrl({
+      url: mdmAppleServerURL,
+      allowLocalHost: false,
+      protocols: ["http", "https"],
+    })
+  ) {
     errors.mdmAppleServerURL = "Apple MDM server URL is not a valid URL";
   }
 
@@ -139,6 +149,7 @@ const Advanced = ({
       ),
     // intentionally leave activityExpiryWindow out of the dependencies, so that the custom
     // options are maintained even if the user changes the frequency in the UI
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [deleteActivities]
   );
 

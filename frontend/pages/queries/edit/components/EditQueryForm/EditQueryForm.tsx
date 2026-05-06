@@ -18,11 +18,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 
-import {
-  addGravatarUrlToResource,
-  getCustomDropdownOptions,
-  secondsToDhms,
-} from "utilities/helpers";
+import { getCustomDropdownOptions, secondsToDhms } from "utilities/helpers";
 
 import {
   FREQUENCY_DROPDOWN_OPTIONS,
@@ -47,7 +43,6 @@ import labelsAPI, {
   ILabelsSummaryResponse,
 } from "services/entities/labels";
 
-import Avatar from "components/Avatar";
 import SQLEditor from "components/SQLEditor";
 import {
   validateQuery,
@@ -58,7 +53,6 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import DataSet from "components/DataSet";
 import Slider from "components/forms/fields/Slider";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
@@ -69,6 +63,11 @@ import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
 import PageDescription from "components/PageDescription";
+
+import {
+  getCustomTargetOptions,
+  LabelScope,
+} from "components/TargetLabelSelector/labelScopes";
 
 import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -114,20 +113,24 @@ const validateQuerySQL = (query: string) => {
   return { valid, errors };
 };
 
-const getLabelsIncludeAny = (
+// getLabelsForScope returns customLabels when scope === selectedCustomTarget,
+// and an empty slice otherwise.
+const getLabelsForScope = (
   isPremiumTier: boolean | undefined,
   selectedTargetType: string,
-  selectedLabels: Record<string, boolean>
+  selectedCustomTarget: string,
+  selectedLabels: Record<string, boolean>,
+  scope: LabelScope
 ): string[] | undefined => {
   if (!isPremiumTier) {
     return undefined;
   }
-  if (selectedTargetType === "Custom") {
-    return Object.entries(selectedLabels)
-      .filter(([, selected]) => selected)
-      .map(([labelName]) => labelName);
+  if (selectedTargetType !== "Custom" || selectedCustomTarget !== scope) {
+    return [];
   }
-  return [];
+  return Object.entries(selectedLabels)
+    .filter(([, selected]) => selected)
+    .map(([labelName]) => labelName);
 };
 
 const EditQueryForm = ({
@@ -179,7 +182,6 @@ const EditQueryForm = ({
     setEditingExistingQuery,
   } = useContext(QueryContext);
   const {
-    currentUser,
     isOnlyObserver,
     isGlobalObserver,
     isTeamMaintainerOrTeamAdmin,
@@ -191,7 +193,6 @@ const EditQueryForm = ({
     config,
     isPremiumTier,
     isFreeTier,
-    currentTeam,
   } = useContext(AppContext);
 
   const isExistingQuery = !!queryIdForEdit;
@@ -210,7 +211,14 @@ const EditQueryForm = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [queryWasChanged, setQueryWasChanged] = useState(false);
   const [selectedTargetType, setSelectedTargetType] = useState("");
+  const [selectedCustomTarget, setSelectedCustomTarget] = useState<LabelScope>(
+    "labelsIncludeAny"
+  );
   const [selectedLabels, setSelectedLabels] = useState({});
+  const customTargetOptions = useMemo(
+    () => getCustomTargetOptions({ entity: "report", isPremiumTier }),
+    [isPremiumTier]
+  );
 
   const platformSelector = usePlatformSelector(
     lastEditedQueryPlatforms,
@@ -232,28 +240,44 @@ const EditQueryForm = ({
     min_osquery_version: lastEditedQueryMinOsqueryVersion,
     logging: lastEditedQueryLoggingType,
     discard_data: lastEditedQueryDiscardData,
-    labels_include_any: getLabelsIncludeAny(
+    labels_include_any: getLabelsForScope(
       isPremiumTier,
       selectedTargetType,
-      selectedLabels
+      selectedCustomTarget,
+      selectedLabels,
+      "labelsIncludeAny"
+    ),
+    labels_include_all: getLabelsForScope(
+      isPremiumTier,
+      selectedTargetType,
+      selectedCustomTarget,
+      selectedLabels,
+      "labelsIncludeAll"
     ),
   };
 
   useEffect(() => {
-    setSelectedTargetType(
-      storedQuery?.labels_include_any?.length && isPremiumTier
-        ? "Custom"
-        : "All hosts"
+    const includeAnyLabels = storedQuery?.labels_include_any ?? [];
+    const includeAllLabels = storedQuery?.labels_include_all ?? [];
+    const hasAnyScope =
+      isPremiumTier && (includeAnyLabels.length || includeAllLabels.length);
+
+    setSelectedTargetType(hasAnyScope ? "Custom" : "All hosts");
+    setSelectedCustomTarget(
+      includeAllLabels.length ? "labelsIncludeAll" : "labelsIncludeAny"
     );
+    const activeLabels = includeAllLabels.length
+      ? includeAllLabels
+      : includeAnyLabels;
     setSelectedLabels(
-      storedQuery?.labels_include_any?.reduce((acc, label) => {
+      activeLabels.reduce((acc, label) => {
         return {
           ...acc,
           [label.name]: true,
         };
       }, {}) || {}
     );
-  }, [storedQuery]);
+  }, [storedQuery, isPremiumTier]);
 
   const {
     data: { labels } = { labels: [] },
@@ -714,17 +738,17 @@ const EditQueryForm = ({
               {isPremiumTier && (
                 <TargetLabelSelector
                   selectedTargetType={selectedTargetType}
+                  selectedCustomTarget={selectedCustomTarget}
+                  customTargetOptions={customTargetOptions}
+                  onSelectCustomTarget={(val) =>
+                    setSelectedCustomTarget(val as LabelScope)
+                  }
                   selectedLabels={selectedLabels}
                   className={`${baseClass}__target`}
                   onSelectTargetType={setSelectedTargetType}
                   onSelectLabel={onSelectLabel}
                   labels={labels || []}
-                  customHelpText={
-                    <span className="form-field__help-text">
-                      Report will target hosts that <b>have any</b> of these
-                      labels:
-                    </span>
-                  }
+                  disableOptions={gitOpsModeEnabled}
                   suppressTitle
                 />
               )}

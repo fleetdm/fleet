@@ -1,3 +1,0 @@
-- Added activity when setup experience is canceled due to software install failure
-- Added cancel activities for each VPP app install skipped due to setup experience cancellation, and switched "failed" activity to "canceled" for package-based software installs in the same situation
-- Added install failure activity when VPP installs fail due to licensing issues during setup experience

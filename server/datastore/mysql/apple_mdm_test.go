@@ -127,6 +127,11 @@ func TestMDMApple(t *testing.T) {
 		{"CleanupStaleNanoRefetchCommands", testCleanupStaleNanoRefetchCommands},
 		{"CleanupOrphanedNanoRefetchCommands", testCleanupOrphanedNanoRefetchCommands},
 		{"RecoveryLockAutoRotation", testRecoveryLockAutoRotation},
+		{"RecoveryLockResetOnMDMReEnrollment", testRecoveryLockResetOnMDMReEnrollment},
+		{"DeleteHostPreservesRecoveryLockPassword", testDeleteHostPreservesRecoveryLockPassword},
+		{"HostRecoveryLockStatusMatrix", testHostRecoveryLockStatusMatrix},
+		{"RecoveryLockReadersReturnNotFoundForSoftDeleted", testRecoveryLockReadersReturnNotFoundForSoftDeleted},
+		{"MDMTurnOffSoftDeletesRecoveryLockPassword", testMDMTurnOffSoftDeletesRecoveryLockPassword},
 	}
 
 	for _, c := range cases {
@@ -11932,4 +11937,540 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		require.NotNil(t, pw.AutoRotateAt)
 		assert.WithinDuration(t, rotateAt, *pw.AutoRotateAt, 1*time.Second)
 	})
+}
+
+// recoveryLockRawRow is the full row shape used by testRecoveryLockResetOnMDMReEnrollment's
+// raw reader, which bypasses the deleted=0 filter applied by production readers.
+type recoveryLockRawRow struct {
+	Status            *string    `db:"status"`
+	OperationType     string     `db:"operation_type"`
+	HasPassword       bool       `db:"has_password"`
+	HasPendingPw      bool       `db:"has_pending_pw"`
+	ErrorMessage      *string    `db:"error_message"`
+	PendingErrMessage *string    `db:"pending_error_message"`
+	AutoRotateAt      *time.Time `db:"auto_rotate_at"`
+	Deleted           bool       `db:"deleted"`
+}
+
+// testRecoveryLockResetOnMDMReEnrollment verifies that MDMResetEnrollment soft-deletes
+// the host's host_recovery_key_passwords row and nulls out rotation/view state that would
+// otherwise leak into a future re-enrolled password. The row is kept (deleted=1) as a
+// troubleshooting safeguard; all live readers filter deleted=0 so it behaves as absent.
+func testRecoveryLockResetOnMDMReEnrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// readRaw returns the full row bypassing the deleted=0 filter used by production readers.
+	readRaw := func(t *testing.T, hostUUID string) *recoveryLockRawRow {
+		t.Helper()
+		var row recoveryLockRawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				status,
+				operation_type,
+				encrypted_password IS NOT NULL AS has_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				error_message,
+				pending_error_message,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.7."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		return host
+	}
+
+	t.Run("soft-deletes verified install row", func(t *testing.T) {
+		host := setupHost(t, "reset-verified", "resetverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 for support diagnostics.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.True(t, row.HasPassword, "encrypted_password preserved for diagnostics")
+	})
+
+	t.Run("soft-deletes stuck-pending install row (ClearQueue scenario)", func(t *testing.T) {
+		host := setupHost(t, "reset-stuck-pending", "resetstuckuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		// status is 'pending' after SetHostsRecoveryLockPasswords — simulates the command
+		// that was abandoned by nanomdm's ClearQueue before being acked.
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+	})
+
+	t.Run("nulls pending rotation fields on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-pending-rotation", "resetrotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "some rotation error"))
+
+		// Sanity: pending_encrypted_password and pending_error_message are set.
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.True(t, before.HasPendingPw)
+		require.NotNil(t, before.PendingErrMessage)
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.False(t, after.HasPendingPw, "pending_encrypted_password must be nulled to prevent re-animation leak")
+		assert.Nil(t, after.PendingErrMessage, "pending_error_message must be nulled to prevent re-animation leak")
+	})
+
+	t.Run("nulls auto_rotate_at on soft-delete", func(t *testing.T) {
+		host := setupHost(t, "reset-auto-rotate", "resetautorotuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		before := readRaw(t, host.UUID)
+		require.NotNil(t, before)
+		require.NotNil(t, before.AutoRotateAt, "auto_rotate_at set after MarkRecoveryLockPasswordViewed")
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.True(t, after.Deleted)
+		assert.Nil(t, after.AutoRotateAt, "auto_rotate_at must be nulled so cron does not fire auto-rotation against a freshly re-set password")
+	})
+
+	t.Run("re-animation after soft-delete yields clean state", func(t *testing.T) {
+		host := setupHost(t, "reset-reanimate", "resetreanuuid"[:13])
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Re-enroll wipes the row.
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, false))
+
+		// Simulate the next recovery-lock cron tick re-enqueuing a fresh SetRecoveryLock.
+		newPw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: newPw}}))
+
+		after := readRaw(t, host.UUID)
+		require.NotNil(t, after)
+		assert.False(t, after.Deleted, "row re-animated with deleted=0")
+		assert.True(t, after.HasPassword)
+		assert.False(t, after.HasPendingPw, "rotation state must not leak across re-enrollment")
+		assert.Nil(t, after.PendingErrMessage)
+		assert.Nil(t, after.AutoRotateAt, "view state must not leak across re-enrollment")
+		assert.Nil(t, after.ErrorMessage, "old error_message is cleared by ON DUPLICATE KEY UPDATE")
+		require.NotNil(t, after.Status)
+		assert.Equal(t, string(fleet.MDMDeliveryPending), *after.Status, "re-animated row is pending awaiting the new command")
+		assert.Equal(t, string(fleet.MDMOperationTypeInstall), after.OperationType)
+
+		// Live reader now sees the re-animated row.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusPending, *status.Status)
+		assert.True(t, status.PasswordAvailable)
+		assert.Empty(t, status.Detail)
+	})
+
+	t.Run("preserves row during SCEP renewal", func(t *testing.T) {
+		host := setupHost(t, "reset-scep", "resetscepuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		require.NoError(t, ds.MDMResetEnrollment(ctx, host.UUID, true /* scepRenewalInProgress */))
+
+		// Row untouched: still visible to live readers as verified.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, status)
+		status.PopulateStatus()
+		require.NotNil(t, status.Status)
+		assert.Equal(t, fleet.RecoveryLockStatusVerified, *status.Status)
+
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.False(t, row.Deleted)
+		assert.True(t, row.HasPassword)
+	})
+}
+
+// testDeleteHostPreservesRecoveryLockPassword locks in the intentional non-cascade of
+// host_recovery_key_passwords across host deletion. The device may still be enrolled in MDM
+// with the password intact, and Orbit re-enrollment recreates the host row and reuses the
+// existing password record.
+func testDeleteHostPreservesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "delete-rlp", "1.2.7.200", "deleterlpkey", "deletelppuuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	type rawRow struct {
+		Encrypted []byte `db:"encrypted_password"`
+		Deleted   bool   `db:"deleted"`
+	}
+
+	// Capture the encrypted bytes so we can assert the row survives untouched.
+	var before rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &before,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	require.NotEmpty(t, before.Encrypted)
+	require.False(t, before.Deleted)
+
+	require.NoError(t, ds.DeleteHost(ctx, host.ID))
+
+	// Row still there (bypass deleted=0 filter), and the encrypted_password is byte-identical.
+	var after rawRow
+	require.NoError(t, ds.writer(ctx).GetContext(ctx, &after,
+		`SELECT encrypted_password, deleted FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID))
+	assert.Equal(t, before.Encrypted, after.Encrypted, "encrypted_password must survive host deletion byte-for-byte")
+	assert.False(t, after.Deleted, "deleted flag must not be flipped by DeleteHost")
+}
+
+// testHostRecoveryLockStatusMatrix locks in the host-detail API contract for every
+// observable (status, operation_type, encrypted_password, pending_encrypted_password, deleted)
+// state. This protects the UI from silent regressions in GetHostRecoveryLockPasswordStatus or
+// PopulateStatus.
+func testHostRecoveryLockStatusMatrix(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type matrixCase struct {
+		name                    string
+		status                  *fleet.MDMDeliveryStatus // nil = SQL NULL
+		operationType           fleet.MDMOperationType
+		hasPassword             bool
+		hasPendingPw            bool
+		deleted                 bool
+		errorMessage            string
+		expectNilFromDatastore  bool
+		expectPopulatedStatus   *fleet.RecoveryLockStatus
+		expectPasswordAvailable bool
+		expectDetail            string
+	}
+
+	cases := []matrixCase{
+		{
+			name:                   "soft-deleted row is invisible to readers",
+			status:                 &fleet.MDMDeliveryVerified,
+			operationType:          fleet.MDMOperationTypeInstall,
+			hasPassword:            true,
+			deleted:                true,
+			expectNilFromDatastore: true,
+		},
+		{
+			name:                    "NULL status, install, password stored -> pending",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "pending install, no rotation -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "verified install -> verified",
+			status:                  &fleet.MDMDeliveryVerified,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusVerified),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install -> failed with detail",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			errorMessage:            "device rejected",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "device rejected",
+		},
+		{
+			name:                    "pending install + rotation in flight -> pending",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusPending),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed install + rotation in flight -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeInstall,
+			hasPassword:             true,
+			hasPendingPw:            true,
+			errorMessage:            "set failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "set failed",
+		},
+		{
+			name:                    "pending remove -> removing_enforcement",
+			status:                  &fleet.MDMDeliveryPending,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "NULL status remove -> removing_enforcement (clear retry)",
+			status:                  nil,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusRemovingEnforcement),
+			expectPasswordAvailable: true,
+		},
+		{
+			name:                    "failed remove -> failed",
+			status:                  &fleet.MDMDeliveryFailed,
+			operationType:           fleet.MDMOperationTypeRemove,
+			hasPassword:             true,
+			errorMessage:            "clear failed",
+			expectPopulatedStatus:   new(fleet.RecoveryLockStatusFailed),
+			expectPasswordAvailable: true,
+			expectDetail:            "clear failed",
+		},
+	}
+
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			uuid := fmt.Sprintf("matrixuuid%d", i)
+			host := test.NewHost(t, ds, fmt.Sprintf("matrix-host-%d", i), fmt.Sprintf("1.2.8.%d", i+1), fmt.Sprintf("matrixkey%d", i), uuid, time.Now())
+
+			var encryptedPw, pendingPw any
+			if tc.hasPassword {
+				var err error
+				encryptedPw, err = encrypt([]byte("password-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+			if tc.hasPendingPw {
+				var err error
+				pendingPw, err = encrypt([]byte("pending-bytes"), ds.serverPrivateKey)
+				require.NoError(t, err)
+			}
+
+			var statusArg any
+			if tc.status != nil {
+				statusArg = string(*tc.status)
+			}
+
+			var errMsgArg any
+			if tc.errorMessage != "" {
+				errMsgArg = tc.errorMessage
+			}
+
+			_, err := ds.writer(ctx).ExecContext(ctx, `
+				INSERT INTO host_recovery_key_passwords
+					(host_uuid, encrypted_password, pending_encrypted_password, status, operation_type, error_message, deleted)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, encryptedPw, pendingPw, statusArg, string(tc.operationType), errMsgArg, tc.deleted)
+			require.NoError(t, err)
+
+			got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+			require.NoError(t, err)
+
+			if tc.expectNilFromDatastore {
+				require.Nil(t, got, "readers must filter deleted=0 and return nil")
+				return
+			}
+
+			require.NotNil(t, got)
+			assert.Equal(t, tc.expectPasswordAvailable, got.PasswordAvailable)
+			assert.Equal(t, tc.expectDetail, got.Detail)
+
+			got.PopulateStatus()
+			if tc.expectPopulatedStatus == nil {
+				assert.Nil(t, got.Status)
+			} else {
+				require.NotNil(t, got.Status)
+				assert.Equal(t, *tc.expectPopulatedStatus, *got.Status)
+			}
+		})
+	}
+}
+
+// testMDMTurnOffSoftDeletesRecoveryLockPassword verifies that MDMTurnOff (the explicit
+// per-host MDM unenroll path used by both device CheckOut and the admin API) soft-deletes
+// the recovery-lock row. Apple removes the device-side lock when the MDM profile is
+// removed, so Fleet's stored copy is no longer valid.
+func testMDMTurnOffSoftDeletesRecoveryLockPassword(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	type rawRow struct {
+		Encrypted    []byte     `db:"encrypted_password"`
+		HasPendingPw bool       `db:"has_pending_pw"`
+		AutoRotateAt *time.Time `db:"auto_rotate_at"`
+		Deleted      bool       `db:"deleted"`
+	}
+	readRaw := func(t *testing.T, hostUUID string) *rawRow {
+		t.Helper()
+		var row rawRow
+		err := ds.writer(ctx).GetContext(ctx, &row, `
+			SELECT
+				encrypted_password,
+				pending_encrypted_password IS NOT NULL AS has_pending_pw,
+				auto_rotate_at,
+				deleted
+			FROM host_recovery_key_passwords
+			WHERE host_uuid = ?`, hostUUID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil
+		}
+		require.NoError(t, err)
+		return &row
+	}
+
+	setupEnrolledHost := func(t *testing.T, name, uuid string) *fleet.Host {
+		t.Helper()
+		host := test.NewHost(t, ds, name, "1.2.9."+uuid[:3], name+"key", uuid, time.Now())
+		nanoEnroll(t, ds, host, false)
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, host.ID, false, true, "https://mdm.example.com", false, "Fleet", "", false))
+		return host
+	}
+
+	t.Run("soft-deletes verified recovery lock and clears volatile state", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-verified", "turnoffverifuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+		require.NoError(t, ds.InitiateRecoveryLockRotation(ctx, host.UUID, apple_mdm.GenerateRecoveryLockPassword()))
+		require.NoError(t, ds.FailRecoveryLockRotation(ctx, host.UUID, "boom"))
+		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Live reader sees nothing.
+		status, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, status)
+
+		// Raw row persists with deleted=1 and volatile state nulled.
+		row := readRaw(t, host.UUID)
+		require.NotNil(t, row)
+		assert.True(t, row.Deleted)
+		assert.NotEmpty(t, row.Encrypted, "encrypted_password preserved for diagnostics")
+		assert.False(t, row.HasPendingPw, "pending rotation must be nulled")
+		assert.Nil(t, row.AutoRotateAt, "view state must be nulled")
+	})
+
+	t.Run("idempotent: second MDMTurnOff is a no-op on the already-soft-deleted row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-idempotent", "turnoffidempuuid")
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+		require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		first := readRaw(t, host.UUID)
+		require.NotNil(t, first)
+		require.True(t, first.Deleted)
+		firstBytes := first.Encrypted
+
+		// Without re-enrolling (just calling MDMTurnOff again), the deleted=0 guard in
+		// the helper makes the soft-delete a true no-op — the row is unchanged.
+		_, _, err = ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		second := readRaw(t, host.UUID)
+		require.NotNil(t, second)
+		assert.True(t, second.Deleted)
+		assert.Equal(t, firstBytes, second.Encrypted, "second turn-off must not modify the encrypted_password kept for diagnostics")
+	})
+
+	t.Run("no-op when host has no recovery lock row", func(t *testing.T) {
+		host := setupEnrolledHost(t, "turnoff-no-row", "turnoffnorouuid")
+		// No SetHostsRecoveryLockPasswords call — row never existed.
+
+		_, _, err := ds.MDMTurnOff(ctx, host.UUID)
+		require.NoError(t, err)
+
+		row := readRaw(t, host.UUID)
+		assert.Nil(t, row, "no row should be created by MDMTurnOff")
+	})
+}
+
+// testRecoveryLockReadersReturnNotFoundForSoftDeleted verifies that view-password and
+// rotation-status readers surface notFound for soft-deleted rows. The EE rotate endpoint
+// depends on the notFound-from-GetRecoveryLockRotationStatus branch to return
+// "Host does not have a recovery lock password to rotate."
+func testRecoveryLockReadersReturnNotFoundForSoftDeleted(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host := test.NewHost(t, ds, "softdel-read", "1.2.8.250", "softdelreadkey", "softdelreaduuid", time.Now())
+	pw := apple_mdm.GenerateRecoveryLockPassword()
+	require.NoError(t, ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}}))
+	require.NoError(t, ds.SetRecoveryLockVerified(ctx, host.UUID))
+
+	// Soft-delete directly (simulates MDMResetEnrollment without the full lifecycle setup).
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE host_recovery_key_passwords SET deleted = 1 WHERE host_uuid = ?`, host.UUID)
+	require.NoError(t, err)
+
+	// GetHostRecoveryLockPassword (view password endpoint source) must surface notFound.
+	_, err = ds.GetHostRecoveryLockPassword(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "view-password reader must surface notFound so the UI treats it as absent")
+
+	// GetRecoveryLockRotationStatus (rotation endpoint prerequisite) must surface notFound so
+	// the EE service returns BadRequest "Host does not have a recovery lock password to rotate."
+	_, err = ds.GetRecoveryLockRotationStatus(ctx, host.UUID)
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err), "rotation-status reader must surface notFound")
+
+	// HasPendingRecoveryLockRotation returns (false, nil) for missing/deleted rows.
+	hasPending, err := ds.HasPendingRecoveryLockRotation(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.False(t, hasPending)
+
+	// GetHostRecoveryLockPasswordStatus (host detail API source) returns nil so the JSON
+	// field is omitted entirely.
+	got, err := ds.GetHostRecoveryLockPasswordStatus(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Nil(t, got)
 }

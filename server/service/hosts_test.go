@@ -161,6 +161,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
 		return nil, nil
 	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
 
 	cases := []struct {
 		name       string
@@ -462,6 +465,9 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
 		return nil, nil
 	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
 
 	ts1 := time.Now().Add(-1 * time.Hour).UTC()
 	ts2 := time.Now().Add(-2 * time.Hour).UTC()
@@ -567,6 +573,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		return false, nil
 	}
 	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
 		return nil, nil
 	}
 
@@ -810,6 +819,10 @@ func TestHostDetailsRecoveryLockPasswordStatus(t *testing.T) {
 	}
 	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
 		return &fleet.HostArchivedDiskEncryptionKey{}, nil
+	}
+
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
 	}
 
 	t.Run("recovery lock password status populates for macOS", func(t *testing.T) {
@@ -1698,34 +1711,38 @@ func TestCleanupExpiredHostsActivities(t *testing.T) {
 	host1 := test.NewHost(t, ds, "team1-host1", "192.168.1.10", "1", "1", team1ExpiredTime)
 	host1.HardwareSerial = "TEAM1_SERIAL1"
 	host1.ComputerName = "Team 1 Computer 1"
-	host1.TeamID = &team1.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
+	host1.TeamID = &team1.ID
 
 	host2 := test.NewHost(t, ds, "team1-host2", "192.168.1.11", "2", "2", team1ExpiredTime)
 	host2.HardwareSerial = "TEAM1_SERIAL2"
 	host2.ComputerName = "Team 1 Computer 2"
-	host2.TeamID = &team1.ID
 	err = ds.UpdateHost(ctx, host2)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host2.ID})))
+	host2.TeamID = &team1.ID
 
 	// Create expired host for Team 2 (use team2ExpiryWindow)
 	team2ExpiredTime := mockClock.Now().Add(-time.Duration(team2ExpiryWindow+1) * 24 * time.Hour)
 	host3 := test.NewHost(t, ds, "team2-host1", "192.168.1.12", "3", "3", team2ExpiredTime)
 	host3.HardwareSerial = "TEAM2_SERIAL1"
 	host3.ComputerName = "Team 2 Computer 1"
-	host3.TeamID = &team2.ID
 	err = ds.UpdateHost(ctx, host3)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host3.ID})))
+	host3.TeamID = &team2.ID
 
 	// Create expired host for Team 3 (uses global expiry)
 	globalExpiredTime := mockClock.Now().Add(-time.Duration(globalExpiryWindow+1) * 24 * time.Hour)
 	host4 := test.NewHost(t, ds, "team3-host1", "192.168.1.13", "4", "4", globalExpiredTime)
 	host4.HardwareSerial = "TEAM3_SERIAL1"
 	host4.ComputerName = "Team 3 Computer 1"
-	host4.TeamID = &team3.ID
 	err = ds.UpdateHost(ctx, host4)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team3.ID, []uint{host4.ID})))
+	host4.TeamID = &team3.ID
 
 	// Create expired host with no team (uses global expiry)
 	host5 := test.NewHost(t, ds, "no-team-host", "192.168.1.14", "5", "5", globalExpiredTime)
@@ -2887,6 +2904,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
 		return nil, nil
 	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
+		return nil, nil
+	}
 
 	cases := []struct {
 		name           string
@@ -3026,6 +3046,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		return false, nil
 	}
 	ds.GetHostRecoveryLockPasswordStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMRecoveryLockPassword, error) {
+		return nil, nil
+	}
+	ds.GetHostManagedLocalAccountStatusFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMManagedLocalAccount, error) {
 		return nil, nil
 	}
 

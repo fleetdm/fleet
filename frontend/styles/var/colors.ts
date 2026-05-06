@@ -46,6 +46,11 @@ const STATIC_COLORS = {
   "core-vibrant-blue-down": "#4b4ab4",
   "ui-vibrant-blue-25": "#d9d9fe",
   "ui-vibrant-blue-10": "#f1f0ff",
+
+  // Static (un-themed): same value in light AND dark mode. Use for foreground
+  // on always-colored surfaces (flash toasts, tooltips, etc.)
+  "static-white": "#e8eaf0",
+  "static-black": "#192147",
 } as const;
 
 export type Colors = keyof typeof STATIC_COLORS;
