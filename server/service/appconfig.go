@@ -946,10 +946,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// whose value flipped. SaveAppConfig (above) commits first; the worker
 	// that picks up scrub jobs will see the new config and the collection
 	// cron will already have stopped writing the disabled scope.
-	//
-	// Log-and-continue on failure: the joined error covers both activity
-	// emit and scrub enqueue, both non-fatal individually. See design
-	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,

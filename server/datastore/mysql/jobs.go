@@ -141,16 +141,13 @@ func (ds *Datastore) CleanupWorkerJobs(ctx context.Context, failedSince, complet
 	return n, nil
 }
 
-// HasQueuedJobWithArgs uses MySQL's JSON value equality on the args column,
-// so payload byte ordering doesn't matter — but in practice the enqueue side
-// produces deterministic JSON, so this query also benefits from server-side
-// short-circuit on the leading name/state filter.
+// HasQueuedJobWithArgs determines whether a job with the given name and args
+// is currently queued. Can be used to deduplicate jobs that would be redundant
+// (or harmful) to enqueue multiple times.
 //
-// The result of this read drives a write decision in the only caller
-// (EnqueueHistoricalDataScrubs): if it returns false, NewJob inserts.
-// Replica lag would defeat the dedup contract on the rapid disable→enable→
-// disable thrash scenario the gate was built for, so force the read to
-// the primary. See chart-disabling-collection-scrub design.md.
+// Uses the primary to avoid replica lag, since one of the primary use cases
+// is handling thrash from rapid user action such as quickly disabling
+// and re-enabling a chart dataset multiple times.
 func (ds *Datastore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
 	const query = `
 SELECT 1 FROM jobs

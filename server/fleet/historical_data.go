@@ -18,10 +18,6 @@ type HistoricalDataActivityEmitter interface {
 // OnHistoricalDataChanged. fleet.Datastore satisfies it via NewJob and
 // HasQueuedJobWithArgs. Defined locally to avoid pulling worker-package
 // types into the fleet package.
-//
-// HasQueuedJobWithArgs gates NewJob so rapid disable/enable toggles of the
-// same scope don't stack identical scrub jobs in the queue. See design
-// decision 5 of the chart-disabling-collection-scrub change.
 type HistoricalDataScrubEnqueuer interface {
 	NewJob(ctx context.Context, j *Job) (*Job, error)
 	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
@@ -34,24 +30,6 @@ type HistoricalDataScrubEnqueuer interface {
 //   - on a disable flip (true→false): enqueues a scrub job, then emits the
 //     "disabled" activity.
 //   - on an enable flip (false→true): emits the "enabled" activity. No scrub.
-//
-// Per-iteration errors (activity emit OR scrub enqueue) are collected and
-// joined rather than returned eagerly. Activity errors and scrub-enqueue
-// errors are both non-fatal: a single failed audit-log emission must not
-// abandon a sibling sub-key's scrub, and vice versa. Callers
-// (ModifyAppConfig, ModifyTeam, editTeamFromSpec) log-and-continue on the
-// returned error. See design decision 8a.
-//
-// Scrub-first ordering on disable flips is deliberate: an activity emit
-// failure must not skip the scrub. The scrub guarantee ("disabled data
-// eventually goes away") outranks the audit-log entry, and once the config
-// commit lands, a retry of the API call sees `oldHD == newHD` and short-
-// circuits — so any side effect dropped here is dropped permanently.
-//
-// fleetID and fleetName are nil for global toggles and populated for
-// per-fleet toggles. Activity payload uses the public config sub-key
-// ("uptime", "vulnerabilities"). Scrub job payload uses the internal dataset
-// name ("uptime", "cve") — see design decision 5.
 //
 // CALLER ORDERING REQUIREMENT: this function MUST be called AFTER the
 // corresponding SaveAppConfig / SaveTeam commit has succeeded. Enqueuing
@@ -142,13 +120,6 @@ type chartScrubFleetArgs struct {
 //     whose fleet_ids slice contains just this fleet ID. (Per-call
 //     coalescing across multiple teams within a single batch is a future
 //     optimization — see the chart-historical-data-collection spec.)
-//
-// Dedup: if an identical job is already queued (rapid disable/enable thrash
-// on the same scope), the new enqueue is dropped. Different fleet_ids or
-// different datasets compare unequal under JSON value equality and are kept.
-// A pre-existing race window where two enqueues both see "no pending"
-// produces at most one redundant job; the handler is near-idempotent so the
-// cost is one extra walk.
 func enqueueHistoricalDataScrub(
 	ctx context.Context,
 	enq HistoricalDataScrubEnqueuer,
@@ -173,6 +144,8 @@ func enqueueHistoricalDataScrub(
 	}
 	raw := json.RawMessage(argsJSON)
 
+	// Check for an existing queued job with the same name and args to avoid
+	// redundant scrubs on rapid disable→enable→disable thrash.
 	exists, err := enq.HasQueuedJobWithArgs(ctx, jobName, raw)
 	if err != nil {
 		return fmt.Errorf("check pending %s: %w", jobName, err)
