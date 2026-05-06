@@ -1135,12 +1135,12 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
+				assert.ErrorContains(t, err, "token with organization unit doesn't exist")
 				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
+				assert.ErrorContains(t, err, "token with organization unit doesn't exist")
 				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
