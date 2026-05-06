@@ -838,40 +838,30 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 		return nil
 	}
 
-	newPassword := apple_mdm.GenerateManagedAccountPassword()
-	hashPlist, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(newPassword)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "generate managed local account password hash")
-	}
-
-	cmdUUID := uuid.NewString()
-	if err := svc.ds.InitiateManagedLocalAccountRotation(ctx, host.UUID, newPassword, cmdUUID); err != nil {
+	_, sendErr, rollbackErr := apple_mdm.EnqueueManagedLocalAccountRotation(ctx, svc.ds, svc.mdmAppleCommander, host.UUID, *accountUUID)
+	if sendErr != nil {
 		// Race against the cron: a rotation snuck in between our
-		// PendingRotation check and now.
-		if errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) {
+		// PendingRotation check and Initiate.
+		if errors.Is(sendErr, fleet.ErrManagedLocalAccountRotationPending) {
 			return &fleet.BadRequestError{Message: "Cannot rotate managed local account password while an operation is pending."}
 		}
-		return ctxerr.Wrap(ctx, err, "initiate managed local account rotation")
-	}
-
-	if err := svc.mdmAppleCommander.SetAutoAdminPassword(ctx, host.UUID, *accountUUID, hashPlist, cmdUUID); err != nil {
 		// APNs delivery error: the command is persisted in nano and will be
-		// delivered on the next checkin. Keep pending state and log the
-		// activity (consistent with the manual recovery-lock path).
+		// delivered on the next checkin. Pending state is preserved and we log
+		// the activity (consistent with the manual recovery-lock path).
 		var apnsErr *apple_mdm.APNSDeliveryError
-		if errors.As(err, &apnsErr) {
+		if errors.As(sendErr, &apnsErr) {
 			if logErr := svc.logRotateManagedLocalAccountActivity(ctx, host); logErr != nil {
 				return logErr
 			}
-			return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
+			return ctxerr.Wrap(ctx, sendErr, "rotate managed local account password")
 		}
-		// Persistence failure: the command never landed. Roll back pending
-		// state and DON'T log the activity so the user can retry cleanly.
-		if clearErr := svc.ds.ClearManagedLocalAccountRotation(ctx, host.UUID); clearErr != nil {
+		// Persistence failure (or pre-Initiate failure): pending state has been
+		// rolled back so the user can retry cleanly. Skip activity logging.
+		if rollbackErr != nil {
 			svc.logger.ErrorContext(ctx, "failed to clear managed local account pending rotation after enqueue error",
-				"host_uuid", host.UUID, "err", clearErr)
+				"host_uuid", host.UUID, "err", rollbackErr)
 		}
-		return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
+		return ctxerr.Wrap(ctx, sendErr, "rotate managed local account password")
 	}
 
 	return svc.logRotateManagedLocalAccountActivity(ctx, host)
