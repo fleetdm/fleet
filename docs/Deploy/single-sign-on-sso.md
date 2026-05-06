@@ -175,7 +175,9 @@ If you're configuring end user authentication head to **Settings > Integrations 
 
 `Applies only to Fleet Premium`
 
-Fleet can automatically create users using just-in-time (JIT) provisioning. To enable this, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
+Fleet can automatically create users using just-in-time (JIT) provisioning. This is enabled by default on new installations.
+
+If you're using a version where this wasn't on by default, or you'd like to change the setting, go to **Settings > Integrations > Single sign-on (SSO) > Fleet users** and check **Create user and sync permissions on login**.
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
@@ -193,7 +195,7 @@ For this to work correctly make sure that:
 
 ### Customization of user roles
 
-> **Note:** This feature requires setting `sso_settings.enable_jit_provisioning` to `true`.
+> **Note:** This feature requires `sso_settings.enable_jit_provisioning` to be set to `true` (which it is by default).
 
 Users created via JIT provisioning can be assigned Fleet roles using SAML custom attributes that are sent by the IdP in `SAMLResponse`s during login.
 Fleet will attempt to parse SAML custom attributes with the following format:
