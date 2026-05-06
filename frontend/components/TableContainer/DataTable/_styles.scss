@@ -262,6 +262,18 @@ $shadow-transition-width: 16px;
         }
       }
 
+      // Round bottom corners on the last row so the row background doesn't
+      // overflow the wrapper's rounded corners (visible in dark mode where
+      // row and wrapper backgrounds differ).
+      tr:last-child {
+        td:first-child {
+          border-bottom-left-radius: 6px;
+        }
+        td:last-child {
+          border-bottom-right-radius: 6px;
+        }
+      }
+
       .single-row {
         &:hover {
           cursor: pointer;

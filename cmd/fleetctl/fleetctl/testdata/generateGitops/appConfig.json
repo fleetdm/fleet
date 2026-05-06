@@ -115,6 +115,10 @@
     "detail_query_overrides": {
       "users": null,
       "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+    },
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": true
     }
   },
   "agent_options": {

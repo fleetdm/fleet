@@ -94,7 +94,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 					Platform:    platform,
 				})
 				if tc.ShouldFail {
-					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %s", platform))
+					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %q", platform))
 				} else {
 					require.NoError(t, err)
 					require.NotNil(t, actualNewLabel)
@@ -109,7 +109,7 @@ func TestWhenCreatingNewLabelsPlatformIsValidated(t *testing.T) {
 					Platform:            platform,
 				}}, nil, nil)
 				if tc.ShouldFail {
-					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %s", platform))
+					require.Contains(t, err.Error(), fmt.Sprintf("invalid platform: %q", platform))
 				} else {
 					require.NoError(t, err)
 				}
@@ -770,7 +770,108 @@ func TestApplyLabelSpecsManualLabelNilHosts(t *testing.T) {
 		},
 	}, nil, nil)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "declared as dynamic but contains `hosts` key")
+	require.ErrorContains(t, err, "declared as dynamic but contains hosts")
+
+	// Dynamic label without query should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "dynamic_no_query",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as dynamic but is missing a query")
+
+	// Dynamic label with criteria should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "dynamic_with_criteria",
+			Query:               "SELECT 1",
+			LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as dynamic but contains criteria")
+
+	// Manual label with query should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "manual_with_query",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Query:               "SELECT 1",
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains a query")
+
+	// Manual label with criteria should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "manual_with_criteria",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains criteria")
+
+	// Manual label with platform should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "manual_with_platform",
+			LabelMembershipType: fleet.LabelMembershipTypeManual,
+			Platform:            "darwin",
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains a platform")
+
+	// Host_vitals label without criteria should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "host_vitals_no_criteria",
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as host_vitals but is missing criteria")
+
+	// Host_vitals label with query should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "host_vitals_with_query",
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			Query:               "SELECT 1",
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as host_vitals but contains a query")
+
+	// Host_vitals label with platform should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "host_vitals_with_platform",
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			Platform:            "darwin",
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as host_vitals but contains a platform")
+
+	// Host_vitals label with hosts should be rejected
+	err = svc.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
+		{
+			Name:                "host_vitals_with_hosts",
+			LabelMembershipType: fleet.LabelMembershipTypeHostVitals,
+			HostVitalsCriteria:  new(json.RawMessage(`{"vital":"end_user_idp_group","operator":"=","value":"Engineering"}`)),
+			Hosts:               []string{"host1"},
+		},
+	}, nil, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as host_vitals but contains hosts")
 }
 
 func TestNewManualLabel(t *testing.T) {
@@ -888,6 +989,54 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
+}
+
+func TestNewLabelFieldValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.NewLabelFunc = func(ctx context.Context, lbl *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+		lbl.ID = 1
+		return lbl, nil
+	}
+
+	// Manual label (no query) with platform should be rejected
+	_, _, err := svc.NewLabel(ctx, fleet.LabelPayload{
+		Name:     "manual_with_platform",
+		Platform: "darwin",
+	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as manual but contains a platform")
+
+	// Host_vitals label with platform should be rejected
+	_, _, err = svc.NewLabel(ctx, fleet.LabelPayload{
+		Name:     "vitals_with_platform",
+		Platform: "darwin",
+		Criteria: &fleet.HostVitalCriteria{
+			Vital: ptr.String("end_user_idp_group"),
+			Value: ptr.String("admin"),
+		},
+	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "declared as host_vitals but contains a platform")
+
+	// Dynamic label with invalid platform should be rejected
+	_, _, err = svc.NewLabel(ctx, fleet.LabelPayload{
+		Name:     "dynamic_bad_platform",
+		Query:    "SELECT 1",
+		Platform: "invalidplatform",
+	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid platform")
+
+	// Dynamic label with valid platform should succeed
+	_, _, err = svc.NewLabel(ctx, fleet.LabelPayload{
+		Name:     "dynamic_good_platform",
+		Query:    "SELECT 1",
+		Platform: "darwin",
+	})
+	require.NoError(t, err)
 }
 
 func TestLabelActivities(t *testing.T) {

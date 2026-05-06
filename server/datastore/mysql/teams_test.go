@@ -457,6 +457,19 @@ func testTeamsList(t *testing.T, ds *Datastore) {
 		t2.Users = nil
 		require.Equal(t, t1, t2)
 	}
+
+	for _, key := range []string{"id", "name", "created_at", "user_count", "host_count"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: key, PerPage: 10})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListTeams(context.Background(), fleet.TeamFilter{User: &user1}, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testTeamsSummary(t *testing.T, ds *Datastore) {

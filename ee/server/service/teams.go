@@ -392,9 +392,34 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.HostExpirySettings = *payload.HostExpirySettings
 	}
 
+	// Snapshot the old historical-data state so we can emit activities for any
+	// sub-keys that flip during this PATCH. Apply per-sub-key partial
+	// overrides from payload.Features.HistoricalData; sub-keys with
+	// `Valid == false` are left untouched (PATCH-merge semantics).
+	oldHistoricalData := team.Config.Features.HistoricalData
+	if payload.Features != nil && payload.Features.HistoricalData != nil {
+		if payload.Features.HistoricalData.Uptime.Valid {
+			team.Config.Features.HistoricalData.Uptime = payload.Features.HistoricalData.Uptime.Value
+		}
+		if payload.Features.HistoricalData.Vulnerabilities.Valid {
+			team.Config.Features.HistoricalData.Vulnerabilities = payload.Features.HistoricalData.Vulnerabilities.Value
+		}
+	}
+
 	team, err = svc.ds.SaveTeam(ctx, team)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := fleet.OnHistoricalDataChanged(
+		ctx,
+		svc,
+		authz.UserFromContext(ctx),
+		oldHistoricalData,
+		team.Config.Features.HistoricalData,
+		&team.ID, &team.Name,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
 	if macOSMinVersionUpdated {
@@ -1538,6 +1563,7 @@ func (svc *Service) editTeamFromSpec(
 
 	// replace (don't merge) the features with the new ones, using a config
 	// that has the global defaults applied.
+	oldHistoricalData := team.Config.Features.HistoricalData
 	features, err := unmarshalWithGlobalDefaults(spec.Features)
 	if err != nil {
 		return err
@@ -1833,6 +1859,18 @@ func (svc *Service) editTeamFromSpec(
 		if err := svc.ds.ApplyEnrollSecrets(ctx, ptr.Uint(team.ID), secrets); err != nil {
 			return err
 		}
+	}
+
+	// Emit one activity per historical_data sub-key whose value flipped.
+	if err := fleet.OnHistoricalDataChanged(
+		ctx,
+		svc,
+		authz.UserFromContext(ctx),
+		oldHistoricalData,
+		team.Config.Features.HistoricalData,
+		&team.ID, &team.Name,
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "on historical data changed")
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
