@@ -460,3 +460,46 @@ func TestRewriteNewToOldKeys(t *testing.T) {
 		assert.Equal(t, "fleet", conflictErr.New)
 	})
 }
+
+func TestGroupFromBytesTeamKinds(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []byte
+	}{
+		{
+			"kind: team with team: key",
+			[]byte(`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: macOS
+`),
+		},
+		{
+			"kind: fleet with fleet: key",
+			[]byte(`
+apiVersion: v1
+kind: fleet
+spec:
+  fleet:
+    name: macOS
+`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			g, err := GroupFromBytes(tt.in)
+			require.NoError(t, err)
+			require.Len(t, g.Teams, 1)
+			require.NotNil(t, g.Teams[0])
+
+			var team map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(g.Teams[0], &team))
+			name, ok := team["name"]
+			require.True(t, ok)
+			assert.Equal(t, `"macOS"`, string(name))
+		})
+	}
+}
