@@ -238,6 +238,86 @@ Warm-up actions are that Fleet will take at any point in time to help move the p
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
 
 
+### Solution Specialist inbound lead follow-up
+
+### Objective
+
+Convert high-intent inbound leads into qualified first meetings through fast engagement and strict response SLAs.
+
+### Source queue
+
+Salesforce Report: Solution Specialist — includes:
+- Demo Requests - ICP
+- Demo Requests (evaluate)
+- "Talk to Us" form submissions
+- Webinar Sign-ups
+- Document Downloads
+- Sign-ups and trial starts
+- Swag requests (lower priority)
+- Other website conversions
+
+Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 minutes. If a Solution Specialist is out of office, etc. another Solution Specialist will assume ownership of the follow-up.
+
+### Lead prioritization
+
+| Tier | SLA | Leads |
+|------|-----|-------|
+| Tier 1 | Immediate | "Talk to Us" forms, demo requests, 1K+ employee accounts |
+| Tier 2 | ≤ 1 hour | Sign-ups and trial starts |
+| Tier 3 | Same day | Swag requests, low-intent conversions — qualify fast or disqualify |
+
+### Workflow
+
+**Check for live engagement (last 10 min)**
+- Attempt real-time engagement via Qualified — SLA: ≤ 5 minutes
+
+**Immediate outreach (same hour, if not live)**
+- Send a personalized email referencing company name, use case, and source
+- LinkedIn connection request
+- Maximum three attempts at contact, if no response
+
+**Qualify quickly**
+- Clear use case? Relevant company size? Relevant role?
+- If unsure → treat as Tier 2 and follow up once
+- If no → disqualify and move on
+
+**Book meeting**
+- Schedule directly on AE calendar
+- Include: use case summary, lead source, and any urgency signals
+
+**Update Salesforce — before moving to next lead**
+- Status updated, activity logged, notes added (use case + tier)
+- Assign to AE if qualified
+
+### Response SLAs
+
+| Scenario | SLA |
+|----------|-----|
+| Live inbound (chat / Qualified) | ≤ 5 minutes |
+| New Tier 1 & 2 inbound | ≤ 1 hour |
+| Tier 3 (swag, low intent) | Same day |
+| Meeting scheduled after qualification | ≤ 48 hours |
+
+### Outreach standards
+
+- Always reference company name and action taken
+- No generic messaging. Keep it direct, outcome-focused, and short
+- No lead ends the day without a clear disposition
+
+### Escalate immediately if
+
+- 2,000+ employees in report
+- Known or high-value target
+- "Talk to Us" submission combined with strong buying signals (e.g., Calendly intent)
+
+### Daily standard
+
+- Zero backlog — every lead has an action taken and clear disposition
+- All priority leads engaged within SLA
+- Salesforce updated before moving to next lead
+
+
+
 ## Proof of value (POV)
 
 When the prospect is ready to "kick the tires/do a POC", the opportunity is moved to "Stage 3 - Requested POV"  in Salesforce. The AE and SC work together with the prospect to define a timeline and the "definition of done" in order to scope the POV. This planning helps us avoid costly detours that can take a long time, and result in folks getting lost. 
