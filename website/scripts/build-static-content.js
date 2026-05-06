@@ -773,7 +773,7 @@ module.exports = {
                     try {
                       parsedVideoUrl = new URL(embeddedMetadata.webinarEmbeddedVideoUrl);
                     } catch(err) {
-                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err);
+                      throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings. Full error: ${util.inspect(err)}`);
                     }
                     if(parsedVideoUrl.search) {
                       throw new Error(`Failed compiling markdown content: A webinar article has a "webinarEmbeddedVideoUrl" value that contains query strings (${parsedVideoUrl.search}) at ${path.join(topLvlRepoPath, pageSourcePath)}. To resolve, remove the query strings from this value and try running this script again. `);
@@ -1240,7 +1240,7 @@ module.exports = {
             try {
               videoLinkToCheck = new URL(testimonial.youtubeVideoUrl);
             } catch(err) {
-              throw new Error(`Could not build testimonial config from testimonials.yml. When trying to parse a "youtubeVideoUrl" value, an erro occured. Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4), and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}. error: ${err}`);
+              throw new Error(`Could not build testimonial config from testimonials.yml. When trying to parse a "youtubeVideoUrl" value, an error occured. Please make sure all "youtubeVideoUrl" values are valid URLs and standard Youtube links (e.g, https://www.youtube.com/watch?v=siXy9aanOu4), and try running this script again. Invalid "youtubeVideoUrl" value: ${testimonial.youtubeVideoUrl}. error: ${util.inspect(err)}`);
             }
             // If this is a youtu.be link, the video ID will be the pathname of the URL.
             if(!videoLinkToCheck.host.match(/w*\.*youtube\.com$/)) {
