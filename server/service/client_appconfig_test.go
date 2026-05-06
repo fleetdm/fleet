@@ -51,10 +51,14 @@ func TestValidateOrgLogoFile(t *testing.T) {
 	t.Run("accepts jpeg", func(t *testing.T) {
 		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.jpg", makeJPEG(t))))
 	})
+	t.Run("accepts svg", func(t *testing.T) {
+		svg := []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>`)
+		assert.NoError(t, validateOrgLogoFile(writeTempFile(t, "logo.svg", svg)))
+	})
 	t.Run("rejects unknown format", func(t *testing.T) {
 		err := validateOrgLogoFile(writeTempFile(t, "logo.txt", []byte("not an image")))
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "PNG, JPEG, or WebP")
+		assert.ErrorContains(t, err, "PNG, JPEG, WebP, or SVG")
 	})
 	t.Run("rejects oversized file", func(t *testing.T) {
 		// fleet.ValidateOrgLogoBytes fires its size check before
@@ -243,7 +247,7 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		})
 		_, err := c.planAndStripOrgLogos(settings, &fleet.OrgInfo{}, dir, false, logFn)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "PNG, JPEG, or WebP")
+		assert.ErrorContains(t, err, "PNG, JPEG, WebP, or SVG")
 	})
 
 	t.Run("dry run still validates and logs would-upload", func(t *testing.T) {
