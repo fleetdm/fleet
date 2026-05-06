@@ -1389,9 +1389,9 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			initFatal(err, "failed to register refresh vpp app versions schedule")
 		}
 
-		// One-shot backfill for VPP token + app country codes that predate
-		// the country_code column. After all rows are populated this is a
-		// no-op. See FIXME in vpp.BackfillLegacyCountries for removal.
+		// One-shot backfill for VPP token and app country codes that
+		// predate the country_code column. Fire-and-forget is safe because
+		// the work is idempotent and ctx cancels on shutdown.
 		go vpp.BackfillLegacyCountries(ctx, ds, logger)
 
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {

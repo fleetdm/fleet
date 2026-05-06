@@ -95,7 +95,7 @@ func TestGetConfig(t *testing.T) {
 				tt.handler(w, r)
 			})
 
-			cfg, err := GetConfig(tt.token)
+			cfg, err := GetConfig(t.Context(), tt.token)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
@@ -124,7 +124,7 @@ func TestGetConfig(t *testing.T) {
 			fmt.Fprintln(w, `{"locationName": "Recovered", "countryISO2ACode": "FR"}`)
 		})
 
-		cfg, err := GetConfig("token")
+		cfg, err := GetConfig(t.Context(), "token")
 		require.NoError(t, err)
 		require.Equal(t, "Recovered", cfg.LocationName)
 		require.Equal(t, "fr", cfg.CountryCode)

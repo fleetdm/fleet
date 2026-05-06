@@ -1423,6 +1423,8 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 }
 
 func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
+	// country_code uses COALESCE so an empty CountryCode never wipes a
+	// previously-anchored value. Re-anchoring needs an explicit value.
 	stmt := `
 	UPDATE vpp_tokens
 	SET
@@ -1430,7 +1432,7 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		location = ?,
 		renew_at = ?,
 		token = ?,
-		country_code = ?
+		country_code = COALESCE(?, country_code)
 	WHERE
 		id = ?
 `
@@ -1539,7 +1541,10 @@ WHERE va.country_code IS NULL
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "backfilling vpp app countries from tokens")
 	}
-	rows, _ := res.RowsAffected()
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "reading rows affected from vpp app country backfill")
+	}
 	return rows, nil
 }
 

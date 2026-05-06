@@ -99,7 +99,11 @@ export const generateTableConfig = (
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell
-          value={cellProps.cell.value ? cellProps.cell.value.toUpperCase() : ""}
+          value={
+            cellProps.cell.value
+              ? cellProps.cell.value.toUpperCase()
+              : undefined
+          }
         />
       ),
     },

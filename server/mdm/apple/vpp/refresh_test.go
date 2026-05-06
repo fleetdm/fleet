@@ -36,6 +36,7 @@ type fakeMetadataServer struct {
 	apps     map[string]map[string]string // region -> adamID -> name (for distinguishing storefronts)
 	versions map[string]string            // adamID -> versionDisplay returned (region-agnostic)
 	owned    map[string][]string          // token -> adamIDs that token's GetAssets returns
+	failTok  map[string]bool              // tokens whose /assets call returns 500
 }
 
 func (f *fakeMetadataServer) handleMetadata(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +90,13 @@ func (f *fakeMetadataServer) handleMetadata(w http.ResponseWriter, r *http.Reque
 				DeviceFamilies: []string{"mac"},
 				Platforms: map[string]platformData{
 					"osx": {
-						BundleID:         "com.example." + id,
+						BundleID: "com.example." + id,
+						// Non-empty Artwork URL so apple_apps derives a
+						// non-empty IconURL; otherwise the refresh path's
+						// empty-metadata guard skips the row.
+						Artwork: apple_apps.ArtData{
+							TemplateURL: "https://example.test/icon/" + region + "/" + id + ".png",
+						},
 						LatestVersionRaw: map[string]string{"versionDisplay": version},
 					},
 				},
@@ -105,6 +112,12 @@ func (f *fakeMetadataServer) handleAssets(w http.ResponseWriter, r *http.Request
 	defer f.mu.Unlock()
 	auth := r.Header.Get("Authorization")
 	token := strings.TrimPrefix(auth, "Bearer ")
+
+	if f.failTok[token] {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(`{"errorMessage":"transient","errorNumber":500}`))
+		return
+	}
 
 	type asset struct {
 		AdamID         string `json:"adamId"`
@@ -127,6 +140,7 @@ func newFakeServers(t *testing.T) (metadata *httptest.Server, vppEndpoint *httpt
 		apps:     make(map[string]map[string]string),
 		versions: make(map[string]string),
 		owned:    make(map[string][]string),
+		failTok:  make(map[string]bool),
 	}
 	metaSrv := httptest.NewServer(http.HandlerFunc(fake.handleMetadata))
 	vppSrv := httptest.NewServer(http.HandlerFunc(fake.handleAssets))
@@ -335,6 +349,63 @@ func TestRefreshVersionsCustomB2BAppPicksOwningToken(t *testing.T) {
 	require.Equal(t, "us", fake.calls[0].region)
 	require.Equal(t, "token-2-secret", fake.calls[0].token)
 	require.Equal(t, []string{"500"}, fake.calls[0].adamIDs)
+}
+
+// TestRefreshVersionsAnchoredErrorBlocksFallback guards against a
+// transient error on the anchored-country token triggering a spurious
+// cross-country re-anchor. We can't tell from an error whether that
+// token would have owned the app, so the app is silently skipped this
+// run and metadata stays stale until the next refresh.
+func TestRefreshVersionsAnchoredErrorBlocksFallback(t *testing.T) {
+	metaSrv, vppSrv, fake := newFakeServers(t)
+	cfg := makeRegionConfig(metaSrv.URL)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	// adamID 100 anchored to "us", US token's GetAssets call errors out.
+	// A DE token does own the app, but the anchored-country error must
+	// NOT trigger a re-anchor to DE.
+	fake.versions = map[string]string{"100": "10.0"}
+	fake.owned = map[string][]string{
+		"us-token-secret": {"100"},
+		"de-token-secret": {"100"},
+	}
+	fake.failTok = map[string]bool{"us-token-secret": true}
+
+	apps := []*fleet.VPPApp{
+		{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}},
+			Name:          "Anchored App",
+			LatestVersion: "0.1",
+			IconURL:       "icon",
+			CountryCode:   "us",
+		},
+	}
+	tokens := []*fleet.VPPTokenDB{
+		{ID: 1, OrgName: "us-org", CountryCode: "us", Token: "us-token-secret"},
+		{ID: 2, OrgName: "de-org", CountryCode: "de", Token: "de-token-secret"},
+	}
+
+	ds := &mock.DataStore{}
+	ds.GetAllVPPAppsFunc = func(ctx context.Context) ([]*fleet.VPPApp, error) { return apps, nil }
+	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) { return tokens, nil }
+	var reanchored []string
+	ds.UpdateVPPAppCountryCodeFunc = func(ctx context.Context, adamID string, _ fleet.InstallableDevicePlatform, country string) error {
+		reanchored = append(reanchored, adamID+"->"+country)
+		return nil
+	}
+	ds.InsertVPPAppsFunc = func(ctx context.Context, in []*fleet.VPPApp) error {
+		return errors.New("should not be called when only anchored-country lookup errors")
+	}
+
+	// RefreshVersions returns nil here even though GetAssets errored, because
+	// GetAssets failures are cached and treated as "unknown ownership" rather
+	// than propagated as run errors.
+	require.NoError(t, RefreshVersions(t.Context(), ds, cfg))
+
+	// No metadata call should have been issued for this app, neither US
+	// (errored) nor DE (suppressed by anchoredErrored).
+	require.Empty(t, fake.calls, "expected no metadata fetch when anchored-country lookup errored")
+	require.Empty(t, reanchored, "must not re-anchor across countries when anchored lookup errored")
 }
 
 func TestRefreshVersionsSkipsAppsWithEmptyCountryCode(t *testing.T) {

@@ -3,6 +3,7 @@ package vpp
 import (
 	"cmp"
 	"context"
+	"errors"
 	"slices"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -157,12 +158,16 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 	slices.SortFunc(bundles, func(a, b *bundle) int { return cmp.Compare(a.token.ID, b.token.ID) })
 
 	var appsToUpdate []*fleet.VPPApp
+	var bundleErrs []error
 	for _, b := range bundles {
 		slices.Sort(b.adamIDs)
 
 		meta, err := apple_apps.GetMetadata(b.adamIDs, b.token.CountryCode, b.token.Token, vppAppsConfig)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting VPP app metadata from Apple API")
+			// A flaky storefront must not block metadata updates for
+			// healthy storefronts.
+			bundleErrs = append(bundleErrs, ctxerr.Wrap(ctx, err, "getting VPP app metadata from Apple API"))
+			continue
 		}
 
 		for adamID, m := range meta {
@@ -173,9 +178,9 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 					continue
 				}
 
-				// Don't overwrite stored metadata with empty values — Apple
-				// occasionally returns blanks for transiently-degraded apps.
-				if current.Name == "" || current.LatestVersion == "" {
+				// Apple occasionally returns blanks for transiently-degraded
+				// apps, so don't overwrite stored metadata with empty values.
+				if current.Name == "" || current.LatestVersion == "" || current.IconURL == "" {
 					continue
 				}
 
@@ -201,13 +206,14 @@ func RefreshVersions(ctx context.Context, ds fleet.Datastore, vppAppsConfig appl
 		}
 	}
 
-	if len(appsToUpdate) == 0 {
-		return nil
+	if len(appsToUpdate) > 0 {
+		if err := ds.InsertVPPApps(ctx, appsToUpdate); err != nil {
+			bundleErrs = append(bundleErrs, ctxerr.Wrap(ctx, err, "inserting VPP apps with new versions"))
+		}
 	}
 
-	if err := ds.InsertVPPApps(ctx, appsToUpdate); err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting VPP apps with new versions")
+	if len(bundleErrs) > 0 {
+		return errors.Join(bundleErrs...)
 	}
-
 	return nil
 }

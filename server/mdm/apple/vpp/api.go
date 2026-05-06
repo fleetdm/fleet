@@ -16,6 +16,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
@@ -73,17 +74,19 @@ type ClientConfig struct {
 
 // GetConfig fetches the VPP config from Apple's VPP API. This doubles as a
 // verification that the user-provided VPP token is valid. The call is wrapped
-// in a 3-attempt retry; the returned country code is lowercased.
+// in a 3-attempt retry; the returned country code is lowercased. ctx bounds
+// the entire retry sequence so callers can cap user-facing latency with a
+// deadline.
 //
 // https://developer.apple.com/documentation/devicemanagement/client_config-a40
-func GetConfig(token string) (ClientConfig, error) {
+func GetConfig(ctx context.Context, token string) (ClientConfig, error) {
 	var cfg ClientConfig
 	var returnErr error
 
 	_ = retry.Do(func() error {
-		req, err := http.NewRequest(http.MethodGet, getBaseURL()+"/client/config", nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL()+"/client/config", nil)
 		if err != nil {
-			returnErr = fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+			returnErr = ctxerr.Wrap(ctx, err, "creating request to Apple VPP endpoint")
 			// don't retry on request construction errors
 			return nil
 		}
@@ -97,7 +100,7 @@ func GetConfig(token string) (ClientConfig, error) {
 		}
 
 		if err := do(req, token, &respJSON); err != nil {
-			returnErr = fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+			returnErr = ctxerr.Wrap(ctx, err, "making request to Apple VPP endpoint")
 
 			// Don't retry on Apple application errors (e.g. invalid token);
 			// only on transient transport-level failures.

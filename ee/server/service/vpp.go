@@ -59,7 +59,8 @@ type vppAddAnchor struct {
 // owning it in the anchored country, that token is used instead.
 func (svc *Service) resolveAddAnchor(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, addingTeam vppTokenInfo) (vppAddAnchor, error) {
 	if addingTeam.Country == "" {
-		return vppAddAnchor{}, ctxerr.New(ctx, "adding team's vpp token has no country code")
+		return vppAddAnchor{}, fleet.NewInvalidArgumentError("vpp_token",
+			"Could not determine the storefront country for the fleet's VPP token. Try renewing the token in Settings > Integrations > Apple Business.")
 	}
 
 	existing, err := svc.ds.GetVPPAppByAdamIDPlatform(ctx, adamID, platform)
@@ -114,17 +115,22 @@ func (svc *Service) resolveAddAnchor(ctx context.Context, adamID string, platfor
 	}, nil
 }
 
-// ensureVPPTokenCountry lazily backfills the country_code column for a token
-// row that was uploaded before the column existed. It calls Apple's
-// /client/config endpoint, persists the resulting country to the database,
-// and mutates the in-memory token so the caller can use the populated value
-// without a re-read. Errors propagate to the caller — backfill is required
-// for callers that depend on the country.
+// ensureVPPTokenCountryDeadline keeps the user-facing /client/config retry
+// short so add and refresh requests can't hang for the full GetConfig retry
+// budget when Apple is unreachable.
+const ensureVPPTokenCountryDeadline = 5 * time.Second
+
+// ensureVPPTokenCountry populates country_code on a legacy token, mutating
+// it in place so callers can use the value without a re-read. Bounded so
+// user-facing callers don't block on Apple; the startup backfill covers
+// anything that times out here.
 func ensureVPPTokenCountry(ctx context.Context, ds fleet.Datastore, token *fleet.VPPTokenDB) error {
 	if token == nil || token.CountryCode != "" {
 		return nil
 	}
-	cfg, err := vpp.GetConfig(token.Token)
+	getCtx, cancel := context.WithTimeout(ctx, ensureVPPTokenCountryDeadline)
+	defer cancel()
+	cfg, err := vpp.GetConfig(getCtx, token.Token)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "backfilling country for vpp token")
 	}
@@ -411,6 +417,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 	var appStoreApps []*fleet.VPPApp
 
+	var pendingReAnchors []vppReAnchor
 	if len(incomingAppleApps) > 0 {
 		apps, reAnchors, err := svc.getAnchoredVPPAppsMetadata(ctx, incomingAppleApps, teamTokenInfo)
 		if err != nil {
@@ -422,14 +429,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}
 
 		appStoreApps = append(appStoreApps, apps...)
-
-		// Apply re-anchor updates (when the row pre-existed and its prior
-		// anchored country has no token left in Fleet).
-		for _, ra := range reAnchors {
-			if err := svc.ds.UpdateVPPAppCountryCode(ctx, ra.AdamID, ra.Platform, ra.CountryCode); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country in batch")
-			}
-		}
+		pendingReAnchors = reAnchors
 	}
 
 	enterprise, err := svc.ds.GetEnterprise(ctx)
@@ -493,6 +493,14 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 	if len(appStoreApps) > 0 {
 		if err := svc.ds.BatchInsertVPPApps(ctx, appStoreApps); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "inserting vpp app metadata")
+		}
+	}
+
+	// Re-anchor only after the insert so a row's stored country never
+	// outpaces the metadata fetched from that country.
+	for _, ra := range pendingReAnchors {
+		if err := svc.ds.UpdateVPPAppCountryCode(ctx, ra.AdamID, ra.Platform, ra.CountryCode); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country in batch")
 		}
 	}
 
@@ -1084,6 +1092,16 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 		if !ok {
 			continue
 		}
+		// Apple occasionally returns blanks for transiently-degraded apps,
+		// so guard against a GitOps apply silently shipping a row with no
+		// Name, IconURL, or LatestVersion.
+		if retrieved.Name == "" || retrieved.LatestVersion == "" || retrieved.IconURL == "" {
+			svc.logger.WarnContext(ctx, "skipping vpp app with empty metadata from Apple",
+				"adam_id", k.adamID,
+				"platform", k.platform,
+				"region", e.anchor.region)
+			continue
+		}
 		props := e.props
 		apps = append(apps, &fleet.VPPApp{
 			VPPAppTeam: fleet.VPPAppTeam{
@@ -1360,19 +1378,19 @@ func (svc *Service) UploadVPPToken(ctx context.Context, token io.ReadSeeker) (*f
 		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	clientCfg, err := vpp.GetConfig(string(tokenBytes))
+	clientCfg, err := vpp.GetConfig(ctx, string(tokenBytes))
 	if err != nil {
 		var vppErr *vpp.ErrorResponse
 		if errors.As(err, &vppErr) {
 			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
 			if vppErr.ErrorNumber == 9622 {
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business."))
+				return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business.")
 			}
 		}
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 	if clientCfg.CountryCode == "" {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business."))
+		return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business.")
 	}
 
 	data := fleet.VPPTokenData{
@@ -1418,19 +1436,19 @@ func (svc *Service) UpdateVPPToken(ctx context.Context, tokenID uint, token io.R
 		return nil, ctxerr.Wrap(ctx, err, "reading VPP token")
 	}
 
-	clientCfg, err := vpp.GetConfig(string(tokenBytes))
+	clientCfg, err := vpp.GetConfig(ctx, string(tokenBytes))
 	if err != nil {
 		var vppErr *vpp.ErrorResponse
 		if errors.As(err, &vppErr) {
 			// Per https://developer.apple.com/documentation/devicemanagement/app_and_book_management/app_and_book_management_legacy/interpreting_error_codes
 			if vppErr.ErrorNumber == 9622 {
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business."))
+				return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Please provide a valid content token from Apple Business.")
 			}
 		}
 		return nil, ctxerr.Wrap(ctx, err, "validating VPP token with Apple")
 	}
 	if clientCfg.CountryCode == "" {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business."))
+		return nil, fleet.NewInvalidArgumentError("token", "Invalid token. Could not determine the storefront country from Apple Business.")
 	}
 
 	data := fleet.VPPTokenData{

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -64,7 +63,7 @@ func BackfillLegacyCountries(ctx context.Context, ds fleet.Datastore, logger *sl
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				cfg, err := GetConfig(token.Token)
+				cfg, err := GetConfig(ctx, token.Token)
 				if err != nil {
 					logger.WarnContext(ctx, "vpp legacy backfill: GetConfig failed",
 						"vpp_token_id", token.ID,
@@ -101,7 +100,7 @@ func BackfillLegacyCountries(ctx context.Context, ds fleet.Datastore, logger *sl
 	rows, err := ds.BackfillVPPAppCountriesFromTokens(ctx)
 	if err != nil {
 		logger.WarnContext(ctx, "vpp legacy backfill: app country backfill failed",
-			"err", ctxerr.Wrap(ctx, err))
+			"err", err)
 		return
 	}
 	if rows > 0 {
