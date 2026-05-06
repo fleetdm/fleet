@@ -433,9 +433,9 @@ After login, SimpleSAML should redirect the user to Fleet.
 
 <meta name="pageOrderInSection" value="200">
 
-## Testing End-User Authentication
+## Testing IdP Authentication (Setup Experience)
 
-The SimpleSAML identity provider can also be used to test end-user authentication during the device setup experience.
+The SimpleSAML identity provider can also be used to test IdP authentication during the device setup experience.
 
 ### Configuration
 
@@ -452,7 +452,7 @@ This allows devices to connect using `host.docker.internal` as the server addres
 
 2. Add an entry in the candidate device's `/etc/hosts` (or for Windows, `\WINDOWS\system32\drivers\etc\hosts`) pointing `host.docker.internal` to the IP address of the computer running your Fleet instance.
 
-3. Configure End-User Authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
+3. Configure IdP Authentication on the **Integration settings -> Single Sign On -> End Users** page with the following:
 
 ```
 Identity Provider Name: SimpleSAML
