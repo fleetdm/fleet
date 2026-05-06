@@ -8,9 +8,9 @@ Because Fleet and your EDR have overlapping interests with opposite jobs.
 
 Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
 
-Fleet's job is to give you visibility into what's happening on the host — which means doing all of those things, on purpose, on every machine you manage.
+Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
 
-The behaviors Fleet uses to gather telemetry are the same behaviors attackers might use. That's not a flaw in Fleet, and it's not a flaw in your EDR. It's the nature of host visibility tooling. The detection is correct. The attribution is wrong.
+The kinds of behaviors Fleet uses to gather telemetry overlap with things attackers might do — which is why your EDR is doing its job by flagging them. This is a natural byproduct of running host visibility tooling at scale, not an indication that Fleet is misbehaving. Your EDR is detecting normal Fleet activity as it should.
 
 ### Is Fleet doing something unsafe?
 
@@ -20,7 +20,7 @@ That said — the fact that Fleet is trustworthy today doesn't mean blanket-trus
 
 ### What should I do about it?
 
-Don't ask your EDR to ignore the underlying behaviors. Those detections are valuable when they fire on real attackers. The right move is to allowlist Fleet itself, and there are two reasonable ways to do that.
+Because you're likely using Fleet to monitor the same sensitive data that attackers are trying to exploit, it's reasonable that the agent will be flagged for review or quarantined. When this happens, we recommend reviewing any alerts to determine why the Fleet agent is being flagged and creating exceptions as needed. Because this is not an uncommon scenario for any MDM or telemetry agent, your EDR platform should have these mechanisms in place. If you're seeing new alerts, please reach out through our support channels to give the community and us a heads up!
 
 #### Option 1: Publisher or binary allowlist (broad, simple, pragmatic)
 
