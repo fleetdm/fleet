@@ -986,11 +986,11 @@ This activity contains the following fields:
 
 ## enabled_macos_setup_end_user_auth
 
-Generated when a user turns on end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns on IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 
@@ -1003,11 +1003,11 @@ This activity contains the following fields:
 
 ## disabled_macos_setup_end_user_auth
 
-Generated when a user turns off end user authentication for macOS hosts that automatically enroll to a team (or no team).
+Generated when a user turns off IdP authentication for macOS hosts that automatically enroll to a team (or no team).
 
 This activity contains the following fields:
-- "team_id": The ID of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
-- "team_name": The name of the team that end user authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_id": The ID of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that IdP authentication applies to, `null` if it applies to devices that are not in a team.
 
 #### Example
 

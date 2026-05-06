@@ -41,7 +41,7 @@ controls:
     #
     # Read more:
     #   • https://fleetdm.com/docs/configuration/yaml-files#end-user-authentication
-    #   • https://fleetdm.com/guides/setup-experience#end-user-authentication
+    #   • https://fleetdm.com/guides/setup-experience#require-idp-authentication
     ###########################################################
     # enable_end_user_authentication: true
 
@@ -51,7 +51,7 @@ controls:
   # Note: This requires activating MDM in your Fleet instance.
   #
   # For more, see:
-  #   • https://fleetdm.com/guides/apple-mdm-setup    
+  #   • https://fleetdm.com/guides/apple-mdm-setup
   #   • https://fleetdm.com/guides/windows-mdm-setup
   #   • https://fleetdm.com/docs/configuration/yaml-files#apple-settings-and-windows-settings
   #
@@ -63,7 +63,7 @@ controls:
   # - paths: ../platforms/windows/configuration-profiles/*.xml
   #   labels_include_all:
   #     - "x86-based Windows hosts"
-  # ```  
+  # ```
   ###########################################################
   apple_settings:
     configuration_profiles:
