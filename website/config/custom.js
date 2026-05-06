@@ -368,7 +368,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.22.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
