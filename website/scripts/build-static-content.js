@@ -1181,15 +1181,6 @@ module.exports = {
           } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to ${feature.tier}) to be either "Free" or "Premium".`);
           }
-          if(feature.comingSoon) {// Compatibility check
-            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature (industryName: ${feature.industryName}) category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature ${feature}`);
-          }
-          if(feature.comingSoonOn !== undefined) {
-            if(typeof feature.comingSoonOn !== 'string'){
-              throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "comingSoonOn" value (currently set to ${feature.comingSoonOn}, but expecting a string like 'YYYY-MM-DD'.)`);
-            }
-            feature.comingSoon = true;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
-          }//ﬁ
         }
         builtStaticContent.pricingTable = pricingTableFeatures;
       },
