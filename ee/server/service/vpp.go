@@ -680,8 +680,11 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "retrieving assigned VPP apps")
 	}
 
+	// Don't write metadata back here. The team's current storefront can
+	// differ from a row's anchored country, so a writeback would leak
+	// foreign metadata onto an anchored row. RefreshVersions handles the
+	// hourly refresh from each row's anchored storefront.
 	var apps []*fleet.VPPApp
-	var appsToUpdate []*fleet.VPPApp
 	for _, a := range assets {
 		m, ok := metadata[a.AdamID]
 		if !ok {
@@ -690,20 +693,10 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		}
 
 		for _, app := range apple_apps.ToVPPApps(m) {
-			if appFleet, ok := assignedApps[app.VPPAppID]; ok {
-				// Then this is already assigned, so filter it out.
-				app.SelfService = appFleet.SelfService
-				appsToUpdate = append(appsToUpdate, &app)
+			if _, assigned := assignedApps[app.VPPAppID]; assigned {
 				continue
 			}
-
 			apps = append(apps, &app)
-		}
-	}
-
-	if len(appsToUpdate) > 0 {
-		if err := svc.ds.BatchInsertVPPApps(ctx, appsToUpdate); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "updating existing VPP apps")
 		}
 	}
 
