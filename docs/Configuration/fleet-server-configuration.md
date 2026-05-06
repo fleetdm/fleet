@@ -1344,7 +1344,7 @@ This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fal
 
 ### osquery_allow_body_auth_fallback
 
-Selects how host-authenticated osquery requests are authenticated.
+Selects how osquery requests are authenticated.
 
 When `true` (default), the `Authorization: NodeKey` header is ignored entirely and only body-based `node_key` auth is used.
 
