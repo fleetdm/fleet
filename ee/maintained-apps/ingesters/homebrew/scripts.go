@@ -437,7 +437,7 @@ func (s *scriptBuilder) Symlink(source, target string) {
 // correct order.
 func (s *scriptBuilder) String() string {
 	var script strings.Builder
-	script.WriteString("#!/bin/sh\n\n")
+	script.WriteString("#!/bin/bash\n\n")
 
 	if len(s.variables) > 0 {
 		// write variables, order them alphabetically to produce deterministic
