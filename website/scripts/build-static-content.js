@@ -771,7 +771,7 @@ module.exports = {
                   } else {
                     let parsedVideoUrl;
                     try {
-                      parsedVideoUrl = require('url').parse(embeddedMetadata.webinarEmbeddedVideoUrl);
+                      parsedVideoUrl = new URL(embeddedMetadata.webinarEmbeddedVideoUrl);
                     } catch(err) {
                       throw new Error(`Failed compiling markdown content: A webinar article has an invalid "webinarEmbeddedVideoUrl" value (${embeddedMetadata.webinarEmbeddedVideoUrl}) at ${path.join(topLvlRepoPath, pageSourcePath)}. Please change this value to be a valid URL of the webinar recording with no query strings.`, err);
                     }
