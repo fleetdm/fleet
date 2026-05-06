@@ -43,4 +43,4 @@ If certificate authority (CA) variables (ex. `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2026-04-08">
 <meta name="articleTitle" value="Built-in variables">
-<meta name="description" value="You can use variables to incorporate IdP or host vitals into a configuration profile or managed app configuration for deploying device-specific settings.">
+<meta name="description" value="Use variables to add IdP or host data to configuration profiles or managed app configs for device-specific settings.">
