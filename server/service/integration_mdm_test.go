@@ -717,7 +717,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		}
 
 		// Handle /client/config
-		resp := []byte(fmt.Sprintf(`{"locationName": "%s"}`, s.appleVPPConfigSrvConfig.Location))
+		resp := fmt.Appendf(nil, `{"locationName": "%s", "countryISO2ACode": "US"}`, s.appleVPPConfigSrvConfig.Location)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:

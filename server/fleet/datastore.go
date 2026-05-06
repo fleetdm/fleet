@@ -1863,6 +1863,30 @@ type Datastore interface {
 	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a
+	// VPP token. Used to lazy-backfill the column for tokens uploaded before
+	// the country_code column existed.
+	UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error
+	// UpdateVPPAppCountryCode persists the anchored storefront country for a
+	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
+	// path when the original anchored country has no Fleet-known token left.
+	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
+	// BackfillVPPAppCountriesFromTokens populates `vpp_apps.country_code` for
+	// any rows that are still NULL, by joining through `vpp_apps_teams` to
+	// the `vpp_tokens` row whose `country_code` is set. Returns the number of
+	// rows updated. Used by the one-shot legacy backfill that runs at server
+	// startup. Becomes a no-op once all rows are populated.
+	BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error)
+	// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+	// (adam_id, platform), or a NotFound error if no row exists. Used by the
+	// anchoring logic to decide whether the next add is a first-add or a
+	// subsequent add.
+	GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform InstallableDevicePlatform) (*VPPApp, error)
+	// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code
+	// matches the given country and which owns the (adam_id, platform) app
+	// via vpp_apps_teams. Returns NotFound when no eligible token exists —
+	// callers may treat this as a re-anchor signal.
+	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
