@@ -15,6 +15,28 @@ import { createMockMdmConfig } from "__mocks__/configMock";
 import RunScript from "./RunScript";
 
 describe("RunScript", () => {
+  it("should render the page description on the empty state when MDM isn't configured", async () => {
+    mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    mockServer.use(createGetTeamHandler({}));
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<RunScript router={createMockRouter()} currentTeamId={1} />);
+
+    expect(
+      await screen.findByText(/turn on automatic enrollment/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Upload a script to run on macOS hosts/)
+    ).toBeVisible();
+  });
+
   it("should render the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
