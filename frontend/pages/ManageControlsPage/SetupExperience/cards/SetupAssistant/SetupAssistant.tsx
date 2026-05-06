@@ -196,9 +196,7 @@ const SetupAssistant = ({
         }
       />
       <SetupExperienceContentContainer>
-        <div className={`${baseClass}__upload-container`}>
-          {renderContent()}
-        </div>
+        {renderContent()}
       </SetupExperienceContentContainer>
       {showDeleteProfileModal && (
         <DeleteAutoEnrollmentProfile

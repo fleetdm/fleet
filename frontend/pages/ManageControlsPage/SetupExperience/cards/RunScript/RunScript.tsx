@@ -96,50 +96,36 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       globalConfig?.mdm.apple_bm_enabled_and_configured
     );
 
-    return (
+    if (mdmNotConfigured) {
+      return (
+        <EmptyState
+          variant="list"
+          header="Additional configuration required"
+          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      );
+    }
+
+    return !script ? (
+      <SetupExperienceScriptUploader
+        currentTeamId={currentTeamId}
+        hasManualAgentInstall={hasManualAgentInstall}
+        onUpload={onUpload}
+      />
+    ) : (
       <>
-        {mdmNotConfigured ? (
-          <EmptyState
-            variant="list"
-            header="Additional configuration required"
-            info="Supported on macOS. To customize, first turn on automatic enrollment."
-            primaryButton={
-              <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
-                Turn on
-              </Button>
-            }
-          />
-        ) : (
-          <SetupExperienceContentContainer>
-            <div className={`${baseClass}__description-container`}>
-              {!script ? (
-                <SetupExperienceScriptUploader
-                  currentTeamId={currentTeamId}
-                  hasManualAgentInstall={hasManualAgentInstall}
-                  onUpload={onUpload}
-                />
-              ) : (
-                <>
-                  <p className={`${baseClass}__run-message`}>
-                    Script will run during setup:
-                  </p>
-                  <SetupExperienceScriptCard
-                    script={script}
-                    onDelete={() => setShowDeleteScriptModal(true)}
-                  />
-                </>
-              )}
-            </div>
-            {showDeleteScriptModal && script && (
-              <DeleteSetupExperienceScriptModal
-                currentTeamId={currentTeamId}
-                scriptName={script.name}
-                onDeleted={onDelete}
-                onExit={() => setShowDeleteScriptModal(false)}
-              />
-            )}
-          </SetupExperienceContentContainer>
-        )}
+        <p className={`${baseClass}__run-message`}>
+          Script will run during setup:
+        </p>
+        <SetupExperienceScriptCard
+          script={script}
+          onDelete={() => setShowDeleteScriptModal(true)}
+        />
       </>
     );
   };
@@ -160,7 +146,17 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
         variant="right-panel"
         content="Upload a script to run on macOS hosts that automatically enroll to Fleet."
       />
-      {renderContent()}
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
+      {showDeleteScriptModal && script && (
+        <DeleteSetupExperienceScriptModal
+          currentTeamId={currentTeamId}
+          scriptName={script.name}
+          onDeleted={onDelete}
+          onExit={() => setShowDeleteScriptModal(false)}
+        />
+      )}
     </section>
   );
 };

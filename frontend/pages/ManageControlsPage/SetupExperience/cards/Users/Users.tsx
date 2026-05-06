@@ -131,15 +131,13 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     }
     const mdmConfig = globalConfig.mdm;
     return (
-      <SetupExperienceContentContainer>
-        <UsersForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-          defaultLockEndUserInfo={defaultLockEndUserInfo}
-          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          isIdPConfigured={isIdPConfigured(mdmConfig)}
-        />
-      </SetupExperienceContentContainer>
+      <UsersForm
+        currentTeamId={currentTeamId}
+        defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        defaultLockEndUserInfo={defaultLockEndUserInfo}
+        defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
+        isIdPConfigured={isIdPConfigured(mdmConfig)}
+      />
     );
   };
 
@@ -159,7 +157,9 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
         variant="right-panel"
         content="Configure end user authentication and local account settings for hosts that automatically enroll to Fleet."
       />
-      {renderContent()}
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
     </section>
   );
 };

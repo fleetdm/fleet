@@ -180,23 +180,21 @@ const BootstrapPackage = ({
     );
 
     return (
-      <SetupExperienceContentContainer className={`${baseClass}__content`}>
-        <div className={`${baseClass}__uploader-container`}>
-          {bootstrapPackageView}
-          <BootstrapAdvancedOptions
-            currentTeamId={currentTeamId}
-            disableInstallManually={
-              noPackageUploaded ||
-              hasSetupExperienceInstallSoftware ||
-              hasSetupExperienceScript
-            }
-            selectManualAgentInstall={selectedManualAgentInstall}
-            onChange={(manualAgentInstall) => {
-              setSelectedManualAgentInstall(manualAgentInstall);
-            }}
-          />
-        </div>
-      </SetupExperienceContentContainer>
+      <>
+        {bootstrapPackageView}
+        <BootstrapAdvancedOptions
+          currentTeamId={currentTeamId}
+          disableInstallManually={
+            noPackageUploaded ||
+            hasSetupExperienceInstallSoftware ||
+            hasSetupExperienceScript
+          }
+          selectManualAgentInstall={selectedManualAgentInstall}
+          onChange={(manualAgentInstall) => {
+            setSelectedManualAgentInstall(manualAgentInstall);
+          }}
+        />
+      </>
     );
   };
 
@@ -250,7 +248,9 @@ const BootstrapPackage = ({
         variant="right-panel"
         content="Upload a bootstrap package to install a configuration management tool (e.g. Munki, Chef, or Puppet) on macOS hosts that automatically enroll to Fleet."
       />
-      {renderContent()}
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}
