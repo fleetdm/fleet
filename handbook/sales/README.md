@@ -156,6 +156,39 @@ The “Attributed to” field is associated with a Salesforce user. The opportun
 - All other sources: For opportunities that do not fall under any of the above categories, e.g., opportunities created based on inbound leads, digital ads, brand, events, GitOps workshops, organic web traffic, etc, update the field with the Integrations Admin user.
 
 
+### Process the help-solutions-specialist Slack channel
+
+Make sure all requests posted in the BDR Slack channel are acknowledged quickly, executed with clear timelines, thoughtfully evaluated (not blindly followed), and closed with visible outcomes. Applies to all Fleetie requests related to:
+- Lead creation
+- LinkedIn connections and outreach
+- Target accounts
+- Messaging or outbound strategy
+
+When the CEO, or Fleetie, reaches out in #help-solutions-specialist, the solutions specialist who owns the relevant territory is responsible for responding, acknowledging, and taking action per this process. Ultimately, the DRI for the Channel owns the follow-through and outcome.
+
+1. Acknowledge: Reply in-thread in #help-solutions-specialist within 1 hour. Confirm you've seen the request and commit to a specific time by which you'll respond with your plan.
+
+2. Respond: Choose one of three paths:
+- **Execute** — Define the actions you will take and provide a clear ETA.
+- **Clarify** — Ask specific questions and propose a provisional approach while awaiting answers.
+- **Challenge** — Provide clear reasoning if the request is not effective and suggest a better alternative.
+
+3. Close the loop: Reply in-thread immediately after completion with:
+- Actions taken
+- Results achieved
+- Key observations
+- Recommended next steps (if applicable)
+
+All leads generated as a result of the CEO and Fleetie requests must be logged in the CEO request lead tracking sheet the same day. Do not batch-update at the end of the week. Log the following for each lead:
+- Date of CEO request
+- CEO Slack message or request summary
+- Solutions specialist assigned (territory owner)
+- Lead name and company
+- Action taken (LinkedIn connection, outreach sent, lead created in CRM, etc.)
+- Current status (sent, accepted, replied, meeting booked, etc.)
+- Outcome and notes
+- Follow-up date (if applicable)
+
 
 ## Rituals
 

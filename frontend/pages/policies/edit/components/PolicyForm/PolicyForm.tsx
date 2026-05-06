@@ -172,13 +172,8 @@ const PolicyForm = ({
   const queryClient = useQueryClient();
 
   const {
-    currentUser,
     currentTeam,
     isGlobalObserver,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
@@ -677,7 +672,6 @@ const PolicyForm = ({
               currentAutomatedPolicies={currentAutomatedPolicies}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
-              gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
           {isEditMode &&

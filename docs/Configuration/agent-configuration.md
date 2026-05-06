@@ -308,3 +308,4 @@ agent_options:
 
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
+<meta name="keywordsForDocsearch" value="command line flags, agent config file">

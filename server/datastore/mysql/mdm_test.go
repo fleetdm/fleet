@@ -1043,13 +1043,12 @@ func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
 			&fleet.MDMCommandListOptions{
-				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1},
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, IncludeMetadata: true},
 			},
 		)
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		afterCursor := cmds[0].CommandUUID
-
 		next, _, _, err := ds.ListMDMCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
@@ -1119,7 +1118,6 @@ func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Len(t, cmds, 1)
 		afterCursor := cmds[0].CommandUUID
-
 		next, err := ds.ListMDMAppleCommands(
 			ctx,
 			fleet.TeamFilter{User: test.UserAdmin},
@@ -1857,6 +1855,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantMeta, gotMeta)
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testBulkSetPendingMDMHostProfilesBatch2(t *testing.T, ds *Datastore) {

@@ -424,6 +424,9 @@ type Datastore interface {
 	CleanupHostMDMCommands(ctx context.Context) error
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
+	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
+	// whose corresponding result is older than 1 hour.
+	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
 	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
@@ -3012,6 +3015,11 @@ type Datastore interface {
 
 	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
 	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
+
+	// MDMAppleResetOnReenrollment performs necessary datastore operations to reset the state of a host that is re-enrolling in MDM,
+	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
+	// Host activities will not be cleared if preserveHostActivities is true
+	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 }
 
 type AndroidDatastore interface {
