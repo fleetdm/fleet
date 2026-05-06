@@ -53,11 +53,12 @@ const CheckerboardViz = ({
   relativeScale = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollWrapperRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
-    "center"
+    "center",
   );
 
   let getColorLevel;
@@ -99,6 +100,15 @@ const CheckerboardViz = ({
     });
     observer.observe(node);
     return () => observer.disconnect();
+  }, []);
+
+  // Scroll the grid to the far right on mount so the most recent data is
+  // visible by default.
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+    }
   }, []);
 
   // Hours per slot: 3 for 30-day, 2 for 7/14-day, 1 for 24-hour
@@ -280,7 +290,7 @@ const CheckerboardViz = ({
           </div>
         )}
 
-        <div className={`${baseClass}__scroll-wrapper`}>
+        <div ref={scrollWrapperRef} className={`${baseClass}__scroll-wrapper`}>
           {/* Grid cells */}
           <svg width={gridWidth} height={gridHeight}>
             {grid.map((cell) => {
