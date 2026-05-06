@@ -17,6 +17,7 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 
+import Button from "components/buttons/Button";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
@@ -42,6 +43,8 @@ interface IHostSoftwareLibraryTableProps {
   pagePath: string;
   selfService: boolean;
   teamId?: number;
+  canAddSoftware?: boolean;
+  onAddSoftware?: () => void;
 }
 
 const HostSoftwareLibraryTable = ({
@@ -58,6 +61,8 @@ const HostSoftwareLibraryTable = ({
   page,
   pagePath,
   teamId,
+  canAddSoftware,
+  onAddSoftware,
 }: IHostSoftwareLibraryTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -143,18 +148,30 @@ const HostSoftwareLibraryTable = ({
 
   const count = data?.count || data?.software?.length || 0;
   const isSoftwareNotDetected = count === 0 && searchQuery === "";
+  const isTrulyEmpty = isSoftwareNotDetected && !selfService;
 
   const memoizedSoftwareCount = useCallback(() => {
-    if (isSoftwareNotDetected) {
-      return null;
-    }
-
     return <TableCount name="items" count={count} />;
-  }, [count, isSoftwareNotDetected]);
+  }, [count]);
 
   const memoizedEmptyComponent = useCallback(() => {
+    if (isTrulyEmpty) {
+      return (
+        <EmptyState
+          header="No software found"
+          info="Add software to install."
+          primaryButton={
+            canAddSoftware ? (
+              <Button onClick={onAddSoftware} type="button">
+                Add software
+              </Button>
+            ) : undefined
+          }
+        />
+      );
+    }
     return <EmptySoftwareTable noSearchQuery={searchQuery === ""} />;
-  }, [searchQuery]);
+  }, [searchQuery, isTrulyEmpty, canAddSoftware, onAddSoftware]);
 
   if (isAndroid(platform)) {
     return (
@@ -185,6 +202,7 @@ const HostSoftwareLibraryTable = ({
             )
           }
           variant="table-filter"
+          isDisabled={isTrulyEmpty}
         />
       </div>
     );
@@ -211,6 +229,7 @@ const HostSoftwareLibraryTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         searchable
+        disableSearch={isTrulyEmpty}
         manualSortBy
       />
     </div>

@@ -1111,6 +1111,7 @@ const HostDetailsPage = ({
 
   const showReportsTab =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
+  const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
@@ -1133,12 +1134,16 @@ const HostDetailsPage = ({
           },
         ]
       : []),
-    {
-      name: "Policies",
-      title: "policies",
-      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-      count: failingPoliciesCount,
-    },
+    ...(showPoliciesTab
+      ? [
+          {
+            name: "Policies",
+            title: "policies",
+            pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+            count: failingPoliciesCount,
+          },
+        ]
+      : []),
   ];
 
   const hostSoftwareSubNav: IHostDetailsSubNavItem[] = [
@@ -1552,18 +1557,41 @@ const HostDetailsPage = ({
                       config?.server_settings?.query_reports_disabled
                     }
                     showReportsEmptyState={showReportsEmptyState}
+                    canScheduleReport={!isOnlyObserver}
+                    onScheduleReport={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.NEW_REPORT, {
+                          host_id: host.id,
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
                   />
                 </TabPanel>
               )}
-              <TabPanel>
-                <PoliciesCard
-                  policies={host?.policies || []}
-                  isLoading={isLoadingHost}
-                  togglePolicyDetailsModal={togglePolicyDetailsModal}
-                  hostPlatform={host.platform}
-                  currentTeamId={currentTeam?.id}
-                />
-              </TabPanel>
+              {showPoliciesTab && (
+                <TabPanel>
+                  <PoliciesCard
+                    policies={host?.policies || []}
+                    isLoading={isLoadingHost}
+                    togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    hostPlatform={host.platform}
+                    currentTeamId={currentTeam?.id}
+                    canManagePolicies={
+                      isGlobalAdmin ||
+                      isGlobalMaintainer ||
+                      isTeamMaintainerOrTeamAdmin
+                    }
+                    onManagePolicies={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
+                  />
+                </TabPanel>
+              )}
             </Tabs>
           </TabNav>
           {showDeleteHostModal && (

@@ -6,7 +6,9 @@ import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
+import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
@@ -30,6 +32,8 @@ interface IPoliciesProps {
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
+  canManagePolicies?: boolean;
+  onManagePolicies?: () => void;
 }
 
 interface IHostPoliciesRowProps extends Row {
@@ -46,6 +50,8 @@ const Policies = ({
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
+  canManagePolicies,
+  onManagePolicies,
 }: IPoliciesProps): JSX.Element => {
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
@@ -127,18 +133,14 @@ const Policies = ({
     if (policies.length === 0) {
       return (
         <EmptyState
-          header={
-            <>
-              No policies are checked{" "}
-              {deviceUser ? `on your device` : `for this host`}
-            </>
-          }
-          info={
-            <>
-              Expecting to see policies? Try selecting “Refetch” to ask{" "}
-              {deviceUser ? `your device ` : `this host `}
-              to report new vitals.
-            </>
+          header="No policies checked"
+          info="Select Refetch to load the latest data from this host, or manage its policies."
+          primaryButton={
+            canManagePolicies ? (
+              <Button onClick={onManagePolicies} type="button">
+                Manage policies
+              </Button>
+            ) : undefined
           }
         />
       );
@@ -156,7 +158,9 @@ const Policies = ({
           emptyComponent={() => <></>}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          disableCount
+          renderCount={() => (
+            <TableCount name="policies" count={policies.length} />
+          )}
           disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
           onClickRow={onClickRow}

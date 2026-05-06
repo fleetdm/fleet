@@ -612,6 +612,8 @@ const HostSoftwareLibrary = ({
         pagePath={pathname}
         selfService={queryParams.self_service}
         teamId={queryParams.fleet_id}
+        canAddSoftware={canAddSoftware}
+        onAddSoftware={onAddSoftware}
       />
     );
   };
