@@ -14,6 +14,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import PATHS from "router/paths";
 
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
@@ -112,59 +113,17 @@ const SetupAssistant = ({
     isLoadingEnrollmentProfile ||
     isLoadingDefaultEnrollmentProfile;
 
-  const renderSetupAssistantView = () => {
-    return (
-      <SetupExperienceContentContainer>
-        <div className={`${baseClass}__upload-container`}>
-          <p className={`${baseClass}__section-description`}>
-            Add an automatic enrollment profile to customize Setup Assistant.{" "}
-            <CustomLink
-              url="https://fleetdm.com/learn-more-about/enrollment-profiles"
-              text="Learn more"
-              newTab
-            />
-          </p>
-          {enrollmentProfileNotFound || !enrollmentProfileData ? (
-            <>
-              {defaultEnrollmentProfileData && (
-                <SetupAssistantProfileCard
-                  profile={
-                    defaultEnrollmentProfileData as IAppleSetupEnrollmentProfileResponse
-                  }
-                  defaultProfile
-                />
-              )}
-              <SetupAssistantProfileUploader
-                currentTeamId={currentTeamId}
-                onUpload={onUpload}
-              />
-            </>
-          ) : (
-            <SetupAssistantProfileCard
-              profile={enrollmentProfileData}
-              onDelete={() => setShowDeleteProfileModal(true)}
-            />
-          )}
-          <AdvancedOptionsForm
-            key={String(defaultReleaseDeviceSetting)}
-            currentTeamId={currentTeamId}
-            defaultReleaseDevice={defaultReleaseDeviceSetting}
-          />
-        </div>
-      </SetupExperienceContentContainer>
-    );
-  };
-
   const renderContent = () => {
     if (isLoading) {
       return <Spinner />;
     }
-    if (
-      !(
-        globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured
-      )
-    ) {
+
+    const mdmNotConfigured = !(
+      globalConfig?.mdm.enabled_and_configured &&
+      globalConfig?.mdm.apple_bm_enabled_and_configured
+    );
+
+    if (mdmNotConfigured) {
       return (
         <EmptyState
           variant="form"
@@ -178,7 +137,37 @@ const SetupAssistant = ({
         />
       );
     }
-    return renderSetupAssistantView();
+
+    return (
+      <>
+        {enrollmentProfileNotFound || !enrollmentProfileData ? (
+          <>
+            {defaultEnrollmentProfileData && (
+              <SetupAssistantProfileCard
+                profile={
+                  defaultEnrollmentProfileData as IAppleSetupEnrollmentProfileResponse
+                }
+                defaultProfile
+              />
+            )}
+            <SetupAssistantProfileUploader
+              currentTeamId={currentTeamId}
+              onUpload={onUpload}
+            />
+          </>
+        ) : (
+          <SetupAssistantProfileCard
+            profile={enrollmentProfileData}
+            onDelete={() => setShowDeleteProfileModal(true)}
+          />
+        )}
+        <AdvancedOptionsForm
+          key={String(defaultReleaseDeviceSetting)}
+          currentTeamId={currentTeamId}
+          defaultReleaseDevice={defaultReleaseDeviceSetting}
+        />
+      </>
+    );
   };
 
   return (
@@ -193,7 +182,24 @@ const SetupAssistant = ({
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Add an automatic enrollment profile to customize Setup Assistant.{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/enrollment-profiles"
+              text="Learn more"
+              newTab
+            />
+          </>
+        }
+      />
+      <SetupExperienceContentContainer>
+        <div className={`${baseClass}__upload-container`}>
+          {renderContent()}
+        </div>
+      </SetupExperienceContentContainer>
       {showDeleteProfileModal && (
         <DeleteAutoEnrollmentProfile
           currentTeamId={currentTeamId}

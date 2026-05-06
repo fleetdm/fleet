@@ -90,6 +90,7 @@ const InstallSoftware = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
       enabled: isValidPlatform,
+      keepPreviousData: true,
     }
   );
 
@@ -169,7 +170,6 @@ const InstallSoftware = ({
 
       return (
         <SetupExperienceContentContainer>
-          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
           {turnOnMdm ? (
             <EmptyState
               header={
@@ -233,6 +233,10 @@ const InstallSoftware = ({
             text="Preview end user experience"
           />
         }
+      />
+      <PageDescription
+        variant="right-panel"
+        content="Install software on hosts that automatically enroll to Fleet."
       />
       {isLoadingConfig ? (
         <Spinner />

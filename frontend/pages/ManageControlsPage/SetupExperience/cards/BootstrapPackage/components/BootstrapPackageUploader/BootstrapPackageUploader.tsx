@@ -55,11 +55,6 @@ const BootstrapPackageUploader = ({
 
   return (
     <div className={baseClass}>
-      <p>
-        Upload a bootstrap package to install a configuration management tool
-        (e.g. Munki, Chef, or Puppet) on macOS hosts that automatically enroll
-        to Fleet.
-      </p>
       <FileUploader
         message="Package (.pkg)"
         graphicName="file-pkg"
