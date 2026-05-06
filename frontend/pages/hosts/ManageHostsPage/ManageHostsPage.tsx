@@ -1650,15 +1650,31 @@ const ManageHostsPage = ({
     }
   };
 
+  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
+  const maybeEmptyHosts =
+    totalFilteredHostsCount === 0 && searchQuery === "" && !labelID && !status;
+
+  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
+    (filter) =>
+      filter !== "fleet_id" &&
+      typeof queryParams === "object" &&
+      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
+  );
+
+  // No hosts enrolled at all, no filters active
+  const isTrulyEmpty =
+    canEnrollHosts && maybeEmptyHosts && !includesFilterQueryParam;
+
   const renderHostCount = useCallback(() => {
     return (
       <>
         <TableCount name="hosts" count={totalFilteredHostsCount} />
-        {!!totalFilteredHostsCount && (
+        {(!!totalFilteredHostsCount || isTrulyEmpty) && (
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
             variant="inverse"
+            disabled={isTrulyEmpty}
           >
             <>
               Export hosts
@@ -1668,7 +1684,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, totalFilteredHostsCount]);
+  }, [isLoadingHostsCount, totalFilteredHostsCount, isTrulyEmpty]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1688,6 +1704,7 @@ const ManageHostsPage = ({
           options={hostSelectStatuses(isPremiumTier || false)}
           onChange={handleStatusDropdownChange}
           variant="table-filter"
+          isDisabled={isTrulyEmpty}
         />
         <LabelFilterSelect
           className={`${baseClass}__label-filter-dropdown`}
@@ -1697,21 +1714,11 @@ const ManageHostsPage = ({
           onChange={handleLabelChange}
           onAddLabel={onAddLabelClick}
           isLoading={isLoadingLabels}
+          isDisabled={isTrulyEmpty}
         />
       </div>
     );
   };
-
-  // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
-  const maybeEmptyHosts =
-    totalFilteredHostsCount === 0 && searchQuery === "" && !labelID && !status;
-
-  const includesFilterQueryParam = MANAGE_HOSTS_PAGE_FILTER_KEYS.some(
-    (filter) =>
-      filter !== "fleet_id" &&
-      typeof queryParams === "object" &&
-      filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
-  );
 
   // Ensures rendering table/pills simultaneously when all API calls are done
   const isLoading =
@@ -1730,7 +1737,7 @@ const ManageHostsPage = ({
     if (hasErrors) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    if (maybeEmptyHosts) {
+    if (maybeEmptyHosts && !isTrulyEmpty) {
       const emptyState = () => {
         const emptyHosts: IEmptyStateProps = {
           header: "Hosts will show up here once they’re added to Fleet",
@@ -1741,15 +1748,6 @@ const ManageHostsPage = ({
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again soon as the system catches up.";
-        } else if (canEnrollHosts) {
-          emptyHosts.header = "Add your hosts to Fleet";
-          emptyHosts.info =
-            "Generate Fleet's agent (fleetd) to add your own hosts.";
-          emptyHosts.primaryButton = (
-            <Button onClick={toggleAddHostsModal} type="button">
-              Add hosts
-            </Button>
-          );
         }
         return emptyHosts;
       };
@@ -1826,11 +1824,30 @@ const ManageHostsPage = ({
 
     const emptyState = () => {
       const emptyHosts: IEmptyStateProps = {
-        header: "No hosts match the current criteria",
+        header: "No hosts match your filters",
         info:
-          "Expecting to see new hosts? Try again soon as the system catches up.",
+          "Recently enrolled hosts will appear here after their first check-in.",
+        primaryButton: canEnrollHosts ? (
+          <Button onClick={toggleAddHostsModal} type="button">
+            Add hosts
+          </Button>
+        ) : undefined,
       };
-      if (isLastPage) {
+      if (isTrulyEmpty) {
+        emptyHosts.header = "No hosts";
+        emptyHosts.info = (
+          <>
+            Fleet refers to computers, servers, and mobile devices as hosts.
+            <br />
+            Add a host to start seeing data.
+          </>
+        );
+        emptyHosts.primaryButton = (
+          <Button onClick={toggleAddHostsModal} type="button">
+            Add hosts
+          </Button>
+        );
+      } else if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
           "Expecting to see more hosts? Try again soon as the system catches up.";
@@ -1896,10 +1913,16 @@ const ManageHostsPage = ({
         showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
+        disableSearch={isTrulyEmpty}
         renderCount={renderHostCount}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
+        disableActionButton={isTrulyEmpty}
         emptyComponent={() => (
-          <EmptyState header={emptyState().header} info={emptyState().info} />
+          <EmptyState
+            header={emptyState().header}
+            info={emptyState().info}
+            primaryButton={emptyState().primaryButton}
+          />
         )}
         customControl={renderCustomControls}
         onQueryChange={onTableQueryChange}
@@ -1944,10 +1967,7 @@ const ManageHostsPage = ({
     );
   };
 
-  const showAddHostsButton =
-    canEnrollHosts &&
-    !hasErrors &&
-    (!maybeEmptyHosts || includesFilterQueryParam);
+  const showAddHostsButton = canEnrollHosts && !hasErrors;
 
   return (
     <>
