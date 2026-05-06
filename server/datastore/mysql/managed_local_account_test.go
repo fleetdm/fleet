@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -277,6 +278,12 @@ func testManagedLocalAccountMarkViewed(t *testing.T, ds *Datastore) {
 	assert.True(t, status.PasswordAvailable)
 	assert.False(t, status.PendingRotation)
 
+	initiatedByFleet := false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.True(t, initiatedByFleet, "viewing password should always initially mark rotation as initiated_by_fleet")
+
 	// Second view inside the window does NOT extend the timer — the same auto_rotate_at
 	// is returned. We allow 1s of drift for the read clock.
 	rotateAt2, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, hostUUID)
@@ -336,6 +343,13 @@ func testManagedLocalAccountCompleteRotation(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "the-new-password", "rot-cmd-comp"))
+
+	// Mismatched cmdUUID → notFound.
+	err = ds.CompleteManagedLocalAccountRotation(ctx, hostUUID, "wrong-cmd")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
+	// Complete rotation with the actual command
 	require.NoError(t, ds.CompleteManagedLocalAccountRotation(ctx, hostUUID, "rot-cmd-comp"))
 
 	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
@@ -348,12 +362,6 @@ func testManagedLocalAccountCompleteRotation(t *testing.T, ds *Datastore) {
 	pwd, err := ds.GetHostManagedLocalAccountPassword(ctx, hostUUID)
 	require.NoError(t, err)
 	assert.Equal(t, "the-new-password", pwd.Password)
-
-	// Mismatched cmdUUID → notFound.
-	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "another-password", "rot-cmd-comp2"))
-	err = ds.CompleteManagedLocalAccountRotation(ctx, hostUUID, "wrong-cmd")
-	require.Error(t, err)
-	assert.True(t, fleet.IsNotFound(err))
 }
 
 func testManagedLocalAccountFailRotation(t *testing.T, ds *Datastore) {
@@ -361,6 +369,12 @@ func testManagedLocalAccountFailRotation(t *testing.T, ds *Datastore) {
 	hostUUID := newManagedLocalAccountTestHost(t, ds, "fail0004")
 
 	require.NoError(t, ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, "rotation-password", "rot-cmd-fail"))
+
+	// Mismatched cmdUUID → notFound.
+	err := ds.FailManagedLocalAccountRotation(ctx, hostUUID, "wrong-cmd", "device returned error")
+	require.Error(t, err)
+	assert.True(t, fleet.IsNotFound(err))
+
 	require.NoError(t, ds.FailManagedLocalAccountRotation(ctx, hostUUID, "rot-cmd-fail", "device returned error"))
 
 	status, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
@@ -395,6 +409,9 @@ func testManagedLocalAccountClearRotation(t *testing.T, ds *Datastore) {
 
 	// Idempotent.
 	require.NoError(t, ds.ClearManagedLocalAccountRotation(ctx, hostUUID))
+	statusAfter, err := ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	assert.Equal(t, status, statusAfter)
 }
 
 func testManagedLocalAccountDeferredRotation(t *testing.T, ds *Datastore) {
@@ -409,9 +426,23 @@ func testManagedLocalAccountDeferredRotation(t *testing.T, ds *Datastore) {
 	require.NotNil(t, status.Status)
 	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
 	require.NotNil(t, status.AutoRotateAt)
+	initiatedByFleet := false
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.False(t, initiatedByFleet, "deferred rotation should mark initiated_by_fleet=0 so it can be distinguished from view-driven rotations")
 
-	// Idempotent (no error on second call).
+	// Idempotent (no error on second call). The time will get updated to current time, but that is expected
 	require.NoError(t, ds.MarkManagedLocalAccountRotationDeferred(ctx, hostUUID))
+	status, err = ds.GetHostManagedLocalAccountStatus(ctx, hostUUID)
+	require.NoError(t, err)
+	require.NotNil(t, status.Status)
+	assert.Equal(t, string(fleet.MDMDeliveryPending), *status.Status)
+	require.NotNil(t, status.AutoRotateAt)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &initiatedByFleet, "SELECT initiated_by_fleet FROM host_managed_local_account_passwords WHERE host_uuid = ?", hostUUID)
+	})
+	assert.False(t, initiatedByFleet, "deferred rotation should mark initiated_by_fleet=0 so it can be distinguished from view-driven rotations")
 }
 
 func testManagedLocalAccountGetForAutoRotation(t *testing.T, ds *Datastore) {
@@ -422,9 +453,11 @@ func testManagedLocalAccountGetForAutoRotation(t *testing.T, ds *Datastore) {
 	_, err := ds.MarkManagedLocalAccountPasswordViewed(ctx, dueHost)
 	require.NoError(t, err)
 	// Backdate auto_rotate_at into the past.
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, dueHost)
-	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx,
+			`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`, dueHost)
+		return err
+	})
 
 	// Ineligible: not viewed (auto_rotate_at NULL).
 	notViewed := newManagedLocalAccountTestHost(t, ds, "noview08")

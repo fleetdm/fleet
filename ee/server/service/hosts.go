@@ -797,10 +797,8 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lite")
 	}
-	// Authorize again with team loaded as "execute mdm_command", matching
-	// the other peer MDM command flows in this file (lock/wipe/recovery-lock
-	// rotation) — this path queues a device command, so a generic host write
-	// check would weaken the permission model.
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access requirement.
 	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -831,7 +829,7 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 	// user as actor at click time, and the cron will execute the rotation later
 	// without re-logging because initiated_by_fleet=0 on this row.
 	if accountUUID == nil || *accountUUID == "" {
-		if err := svc.logRotateManagedLocalAccountActivity(ctx, host, false); err != nil {
+		if err := svc.logRotateManagedLocalAccountActivity(ctx, host); err != nil {
 			return err
 		}
 		if err := svc.ds.MarkManagedLocalAccountRotationDeferred(ctx, host.UUID); err != nil {
@@ -862,7 +860,7 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 		// activity (consistent with the manual recovery-lock path).
 		var apnsErr *apple_mdm.APNSDeliveryError
 		if errors.As(err, &apnsErr) {
-			if logErr := svc.logRotateManagedLocalAccountActivity(ctx, host, false); logErr != nil {
+			if logErr := svc.logRotateManagedLocalAccountActivity(ctx, host); logErr != nil {
 				return logErr
 			}
 			return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
@@ -876,10 +874,10 @@ func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostI
 		return ctxerr.Wrap(ctx, err, "enqueue managed local account rotation command")
 	}
 
-	return svc.logRotateManagedLocalAccountActivity(ctx, host, false)
+	return svc.logRotateManagedLocalAccountActivity(ctx, host)
 }
 
-func (svc *Service) logRotateManagedLocalAccountActivity(ctx context.Context, host *fleet.Host, fleetInitiated bool) error {
+func (svc *Service) logRotateManagedLocalAccountActivity(ctx context.Context, host *fleet.Host) error {
 	vc, ok := viewer.FromContext(ctx)
 	var actor *fleet.User
 	if ok {
@@ -888,7 +886,7 @@ func (svc *Service) logRotateManagedLocalAccountActivity(ctx context.Context, ho
 	if err := svc.NewActivity(ctx, actor, fleet.ActivityTypeRotatedManagedLocalAccountPassword{
 		HostID:          host.ID,
 		HostDisplayName: host.DisplayName(),
-		FleetInitiated:  fleetInitiated,
+		FleetInitiated:  false,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create rotated managed local account activity")
 	}
