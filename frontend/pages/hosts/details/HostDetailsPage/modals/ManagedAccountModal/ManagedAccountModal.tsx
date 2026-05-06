@@ -20,10 +20,11 @@ const baseClass = "managed-account-modal";
 
 interface IManagedAccountModalProps {
   hostId: number;
-  // TODO(JM-43890): Figma dev note says "Hide option if not Admin or
+  // TODO: For this modal the Figma dev note said "Hide option if not Admin or
   // maintainer role." We're hiding here per the design, but the analogous
   // RecoveryLockPasswordModal disables-with-tooltip in the same situation.
-  // Following up to align the two patterns.
+  // We deferred this decision for now because this modal only displays for
+  // Admin or Maintainer roles
   canRotatePassword: boolean;
   onCancel: () => void;
   onRotate: () => void;
