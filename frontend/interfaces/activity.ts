@@ -169,6 +169,8 @@ export enum ActivityType {
   DisabledManagedLocalAccount = "disabled_managed_local_account",
   ViewedManagedLocalAccount = "read_managed_local_account",
   CreatedManagedLocalAccount = "created_managed_local_account",
+  EnabledHistoricalDataset = "enabled_historical_dataset",
+  DisabledHistoricalDataset = "disabled_historical_dataset",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -305,6 +307,9 @@ export interface IActivityDetails {
   certificate_template_id?: number;
   detail?: string;
   exception?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
+  dataset?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -485,4 +490,6 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "Turned off managed local account",
   [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
   [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.EnabledHistoricalDataset]: "Enabled chart data collection",
+  [ActivityType.DisabledHistoricalDataset]: "Disabled chart data collection",
 };

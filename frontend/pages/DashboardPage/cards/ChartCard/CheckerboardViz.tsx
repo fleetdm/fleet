@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { ChartTheme, IFormattedDataPoint, TooltipFormatter } from "./types";
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
 
 const baseClass = "checkerboard-viz";
 
@@ -99,6 +103,8 @@ const CheckerboardViz = ({
         return {
           dayIndex: 0,
           hourRow: i,
+          value: point.value,
+          total: point.total,
           percentage: point.percentage,
           dayLabel: format(date, "MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
