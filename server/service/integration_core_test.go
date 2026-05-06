@@ -10880,7 +10880,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 57)         // total number of cols
+	assert.Len(t, rows[0], 58)         // total number of cols
 	// Validate that both team_id and fleet_id columns are present.
 	assert.Contains(t, rows[0], "team_id")
 	assert.Contains(t, rows[0], "fleet_id")
