@@ -283,7 +283,7 @@
   productCategories: [Device management]
 - quote: When Adobe released a patch for the recent Acrobat Reader zero day, I decided to take a look at Fleet's patch management capabilities, and I was surprised at just how quickly a patch policy could be created and deployed. I didn't have to create the query and I didn't have to source the package, since it was one of Fleet's maintained apps. Really great work on making this so effortless by the team at Fleet Device Management.
   quoteAuthorName: Brian LaShomb
-  quoteAuthorProfileImageFilename: testimonial-author-brian-lashomb-48x48@2x.png
+  quoteAuthorProfileImageFilename: testimonial-author-brian-lashomb-100x100@2x.png
   quoteLinkUrl: https://www.linkedin.com/posts/brian-lashomb-8056705_when-adobe-released-a-patch-for-the-recent-share-7449543960177569792-EMew
   quoteAuthorJobTitle: Senior Client Platform Engineer, Epic Games
   productCategories: [Software management]
