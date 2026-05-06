@@ -58,7 +58,7 @@ const CheckerboardViz = ({
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
-    "center",
+    "center"
   );
 
   let getColorLevel;
