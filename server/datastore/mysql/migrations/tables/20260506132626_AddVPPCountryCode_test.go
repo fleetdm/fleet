@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20260429154601(t *testing.T) {
+func TestUp_20260506132626(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// Pre-migration row to confirm the new column lands as NULL on

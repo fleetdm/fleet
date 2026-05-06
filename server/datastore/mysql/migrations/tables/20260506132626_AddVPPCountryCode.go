@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260429154601, Down_20260429154601)
+	MigrationClient.AddMigration(Up_20260506132626, Down_20260506132626)
 }
 
-func Up_20260429154601(tx *sql.Tx) error {
+func Up_20260506132626(tx *sql.Tx) error {
 	// country_code is the App Store storefront country (lowercase ISO 3166-1
 	// alpha-2 such as "us", "de", "fr") associated with the row.
 	//
@@ -35,6 +35,6 @@ func Up_20260429154601(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260429154601(tx *sql.Tx) error {
+func Down_20260506132626(tx *sql.Tx) error {
 	return nil
 }
