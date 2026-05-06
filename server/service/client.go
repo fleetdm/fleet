@@ -2594,10 +2594,22 @@ func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads 
 	updates.SetLimit(concurrentUpdates)
 	for _, toUpdate := range iconUpdates.IconsToUpdate {
 		updates.Go(func() error {
-			if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+			err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash)
+			if err == nil {
+				return nil
+			}
+			if !errors.Is(err, ErrIconBytesMissing) {
 				return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
 			}
 
+			iconReader, openErr := os.OpenFile(toUpdate.Path, os.O_RDONLY, 0o0755)
+			if openErr != nil {
+				return fmt.Errorf("failed to read software icon for fallback upload %s: %w", toUpdate.Path, openErr)
+			}
+			defer iconReader.Close()
+			if uploadErr := c.UploadIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), iconReader); uploadErr != nil {
+				return fmt.Errorf("failed to recover software icon via upload %s: %w", toUpdate.Path, uploadErr)
+			}
 			return nil
 		})
 	}
@@ -3357,84 +3369,88 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fle
 		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
-	// getting certificate authorities
-	cas, err := c.GetCertificateAuthorities()
-	if err != nil {
-		return fmt.Errorf("getting certificate authorities: %w", err)
-	}
-	casByName := make(map[string]*fleet.CertificateAuthoritySummary)
-	for _, ca := range cas {
-		casByName[ca.Name] = ca
-	}
-
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
 	certsToBeAdded := make(map[string]*fleet.CertificateRequestSpec, len(certificates))
-	for i := range certificates {
-		if !certificates[i].NameValid() {
-			return newGitOpsValidationError(
-				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
-			)
+	// CA lookups + per-cert validation are only needed when the YAML declares at least one cert.
+	// Skipping the GetCertificateAuthorities call lets delete-only syncs (numCerts == 0,
+	// existingCertificates non-empty) succeed without CA-read access.
+	if numCerts > 0 {
+		cas, err := c.GetCertificateAuthorities()
+		if err != nil {
+			return fmt.Errorf("getting certificate authorities: %w", err)
+		}
+		casByName := make(map[string]*fleet.CertificateAuthoritySummary)
+		for _, ca := range cas {
+			casByName[ca.Name] = ca
 		}
 
-		// Validate Fleet variables in subject name
-		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
-			return newGitOpsValidationError(
-				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
-			)
-		}
-
-		// Normalize whitespace-only SAN to "" so the value we send matches the server's
-		// read-back (the server stores whitespace-only as NULL and COALESCEs reads to ""). Without
-		// this, hand-authored YAML like `subject_alternative_name: "  "` would mismatch on every
-		// apply and trigger an infinite delete+recreate cycle.
-		san := certificates[i].SubjectAlternativeName
-		if strings.TrimSpace(san) == "" {
-			san = ""
-		}
-
-		// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
-		// reaches the server. Server re-validates as the source of truth.
-		if san != "" {
-			if err := validateCertificateTemplateSubjectAlternativeName(san, certificates[i].Name); err != nil {
+		for i := range certificates {
+			if !certificates[i].NameValid() {
 				return newGitOpsValidationError(
-					fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
+					`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
 				)
 			}
-			if err := validateCertificateTemplateFleetVariables(san); err != nil {
+
+			// Validate Fleet variables in subject name
+			if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
 				return newGitOpsValidationError(
-					fmt.Sprintf(`Invalid Fleet variable in subject_alternative_name of certificate %q: %s`,
-						certificates[i].Name, err.Error()),
+					fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
 				)
 			}
-		}
 
-		ca, ok := casByName[certificates[i].CertificateAuthorityName]
-		if !ok {
-			return fmt.Errorf("certificate authority %q not found for certificate %q",
-				certificates[i].CertificateAuthorityName, certificates[i].Name)
-		}
-		// Validate that the CA is the right type.
-		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
-			return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
-		}
+			// Normalize whitespace-only SAN to "" so the value we send matches the server's
+			// read-back (the server stores whitespace-only as NULL and COALESCEs reads to ""). Without
+			// this, hand-authored YAML like `subject_alternative_name: "  "` would mismatch on every
+			// apply and trigger an infinite delete+recreate cycle.
+			san := certificates[i].SubjectAlternativeName
+			if strings.TrimSpace(san) == "" {
+				san = ""
+			}
 
-		certRequests[i] = &fleet.CertificateRequestSpec{
-			Name:                   certificates[i].Name,
-			Team:                   teamName,
-			CertificateAuthorityId: ca.ID,
-			SubjectName:            certificates[i].SubjectName,
-			SubjectAlternativeName: san,
-		}
-		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
-			return newGitOpsValidationError(
-				fmt.Sprintf(
-					`The name %q is already used by another certificate. Please choose a different name and try again.`,
-					certificates[i].Name,
-				),
-			)
-		}
+			// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
+			// reaches the server. Server re-validates as the source of truth.
+			if san != "" {
+				if err := validateCertificateTemplateSubjectAlternativeName(san, certificates[i].Name); err != nil {
+					return newGitOpsValidationError(
+						fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
+					)
+				}
+				if err := validateCertificateTemplateFleetVariables(san); err != nil {
+					return newGitOpsValidationError(
+						fmt.Sprintf(`Invalid Fleet variable in subject_alternative_name of certificate %q: %s`,
+							certificates[i].Name, err.Error()),
+					)
+				}
+			}
 
-		certsToBeAdded[certificates[i].Name] = certRequests[i]
+			ca, ok := casByName[certificates[i].CertificateAuthorityName]
+			if !ok {
+				return fmt.Errorf("certificate authority %q not found for certificate %q",
+					certificates[i].CertificateAuthorityName, certificates[i].Name)
+			}
+			// Validate that the CA is the right type.
+			if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+				return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
+			}
+
+			certRequests[i] = &fleet.CertificateRequestSpec{
+				Name:                   certificates[i].Name,
+				Team:                   teamName,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            certificates[i].SubjectName,
+				SubjectAlternativeName: san,
+			}
+			if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+				return newGitOpsValidationError(
+					fmt.Sprintf(
+						`The name %q is already used by another certificate. Please choose a different name and try again.`,
+						certificates[i].Name,
+					),
+				)
+			}
+
+			certsToBeAdded[certificates[i].Name] = certRequests[i]
+		}
 	}
 
 	var certificatesToDelete []uint

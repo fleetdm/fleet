@@ -29715,6 +29715,20 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	t := s.T()
 	ctx := context.Background()
 
+	// findCertID returns the ID of the cert with the given name, or fails the test. Using
+	// name-based lookup instead of list-position keeps the test robust against any order
+	// changes in GetCertificateTemplatesByTeamID / the list endpoint.
+	findCertID := func(certs []*fleet.CertificateTemplateResponseSummary, name string) uint {
+		t.Helper()
+		for _, c := range certs {
+			if c.Name == name {
+				return c.ID
+			}
+		}
+		require.FailNowf(t, "certificate not found", "expected certificate %q in list of %d", name, len(certs))
+		return 0
+	}
+
 	// create team
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
 	require.NoError(t, err)
@@ -29831,7 +29845,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 
 	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
-	certID := savedCertificateTemplates[0].ID
+	certID := findCertID(savedCertificateTemplates, "Template 1")
 
 	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
 	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
@@ -29979,7 +29993,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
 	require.NoError(t, err)
 	require.Len(t, savedNoTeamCertTemplates, 3)
-	noTeamCertID := savedNoTeamCertTemplates[0].ID
+	noTeamCertID := findCertID(savedNoTeamCertTemplates, "No Team Template 1")
 
 	// Create a host_certificate_templates record for this no-team host
 	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
@@ -30042,9 +30056,10 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	// just in case test fails, restore to admin
 	defer func() { s.token = s.getTestAdminToken() }()
 
+	observerTargetCertID := findCertID(savedNoTeamCertTemplates, "No Team Template 1")
 	// Delete with observer
 	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
+		"ids":     []uint{observerTargetCertID},
 		"team_id": uint(0), // "No team"
 	}, http.StatusForbidden)
 	resp.Body.Close()
@@ -30056,7 +30071,7 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
 	found := false
 	for _, cert := range noTeamCertificatesResp.Certificates {
-		if cert.ID == savedNoTeamCertTemplates[0].ID {
+		if cert.ID == observerTargetCertID {
 			found = true
 			break
 		}
@@ -30091,7 +30106,10 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 	var delResp deleteCertificateTemplateResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
 
-	deletedNoTeamCertID := noTeamCertificatesResp.Certificates[0].ID
+	// Refresh the no-team list so we don't pick a stale entry from a snapshot taken before the
+	// preceding single-cert delete. Then pick a known cert by name.
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	deletedNoTeamCertID := findCertID(noTeamCertificatesResp.Certificates, "No Team Template 1")
 	var delBatchResp2 deleteCertificateTemplateSpecsResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
 		"ids": []uint{deletedNoTeamCertID},
@@ -30104,8 +30122,12 @@ func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
 		require.NotEqual(t, deletedNoTeamCertID, cert.ID, "deleted certificate should not appear in list")
 	}
 
+	// Delete the two remaining no-team templates by name lookup, not list-position.
 	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
+		"ids": []uint{
+			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 2"),
+			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 3"),
+		},
 		"team_id": uint(0),
 	}, http.StatusOK, &delBatchResp)
 

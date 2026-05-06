@@ -717,7 +717,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		}
 
 		// Handle /client/config
-		resp := []byte(fmt.Sprintf(`{"locationName": "%s"}`, s.appleVPPConfigSrvConfig.Location))
+		resp := fmt.Appendf(nil, `{"locationName": "%s", "countryISO2ACode": "US"}`, s.appleVPPConfigSrvConfig.Location)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:
@@ -8127,7 +8127,12 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	}, "MacBookPro16,1")
 	mdmDevice.SerialNumber = h.HardwareSerial
 	mdmDevice.UUID = h.UUID
+
 	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// set os after enroll, as we now clear vitals on re-enrollment
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
 	require.NoError(t, err)
 
 	resp = fleet.OrbitGetConfigResponse{}

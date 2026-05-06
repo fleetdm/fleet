@@ -76,6 +76,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
@@ -5481,6 +5482,192 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	details, err = ds.GetNanoMDMEnrollmentDetails(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, details.HardwareAttested)
+}
+
+func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(uuidSuffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "reset-host-" + uuidSuffix,
+			OsqueryHostID: ptr.String("reset-osq-" + uuidSuffix),
+			NodeKey:       ptr.String("reset-key-" + uuidSuffix),
+			UUID:          "reset-uuid-" + uuidSuffix,
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// seedHostData inserts one row for the host into each of the tables that
+	// MDMAppleResetOnReenrollment is responsible for clearing. Returns counters
+	// so the assertions can be expressed as "host A had N rows; host A should
+	// have 0; host B should still have its N rows".
+	seedHostData := func(t *testing.T, h *fleet.Host) {
+		// label_membership (host_id ref - covered by appleHostRefsForMDMReset)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO labels (name, query) VALUES (?, ?)`,
+			"label-"+h.UUID, "select 1")
+		require.NoError(t, err)
+		var labelID uint
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &labelID,
+			`SELECT id FROM labels WHERE name = ?`, "label-"+h.UUID))
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?)`,
+			h.ID, labelID)
+		require.NoError(t, err)
+
+		// upcoming_activities (cleared via batchCancelAllHostUpcomingActivities).
+		// 'script' rows require a paired row in script_upcoming_activities for the
+		// cancel path's INNER JOIN; a row with all-NULL refs is enough.
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 1, 'script', ?, JSON_OBJECT())`,
+			h.ID, uuid.NewString())
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO script_upcoming_activities (upcoming_activity_id) VALUES (?)`, uaID)
+		require.NoError(t, err)
+	}
+
+	type counts struct {
+		label    int
+		upcoming int
+	}
+	countRows := func(t *testing.T, h *fleet.Host) counts {
+		var c counts
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.label,
+			`SELECT COUNT(*) FROM label_membership WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.upcoming,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, h.ID))
+		return c
+	}
+	seeded := counts{label: 1, upcoming: 1}
+
+	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
+		hostA := newHost("clear-A")
+		hostB := newHost("clear-B")
+		seedHostData(t, hostA)
+		seedHostData(t, hostB)
+
+		// sanity: both hosts start fully seeded
+		require.Equal(t, seeded, countRows(t, hostA))
+		require.Equal(t, seeded, countRows(t, hostB))
+
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
+
+		// host A: everything cleared
+		assert.Equal(t, counts{label: 0, upcoming: 0}, countRows(t, hostA))
+
+		// host B: untouched (control - proves the reset is host-scoped)
+		assert.Equal(t, seeded, countRows(t, hostB))
+	})
+
+	t.Run("returns error and changes nothing when host UUID does not exist", func(t *testing.T) {
+		hostA := newHost("err-A")
+		seedHostData(t, hostA)
+
+		err := ds.MDMAppleResetOnReenrollment(ctx, "nonexistent-uuid-xyz", true)
+		require.Error(t, err)
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+
+		// host A's seeded data must still be present - the failed call must
+		// not have any side effects.
+		assert.Equal(t, seeded, countRows(t, hostA))
+	})
+
+	// seedHostActivityData seeds the rows whose deletion is gated by the
+	// preserveHostActivities flag: a past activity (activity_host_past) and a
+	// pair of MDM commands - one still active in nano_enrollment_queue and one
+	// already acknowledged (active=0 in the queue, with a corresponding
+	// nano_command_results row).
+	seedHostActivityData := func(t *testing.T, h *fleet.Host) {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO activity_past (user_id, activity_type, details, host_only, streamed)
+			 VALUES (NULL, 'ran_script', JSON_OBJECT(), 1, 0)`)
+		require.NoError(t, err)
+		actID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)`,
+			h.ID, actID)
+		require.NoError(t, err)
+
+		nanoEnroll(t, ds, h, false)
+
+		// active (pending) MDM command: queue entry with active=1, no result yet.
+		activeCmdUUID := uuid.NewString()
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'ProfileList', '<?xml ?>')`,
+			activeCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 1)`,
+			h.UUID, activeCmdUUID)
+		require.NoError(t, err)
+
+		// acknowledged MDM command: queue entry already inactive, result stored.
+		ackedCmdUUID := uuid.NewString()
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'ProfileList', '<?xml ?>')`,
+			ackedCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 0)`,
+			h.UUID, ackedCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, 'Acknowledged', '<?xml />')`,
+			h.UUID, ackedCmdUUID)
+		require.NoError(t, err)
+	}
+
+	type activityCounts struct {
+		pastActivity  int
+		activeQueue   int
+		inactiveQueue int
+		ackedCommand  int
+	}
+	countActivityRows := func(t *testing.T, h *fleet.Host) activityCounts {
+		var c activityCounts
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pastActivity,
+			`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.activeQueue,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 1`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.inactiveQueue,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 0`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.ackedCommand,
+			`SELECT COUNT(*) FROM nano_command_results WHERE id = ? AND status = 'Acknowledged'`,
+			h.UUID))
+		return c
+	}
+
+	t.Run("preserveHostActivities flag controls past activity history", func(t *testing.T) {
+		hostA := newHost("preserve-A")
+		hostB := newHost("preserve-B")
+		seedHostActivityData(t, hostA)
+		seedHostActivityData(t, hostB)
+
+		seededAct := activityCounts{pastActivity: 1, activeQueue: 1, inactiveQueue: 1, ackedCommand: 1}
+		require.Equal(t, seededAct, countActivityRows(t, hostA))
+		require.Equal(t, seededAct, countActivityRows(t, hostB))
+
+		// preserveHostActivities=true: past activities, acked commands, and the
+		// active queue entry are all left alone.
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
+		assert.Equal(t, seededAct, countActivityRows(t, hostA))
+
+		// preserveHostActivities=false: past activities are deleted and the
+		// previously-active queue entry is flipped to active=0 (so the host has
+		// two inactive queue rows now). The acknowledged command result row
+		// itself lives in nano_command_results, which the reset does not touch.
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostB.UUID, false))
+		assert.Equal(t,
+			activityCounts{pastActivity: 0, activeQueue: 0, inactiveQueue: 2, ackedCommand: 1},
+			countActivityRows(t, hostB))
+	})
 }
 
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
