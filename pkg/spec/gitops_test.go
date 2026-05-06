@@ -2414,26 +2414,37 @@ labels:
 	})
 }
 
-func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
+func TestLabelsRejectedInNoTeamFile(t *testing.T) {
 	t.Parallel()
 
-	config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
-	noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+	t.Run("no-team.yml", func(t *testing.T) {
+		t.Parallel()
 
-	var logMessages []string
-	captureLogf := func(format string, a ...any) {
-		logMessages = append(logMessages, fmt.Sprintf(format, a...))
-	}
+		config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
 
-	gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
-	require.NoError(t, err)
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "'labels' is not supported in no-team.yml")
 
-	// Labels should be marked as present when the key exists, but they should NOT be parsed for no-team files.
-	assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
-	assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
+		// LabelsPresent should be true (the key was in the YAML), but labels should not be parsed.
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
+	})
 
-	// A warning should have been logged.
-	assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in no-team.yml")
+	t.Run("unassigned.yml", func(t *testing.T) {
+		t.Parallel()
+
+		config := "name: Unassigned\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		unassignedPath, unassignedBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
+
+		gitops, err := GitOpsFromFile(unassignedPath, unassignedBasePath, nil, nopLogf)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "'labels' is not supported in unassigned.yml")
+
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in unassigned file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in unassigned file")
+	})
 }
 
 func TestParsePoliciesGlob(t *testing.T) {
