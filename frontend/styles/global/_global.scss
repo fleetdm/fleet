@@ -217,12 +217,6 @@ fieldset {
   margin: 0;
 }
 
-// Default text selection is hard to read on dark surfaces; tint it green.
-body.dark-mode ::selection {
-  background-color: rgba(0, 154, 125, 0.3);
-  color: inherit;
-}
-
 input,
 textarea,
 button {
