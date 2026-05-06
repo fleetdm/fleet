@@ -175,6 +175,7 @@ const AddCertModal = ({
           parseTarget
           placeholder="VPN certificate"
           autofocus
+          ignore1password
         />
         <DropdownWrapper
           label="Certificate authority (CA)"
