@@ -428,6 +428,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
@@ -1886,6 +1888,8 @@ func (svc *Service) editTeamFromSpec(
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 

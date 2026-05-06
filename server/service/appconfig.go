@@ -955,6 +955,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
 		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
