@@ -31,11 +31,11 @@
   pointer-events: auto;
 
   &--success {
-    background-color: $ui-success;
+    background-color: $ui-success-toast-bg;
   }
 
   &--error {
-    background-color: $ui-error;
+    background-color: $ui-error-toast-bg;
   }
 
   &--warning-filled {
