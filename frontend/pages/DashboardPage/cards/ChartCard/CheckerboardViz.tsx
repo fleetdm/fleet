@@ -81,7 +81,9 @@ const CheckerboardViz = ({
     getColorLevel = (percentage: number): number => {
       if (percentage === 0) return 0;
       const scaled = ((percentage - minPerc) / range) * 5;
-      return Math.min(5, Math.ceil(scaled));
+      // Level zero is reserved for real 0, so ensure we return
+      // something between 1 and 5.
+      return Math.min(5, Math.ceil(scaled)) || 1;
     };
   }
 
