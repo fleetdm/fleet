@@ -267,6 +267,27 @@ func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []
 		software = append(software, vppApps[i])
 	}
 
+	// Dedup by title ID, preferring the row with a populated LocalIconHash.
+	// Otherwise an unmatched duplicate response row would append the title
+	// to TitleIDsToRemoveIconsFrom and race with the active row's planning.
+	seen := make(map[uint]int, len(software))
+	deduped := make([]CanHaveSoftwareIcon, 0, len(software))
+	for _, sw := range software {
+		titleID := sw.GetTitleID()
+		if titleID == nil {
+			continue
+		}
+		if idx, found := seen[*titleID]; found {
+			if deduped[idx].GetLocalIconHash() == "" && sw.GetLocalIconHash() != "" {
+				deduped[idx] = sw
+			}
+			continue
+		}
+		seen[*titleID] = len(deduped)
+		deduped = append(deduped, sw)
+	}
+	software = deduped
+
 	// don't (duplicate) upload (of) icons that we don't need to
 	for _, sw := range software {
 		teamID := sw.GetTeamID()

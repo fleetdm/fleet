@@ -8127,7 +8127,12 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	}, "MacBookPro16,1")
 	mdmDevice.SerialNumber = h.HardwareSerial
 	mdmDevice.UUID = h.UUID
+
 	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// set os after enroll, as we now clear vitals on re-enrollment
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
 	require.NoError(t, err)
 
 	resp = fleet.OrbitGetConfigResponse{}
