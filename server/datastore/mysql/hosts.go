@@ -3725,17 +3725,22 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		return nil, nil
 	}
 
-	var expiryWindowCases []string
-	var expiryWindowArgs []interface{}
-	for _, team := range teamsUsingCustomExpiry {
-		expiryWindowCases = append(expiryWindowCases, "WHEN h.team_id = ? THEN ?")
-		expiryWindowArgs = append(expiryWindowArgs, team.id, team.window)
-	}
-	expiryWindowCases = append(expiryWindowCases, "ELSE ?")
+	defaultExpiryWindow := 0
 	if ac.HostExpirySettings.HostExpiryEnabled {
-		expiryWindowArgs = append(expiryWindowArgs, ac.HostExpirySettings.HostExpiryWindow)
-	} else {
-		expiryWindowArgs = append(expiryWindowArgs, 0)
+		defaultExpiryWindow = ac.HostExpirySettings.HostExpiryWindow
+	}
+	expiryWindowArgs := []interface{}{defaultExpiryWindow}
+	expiryWindowSQL := "? AS expiry_window"
+	if len(teamsUsingCustomExpiry) > 0 {
+		var expiryWindowCases []string
+		expiryWindowArgs = []interface{}{}
+		for _, team := range teamsUsingCustomExpiry {
+			expiryWindowCases = append(expiryWindowCases, "WHEN h.team_id = ? THEN ?")
+			expiryWindowArgs = append(expiryWindowArgs, team.id, team.window)
+		}
+		expiryWindowCases = append(expiryWindowCases, "ELSE ?")
+		expiryWindowArgs = append(expiryWindowArgs, defaultExpiryWindow)
+		expiryWindowSQL = "CASE " + strings.Join(expiryWindowCases, " ") + " END AS expiry_window"
 	}
 
 	var expirationConditions []string
@@ -3764,7 +3769,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]fleet.DeletedHo
 		ExpiryWindow int  `db:"expiry_window"`
 	}
 	var expiredHosts []expiredHostCandidate
-	expiredHostsQuery := `SELECT h.id, CASE ` + strings.Join(expiryWindowCases, " ") + ` END AS expiry_window FROM hosts h
+	expiredHostsQuery := `SELECT h.id, ` + expiryWindowSQL + ` FROM hosts h
 		LEFT JOIN host_seen_times hst ON h.id = hst.host_id
 		LEFT JOIN host_dep_assignments hda ON h.id = hda.host_id
 		LEFT JOIN nano_enrollments ne ON ne.id=h.uuid AND ne.type IN ('Device', 'User Enrollment (Device)')
