@@ -2883,7 +2883,7 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	}
 
 	// MDMWindowsSaveResponse returns a WipeFailed result.
-	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string, saveFullResponse bool) (*fleet.MDMWindowsSaveResponseResult, error) {
 		return &fleet.MDMWindowsSaveResponseResult{
 			WipeFailed: &fleet.MDMWindowsWipeResult{
 				HostUUID: testHostUUID,
@@ -2954,7 +2954,7 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 
 	t.Run("no activity when WipeFailed is nil", func(t *testing.T) {
-		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string, saveFullResponse bool) (*fleet.MDMWindowsSaveResponseResult, error) {
 			return nil, nil
 		}
 		opts.ActivityMock.NewActivityFuncInvoked = false
@@ -2965,7 +2965,7 @@ func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
 	})
 
 	t.Run("activity skipped when host lookup fails", func(t *testing.T) {
-		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string, saveFullResponse bool) (*fleet.MDMWindowsSaveResponseResult, error) {
 			return &fleet.MDMWindowsSaveResponseResult{
 				WipeFailed: &fleet.MDMWindowsWipeResult{
 					HostUUID: testHostUUID,

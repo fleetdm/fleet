@@ -206,7 +206,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 			Data: ptr.String("200"),
 		}},
 		CmdRefUUIDs: []string{winCmd.CommandUUID},
-	}, []string{})
+	}, []string{}, false)
 	require.NoError(t, err)
 
 	// we get both commands
@@ -866,7 +866,7 @@ func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
 			respondedWinUUID: {Data: ptr.String("200")},
 		},
 		CmdRefUUIDs: []string{respondedWinUUID},
-	}, []string{})
+	}, []string{}, false)
 	require.NoError(t, err)
 
 	sort.Strings(allUUIDs)

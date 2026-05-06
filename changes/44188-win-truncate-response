@@ -1,0 +1,1 @@
+* Reduced Windows MDM check-in database write load by skipping storage of full SyncML response envelopes. A new server config flag `FLEET_MDM_WINDOWS_MDM_SAVE_FULL_RESPONSE` (default `false`) can re-enable full envelope storage for debugging.

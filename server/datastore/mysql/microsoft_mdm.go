@@ -597,7 +597,7 @@ ORDER BY
 	return commands, nil
 }
 
-func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string, saveFullResponse bool) (*fleet.MDMWindowsSaveResponseResult, error) {
 	if len(enrichedSyncML.Raw) == 0 {
 		return nil, ctxerr.New(ctx, "empty raw response")
 	}
@@ -609,13 +609,23 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, enrolledDevice 
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		result = nil
 
-		// store the full response
-		const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-		sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "saving full response")
+		// Optionally store the full SyncML envelope for debugging. When
+		// disabled (the default), the per-command data in
+		// windows_mdm_command_results is sufficient and we avoid the
+		// large-row INSERT that dominates writer time at scale.
+		var responseID *int64
+		if saveFullResponse {
+			const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
+			sqlResult, err := tx.ExecContext(ctx, saveFullRespStmt, enrolledDevice.ID, enrichedSyncML.Raw)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "saving full response")
+			}
+			id, err := sqlResult.LastInsertId()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting last insert id for full response")
+			}
+			responseID = &id
 		}
-		responseID, _ := sqlResult.LastInsertId()
 
 		// find commands we sent that match the UUID responses we've got
 		findCommandsStmt := `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
@@ -736,7 +746,8 @@ INSERT INTO windows_mdm_command_results
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
-    status_code = COALESCE(VALUES(status_code), status_code)
+    status_code = COALESCE(VALUES(status_code), status_code),
+    response_id = COALESCE(VALUES(response_id), response_id)
 `
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
@@ -906,12 +917,11 @@ func (ds *Datastore) GetMDMWindowsCommandResults(ctx context.Context, commandUUI
         wmc.updated_at
     ) as updated_at,
     wmc.target_loc_uri AS request_type,
-    COALESCE(wmr.raw_response, '') AS result,
+    COALESCE(wmcr.raw_result, '') AS result,
     wmc.raw_command AS payload
 FROM
     windows_mdm_commands wmc
     LEFT JOIN windows_mdm_command_results wmcr ON wmcr.command_uuid = wmc.command_uuid
-    LEFT JOIN windows_mdm_responses wmr ON wmr.id = wmcr.response_id
     LEFT JOIN windows_mdm_command_queue wmcq ON wmcq.command_uuid = wmc.command_uuid AND wmcr.command_uuid IS NULL
     LEFT JOIN mdm_windows_enrollments mwe ON mwe.id = COALESCE(
         wmcr.enrollment_id,

@@ -1788,13 +1788,9 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	_, err = insertDB(t, `INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri) VALUES (?, ?, ?)`, cmdUUID, rawCmd, cmdTarget)
 	require.NoError(t, err)
 
-	rawResponse := []byte("some-response")
-	responseID, err := insertDB(t, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`, enrollmentID, rawResponse)
-	require.NoError(t, err)
-
 	rawResult := []byte("some-result")
 	statusCode := "200"
-	_, err = insertDB(t, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, ?, ?)`, enrollmentID, cmdUUID, rawResult, responseID, statusCode)
+	_, err = insertDB(t, `INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, response_id, status_code) VALUES (?, ?, ?, NULL, ?)`, enrollmentID, cmdUUID, rawResult, statusCode)
 	require.NoError(t, err)
 
 	// Create multiple command queue entries to ensure no duplicated rows.
@@ -1825,7 +1821,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Len(t, results, 1)
 	require.Equal(t, dev.HostUUID, results[0].HostUUID)
 	require.Equal(t, cmdUUID, results[0].CommandUUID)
-	require.Equal(t, rawResponse, results[0].Result)
+	require.Equal(t, rawResult, results[0].Result)
 	require.Equal(t, cmdTarget, results[0].RequestType)
 	require.Equal(t, statusCode, results[0].Status)
 	require.Empty(t, results[0].Hostname) // populated only at the service layer
@@ -3355,7 +3351,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 	enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 
 	// Do test
-	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice1, enrichedSyncML, []string{}, false)
 	require.NoError(t, err)
 
 	// Verify results
@@ -3383,7 +3379,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 	enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice2, cmdEntries)
 
 	// Do test on the second device
-	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2, enrichedSyncML2, []string{})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice2, enrichedSyncML2, []string{}, false)
 	require.NoError(t, err)
 
 	// Verify results for the second device
@@ -3407,7 +3403,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 	enrichedSyncML3 := createResponseAsEnrichedSyncML(t, enrolledDevice3, cmdEntries)
 
 	// Do test on the third device
-	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3, enrichedSyncML3, []string{atomicCommandUUID})
+	_, err = ds.MDMWindowsSaveResponse(context.Background(), enrolledDevice3, enrichedSyncML3, []string{atomicCommandUUID}, false)
 	require.NoError(t, err)
 
 	// Verify results does not exist for the third device
@@ -3467,7 +3463,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 
 		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 		// Do test
-		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 		require.NoError(t, err)
 
 		// Verify results
@@ -3559,7 +3555,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-success', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 			require.NoError(t, err)
 
 			// Verify results
@@ -3620,7 +3616,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive-replace-failure', ?)`, enr
 
 			enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
 			// Do test
-			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+			_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 			require.NoError(t, err)
 
 			// Verify results
@@ -3696,7 +3692,7 @@ VALUES (?, 'verifying', 'remove', ?, 'disable-onedrive', ?)`, enrolledDevice1.Ho
 				enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
 					{Type: "Delete", StatusCode: tc.statusCode, UUID: deleteCommandUUID},
 				})
-				_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+				_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 				require.NoError(t, err)
 
 				var count int
@@ -3770,7 +3766,7 @@ VALUES (?, 'verifying', 'remove', ?, 'remove-profile', ?)`, enrolledDevice1.Host
 			{Type: "Delete", StatusCode: 200, UUID: deleteCommandUUID},
 		}
 		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
-		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 		require.NoError(t, err)
 
 		// Install profile should be upserted with verified status.
@@ -3824,7 +3820,7 @@ VALUES (?, 'verifying', 'remove', ?, 'reinstall-test', ?)`, enrolledDevice1.Host
 		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
 			{Type: "Delete", StatusCode: 200, UUID: removeCommandUUID},
 		})
-		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 		require.NoError(t, err)
 
 		var count int
@@ -3864,7 +3860,7 @@ VALUES (?, 'pending', 'install', ?, 'reinstall-test', ?)`, enrolledDevice1.HostU
 		enrichedSyncML = createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
 			{Type: "Replace", StatusCode: 200, UUID: installCommandUUID},
 		})
-		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, false)
 		require.NoError(t, err)
 
 		// The reinstalled profile should land as verified.
@@ -3926,7 +3922,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 			})
 			require.NoError(t, err)
 
-			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "500"), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "500"), []string{}, false)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
@@ -3944,7 +3940,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 
 			// First response — failure, clears wipe_ref.
 			resp := buildWipeResponse(t, wipeCmdUUID, "500")
-			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, resp, []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, resp, []string{}, false)
 			require.NoError(t, err)
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
@@ -3955,7 +3951,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 
 			// Second response — wipe_ref is already NULL, so 0 rows affected.
 			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
-			result, err = ds.MDMWindowsSaveResponse(ctx, enrolled, resp2, []string{})
+			result, err = ds.MDMWindowsSaveResponse(ctx, enrolled, resp2, []string{}, false)
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
@@ -3971,7 +3967,7 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 			})
 			require.NoError(t, err)
 
-			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "200"), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, "200"), []string{}, false)
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
@@ -3989,12 +3985,87 @@ WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID
 
 			// Pass empty status — the command UUID is in CmdRefUUIDs but has
 			// no entry in CmdRefUUIDToStatus, so statusCode stays "".
-			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, ""), []string{})
+			result, err := ds.MDMWindowsSaveResponse(ctx, enrolled, buildWipeResponse(t, wipeCmdUUID, ""), []string{}, false)
 			require.NoError(t, err)
 			if result != nil {
 				assert.Nil(t, result.WipeFailed)
 			}
 		})
+	})
+
+	t.Run("saveFullResponse stores envelope and links response_id", func(t *testing.T) {
+		cmdUUID := uuid.NewString()
+		cmd := &fleet.MDMWindowsCommand{
+			CommandUUID: cmdUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Exec>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+			</Target>
+		</Item>
+	</Exec>
+`, cmdUUID),
+			TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
+		}
+		err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, cmd)
+		require.NoError(t, err)
+
+		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Exec", StatusCode: 200, UUID: cmdUUID},
+		})
+
+		// Count responses before.
+		var beforeCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &beforeCount,
+				"SELECT COUNT(*) FROM windows_mdm_responses")
+		})
+
+		// Save with saveFullResponse=true.
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{}, true)
+		require.NoError(t, err)
+
+		// A new windows_mdm_responses row should exist.
+		var afterCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &afterCount,
+				"SELECT COUNT(*) FROM windows_mdm_responses")
+		})
+		assert.Equal(t, beforeCount+1, afterCount, "saveFullResponse=true should insert a response row")
+
+		// The command_results row should have a non-NULL response_id.
+		var responseID *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &responseID,
+				"SELECT response_id FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?", enrolledDevice1.ID, cmdUUID)
+		})
+		require.NotNil(t, responseID, "response_id should be set when saveFullResponse=true")
+
+		// Re-ack the same command with saveFullResponse=true — response_id should update.
+		// Re-enqueue the command first.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(),
+				`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
+				enrolledDevice1.ID, cmdUUID)
+			return err
+		})
+
+		enrichedSyncML2 := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Exec", StatusCode: 200, UUID: cmdUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML2, []string{}, true)
+		require.NoError(t, err)
+
+		var newResponseID *int64
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &newResponseID,
+				"SELECT response_id FROM windows_mdm_command_results WHERE enrollment_id = ? AND command_uuid = ?", enrolledDevice1.ID, cmdUUID)
+		})
+		require.NotNil(t, newResponseID)
+		assert.NotEqual(t, *responseID, *newResponseID, "response_id should update on duplicate when saveFullResponse=true")
 	})
 }
 
