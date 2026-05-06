@@ -36,7 +36,7 @@ const scdScrubWriteByteBudget = 2_000_000
 // scdScrubWriteBatchCap bounds the row count per CASE/WHEN UPDATE statement
 // regardless of mask size, capping parser/optimizer cost. var (not const) so
 // tests can shrink it to exercise multi-batch behavior.
-var scdScrubWriteBatchCap = 200
+var scdScrubWriteBatchCap = 1000
 
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
