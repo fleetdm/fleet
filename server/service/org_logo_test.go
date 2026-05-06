@@ -50,9 +50,12 @@ func TestOrgLogoAuth(t *testing.T) {
 			true,
 		},
 		{
+			// Global gitops can write app_config (per the rego policy),
+			// which is what fleetctl gitops uses to upload custom org
+			// logos via the new org_logo_path_*_mode keys.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			true,
+			false,
 		},
 		{
 			"team admin",

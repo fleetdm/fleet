@@ -7967,17 +7967,17 @@ None.
 ## Policies
 
 - [List policies](#list-policies)
-- [List fleet policies](#list-fleet-policies)
+- [List fleet-level policies](#list-fleet-level-policies)
 - [Get policies count](#get-policies-count)
-- [Get fleet policies count](#get-fleet-policies-count)
+- [Get fleet-level policies count](#get-fleet-level-policies-count)
 - [Get policy](#get-policy)
-- [Get fleet policy](#get-fleet-policy)
+- [Get fleet-level policy](#get-fleet-level-policy)
 - [Create policy](#create-policy)
-- [Create fleet policy](#create-fleet-policy)
+- [Create fleet-level policy](#create-fleet-level-policy)
 - [Delete policies](#delete-policies)
-- [Delete fleet policies](#delete-fleet-policies)
+- [Delete fleet-level policies](#delete-fleet-level-policies)
 - [Update policy](#update-policy)
-- [Update fleet policy](#update-fleet-policy)
+- [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
@@ -8059,7 +8059,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ---
 
-### List fleet policies
+### List fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8293,7 +8293,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policies count
+### Get fleet-level policies count
 
 _Available in Fleet Premium_
 
@@ -8366,7 +8366,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policy
+### Get fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8497,7 +8497,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Create fleet policy
+### Create fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8620,7 +8620,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Delete fleet policies
+### Delete fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8723,7 +8723,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Update fleet policy
+### Update fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8745,7 +8745,6 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
-| conditional_access_bypass_enabled | boolean | body | _Available in Fleet Premium_. Additional option to allow end users to bypass conditional access for this policy for a single Okta login. This setting is ignored if `conditional_access_enabled` is `false`, if Okta conditional access is not configured, or if bypass is disabled in org settings. (Default: `true`.) |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -8850,6 +8849,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ## Reports
 
 - [List reports](#list-reports)
+- [List host's reports](#list-hosts-reports)
 - [Get report](#get-report)
 - [Get report data](#get-report-data)
 - [Get host's report data](#get-hosts-report-data)
@@ -9018,6 +9018,89 @@ Returns a list of reports. To see each report's data, use the [get report data](
   "count": 200
 }
 ```
+
+### List host's reports
+
+Lists the saved reports that run on a host, along with the first result for each report that saves results.
+
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name               | Type    | In    | Description                                                                                                   |
+| ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
+| id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
+| exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
+| page               | integer | query | Page number of the results to fetch.                                                                          |
+| per_page           | integer | query | Results per page.                                                                                             |
+| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"last_fetched"`. Default is `"name"`.               |
+| order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "id": 31,
+      "name": "List USB devices",
+      "description": "Retrieves USB devices and their details.",
+      "query": "SELECT model, vendor FROM usb_devices;",
+      "logging": "snapshot",
+      "discard_data": false,
+      "total_results_count": 4,
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "first_result_columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "id": 44,
+      "name": "Get operating system version",
+      "description": "Retrieves the host's operating system version.",
+      "query": "SELECT name, version, major, minor, patch FROM os_version;",
+      "logging": "differential",
+      "discard_data": false,
+      "total_results_count": 1,
+      "last_fetched": "2021-01-20T14:52:09Z",
+      "first_result_columns": {
+        "name": "macOS",
+        "version": "14.2.1",
+        "major": "14",
+        "minor": "2",
+        "patch": "1"
+      }
+    },
+    {
+      "id": 52,
+      "name": "Check disk encryption status",
+      "description": "Checks disk encryption status.",
+      "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
+      "logging": "snapshot",
+      "discard_data": true,
+      "total_results_count": 0,
+      "last_fetched": "2021-01-21T09:30:00Z",
+      "first_result_columns": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 3
+}
+```
+
+> The report's first row reflects the order returned by the underlying [table](https://fleetdm.com/tables) implementation. Without an `ORDER BY` clause in the query, this order is not guaranteed to be consistent across runs — particularly for tables backed by live OS state (e.g. processes, network connections). To ensure a predictable first result, add `ORDER BY <column>` to your query.
+  
 
 ### Get report
 

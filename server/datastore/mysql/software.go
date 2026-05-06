@@ -4513,6 +4513,13 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 	}
 }
 
+// hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
+// "source" is included for test determinism (used as the secondary order key in tests).
+var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":   "name",
+	"source": "source",
+}
+
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
 	if !opts.VulnerableOnly && (opts.MinimumCVSS > 0 || opts.MaximumCVSS > 0 || opts.KnownExploit) {
 		return nil, nil, fleet.NewInvalidArgumentError(
@@ -5970,7 +5977,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")

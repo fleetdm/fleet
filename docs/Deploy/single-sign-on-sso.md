@@ -179,7 +179,7 @@ Fleet can automatically create users using just-in-time (JIT) provisioning. To e
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
-By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below.
+By default, accounts created via JIT provisioning are assigned the [global observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below. Fleet will assign role updates everytime a user logs in.
 
 For this to work correctly make sure that:
 

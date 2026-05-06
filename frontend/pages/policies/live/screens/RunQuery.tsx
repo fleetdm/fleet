@@ -116,7 +116,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -143,7 +143,7 @@ const RunQuery = ({
         "error",
         "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -162,7 +162,7 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
+    } catch (campaignError) {
       if (campaignError === "resource already created") {
         renderFlash(
           "error",
@@ -170,8 +170,12 @@ const RunQuery = ({
         );
       }
 
-      if ("message" in campaignError) {
-        const { message } = campaignError;
+      if (
+        typeof campaignError === "object" &&
+        campaignError !== null &&
+        "message" in campaignError
+      ) {
+        const { message } = campaignError as { message: string };
 
         if (message === "forbidden") {
           renderFlash(
