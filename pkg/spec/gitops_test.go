@@ -2428,8 +2428,8 @@ func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
 	gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
 	require.NoError(t, err)
 
-	// Labels should NOT be parsed for no-team files.
-	assert.False(t, gitops.LabelsPresent, "labels should not be marked as present in no-team file")
+	// Labels should be marked as present when the key exists, but they should NOT be parsed for no-team files.
+	assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
 	assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
 
 	// A warning should have been logged.
