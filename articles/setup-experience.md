@@ -36,6 +36,57 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
 > new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
 
+## End user account type
+
+During setup, the end user's local account is created as either an **admin** or **standard** account. The account type determines what the end user can do on their device.
+
+### Standard vs. admin accounts
+
+| Capability | Admin | Standard |
+| --- | --- | --- |
+| Install system-wide software | Yes | No |
+| Change system settings (e.g. network, firewall, date/time) | Yes | No |
+| Create, modify, or delete other user accounts | Yes | No |
+| Access and modify all files on the device | Yes | No |
+| Run applications from their own user space | Yes | Yes |
+| Use peripherals and personal settings | Yes | Yes |
+
+These capabilities apply across macOS, Windows, and Linux. On all three platforms, standard accounts are restricted from making system-level changes, while admin accounts have full control over the device.
+
+### OS default account types
+
+Each operating system assigns a default account type when a user account is created during initial device setup:
+
+| Platform | Default account type |
+| --- | --- |
+| macOS | Admin |
+| Windows | Admin |
+| Linux | Standard |
+
+> Many organizations prefer standard accounts for end users to reduce the attack surface and prevent accidental system-level changes. Fleet lets you override the OS defaults to enforce this.
+
+### Controlling account type with Fleet
+
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin` or `standard` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business Manager (ABM).
+
+To configure via the Fleet UI:
+
+1. Head to **Controls > Setup experience**.
+
+2. Under the managed local account options, choose **Admin** or **Standard** for the end user account type.
+
+To configure via GitOps, set the `end_user_local_account_type` field under `mdm.macos_setup` in your YAML configuration:
+
+```yaml
+mdm:
+  macos_setup:
+    end_user_local_account_type: "standard"
+```
+
+Valid values are `"admin"` and `"standard"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default.
+
+> This setting applies to macOS hosts that automatically enroll via Apple Business Manager (ABM). For Windows and Linux, account type is controlled by the operating system during setup.
+
 ## End user license agreement (EULA)
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
