@@ -33,6 +33,11 @@
     }
   }
 
+  .card {
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
   &__platforms {
     display: flex;
     align-items: center;
@@ -75,11 +80,6 @@
   &__charts-row {
     display: grid;
     row-gap: $gap-page-component;
-
-    .card {
-      box-sizing: border-box;
-      overflow-x: hidden;
-    }
 
     @media screen and (min-width: $break-md) {
       grid-template-columns: repeat(2, minmax(0, 1fr));
