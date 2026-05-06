@@ -62,7 +62,17 @@ const getMeHandler = () =>
 
 // Mock props
 
-const createMockProps = (overrides?: Record<string, unknown>) => ({
+interface IMockPropsOverrides {
+  location?: {
+    pathname?: string;
+    search?: string;
+    hash?: string;
+    query?: Record<string, string>;
+  };
+  [key: string]: unknown;
+}
+
+const createMockProps = (overrides?: IMockPropsOverrides) => ({
   route: { path: "hosts/manage" },
   router: {
     push: jest.fn(),
