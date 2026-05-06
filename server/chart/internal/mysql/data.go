@@ -510,7 +510,12 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 	// that the next disable won't re-enqueue.
 	ctx = ctxdb.RequirePrimary(ctx, true)
 
-	var lastID uint
+	var (
+		lastID       uint
+		totalScanned int
+		totalUpdated int
+		batchNum     int
+	)
 	for {
 		if err := ctx.Err(); err != nil {
 			return ctxerr.Wrap(ctx, err, "scrub dataset")
@@ -526,8 +531,14 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 			return ctxerr.Wrap(ctx, err, "read scrub batch")
 		}
 		if len(rows) == 0 {
+			ds.logger.DebugContext(ctx, "scrub dataset complete",
+				"dataset", dataset,
+				"batches", batchNum,
+				"rows_scanned", totalScanned,
+				"rows_updated", totalUpdated)
 			return nil
 		}
+		batchNum++
 
 		// Compute scrubbed bitmaps in Go; rows the mask doesn't touch
 		// produce no UPDATE.
@@ -564,5 +575,14 @@ func (ds *Datastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string
 				return ctxerr.Wrap(ctx, err, "scrub batch")
 			}
 		}
+
+		totalScanned += len(rows)
+		totalUpdated += len(pending)
+		ds.logger.DebugContext(ctx, "scrub dataset progress",
+			"dataset", dataset,
+			"batch", batchNum,
+			"last_id", lastID,
+			"scanned", totalScanned,
+			"updated", totalUpdated)
 	}
 }
