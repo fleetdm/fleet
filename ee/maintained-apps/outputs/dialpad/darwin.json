@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "2603.3.5",
+      "version": "2604.0.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad' AND version_compare(bundle_short_version, '2603.3.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.electron.dialpad' AND version_compare(bundle_short_version, '2604.0.0') < 0);"
       },
       "installer_url": "https://download.dialpad.com/osx/arm64/dialpad.pkg",
       "install_script_ref": "d3e137fc",

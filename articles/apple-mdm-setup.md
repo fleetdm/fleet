@@ -17,25 +17,6 @@ Apple uses Apple Push Notification service (APNs) APNs to authenticate and manag
 
 How to connect Fleet to APNs:
 
-1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Select **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
-3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
-4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/). If you don't have an Apple ID, select **Create yours now**.
-5. In Apple Push Certificates Portal, select **Create a Certificate**, upload your CSR, and download your APNs certificate.
-6. Upload APNs certificate (.pem file) in Fleet.
-
-### Renew APNs
-
-1. In Fleet, navigate to the **Settings > Integrations > Mobile device management (MDM)** page.
-2. Under **Apple Business Manager** select **Edit** next to **Company-owned (ADE) and personal (BYOD) enrollment...**
-3. Select **Renew certificate** and then select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
-4. Sign in to [Apple Push Certificates Portal](https://identity.apple.com/pushcert/).
-5. In Apple Push Certificates Portal, select **Renew** next to your certificate. Make sure that the certificate's **Common Name (CN)** matches the one presented in Fleet. If you choose a different certificate, you must turn MDM off and back on for all Apple hosts.
-6. Upload your CSR and download new APNs certificate.
-7. Upload APNs certificate (.pem file) in Fleet.
-
-How to connect Fleet to APNs:
-
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 2. Select **Turn on** for Apple (macOS, iOS, iPadOS) MDM.
 3. Select **Download CSR** to download a certificate signing request (CSR) for Apple Push Notification service (APNs).
@@ -149,11 +130,14 @@ Most organizations only need one AB token and one VPP token to manage their macO
 
 These organizations may need multiple AB and VPP tokens:
 
-- Managed Service Providers (MSPs)
-- Enterprises that acquire new businesses and as a result inherit new hosts
-- Umbrella organizations that preside over entities with separated purchasing authority (i.e. a hospital or university)
+- [Managed Service Providers (MSPs)](#msps)
+- [Enterprises that acquire](#enterprises-that-acquire) new businesses and as a result inherit new hosts
+- [Umbrella organizations](#umbrella-organizations) that preside over entities with separated purchasing authority (i.e. a hospital or university)
+- [International organizations](#international-organizations) that manage hosts across multiple countries
 
-For **MSPs**, the best practice is to have one AB and VPP connection per client.
+### MSPs
+
+For MSPs, the best practice is to have one AB and VPP connection per client.
 
 The default fleets for each client's AB token will look like this:
 - macOS: 💻 Client A - Workstations
@@ -162,7 +146,9 @@ The default fleets for each client's AB token will look like this:
 
 Client A's VPP token will be assigned to the above fleets.
 
-For **enterprises that acquire**, the best practice is to add a new AB and VPP connection for each acquisition.
+### Enterprises that acquire
+
+For enterprises that acquire, the best practice is to add a new AB and VPP connection for each acquisition.
 
 These will be the default fleets:
 
@@ -179,6 +165,30 @@ Acquisition AB token:
 - iPadOS:🔳🏢 Acquisition - Company-owned iPads
 
 The acquisitions's VPP token will be assigned to the above fleets.
+
+### Umbrella organizations
+
+For umbrella organizations (e.g., a hospital system or university) where each entity has its own purchasing authority, the best practice is to have one AB and VPP connection per entity.
+
+The default fleets for each entity's AB token will look like this:
+- macOS: 💻 Entity A - Workstations
+- iOS: 📱🏢 Entity A - Company-owned iPhones
+- iPadOS: 🔳🏢 Entity A - Company-owned iPads
+
+Entity A's VPP token will be assigned to the above fleets.
+
+### International organizations
+
+> Support for Apple App Store (VPP) apps from non-US stores is [coming soon](https://github.com/fleetdm/fleet/issues/43846).
+
+For international organizations that manage hosts across multiple countries, the best practice is to have one AB and VPP connection per country. Apple Business and VPP tokens are tied to a specific country or region.
+
+The default fleets for each country's AB token will look like this:
+- macOS: 💻 Country A - Workstations
+- iOS: 📱🏢 Country A - Company-owned iPhones
+- iPadOS: 🔳🏢 Country A - Company-owned iPads
+
+Each country's VPP token will be assigned to the above fleets.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 

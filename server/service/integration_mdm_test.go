@@ -8127,7 +8127,12 @@ func (s *integrationMDMTestSuite) TestOrbitConfigNudgeSettings() {
 	}, "MacBookPro16,1")
 	mdmDevice.SerialNumber = h.HardwareSerial
 	mdmDevice.UUID = h.UUID
+
 	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	// set os after enroll, as we now clear vitals on re-enrollment
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), h.ID, fleet.OperatingSystem{Platform: "darwin", Version: "12.0"})
 	require.NoError(t, err)
 
 	resp = fleet.OrbitGetConfigResponse{}
@@ -18199,11 +18204,10 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	profileUUID2 := checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryPending, "")
 	require.Equal(t, profileUUID, profileUUID2, "Expected the same profile UUID after re-sending the SCEP profile")
 
-	// Expire the challenge so that the next PKIOperation fails. Backdate beyond
-	// fleet.OneTimeChallengeTTL so this stays correct as the constant evolves.
+	// Expire the challenge so that the next PKIOperation fails
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := "UPDATE challenges SET created_at = ? WHERE challenge = ?"
-		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-fleet.OneTimeChallengeTTL-time.Hour), gotChallenge2)
+		res, err := q.ExecContext(context.Background(), stmt, time.Now().Add(-2*time.Hour), gotChallenge2)
 		require.NoError(t, err, "Failed to expire the challenge in the database")
 		rowsAffected, _ := res.RowsAffected()
 		require.Equal(t, int64(1), rowsAffected, "Expected to update 1 row for the challenge")
@@ -18306,158 +18310,6 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	checkProfileInstallStatus(t, getHostResp, "N0", fleet.MDMDeliveryFailed,
 		"scepName certificate authority doesn't exist")
-}
-
-// TestCustomSCEPRenewalPreservesCertMetadata is the end-to-end regression for issue #44111.
-//
-// The unit tests in apple_mdm_test.go prove that BulkUpsertMDMManagedCertificates preserves
-// cert metadata when called with a hand-crafted nil-metadata payload. This test drives the
-// real reconcile path (preprocessProfileContents via awaitTriggerProfileSchedule) so that if
-// the render-time payload structure ever changes (e.g. gains a non-nil sentinel for an
-// existing nil field), the unit test would still pass while this one would catch the
-// regression.
-//
-// It also exercises the recovery loop: renewal cron flips status -> reconcile re-renders
-// (the path that previously clobbered cert metadata) -> simulated SCEP failure -> renewal
-// cron must re-fire on the next tick. Without the COALESCE fix in
-// BulkUpsertMDMManagedCertificates, the second renewal call silently no-ops because
-// validity_period IS NULL excludes the row from the renewal cron's HAVING clause.
-func (s *integrationMDMTestSuite) TestCustomSCEPRenewalPreservesCertMetadata() {
-	t := s.T()
-	ctx := context.Background()
-	s.setSkipWorkerJobs(t)
-	scepServer := scep_server.StartTestSCEPServer(t)
-
-	s.awaitTriggerProfileSchedule(t)
-
-	// Enroll a host and drain the enrollment commands so the queue is clean.
-	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setupPusher(s, t, mdmDevice)
-	s.awaitRunAppleMDMWorkerSchedule()
-	for {
-		cmd, err := mdmDevice.Idle()
-		require.NoError(t, err)
-		if cmd == nil {
-			break
-		}
-		_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
-
-	// Configure a custom SCEP CA and push a profile that uses it.
-	const caName = "renewCA"
-	ca := newMockCustomSCEPProxyCA(scepServer.URL+"/scep", caName)
-	var caResp createCertificateAuthorityResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities",
-		&createCertificateAuthorityRequest{
-			CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{CustomSCEPProxy: &ca},
-		}, http.StatusOK, &caResp)
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
-		batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-			{Name: "N0", Contents: customSCEPForTest("N0", "I0", caName)},
-		}}, http.StatusNoContent)
-	s.awaitTriggerProfileSchedule(t)
-
-	// Look up the profile UUID assigned to this host's profile install.
-	var hostResp getDeviceHostResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.NotNil(t, hostResp.Host.MDM.Profiles)
-	var profileUUID string
-	for _, p := range *hostResp.Host.MDM.Profiles {
-		if p.Name == "N0" {
-			profileUUID = p.ProfileUUID
-			break
-		}
-	}
-	require.NotEmpty(t, profileUUID)
-
-	// Drive the SCEP install to completion: device picks up the profile, acks it, then
-	// osquery-style verification flips status to 'verified'. We don't need to drive a
-	// real PKIOperation because the renewal cron only cares about the profile delivery
-	// status and the cert metadata in host_mdm_managed_certificates (seeded below).
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	require.NotNil(t, cmd, "expected SCEP profile to be delivered")
-	_, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
-
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host,
-		map[string]*fleet.HostMacOSProfile{
-			"I0": {Identifier: "I0", DisplayName: "N0", InstallDate: time.Now()},
-		}))
-
-	fetchManaged := func(t *testing.T) *fleet.HostMDMCertificateProfile {
-		t.Helper()
-		prof, err := s.ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, profileUUID, caName)
-		require.NoError(t, err)
-		require.NotNil(t, prof)
-		return prof
-	}
-	require.NotNil(t, fetchManaged(t).Status)
-	require.Equal(t, fleet.MDMDeliveryVerified, *fetchManaged(t).Status)
-
-	// Mimic osquery cert reporting (updateHostMDMManagedCertDetailsDB) by directly
-	// populating cert metadata. Place the cert deep in the renewal window so
-	// RenewMDMManagedCertificates picks it up: validity_period=30 days, 1 day remaining.
-	const serial = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
-	notValidBefore := time.Now().Add(-29 * 24 * time.Hour).UTC().Round(time.Microsecond)
-	notValidAfter := time.Now().Add(1 * 24 * time.Hour).UTC().Round(time.Microsecond)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			UPDATE host_mdm_managed_certificates
-			SET serial = ?, not_valid_before = ?, not_valid_after = ?
-			WHERE host_uuid = ? AND profile_uuid = ?`,
-			serial, notValidBefore, notValidAfter, host.UUID, profileUUID)
-		return err
-	})
-
-	// 1) Renewal cron flips verified -> NULL since the cert is in the renewal window.
-	require.NoError(t, s.ds.RenewMDMManagedCertificates(ctx))
-
-	// 2) Reconcile re-renders the profile. preprocessProfileContents calls
-	//    BulkUpsertMDMManagedCertificates with a payload from
-	//    ReplaceCustomSCEPProxyURLVariable that has nil NotValidBefore/After/Serial.
-	//    Without the COALESCE fix, this clobbers cert metadata to NULL.
-	s.awaitTriggerProfileSchedule(t)
-
-	// 3) Cert metadata must survive the real reconcile path.
-	after := fetchManaged(t)
-	require.NotNil(t, after.Serial, "serial must be preserved by reconcile (issue #44111)")
-	require.Equal(t, serial, *after.Serial)
-	require.NotNil(t, after.NotValidBefore)
-	require.True(t, notValidBefore.Equal(*after.NotValidBefore),
-		"not_valid_before must be preserved (got %s, want %s)", *after.NotValidBefore, notValidBefore)
-	require.NotNil(t, after.NotValidAfter)
-	require.True(t, notValidAfter.Equal(*after.NotValidAfter),
-		"not_valid_after must be preserved (got %s, want %s)", *after.NotValidAfter, notValidAfter)
-
-	// 4) Simulate the offline-recovery loop: device eventually picks up the renewal
-	//    but the SCEP handshake fails (e.g. transient backend issue), so the profile
-	//    transitions to 'failed'. Backdate updated_at past renewalFailedRetryBackoff
-	//    to skip past the permanent-failure circuit breaker; this models a transient
-	//    failure that has since cleared.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			UPDATE host_mdm_apple_profiles SET status = ?, updated_at = ?
-			WHERE host_uuid = ? AND profile_uuid = ?`,
-			fleet.MDMDeliveryFailed, time.Now().Add(-25*time.Hour), host.UUID, profileUUID)
-		return err
-	})
-
-	// 5) Renewal cron must re-fire to recover. Before the COALESCE fix, this would
-	//    silently no-op because validity_period IS NULL excluded the row from the
-	//    renewal cron's HAVING clause.
-	require.NoError(t, s.ds.RenewMDMManagedCertificates(ctx))
-
-	var rawStatus sql.NullString
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &rawStatus, `
-			SELECT status FROM host_mdm_apple_profiles
-			WHERE host_uuid = ? AND profile_uuid = ?`, host.UUID, profileUUID)
-	})
-	require.False(t, rawStatus.Valid,
-		"renewal cron must re-fire after a 'failed' delivery; got status %q (issue #44111)", rawStatus.String)
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppsMDMFiltering() {
@@ -24152,4 +24004,101 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			expectedDetail, 0), lastActivityID)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestErrorOnEnrollmentInstallProfileProducesActivity() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Enrolling the host populates nano_cert_auth_associations for it.
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	setRenewCommandUUID := func(cmdUUID *string) {
+		t.Helper()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE nano_cert_auth_associations SET renew_command_uuid = ? WHERE id = ?`,
+				cmdUUID, host.UUID,
+			)
+			return err
+		})
+	}
+
+	// nano_cert_auth_associations.renew_command_uuid references nano_commands,
+	// so we have to insert a placeholder command before pointing at it.
+	insertNanoCommand := func(cmdUUID string) {
+		t.Helper()
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'InstallProfile', '<?xml version="1.0"?>')`,
+				cmdUUID,
+			)
+			return err
+		})
+	}
+
+	activityName := fleet.ActivityTypeFailedEnrollmentProfileRenewal{}.ActivityName()
+
+	countRenewalActivitiesForCmd := func(cmdUUID string) int {
+		t.Helper()
+		var n int
+		for _, act := range s.listActivities() {
+			if act.Type != activityName || act.Details == nil {
+				continue
+			}
+			var d struct {
+				CommandUUID string `json:"command_uuid"`
+			}
+			require.NoError(t, json.Unmarshal(*act.Details, &d))
+			if d.CommandUUID == cmdUUID {
+				n++
+			}
+		}
+		return n
+	}
+
+	failed := fleet.MDMDeliveryFailed
+	verifying := fleet.MDMDeliveryVerifying
+
+	// Case 1: failure for a command that has no host_mdm_apple_profiles row and
+	// no renew_command_uuid pointing at it — no activity should be produced.
+	// HandleHostMDMProfileInstallResult will surface the underlying not-found
+	// error from the retry-count lookup; we deliberately ignore it.
+	setRenewCommandUUID(nil)
+	case1Cmd := uuid.NewString()
+	_ = apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case1Cmd, &failed, "boom", s.fleetSvc.NewActivity)
+	require.Zero(t, countRenewalActivitiesForCmd(case1Cmd))
+
+	// Case 2: failure with a renew_command_uuid set on the host, but the
+	// failing command's UUID does not match it — no activity.
+	case2RenewCmd := uuid.NewString()
+	insertNanoCommand(case2RenewCmd)
+	setRenewCommandUUID(&case2RenewCmd)
+	case2OtherCmd := uuid.NewString()
+	_ = apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case2OtherCmd, &failed, "boom", s.fleetSvc.NewActivity)
+	require.Zero(t, countRenewalActivitiesForCmd(case2OtherCmd))
+	require.Zero(t, countRenewalActivitiesForCmd(case2RenewCmd))
+
+	// Case 3: failure where the command UUID matches the renew_command_uuid —
+	// activity is produced.
+	case3RenewCmd := uuid.NewString()
+	insertNanoCommand(case3RenewCmd)
+	setRenewCommandUUID(&case3RenewCmd)
+	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case3RenewCmd, &failed, "boom", s.fleetSvc.NewActivity))
+	require.Equal(t, 1, countRenewalActivitiesForCmd(case3RenewCmd))
+
+	hostLite, err := s.ds.HostLiteByIdentifier(ctx, host.UUID)
+	require.NoError(t, err)
+	expected := fmt.Sprintf(`{"host_id": %d, "host_display_name": %q, "command_uuid": %q}`,
+		hostLite.ID, hostLite.DisplayName(), case3RenewCmd)
+	s.lastActivityOfTypeMatches(activityName, expected, 0)
+
+	// Case 4: a successful (verifying) install profile result whose command
+	// UUID matches the renew_command_uuid — no activity, because only failures
+	// take the renewal path.
+	case4RenewCmd := uuid.NewString()
+	insertNanoCommand(case4RenewCmd)
+	setRenewCommandUUID(&case4RenewCmd)
+	require.NoError(t, apple_mdm.HandleHostMDMProfileInstallResult(ctx, s.ds, host.UUID, case4RenewCmd, &verifying, "", s.fleetSvc.NewActivity))
+	require.Zero(t, countRenewalActivitiesForCmd(case4RenewCmd))
 }

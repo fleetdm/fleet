@@ -149,7 +149,7 @@ $shadow-transition-width: 16px;
           span {
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: $gap-icon-text;
           }
         }
 
@@ -259,6 +259,18 @@ $shadow-transition-width: 16px;
           outline: 2px solid $core-focused-outline;
           background: $ui-off-white;
           border-radius: $border-radius;
+        }
+      }
+
+      // Round bottom corners on the last row so the row background doesn't
+      // overflow the wrapper's rounded corners (visible in dark mode where
+      // row and wrapper backgrounds differ).
+      tr:last-child {
+        td:first-child {
+          border-bottom-left-radius: 6px;
+        }
+        td:last-child {
+          border-bottom-right-radius: 6px;
         }
       }
 

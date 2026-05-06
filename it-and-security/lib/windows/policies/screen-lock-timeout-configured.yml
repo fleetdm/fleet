@@ -12,3 +12,5 @@
     Screen lock timeout should be automatically enforced by MDM. If this fails, restart your device and refetch in Fleet Desktop.
     If it still fails, drop a note in #help-it.
   platform: windows
+  labels_exclude_any:
+    - Windows screen lock exclusions

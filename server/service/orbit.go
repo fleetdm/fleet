@@ -1035,6 +1035,17 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
 				}
 			}
+		case "wipe_ref":
+			// a successful wipe means the host has been erased, so any other
+			// upcoming activities queued behind the wipe will never run -
+			// cancel them silently before falling through to record the
+			// "ran script" activity for the wipe itself.
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+			}
+			fallthrough
 		default:
 			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string

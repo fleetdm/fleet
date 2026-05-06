@@ -424,6 +424,9 @@ type Datastore interface {
 	CleanupHostMDMCommands(ctx context.Context) error
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
+	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
+	// whose corresponding result is older than 1 hour.
+	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
 	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
@@ -835,6 +838,7 @@ type Datastore interface {
 
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
+	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
@@ -3008,6 +3012,14 @@ type Datastore interface {
 	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
 	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
 	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
+
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
+
+	// MDMAppleResetOnReenrollment performs necessary datastore operations to reset the state of a host that is re-enrolling in MDM,
+	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
+	// Host activities will not be cleared if preserveHostActivities is true
+	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 }
 
 type AndroidDatastore interface {
@@ -3136,6 +3148,10 @@ type ProfileVerificationStore interface {
 	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
 	// Windows host
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
+
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)
