@@ -345,9 +345,12 @@ Per-fleet handler (`chart_scrub_dataset_fleet`):
    - if empty (every listed fleet was deleted, or all hosts moved out)
      → log no-op, mark complete.
 2. mask = HostIDsToBlob(hostIDs)   ← single mask covering union of fleets
-3. writeBatch = clamp(2_000_000 / max(len(mask), 1), 1, 200)
-                ← target ~2 MB per UPDATE; cap at 200 rows to bound
-                  parser/optimizer cost. Computed once per job.
+3. writeBatch = clamp(2_000_000 / max(len(mask), 1), 1, 1000)
+                ← byte arm targets ~2 MB per UPDATE (well under
+                  max_allowed_packet); row cap of 1000 keeps the
+                  per-statement lock window and rollback-on-interrupt
+                  waste small. Computed once per job. See "Write
+                  batch sizing" below for the full rationale.
 4. lastID = 0
    loop:
      rows = SELECT id, host_bitmap FROM host_scd_data
@@ -384,7 +387,7 @@ Two efficiency mechanics:
 - **Chunked CASE/WHEN UPDATEs.** Each affected row no longer costs
   one round trip; instead, up to `writeBatch` rows are written per
   statement. For a read-page of 5000 rows that all need updates and
-  a 200-row write batch, that's 25 statements per page instead of
+  a 1000-row write batch, that's 5 statements per page instead of
   5000. The IN-list is the same set of ids the CASE enumerates, so
   the planner uses the primary-key index for the row locks.
 
@@ -393,11 +396,37 @@ Two efficiency mechanics:
 handler. The single `IN` query and single mask mean the row walk
 runs once for the dataset regardless of cardinality.
 
-Read batch size (5000) and write batch cap (200) are starting
-estimates; both tunable via package vars so tests can shrink them to
-exercise multi-batch paths. The 2 MB per-statement target is a soft
-ceiling well under MySQL's default 16–64 MB `max_allowed_packet`,
-chosen to keep replication binlog events small.
+**Write batch sizing.** Two arms compose to size each `UPDATE`:
+
+- **Byte budget (`scdScrubWriteByteBudget = 2_000_000`).** The hard
+  ceiling is MySQL's `max_allowed_packet` (16 MB minimum default on
+  managed deployments, 64 MB on stock 5.7+). Targeting 2 MB keeps the
+  payload well under that and keeps replication binlog events small.
+  The byte arm dominates when `len(mask)` is large: at 125 KB masks
+  (~1M-host fleets) the byte budget shrinks `writeBatch` to ~16
+  rows per statement automatically.
+
+- **Row cap (`scdScrubWriteBatchCap = 1000`).** The hard ceiling is
+  the MySQL protocol's 16-bit bind parameter count: 65,535 params,
+  3 params per row → ~21,800-row theoretical max. The cap is set
+  two orders of magnitude below that. The remaining tradeoffs that
+  scale with row count are soft:
+  - per-statement row-lock duration (background scrub, no
+    user-latency path; row locks only contend with concurrent
+    scrubs of the same dataset, which the worker queue already
+    serializes)
+  - rollback-on-interrupt waste (atomic UPDATE rolls back if the
+    worker is killed mid-statement; resume from `lastID` recovers
+    correctly, only thrown-away I/O scales)
+
+  1000 is a conservative middle of the typical bulk-write range
+  (100–10,000); not derived from a benchmark on `host_scd_data`,
+  but with comfortable headroom on every limit. Safe to raise
+  several-fold further without altering correctness.
+
+Read batch size (5000) is also a starting estimate. Both write cap
+and read batch are package vars so tests can shrink them to exercise
+multi-batch paths.
 
 **Reads on the primary.** Three reads in this change are read-then-
 write and MUST run against the primary, not a replica:
@@ -639,3 +668,16 @@ identity, all-ones mask of equal length = empty, nil inputs.
   follow-up event. If the scrub fails repeatedly, observability is via
   the jobs table / worker error logs, not via the activity feed.
   Acceptable for v1; can revisit if support burden materializes.
+- **[Follow-up] Collection write path lacks a byte-budget guard.**
+  `recordAccumulate` and `recordSnapshot` in
+  `server/chart/internal/mysql/data.go` batch upserts strictly by
+  row count (`scdUpsertBatch = 200`). Unlike the scrub `UPDATE` path
+  (which composes a row cap with a 2 MB byte budget), the upsert
+  path's per-statement payload scales linearly with `len(host_bitmap)`:
+  at ~640K-host fleets a 200-row INSERT exceeds the 16 MB
+  `max_allowed_packet` default on managed MySQL deployments.
+  Pre-existing in the collection write path; not introduced by this
+  change. The fix mirrors the scrub pattern: compute
+  `upsertBatch = clamp(BUDGET / len(bitmap), 1, CAP)` once per
+  call. Tracked under the `chart-historical-data-collection`
+  capability rather than this change's scope.

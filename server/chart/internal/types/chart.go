@@ -32,20 +32,12 @@ type Datastore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
 	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
-	//
-	// disabledFleetIDs scopes results at the SQL layer: when non-empty, the
-	// query adds AND (h.team_id IS NULL OR h.team_id NOT IN (?)). nil or empty
-	// means "no fleet filter" — query runs as before.
 	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
 
 	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
 	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
 	// underlying joins: a host's software/OS row transitions when it upgrades
 	// past the vulnerable version, so the join naturally stops matching.
-	//
-	// disabledFleetIDs scopes both the software-side and OS-side queries via
-	// AND (h.team_id IS NULL OR h.team_id NOT IN (?)) on a hosts join. nil or
-	// empty means "no fleet filter."
 	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
 
 	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
