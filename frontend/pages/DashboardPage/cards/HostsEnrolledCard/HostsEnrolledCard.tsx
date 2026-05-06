@@ -232,6 +232,7 @@ const HostsEnrolledCard = ({
               tickFormatter={formatTick}
               axisLine={false}
               tickLine={false}
+              tickMargin={6}
               tick={{ fontSize: tickFontSize }}
             />
             <YAxis
