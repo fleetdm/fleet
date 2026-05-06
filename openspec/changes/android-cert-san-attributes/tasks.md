@@ -69,7 +69,9 @@
       single UPN (decode the produced `OtherName` and assert OID + UTF8 value), mixed entries (all five KEYs), repeated keys
       across multiple types (e.g. two DNS + two EMAIL → four entries in document order, asserting the same applies to
       repeated UPN / IP / URI), unknown KEY (expects throw), `RFC822=` rejected as unknown KEY (expects throw), malformed
-      token (expects throw), unparseable IP (expects throw), whitespace tolerance.
+      token (expects throw), unparseable IP (expects throw), whitespace tolerance, **case-insensitive KEY** (lowercase
+      `dns=...`, mixed-case `Upn=...`, leading/trailing whitespace around the key all parse to the same `GeneralName` as the
+      uppercase form — agent owns case normalization, server stores admin input verbatim).
 - [ ] 4.7 Extend `android/app/src/test/java/com/fleetdm/agent/scep/ScepClientImplTest.kt` with cases that build a CSR with various SAN
       strings and decode the resulting CSR to assert the SAN extension is present, non-critical, and contains the expected
       `GeneralName` entries. Also keep an explicit regression test for "no SAN -> no SAN extension".

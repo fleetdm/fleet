@@ -129,7 +129,11 @@ attribute. We extend it to also add the extensionRequest when SAN is non-empty.
   - Splits on `,` (no quoting support; matches the simple parsing the docs and `subject_name` already use).
   - Trims whitespace around each token.
   - Splits each token on the first `=`. Left side is the KEY (case-insensitive, normalized to upper); right side is the value
-    (kept verbatim, so it can include `:` for URIs and `@` for emails).
+    (kept verbatim, so it can include `:` for URIs and `@` for emails). **The agent owns case normalization end-to-end:** the
+    server validates the KEY allow-list case-insensitively but **persists admin input verbatim** (so an admin who types
+    `dns=example.com` sees the same casing back via REST GET / GitOps export), and the agent's parser uppercases the KEY at
+    parse time. This keeps storage faithful to admin intent and means a future case-related contract change lives in one place
+    (the parser) rather than as a hidden server-side rewrite.
   - Maps KEY to `GeneralName` per the table below. The KEY names match what the Figma exposes to admins
     (`UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME` is the modal placeholder), and
     cover the full set of SAN types used for EAP-TLS / Wi-Fi authentication. Anything else throws `IllegalArgumentException`

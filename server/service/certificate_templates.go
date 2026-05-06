@@ -152,3 +152,44 @@ func (svc *Service) replaceCertificateVariables(ctx context.Context, input strin
 
 	return result, nil
 }
+
+// expandCertVar runs replaceCertificateVariables on `input` and on success returns
+// (expanded, true, nil). On expansion failure (host missing UUID / hardware serial / IdP user, or
+// an unsupported variable), it persists a CertificateStatusFailed update for the host's row in
+// host_certificate_templates and mutates `certificate` in place: status -> failed, SCEPChallenge
+// and FleetChallenge -> nil so a previously-delivered template's active challenges do not ride
+// along on the failed response. The caller should check ok and return the failed certificate
+// without further processing.
+//
+// detailPrefix is appended to the persisted Detail field, e.g.
+// "Could not replace certificate variables" for subject_name, or
+// "Could not replace certificate variables in subject_alternative_name" for SAN. It is the
+// caller's responsibility to keep these prefixes stable across releases since downstream tooling
+// may match on them.
+func (svc *Service) expandCertVar(
+	ctx context.Context,
+	certificate *fleet.CertificateTemplateResponseForHost,
+	input string,
+	detailPrefix string,
+	host *fleet.Host,
+	endUsersMemo *[]fleet.HostEndUser,
+) (expanded string, ok bool, err error) {
+	expanded, expandErr := svc.replaceCertificateVariables(ctx, input, host, endUsersMemo)
+	if expandErr == nil {
+		return expanded, true, nil
+	}
+	errorMsg := fmt.Sprintf("%s: %s", detailPrefix, expandErr.Error())
+	if upsertErr := svc.ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+		HostUUID:              host.UUID,
+		CertificateTemplateID: certificate.ID,
+		Status:                fleet.MDMDeliveryFailed,
+		Detail:                &errorMsg,
+		OperationType:         fleet.MDMOperationTypeInstall,
+	}); upsertErr != nil {
+		return "", false, upsertErr
+	}
+	certificate.Status = fleet.CertificateTemplateFailed
+	certificate.SCEPChallenge = nil
+	certificate.FleetChallenge = nil
+	return "", false, nil
+}

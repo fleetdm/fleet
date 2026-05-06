@@ -529,6 +529,30 @@ func TestApplyCertificateTemplateSpecs(t *testing.T) {
 		require.Contains(t, err.Error(), "Certificate template subject name is required")
 		require.Contains(t, err.Error(), "Template 2")
 	})
+
+	// SAN coverage: the only Apply-specific assertion worth a unit test is that the cert-name
+	// suffix from validateCertificateTemplateSubjectAlternativeName reaches the typed error so
+	// admins applying a multi-cert spec can identify which entry is bad. Other SAN paths
+	// (validator semantics, single-cert Create) are covered in TestValidateCertificateTemplate*
+	// and TestCreateCertificateTemplate*.
+	t.Run("Invalid SAN rejected with cert-name suffix in subject_alternative_name field", func(t *testing.T) {
+		err := svc.ApplyCertificateTemplateSpecs(ctx, []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template SAN bad",
+				CertificateAuthorityId: 1,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+				SubjectAlternativeName: "FOO=bar",
+			},
+		})
+		require.Error(t, err)
+		var iae *fleet.InvalidArgumentError
+		require.ErrorAs(t, err, &iae)
+		details := iae.Invalid()
+		require.Len(t, details, 1)
+		require.Equal(t, "subject_alternative_name", details[0]["name"])
+		require.Contains(t, details[0]["reason"], "Template SAN bad")
+		require.Contains(t, details[0]["reason"], `unsupported key "FOO"`)
+	})
 }
 
 func TestResendHostCertificateTemplate(t *testing.T) {
