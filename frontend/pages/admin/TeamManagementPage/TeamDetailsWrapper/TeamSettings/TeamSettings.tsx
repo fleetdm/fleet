@@ -172,10 +172,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     gitops: { gitops_mode_enabled: gitopsModeEnabled },
   } = appConfig ?? { host_expiry_settings: {}, gitops: {} };
 
-  const globalHostsActiveDisabled = !appConfig?.features?.historical_data
-    ?.uptime;
-  const globalVulnerabilitiesDisabled = !appConfig?.features?.historical_data
-    ?.vulnerabilities;
+  const globalHostsActiveDisabled = !(
+    appConfig?.features?.historical_data?.uptime ?? true
+  );
+  const globalVulnerabilitiesDisabled = !(
+    appConfig?.features?.historical_data?.vulnerabilities ?? true
+  );
 
   const {
     data: teamConfig,
