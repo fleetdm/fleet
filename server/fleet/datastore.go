@@ -1986,6 +1986,11 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
+	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
+	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
+	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
@@ -2006,6 +2011,18 @@ type Datastore interface {
 	// preventing races between concurrent management checkins. Returns true if the
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
+
+	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
+	// configuration value for the Windows MDM enrollment of the given host.
+	// This is a lightweight read for the orbit config polling path.
+	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+
+	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
+	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
+	// global". Used by the ESP release gate to disambiguate between "no setup configured" (safe to release)
+	// and "setup configured but orbit hasn't initialized yet" (must wait) when
+	// setup_experience_status_results is empty.
+	HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.

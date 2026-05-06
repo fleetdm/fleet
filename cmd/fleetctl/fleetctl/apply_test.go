@@ -2780,6 +2780,28 @@ spec:
 		assert.YAMLEq(t, expectedWithWindowsRequire, RunAppForTest(t, []string{"get", "teams", "--yaml"}))
 	})
 
+	t.Run("require_all_software_windows rejected when Windows MDM not configured", func(t *testing.T) {
+		// Spec invariant: setting `require_all_software_windows=true` while
+		// `MDM.WindowsEnabledAndConfigured=false` MUST be rejected. setupServer's default appConfig leaves
+		// WindowsEnabledAndConfigured at the zero value (false), which is the precondition this test needs.
+		ds := setupServer(t, true)
+
+		windowsRequireSpec := `
+apiVersion: v1
+kind: fleet
+spec:
+  team:
+    name: tm1
+    mdm:
+      setup_experience:
+        require_all_software_windows: true
+`
+		name := writeTmpYml(t, windowsRequireSpec)
+		RunAppCheckErr(t, []string{"apply", "-f", name}, "require_all_software_windows")
+		assert.False(t, ds.SaveTeamFuncInvoked,
+			"team must not be saved when require_all_software_windows is rejected")
+	})
+
 	t.Run("new bootstrap package", func(t *testing.T) {
 		cases := []struct {
 			pkgName     string
