@@ -438,8 +438,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginWithMetadata() {
 	}`, metadata)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	// Create sso_user2@example.com if it doesn't exist (because this is
-	// a free instance and doesn't support enable_jit_provisioning).
+	// Create sso_user2@example.com if it doesn't exist. Free instances won't
+	// run JIT provisioning even though enable_jit_provisioning defaults to true.
 	u := &fleet.User{
 		Name:       "SSO User 2",
 		Email:      "sso_user2@example.com",
@@ -478,8 +478,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginNoEntityID() {
 	err = s.ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	// Create sso_user2@example.com if it doesn't exist (because this is
-	// a free instance and doesn't support enable_jit_provisioning).
+	// Create sso_user2@example.com if it doesn't exist. Free instances won't
+	// run JIT provisioning even though enable_jit_provisioning defaults to true.
 	u := &fleet.User{
 		Name:       "SSO User 2",
 		Email:      "sso_user2@example.com",
@@ -516,8 +516,8 @@ func (s *integrationSSOTestSuite) TestSSOLoginSAMLResponseTampered() {
 	}`, testSAMLIDPMetadataURL)), http.StatusOK, &acResp)
 	require.NotNil(t, acResp)
 
-	// Create sso_user2@example.com if it doesn't exist (because this is
-	// a free instance and doesn't support enable_jit_provisioning).
+	// Create sso_user2@example.com if it doesn't exist. Free instances won't
+	// run JIT provisioning even though enable_jit_provisioning defaults to true.
 	u := &fleet.User{
 		Name:       "SSO User 2",
 		Email:      "sso_user2@example.com",

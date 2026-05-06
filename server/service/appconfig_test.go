@@ -477,46 +477,6 @@ func TestSSOValidationValidatesSchemaInMetadataURL(t *testing.T) {
 	}
 }
 
-func TestJITProvisioning(t *testing.T) {
-	config := fleet.AppConfig{
-		SSOSettings: &fleet.SSOSettings{
-			EnableSSO:             true,
-			EnableJITProvisioning: true,
-			SSOProviderSettings: fleet.SSOProviderSettings{
-				EntityID:    "fleet",
-				IDPName:     "onelogin",
-				MetadataURL: "http://isser.metadata.com",
-			},
-		},
-	}
-
-	t.Run("doesn't allow to enable JIT provisioning without a premium license", func(t *testing.T) {
-		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{})
-		require.True(t, invalid.HasErrors())
-		assert.Contains(t, invalid.Error(), "enable_jit_provisioning")
-		assert.Contains(t, invalid.Error(), "missing or invalid license")
-	})
-
-	t.Run("allows JIT provisioning to be enabled with a premium license", func(t *testing.T) {
-		invalid := &fleet.InvalidArgumentError{}
-		validateSSOSettings(config, &fleet.AppConfig{}, invalid, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-		require.False(t, invalid.HasErrors())
-	})
-
-	t.Run("doesn't care if JIT provisioning is set to false on free licenses", func(t *testing.T) {
-		invalid := &fleet.InvalidArgumentError{}
-		oldConfig := &fleet.AppConfig{
-			SSOSettings: &fleet.SSOSettings{
-				EnableJITProvisioning: false,
-			},
-		}
-		config.SSOSettings.EnableJITProvisioning = false
-		validateSSOSettings(config, oldConfig, invalid, &fleet.LicenseInfo{})
-		require.False(t, invalid.HasErrors())
-	})
-}
-
 func TestAppConfigSecretsObfuscated(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
