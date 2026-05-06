@@ -148,8 +148,9 @@ const EndUserAuthSection = ({
           />
         </p>
         <div
-          className={`form ${gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
-            }`}
+          className={`form ${
+            gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
+          }`}
         >
           <InputField
             label="Identity provider name"
