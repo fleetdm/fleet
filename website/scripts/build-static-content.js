@@ -1144,11 +1144,11 @@ module.exports = {
             }
           }
           if(feature.name) {// Compatibility check
-            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${feature}`);
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${util.inspect(feature)}`);
           }
           if(feature.industryName !== undefined) {
             if(!feature.industryName || typeof feature.industryName !== 'string') {
-              throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature ${feature}`);
+              throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a missing or invalid "industryName". To resolve, set an "industryName" as a valid, non-empty string for this feature ${util.inspect(feature)}`);
             }
             feature.name = feature.industryName;//« This is just an alias. FUTURE: update code elsewhere to use the new property instead, and delete this aliasing.
           }
@@ -1179,7 +1179,7 @@ module.exports = {
           if(!feature.tier) { // Throw an error if a feature is missing a `tier`.
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature is missing a "tier". To resolve, add a "tier" (either "Free" or "Premium") to this feature.`);
           } else if(!_.contains(['Free', 'Premium'], feature.tier)){ // Throw an error if a feature's `tier` is not "Free" or "Premium".
-            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to '+feature.tier+') to be either "Free" or "Premium".`);
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. The ${feature.industryName} feature has an invalid "tier". to resolve, change the value of this features "tier" (currently set to ${feature.tier}) to be either "Free" or "Premium".`);
           }
           if(feature.comingSoon) {// Compatibility check
             throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature (industryName: ${feature.industryName}) category has "comingSoon", which is no longer supported. To resolve, remove "comingSoon" or add "comingSoonOn" (YYYY-MM-DD) to this feature ${feature}`);
@@ -1208,16 +1208,16 @@ module.exports = {
           }
           // Check for required values.
           if(!testimonial.quote) {
-            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quote". To resolve, make sure all testimonials have a "quote" and try running this script again. Testimonial missing a quote: ${testimonial}`);
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quote". To resolve, make sure all testimonials have a "quote" and try running this script again. Testimonial missing a quote: ${util.inspect(testimonial)}`);
           }
           if(!testimonial.quoteAuthorName) {
-            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${testimonial} `);
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${util.inspect(testimonial)}`);
           }
           if(!testimonial.quoteLinkUrl){
-            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteLinkUrl" (A link to the quote author's LinkedIn profile). To resolve, make sure all testimonials have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteLinkUrl" (A link to the quote author's LinkedIn profile). To resolve, make sure all testimonials have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${util.inspect(testimonial)} `);
           }
           if(!testimonial.quoteAuthorProfileImageFilename){
-            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorProfileImageFilename" (The quote author's LinkedIn profile picture). To resolve, make sure all testimonials have a "quoteAuthorProfileImageFilename", and try running this script again. Testimonial with missing "quoteAuthorProfileImageFilename": ${testimonial} `);
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorProfileImageFilename" (The quote author's LinkedIn profile picture). To resolve, make sure all testimonials have a "quoteAuthorProfileImageFilename", and try running this script again. Testimonial with missing "quoteAuthorProfileImageFilename": ${util.inspect(testimonial)} `);
           } else {
             let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', testimonial.quoteAuthorProfileImageFilename));
             if(!imageFileExists){
@@ -1265,7 +1265,7 @@ module.exports = {
           if(testimonial.quoteImageFilename) {
             // Throw an error if a testimonial with an image does not have a "quoteLinkUrl"
             if(!testimonial.quoteLinkUrl){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImageFilename' value is missing a 'quoteLinkUrl'. If providing a 'quoteImageFilename', a quoteLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteLinkUrl: ${testimonial}`);
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImageFilename' value is missing a 'quoteLinkUrl'. If providing a 'quoteImageFilename', a quoteLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteLinkUrl: ${util.inspect(testimonial)}`);
             }
             // Check if the image used for the testimonials exists.
             let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', testimonial.quoteImageFilename));
