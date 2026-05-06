@@ -7,7 +7,6 @@ import (
 
 	chart_api "github.com/fleetdm/fleet/v4/server/chart/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 // Job names for chart scrub workers. Persisted in the jobs table as the
@@ -97,20 +96,3 @@ func (c *ChartScrubFleet) Run(ctx context.Context, argsJSON json.RawMessage) err
 	return nil
 }
 
-// QueueChartScrubGlobalJob enqueues a job to delete every host_scd_data row
-// for the dataset. Callers MUST ensure the relevant config commit has
-// completed before calling this — see design decision 5 of the
-// chart-disabling-collection-scrub change.
-func QueueChartScrubGlobalJob(ctx context.Context, ds fleet.Datastore, dataset string) (*fleet.Job, error) {
-	return QueueJob(ctx, ds, ChartScrubDatasetGlobalJobName, ChartScrubGlobalArgs{Dataset: dataset})
-}
-
-// QueueChartScrubFleetJob enqueues a job to clear bits for hosts currently in
-// any of the fleetIDs from existing host_scd_data rows for the dataset.
-// Callers MUST ensure the relevant config commits have completed first.
-func QueueChartScrubFleetJob(ctx context.Context, ds fleet.Datastore, dataset string, fleetIDs []uint) (*fleet.Job, error) {
-	return QueueJob(ctx, ds, ChartScrubDatasetFleetJobName, ChartScrubFleetArgs{
-		Dataset:  dataset,
-		FleetIDs: fleetIDs,
-	})
-}
