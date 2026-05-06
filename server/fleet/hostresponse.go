@@ -20,6 +20,7 @@ type HostResponse struct {
 	Labels           []*Label     `json:"labels,omitempty" csv:"-"`
 	Geolocation      *GeoLocation `json:"geolocation,omitempty" csv:"-"`
 	CSVDeviceMapping string       `json:"-" db:"-" csv:"device_mapping"`
+	Agent            string       `json:"-" db:"-" csv:"agent"`
 }
 
 // HostResponseForHost returns a HostResponse from Host with Geolocation.
@@ -31,11 +32,16 @@ func HostResponseForHost(ctx context.Context, svc Service, host *Host) *HostResp
 
 // HostResponseForHostCheap returns a new HostResponse from a Host without computing Geolocation.
 func HostResponseForHostCheap(host *Host) *HostResponse {
+	agent := host.OsqueryVersion
+	if host.OrbitVersion != nil && *host.OrbitVersion != "" {
+		agent = *host.OrbitVersion
+	}
 	return &HostResponse{
 		Host:        host,
 		Status:      host.Status(time.Now()),
 		DisplayText: host.Hostname,
 		DisplayName: host.DisplayName(),
+		Agent:       agent,
 	}
 }
 
