@@ -205,7 +205,7 @@ export default {
   HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
   HOST_MANAGED_LOCAL_ACCOUNT_ROTATE: (id: number) =>
-    `/${API_VERSION}/fleet/hosts/${id}/managed_local_account/rotate`,
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password/rotate`,
 
   ME: `/${API_VERSION}/fleet/me`,
 
