@@ -80,6 +80,14 @@
   install_software: true
   labels_include_any:
     - Macs with Santa installed
+- name: macOS - Fleet Desktop up to date
+  description: The host may have an outdated version of Fleet Desktop, potentially risking security vulnerabilities or compatibility issues.
+  resolution: "Fleet Desktop is an app managed by IT and should be kept up to date automatically. If you are failing this policy, install the latest version from Self-service, then click Refetch. If you are still failing after Refetch completes, drop a note in #help-it."
+  type: patch
+  fleet_maintained_app_slug: fleet-desktop/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Fleet Desktop.app installed
 - name: macOS - Claude up to date
   description: The host may have an outdated version of Claude, potentially risking security vulnerabilities or compatibility issues.
   resolution: "Download the latest version from Self-service or check for updates using Claude's built-in update functionality. You can also delete Claude if you are no longer using it."
@@ -248,3 +256,21 @@
   install_software: true
   labels_include_any:
     - Macs with Nudge installed
+- name: macOS - Adobe Acrobat Reader up to date
+  description: This device may have an outdated version of Adobe Acrobat Reader, posing a critical security risk. Adobe Reader is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Reader is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-reader/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Reader installed
+- name: macOS - Adobe Acrobat Pro up to date
+  description: This device may have an outdated version of Adobe Acrobat Pro, posing a critical security risk. Adobe Acrobat is a frequent target for exploits and must be kept up to date at all times.
+  resolution: "Adobe Acrobat Pro is managed by IT and should be updated automatically. If you are failing this policy, install the latest version from Self-service. If you are still failing after Refetch completes, drop a note in #help-it."
+  critical: true
+  type: patch
+  fleet_maintained_app_slug: adobe-acrobat-pro/darwin
+  install_software: true
+  labels_include_any:
+    - Macs with Adobe Acrobat Pro installed

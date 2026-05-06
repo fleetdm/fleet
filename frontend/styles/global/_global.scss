@@ -14,7 +14,7 @@ body {
   font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
-  line-height: 1.5;
+  line-height: $line-height;
 }
 
 // Applied briefly by theme.ts during toggle to fade all colors smoothly.
@@ -76,7 +76,7 @@ p {
   // Desired default line-height for text is 1.5x the font size for paragrah text.
   // This allows for a comfortable reading experience by adding space between
   // multiline paragraphs.
-  line-height: 1.5;
+  line-height: $line-height;
   font-size: $x-small;
 }
 

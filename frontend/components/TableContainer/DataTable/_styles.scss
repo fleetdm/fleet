@@ -149,7 +149,7 @@ $shadow-transition-width: 16px;
           span {
             display: flex;
             align-items: center;
-            gap: 3px;
+            gap: $gap-icon-text;
           }
         }
 

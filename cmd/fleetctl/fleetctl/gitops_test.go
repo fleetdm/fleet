@@ -243,6 +243,36 @@ queries:
 	assert.ErrorContains(t, err, "Fleet Premium")
 }
 
+func TestGitOpsDryRunRejectsInvalidLabelPlatform(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+queries:
+labels:
+  - name: Test - Linux invalid platform
+    query: SELECT 1;
+    platform: linux
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.ErrorContains(t, err, "invalid platform")
+	require.ErrorContains(t, err, "linux")
+}
+
 func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -6477,5 +6507,108 @@ software:
 		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 1, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should be called when grace_period_days changes")
+	})
+}
+
+// TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict verifies that both
+// dry-run and real gitops runs fail when macos_manual_agent_install is true and
+// macos_script is set. Regression test for
+// https://github.com/fleetdm/fleet/issues/34464
+func TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a setup experience script file on disk
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "setup script"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	t.Run("team", func(t *testing.T) {
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(fmt.Sprintf(`
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+queries:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+software:
+`, scriptFile.Name(), t.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+	})
+
+	t.Run("no team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: %s
+  secrets:
+policies:
+reports:
+`, fleetServerURL, orgName))
+		require.NoError(t, err)
+
+		noTeamFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
+		noTeamFile, err := os.Create(noTeamFilePath)
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(`name: Unassigned
+policies:
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+`, scriptFile.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
 }

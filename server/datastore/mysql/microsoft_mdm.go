@@ -324,35 +324,42 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		payloadByHostUUID[p.HostUUID] = p
 	}
 
-	// Insert command queue entries and host profile entries in batches, each
-	// batch in its own transaction to limit lock contention. Each host gets
-	// one command queue row and one host_mdm_windows_profiles row, inserted
-	// together so they stay consistent within the batch and so we don't end\
-	// up with queued commands that don't have corresponding host profile entries.
+	// Insert command queue entries and host profile entries in batches.
+	// The queue INSERT ... SELECT silently skips hosts without an
+	// enrollment; profile rows are upserted for all hosts in the batch.
 	var (
-		queueArgs   []any
-		queueSB     strings.Builder
-		profileArgs []any
-		profileSB   strings.Builder
-		batchCount  int
+		queueHostUUIDs []string
+		profileArgs    []any
+		profileSB      strings.Builder
+		batchCount     int
 	)
 
 	executeBatch := func() error {
 		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			// Insert command queue entries.
-			queueStmt := fmt.Sprintf(`
-				INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
-				VALUES %s`,
-				strings.TrimSuffix(queueSB.String(), ","),
-			)
-			if _, err := tx.ExecContext(ctx, queueStmt, queueArgs...); err != nil {
-				if IsDuplicate(err) {
-					return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+			// Insert command queue entries via INSERT ... SELECT so that
+			// hosts whose enrollment was deleted produce 0 rows instead
+			// of a NULL enrollment_id / FK error.
+			if len(queueHostUUIDs) > 0 {
+				queueQuery, queueArgs, err := sqlx.In(`
+					INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid)
+					SELECT MAX(mwe.id), ?
+					FROM mdm_windows_enrollments mwe
+					WHERE mwe.host_uuid IN (?)
+					GROUP BY mwe.host_uuid`,
+					cmd.CommandUUID, queueHostUUIDs,
+				)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "building IN for MDMWindowsCommandQueue insert")
 				}
-				return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+				if _, err := tx.ExecContext(ctx, queueQuery, queueArgs...); err != nil {
+					if IsDuplicate(err) {
+						return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommandQueue", cmd.CommandUUID))
+					}
+					return ctxerr.Wrap(ctx, err, "batch inserting MDMWindowsCommandQueue")
+				}
 			}
 
-			// Should never happen but could in the case of a bug in the batching logic or if the caller supplied bad args(we warn in the logs for this case)
+			// Should never happen
 			if len(profileArgs) == 0 {
 				return nil
 			}
@@ -383,8 +390,7 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 
 	resetBatch := func() {
 		batchCount = 0
-		queueArgs = queueArgs[:0]
-		queueSB.Reset()
+		queueHostUUIDs = queueHostUUIDs[:0]
 		profileArgs = profileArgs[:0]
 		profileSB.Reset()
 	}
@@ -399,20 +405,16 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 			resetBatch()
 		}
 
-		batchCount++
-		// Command queue entry: resolve enrollment_id via subquery.
-		queueSB.WriteString(
-			"((SELECT id FROM mdm_windows_enrollments WHERE host_uuid = ? ORDER BY created_at DESC, id DESC LIMIT 1), ?),",
-		)
-		queueArgs = append(queueArgs, hostUUID, cmd.CommandUUID)
-
 		// Host profile entry.
 		p := payloadByHostUUID[hostUUID]
 
 		if p == nil {
-			ds.logger.WarnContext(ctx, "windows MDM profile Command enqueued without corresponding host profile", "host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
+			ds.logger.WarnContext(ctx, "skipping host with no corresponding profile payload", "host_uuid", hostUUID, "command_uuid", cmd.CommandUUID)
 			continue
 		}
+
+		batchCount++
+		queueHostUUIDs = append(queueHostUUIDs, hostUUID)
 		profileSB.WriteString("(?, ?, ?, ?, ?, ?, ?, ?),")
 		profileArgs = append(profileArgs, p.ProfileUUID, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.ProfileName, p.Checksum)
 
@@ -540,7 +542,18 @@ func (ds *Datastore) MDMWindowsGetPendingCommands(ctx context.Context, enrollmen
 	// check-in, and the overwhelming majority of devices have nothing queued, so short-circuit
 	// before paying for the full scan + anti-join. SELECT EXISTS always returns a row, so the
 	// idle path does not go through a sql.ErrNoRows branch.
-	const probe = `SELECT EXISTS(SELECT 1 FROM windows_mdm_command_queue WHERE enrollment_id = ?)`
+	// Queue rows now persist after ACK (cleaned by periodic GC), so the probe
+	// must also exclude rows that already have a result in
+	// windows_mdm_command_results.
+	const probe = `SELECT EXISTS(
+		SELECT 1 FROM windows_mdm_command_queue wmcq
+		WHERE wmcq.enrollment_id = ?
+		AND NOT EXISTS (
+			SELECT 1 FROM windows_mdm_command_results wmcr
+			WHERE wmcr.enrollment_id = wmcq.enrollment_id
+			AND wmcr.command_uuid = wmcq.command_uuid
+		)
+	)`
 	var hasPending bool
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hasPending, probe, enrollmentID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "probe pending Windows MDM commands")
@@ -740,27 +753,21 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
 			}
 
-			if wipeCmdStatus != "" && !wipeSucceeded && rowsAffected > 0 {
-				result = &fleet.MDMWindowsSaveResponseResult{
-					WipeFailed: &fleet.MDMWindowsWipeResult{
-						HostUUID: enrolledDevice.HostUUID,
-					},
+			if wipeCmdStatus != "" && rowsAffected > 0 {
+				if wipeSucceeded {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeSucceeded: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
+				} else {
+					result = &fleet.MDMWindowsSaveResponseResult{
+						WipeFailed: &fleet.MDMWindowsWipeResult{
+							HostUUID: enrolledDevice.HostUUID,
+						},
+					}
 				}
 			}
-		}
-
-		// dequeue the commands
-		var matchingUUIDs []string
-		for _, cmd := range matchingCmds {
-			matchingUUIDs = append(matchingUUIDs, cmd.CommandUUID)
-		}
-		const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid IN (?)`
-		stmt, params, err = sqlx.In(dequeueCommandsStmt, enrolledDevice.ID, matchingUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building IN to dequeue commands")
-		}
-		if _, err = tx.ExecContext(ctx, stmt, params...); err != nil {
-			return ctxerr.Wrap(ctx, err, "dequeuing commands")
 		}
 
 		return nil
@@ -2458,6 +2465,13 @@ const windowsProfilesToRemoveQuery = `
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- only target hosts that still have a valid Windows MDM enrollment;
+		-- orphaned host_mdm_windows_profiles rows (where the enrollment was
+		-- deleted) cannot receive MDM commands and must be skipped.
+		EXISTS (
+			SELECT 1 FROM mdm_windows_enrollments mwe
+			WHERE mwe.host_uuid = hmwp.host_uuid
+		) AND
 		-- exclude remove operations with non-NULL status (already processed;
 		-- matches the pattern used by Fleet's Apple MDM profile removal)
 		(hmwp.operation_type != 'remove' OR hmwp.status IS NULL) AND
@@ -3421,4 +3435,40 @@ func (ds *Datastore) MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.
 		deviceId,
 	)
 	return err
+}
+
+func (ds *Datastore) CleanupWindowsMDMCommandQueue(ctx context.Context) error {
+	const batchSize = 1000
+	// Multi-table DELETE does not support LIMIT directly, so we use a
+	// subquery to select the rows to delete in batches.
+	const stmt = `
+DELETE q FROM windows_mdm_command_queue q
+INNER JOIN (
+    SELECT q2.enrollment_id, q2.command_uuid
+    FROM windows_mdm_command_queue q2
+    INNER JOIN windows_mdm_command_results r
+        ON r.enrollment_id = q2.enrollment_id AND r.command_uuid = q2.command_uuid
+    WHERE r.created_at < NOW() - INTERVAL 1 HOUR
+    LIMIT ?
+) batch ON batch.enrollment_id = q.enrollment_id AND batch.command_uuid = q.command_uuid`
+	const maxBatches = 500 // cap total work per cron tick (500k rows)
+	var totalDeleted int64
+	exhausted := true
+	for range maxBatches {
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, batchSize)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup windows mdm command queue")
+		}
+		n, _ := res.RowsAffected()
+		totalDeleted += n
+		if n < int64(batchSize) {
+			exhausted = false
+			break
+		}
+	}
+	if exhausted {
+		ds.logger.WarnContext(ctx, "cleanup windows mdm command queue did not finish, remaining rows will be cleaned on next run",
+			"deleted", totalDeleted, "max_batches", maxBatches)
+	}
+	return nil
 }
