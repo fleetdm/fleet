@@ -2092,6 +2092,58 @@ type ManagedLocalAccountRotationCommander interface {
 	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 }
 
+// ManagedLocalAccountRotationStore is the narrow datastore surface
+// EnqueueManagedLocalAccountRotation needs.
+type ManagedLocalAccountRotationStore interface {
+	InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error
+	ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+}
+
+// EnqueueManagedLocalAccountRotation generates a new password, persists pending
+// rotation state, and enqueues SetAutoAdminPassword for hostUUID. It is the shared
+// core of the user-triggered (EE service) and cron-driven rotation paths — outer
+// concerns like authz, error → user-message mapping, multierror accumulation, and
+// activity logging are left to callers.
+//
+// Outcomes:
+//   - err == nil: command persisted in nano AND APNs push succeeded.
+//   - errors.As(err, &APNSDeliveryError{}): command persisted, APNs push failed.
+//     Pending state is preserved; caller should still log the rotation activity.
+//   - any other err: pending state has been (or never was) unwound so the caller
+//     can retry cleanly. If the rollback itself failed, rollbackErr is non-nil.
+//
+// cmdUUID is set whenever Initiate succeeded — useful for downstream logging.
+func EnqueueManagedLocalAccountRotation(
+	ctx context.Context,
+	ds ManagedLocalAccountRotationStore,
+	commander ManagedLocalAccountRotationCommander,
+	hostUUID, accountUUID string,
+) (cmdUUID string, err error, rollbackErr error) {
+	newPassword := GenerateManagedAccountPassword()
+	hashPlist, hashErr := GenerateSaltedSHA512PBKDF2Hash(newPassword)
+	if hashErr != nil {
+		return "", hashErr, nil
+	}
+
+	cmdUUID = uuid.NewString()
+	if initErr := ds.InitiateManagedLocalAccountRotation(ctx, hostUUID, newPassword, cmdUUID); initErr != nil {
+		return "", initErr, nil
+	}
+
+	if sendErr := commander.SetAutoAdminPassword(ctx, hostUUID, accountUUID, hashPlist, cmdUUID); sendErr != nil {
+		var apnsErr *APNSDeliveryError
+		if errors.As(sendErr, &apnsErr) {
+			return cmdUUID, sendErr, nil
+		}
+		if clearErr := ds.ClearManagedLocalAccountRotation(ctx, hostUUID); clearErr != nil {
+			return cmdUUID, sendErr, clearErr
+		}
+		return cmdUUID, sendErr, nil
+	}
+
+	return cmdUUID, nil, nil
+}
+
 // SendManagedLocalAccountRotationCommands rotates the macOS managed local admin
 // (`_fleetadmin`) password for hosts whose auto_rotate_at has elapsed. It mirrors
 // SendRecoveryLockCommands: each row is generated/initiated/enqueued individually,
@@ -2131,51 +2183,35 @@ func sendManagedLocalAccountRotationCommandsWithCommander(
 
 	var result *multierror.Error
 	for _, host := range hosts {
-		newPassword := GenerateManagedAccountPassword()
-		hashPlist, err := GenerateSaltedSHA512PBKDF2Hash(newPassword)
-		if err != nil {
-			logger.ErrorContext(ctx, "generate managed local account password hash",
-				"host_uuid", host.HostUUID, "err", err)
-			result = multierror.Append(result, err)
-			continue
-		}
-
-		cmdUUID := uuid.NewString()
-		if err := ds.InitiateManagedLocalAccountRotation(ctx, host.HostUUID, newPassword, cmdUUID); err != nil {
+		cmdUUID, sendErr, rollbackErr := EnqueueManagedLocalAccountRotation(ctx, ds, commander, host.HostUUID, host.AccountUUID)
+		if sendErr != nil {
 			// Benign races: the row's eligibility flipped between the SELECT and
-			// this UPDATE (manual rotation, host wipe, etc.). Skip silently.
-			if fleet.IsNotFound(err) ||
-				errors.Is(err, fleet.ErrManagedLocalAccountRotationPending) ||
-				errors.Is(err, fleet.ErrManagedLocalAccountNotEligible) {
+			// Initiate (manual rotation, host wipe, etc.). Skip silently.
+			if fleet.IsNotFound(sendErr) ||
+				errors.Is(sendErr, fleet.ErrManagedLocalAccountRotationPending) ||
+				errors.Is(sendErr, fleet.ErrManagedLocalAccountNotEligible) {
 				logger.DebugContext(ctx, "managed local account no longer eligible for rotation",
-					"host_uuid", host.HostUUID, "err", err)
+					"host_uuid", host.HostUUID, "err", sendErr)
 				continue
 			}
-			logger.ErrorContext(ctx, "initiate managed local account rotation",
-				"host_uuid", host.HostUUID, "err", err)
-			result = multierror.Append(result, err)
-			continue
-		}
-
-		if err := commander.SetAutoAdminPassword(ctx, host.HostUUID, host.AccountUUID, hashPlist, cmdUUID); err != nil {
 			var apnsErr *APNSDeliveryError
-			if errors.As(err, &apnsErr) {
-				// Command persisted but push failed — keep pending state so the
-				// device picks it up on next checkin. Still log activity if the
-				// row was view-driven.
+			if errors.As(sendErr, &apnsErr) {
+				// Command persisted but push failed — pending state is preserved
+				// so the device picks it up on next checkin. Still log activity
+				// if the row was view-driven.
 				logManagedLocalAccountRotationActivity(ctx, logger, newActivityFn, host)
 				logger.WarnContext(ctx, "managed local account rotation enqueued but APNs push failed",
-					"host_uuid", host.HostUUID, "command_uuid", cmdUUID, "err", err)
+					"host_uuid", host.HostUUID, "command_uuid", cmdUUID, "err", sendErr)
 				continue
 			}
-			// Persistence failure: command never landed. Roll back pending state
-			// and skip activity logging so the next cron tick can retry cleanly.
-			if clearErr := ds.ClearManagedLocalAccountRotation(ctx, host.HostUUID); clearErr != nil {
+			if rollbackErr != nil {
 				logger.ErrorContext(ctx, "clear managed local account pending rotation after enqueue failure",
-					"host_uuid", host.HostUUID, "err", clearErr)
-				result = multierror.Append(result, clearErr)
+					"host_uuid", host.HostUUID, "err", rollbackErr)
+				result = multierror.Append(result, rollbackErr)
 			}
-			result = multierror.Append(result, err)
+			logger.ErrorContext(ctx, "managed local account rotation",
+				"host_uuid", host.HostUUID, "err", sendErr)
+			result = multierror.Append(result, sendErr)
 			continue
 		}
 

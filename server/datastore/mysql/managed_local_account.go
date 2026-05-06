@@ -226,7 +226,7 @@ func (ds *Datastore) MarkManagedLocalAccountPasswordViewed(ctx context.Context, 
 
 // InitiateManagedLocalAccountRotation stages a rotation by writing the encrypted
 // pending password and the command UUID. Returns typed errors when the row is not
-// eligible so callers (manual EE service vs auto-rotation cron) can react differently.
+// eligible so callers (manual request-based vs auto-rotation cron) can react differently.
 func (ds *Datastore) InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error {
 	encryptedPassword, err := encrypt([]byte(pendingPlaintextPassword), ds.serverPrivateKey)
 	if err != nil {
