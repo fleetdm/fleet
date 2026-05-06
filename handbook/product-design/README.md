@@ -170,7 +170,8 @@ Ensure the interview process follows these steps in order. This process must fol
 3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
 4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
 5. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
-6. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
+6. **Conduct reference checks**: See the [ 🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for instructions.
+7. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
