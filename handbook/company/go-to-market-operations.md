@@ -396,6 +396,12 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 <img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
 
 
+### Mark an account as a "Top target"
+
+Navigate to the account you would like to label as a "Top target". Edit the account and check the box.
+
+> Want to stack rank your target accounts?
+
 
 ## Signatures
 
