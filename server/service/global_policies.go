@@ -116,16 +116,16 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 // Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetPolicyByIDRequest)
-	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
+func getGlobalPolicyByIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*fleet.GetGlobalPolicyByIDRequest)
+	policy, err := svc.GetGlobalPolicyByID(ctx, req.PolicyID)
 	if err != nil {
-		return fleet.GetPolicyByIDResponse{Err: err}, nil
+		return fleet.GetGlobalPolicyByIDResponse{Err: err}, nil
 	}
-	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
+	return fleet.GetGlobalPolicyByIDResponse{Policy: policy}, nil
 }
 
-func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
+func (svc Service) GetGlobalPolicyByID(ctx context.Context, policyID uint) (*fleet.Policy, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
@@ -134,6 +134,18 @@ func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fl
 	if err != nil {
 		return nil, err
 	}
+
+	// Verify this is actually a global policy — team policies must be
+	// accessed via the team-scoped endpoint which enforces team authorization.
+	if policy.TeamID != nil {
+		return nil, authz.ForbiddenWithInternal(
+			"attempting to read team policy via global endpoint",
+			authz.UserFromContext(ctx),
+			policy,
+			fleet.ActionRead,
+		)
+	}
+
 	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
 	}

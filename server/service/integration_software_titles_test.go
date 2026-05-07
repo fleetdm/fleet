@@ -124,8 +124,8 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Len(stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies, 1)
 
 	// Auto install policy should have the display name
-	var getPolicyResp fleet.GetPolicyByIDResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	var getPolicyResp fleet.GetGlobalPolicyByIDResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.SoftwarePackage.AutomaticInstallPolicies[0].ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal("RubyUpdate1", getPolicyResp.Policy.InstallSoftware.DisplayName)
 
@@ -299,7 +299,7 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleDisplayNames() {
 	s.Assert().Equal(*updateAppReq.DisplayName, stResp.SoftwareTitle.DisplayName)
 
 	// Auto install policy has display name
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", stResp.SoftwareTitle.AppStoreApp.AutomaticInstallPolicies[0].ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &getPolicyResp)
 	s.Assert().NotNil(getPolicyResp.Policy)
 	s.Assert().Equal(*updateAppReq.DisplayName, getPolicyResp.Policy.InstallSoftware.DisplayName)
 

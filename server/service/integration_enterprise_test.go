@@ -6312,7 +6312,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 	allEqual(t, patchPol1.Policy, listPol.Policies[0], fields...)
 	allEqual(t, patchPol2.Policy, listPol.Policies[1], fields...)
 
-	getPol2 := &fleet.GetPolicyByIDResponse{}
+	getPol2 := &fleet.GetGlobalPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(t, listPol.Policies[1], getPol2.Policy)
 }
@@ -6402,7 +6402,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
 	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
 
-	getPol2 := &fleet.GetPolicyByIDResponse{}
+	getPol2 := &fleet.GetGlobalPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
 }
@@ -7187,8 +7187,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to read a global policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK,
+		&fleet.GetGlobalPolicyByIDResponse{},
 	)
 
 	// Attempt to delete a global policy, should allow.
@@ -7447,7 +7447,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
 	// Attempt to read a global policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetPolicyByIDResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusForbidden, &fleet.GetGlobalPolicyByIDResponse{})
 
 	// Attempt to delete a global policy, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{
@@ -27906,7 +27906,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		require.NoError(t, err)
 		policyID := policyResp.Policy.ID
 
-		getPolicyResp := fleet.GetPolicyByIDResponse{}
+		getPolicyResp := fleet.GetGlobalPolicyByIDResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", policyID), nil, http.StatusOK, &getPolicyResp)
 		require.NotNil(t, getPolicyResp.Policy)
 		require.Equal(t, "dynamic", getPolicyResp.Policy.Type)

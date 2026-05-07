@@ -135,7 +135,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GetPolicyByIDQueries(ctx, 1)
+			_, err = svc.GetGlobalPolicyByID(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ModifyGlobalPolicy(ctx, 1, fleet.ModifyPolicyPayload{})

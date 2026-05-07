@@ -22088,8 +22088,8 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 
 	// Attempt to read a global policy, should allow.
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK,
-		&fleet.GetPolicyByIDResponse{},
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK,
+		&fleet.GetGlobalPolicyByIDResponse{},
 	)
 
 	// Attempt to delete a global policy, should fail.
@@ -22463,7 +22463,7 @@ func (s *integrationMDMTestSuite) TestTechnicianPermissions() {
 	}, http.StatusForbidden, &fleet.ModifyLabelResponse{})
 
 	// Attempt to read a global policy, should allow.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &fleet.GetPolicyByIDResponse{})
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gp2.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &fleet.GetGlobalPolicyByIDResponse{})
 
 	// Attempt to delete a global policy, should fail.
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", fleet.DeleteGlobalPoliciesRequest{

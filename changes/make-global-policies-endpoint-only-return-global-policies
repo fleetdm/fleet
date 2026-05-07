@@ -1,0 +1,1 @@
+* Updated the `GET /api/v1/fleet/global/policies/:id` endpoint (and alias endpoint `GET /api/v1/fleet/global/policies/:id`) to just return global policies.

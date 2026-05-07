@@ -43,16 +43,16 @@ func (r ListGlobalPoliciesResponse) Error() error { return r.Err }
 // Global Policy - Get by id
 /////////////////////////////////////////////////////////////////////////////////
 
-type GetPolicyByIDRequest struct {
+type GetGlobalPolicyByIDRequest struct {
 	PolicyID uint `url:"policy_id"`
 }
 
-type GetPolicyByIDResponse struct {
+type GetGlobalPolicyByIDResponse struct {
 	Policy *Policy `json:"policy"`
 	Err    error   `json:"error,omitempty"`
 }
 
-func (r GetPolicyByIDResponse) Error() error { return r.Err }
+func (r GetGlobalPolicyByIDResponse) Error() error { return r.Err }
 
 /////////////////////////////////////////////////////////////////////////////////
 // Global Policy - Count

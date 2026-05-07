@@ -458,7 +458,7 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
 
-type GetPolicyByIDQueriesFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
+type GetGlobalPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
 type ApplyPolicySpecsFunc func(ctx context.Context, policies []*fleet.PolicySpec) error
 
@@ -1584,8 +1584,8 @@ type Service struct {
 	ModifyGlobalPolicyFunc        ModifyGlobalPolicyFunc
 	ModifyGlobalPolicyFuncInvoked bool
 
-	GetPolicyByIDQueriesFunc        GetPolicyByIDQueriesFunc
-	GetPolicyByIDQueriesFuncInvoked bool
+	GetGlobalPolicyByIDFunc        GetGlobalPolicyByIDFunc
+	GetGlobalPolicyByIDFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -3822,11 +3822,11 @@ func (s *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Modif
 	return s.ModifyGlobalPolicyFunc(ctx, id, p)
 }
 
-func (s *Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
+func (s *Service) GetGlobalPolicyByID(ctx context.Context, policyID uint) (*fleet.Policy, error) {
 	s.mu.Lock()
-	s.GetPolicyByIDQueriesFuncInvoked = true
+	s.GetGlobalPolicyByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPolicyByIDQueriesFunc(ctx, policyID)
+	return s.GetGlobalPolicyByIDFunc(ctx, policyID)
 }
 
 func (s *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {

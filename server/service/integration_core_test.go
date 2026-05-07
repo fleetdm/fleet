@@ -1511,7 +1511,7 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	// Get an unexistent policy
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", 9999), nil, http.StatusNotFound)
 
-	singlePolicyResponse := fleet.GetPolicyByIDResponse{}
+	singlePolicyResponse := fleet.GetGlobalPolicyByIDResponse{}
 	singlePolicyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policiesResponse.Policies[0].ID)
 	s.DoJSON("GET", singlePolicyURL, nil, http.StatusOK, &singlePolicyResponse)
 	assert.Equal(t, qr.Name, singlePolicyResponse.Policy.Name)
@@ -1567,6 +1567,83 @@ func (s *integrationTestSuite) TestGlobalPolicies() {
 	policiesResponse = fleet.ListGlobalPoliciesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/policies", nil, http.StatusOK, &policiesResponse)
 	require.Len(t, policiesResponse.Policies, 0)
+}
+
+// TestGetGlobalPolicyByIDOnlyReturnsGlobalPolicies verifies that the global
+// policy "get by id" endpoint (and its deprecated v1 alias) refuses to return
+// team policies, even to an admin who could otherwise read them via the
+// team-scoped endpoint.
+func (s *integrationTestSuite) TestGetGlobalPolicyByIDOnlyReturnsGlobalPolicies() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name() + "-team",
+		Description: "team for global-policies-only test",
+	})
+	require.NoError(t, err)
+
+	// Create a global policy.
+	gpParams := fleet.GlobalPolicyRequest{
+		Name:        "TestGlobalOnly-Global",
+		Query:       "select 1;",
+		Description: "global policy",
+		Resolution:  "global resolution",
+	}
+	gpResp := fleet.GlobalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	globalPolicyID := gpResp.Policy.ID
+
+	// Create a team policy.
+	tpParams := fleet.TeamPolicyRequest{
+		Name:        "TestGlobalOnly-Team",
+		Query:       "select 1;",
+		Description: "team policy",
+		Resolution:  "team resolution",
+	}
+	tpResp := fleet.TeamPolicyResponse{}
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team.ID), tpParams, http.StatusOK, &tpResp)
+	require.NotNil(t, tpResp.Policy)
+	teamPolicyID := tpResp.Policy.ID
+
+	// Sanity check: the team policy can be fetched via the team-scoped endpoint.
+	var teamScopedResp fleet.GetGlobalPolicyByIDResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, teamPolicyID),
+		nil, http.StatusOK, &teamScopedResp,
+	)
+	require.NotNil(t, teamScopedResp.Policy)
+	require.Equal(t, teamPolicyID, teamScopedResp.Policy.ID)
+	require.NotNil(t, teamScopedResp.Policy.TeamID)
+	require.Equal(t, team.ID, *teamScopedResp.Policy.TeamID)
+
+	// Fetching the global policy via the global endpoint succeeds.
+	var getGlobalResp fleet.GetGlobalPolicyByIDResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", globalPolicyID),
+		nil, http.StatusOK, &getGlobalResp,
+	)
+	require.NotNil(t, getGlobalResp.Policy)
+	require.Equal(t, globalPolicyID, getGlobalResp.Policy.ID)
+	require.Nil(t, getGlobalResp.Policy.TeamID)
+
+	// Fetching the team policy via the global endpoint must NOT return it —
+	// the endpoint is global-only and should respond with 403.
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", teamPolicyID), nil, http.StatusForbidden)
+
+	// Same restriction must apply to the deprecated v1 alias
+	// (GET /api/v1/fleet/global/policies/:id).
+	s.Do("GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", teamPolicyID), nil, http.StatusForbidden)
+
+	// And the v1 alias should still return the global policy.
+	getGlobalResp = fleet.GetGlobalPolicyByIDResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/v1/fleet/global/policies/%d", globalPolicyID),
+		nil, http.StatusOK, &getGlobalResp,
+	)
+	require.NotNil(t, getGlobalResp.Policy)
+	require.Equal(t, globalPolicyID, getGlobalResp.Policy.ID)
+	require.Nil(t, getGlobalResp.Policy.TeamID)
 }
 
 func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
@@ -3221,8 +3298,8 @@ func (s *integrationTestSuite) TestGlobalPoliciesProprietary() {
 	assert.Equal(t, uint(0), mgpResp.Policy.FailingHostCount)
 	assert.Equal(t, uint(0), mgpResp.Policy.PassingHostCount)
 
-	ggpResp := fleet.GetPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &ggpResp)
+	ggpResp := fleet.GetGlobalPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gpResp.Policy.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &ggpResp)
 	require.NotNil(t, ggpResp.Policy)
 	assert.Equal(t, "TestQuery4", ggpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", ggpResp.Policy.Query)
@@ -3450,8 +3527,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mtpResp.Policy.Platform)
 
-	gtpResp := fleet.GetPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetPolicyByIDRequest{}, http.StatusOK, &gtpResp)
+	gtpResp := fleet.GetGlobalPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &gtpResp)
 	require.NotNil(t, gtpResp.Policy)
 	assert.Equal(t, tpNameNew, gtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", gtpResp.Policy.Query)
