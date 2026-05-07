@@ -2040,8 +2040,22 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 		// immediately -- if we wait for orbit, OOBE progresses past the ESP window.
 		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
 		holdCmds := []*mdm_types.SyncMLCmd{
-			// SkipDeviceStatusPage and SkipUserStatusPage are bool format per
-			// DMClient CSP spec. Both must be false for the ESP to stay visible.
+			// Create the user-scope DMClient Provider tree before any user-scope writes. Verified on Win11 26200
+			// in the Entra-join-during-OOBE flow without an Autopilot deployment profile: the user-scope
+			// Provider/Fleet node does not exist by default. The Add commands here create the user-scope Provider
+			// node and its FirstSyncStatus child so the release-phase ServerHasFinishedProvisioning=true write can
+			// land.
+			//
+			// Hold commands are sent on every management session during the Pending phase, so these Adds will
+			// repeat. The device returns SyncML status 418 ("Already Exists") on the second and later calls. That
+			// per-command status does not fail the SyncML session and does not affect the hold-cycle Replace
+			// commands that follow it; the Pending phase only lasts a few minutes (until orbit links and we
+			// transition to Active, after which hold commands stop). Net effect: a small amount of expected 418
+			// noise during OOBE in exchange for not having to track per-enrollment "have I sent the Add" state.
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s", providerID)),
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus", providerID)),
+			// SkipDeviceStatusPage and SkipUserStatusPage are both set to false so the ESP page is visible during
+			// OOBE.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
 			// BlockInStatusPage=1: block user, show "Reset PC" button on failure.
@@ -2448,10 +2462,9 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 	return cmds
 }
 
-// buildESPReleaseCommands builds SyncML commands that release the device
-// from the ESP. ServerHasFinishedProvisioning=true on both Device and User
-// FirstSyncStatus is the documented DMClient signal that tells Windows the
-// MDM is done; the OS then proceeds to login.
+// buildESPReleaseCommands builds SyncML commands that release the device from the ESP. ServerHasFinishedProvisioning
+// is written at both Device and User scopes to complete both the Device setup and the Account setup phases of the
+// ESP.
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdBool(fleet.CmdReplace,

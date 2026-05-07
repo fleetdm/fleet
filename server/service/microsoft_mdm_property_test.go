@@ -27,7 +27,9 @@ import (
 //   - Wait → no side effects (no cancel, no persist, no CAS).
 //   - Block path command shape: BlockInStatusPage=1, AllowCollectLogsButton, TimeOutUntilSyncFailure=1,
 //     reason-specific CustomErrorText, NO ServerHasFinishedProvisioning, NO InstallationState.
-//   - Release path command shape: ServerHasFinishedProvisioning, NO CustomErrorText, NO BlockInStatusPage.
+//   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning,
+//     NO CustomErrorText, NO BlockInStatusPage. The user-scope Provider node is created during the hold
+//     phase via Add commands so the user-scope SHFP write lands instead of being 405-rejected.
 //   - Persisted CommandUUIDs equal inline CmdID.Value (the ack-clearing invariant).
 //   - Persist runs as a single batched call (a regression that loops single inserts would split CustomErrorText
 //     and the block flags across multiple TX boundaries).
@@ -296,8 +298,27 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			// any error text would be dead state on the DMClient node.
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "CustomErrorText"),
 				"release path must NOT include CustomErrorText")
-			assert.NotNilf(rt, pbtFindCmdByLocURI(cmds, "ServerHasFinishedProvisioning"),
-				"release path must include ServerHasFinishedProvisioning")
+			// Release writes ServerHasFinishedProvisioning at BOTH Device and User scope. Device scope completes
+			// the Device setup phase; User scope completes Account setup. The User-scope write requires the
+			// user-scope DMClient Provider node to have been created earlier via the hold-phase Add commands.
+			shfpDeviceFound, shfpUserFound := false, false
+			for _, c := range cmds {
+				uri := c.GetTargetURI()
+				if !strings.Contains(uri, "ServerHasFinishedProvisioning") {
+					continue
+				}
+				if strings.Contains(uri, "/Device/") {
+					shfpDeviceFound = true
+				} else if strings.Contains(uri, "/User/") {
+					shfpUserFound = true
+				}
+			}
+			assert.Truef(rt, shfpDeviceFound,
+				"release path must include Device-scope ServerHasFinishedProvisioning")
+			assert.Truef(rt, shfpUserFound,
+				"release path must include User-scope ServerHasFinishedProvisioning so Account setup completes; "+
+					"omitting it hangs the device on 'Working on it...' indefinitely on Win11 26200 when Account "+
+					"setup has been displayed")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "BlockInStatusPage"),
 				"release path must NOT include BlockInStatusPage")
 		}
