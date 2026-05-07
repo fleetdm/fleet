@@ -2144,9 +2144,6 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				require.ElementsMatch(t, toRetry, []string{profileIdentifier})
 				return nil
 			}
-			// Best-effort ACME-cert-list trigger fires on successful InstallProfile
-			// acks; stub the probe to a non-darwin platform so the trigger
-			// short-circuits without doing any further work.
 			ds.ProfileHasACMEPayloadForCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.ProfileACMECommandResult, error) {
 				return fleet.ProfileACMECommandResult{Platform: "ios"}, nil
 			}

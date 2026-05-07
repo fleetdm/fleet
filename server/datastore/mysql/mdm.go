@@ -1669,17 +1669,6 @@ WHERE
 	return dest, nil
 }
 
-// ProfileHasACMEPayloadForCommand bundles the gates needed to decide whether
-// an InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, whether the delivered profile contains a
-// com.apple.security.acme payload, and whether a CertificateList refetch is
-// already pending for the host. Computed in a single indexed lookup so the
-// per-ack hot path stays cheap.
-//
-// LOCATE on the mobileconfig blob is byte-exact (mediumblob, no collation).
-// False positive risk is bounded — if the substring appears outside an actual
-// payload-type element, the worst case is one redundant CertificateList
-// command queued for that host.
 func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
 	const stmt = `
 SELECT

@@ -4090,8 +4090,6 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// CertificateList so hardware-bound certs (invisible to osquery) get
 		// ingested into host_certificates. Failures here are logged but don't
 		// affect the ack.
-		// MDMDeliveryVerifying is the only success state produced here by
-		// mdmAppleDeliveryStatusFromCommandStatus on Acknowledged ack.
 		if status != nil && *status == fleet.MDMDeliveryVerifying {
 			if err := svc.maybeQueueCertificateListForACMEProfile(r.Context, cmdResult.Identifier(), cmdResult.CommandUUID); err != nil {
 				svc.logger.WarnContext(r.Context, "queue CertificateList after ACME profile install",
