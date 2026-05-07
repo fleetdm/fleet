@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/jmoiron/sqlx"
 )
@@ -1351,57 +1352,6 @@ WHERE
 	id = ?
 `
 
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, :manifest_url, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN in_house_app_upcoming_activities ihua
-		ON ihua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>ManifestURL</key>
-        <string>`
-
-	const rawCmdPart2 = `</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
-
 	const insNanoQueueStmt = `
 INSERT INTO
 	nano_enrollment_queue
@@ -1434,15 +1384,6 @@ ORDER BY
 		return ctxerr.Wrap(ctx, err, "get host uuid")
 	}
 
-	// Set management flags based on platform
-	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
-	}
-
 	// insert the host in-house app row
 	stmt, args, err := sqlx.In(insStmt, hostID, execIDs)
 	if err != nil {
@@ -1462,50 +1403,75 @@ ORDER BY
 		tid = *hostData.TeamID
 	}
 
-	// Get the title ID for the in-house app being installed
-	var titleID uint
-	getTitleIDStmt := `
+	// Pull the (execution_id, in_house_app_id, software_title_id) tuples for
+	// each pending activation so we can build a per-app InstallApplication
+	// command in Go and inject the managed-app-configuration dict.
+	const pendingStmt = `
 SELECT
-		ihua.software_title_id
+	ua.execution_id,
+	ihua.in_house_app_id,
+	ihua.software_title_id
 FROM
-		upcoming_activities ua
-		INNER JOIN in_house_app_upcoming_activities ihua
-			ON ihua.upcoming_activity_id = ua.id
+	upcoming_activities ua
+	INNER JOIN in_house_app_upcoming_activities ihua
+		ON ihua.upcoming_activity_id = ua.id
 WHERE
-		ua.host_id = ? AND
-		ua.execution_id IN (?)
+	ua.host_id = ? AND ua.execution_id IN (?)
 `
-
-	stmt, args, err = sqlx.In(getTitleIDStmt, hostID, execIDs)
+	type ihPending struct {
+		ExecutionID    string `db:"execution_id"`
+		InHouseAppID   uint   `db:"in_house_app_id"`
+		SoftwareTitle  uint   `db:"software_title_id"`
+	}
+	stmt, args, err = sqlx.In(pendingStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare get in-house app title id")
+		return ctxerr.Wrap(ctx, err, "prepare pending in-house install lookup")
+	}
+	var pending []ihPending
+	if err := sqlx.SelectContext(ctx, tx, &pending, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "list pending in-house installs")
+	}
+	if len(pending) == 0 {
+		return nil
 	}
 
-	if err := sqlx.GetContext(ctx, tx, &titleID, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "get in-house app title id")
+	// Bulk-fetch managed configurations for the in-house apps being installed.
+	// In-house Configuration is iOS/iPadOS-only; the builder drops it for
+	// macOS hosts anyway, but in_house_apps are always Apple-mobile so we just
+	// fetch unconditionally.
+	configsByAppID := map[uint][]byte{}
+	{
+		ids := make([]uint, 0, len(pending))
+		for _, p := range pending {
+			ids = append(ids, p.InHouseAppID)
+		}
+		got, err := ds.BulkGetInHouseAppConfigurations(ctx, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
+		}
+		configsByAppID = got
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
-
-	// insert the nano command
-	namedArgs := map[string]any{
-		"manifest_url":  manifestURL,
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
+	// Build the InstallApplication plist for each pending activation, then do
+	// one batch INSERT into nano_commands.
+	insValues := make([]string, 0, len(pending))
+	insArgs := make([]any, 0, len(pending)*4)
+	for _, p := range pending {
+		manifestURL := fmt.Sprintf(
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
+			CommandUUID:   p.ExecutionID,
+			HostPlatform:  hostData.Platform,
+			ManifestURL:   manifestURL,
+			Configuration: configsByAppID[p.InHouseAppID],
+		})
+		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
+		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
 	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
-	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
-	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+	insCmdStmt := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES ` +
+		strings.Join(insValues, ", ")
+	if _, err := tx.ExecContext(ctx, insCmdStmt, insArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
 	}
 
