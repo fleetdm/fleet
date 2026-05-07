@@ -125,6 +125,24 @@ If a profile contains a SCEP or ACME payload (Apple) or a `ClientCertificateInst
 - *Allow upload, surface a warning.* Rejected: silent non-renewal is the customer-promise failure mode this story exists to prevent. Hard rejection is worth the small UX cost.
 - *Allow upload, document the requirement.* Same rejection rationale.
 
+### Decision 2.7: Variable rename — accept both `SCEP_RENEWAL_ID` and `CERTIFICATE_RENEWAL_ID`
+
+The customer-facing variable name was renamed from `$FLEET_VAR_SCEP_RENEWAL_ID` to `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` per PR #44069 (merged 2026-05-01 into `docs-v4.86.0`), referenced by #40639 as "[New variable name]". Reasoning: the variable is no longer SCEP-specific — it must apply to ACME profiles too for the customer-cisneros-a use case (and any future non-proxied flow), so the SCEP-prefixed name reads as a bug to anyone authoring an ACME profile.
+
+Today (4.85 and earlier) the only valid name is `SCEP_RENEWAL_ID`. The rename is half-shipped: docs use the new name, code still defines and substitutes only the old name. Phase 2 closes that gap.
+
+**Implementation approach:** add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables` validation. Both substitute to the same value (`"fleet-" + ProfileUUID`) via the same substitution helper — implemented as a single regex matching either name. Profile validation accepts either name; validation error messages reference only the new `CERTIFICATE_RENEWAL_ID` (we want new authoring to use the new name).
+
+**Why accept both rather than hard-rename:**
+- Customers running 4.85 likely have `$FLEET_VAR_SCEP_RENEWAL_ID` in deployed SCEP profile Subjects. Hard-renaming the substitution constant would break those profiles on the next upload/edit cycle (validation passes, but substitution leaves the literal `$FLEET_VAR_SCEP_RENEWAL_ID` string in the profile, which the device CA rejects).
+- Backwards-compat cost is small: one extra regex alternation, one extra constant. No new datastore work, no migration.
+- We can deprecate `SCEP_RENEWAL_ID` in a later release once telemetry shows the long tail has migrated.
+
+**Alternatives considered:**
+- *Hard-rename — only `CERTIFICATE_RENEWAL_ID` works.* Rejected per the customer-impact reasoning above.
+- *Hard-rename with a deprecation warning on uploads using the old name.* Considered. Same back-compat issue for already-deployed profiles that don't get re-uploaded — they'd silently stop substituting. Reject for the same reason.
+- *Keep `SCEP_RENEWAL_ID` as the only name and revert the docs PR.* Rejected: docs decision is product-led and reflects the variable's actual scope (any cert, not just SCEP). The mismatch is a code-side gap to close, not a docs error to revert.
+
 ## Phase Independence
 
 The expected ship cadence is "both phases together" — both deliver value to the same customer-cisneros-a use case and the redeploy step that activates Phase 2 is also what surfaces certs into Phase 1's ingestion. Each phase is still independently mergeable to keep PRs reviewable in isolation.
@@ -171,7 +189,7 @@ Phase 2 alone (if Phase 1 is delayed): iOS/iPadOS non-proxied ACME renewal works
 
 - **Windows Subject substitution** (Phase 2): today's `$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID` substitutes into the OMA-URI container path, not the cert Subject. For Windows renewal to use the same matching mechanism, either the customer profile must reuse `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in the cert Subject (CertificateRequestBody/SubjectName CSP node), or a Windows-specific Subject variable is introduced. Engineering to confirm Windows profile authoring conventions.
 
-- **Profile UUID format** (Phase 2): confirm by sampling that all profile UUIDs across `host_mdm_apple_profiles` / `host_mdm_windows_profiles` use the same shape, to finalize the extraction regex.
+- **Profile UUID format** (Phase 2): RESOLVED — empirically the marker is always literally `"fleet-" + profile_uuid` (substituted by `server/mdm/microsoft/profile_variables.go:125` and `server/mdm/apple/profile_processor.go:401-404`). No regex needed; substring search suffices.
 
 - **Validation surface** (Phase 2): GitOps profile uploads (`fleetctl gitops`) should also enforce the marker requirement. Confirm `fleetctl` profile validation shares the same code path as UI upload.
 

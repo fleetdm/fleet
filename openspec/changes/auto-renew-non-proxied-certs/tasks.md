@@ -72,24 +72,26 @@ Goal: extend `UpdateHostCertificates` to insert `host_mdm_managed_certificates` 
 
 > **Coordination with #44691**: That PR restructures the matcher in `UpdateHostCertificates` (introduces `toInsertBySHA1` map, pool-selection per hmmc row, best-match-wins, monotonic-forward predicate, `hmmcBackfillGrace`). It targets `main` and is expected to land before this PR. Our INSERT path lands as a separate loop alongside that restructured matcher, reusing `toInsertBySHA1`/`incomingBySHA1` it already builds. Plan to rebase against main once #44691 merges.
 
-## 7. PR 2.3 — Apple profile-upload validation
+## 7. PR 2.3 — Apple profile-upload validation + variable rename
 
-Goal: hard-reject Apple SCEP/ACME profiles missing the renewal-ID marker. This validation is the customer-facing trigger that drives the redeploy step.
+Goal: hard-reject Apple SCEP/ACME profiles missing the renewal-ID marker, and add code support for the renamed customer-facing variable (`$FLEET_VAR_CERTIFICATE_RENEWAL_ID`, per design.md Decision 2.7). This validation is the customer-facing trigger that drives the redeploy step.
 
-- [ ] 7.1 Detect SCEP and ACME payload types in Apple profile content during validation in `server/service/apple_mdm.go` (around the existing fleet-variable validation at line 71+)
-- [ ] 7.2 If a renewable payload is present, require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` substring in the cert Subject (CN or OU); reject with `fleet.NewInvalidArgumentError` naming the variable and explaining the requirement
-- [ ] 7.3 Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered
-- [ ] 7.4 Tests: payload + marker → accepted; payload + no marker → rejected with expected error message; non-renewable payloads → unaffected; existing profiles in DB are not retroactively rejected
-- [ ] 7.5 Release-notes draft for the validation behavior change, including the redeploy guidance
+- [ ] 7.1 Add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` constant in `server/fleet/mdm.go` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`.
+- [ ] 7.2 Extend `FleetVarSCEPRenewalIDRegexp` (or add a sibling regex) to match either name, then expose a unified `FleetVarRenewalIDRegexp` used by all substitution sites. Both names substitute to identical output: `"fleet-" + profile_uuid`. Touch points: `server/mdm/apple/profile_processor.go:401-404`, `server/mdm/microsoft/profile_variables.go:124-125`.
+- [ ] 7.3 Detect SCEP and ACME payload types in Apple profile content during validation in `server/service/apple_mdm.go` (around the existing fleet-variable validation). For ACME, the existing SCEP-payload validation does not apply — extend it to cover `com.apple.security.acme` payloads using the same Subject CN/OU marker check.
+- [ ] 7.4 If a renewable payload is present, require *either* `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` *or* `$FLEET_VAR_SCEP_RENEWAL_ID` in the cert Subject (CN or OU); reject with `fleet.NewInvalidArgumentError` naming `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` (preferred name) and explaining the requirement. The error message MUST NOT mention the legacy name — we want new authoring to gravitate to the new name.
+- [ ] 7.5 Confirm the same code path is hit by `fleetctl gitops` profile uploads; add an integration test if not already covered.
+- [ ] 7.6 Tests: payload + new marker → accepted; payload + legacy marker → accepted (back-compat); payload + no marker → rejected with expected error message; non-renewable payloads → unaffected; existing profiles in DB are not retroactively rejected; substitution produces identical output for both variable names.
+- [ ] 7.7 Release-notes draft for the validation behavior change, including the redeploy guidance and the variable-name rename note (legacy still accepted, new name preferred for new authoring).
 
 ## 8. PR 2.4 — Windows profile-upload validation
 
-Goal: same as PR 2.3 for Windows. Separated because the Windows path has a pending design question.
+Goal: same as PR 2.3 for Windows — including the legacy/new variable name back-compat (Decision 2.7).
 
 - [ ] 8.1 Resolve the Windows Subject substitution open question (see design.md): can `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` be reused in the Windows profile cert Subject, or does Windows need a new Subject-targeted variable?
-- [ ] 8.2 If a new variable is required, add it to `server/fleet/mdm.go` and substitution logic in `server/datastore/mysql/microsoft_mdm.go` and `server/mdm/microsoft/profile_variables.go`
-- [ ] 8.3 Extend Windows profile validation in `server/service/windows_mdm_profiles.go:143-159` to detect SCEP cert configurations and require the renewal-ID variable in the Subject
-- [ ] 8.4 Tests mirroring PR 2.3's coverage but for Windows profiles
+- [ ] 8.2 If a new variable is required, add it to `server/fleet/mdm.go` and substitution logic in `server/datastore/mysql/microsoft_mdm.go` and `server/mdm/microsoft/profile_variables.go`. Reuse the unified `FleetVarRenewalIDRegexp` from PR 2.3 task 7.2 so Windows accepts both legacy and new names without duplicating regex logic.
+- [ ] 8.3 Extend Windows profile validation in `server/service/windows_mdm_profiles.go` to detect SCEP cert configurations and require either renewal-ID variable in the Subject (back-compat per Decision 2.7). Validation error messages reference only `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`.
+- [ ] 8.4 Tests mirroring PR 2.3's coverage but for Windows profiles, including legacy-name back-compat.
 
 ## 9. PR 2.5 — Phase 2 documentation
 
@@ -99,7 +101,8 @@ Can ship in parallel with PR 2.3 / 2.4.
 - [ ] 9.2 Add example profiles (non-proxied ACME — generic plus a customer's-Hydrant illustration, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject CN/OU
 - [ ] 9.3 **Customer-facing redeploy guidance**: explicit upgrade-step doc explaining that existing profiles must be re-uploaded with the marker for renewal to activate; ideally include a `fleetctl` snippet or query to identify which existing profiles need updating
 - [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows
-- [ ] 9.5 Final release-notes entry consolidating Phase 2 changes
+- [ ] 9.5 Variable rename note (Decision 2.7): release-notes entry calling out that `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` is the new preferred name (per docs PR #44069), `$FLEET_VAR_SCEP_RENEWAL_ID` is still accepted for back-compat. New profiles should use the new name. Confirm rachaelshaw's customer-facing guide PR (#43293) lands alongside this release.
+- [ ] 9.6 Final release-notes entry consolidating Phase 2 changes
 
 ## 10. Phase 2 verification (QA, not a PR)
 

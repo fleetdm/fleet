@@ -62,7 +62,7 @@ The system SHALL create `host_mdm_managed_certificates` rows when a cert is firs
 
 ### Requirement: Profile-upload validation enforces renewal-ID marker
 
-The system SHALL reject profile uploads (via UI, API, or `fleetctl gitops`) when the profile contains a SCEP or ACME payload whose cert Subject does not include `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in CN or OU.
+The system SHALL reject profile uploads (via UI, API, or `fleetctl gitops`) when the profile contains a SCEP or ACME payload whose cert Subject does not include a renewal-ID marker variable in CN or OU. Both `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` (preferred, customer-facing name per PR #44069) and the legacy `$FLEET_VAR_SCEP_RENEWAL_ID` SHALL be accepted as valid markers. Validation error messages SHALL reference only `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` to steer new authoring toward the preferred name.
 
 #### Scenario: Apple ACME profile missing renewal-ID variable is rejected
 
@@ -80,6 +80,27 @@ The system SHALL reject profile uploads (via UI, API, or `fleetctl gitops`) when
 
 - **WHEN** a user uploads a profile with no SCEP or ACME payloads (e.g., a Wi-Fi profile, a restrictions profile)
 - **THEN** the system SHALL NOT require `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` and SHALL accept the profile
+
+#### Scenario: Legacy `SCEP_RENEWAL_ID` variable is still accepted
+
+- **WHEN** a user uploads a profile whose cert Subject contains `$FLEET_VAR_SCEP_RENEWAL_ID` (the pre-rename variable name) in CN or OU
+- **THEN** the system SHALL accept the profile (the legacy name remains valid for back-compat with profiles authored against pre-4.86 docs)
+- **AND** SHALL substitute the same value (`fleet-<profile_uuid>`) as it would for `$FLEET_VAR_CERTIFICATE_RENEWAL_ID`
+
+### Requirement: Renewal-ID variable substitution recognizes both names
+
+The system SHALL recognize both `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` (preferred) and `$FLEET_VAR_SCEP_RENEWAL_ID` (legacy) when substituting renewal-ID markers into profile content. Both names SHALL substitute to the identical string `"fleet-" + profile_uuid`. The variable name has no semantic effect on the resulting cert Subject — only on what the profile author types.
+
+#### Scenario: New variable substitutes to fleet-<profile_uuid>
+
+- **WHEN** a profile contains `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` in a cert Subject field
+- **THEN** the system SHALL replace it with `"fleet-" + profile_uuid` before delivering the profile to the device
+
+#### Scenario: Legacy variable substitutes identically
+
+- **WHEN** a profile contains `$FLEET_VAR_SCEP_RENEWAL_ID` in a cert Subject field
+- **THEN** the system SHALL replace it with `"fleet-" + profile_uuid` — the same value the new variable produces
+- **AND** the resulting cert Subject SHALL be indistinguishable on the wire from one authored with the new variable name
 
 ### Requirement: Profile redeploy activates renewal for existing fleet
 
