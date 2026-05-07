@@ -22,6 +22,8 @@ To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to 
 
 To target a different version of Fleet, use the `--tag` flag to target any tag in [Docker Hub](https://hub.docker.com/r/fleetdm/fleet/tags?page=1&ordering=last_updated), including any git commit hash or branch name. For example, to QA the latest code on the `main` branch of fleetdm/fleet, you can run: `fleetctl preview --tag=main`.
 
+To get a Docker image for an arbitrary feature branch, manually trigger the [Docker publish workflow](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) against that branch (or run `gh workflow run goreleaser-snapshot-fleet.yaml --ref <branch>`). The resulting image is tagged `fleetdm/fleet:<sanitized-branch-name>`.
+
 To start a preview without starting the simulated hosts, use the `--no-hosts` flag (e.g., `fleetctl preview --no-hosts`).
 
 For each bug found, please use the [bug report template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=) to create a new bug report issue.

@@ -116,12 +116,12 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 ### Create release candidate
 
-1. Push a branch containing new commits to [fleetdm/fleet](https://github.com/fleetdm/fleet) that begins with `prepare-*` or `patch-*`. 
+1. Push a branch containing new commits to [fleetdm/fleet](https://github.com/fleetdm/fleet) that begins with `rc-minor-*` or `rc-patch-*`.
    ```sh
-   git push origin patch-fleet-v4.3.1
+   git push origin rc-patch-fleet-v4.3.1
    ```
 
-   > When a `prepare-*` or `patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
+   > When an `rc-minor-*` or `rc-patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag rc-patch-fleet-v4.3.1`).
 
 2. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 

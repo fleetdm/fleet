@@ -21,7 +21,7 @@ terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_
 
 > IMPORTANT:
 > - We advise to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
-> - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
+> - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and the image you target may be rebuilt mid-test. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
 > - These scripts were tested with terraform 1.10.4.
 
 1. Push your `$BRANCH_NAME` branch to https://github.com/fleetdm/fleet and trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch).
