@@ -64,3 +64,13 @@ The cleanest way to get this configured:
 Fleet support has everything you need on the Fleet side: developer ID, current binary hashes, SLSA provenance attestations, signing certs, behavior documentation.
 
 Your EDR vendor owns the trust decision on their side. Fleet can provide technical context, but the exclusion or allowlist gets created by you and your EDR provider.
+
+
+<meta name="articleTitle" value="My EDR is flagging Fleet — what's going on, and what should I do?">
+<meta name="authorFullName" value="Dhruv Sharma">
+<meta name="authorGitHubUsername" value="karmine05">
+<meta name="category" value="troubleshooting guide">
+<meta name="publishedOn" value="2026-05-07">
+<meta name="description" value="Why EDR tools flag Fleet, what that means, and how to safely handle exclusions or canary-based hash allowlisting with your EDR vendor.">
+<meta name="useBasicArticleTemplate" value="true">
+<meta name="cardTitleForCustomersPage" value="My EDR is flagging Fleet">
