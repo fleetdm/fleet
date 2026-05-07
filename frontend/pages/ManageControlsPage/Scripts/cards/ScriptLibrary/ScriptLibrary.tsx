@@ -30,7 +30,6 @@ import ScriptListItem from "../../components/ScriptListItem";
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
 import { SCRIPT_UPLOADER_EMPTY_STATE_TEXT } from "../../helpers";
 
-
 const baseClass = "script-library";
 
 const SCRIPTS_PER_PAGE = 10;
@@ -197,11 +196,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         <EmptyState
           variant="header-list"
           header="No scripts"
-          info={
-            canUploadScripts
-              ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT
-              : undefined
-          }
+          info={canUploadScripts ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT : undefined}
           primaryButton={
             canUploadScripts ? (
               <Button onClick={() => setShowAddScriptModal(true)}>
