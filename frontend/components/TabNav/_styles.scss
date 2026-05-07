@@ -131,10 +131,13 @@
         &:focus-visible {
           outline: none; // Undo primary tabbing through app styling as it runs into edges
 
+          // Outline drawn snug to the text. A larger offset combined with the
+          // rounded corners produced a visible gap between the indicator and
+          // the active-tab underline that read as a stray light artifact in
+          // dark mode (#44905).
           .tab-text {
             outline: 1px solid $core-focused-outline;
-            outline-offset: 3px;
-            border-radius: $border-radius;
+            outline-offset: 1px;
           }
         }
 

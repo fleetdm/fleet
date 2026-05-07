@@ -12,16 +12,19 @@
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: $xx-small;
-    color: $core-fleet-black;
+    // Static dark text — the warning surface stays yellow in both themes, so
+    // the foreground must stay dark to keep contrast in dark mode.
+    color: $static-black;
     font-weight: $bold;
     border-radius: $border-radius;
 
     &.warning {
       background-color: $ui-warning;
+      color: $static-black;
     }
 
     &.error {
-      color: $core-fleet-white;
+      color: $static-white;
       background-color: $core-vibrant-red;
     }
   }
