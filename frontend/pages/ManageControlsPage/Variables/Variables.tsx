@@ -44,7 +44,7 @@ const Variables = () => {
 
   const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
   const { data, isFetching: isLoading, refetch } = useQuery<
-    IListSecretsResponse, 
+    IListSecretsResponse,
     Error,
     IListSecretsResponse
   >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
