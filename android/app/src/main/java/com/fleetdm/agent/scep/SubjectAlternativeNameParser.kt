@@ -9,6 +9,7 @@ import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x509.GeneralName
 import org.bouncycastle.asn1.x509.GeneralNames
 import java.net.InetAddress
+import java.util.Locale
 
 /**
  * Parses the comma-separated KEY=value SAN string carried on the certificate template
@@ -31,6 +32,8 @@ object SubjectAlternativeNameParser {
 
     private const val MICROSOFT_UPN_OID = "1.3.6.1.4.1.311.20.2.3"
 
+    private val IPV6_LITERAL_CHARS = Regex("^[0-9a-fA-F:]+(\\.[0-9]{1,3}){0,3}$")
+
     fun parse(sanString: String?): GeneralNames? {
         if (sanString.isNullOrBlank()) return null
 
@@ -49,7 +52,10 @@ object SubjectAlternativeNameParser {
         if (eqIndex <= 0 || eqIndex == token.length - 1) {
             throw IllegalArgumentException("Malformed SAN token: \"$token\" (expected KEY=value)")
         }
-        val key = token.substring(0, eqIndex).trim().uppercase()
+        // Locale.ROOT keeps the comparison locale-independent: a Turkish-locale device
+        // would otherwise turn "ip" into "İP", which would not match the ASCII "IP" arm
+        // and would fail enrollment.
+        val key = token.substring(0, eqIndex).trim().uppercase(Locale.ROOT)
         val value = token.substring(eqIndex + 1).trim()
         if (value.isEmpty()) {
             throw IllegalArgumentException("Malformed SAN token: \"$token\" (empty value)")
@@ -79,6 +85,11 @@ object SubjectAlternativeNameParser {
 
     private fun parseIpLiteral(value: String): InetAddress? {
         if (value.contains(':')) {
+            // Strict character-set gate before InetAddress.getByName. Without it, an input
+            // like "example.com:443" would still reach getByName, fall past the IPv6 literal
+            // parse, and trigger a real DNS lookup. Only hex digits, colons, and dotted-quad
+            // suffixes (for IPv4-mapped IPv6) are permitted.
+            if (!IPV6_LITERAL_CHARS.matches(value)) return null
             return try {
                 InetAddress.getByName(value)
             } catch (e: Exception) {

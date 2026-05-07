@@ -8,6 +8,7 @@ import org.bouncycastle.asn1.DERIA5String
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x509.GeneralName
+import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -15,8 +16,16 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.util.Locale
 
 class SubjectAlternativeNameParserTest {
+
+    private val originalLocale = Locale.getDefault()
+
+    @After
+    fun restoreLocale() {
+        Locale.setDefault(originalLocale)
+    }
 
     @Test
     fun `null input returns null`() {
@@ -247,6 +256,31 @@ class SubjectAlternativeNameParserTest {
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message!!.contains("example.com"))
         }
+    }
+
+    @Test
+    fun `colon-bearing hostname is rejected without DNS resolution`() {
+        // Strings like "example.com:443" contain a colon but are not IP literals.
+        // The parser must reject them rather than letting InetAddress.getByName fall
+        // through to a DNS lookup.
+        try {
+            SubjectAlternativeNameParser.parse("IP=example.com:443")
+            fail("Expected IllegalArgumentException")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message!!.contains("example.com:443"))
+        }
+    }
+
+    @Test
+    fun `lowercase keys parse correctly under Turkish locale`() {
+        // Turkish uppercase rules turn "i" into "İ" (dotted) under Locale.getDefault();
+        // the parser must use Locale.ROOT so "ip" still maps to "IP".
+        Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+        val names = SubjectAlternativeNameParser.parse("ip=10.0.0.1, dns=host.example.com")?.names
+        assertNotNull(names)
+        assertEquals(2, names!!.size)
+        assertEquals(GeneralName.iPAddress, names[0].tagNo)
+        assertEquals(GeneralName.dNSName, names[1].tagNo)
     }
 
     private fun assertUpnValue(name: ASN1Encodable, expected: String) {

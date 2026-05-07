@@ -183,6 +183,7 @@ class CertificateEnrollmentHandlerTest {
 
         handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
 
+        assertNotNull(mockScepClient.capturedConfig)
         assertNull(mockScepClient.capturedConfig?.subjectAlternativeName)
     }
 }
