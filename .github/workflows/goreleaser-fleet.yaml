@@ -244,6 +244,8 @@ jobs:
             echo "Error: Signed fleetctl binary not found"
             exit 1
           fi
+          # download-artifact@v4 does not preserve the execute bit
+          chmod +x dist/fleetctl_darwin_all/fleetctl
           echo "Binary found, verifying signature..."
           codesign --verify --verbose dist/fleetctl_darwin_all/fleetctl || exit 1
           ./dist/fleetctl_darwin_all/fleetctl --version
