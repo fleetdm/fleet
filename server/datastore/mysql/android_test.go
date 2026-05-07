@@ -2747,7 +2747,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, newConfig, meta.Configuration)
+	require.JSONEq(t, string(newConfig), string(meta.Configuration))
 
 	// Add invalid configuration
 	badConfig := []byte(`"-": "-"`)
