@@ -175,8 +175,7 @@ SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
 		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
 		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (
-					 SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts WHERE
+					 (SELECT round(SUM(per_device_size) * 10e-10, 2) FROM (SELECT MAX(blocks * blocks_size) AS per_device_size FROM mounts WHERE
 -- exclude mounts with no space
 blocks > 0
 AND blocks_size > 0
@@ -224,10 +223,7 @@ OR device LIKE '/dev/nvme%'
 OR device LIKE '/dev/mapper%'
 OR device LIKE '/dev/md%'
 OR device LIKE '/dev/dm-%'
-)
--- group by device so a filesystem bind-mounted at multiple paths is only counted once
-GROUP BY device
-)) AS gigs_all_disk_space
+) GROUP BY device)) AS gigs_all_disk_space
 		FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
