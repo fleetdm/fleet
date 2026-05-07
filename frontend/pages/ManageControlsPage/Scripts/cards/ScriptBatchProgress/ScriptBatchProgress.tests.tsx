@@ -148,9 +148,7 @@ const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
 
   await waitForLoadingToFinish(container);
 
-  expect(
-    screen.getByText(EMPTY_STATE_TEXT[status])
-  ).toBeInTheDocument();
+  expect(screen.getByText(EMPTY_STATE_TEXT[status])).toBeInTheDocument();
   cleanup();
 };
 
