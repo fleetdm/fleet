@@ -266,146 +266,6 @@
     }
   }
 
-  // ── Scenario card ─────────────────────────────────────────────────────────
-  [purpose='scenario-card'] {
-    background: @ui-off-white;
-    border: 1px solid @core-fleet-black-10;
-    border-radius: 16px;
-
-    padding: 40px;
-    align-self: stretch;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  [purpose='scenario-timeline'] {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding-bottom: 32px;
-    border-bottom: 1px solid @core-fleet-black-10;
-  }
-
-  [purpose='timeline-step'] {
-    flex: 1;
-    min-width: 120px;
-    background: #fff;
-    border: 1px solid @core-fleet-black-10;
-    border-radius: 10px;
-    padding: 14px 16px;
-  }
-
-  [purpose='timeline-text'] {
-    font-size: 15px;
-    font-weight: 700;
-    color: @core-fleet-black;
-    line-height: 1.4;
-    margin-bottom: 0;
-  }
-
-  [purpose='timeline-arrow'] {
-    color: @core-fleet-black-25;
-    font-size: 20px;
-    flex: 0 0 auto;
-    line-height: 1;
-  }
-
-  [purpose='scenario-facts'] {
-    display: flex;
-    flex-direction: row;
-    gap: 0;
-    width: 100%;
-  }
-
-  [purpose='scenario-fact'] {
-    flex: 1;
-    padding: 24px 32px;
-    border-right: 1px solid @core-fleet-black-10;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    &:first-child {
-      padding-left: 0;
-    }
-    &:last-child {
-      border-right: none;
-      padding-right: 0;
-    }
-    p {
-      margin-bottom: 0;
-      font-size: 14px;
-      color: @core-fleet-black-75;
-      line-height: 1.6;
-    }
-  }
-
-  [purpose='scenario-fact-label'] {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: @core-fleet-black-50;
-    margin-bottom: 0;
-  }
-
-  [purpose='scenario-label'] {
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: @core-fleet-black-50;
-  }
-
-  [purpose='scenario-heading'] {
-    font-size: 20px;
-    font-weight: 700;
-    color: @core-fleet-black;
-    line-height: 1.4;
-    margin-bottom: 0px;
-  }
-
-  [purpose='scenario-body'] {
-    font-size: 15px;
-    color: @core-fleet-black-75;
-    line-height: 1.75;
-    margin-bottom: 0;
-  }
-
-  [purpose='scenario-stats'] {
-    display: flex;
-    gap: 24px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-    border-top: 1px solid @core-fleet-black-10;
-    padding-top: 24px;
-  }
-
-  [purpose='stat-item'] {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 120px;
-  }
-
-  [purpose='stat-number'] {
-    font-size: 28px;
-    font-weight: 800;
-    color: @core-fleet-black;
-    letter-spacing: -0.5px;
-    line-height: 1;
-  }
-
-  [purpose='stat-label'] {
-    font-size: 13px;
-    color: @core-fleet-black-75;
-    font-weight: 400;
-    line-height: @text-lineheight;
-  }
-
   // ── Feature with image (checklist side) ───────────────────────────────────
   [purpose='feature-with-image'] {
     gap: 48px 64px;
@@ -505,7 +365,6 @@
     [purpose='tc'] { color: #9ecfbe; }
     [purpose='tk'] { color: #a5a3ff; }
     [purpose='ts'] { color: #ffa657; }
-    [purpose='ta'] { color: @core-vibrant-green; opacity: 1; }
   }
 
   // ── Feature cards (replace-jamf style) ───────────────────────────────────
@@ -561,12 +420,6 @@
         font-size: 12px;
         font-weight: 400;
         line-height: 18px;
-      }
-      [purpose='callout'] {
-        color: @core-vibrant-green;
-        font-size: 16px;
-        font-weight: 700;
-        line-height: @text-lineheight;
       }
     }
   }
@@ -716,7 +569,7 @@
   }
 
   [purpose='page-container'] {
-    padding: 64px;
+    .page-container();
   }
 
   [purpose='bottom-cta'] {
@@ -817,9 +670,6 @@
   }
 
   @media (max-width: 575px) {
-    [purpose='page-container'] {
-      padding: 48px 16px;
-    }
     [purpose='landing-page-container'] {
       padding-left: 24px;
       padding-right: 24px;
@@ -836,28 +686,6 @@
     }
     [purpose='section-heading'] {
       h2, h3 { font-size: 24px; }
-    }
-    [purpose='scenario-timeline'] {
-      gap: 6px;
-    }
-    [purpose='timeline-arrow'] {
-      display: none;
-    }
-    [purpose='timeline-step'] {
-      min-width: 100%;
-    }
-    [purpose='scenario-facts'] {
-      flex-direction: column;
-    }
-    [purpose='scenario-fact'] {
-      border-right: none;
-      border-bottom: 1px solid @core-fleet-black-10;
-      padding: 20px 0;
-      &:first-child { padding-left: 0; }
-      &:last-child {
-        border-bottom: none;
-        padding-right: 0;
-      }
     }
     [purpose='feature-row'] [purpose='feature-item'] {
       flex: 1 0 80%;
