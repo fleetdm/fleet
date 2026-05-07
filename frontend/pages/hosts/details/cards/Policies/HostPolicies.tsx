@@ -136,17 +136,20 @@ const Policies = ({
         ? ", or manage its policies."
         : ".";
       return (
-        <EmptyState
-          header="No policies checked"
-          info={`Select Refetch to load the latest data from ${target}${manageClause}`}
-          primaryButton={
-            canManagePolicies ? (
-              <Button onClick={onManagePolicies} type="button">
-                Manage policies
-              </Button>
-            ) : undefined
-          }
-        />
+        <>
+          <TableCount name="policies" count={0} />
+          <EmptyState
+            header="No policies checked"
+            info={`Select Refetch to load the latest data from ${target}${manageClause}`}
+            primaryButton={
+              canManagePolicies ? (
+                <Button onClick={onManagePolicies} type="button">
+                  Manage policies
+                </Button>
+              ) : undefined
+            }
+          />
+        </>
       );
     }
 
