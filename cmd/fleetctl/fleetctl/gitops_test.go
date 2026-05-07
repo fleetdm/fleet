@@ -155,7 +155,7 @@ org_settings:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "`name` must be provided outside of default.yml, no-team.yml and unassigned.yml")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")

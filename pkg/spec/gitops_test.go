@@ -522,11 +522,11 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 func TestMissingNameErrorMessages(t *testing.T) {
 	t.Parallel()
 
-	// Empty default.yml should report missing org_settings.
+	// Empty default.yml should report the generic missing-name guidance.
 	defaultPath, defaultBase := createNamedFileOnTempDir(t, "default.yml", "")
 	_, err := GitOpsFromFile(defaultPath, defaultBase, nil, nopLogf)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "'org_settings' is required in default.yml")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// Empty no-team.yml should report the No Team name requirement.
 	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
@@ -544,7 +544,7 @@ func TestMissingNameErrorMessages(t *testing.T) {
 	teamPath, teamBase := createNamedFileOnTempDir(t, "workstations.yml", "")
 	_, err = GitOpsFromFile(teamPath, teamBase, nil, nopLogf)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "`name` must be provided outside of default.yml, no-team.yml and unassigned.yml")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 }
 
 func TestPaddedTeamNameIsTrimmed(t *testing.T) {
@@ -1040,7 +1040,7 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 				if test.shouldPass {
 					assert.NoError(t, err)
 				} else {
-					assert.ErrorContains(t, err, "`name` must be provided outside of default.yml, no-team.yml and unassigned.yml")
+					assert.ErrorContains(t, err, "add `org_settings:` as a top-level key")
 				}
 			},
 		)
