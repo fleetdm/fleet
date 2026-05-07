@@ -46,7 +46,9 @@ describe("HostSoftwareLibraryTable", () => {
 
     // Empty state copy
     expect(screen.getByText("No software found")).toBeInTheDocument();
-    expect(screen.getByText("Add software to install.")).toBeInTheDocument();
+    expect(
+      screen.getByText("Add software to install on this host.")
+    ).toBeInTheDocument();
 
     // Add software CTA button in empty state
     expect(
@@ -69,6 +71,9 @@ describe("HostSoftwareLibraryTable", () => {
     });
 
     expect(screen.getByText("No software found")).toBeInTheDocument();
+    expect(
+      screen.getByText("No software has been added for this host.")
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /add software/i })
     ).not.toBeInTheDocument();

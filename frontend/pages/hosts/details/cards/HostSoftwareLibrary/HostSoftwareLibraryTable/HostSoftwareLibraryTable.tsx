@@ -159,7 +159,11 @@ const HostSoftwareLibraryTable = ({
       return (
         <EmptyState
           header="No software found"
-          info="Add software to install."
+          info={
+            canAddSoftware
+              ? "Add software to install on this host."
+              : "No software has been added for this host."
+          }
           primaryButton={
             canAddSoftware ? (
               <Button onClick={onAddSoftware} type="button">
