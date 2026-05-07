@@ -15,6 +15,12 @@
   top: 0;
   // No background color as TabNav is often over a background gradient
 
+  // react-tabs ships a default `:focus::after` that paints a 5px #fff bar
+  // below the focused tab; suppress it so we control the focus indicator.
+  .react-tabs__tab:focus::after {
+    content: none;
+  }
+
   .react-tabs {
     // Remove 12px top margin react-tab adds causing buggy 12px gap in all uses
     // TODO: Find upstream fix
@@ -118,14 +124,6 @@
 
         &:hover {
           background-color: transparent;
-        }
-
-        // Aligns underline correctly when focused
-        &:focus {
-          &:after {
-            left: 0;
-            bottom: 0;
-          }
         }
 
         &--selected {
