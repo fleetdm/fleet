@@ -49,6 +49,10 @@ labels:
   label_membership_type: host_vitals
   name: Label C
 org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: false
+    activity_expiry_window: 30
+    preserve_host_activities_on_reenrollment: true
   certificate_authorities:
     custom_est_proxy:
     - name: some-est-name
@@ -95,6 +99,9 @@ org_settings:
       users:
     enable_host_users: true
     enable_software_inventory: true
+    historical_data:
+      uptime: true
+      vulnerabilities: true
   fleet_desktop:
     alternative_browser_host: musica.alternativa
     transparency_url: https://fleetdm.com/transparency
@@ -130,8 +137,8 @@ org_settings:
       metadata_url: # TODO: Add your MDM end user auth metadata URL here
   org_info:
     contact_url: https://fleetdm.com/company/contact
-    org_logo_url: http://some-org-logo-url.com
-    org_logo_url_light_background: http://some-org-logo-url-light-background.com
+    org_logo_url_dark_mode: http://some-org-logo-url.com
+    org_logo_url_light_mode: http://some-org-logo-url-light-background.com
     org_name: Fleet
   secrets:
   - secret: # TODO: Add your enroll secrets here

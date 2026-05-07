@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime"
 	"os"
 	pathUtils "path"
 	"path/filepath"
@@ -75,6 +76,7 @@ type generateGitopsClient interface {
 	GetProfileContents(profileID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
+	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -792,13 +794,19 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		return nil, err
 	}
 
+	orgInfo, err := cmd.generateOrgInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	orgSettings = map[string]interface{}{
-		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
-		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
-		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):            cmd.AppConfig.OrgInfo,
-		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
-		jsonFieldName(t, "WebhookSettings"):    webhookSettings,
+		jsonFieldName(t, "ActivityExpirySettings"): cmd.AppConfig.ActivityExpirySettings,
+		jsonFieldName(t, "Features"):               cmd.AppConfig.Features,
+		jsonFieldName(t, "FleetDesktop"):           cmd.AppConfig.FleetDesktop,
+		jsonFieldName(t, "HostExpirySettings"):     cmd.AppConfig.HostExpirySettings,
+		jsonFieldName(t, "OrgInfo"):                orgInfo,
+		jsonFieldName(t, "ServerSettings"):         cmd.AppConfig.ServerSettings,
+		jsonFieldName(t, "WebhookSettings"):        webhookSettings,
 	}
 
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
@@ -1054,6 +1062,85 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 	}
 
 	return result, nil
+}
+
+// generateOrgInfo returns OrgInfo as a map so we can swap a Fleet-hosted
+// logo URL for a path key plus an exported file. External URLs flow through
+// unchanged; the deprecated logo URL keys are renamed to the mode-aware
+// variants by yamlMarshalRenamed at write time.
+func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
+	raw, err := json.Marshal(cmd.AppConfig.OrgInfo)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling org_info: %w", err)
+	}
+	orgInfo := map[string]any{}
+	if err := json.Unmarshal(raw, &orgInfo); err != nil {
+		return nil, fmt.Errorf("unmarshalling org_info: %w", err)
+	}
+
+	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeLight,
+		cmd.AppConfig.OrgInfo.OrgLogoURLLightMode,
+		"org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background"); err != nil {
+		return nil, err
+	}
+	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeDark,
+		cmd.AppConfig.OrgInfo.OrgLogoURLDarkMode,
+		"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"); err != nil {
+		return nil, err
+	}
+	return orgInfo, nil
+}
+
+// exportFleetHostedLogo, when the given URL points at the Fleet logo serving
+// endpoint, downloads the logo bytes, writes them to lib/org_logo/<mode>.<ext>,
+// and rewrites the orgInfo map to reference the file via pathKey instead of
+// the URL keys. External URLs are left untouched.
+func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
+	orgInfo map[string]any, mode fleet.OrgLogoMode, urlValue string,
+	pathKey, newURLKey, deprecatedURLKey string,
+) error {
+	if !fleet.IsFleetHostedLogoURL(urlValue) {
+		return nil
+	}
+	body, contentType, err := cmd.Client.GetOrgLogoContent(mode)
+	if err != nil {
+		// Server reports a Fleet-hosted URL but no blob is stored. Leave
+		// the URL keys in place so the user can investigate; the rest of
+		// the export should still succeed.
+		if service.IsNotFoundErr(err) {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter,
+				"warning: org logo for %s mode references Fleet but no logo content was found; leaving URL as-is\n", mode)
+			return nil
+		}
+		return fmt.Errorf("fetching org logo (%s): %w", mode, err)
+	}
+	ext, err := orgLogoExtFromContentType(contentType)
+	if err != nil {
+		return fmt.Errorf("org logo (%s): %w", mode, err)
+	}
+	fileName := fmt.Sprintf("lib/org_logo/%s%s", mode, ext)
+	cmd.FilesToWrite[fileName] = string(body)
+
+	orgInfo[pathKey] = fmt.Sprintf("./%s", fileName)
+	delete(orgInfo, newURLKey)
+	delete(orgInfo, deprecatedURLKey)
+	return nil
+}
+
+func orgLogoExtFromContentType(contentType string) (string, error) {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return "", fmt.Errorf("parsing logo Content-Type %q: %w", contentType, err)
+	}
+	switch mediaType {
+	case "image/png":
+		return ".png", nil
+	case "image/jpeg":
+		return ".jpg", nil
+	case "image/webp":
+		return ".webp", nil
+	}
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
 }
 
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {

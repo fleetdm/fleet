@@ -259,7 +259,7 @@ Fleet also provides a REST API for managing setup experience software and script
 
 ## Configuring via GitOps
 
-To manage setup experience software and script using Fleet's best practice GitOps, check out the `macos_setup` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#macos-setup)
+To manage setup experience software and script using Fleet's best practice GitOps, check out the `setup_experience` key in the [GitOps reference documentation](https://fleetdm.com/docs/configuration/yaml-files#setup-experience)
 
 ## Advanced
 

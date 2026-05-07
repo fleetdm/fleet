@@ -243,6 +243,36 @@ queries:
 	assert.ErrorContains(t, err, "Fleet Premium")
 }
 
+func TestGitOpsDryRunRejectsInvalidLabelPlatform(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t)
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+queries:
+labels:
+  - name: Test - Linux invalid platform
+    query: SELECT 1;
+    platform: linux
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: GitOps Test
+  secrets:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	require.ErrorContains(t, err, "invalid platform")
+	require.ErrorContains(t, err, "linux")
+}
+
 func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	// Cannot run t.Parallel() because it sets environment variables
 
@@ -714,6 +744,121 @@ software:
 	if err != nil {
 		assert.NotContains(t, err.Error(), `"software" is excepted from GitOps management`)
 	}
+}
+
+// TestGitOpsSecretsAppliedOnFreeTierDespiteException verifies that on free tier, secrets
+// in a GitOps file are applied even when the server has GitOpsExceptions.Secrets=true
+// (the default for new installs). Free-tier users can't toggle the exception off, so
+// the exception flag must not cause secrets to be silently dropped.
+func TestGitOpsSecretsAppliedOnFreeTierDespiteException(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// Server returns Exceptions.Secrets=true (the default for new installs).
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Secrets: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+
+	var appliedSecrets []*fleet.EnrollSecret
+	ds.ApplyEnrollSecretsFunc = func(ctx context.Context, teamID *uint, secrets []*fleet.EnrollSecret) error {
+		appliedSecrets = secrets
+		return nil
+	}
+	ds.IsEnrollSecretAvailableFunc = func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error) {
+		return true, nil
+	}
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+  secrets:
+    - secret: free-tier-secret-value
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.Len(t, appliedSecrets, 1, "secrets in YAML should be applied on free tier even when Exceptions.Secrets=true")
+	assert.Equal(t, "free-tier-secret-value", appliedSecrets[0].Secret)
+}
+
+// TestGitOpsLabelsAppliedOnFreeTierDespiteException verifies that on free tier, labels
+// in a GitOps file are applied even when the server has GitOpsExceptions.Labels=true
+// (the value set by the exceptions migration for existing instances). Free-tier users
+// can't toggle the exception off, so applying labels via GitOps must still work.
+func TestGitOpsLabelsAppliedOnFreeTierDespiteException(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+	license := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+
+	// Server returns Exceptions.Labels=true (the value set by the migration for existing instances).
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			GitOpsConfig: fleet.GitOpsConfig{
+				Exceptions: fleet.GitOpsExceptions{Labels: true},
+			},
+		}, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error { return nil }
+
+	var appliedLabelSpecs []*fleet.LabelSpec
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		appliedLabelSpecs = specs
+		return nil
+	}
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    org_name: Test
+labels:
+  - name: free-tier-label
+    query: SELECT 1
+controls:
+policies:
+agent_options:
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name()})
+	require.NoError(t, err)
+
+	require.Len(t, appliedLabelSpecs, 1, "labels in YAML should be applied on free tier even when Exceptions.Labels=true")
+	assert.Equal(t, "free-tier-label", appliedLabelSpecs[0].Name)
 }
 
 // TestGitOpsExceptionsPreserveOmittedKeys verifies that when exceptions are ON,
@@ -1330,6 +1475,12 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
+	// historical_data sub-keys default to true on team gitops applies that
+	// don't pin them — same carve-out as enable_software_inventory above.
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"team gitops defaults historical_data.uptime to true")
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"team gitops defaults historical_data.vulnerabilities to true")
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
@@ -3729,6 +3880,39 @@ func TestGitOpsWindowsMigration(t *testing.T) {
 	}
 }
 
+func TestGitOpsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	t.Run("explicit true", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_true.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("explicit false", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops actually flips it.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_false.yml"})
+		require.NoError(t, err)
+		require.False(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+
+	t.Run("omitted preserves prior value", func(t *testing.T) {
+		_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+		// Seed the AppConfig with true so we can confirm gitops does not clobber
+		// the value when the field is absent from the YAML.
+		(*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment = true
+
+		_, err := RunAppNoChecks([]string{"gitops", "-f", "testdata/gitops/global_config_preserve_host_activities_omitted.yml"})
+		require.NoError(t, err)
+		require.True(t, (*appConfig).ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+	})
+}
+
 func TestGitOpsGlobalWebhooksDisable(t *testing.T) {
 	_, appConfig, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
 
@@ -4133,6 +4317,190 @@ software:
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+}
+
+func TestGitOpsHistoricalData(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Start with both sub-keys disabled to verify the GitOps apply flips them.
+	appConfig := fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{
+				Uptime:          false,
+				Vulnerabilities: false,
+			},
+		},
+	}
+
+	globalFileWithHistoricalData, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithHistoricalData.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: true
+      vulnerabilities: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Apply explicit historical_data values via GitOps and verify they're applied.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime)
+	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
+
+	// Apply a YAML that omits historical_data entirely and verify that values revert
+	// to defaults (true).
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime,
+		"omitted historical_data defaults uptime to true")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted historical_data defaults vulnerabilities to true")
+
+	// Apply a YAML with historical_data.uptime: false but no vulnerabilities
+	// key, and verify that uptime is set to false but vulnerabilities remains true.
+	globalFileWithUptimeOnly, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithUptimeOnly.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
+	require.NoError(t, err)
+	require.False(t, appConfig.Features.HistoricalData.Uptime,
+		"explicit uptime: false is honored")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted vulnerabilities sub-key defaults to true")
+}
+
+func TestGitOpsTeamHistoricalDataActivity(t *testing.T) {
+	// Test that fleet GitOps properly applies historical_data changes via editTeamFromSpec.
+	// This verifies the code path that was fixed to call OnHistoricalDataChanged and
+	// emit activities. The activity emission itself is tested in integration tests
+	// (see TestModifyTeamHistoricalData in server/service/integration_enterprise_test.go).
+
+	appConfig := &fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+	}
+
+	tmpDir := t.TempDir()
+
+	// Create a team YAML with historical_data.uptime flipped to false.
+	teamFile, err := os.CreateTemp(tmpDir, "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(`name: Test Team
+settings:
+  features:
+    historical_data:
+      uptime: false
+      vulnerabilities: true
+`)
+	require.NoError(t, err)
+
+	// Use the SetupFullGitOpsPremiumServer which provides comprehensive mocking
+	// and will actually call the service methods including editTeamFromSpec.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Team" && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		team.ID = 1
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
+		return nil, nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		if savedTeam != nil && savedTeam.ID == id {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a global file for the gitops run.
+	globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+
+	// Apply the GitOps YAMLs. This will call editTeamFromSpec which should now
+	// emit activities via OnHistoricalDataChanged.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify the team was created/updated with the correct historical_data settings.
+	require.NotNil(t, savedTeam, "team should have been created or modified")
+	require.False(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"historical_data.uptime should be false from GitOps")
+	require.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"historical_data.vulnerabilities should be true from GitOps")
 }
 
 func TestGitOpsSSOSettings(t *testing.T) {
@@ -6326,5 +6694,108 @@ software:
 		_ = RunAppForTest(t, []string{"gitops", "-f", teamFile.Name()})
 
 		assert.Equal(t, 1, setOrUpdateCalls, "SetOrUpdateMDMWindowsConfigProfile should be called when grace_period_days changes")
+	})
+}
+
+// TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict verifies that both
+// dry-run and real gitops runs fail when macos_manual_agent_install is true and
+// macos_script is set. Regression test for
+// https://github.com/fleetdm/fleet/issues/34464
+func TestGitOpsMacOSSetupScriptWithManualAgentInstallConflict(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:       license,
+			KeyValueStore: testing_utils.NewMemKeyValueStore(),
+		},
+	)
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a setup experience script file on disk
+	scriptFile, err := os.CreateTemp(t.TempDir(), "*.sh")
+	require.NoError(t, err)
+	_, err = scriptFile.WriteString(`echo "setup script"`)
+	require.NoError(t, err)
+	err = scriptFile.Close()
+	require.NoError(t, err)
+
+	t.Run("team", func(t *testing.T) {
+		ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+			return nil, &notFoundError{}
+		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			return nil, nil
+		}
+
+		teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = teamFile.WriteString(fmt.Sprintf(`
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+queries:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+software:
+`, scriptFile.Name(), t.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name(), "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", teamFile.Name()})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+	})
+
+	t.Run("no team", func(t *testing.T) {
+		globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+		require.NoError(t, err)
+		_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+org_settings:
+  server_settings:
+    server_url: %s
+  org_info:
+    org_name: %s
+  secrets:
+policies:
+reports:
+`, fleetServerURL, orgName))
+		require.NoError(t, err)
+
+		noTeamFilePath := filepath.Join(t.TempDir(), "unassigned.yml")
+		noTeamFile, err := os.Create(noTeamFilePath)
+		require.NoError(t, err)
+		_, err = noTeamFile.WriteString(fmt.Sprintf(`name: Unassigned
+policies:
+controls:
+  setup_experience:
+    macos_manual_agent_install: true
+    macos_script: %s
+software:
+`, scriptFile.Name()))
+		require.NoError(t, err)
+
+		// Dry run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
+
+		// Real run should fail
+		_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", noTeamFilePath})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
 }

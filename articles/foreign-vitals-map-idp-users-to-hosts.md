@@ -52,6 +52,9 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 11. On the same page, make sure that `givenName` and `familyName` attributes have Okta values assigned to them. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute, but does not require it. Remove the mapping for the rest of the attributes.
 ![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
+> If you use attributes other than the supported attributes above, the payload will be rejected by Fleet.
+
+
 #### Step 3: Map Okta users and groups to hosts in Fleet
 
 To send users and groups information to Fleet, you have to assign them to your new SCIM app.
@@ -107,6 +110,8 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 4. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
 5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
 6. From the side menu, select **Overview** and select **Start provisioning**.
+
+> Note: Entra does not support [syncing nested groups using SCIM](https://learn.microsoft.com/en-us/entra/identity/app-provisioning/application-provisioning-config-problem-no-users-provisioned). Please consider using dynamic group membership instead.
 
 It might take up to 40 minutes until Microsoft Entra ID sends data to Fleet. To speed this up, you can use the "Provision on demand" option in Microsoft Entra ID.
 
