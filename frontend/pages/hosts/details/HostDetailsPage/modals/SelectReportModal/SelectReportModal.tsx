@@ -173,12 +173,9 @@ const SelectReportModal = ({
           info={
             canCreateReport ? (
               <>
-                <CustomLink
-                  url={getPathWithQueryParams(PATHS.NEW_REPORT, {
-                    fleet_id: currentTeamId,
-                  })}
-                  text="Create a report"
-                />{" "}
+                <Button variant="link" onClick={onRunCustomReport}>
+                  Create a report
+                </Button>{" "}
                 to run.
               </>
             ) : (
@@ -219,7 +216,7 @@ const SelectReportModal = ({
             autofocus
             iconSvg="search"
           />
-          <div className={`${baseClass}__query-selection`}>{reportList}</div>
+          <div className={`${baseClass}__report-selection`}>{reportList}</div>
         </>
       );
     }

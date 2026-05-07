@@ -1,5 +1,5 @@
 // Similar to AddPolicyModal
-.select-query-modal {
+.select-report-modal {
   max-height: 90%;
   overflow: hidden;
 
@@ -12,7 +12,7 @@
     height: 100%;
   }
 
-  &__query-selection {
+  &__report-selection {
     overflow-y: auto;
     .children-wrapper {
       width: 680px;
