@@ -20,6 +20,11 @@ var scdOpenSentinel = time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
 // scdUpsertBatch caps how many entity rows are written per INSERT statement.
 const scdUpsertBatch = 200
 
+// scdCleanupBatch caps how many rows CleanupSCDData deletes per statement, so
+// each batch's lock window is short and concurrent writers can interleave.
+// var (not const) so tests can shrink it to exercise multi-batch behavior.
+var scdCleanupBatch = 1000
+
 // scdRow is a single row of host_scd_data as fetched by GetSCDData.
 type scdRow struct {
 	EntityID   string    `db:"entity_id"`
@@ -36,15 +41,23 @@ func (ds *Datastore) RecordBucketData(
 	strategy api.SampleStrategy,
 	entityBitmaps map[string][]byte,
 ) error {
-	if len(entityBitmaps) == 0 {
-		return nil
-	}
 	bucketStart = bucketStart.UTC()
 
 	switch strategy {
 	case api.SampleStrategyAccumulate:
+		// Accumulate with an empty map has nothing to OR-merge and no prior
+		// state to reconcile — skip the round trip.
+		if len(entityBitmaps) == 0 {
+			return nil
+		}
 		return ds.recordAccumulate(ctx, dataset, bucketStart, bucketSize, entityBitmaps)
 	case api.SampleStrategySnapshot:
+		// Do NOT short-circuit on empty: empty means "no entities are
+		// currently in the tracked state." For snapshot semantics this is a
+		// meaningful write because any previously-open rows for this dataset
+		// need to be closed at bucketStart. recordSnapshot handles empty
+		// input correctly (the "absent entities" branch closes every open
+		// row).
 		return ds.recordSnapshot(ctx, dataset, bucketStart, entityBitmaps)
 	default:
 		return ctxerr.Errorf(ctx, "unknown sample strategy: %s", strategy)
@@ -87,6 +100,9 @@ func (ds *Datastore) recordAccumulate(
 			HostBitmap []byte `db:"host_bitmap"`
 		}
 		var rows []row
+		// Using writer here since a stale read would OR-merge against an older
+		// bitmap, then ODKU would overwrite the row with the partial merge — silently
+		// dropping hosts from any sample the replica hadn't replicated yet.
 		if err := sqlx.SelectContext(ctx, ds.writer(ctx), &rows, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "fetch in-bucket bitmaps")
 		}
@@ -143,7 +159,10 @@ func (ds *Datastore) recordSnapshot(
 		ValidFrom  time.Time `db:"valid_from"`
 	}
 	var openRows []openRow
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &openRows,
+	// Reader is safe here: the close UPDATE filters by valid_to = sentinel and the
+	// insert uses ODKU on uniq_entity_bucket, so a stale read at worst produces
+	// idempotent re-work (a no-op close or a same-bucket overwrite).
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &openRows,
 		`SELECT entity_id, host_bitmap, valid_from
 		 FROM host_scd_data
 		 WHERE dataset = ? AND valid_to = ?`,
@@ -269,7 +288,13 @@ func (ds *Datastore) GetSCDData(
 	lastBucketEnd := endDate.Add(bucketSize)
 	args := []any{dataset, lastBucketEnd, firstBucketStart}
 	var entityClause string
-	if len(entityIDs) > 0 {
+	switch {
+	case entityIDs == nil:
+		// no clause — match every entity for this dataset
+	case len(entityIDs) == 0:
+		// explicit empty set — match nothing; avoids MySQL syntax error from `IN ()`
+		entityClause = " AND 1=0"
+	default:
 		entityClause = " AND entity_id IN (?)"
 		args = append(args, entityIDs)
 	}
@@ -347,17 +372,32 @@ func aggregateBucket(rows []scdRow, bucketStart, bucketEnd time.Time, strategy a
 
 // CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 // retention cutoff. Open rows (valid_to = sentinel) are always preserved.
+// Deletes in batches so each statement holds locks briefly and the concurrent
+// collection cron can interleave writes.
 func (ds *Datastore) CleanupSCDData(ctx context.Context, days int) error {
 	// Compute the cutoff in Go (UTC) so the retention boundary doesn't depend
 	// on the MySQL session time zone — all valid_to writes are UTC.
 	cutoff := time.Now().UTC().AddDate(0, 0, -days)
-	_, err := ds.writer(ctx).ExecContext(ctx,
-		`DELETE FROM host_scd_data
-		 WHERE valid_to < ?
-		   AND valid_to <> ?`,
-		cutoff, scdOpenSentinel)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+	for {
+		if err := ctx.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`DELETE FROM host_scd_data
+			 WHERE valid_to < ?
+			   AND valid_to <> ?
+			 ORDER BY valid_to
+			 LIMIT ?`,
+			cutoff, scdOpenSentinel, scdCleanupBatch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data")
+		}
+		n, err := res.RowsAffected()
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "cleanup SCD data rows affected")
+		}
+		if n < int64(scdCleanupBatch) {
+			return nil
+		}
 	}
-	return nil
 }

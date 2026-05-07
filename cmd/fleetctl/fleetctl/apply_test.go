@@ -2021,6 +2021,9 @@ func TestApplyLabels(t *testing.T) {
 			fleet.BuiltinLabelNameUbuntuLinux: ubuntuLabel,
 		}, nil
 	}
+	// Reset invocation flag — earlier sub-cases call LabelsByName as part of
+	// the regular-label apply flow (used for created/edited activity detection).
+	ds.LabelsByNameFuncInvoked = false
 
 	name = writeTmpYml(t, builtinLabelSpec)
 	_, err := RunAppNoChecks([]string{"apply", "-f", name})
@@ -2201,7 +2204,14 @@ func TestApplyMacosSetup(t *testing.T) {
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
-		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
+		tm1 := &fleet.Team{ID: 1, Name: "tm1", Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
+		}}
 		teamsByName := map[string]*fleet.Team{
 			"tm1": tm1,
 		}
@@ -2260,6 +2270,12 @@ func TestApplyMacosSetup(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 		}
 		if premium {
 			mockStore.appConfig.ServerSettings.EnableAnalytics = true

@@ -153,3 +153,13 @@
   query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.github.macadmins.Nudge';
   label_membership_type: dynamic
   platform: darwin
+- name: Macs with Adobe Acrobat Reader installed
+  description: macOS hosts with Adobe Acrobat Reader installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader';
+  label_membership_type: dynamic
+  platform: darwin
+- name: Macs with Adobe Acrobat Pro installed
+  description: macOS hosts with Adobe Acrobat Pro installed
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Acrobat.Pro';
+  label_membership_type: dynamic
+  platform: darwin

@@ -66,6 +66,30 @@ jobs:
             sudo rm -rf "$app"
           done
 
+      # Fleet Desktop's installer refuses to run unless the
+      # com.fleetdm.fleetd.config managed preferences profile is present
+      # (it's normally delivered via MDM). CI runners aren't MDM-enrolled,
+      # so we drop a stub plist in place before the validate step so the
+      # install script succeeds. This workflow validates every FMA every
+      # run, so fleet-desktop is always exercised.
+      - name: Create Fleet Desktop MDM config stub (CI-only)
+        run: |
+          sudo mkdir -p "/Library/Managed Preferences"
+          sudo tee "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist" > /dev/null <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>EnrollSecret</key>
+              <string>ci-test-placeholder</string>
+              <key>FleetURL</key>
+              <string>https://ci.test.example.com</string>
+          </dict>
+          </plist>
+          PLIST
+          sudo chmod 644 "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
+          ls -l "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
+
       - name: Verify Fleet Maintained Apps mac
         run: |
           ls /Applications

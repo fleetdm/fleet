@@ -11,6 +11,7 @@ import { useQuery } from "react-query";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
@@ -89,11 +90,9 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
       setSetupSse(true);
-    } catch (e: any) {
-      if (
-        e.data?.errors &&
-        e.data.errors[0].reason?.includes("android enterprise already exists")
-      ) {
+    } catch (e) {
+      const reason = getErrorReason(e);
+      if (reason.includes("android enterprise already exists")) {
         renderFlash(
           "error",
           <>

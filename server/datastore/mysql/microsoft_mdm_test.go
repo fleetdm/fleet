@@ -59,6 +59,9 @@ func TestMDMWindows(t *testing.T) {
 		{"TestEditProfileDeletesRemovedLocURIs", testEditProfileDeletesRemovedLocURIs},
 		{"TestBatchDeleteMultipleWindowsProfiles", testBatchDeleteMultipleWindowsProfiles},
 		{"TestMDMWindowsUnenrollCleansUpProfiles", testMDMWindowsUnenrollCleansUpProfiles},
+		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
+		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
+		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
 	}
 
 	for _, c := range cases {
@@ -3368,7 +3371,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice1.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, 2, count, "Only one device has responded, so the command should still be in the queue")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	// Finish setting up the second device for testing
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -3392,7 +3395,7 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice2.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	assert.Equal(t, count, 1, "Two out of three have responded, so the command should still be in the queue for the last host")
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	// Third device, which in our test case failed and will have it's command resent
 	ExecAdhocSQL(t, ds, func(t sqlx.ExtContext) error {
@@ -3419,8 +3422,9 @@ VALUES (?, 'pending', 'install', ?, 'disable-onedrive', ?)`, enrolledDevice3.Hos
 		return sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?",
 			atomicCommandUUID)
 	})
-	// We still expect one here, as the clearing of the command from the queue will happen in the resend flow.
-	assert.Equal(t, count, 1, "All devices have responded, so the command should be completely removed from the queue")
+	// Queue rows persist after ACK; device 3's command was excluded from processing (being resent),
+	// so all three queue rows remain.
+	assert.Equal(t, 3, count, "Queue rows are no longer deleted on ACK; all three devices should still be in the queue")
 
 	t.Run("non-atomic command saves and verifies correctly", func(t *testing.T) {
 		replaceCommandUUID := uuid.NewString()
@@ -3651,6 +3655,228 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 		})
 	})
 
+	t.Run("remove status outcomes", func(t *testing.T) {
+		// Both verified and failed removes are terminal (best-effort removal)
+		// and should be deleted from host_mdm_windows_profiles.
+		cases := []struct {
+			name       string
+			statusCode int
+		}{
+			{"verified remove deletes row", 200},
+			{"failed remove deletes row", 418}, // not in the "treated as success" list, maps to Failed
+		}
+		for _, tc := range cases {
+			t.Run(tc.name, func(t *testing.T) {
+				deleteCommandUUID := uuid.NewString()
+				cmd := &fleet.MDMWindowsCommand{
+					CommandUUID: deleteCommandUUID,
+					RawCommand: fmt.Appendf([]byte{}, `
+	<Delete>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+			</Target>
+		</Item>
+	</Delete>
+`, deleteCommandUUID),
+				}
+				err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+					[]string{enrolledDevice1.MDMDeviceID}, cmd)
+				require.NoError(t, err)
+
+				profileUUID := uuid.NewString()
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'verifying', 'remove', ?, 'disable-onedrive', ?)`, enrolledDevice1.HostUUID, deleteCommandUUID, profileUUID)
+					return err
+				})
+
+				enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+					{Type: "Delete", StatusCode: tc.statusCode, UUID: deleteCommandUUID},
+				})
+				_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+				require.NoError(t, err)
+
+				var count int
+				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+					return sqlx.GetContext(t.Context(), q, &count, `
+SELECT COUNT(*) FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteCommandUUID)
+				})
+				assert.Equal(t, 0, count, "terminal remove row should be deleted")
+			})
+		}
+	})
+
+	t.Run("mixed install and remove in same batch", func(t *testing.T) {
+		// Install profile (Replace command, status 200) + Remove profile (Delete command, status 200).
+		replaceCommandUUID := uuid.NewString()
+		replaceCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: replaceCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Replace>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync</LocURI>
+			</Target>
+			<Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+			<Data>1</Data>
+		</Item>
+	</Replace>
+`, replaceCommandUUID),
+			TargetLocURI: "",
+		}
+		deleteCommandUUID := uuid.NewString()
+		deleteCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: deleteCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Delete>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/SomeOtherSetting</LocURI>
+			</Target>
+		</Item>
+	</Delete>
+`, deleteCommandUUID),
+			TargetLocURI: "",
+		}
+
+		err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, replaceCmd)
+		require.NoError(t, err)
+		err = ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, deleteCmd)
+		require.NoError(t, err)
+
+		installProfileUUID := uuid.NewString()
+		removeProfileUUID := uuid.NewString()
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'install-profile', ?)`, enrolledDevice1.HostUUID, replaceCommandUUID, installProfileUUID)
+			require.NoError(t, err)
+			_, err = q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'verifying', 'remove', ?, 'remove-profile', ?)`, enrolledDevice1.HostUUID, deleteCommandUUID, removeProfileUUID)
+			return err
+		})
+
+		cmdEntries := []enrichResponseEntry{
+			{Type: "Replace", StatusCode: 200, UUID: replaceCommandUUID},
+			{Type: "Delete", StatusCode: 200, UUID: deleteCommandUUID},
+		}
+		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, cmdEntries)
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		require.NoError(t, err)
+
+		// Install profile should be upserted with verified status.
+		var installStatus string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &installStatus, `
+SELECT status FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCommandUUID)
+		})
+		assert.Equal(t, "verified", installStatus, "install profile should be verified")
+
+		// Remove profile should be deleted.
+		var removeCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &removeCount, `
+SELECT COUNT(*) FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, deleteCommandUUID)
+		})
+		assert.Equal(t, 0, removeCount, "verified remove row should be deleted")
+	})
+
+	t.Run("remove then reinstall same profile", func(t *testing.T) {
+		// Validates that deleting a verified-remove row by command_uuid does not
+		// interfere with a fresh install of the same (host_uuid, profile_uuid) pair.
+		profileUUID := uuid.NewString()
+
+		// Step 1: create a remove row and ACK it as verified → row deleted.
+		removeCommandUUID := uuid.NewString()
+		removeCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: removeCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Delete>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/ReinstallTest</LocURI>
+			</Target>
+		</Item>
+	</Delete>
+`, removeCommandUUID),
+		}
+		err := ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, removeCmd)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'verifying', 'remove', ?, 'reinstall-test', ?)`, enrolledDevice1.HostUUID, removeCommandUUID, profileUUID)
+			return err
+		})
+		enrichedSyncML := createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Delete", StatusCode: 200, UUID: removeCommandUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		require.NoError(t, err)
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &count, `
+SELECT COUNT(*) FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID)
+		})
+		require.Equal(t, 0, count, "remove row should be deleted after verified ACK")
+
+		// Step 2: fresh install of the same profile with a new command UUID.
+		installCommandUUID := uuid.NewString()
+		installCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: installCommandUUID,
+			RawCommand: fmt.Appendf([]byte{}, `
+	<Replace>
+		<CmdID>%s</CmdID>
+		<Item>
+			<Target>
+				<LocURI>./Device/Vendor/MSFT/Policy/Config/System/ReinstallTest</LocURI>
+			</Target>
+			<Meta><Format xmlns="syncml:metinf">int</Format></Meta>
+			<Data>1</Data>
+		</Item>
+	</Replace>
+`, installCommandUUID),
+		}
+		err = ds.mdmWindowsInsertCommandForHostsDB(t.Context(), ds.primary,
+			[]string{enrolledDevice1.MDMDeviceID}, installCmd)
+		require.NoError(t, err)
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(t.Context(), `
+INSERT INTO host_mdm_windows_profiles (host_uuid, status, operation_type, command_uuid, profile_name, profile_uuid)
+VALUES (?, 'pending', 'install', ?, 'reinstall-test', ?)`, enrolledDevice1.HostUUID, installCommandUUID, profileUUID)
+			return err
+		})
+		enrichedSyncML = createResponseAsEnrichedSyncML(t, enrolledDevice1, []enrichResponseEntry{
+			{Type: "Replace", StatusCode: 200, UUID: installCommandUUID},
+		})
+		_, err = ds.MDMWindowsSaveResponse(t.Context(), enrolledDevice1, enrichedSyncML, []string{})
+		require.NoError(t, err)
+
+		// The reinstalled profile should land as verified.
+		var status string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &status, `
+SELECT status FROM host_mdm_windows_profiles
+WHERE host_uuid = ? AND profile_uuid = ?`, enrolledDevice1.HostUUID, profileUUID)
+		})
+		assert.Equal(t, "verified", status, "reinstalled profile should be verified")
+	})
+
 	t.Run("wipe failure returns WipeFailed result", func(t *testing.T) {
 		ctx := t.Context()
 
@@ -3723,15 +3949,9 @@ WHERE host_uuid = ? AND command_uuid = ?`, enrolledDevice1.HostUUID, replaceCmd.
 			require.NotNil(t, result)
 			require.NotNil(t, result.WipeFailed)
 
-			// Re-enqueue the command (only the queue entry was deleted, the
-			// command itself stays in windows_mdm_commands). Do NOT restore
-			// wipe_ref — it was cleared by the first failure.
-			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-				_, err := q.ExecContext(ctx,
-					`INSERT INTO windows_mdm_command_queue (enrollment_id, command_uuid) VALUES (?, ?)`,
-					enrolled.ID, wipeCmdUUID)
-				return err
-			})
+			// Queue row persists after ACK (no longer deleted), so no
+			// re-insert is needed. Do NOT restore wipe_ref — it was
+			// cleared by the first failure.
 
 			// Second response — wipe_ref is already NULL, so 0 rows affected.
 			resp2 := buildWipeResponse(t, wipeCmdUUID, "500")
@@ -4390,6 +4610,11 @@ func testResendWindowsMDMCommand(t *testing.T, ds *Datastore) {
 }
 
 func testDeleteProfileLocURIProtection(t *testing.T, ds *Datastore) {
+	// One subtest below replicates the post-team-move reconciliation by
+	// calling BulkSetPendingMDMHostProfiles and then asserts on
+	// host_mdm_windows_profiles. Production defers that to the cron, so
+	// this test opts into the eager hook.
+	ds.EnableTestWindowsEagerHook(t)
 	ctx := t.Context()
 
 	h1 := test.NewHost(t, ds, "host1", "10.0.0.1", uuid.NewString(), uuid.NewString(), time.Now(), test.WithPlatform("windows"))
@@ -4845,6 +5070,252 @@ func testMDMWindowsUnenrollCleansUpProfiles(t *testing.T, ds *Datastore) {
 	winProfs, err = ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	require.Empty(t, winProfs)
+}
+
+// testMDMWindowsProfilesToRemoveSkipsOrphanedHosts verifies that
+// ListMDMWindowsProfilesToRemoveForHosts does not return profiles for hosts
+// whose mdm_windows_enrollments row has been deleted (issue #44369).
+func testMDMWindowsProfilesToRemoveSkipsOrphanedHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two Windows hosts and enroll both.
+	host1 := test.NewHost(t, ds, "win-orphan1", "10.0.0.1", "k1", "uuid-orphan1", time.Now())
+	host1.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host1))
+	windowsEnroll(t, ds, host1)
+
+	host2 := test.NewHost(t, ds, "win-orphan2", "10.0.0.2", "k2", "uuid-orphan2", time.Now())
+	host2.Platform = "windows"
+	require.NoError(t, ds.UpdateHost(ctx, host2))
+	windowsEnroll(t, ds, host2)
+
+	// Create a global profile and mark it as installed+verified on both hosts.
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+	installWindowsProfilesAsVerified(t, ds, []string{host1.UUID, host2.UUID}, []string{profUUID})
+
+	// Delete the profile definition via raw SQL so that host_mdm_windows_profiles
+	// rows become orphaned removal candidates (bypassing the cascade cleanup in
+	// DeleteMDMWindowsConfigProfile).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`, profUUID)
+		return err
+	})
+
+	// Sanity check: both hosts should be removal candidates while enrolled.
+	toRemove, err := ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
+	require.NoError(t, err)
+	require.Len(t, toRemove, 2)
+
+	// Now delete host1's enrollment to simulate the orphan condition.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE host_uuid = ?`, host1.UUID)
+		return err
+	})
+
+	// Only host2 (still enrolled) should be returned; host1 is orphaned.
+	toRemove, err = ds.ListMDMWindowsProfilesToRemoveForHosts(ctx, []string{host1.UUID, host2.UUID})
+	require.NoError(t, err)
+	require.Len(t, toRemove, 1)
+	require.Equal(t, host2.UUID, toRemove[0].HostUUID)
+}
+
+// testMDMWindowsInsertCommandSkipsUnenrolledHosts verifies that
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts gracefully skips hosts
+// without an enrollment instead of failing the batch (issue #44369).
+func testMDMWindowsInsertCommandSkipsUnenrolledHosts(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create and enroll two devices.
+	d1 := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-1C3ARC1",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               uuid.NewString(),
+	}
+	d2 := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-2C3ARC2",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollUserID:        "",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               uuid.NewString(),
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d1))
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, d2))
+
+	d1EnrollID := mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, d1.MDMHardwareID)
+
+	// Delete d2's enrollment to simulate an orphan.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM mdm_windows_enrollments WHERE host_uuid = ?`, d2.HostUUID)
+		return err
+	})
+
+	profUUID := InsertWindowsProfileForTest(t, ds, 0)
+	cmdUUID := uuid.NewString()
+	cmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  cmdUUID,
+		RawCommand:   []byte("<Exec></Exec>"),
+		TargetLocURI: "./test/uri",
+	}
+	payload := []*fleet.MDMWindowsBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:   profUUID,
+			ProfileName:   "prof1",
+			HostUUID:      d1.HostUUID,
+			CommandUUID:   cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &fleet.MDMDeliveryPending,
+			Checksum:      []byte("checksum1"),
+		},
+		{
+			ProfileUUID:   profUUID,
+			ProfileName:   "prof1",
+			HostUUID:      d2.HostUUID,
+			CommandUUID:   cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &fleet.MDMDeliveryPending,
+			Checksum:      []byte("checksum2"),
+		},
+	}
+
+	// Should succeed — d2 is skipped, d1 is processed.
+	err := ds.MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx, []string{d1.HostUUID, d2.HostUUID}, cmd, payload)
+	require.NoError(t, err)
+
+	// d1 (enrolled) should have a queued command.
+	cmds, err := ds.MDMWindowsGetPendingCommands(ctx, d1EnrollID)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+
+	// There should be exactly 1 command queue entry (d1 only); d2 was
+	// silently skipped by the INSERT ... SELECT because its enrollment
+	// no longer exists.
+	var queueCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &queueCount,
+			`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+	})
+	require.Equal(t, 1, queueCount)
+
+	// Both hosts get profile rows upserted — d2's profile row is
+	// intentionally kept. It's harmless dead data: the EXISTS check in
+	// windowsProfilesToRemoveQuery prevents it from being selected for
+	// removal on the next cron cycle.
+	var profileCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileCount,
+			`SELECT COUNT(*) FROM host_mdm_windows_profiles WHERE command_uuid = ?`, cmdUUID)
+	})
+	require.Equal(t, 2, profileCount)
+}
+
+func testCleanupWindowsMDMCommandQueue(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	dev := createEnrolledDevice(t, ds)
+
+	// Insert two commands queued for the device.
+	cmd1 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test1",
+	}
+	cmd2 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test2",
+	}
+	cmd3 := &fleet.MDMWindowsCommand{
+		CommandUUID:  uuid.NewString(),
+		RawCommand:   []byte(`<Atomic><CmdID>` + uuid.NewString() + `</CmdID></Atomic>`),
+		TargetLocURI: "./Device/Test3",
+	}
+	err := ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd1)
+	require.NoError(t, err)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd2)
+	require.NoError(t, err)
+	err = ds.mdmWindowsInsertCommandForHostsDB(ctx, ds.primary, []string{dev.MDMDeviceID}, cmd3)
+	require.NoError(t, err)
+
+	// All three should be in the queue.
+	var count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ?", dev.ID)
+	})
+	require.Equal(t, 3, count)
+
+	// Insert a response row (required FK for command results).
+	var responseID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		res, err := q.ExecContext(ctx, `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, '<SyncML/>')`, dev.ID)
+		if err != nil {
+			return err
+		}
+		responseID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	// Insert a result for cmd1 with a timestamp >1 hour ago (eligible for GC).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at)
+			VALUES (?, ?, '<Status/>', '200', ?, NOW() - INTERVAL 2 HOUR)`,
+			dev.ID, cmd1.CommandUUID, responseID)
+		return err
+	})
+
+	// Insert a result for cmd2 with a recent timestamp (not yet eligible for GC).
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO windows_mdm_command_results (enrollment_id, command_uuid, raw_result, status_code, response_id, created_at)
+			VALUES (?, ?, '<Status/>', '200', ?, NOW())`,
+			dev.ID, cmd2.CommandUUID, responseID)
+		return err
+	})
+
+	// Run cleanup.
+	err = ds.CleanupWindowsMDMCommandQueue(ctx)
+	require.NoError(t, err)
+
+	// cmd1's queue row should be deleted (result is >1 hour old).
+	var cmd1Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd1Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd1.CommandUUID)
+	})
+	assert.Equal(t, 0, cmd1Count, "Queue row for cmd1 should be cleaned up (result >1 hour old)")
+
+	// cmd2's queue row should still exist (result is recent).
+	var cmd2Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd2Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd2.CommandUUID)
+	})
+	assert.Equal(t, 1, cmd2Count, "Queue row for cmd2 should remain (result <1 hour old)")
+
+	// cmd3's queue row should still exist (no result at all — still pending).
+	var cmd3Count int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &cmd3Count, "SELECT COUNT(*) FROM windows_mdm_command_queue WHERE enrollment_id = ? AND command_uuid = ?",
+			dev.ID, cmd3.CommandUUID)
+	})
+	assert.Equal(t, 1, cmd3Count, "Queue row for cmd3 should remain (pending, no result)")
 }
 
 // testMDMWindowsProfilesSummaryEnumeration exhaustively enumerates every

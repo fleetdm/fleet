@@ -63,7 +63,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/go-ini/ini v1.67.0
-	github.com/go-json-experiment/json v0.0.0-20250517221953-25912455fbc8
+	github.com/go-json-experiment/json v0.0.0-20260214004413-d219187c3433
 	github.com/go-kit/kit v0.12.0
 	github.com/go-ole/go-ole v1.2.6
 	github.com/go-sql-driver/mysql v1.9.3
@@ -183,6 +183,7 @@ require (
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gopkg.in/yaml.v2 v2.4.0
 	howett.net/plist v1.0.1
+	pgregory.net/rapid v1.2.0
 	software.sslmate.com/src/go-pkcs12 v0.4.0
 )
 

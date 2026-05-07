@@ -157,7 +157,9 @@ spec:
 func TestGetTeams(t *testing.T) {
 	var expiredBanner strings.Builder
 	fleet.WriteExpiredLicenseBanner(&expiredBanner)
-	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+	bannerStr := expiredBanner.String()
+	require.Contains(t, bannerStr, "Your license for Fleet Premium is about to expire")
+	require.Contains(t, bannerStr, "https://fleetdm.com/learn-more-about/downgrading")
 
 	testCases := []struct {
 		name                    string
@@ -198,6 +200,10 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								EnableHostUsers:         true,
 								EnableSoftwareInventory: true,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 						},
 					},
@@ -212,6 +218,10 @@ func TestGetTeams(t *testing.T) {
 							AgentOptions: &agentOpts,
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 							HostExpirySettings: fleet.HostExpirySettings{
 								HostExpiryEnabled: true,
@@ -714,7 +724,13 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			Features:              fleet.Features{EnableHostUsers: true},
+			Features: fleet.Features{
+				EnableHostUsers: true,
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},

@@ -6,6 +6,8 @@
       "org_name": "",
       "org_logo_url": "",
       "org_logo_url_light_background": "",
+      "org_logo_url_dark_mode": "",
+      "org_logo_url_light_mode": "",
       "contact_url": "https://fleetdm.com/company/contact"
     },
     "server_settings": {
@@ -27,7 +29,8 @@
     },
     "activity_expiry_settings": {
       "activity_expiry_enabled": false,
-      "activity_expiry_window": 0
+      "activity_expiry_window": 0,
+      "preserve_host_activities_on_reenrollment": false
     },
     "conditional_access": {
       "microsoft_entra_tenant_id": "",
@@ -40,7 +43,11 @@
     },
     "features": {
       "enable_host_users": true,
-      "enable_software_inventory": false
+      "enable_software_inventory": false,
+      "historical_data": {
+        "uptime": true,
+        "vulnerabilities": true
+      }
     },
     "fleet_desktop": {
       "alternative_browser_host": "",

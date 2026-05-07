@@ -41,6 +41,55 @@ const DATASETS: IDataSet[] = [
         during a given hour.
       </>
     ),
+    tooltipFormatter: ({
+      value,
+      total,
+      percentage,
+    }: {
+      value: number;
+      total?: number;
+      percentage?: number;
+    }) => (
+      <>
+        {percentage}% active
+        <br />({total ? `${value} / ${total}` : 0} hosts)
+      </>
+    ),
+  },
+  {
+    name: "cve",
+    label: "Vulnerability exposure",
+    defaultChartType: "checkerboard",
+    description: (
+      <>
+        Shows the number of hosts with{" "}
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138"
+        >
+          certain critical
+          <br />
+          vulnerabilities
+        </a>{" "}
+        during a given hour.
+      </>
+    ),
+    tooltipFormatter: ({
+      value,
+      total,
+      percentage,
+    }: {
+      value: number;
+      total?: number;
+      percentage?: number;
+    }) => (
+      <>
+        {percentage}% exposed
+        <br />({total ? `${value} / ${total}` : 0} hosts)
+      </>
+    ),
+    theme: "red",
   },
 ];
 
@@ -127,14 +176,17 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
 
   const formattedData: IFormattedDataPoint[] = useMemo(() => {
     if (!chartData?.data) return [];
-    const totalHosts = chartData.total_hosts || 1;
+    const totalHosts = chartData.total_hosts;
     return chartData.data.map((point) => {
       const date = parseISO(point.timestamp);
       return {
         timestamp: point.timestamp,
         label: format(date, "MMM d, h:mm a"),
         value: point.value,
-        percentage: Math.round((point.value / totalHosts) * 100),
+        percentage: totalHosts
+          ? Math.round((point.value / totalHosts) * 100)
+          : 0,
+        total: totalHosts,
       };
     });
   }, [chartData]);
@@ -157,6 +209,8 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     const vizProps = {
       data: formattedData,
       selectedDays: CHART_DAYS,
+      theme: currentDataset.theme,
+      tooltipFormatter: currentDataset.tooltipFormatter,
     };
 
     switch (currentDataset.defaultChartType) {

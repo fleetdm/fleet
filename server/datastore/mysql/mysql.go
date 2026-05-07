@@ -86,6 +86,16 @@ type Datastore struct {
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
 
+	// testWindowsEagerHook, when non-nil, is called by
+	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
+	// commits. It returns whether any host_mdm_windows_profiles rows
+	// changed; that bool is surfaced as updates.WindowsConfigProfile,
+	// matching Apple's semantics (idempotent second calls return false).
+	//
+	// Production binaries never set this. Tests opt in by calling
+	// Datastore.EnableTestWindowsEagerHook.
+	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
+
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
 	// available activity based on normal prioritization and creation date
@@ -843,30 +853,12 @@ func sanitizeColumn(col string) string {
 	return common_mysql.SanitizeColumn(col)
 }
 
-// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
-	return appendListOptionsWithCursorToSQL(sql, nil, opts)
-}
-
 // appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
 // The allowlist parameter maps user-facing order key names to actual SQL column expressions.
 // This prevents SQL injection and information disclosure via arbitrary column sorting.
 // See common_mysql.OrderKeyAllowlist for details.
 func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
 	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
-}
-
-// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
-// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
-func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
-	if opts.PerPage == 0 {
-		opts.PerPage = fleet.DefaultPerPage
-	}
-	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 
 // appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
@@ -1098,17 +1090,6 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
-}
-
-func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
-	if identifier == "" {
-		return stmt, params
-	}
-
-	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
-	params = append(params, identifier)
-
-	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.

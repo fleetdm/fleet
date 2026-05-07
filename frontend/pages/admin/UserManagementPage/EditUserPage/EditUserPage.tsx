@@ -27,7 +27,9 @@ const baseClass = "edit-user-page";
 interface IEditUserPageProps {
   router: InjectedRouter;
   params: { user_id: string };
-  location: any; // no type in react-router v3
+  location: {
+    query?: { type?: string };
+  };
 }
 
 const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
@@ -126,7 +128,8 @@ const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {
       requestData.mfa_enabled = formData.mfa_enabled;
     if (formData.global_role !== entityData.global_role)
       requestData.global_role = formData.global_role;
-    if (formData.teams) requestData.teams = formData.teams;
+    if (formData.teams && formData.teams.length > 0)
+      requestData.teams = formData.teams;
     if (formData.new_password) requestData.new_password = formData.new_password;
 
     let successMessage = `Successfully edited ${formData.name}`;
