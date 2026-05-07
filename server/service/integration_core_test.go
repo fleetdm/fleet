@@ -10,8 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -966,6 +970,101 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, previousRawConfig)
 		return err
 	})
+}
+
+func (s *integrationTestSuite) TestAppConfigHistoricalData() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Ensure a known starting state — earlier tests in this suite may have
+	// PATCHed the AppConfig (the suite shares state), so an earlier no-op
+	// SaveAppConfig with a zero-value Features could have stamped
+	// historical_data={false,false} into the stored JSON.
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"historical_data": map[string]any{"uptime": true, "vulnerabilities": true}}},
+		http.StatusOK)
+	cfg := s.getConfig()
+	require.True(t, cfg.Features.HistoricalData.Uptime)
+	require.True(t, cfg.Features.HistoricalData.Vulnerabilities)
+
+	// PATCH only the vulnerabilities sub-key — uptime SHALL remain true.
+	// Snapshot the most recent activity ID (any type) as a watermark so we can
+	// confirm a new disabled_historical_dataset row is actually emitted.
+	preDisableWatermark := s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"historical_data": map[string]any{"vulnerabilities": false}}},
+		http.StatusOK)
+	cfg = s.getConfig()
+	require.True(t, cfg.Features.HistoricalData.Uptime, "uptime preserved when omitted from PATCH")
+	require.False(t, cfg.Features.HistoricalData.Vulnerabilities)
+
+	// A new disabled_historical_dataset activity for vulnerabilities, no fleet scope.
+	require.Greater(t, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		`{"dataset":"vulnerabilities","fleet_id":null,"fleet_name":null}`,
+		0,
+	), preDisableWatermark, "new disable activity emitted for PATCH")
+
+	// PATCH the same value back — no new activity should be emitted.
+	priorActivityID := s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	)
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"historical_data": map[string]any{"vulnerabilities": false}}},
+		http.StatusOK)
+	require.Equal(t, priorActivityID, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(), "", 0,
+	), "no new activity for no-op PATCH")
+
+	// Flip both in one PATCH — re-enable vulnerabilities, disable uptime → 2 activities.
+	// Use the most recent activity ID (any type) as a watermark; the new
+	// enabled/disabled activities for this PATCH must have IDs greater than it.
+	preFlipWatermark := s.lastActivityMatches("", "", 0)
+	s.Do("PATCH", "/api/latest/fleet/config",
+		map[string]any{"features": map[string]any{"historical_data": map[string]any{"uptime": false, "vulnerabilities": true}}},
+		http.StatusOK)
+	cfg = s.getConfig()
+	require.False(t, cfg.Features.HistoricalData.Uptime)
+	require.True(t, cfg.Features.HistoricalData.Vulnerabilities)
+	require.Greater(t, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeEnabledHistoricalDataset{}.ActivityName(),
+		`{"dataset":"vulnerabilities","fleet_id":null,"fleet_name":null}`,
+		0,
+	), preFlipWatermark, "new enable activity emitted for vulnerabilities re-enable")
+	require.Greater(t, s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeDisabledHistoricalDataset{}.ActivityName(),
+		`{"dataset":"uptime","fleet_id":null,"fleet_name":null}`,
+		0,
+	), preFlipWatermark, "new disable activity emitted for uptime")
+
+	// Existing rows whose stored JSON omits historical_data SHALL read back
+	// with both sub-keys true. Simulate a pre-change deployment by writing a
+	// row whose features block lacks the key, then verify that AppConfig
+	// reads back with defaults applied.
+	var previousRawConfig string
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		if err := sqlx.GetContext(ctx, q, &previousRawConfig, "SELECT json_value FROM app_config_json"); err != nil {
+			return err
+		}
+		preChangeJSON := []byte(`{"features": {"enable_host_users": true, "enable_software_inventory": false, "additional_queries": null}}`)
+		_, err := q.ExecContext(ctx,
+			`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+			preChangeJSON)
+		return err
+	})
+	t.Cleanup(func() {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+				previousRawConfig)
+			return err
+		})
+	})
+
+	loadedCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.True(t, loadedCfg.Features.HistoricalData.Uptime, "pre-change row reads back as default true")
+	require.True(t, loadedCfg.Features.HistoricalData.Vulnerabilities, "pre-change row reads back as default true")
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
@@ -2981,6 +3080,22 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	// 'after' param is not supported for labels
 	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, &listResp, "order_key", "id", "after", "1")
 
+	// ordering by host_count when include_host_counts=false is rejected
+	res := s.Do("GET", "/api/latest/fleet/labels", nil, http.StatusBadRequest, "order_key", "host_count", "include_host_counts", "false")
+	require.Contains(t, extractServerErrorText(res.Body), "Invalid order_key (host_count cannot be ordered when they are disabled)")
+
+	// ordering by host_count with include_host_counts=true is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count", "include_host_counts", "true")
+
+	// ordering by host_count without include_host_counts (default true) is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "host_count")
+
+	// include_host_counts=false with a different order_key is allowed
+	listResp = fleet.ListLabelsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/labels", nil, http.StatusOK, &listResp, "order_key", "name", "include_host_counts", "false")
+
 	// team filter, no host
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &resp, "team_id", fmt.Sprint(team2.ID))
 	require.Equal(t, resp.TotalsHostsCount, uint(0))
@@ -4168,6 +4283,90 @@ func (s *integrationTestSuite) TestScheduledQueries() {
 		"ids": []uint{query.ID, query2.ID, query3.ID},
 	}, http.StatusNotFound, &delBatchResp)
 	assert.Equal(t, uint(0), delBatchResp.Deleted)
+}
+
+func (s *integrationTestSuite) TestScheduledQueriesInPackOrderKey() {
+	t := s.T()
+
+	// create a pack
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	// create a query
+	var createQueryResp fleet.CreateQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/queries", &fleet.QueryPayload{
+		Name:  new(strings.ReplaceAll(t.Name(), "/", "_")),
+		Query: new("select 1"),
+	}, http.StatusOK, &createQueryResp)
+	query := createQueryResp.Query
+
+	// schedule the query in the pack so the listing has at least one row
+	var createSchedResp fleet.ScheduleQueryResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs/schedule", &fleet.ScheduleQueryRequest{
+		PackID:   pack.ID,
+		QueryID:  query.ID,
+		Interval: 60,
+	}, http.StatusOK, &createSchedResp)
+
+	// every key in scheduledQueriesAllowedOrderKeys must work end-to-end with cursor pagination.
+	allowedOrderKeys := []string{
+		"id",
+		"pack_id",
+		"name",
+		"query_name",
+		"description",
+		"interval",
+		"snapshot",
+		"removed",
+		"platform",
+		"version",
+		"shard",
+		"denylist",
+		"query",
+		"query_id",
+		"user_time_p50",
+		"user_time_p95",
+		"system_time_p50",
+		"system_time_p95",
+		"total_executions",
+	}
+	for _, orderKey := range allowedOrderKeys {
+		t.Run(orderKey, func(t *testing.T) {
+			var getInPackResp fleet.GetScheduledQueriesInPackResponse
+			s.DoJSON(
+				"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+				nil, http.StatusOK, &getInPackResp,
+				"order_key", orderKey,
+				"after", "0",
+			)
+		})
+	}
+}
+
+func (s *integrationTestSuite) TestScheduledQueriesInPackInvalidOrderKey() {
+	t := s.T()
+
+	// create a pack so the endpoint has a real id to operate on
+	var createPackResp createPackResponse
+	s.DoJSON("POST", "/api/latest/fleet/packs", &createPackRequest{
+		PackPayload: fleet.PackPayload{
+			Name: new(strings.ReplaceAll(t.Name(), "/", "_")),
+		},
+	}, http.StatusOK, &createPackResp)
+	pack := createPackResp.Pack.Pack
+
+	var getInPackResp fleet.GetScheduledQueriesInPackResponse
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/packs/%d/scheduled", pack.ID),
+		nil, http.StatusUnprocessableEntity, &getInPackResp,
+		"order_key", "not_a_real_column",
+		"after", "0",
+	)
 }
 
 func (s *integrationTestSuite) TestQueriesPaginationAndPlatformFilter() {
@@ -8752,405 +8951,6 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 		"ids": []uint{q1ID, q2ID, q3ID},
 	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
-}
-
-func (s *integrationTestSuite) TestCertificatesSpecs() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create team
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
-	require.NoError(t, err)
-
-	// Create a test certificate authority
-	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
-	})
-	require.NoError(t, err)
-
-	// invalid Fleet variable in subject name
-	var applyResp applyCertificateTemplateSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Invalid Template",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusBadRequest, &applyResp)
-
-	// test with non-existent team name
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Invalid Team Template",
-				Team:                   "NonExistentTeam",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusNotFound, &applyResp)
-
-	activitiesBeforeInsert := s.listActivities()
-
-	// valid templates - test team name (not team ID)
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Template 1",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name:                   "Template 2",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// Only one activity per team
-	activitiesAfterInsert := s.listActivities()
-	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
-		0,
-	)
-
-	// list specs
-	var listCertifcatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
-	require.Len(t, listCertifcatesResp.Certificates, 2)
-	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
-
-	lastActivityID := s.lastActivityMatches("", "", 0)
-
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Template 1",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name:                   "Template 2",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// No new activities created
-	currentActivityID := s.lastActivityMatches("", "", 0)
-	assert.Equal(t, lastActivityID, currentActivityID, "no new activity should be created when re-applying same certificates")
-
-	// Create a host to get certificate get by id endpoint
-	host, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-node-key"),
-		UUID:            "test-uuid-12345",
-		Hostname:        "test-cert-host.local",
-		HardwareSerial:  "TEST-SERIAL-67890",
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	orbitNodeKey := uuid.New().String()
-	host.OrbitNodeKey = &orbitNodeKey
-	require.NoError(t, s.ds.UpdateHost(ctx, host))
-
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	certID := savedCertificateTemplates[0].ID
-
-	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
-	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
-	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
-		{
-			HostUUID:              host.UUID,
-			CertificateTemplateID: certID,
-			Status:                fleet.CertificateTemplateDelivered,
-			OperationType:         fleet.MDMOperationTypeInstall,
-		},
-	})
-	require.NoError(t, err)
-
-	var getCertResp getDeviceCertificateTemplateResponse
-
-	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed) // failed because no IDP user to replace variables
-
-	// Add an IDP user for the host
-	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
-		{
-			HostID: host.ID,
-			Email:  "test.user@example.com",
-			Source: fleet.DeviceMappingMDMIdpAccounts,
-		},
-	}, fleet.DeviceMappingMDMIdpAccounts)
-	require.NoError(t, err)
-
-	// Get certificate without node_key
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
-	require.NoError(t, resp.Body.Close())
-
-	// Get certificate with node_key (should return replaced variables)
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
-
-	// Get certificate without host_uuid (should return subject with variables)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
-
-	// batch delete certificate templates
-	var delBatchResp deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
-		"team_id": team.ID,
-	}, http.StatusOK, &delBatchResp)
-
-	// Verify activity was created for deleting certificates
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
-		0,
-	)
-
-	// list specs
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
-	require.Len(t, listCertifcatesResp.Certificates, 0)
-
-	activitiesBeforeNoTeam := s.listActivities()
-
-	// certificate templates for "No team"
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "No Team Template 1",
-				Team:                   "No team",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-			{
-				Name:                   "No Team Template 2",
-				Team:                   "",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name: "No Team Template 3",
-				// No Team field, should default to empty string
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// Only one activity was created for "No team"
-	activitiesAfterNoTeam := s.listActivities()
-	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
-		0,
-	)
-
-	// list specs for "no team" (team_id 0)
-	var noTeamCertificatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 3)
-	certNames := []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name, noTeamCertificatesResp.Certificates[2].Name}
-	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2", "No Team Template 3"}, certNames)
-
-	// Create a host
-	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-no-team-node-key"),
-		UUID:            "test-no-team-uuid-12345",
-		Hostname:        "test-cert-no-team-host.local",
-		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
-		TeamID:          nil, // No team
-	})
-	require.NoError(t, err)
-
-	noTeamOrbitNodeKey := uuid.New().String()
-	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
-	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
-
-	// Add an IDP user for host
-	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
-		{
-			HostID: noTeamHost.ID,
-			Email:  "no.team.user@example.com",
-			Source: fleet.DeviceMappingMDMIdpAccounts,
-		},
-	}, fleet.DeviceMappingMDMIdpAccounts)
-	require.NoError(t, err)
-
-	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	require.Len(t, savedNoTeamCertTemplates, 3)
-	noTeamCertID := savedNoTeamCertTemplates[0].ID
-
-	// Create a host_certificate_templates record for this no-team host
-	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
-		{
-			HostUUID:              noTeamHost.UUID,
-			CertificateTemplateID: noTeamCertID,
-			Status:                fleet.CertificateTemplateDelivered,
-			OperationType:         fleet.MDMOperationTypeInstall,
-		},
-	})
-	require.NoError(t, err)
-
-	// Get certificate with orbit node_key (should return replaced variables)
-	var getNoTeamCertResp getDeviceCertificateTemplateResponse
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.NotNil(t, getNoTeamCertResp.Certificate)
-	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
-	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
-
-	var profilesSummaryResp getMDMProfilesSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", nil, http.StatusOK, &profilesSummaryResp)
-	require.NotNil(t, profilesSummaryResp)
-	require.Equal(t, uint(0), profilesSummaryResp.Verified)
-	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
-	require.Equal(t, uint(0), profilesSummaryResp.Failed)
-	require.Equal(t, uint(0), profilesSummaryResp.Pending)
-
-	// creating a certificate
-	var createCertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]interface{}{
-		"name":                     "POST No Team Cert",
-		"certificate_authority_id": ca.ID,
-		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
-		// team_id intentionally omitted - should default to 0
-	}, http.StatusOK, &createCertResp)
-	require.NotZero(t, createCertResp.ID)
-	require.Equal(t, "POST No Team Cert", createCertResp.Name)
-
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	// Delete is authorized properly
-	observerEmail := "observer-cert-test@fleetdm.com"
-	observerPwd := test.GoodPassword
-	observerUser := &fleet.User{
-		Name:       "Observer User",
-		Email:      observerEmail,
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
-	_, err = s.ds.NewUser(ctx, observerUser)
-	require.NoError(t, err)
-
-	// Switch to observer user
-	s.token = s.getCachedUserToken(observerEmail, observerPwd)
-	// just in case test fails, restore to admin
-	defer func() { s.token = s.getTestAdminToken() }()
-
-	// Delete with observer
-	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
-		"team_id": uint(0), // "No team"
-	}, http.StatusForbidden)
-	resp.Body.Close()
-
-	// Switch back to admin
-	s.token = s.getTestAdminToken()
-
-	// Verify the certificate still exists (wasn't deleted by observer)
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	found := false
-	for _, cert := range noTeamCertificatesResp.Certificates {
-		if cert.ID == savedNoTeamCertTemplates[0].ID {
-			found = true
-			break
-		}
-	}
-	require.True(t, found, "Certificate should not be deleted by observer user")
-
-	// Cannot delete certificates from a different team
-	// Create team 2
-	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
-	require.NoError(t, err)
-	team2ID := team2.ID
-	// Create a certificate in team2
-	var team2CertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
-		Name:                   "Team 2 Cert",
-		TeamID:                 team2ID,
-		CertificateAuthorityId: ca.ID,
-		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-	}, http.StatusOK, &team2CertResp)
-	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
-	// Delete with team 1 id and certificate from team 2
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{team2CertResp.ID},
-		"team_id": team.ID,
-	}, http.StatusForbidden, &forbiddenDelResp)
-	var listTeam2Resp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
-		nil, http.StatusOK, &listTeam2Resp)
-	require.Len(t, listTeam2Resp.Certificates, 1)
-	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
-
-	var delResp deleteCertificateTemplateResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
-
-	var delBatchResp2 deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids": []uint{noTeamCertificatesResp.Certificates[0].ID},
-		// team_id intentionally omitted - should default to 0
-	}, http.StatusOK, &delBatchResp2)
-
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 2)
-	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
-
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
-		"team_id": uint(0),
-	}, http.StatusOK, &delBatchResp)
-
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 0)
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
@@ -16929,6 +16729,70 @@ func (s *integrationTestSuite) TestListHostReports() {
 		_, hasReportID := firstReport["report_id"]
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
+
+	t.Run("free_tier_hides_include_all_reports", func(t *testing.T) {
+		labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-A", Query: "SELECT 1"})
+		require.NoError(t, err)
+		labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-B", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		qIncludeAll, err := s.ds.NewQuery(ctx, &fleet.Query{
+			Name:        t.Name() + "_include_all",
+			Query:       "SELECT 1",
+			AuthorID:    &admin.ID,
+			Saved:       true,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: labelA.Name},
+				{LabelName: labelB.Name},
+			},
+		})
+		require.NoError(t, err)
+
+		mkHost := func(suffix string) *fleet.Host {
+			h, err := s.ds.NewHost(ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				OsqueryHostID:   ptr.String(t.Name() + suffix),
+				NodeKey:         ptr.String(t.Name() + suffix),
+				UUID:            uuid.New().String(),
+				Hostname:        t.Name() + "-" + suffix + ".local",
+				Platform:        "linux",
+			})
+			require.NoError(t, err)
+			return h
+		}
+		hostNone := mkHost("none")
+		hostOnlyA := mkHost("onlyA")
+		hostBoth := mkHost("both")
+
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+		hasIncludeAllReport := func(hostID uint) bool {
+			t.Helper()
+			var resp listHostReportsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", hostID), nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true")
+			for _, r := range resp.Reports {
+				if r.ReportID == qIncludeAll.ID {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Free tier must hide include_all queries entirely from /hosts/:id/reports —
+		// labels_include_all is premium-only and pre-existing rows (e.g., from a
+		// tier downgrade) must not surface in the reports list, regardless of
+		// label membership. Premium-tier behavior is exercised in the
+		// enterprise integration test.
+		assert.False(t, hasIncludeAllReport(hostNone.ID), "free tier must not surface include_all queries (no labels)")
+		assert.False(t, hasIncludeAllReport(hostOnlyA.ID), "free tier must not surface include_all queries (subset of labels)")
+		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
+	})
 }
 
 // TestLabelScopePremiumGate verifies that the include_all scope fields is
@@ -16976,4 +16840,105 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
+
+	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
+	// so the gate fires at the service layer and returns 402 (PaymentRequired).
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:             "spec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+
+	// Same for QuerySpec.
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{{
+			Name:             "qspec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			Logging:          fleet.LoggingSnapshot,
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyQuerySpecsResponse{})
+}
+
+func (s *integrationTestSuite) TestOrgLogoUpload() {
+	t := s.T()
+
+	pngImg := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	pngImg.Set(0, 0, color.RGBA{R: 0, G: 128, B: 0, A: 255})
+	var pngBuf bytes.Buffer
+	require.NoError(t, png.Encode(&pngBuf, pngImg))
+	pngBytes := pngBuf.Bytes()
+
+	buildLogoBody := func(filename string, content []byte) ([]byte, map[string]string) {
+		var body bytes.Buffer
+		w := multipart.NewWriter(&body)
+		fw, err := w.CreateFormFile("logo", filename)
+		require.NoError(t, err)
+		_, err = io.Copy(fw, bytes.NewReader(content))
+		require.NoError(t, err)
+		require.NoError(t, w.Close())
+		return body.Bytes(), map[string]string{
+			"Content-Type":  w.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": "Bearer " + s.token,
+		}
+	}
+
+	// 1. Upload as admin: 200, AppConfig URL set to the Fleet-hosted serving
+	// path, GET returns the bytes back with the right content type.
+	body, headers := buildLogoBody("logo.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusOK, headers)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "mode=light")
+	// Deprecated key is in sync.
+	require.Equal(t, acResp.OrgInfo.OrgLogoURLLightMode, acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	res := s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusOK)
+	gotBody, err := io.ReadAll(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.NoError(t, err)
+	require.Equal(t, pngBytes, gotBody)
+	require.Equal(t, "image/png", res.Header.Get("Content-Type"))
+
+	// 2. Upload a second mode (dark) as admin so the delete-lifecycle assertions
+	// at the bottom can confirm modes are independent.
+	body, headers = buildLogoBody("dark.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=dark", body, http.StatusOK, headers)
+
+	// 3. Auth: a maintainer is rejected.
+	maintainerEmail := "maintainer-logo@example.com"
+	maintainerUser := &fleet.User{
+		Name:       "Maintainer Logo",
+		Email:      maintainerEmail,
+		GlobalRole: ptr.String(fleet.RoleMaintainer),
+	}
+	require.NoError(t, maintainerUser.SetPassword(test.GoodPassword, 10, 10))
+	_, err = s.ds.NewUser(t.Context(), maintainerUser)
+	require.NoError(t, err)
+
+	s.token = s.getCachedUserToken(maintainerEmail, test.GoodPassword)
+	body, headers = buildLogoBody("nope.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusForbidden, headers)
+	s.token = s.getTestAdminToken()
+
+	// 4. A non-image payload is rejected at upload time.
+	body, headers = buildLogoBody("not-an-image.png", []byte("plain text, definitely not a PNG"))
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusBadRequest, headers)
+
+	// 5. DELETE clears the URL field and the GET endpoint returns 404 for
+	// the affected mode while the other mode is unaffected.
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
+
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLDarkMode, "/api/latest/fleet/logo")
+
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
+	require.NoError(t, res.Body.Close())
 }

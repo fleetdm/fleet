@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# This script creates 3 teams and 12 users with various roles.
+# This script creates 3 fleets (formerly "teams") and 12 users with various roles.
 
 source $FLEET_ENV_PATH
 

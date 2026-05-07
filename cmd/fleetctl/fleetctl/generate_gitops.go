@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime"
 	"os"
 	pathUtils "path"
 	"path/filepath"
@@ -75,6 +76,7 @@ type generateGitopsClient interface {
 	GetProfileContents(profileID string) ([]byte, error)
 	GetEULAMetadata() (*fleet.MDMEULA, error)
 	GetEULAContent(token string) ([]byte, error)
+	GetOrgLogoContent(mode fleet.OrgLogoMode) (body []byte, contentType string, err error)
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -792,12 +794,17 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		return nil, err
 	}
 
+	orgInfo, err := cmd.generateOrgInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	orgSettings = map[string]interface{}{
 		jsonFieldName(t, "ActivityExpirySettings"): cmd.AppConfig.ActivityExpirySettings,
 		jsonFieldName(t, "Features"):               cmd.AppConfig.Features,
 		jsonFieldName(t, "FleetDesktop"):           cmd.AppConfig.FleetDesktop,
 		jsonFieldName(t, "HostExpirySettings"):     cmd.AppConfig.HostExpirySettings,
-		jsonFieldName(t, "OrgInfo"):                cmd.AppConfig.OrgInfo,
+		jsonFieldName(t, "OrgInfo"):                orgInfo,
 		jsonFieldName(t, "ServerSettings"):         cmd.AppConfig.ServerSettings,
 		jsonFieldName(t, "WebhookSettings"):        webhookSettings,
 	}
@@ -1057,6 +1064,85 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 	return result, nil
 }
 
+// generateOrgInfo returns OrgInfo as a map so we can swap a Fleet-hosted
+// logo URL for a path key plus an exported file. External URLs flow through
+// unchanged; the deprecated logo URL keys are renamed to the mode-aware
+// variants by yamlMarshalRenamed at write time.
+func (cmd *GenerateGitopsCommand) generateOrgInfo() (map[string]any, error) {
+	raw, err := json.Marshal(cmd.AppConfig.OrgInfo)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling org_info: %w", err)
+	}
+	orgInfo := map[string]any{}
+	if err := json.Unmarshal(raw, &orgInfo); err != nil {
+		return nil, fmt.Errorf("unmarshalling org_info: %w", err)
+	}
+
+	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeLight,
+		cmd.AppConfig.OrgInfo.OrgLogoURLLightMode,
+		"org_logo_path_light_mode", "org_logo_url_light_mode", "org_logo_url_light_background"); err != nil {
+		return nil, err
+	}
+	if err := cmd.exportFleetHostedLogo(orgInfo, fleet.OrgLogoModeDark,
+		cmd.AppConfig.OrgInfo.OrgLogoURLDarkMode,
+		"org_logo_path_dark_mode", "org_logo_url_dark_mode", "org_logo_url"); err != nil {
+		return nil, err
+	}
+	return orgInfo, nil
+}
+
+// exportFleetHostedLogo, when the given URL points at the Fleet logo serving
+// endpoint, downloads the logo bytes, writes them to lib/org_logo/<mode>.<ext>,
+// and rewrites the orgInfo map to reference the file via pathKey instead of
+// the URL keys. External URLs are left untouched.
+func (cmd *GenerateGitopsCommand) exportFleetHostedLogo(
+	orgInfo map[string]any, mode fleet.OrgLogoMode, urlValue string,
+	pathKey, newURLKey, deprecatedURLKey string,
+) error {
+	if !fleet.IsFleetHostedLogoURL(urlValue) {
+		return nil
+	}
+	body, contentType, err := cmd.Client.GetOrgLogoContent(mode)
+	if err != nil {
+		// Server reports a Fleet-hosted URL but no blob is stored. Leave
+		// the URL keys in place so the user can investigate; the rest of
+		// the export should still succeed.
+		if service.IsNotFoundErr(err) {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter,
+				"warning: org logo for %s mode references Fleet but no logo content was found; leaving URL as-is\n", mode)
+			return nil
+		}
+		return fmt.Errorf("fetching org logo (%s): %w", mode, err)
+	}
+	ext, err := orgLogoExtFromContentType(contentType)
+	if err != nil {
+		return fmt.Errorf("org logo (%s): %w", mode, err)
+	}
+	fileName := fmt.Sprintf("lib/org_logo/%s%s", mode, ext)
+	cmd.FilesToWrite[fileName] = string(body)
+
+	orgInfo[pathKey] = fmt.Sprintf("./%s", fileName)
+	delete(orgInfo, newURLKey)
+	delete(orgInfo, deprecatedURLKey)
+	return nil
+}
+
+func orgLogoExtFromContentType(contentType string) (string, error) {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return "", fmt.Errorf("parsing logo Content-Type %q: %w", contentType, err)
+	}
+	switch mediaType {
+	case "image/png":
+		return ".png", nil
+	case "image/jpeg":
+		return ".jpg", nil
+	case "image/webp":
+		return ".webp", nil
+	}
+	return "", fmt.Errorf("unsupported logo Content-Type %q (expected image/png, image/jpeg, or image/webp)", mediaType)
+}
+
 func (cmd *GenerateGitopsCommand) generateEULA() (string, error) {
 	// Download the eula metadata for the token.
 	eulaMetadata, err := cmd.Client.GetEULAMetadata()
@@ -1270,11 +1356,17 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
 		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			fullCerts = append(fullCerts, map[string]interface{}{
+			cert := map[string]any{
 				jsonFieldName(certType, "Name"):                     certSummary.Name,
 				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
 				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
-			})
+			}
+			// Emit subject_alternative_name only when set, so existing GitOps files for templates
+			// without SAN do not pick up a spurious empty key.
+			if certSummary.SubjectAlternativeName != "" {
+				cert[jsonFieldName(certType, "SubjectAlternativeName")] = certSummary.SubjectAlternativeName
+			}
+			fullCerts = append(fullCerts, cert)
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
 		if !ok {
@@ -1346,7 +1438,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
 				})
 			}
 		}
@@ -1564,18 +1656,13 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		}
 		// Parse any labels.
 		if policy.LabelsIncludeAny != nil {
-			labels := make([]string, len(policy.LabelsIncludeAny))
-			for i, label := range policy.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_include_any"] = labels
+			policySpec["labels_include_any"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAny)
+		}
+		if policy.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			policySpec["labels_include_all"] = fleet.LabelIdentsToNames(policy.LabelsIncludeAll)
 		}
 		if policy.LabelsExcludeAny != nil {
-			labels := make([]string, len(policy.LabelsExcludeAny))
-			for i, label := range policy.LabelsExcludeAny {
-				labels[i] = label.LabelName
-			}
-			policySpec["labels_exclude_any"] = labels
+			policySpec["labels_exclude_any"] = fleet.LabelIdentsToNames(policy.LabelsExcludeAny)
 		}
 		result[i] = policySpec
 	}
@@ -1637,11 +1724,10 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 
 		// Parse any labels.
 		if query.LabelsIncludeAny != nil {
-			labels := make([]string, len(query.LabelsIncludeAny))
-			for i, label := range query.LabelsIncludeAny {
-				labels[i] = label.LabelName
-			}
-			querySpec["labels_include_any"] = labels
+			querySpec["labels_include_any"] = fleet.LabelIdentsToNames(query.LabelsIncludeAny)
+		}
+		if query.LabelsIncludeAll != nil && cmd.AppConfig.License.IsPremium() {
+			querySpec["labels_include_all"] = fleet.LabelIdentsToNames(query.LabelsIncludeAll)
 		}
 
 		result[i] = querySpec
@@ -2171,7 +2257,7 @@ func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string
 			jsonFieldName(t, "Description"):         label.Description,
 			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,
 		}
-		if label.Platform != "" {
+		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic && label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
 		switch label.LabelMembershipType {

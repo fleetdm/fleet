@@ -373,7 +373,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     }
 
     return <TableCount name="users" count={teamUsers?.length} />;
-  }, [teamUsers?.length]);
+  }, [teamUsers?.length, searchString]);
 
   const columnConfigs = useMemo(
     () => generateColumnConfigs(onActionSelection),

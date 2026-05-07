@@ -228,6 +228,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
+	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
+	require.NoError(t, err)
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -254,6 +257,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
 		androidService,
+		orgLogoStore,
 	)
 	if err != nil {
 		panic(err)

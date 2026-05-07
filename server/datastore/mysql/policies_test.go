@@ -89,6 +89,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyModificationResetsAttemptNumber", testPolicyModificationResetsAttemptNumber},
 		{"TeamPatchPolicy", testTeamPatchPolicy},
 		{"ApplyPolicySpecsDynamicAndPatchSameFMA", testApplyPolicySpecsDynamicAndPatchSameFMA},
+		{"ApplyPolicySpecsRenamePatchPolicyRegression43687", testApplyPolicySpecsRenamePatchPolicyRegression43687},
 		{"TeamPolicyAutomationFilter", testTeamPolicyAutomationFilter},
 		{"BatchedPolicyMembershipCleanup", testBatchedPolicyMembershipCleanup},
 		{"BatchedPolicyMembershipCleanupOnPolicyUpdate", testBatchedPolicyMembershipCleanupOnPolicyUpdate},
@@ -6598,6 +6599,52 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 	// Only the host with BOTH labels should retain membership.
 	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
 	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	// include_all cleanup via ApplyPolicySpecs (GitOps path).
+	// Re-record membership for all hosts so cleanup has something to remove.
+	for _, h := range []*fleet.Host{hostNoLabels, hostLabel1, hostLabel2, hostLabelBoth} {
+		err = ds.RecordPolicyQueryExecutions(ctx, h, map[uint]*bool{policy3.ID: new(true)}, time.Now(), false, nil)
+		require.NoError(t, err)
+	}
+	wantHostsByPol[policy3.Name] = []uint{hostNoLabels.ID, hostLabel1.ID, hostLabel2.ID, hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             policy3.Name,
+			Query:            policy3.Query,
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	// Spec apply should trigger the same membership cleanup — only hostLabelBoth remains.
+	wantHostsByPol[policy3.Name] = []uint{hostLabelBoth.ID}
+	assertPolicyMembership(t, ds, polsByName, wantHostsByPol)
+
+	freshName := "cleanup test policy 4 include_all create"
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:             freshName,
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{label1.Name, label2.Name},
+			Type:             fleet.PolicyTypeDynamic,
+		},
+	})
+	require.NoError(t, err)
+	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	require.NoError(t, err)
+	var freshPolicy *fleet.Policy
+	for _, p := range allPolicies {
+		if p.Name == freshName {
+			freshPolicy = p
+			break
+		}
+	}
+	require.NotNil(t, freshPolicy, "fresh policy created via spec should exist")
+	require.Len(t, freshPolicy.LabelsIncludeAll, 2)
+	require.Empty(t, freshPolicy.LabelsIncludeAny)
+	require.Empty(t, freshPolicy.LabelsExcludeAny)
 }
 
 func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datastore) {
@@ -7993,6 +8040,86 @@ func testApplyPolicySpecsDynamicAndPatchSameFMA(t *testing.T, ds *Datastore) {
 	require.Equal(t, "patch-fma", patch.Name)
 	require.NotNil(t, patch.PatchSoftwareTitleID, "patch policy must set patch_software_title_id")
 	require.Equal(t, fmaTitleID, *patch.PatchSoftwareTitleID)
+}
+
+// testApplyPolicySpecsRenamePatchPolicyRegression43687 reproduces the customer
+// scenario from issue #43687: GitOps renaming a patch policy that references
+// an FMA (e.g. "Adobe Reader up to date" -> "Adobe Reader") used to 5xx with
+// "applying policy specs: select policies id: sql: no rows in result set"
+// because the upsert UPDATE matched by (team_id, patch_software_title_id) but
+// did not update the name, and the post-upsert SELECT then looked up the row
+// by the new name and found nothing.
+func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team-43687"})
+	require.NoError(t, err)
+
+	maintainedApp, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "Adobe Reader",
+		Slug:             "adobe-reader/darwin",
+		Platform:         "darwin",
+		UniqueIdentifier: "com.adobe.Reader",
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:        "hello",
+		PreInstallQuery:      "SELECT 1",
+		PostInstallScript:    "world",
+		StorageID:            "storage-43687",
+		Filename:             "adobe-reader",
+		Title:                "Adobe Reader",
+		Version:              "1.0",
+		Source:               "apps",
+		Platform:             "darwin",
+		BundleIdentifier:     "com.adobe.Reader",
+		UserID:               user1.ID,
+		TeamID:               &team.ID,
+		ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+		FleetMaintainedAppID: &maintainedApp.ID,
+	})
+	require.NoError(t, err)
+
+	// Apply the original patch policy with the auto-generated-style name.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "Adobe Reader up to date",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "adobe-reader/darwin",
+		},
+	})
+	require.NoError(t, err)
+
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, "Adobe Reader up to date", policies[0].Name)
+	originalID := policies[0].ID
+
+	// Rename the policy via GitOps. Same FMA slug, only the name changes. The
+	// pre-fix code path failed here with "select policies id: sql: no rows in
+	// result set" because the ON DUPLICATE KEY UPDATE matched by
+	// (team_id, patch_software_title_id) but did not update name, and the
+	// follow-up SELECT WHERE name = "Adobe Reader" returned no rows.
+	err = ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
+		{
+			Name:                   "Adobe Reader",
+			Team:                   team.Name,
+			Type:                   fleet.PolicyTypePatch,
+			FleetMaintainedAppSlug: "adobe-reader/darwin",
+		},
+	})
+	require.NoError(t, err)
+
+	// The same row must now carry the new name (update, not delete + recreate).
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, policies, 1)
+	require.Equal(t, originalID, policies[0].ID)
+	require.Equal(t, "Adobe Reader", policies[0].Name)
+	require.Equal(t, fleet.PolicyTypePatch, policies[0].Type)
 }
 
 func testTeamPolicyAutomationFilter(t *testing.T, ds *Datastore) {

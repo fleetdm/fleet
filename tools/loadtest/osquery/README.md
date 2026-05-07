@@ -1,7 +1,7 @@
-# Load test of osquery queries in macOS and Windows
+# Load test of reports in macOS and Windows
 
 Following are the steps to load test osquery on macOS, Windows and Linux.
-The purpose is to know the impact of Fleet provided queries on real devices.
+The purpose is to know the impact of Fleet provided reports (formerly "queries") on real devices.
 
 > The scripts that process osquery logs were written and tested on macOS.
 

@@ -961,18 +961,18 @@ How long invite tokens should be valid for.
     invite_token_validity_period: 1d
   ```
 
-### app_enable_scheduled_query_stats
+### app_enable_report_stats
 
-Determines whether Fleet collects performance impact statistics for scheduled queries.
+Determines whether Fleet collects performance impact statistics for reports.
 
-If set to `false`, stats are still collected for live queries.
+If set to `false`, stats are still collected for live reports.
 
 - Default value: `true`
-- Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
+- Environment variable: `FLEET_APP_ENABLE_REPORT_STATS`
 - Config file format:
   ```yaml
   app:
-    enable_scheduled_query_stats: true
+    enable_report_stats: true
   ```
 
 ## License

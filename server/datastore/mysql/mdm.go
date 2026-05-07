@@ -20,6 +20,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var mdmConfigProfilesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"profile_uuid": "profile_uuid",
+	"team_id":      "team_id",
+	"name":         "name",
+	"platform":     "platform",
+	"identifier":   "identifier",
+	"created_at":   "created_at",
+	"uploaded_at":  "uploaded_at",
+}
+
 func (ds *Datastore) GetMDMCommandPlatform(ctx context.Context, commandUUID string) (string, error) {
 	stmt := `
 SELECT CASE
@@ -704,9 +714,12 @@ FROM (
 	}
 
 	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
-	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt, mdmConfigProfilesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list MDM config profiles")
+	}
 
-	stmt, args, err := sqlx.In(stmt, args...)
+	stmt, args, err = sqlx.In(stmt, args...)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In ListMDMConfigProfiles")
 	}
@@ -1697,12 +1710,15 @@ func batchSetProfileLabelAssociationsDB(
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}
 
-	// delete any profile+label tuple that is NOT in the list of provided tuples
+	// Delete any profile+label tuple that is NOT in the list of provided tuples
 	// but are associated with the provided profiles (so we don't delete
-	// unrelated profile+label tuples)
+	// unrelated profile+label tuples).
+	// Also clear "broken" rows where label_id IS NULL. those wouldn't be matched by
+	// `(profile_uuid, label_id) NOT IN (...)` because three-valued logic makes the comparison NULL,
+	// leaving the row in place and blocking host removal in generateEntitiesToRemoveQuery.
 	deleteStmt := `
 	  DELETE FROM mdm_configuration_profile_labels
-	  WHERE (%s_profile_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((%s_profile_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  %s_profile_uuid IN (?)
 	`
 
