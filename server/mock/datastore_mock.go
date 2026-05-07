@@ -883,6 +883,8 @@ type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, 
 
 type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
 
+type HasQueuedJobWithArgsFunc func(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -3167,6 +3169,9 @@ type DataStore struct {
 
 	GetJobFunc        GetJobFunc
 	GetJobFuncInvoked bool
+
+	HasQueuedJobWithArgsFunc        HasQueuedJobWithArgsFunc
+	HasQueuedJobWithArgsFuncInvoked bool
 
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
@@ -7670,6 +7675,13 @@ func (s *DataStore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) 
 	s.GetJobFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetJobFunc(ctx, jobID)
+}
+
+func (s *DataStore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+	s.mu.Lock()
+	s.HasQueuedJobWithArgsFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasQueuedJobWithArgsFunc(ctx, name, args)
 }
 
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
