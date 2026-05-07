@@ -44,25 +44,16 @@ const DATASETS: IDataSet[] = [
     defaultChartType: "checkerboard",
     description: (
       <>
-        Shows the number of hosts detected online
+        The number of hosts detected online during a given hour.
         <br />
-        during a given hour.
+        A host is considered online if it&rsquo;s actively checking in to Fleet.
+        <br />
+        This includes sleeping hosts (e.g. lid closed).{" "}
       </>
     ),
-    tooltipFormatter: ({
-      value,
-      total,
-      percentage,
-    }: {
-      value: number;
-      total?: number;
-      percentage?: number;
-    }) => (
-      <>
-        {percentage}% active
-        <br />({total ? `${value} / ${total}` : 0} hosts)
-      </>
-    ),
+    tooltipFormatter: ({ value }: { value: number }) =>
+      `${value.toLocaleString()} host${value === 1 ? "" : "s"} online`,
+    relativeScale: true,
   },
   {
     name: "cve",
@@ -81,23 +72,24 @@ const DATASETS: IDataSet[] = [
           vulnerabilities
         </a>{" "}
         during a given hour.
+        <br />
+        <br />
+        Want more control over this chart? Comprehensive vulnerability filtering
+        is{" "}
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://github.com/fleetdm/fleet/issues/44746"
+        >
+          coming soon
+        </a>
+        .
       </>
     ),
-    tooltipFormatter: ({
-      value,
-      total,
-      percentage,
-    }: {
-      value: number;
-      total?: number;
-      percentage?: number;
-    }) => (
-      <>
-        {percentage}% exposed
-        <br />({total ? `${value} / ${total}` : 0} hosts)
-      </>
-    ),
+    tooltipFormatter: ({ value }: { value: number }) =>
+      `${value.toLocaleString()} host${value === 1 ? "" : "s"}`,
     theme: "red",
+    relativeScale: true,
   },
 ];
 
@@ -240,6 +232,7 @@ const ChartCard = ({
       selectedDays: CHART_DAYS,
       theme: currentDataset.theme,
       tooltipFormatter: currentDataset.tooltipFormatter,
+      relativeScale: currentDataset.relativeScale,
     };
 
     switch (currentDataset.defaultChartType) {
@@ -266,6 +259,7 @@ const ChartCard = ({
                 }
               }}
               className={`${baseClass}__dataset-dropdown`}
+              nowrapMenu
             />
           ) : (
             <h2 className={`${baseClass}__title`}>{currentDataset.label}</h2>
