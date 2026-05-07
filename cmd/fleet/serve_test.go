@@ -1475,14 +1475,21 @@ func TestInitLicense(t *testing.T) {
 	})
 }
 
+var captureStdoutMu sync.Mutex
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
+	captureStdoutMu.Lock()
+	defer captureStdoutMu.Unlock()
 
 	origStdout := os.Stdout
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stdout = w
-	defer func() { os.Stdout = origStdout }()
+	defer func() {
+		os.Stdout = origStdout
+		_ = r.Close()
+	}()
 
 	var buf bytes.Buffer
 	done := make(chan struct{})
