@@ -1,6 +1,5 @@
 package com.fleetdm.agent.scep
 
-import org.bouncycastle.asn1.ASN1Encodable
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.ASN1Sequence
 import org.bouncycastle.asn1.ASN1TaggedObject
@@ -8,6 +7,7 @@ import org.bouncycastle.asn1.DERIA5String
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x509.GeneralName
+import org.bouncycastle.asn1.x509.GeneralNames
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -27,266 +27,225 @@ class SubjectAlternativeNameParserTest {
         Locale.setDefault(originalLocale)
     }
 
+    // -- helpers ---------------------------------------------------------
+
+    private fun parseOrFail(input: String): GeneralNames {
+        val result = SubjectAlternativeNameParser.parse(input)
+        assertNotNull("Expected non-null GeneralNames for input: \"$input\"", result)
+        return result!!
+    }
+
+    private fun parseSingle(input: String): GeneralName {
+        val names = parseOrFail(input).names
+        assertEquals("Expected exactly one entry for input: \"$input\"", 1, names.size)
+        return names[0]
+    }
+
+    private fun assertRejects(input: String, expectedSubstring: String) {
+        try {
+            SubjectAlternativeNameParser.parse(input)
+            fail("Expected IllegalArgumentException for input: \"$input\"")
+        } catch (e: IllegalArgumentException) {
+            val msg = e.message ?: ""
+            assertTrue(
+                "Expected message to contain \"$expectedSubstring\" for input \"$input\", got: $msg",
+                msg.contains(expectedSubstring),
+            )
+        }
+    }
+
+    private fun upnUtf8Value(name: GeneralName): String {
+        assertEquals(GeneralName.otherName, name.tagNo)
+        val seq = name.name as ASN1Sequence
+        val tagged = seq.getObjectAt(1) as ASN1TaggedObject
+        return (tagged.baseObject as DERUTF8String).string
+    }
+
+    // -- null and blank inputs -------------------------------------------
+
     @Test
-    fun `null input returns null`() {
-        assertNull(SubjectAlternativeNameParser.parse(null))
+    fun `null and blank inputs return null`() {
+        listOf(null, "", " ", "   \t\n  ").forEach { input ->
+            assertNull(
+                "Expected null for input \"$input\"",
+                SubjectAlternativeNameParser.parse(input),
+            )
+        }
     }
 
     @Test
-    fun `empty input returns null`() {
-        assertNull(SubjectAlternativeNameParser.parse(""))
+    fun `non-blank input that contains only empty tokens returns null`() {
+        // Distinct from blank input: this string is non-blank, but every comma-separated
+        // token is empty after trim, so no GeneralNames entries are produced.
+        assertNull(SubjectAlternativeNameParser.parse(", , , "))
+    }
+
+    // -- per-KEY positive encoding ---------------------------------------
+
+    @Test
+    fun `each IA5String KEY encodes its value verbatim with the right tag`() {
+        data class Case(val input: String, val expectedTag: Int, val expectedValue: String)
+        listOf(
+            Case("DNS=example.com", GeneralName.dNSName, "example.com"),
+            Case("EMAIL=user@example.com", GeneralName.rfc822Name, "user@example.com"),
+            Case(
+                "URI=spiffe://example.org/workload",
+                GeneralName.uniformResourceIdentifier,
+                "spiffe://example.org/workload",
+            ),
+        ).forEach { case ->
+            val name = parseSingle(case.input)
+            assertEquals("Wrong tag for \"${case.input}\"", case.expectedTag, name.tagNo)
+            assertEquals(
+                "Wrong value for \"${case.input}\"",
+                case.expectedValue,
+                (name.name as DERIA5String).string,
+            )
+        }
     }
 
     @Test
-    fun `whitespace-only input returns null`() {
-        assertNull(SubjectAlternativeNameParser.parse("   \t\n  "))
+    fun `IP addresses encode to canonical raw octets`() {
+        // Two cases pin the BC integration: we route IP through BouncyCastle and BC
+        // produces the RFC 5280 §4.2.1.6 raw octet form (4 bytes for IPv4, 16 for IPv6).
+        // Exhaustive enumeration of IPv6 forms is BouncyCastle's responsibility, not ours.
+        data class Case(val input: String, val expected: ByteArray)
+        listOf(
+            Case("192.168.1.100", byteArrayOf(192.toByte(), 168.toByte(), 1, 100)),
+            Case(
+                "2001:db8::1",
+                byteArrayOf(
+                    0x20, 0x01, 0x0d, 0xb8.toByte(),
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01,
+                ),
+            ),
+        ).forEach { case ->
+            val name = parseSingle("IP=${case.input}")
+            assertEquals("Wrong tag for \"${case.input}\"", GeneralName.iPAddress, name.tagNo)
+            assertArrayEquals(
+                "Wrong octets for \"${case.input}\"",
+                case.expected,
+                (name.name as DEROctetString).octets,
+            )
+        }
     }
 
     @Test
-    fun `single DNS entry`() {
-        val names = SubjectAlternativeNameParser.parse("DNS=example.com")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.dNSName, names[0].tagNo)
-        assertEquals("example.com", (names[0].name as DERIA5String).string)
-    }
-
-    @Test
-    fun `single EMAIL entry`() {
-        val names = SubjectAlternativeNameParser.parse("EMAIL=user@example.com")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.rfc822Name, names[0].tagNo)
-        assertEquals("user@example.com", (names[0].name as DERIA5String).string)
-    }
-
-    @Test
-    fun `single URI entry`() {
-        val uri = "spiffe://example.org/workload"
-        val names = SubjectAlternativeNameParser.parse("URI=$uri")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.uniformResourceIdentifier, names[0].tagNo)
-        assertEquals(uri, (names[0].name as DERIA5String).string)
-    }
-
-    @Test
-    fun `single IP entry IPv4`() {
-        val names = SubjectAlternativeNameParser.parse("IP=192.168.1.100")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.iPAddress, names[0].tagNo)
-        val octets = (names[0].name as DEROctetString).octets
-        assertArrayEquals(byteArrayOf(192.toByte(), 168.toByte(), 1.toByte(), 100.toByte()), octets)
-    }
-
-    @Test
-    fun `single IP entry IPv6`() {
-        val names = SubjectAlternativeNameParser.parse("IP=2001:db8::1")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.iPAddress, names[0].tagNo)
-        val octets = (names[0].name as DEROctetString).octets
-        assertEquals(16, octets.size)
-        // 2001:db8::1 -> 20 01 0d b8 00 00 ... 00 01
-        assertEquals(0x20.toByte(), octets[0])
-        assertEquals(0x01.toByte(), octets[1])
-        assertEquals(0x0d.toByte(), octets[2])
-        assertEquals(0xb8.toByte(), octets[3])
-        assertEquals(0x01.toByte(), octets[15])
-    }
-
-    @Test
-    fun `single UPN entry encodes as Microsoft otherName with UTF8 value`() {
+    fun `UPN encodes as Microsoft otherName with EXPLICIT-tagged UTF8 value`() {
         val upn = "marko@corp.example.com"
-        val names = SubjectAlternativeNameParser.parse("UPN=$upn")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-        assertEquals(GeneralName.otherName, names[0].tagNo)
+        val name = parseSingle("UPN=$upn")
+        assertEquals(GeneralName.otherName, name.tagNo)
 
         // OtherName ::= SEQUENCE { type-id OID, value [0] EXPLICIT ANY DEFINED BY type-id }
-        val otherName = names[0].name as ASN1Sequence
+        val otherName = name.name as ASN1Sequence
         assertEquals(2, otherName.size())
-        val oid = otherName.getObjectAt(0) as ASN1ObjectIdentifier
-        assertEquals("1.3.6.1.4.1.311.20.2.3", oid.id)
-
+        assertEquals(
+            "1.3.6.1.4.1.311.20.2.3",
+            (otherName.getObjectAt(0) as ASN1ObjectIdentifier).id,
+        )
         val tagged = otherName.getObjectAt(1) as ASN1TaggedObject
         assertEquals(0, tagged.tagNo)
         assertTrue("UPN value must be [0] EXPLICIT", tagged.isExplicit)
-
-        val utf8 = tagged.baseObject as DERUTF8String
-        assertEquals(upn, utf8.string)
+        assertEquals(upn, (tagged.baseObject as DERUTF8String).string)
     }
 
+    // -- multi-entry positive tests --------------------------------------
+
     @Test
-    fun `mixed entries cover all five KEYs in document order`() {
-        val san = "DNS=host.example.com, EMAIL=u@example.com, URI=spiffe://x/y, IP=10.0.0.1, " +
-            "UPN=marko@corp.example.com"
-        val names = SubjectAlternativeNameParser.parse(san)?.names
-        assertNotNull(names)
-        assertEquals(5, names!!.size)
+    fun `mixed entries preserve type, value, and document order`() {
+        val san = "DNS=host.example.com, EMAIL=u@example.com, URI=spiffe://x/y, " +
+            "IP=10.0.0.1, UPN=marko@corp.example.com"
+        val names = parseOrFail(san).names
+        assertEquals(5, names.size)
+
         assertEquals(GeneralName.dNSName, names[0].tagNo)
+        assertEquals("host.example.com", (names[0].name as DERIA5String).string)
         assertEquals(GeneralName.rfc822Name, names[1].tagNo)
+        assertEquals("u@example.com", (names[1].name as DERIA5String).string)
         assertEquals(GeneralName.uniformResourceIdentifier, names[2].tagNo)
+        assertEquals("spiffe://x/y", (names[2].name as DERIA5String).string)
         assertEquals(GeneralName.iPAddress, names[3].tagNo)
-        assertEquals(GeneralName.otherName, names[4].tagNo)
+        assertArrayEquals(byteArrayOf(10, 0, 0, 1), (names[3].name as DEROctetString).octets)
+        assertEquals("marko@corp.example.com", upnUtf8Value(names[4]))
     }
 
     @Test
-    fun `repeated keys produce repeated entries in document order`() {
+    fun `repeated keys produce repeated entries in document order with distinct values`() {
         val san = "DNS=a.example.com, DNS=b.example.com, EMAIL=u1@x, EMAIL=u2@x, " +
             "UPN=u1@corp, UPN=u2@corp, IP=10.0.0.1, IP=10.0.0.2, " +
             "URI=spiffe://x/1, URI=spiffe://x/2"
-        val names = SubjectAlternativeNameParser.parse(san)?.names
-        assertNotNull(names)
-        assertEquals(10, names!!.size)
+        val names = parseOrFail(san).names
+        assertEquals(10, names.size)
+
         assertEquals("a.example.com", (names[0].name as DERIA5String).string)
         assertEquals("b.example.com", (names[1].name as DERIA5String).string)
         assertEquals("u1@x", (names[2].name as DERIA5String).string)
         assertEquals("u2@x", (names[3].name as DERIA5String).string)
-        assertUpnValue(names[4].name, "u1@corp")
-        assertUpnValue(names[5].name, "u2@corp")
-        assertEquals(4, (names[6].name as DEROctetString).octets.size)
-        assertEquals(4, (names[7].name as DEROctetString).octets.size)
+        assertEquals("u1@corp", upnUtf8Value(names[4]))
+        assertEquals("u2@corp", upnUtf8Value(names[5]))
+        assertArrayEquals(byteArrayOf(10, 0, 0, 1), (names[6].name as DEROctetString).octets)
+        assertArrayEquals(byteArrayOf(10, 0, 0, 2), (names[7].name as DEROctetString).octets)
         assertEquals("spiffe://x/1", (names[8].name as DERIA5String).string)
         assertEquals("spiffe://x/2", (names[9].name as DERIA5String).string)
     }
 
+    // -- behavioral / format tolerance -----------------------------------
+
     @Test
-    fun `KEY is case-insensitive`() {
-        val names = SubjectAlternativeNameParser.parse("dns=example.com, Email=u@x, uPn=marko@corp")?.names
-        assertNotNull(names)
-        assertEquals(3, names!!.size)
+    fun `KEY matching is case-insensitive`() {
+        val names = parseOrFail("dns=example.com, Email=u@x, uPn=marko@corp").names
+        assertEquals(3, names.size)
         assertEquals(GeneralName.dNSName, names[0].tagNo)
         assertEquals(GeneralName.rfc822Name, names[1].tagNo)
         assertEquals(GeneralName.otherName, names[2].tagNo)
     }
 
     @Test
-    fun `whitespace around tokens and around equals is tolerated`() {
-        val names = SubjectAlternativeNameParser.parse("  DNS  =  example.com  ,   EMAIL =u@x  ")?.names
-        assertNotNull(names)
-        assertEquals(2, names!!.size)
-        assertEquals("example.com", (names[0].name as DERIA5String).string)
-        assertEquals("u@x", (names[1].name as DERIA5String).string)
-    }
-
-    @Test
-    fun `trailing comma and empty tokens are skipped`() {
-        val names = SubjectAlternativeNameParser.parse("DNS=example.com, , ,")?.names
-        assertNotNull(names)
-        assertEquals(1, names!!.size)
-    }
-
-    @Test
-    fun `unknown KEY throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("FOO=bar")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("FOO"))
-        }
-    }
-
-    @Test
-    fun `RFC822 KEY is rejected as unknown in v1`() {
-        try {
-            SubjectAlternativeNameParser.parse("RFC822=user@example.com")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("RFC822"))
-        }
-    }
-
-    @Test
-    fun `malformed token without equals throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("DNS=ok, OOPS")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("OOPS"))
-        }
-    }
-
-    @Test
-    fun `token with empty value throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("DNS=")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("DNS=") || e.message!!.contains("empty value"))
-        }
-    }
-
-    @Test
-    fun `unparseable IP throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("IP=not.an.address")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("not.an.address"))
-        }
-    }
-
-    @Test
-    fun `IPv4 with out-of-range octet throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("IP=999.0.0.1")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("999"))
-        }
-    }
-
-    @Test
-    fun `IPv4 with leading zeros throws`() {
-        try {
-            SubjectAlternativeNameParser.parse("IP=192.168.001.1")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("192.168.001.1"))
-        }
-    }
-
-    @Test
-    fun `hostname-shaped IP value does not trigger DNS resolution and is rejected`() {
-        try {
-            SubjectAlternativeNameParser.parse("IP=example.com")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("example.com"))
-        }
-    }
-
-    @Test
-    fun `colon-bearing hostname is rejected without DNS resolution`() {
-        // Strings like "example.com:443" contain a colon but are not IP literals.
-        // The parser must reject them rather than letting InetAddress.getByName fall
-        // through to a DNS lookup.
-        try {
-            SubjectAlternativeNameParser.parse("IP=example.com:443")
-            fail("Expected IllegalArgumentException")
-        } catch (e: IllegalArgumentException) {
-            assertTrue(e.message!!.contains("example.com:443"))
-        }
-    }
-
-    @Test
-    fun `lowercase keys parse correctly under Turkish locale`() {
-        // Turkish uppercase rules turn "i" into "İ" (dotted) under Locale.getDefault();
+    fun `KEY matching is locale-insensitive (Turkish dotless-i regression)`() {
+        // Turkish uppercase rules turn "i" into "İ" under Locale.getDefault();
         // the parser must use Locale.ROOT so "ip" still maps to "IP".
         Locale.setDefault(Locale.forLanguageTag("tr-TR"))
-        val names = SubjectAlternativeNameParser.parse("ip=10.0.0.1, dns=host.example.com")?.names
-        assertNotNull(names)
-        assertEquals(2, names!!.size)
+        val names = parseOrFail("ip=10.0.0.1, dns=host.example.com").names
+        assertEquals(2, names.size)
         assertEquals(GeneralName.iPAddress, names[0].tagNo)
         assertEquals(GeneralName.dNSName, names[1].tagNo)
     }
 
-    private fun assertUpnValue(name: ASN1Encodable, expected: String) {
-        val seq = name as ASN1Sequence
-        val tagged = seq.getObjectAt(1) as ASN1TaggedObject
-        val utf8 = tagged.baseObject as DERUTF8String
-        assertEquals(expected, utf8.string)
+    @Test
+    fun `whitespace around tokens and around equals is tolerated`() {
+        val names = parseOrFail("  DNS  =  example.com  ,   EMAIL =u@x  ").names
+        assertEquals(2, names.size)
+        assertEquals(GeneralName.dNSName, names[0].tagNo)
+        assertEquals("example.com", (names[0].name as DERIA5String).string)
+        assertEquals(GeneralName.rfc822Name, names[1].tagNo)
+        assertEquals("u@x", (names[1].name as DERIA5String).string)
+    }
+
+    @Test
+    fun `trailing and embedded empty tokens are skipped`() {
+        val names = parseOrFail("DNS=example.com, , ,").names
+        assertEquals(1, names.size)
+        assertEquals("example.com", (names[0].name as DERIA5String).string)
+    }
+
+    // -- rejection cases (one table; one assertion shape) ----------------
+
+    @Test
+    fun `parser rejects malformed inputs`() {
+        // Exhaustively testing what BouncyCastle rejects belongs in BC's own tests; we
+        // keep one representative bad IPv4 and one bad IPv6 to confirm we route IP
+        // through IPAddress.isValid and surface the right error message.
+        listOf(
+            // KEY allow-list violations.
+            "FOO=bar" to "FOO",
+            "RFC822=user@example.com" to "RFC822",
+            // Token shape violations.
+            "DNS=ok, OOPS" to "OOPS",
+            "DNS=" to "DNS=",
+            "=value" to "=value",
+            // IP value violations: representative bad IPv4 and bad IPv6.
+            "IP=999.0.0.1" to "999",
+            "IP=fe80::1%eth0" to "fe80::1%eth0",
+        ).forEach { (input, substring) -> assertRejects(input, substring) }
     }
 }

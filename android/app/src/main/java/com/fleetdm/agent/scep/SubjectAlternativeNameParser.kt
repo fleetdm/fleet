@@ -2,13 +2,12 @@ package com.fleetdm.agent.scep
 
 import org.bouncycastle.asn1.ASN1ObjectIdentifier
 import org.bouncycastle.asn1.DERIA5String
-import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.DERSequence
 import org.bouncycastle.asn1.DERTaggedObject
 import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.x509.GeneralName
 import org.bouncycastle.asn1.x509.GeneralNames
-import java.net.InetAddress
+import org.bouncycastle.util.IPAddress
 import java.util.Locale
 
 /**
@@ -31,8 +30,6 @@ import java.util.Locale
 object SubjectAlternativeNameParser {
 
     private const val MICROSOFT_UPN_OID = "1.3.6.1.4.1.311.20.2.3"
-
-    private val IPV6_LITERAL_CHARS = Regex("^[0-9a-fA-F:]+(\\.[0-9]{1,3}){0,3}$")
 
     fun parse(sanString: String?): GeneralNames? {
         if (sanString.isNullOrBlank()) return null
@@ -62,46 +59,19 @@ object SubjectAlternativeNameParser {
             "DNS" -> GeneralName(GeneralName.dNSName, DERIA5String(value))
             "EMAIL" -> GeneralName(GeneralName.rfc822Name, DERIA5String(value))
             "URI" -> GeneralName(GeneralName.uniformResourceIdentifier, DERIA5String(value))
-            "IP" -> GeneralName(GeneralName.iPAddress, encodeIp(value))
+            "IP" -> {
+                // BouncyCastle's IPAddress.isValid is literal-only (no DNS) and rejects
+                // bracketed forms, zone IDs, and anything outside dotted-quad / colon-hex.
+                // GeneralName(iPAddress, String) then encodes the literal to the raw 4-
+                // or 16-byte octet string the SAN extension requires.
+                require(IPAddress.isValid(value)) {
+                    "Unparseable IP address: \"$value\" (expected IPv4 dotted-quad or IPv6 colon-hex)"
+                }
+                GeneralName(GeneralName.iPAddress, value)
+            }
             "UPN" -> GeneralName(GeneralName.otherName, encodeUpn(value))
             else -> throw IllegalArgumentException("Unknown SAN KEY: \"$key\" (supported: DNS, EMAIL, URI, IP, UPN)")
         }
-    }
-
-    private fun encodeIp(value: String): DEROctetString {
-        // We must reject hostnames here. InetAddress.getByName does DNS resolution for
-        // anything that isn't an IP literal, which we never want for a SAN. So we parse
-        // IPv4 strictly ourselves, and only fall back to InetAddress.getByName when the
-        // value contains a colon (i.e. is shaped like IPv6 / IPv4-mapped IPv6); those
-        // are never hostnames, so getByName is guaranteed not to issue a DNS lookup.
-        val addr = parseIpLiteral(value)
-            ?: throw IllegalArgumentException(
-                "Unparseable IP address: \"$value\" (expected IPv4 dotted-quad or IPv6 colon-hex)",
-            )
-        return DEROctetString(addr.address)
-    }
-
-    private fun parseIpLiteral(value: String): InetAddress? {
-        if (value.contains(':')) {
-            // Strict character-set gate before InetAddress.getByName. Without it, an input
-            // like "example.com:443" would still reach getByName, fall past the IPv6 literal
-            // parse, and trigger a real DNS lookup. Only hex digits, colons, and dotted-quad
-            // suffixes (for IPv4-mapped IPv6) are permitted.
-            if (!IPV6_LITERAL_CHARS.matches(value)) return null
-            return runCatching { InetAddress.getByName(value) }.getOrNull()
-        }
-        val parts = value.split('.')
-        if (parts.size != 4) return null
-        val bytes = ByteArray(4)
-        for (i in 0..3) {
-            val part = parts[i]
-            if (part.isEmpty() || part.length > 3) return null
-            val n = part.toIntOrNull() ?: return null
-            if (n !in 0..255) return null
-            if (part != n.toString()) return null
-            bytes[i] = n.toByte()
-        }
-        return runCatching { InetAddress.getByAddress(bytes) }.getOrNull()
     }
 
     private fun encodeUpn(value: String): DERSequence = DERSequence(

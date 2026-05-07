@@ -1,12 +1,7 @@
 package com.fleetdm.agent.scep
 
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
-import org.bouncycastle.asn1.ASN1ObjectIdentifier
-import org.bouncycastle.asn1.ASN1Sequence
-import org.bouncycastle.asn1.ASN1TaggedObject
 import org.bouncycastle.asn1.DERIA5String
-import org.bouncycastle.asn1.DEROctetString
-import org.bouncycastle.asn1.DERUTF8String
 import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.Extension
@@ -77,29 +72,23 @@ class ScepClientImplTest {
         }
     }
 
-    // Note: Testing successful enrollment requires a mock SCEP server or extensive mocking
-    // of jScep's Client class. Integration tests should be used for this scenario.
-
     @Test
-    fun `buildCsr without SAN string omits SAN extension`() {
-        val csr = buildTestCsr(subjectAlternativeName = null)
-        assertNull(extractSanExtension(csr))
+    fun `buildCsr omits SAN extension when SAN string is null or blank`() {
+        listOf(null, "", "   ").forEach { input ->
+            val csr = buildTestCsr(subjectAlternativeName = input)
+            assertNull(
+                "Expected no SAN extension for input \"$input\"",
+                extractSanExtension(csr),
+            )
+        }
     }
 
     @Test
-    fun `buildCsr with empty SAN string omits SAN extension`() {
-        val csr = buildTestCsr(subjectAlternativeName = "")
-        assertNull(extractSanExtension(csr))
-    }
-
-    @Test
-    fun `buildCsr with whitespace-only SAN string omits SAN extension`() {
-        val csr = buildTestCsr(subjectAlternativeName = "   ")
-        assertNull(extractSanExtension(csr))
-    }
-
-    @Test
-    fun `buildCsr with DNS SAN includes non-critical extension with dNSName`() {
+    fun `buildCsr emits a non-critical SAN extension when SAN string is present`() {
+        // Per-KEY encoding correctness is covered by SubjectAlternativeNameParserTest.
+        // Here we only verify the buildCsr-owned plumbing: GeneralNames produced by the
+        // parser end up wrapped in a non-critical Extension under the extensionRequest
+        // attribute, in a form a SCEP CA can read back.
         val csr = buildTestCsr(subjectAlternativeName = "DNS=example.com")
         val ext = extractSanExtension(csr)
         assertNotNull(ext)
@@ -111,46 +100,15 @@ class ScepClientImplTest {
     }
 
     @Test
-    fun `buildCsr with mixed SAN includes all entries in document order`() {
-        val san = "DNS=host.example.com, EMAIL=u@example.com, URI=spiffe://x/y, " +
-            "IP=10.0.0.1, UPN=marko@corp.example.com"
-        val csr = buildTestCsr(subjectAlternativeName = san)
-        val ext = extractSanExtension(csr)
-        assertNotNull(ext)
-        assertFalse(ext!!.isCritical)
-        val names = GeneralNames.getInstance(ext.parsedValue).names
-        assertEquals(5, names.size)
-        assertEquals(GeneralName.dNSName, names[0].tagNo)
-        assertEquals(GeneralName.rfc822Name, names[1].tagNo)
-        assertEquals(GeneralName.uniformResourceIdentifier, names[2].tagNo)
-        assertEquals(GeneralName.iPAddress, names[3].tagNo)
-        assertEquals(GeneralName.otherName, names[4].tagNo)
-        assertEquals(4, (names[3].name as DEROctetString).octets.size)
-
-        val otherName = names[4].name as ASN1Sequence
-        val oid = otherName.getObjectAt(0) as ASN1ObjectIdentifier
-        assertEquals("1.3.6.1.4.1.311.20.2.3", oid.id)
-        val tagged = otherName.getObjectAt(1) as ASN1TaggedObject
-        assertEquals("marko@corp.example.com", (tagged.baseObject as DERUTF8String).string)
-    }
-
-    @Test
-    fun `buildCsr with malformed SAN throws ScepCsrException`() {
-        try {
-            buildTestCsr(subjectAlternativeName = "DNS=ok, OOPS")
-            fail("Expected ScepCsrException")
-        } catch (e: ScepCsrException) {
-            assertTrue(e.message!!.contains("subject alternative name"))
-        }
-    }
-
-    @Test
-    fun `buildCsr with unknown SAN KEY throws ScepCsrException`() {
+    fun `buildCsr wraps parser exceptions as ScepCsrException`() {
         try {
             buildTestCsr(subjectAlternativeName = "FOO=bar")
             fail("Expected ScepCsrException")
         } catch (e: ScepCsrException) {
-            assertTrue(e.message!!.contains("subject alternative name"))
+            assertTrue(
+                "Expected wrapper message to mention SAN; got: ${e.message}",
+                e.message!!.contains("subject alternative name"),
+            )
         }
     }
 
