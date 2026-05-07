@@ -1851,6 +1851,7 @@ const ManageHostsPage = ({
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
           "Expecting to see more hosts? Try again soon as the system catches up.";
+        emptyHosts.primaryButton = undefined;
       }
 
       return emptyHosts;
