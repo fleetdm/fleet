@@ -725,8 +725,18 @@ func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp
 					return ctxerr.Wrap(ctx, err, "setting configuration for android app")
 				}
 			case fleet.IOSPlatform, fleet.IPadOSPlatform:
-				if err := ds.updateVPPAppConfigurationTx(ctx, tx, app.Platform, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
-					return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
+				// Empty bytes signals a clear (PATCH `"configuration": null`). Non-empty
+				// bytes upsert. Mirrors the batch path above so single-app and batch
+				// flows behave the same way.
+				if len(app.Configuration) > 0 {
+					if err := ds.updateVPPAppConfigurationTx(ctx, tx, app.Platform, ptr.ValOrZero(teamID), app.AdamID, app.Configuration); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting configuration for vpp app")
+					}
+				} else {
+					if _, err := tx.ExecContext(ctx, `DELETE FROM vpp_app_configurations WHERE application_id = ? AND team_id = ? AND platform = ?`,
+						app.AdamID, ptr.ValOrZero(teamID), app.Platform); err != nil {
+						return ctxerr.Wrap(ctx, err, "clearing configuration for vpp app")
+					}
 				}
 			}
 		}
