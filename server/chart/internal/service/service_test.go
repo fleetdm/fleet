@@ -145,16 +145,6 @@ func TestGetChartDataUnknownMetric(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown chart metric")
 }
 
-func TestGetChartDataInvalidDays(t *testing.T) {
-	ds := &mockDatastore{}
-	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
-	svc.RegisterDataset(&chart.UptimeDataset{})
-
-	_, err := svc.GetChartData(t.Context(), "uptime", api.RequestOpts{Days: 5})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid days value")
-}
-
 func TestGetChartDataInvalidResolution(t *testing.T) {
 	ds := &mockDatastore{}
 	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
