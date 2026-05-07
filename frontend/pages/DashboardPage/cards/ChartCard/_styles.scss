@@ -27,7 +27,7 @@
   }
 
   &__title {
-    font-size: $medium;
+    font-size: $small;
     font-weight: $bold;
     margin: 0 !important;
     line-height: 1;
@@ -69,7 +69,7 @@
     }
 
     .react-select__single-value {
-      font-size: $medium;
+      font-size: $small;
       font-weight: $bold;
       color: $core-fleet-black;
       line-height: 1;
