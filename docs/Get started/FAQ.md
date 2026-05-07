@@ -1,78 +1,5 @@
 # FAQ
 
-## My EDR is flagging Fleet — what's going on, and what should I do?
-
-### Why is my EDR flagging Fleet?
-
-Because Fleet and your EDR have overlapping interests with opposite jobs.
-
-Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
-
-Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
-
-The kinds of behaviors Fleet uses to gather telemetry overlap with things attackers might do — which is why your EDR is doing its job by flagging them. This is a natural byproduct of running host visibility tooling at scale, not an indication that Fleet is misbehaving. Your EDR is detecting normal Fleet activity as it should.
-
-### Is Fleet doing something unsafe?
-
-No. Fleet is code-signed, distributed through TUF (a framework that protects against tampered updates), and developed in the open at [github.com/fleetdm/fleet](https://github.com/fleetdm/fleet). Every behavior your EDR is flagging is documented and intentional.
-
-That said — the fact that Fleet is trustworthy today doesn't mean blanket-trusting it everywhere is automatically the right call. That's a security decision your team should make deliberately, not by default.
-
-### What should I do about it?
-
-Because you're likely using Fleet to monitor the same sensitive data that attackers are trying to exploit, it's reasonable that the agent will be flagged for review or quarantined. When this happens, we recommend reviewing any alerts to determine why the Fleet agent is being flagged and creating exceptions as needed. Because this is not an uncommon scenario for any MDM or telemetry agent, your EDR platform should have these mechanisms in place. If you're seeing new alerts, please reach out through our support channels to give the community and us a heads up!
-
-#### Option 1: Publisher or binary allowlist (broad, simple, pragmatic)
-
-Configure your EDR to trust binaries signed by Fleet's publisher, or to exclude Fleet's binary paths from detection.
-
-- Upside: Easy to set up, easy to maintain, no per-release overhead.
-- Downside: Every current and future Fleet binary is implicitly trusted. If Fleet itself were ever compromised — supply chain attack, signing key compromise, malicious release — your EDR would not detect activity flowing through Fleet's process. This is a real tradeoff worth weighing, and it's the strongest argument for Option 2 below.
-
-Most enterprise EDRs support publisher- or path-based exclusions natively. Check your EDR's documentation for "exclusions," "exceptions," or "trusted applications."
-
-#### Option 2: Hash-pinned allowlist via canary fleet (narrow, deliberate, more work)
-
-Run a small canary group of hosts on Fleet's edge channel — where release candidates land before they're promoted to stable. This gives you a preview of what's coming a release ahead of your enterprise rollout. You identify the specific binary hashes you intend to deploy, allowlist only those hashes in your EDR, and only then promote that version across your fleet.
-
-- Upside: Your EDR trusts only the specific Fleet builds you've reviewed and tested. New releases don't get a free pass — they require explicit re-approval. This is closer in spirit to true behavior-scoped allowlisting (which most EDRs don't expose for third-party tools), implemented through hash control instead.
-- Downside: Real operational cost. Every Fleet release means updating the allowlist. The canary group must run your production EDR or it tells you nothing useful. Requires Fleet Premium for the `update_channels` configuration.
-
-A practical canary setup pins only osquery to edge while keeping orbit and Fleet Desktop on stable — limiting drift to the component most likely to introduce new EDR-flagged behavior:
-
-```yaml
-agent_options:
-  update_channels:
-    orbit: stable
-    osqueryd: edge
-    desktop: stable
-```
-
-The [agent configuration docs](https://fleetdm.com/docs/configuration/agent-configuration#update-channels) cover this and the safe rollback path.
-
-### Which option should I pick?
-
-If your security team is comfortable trusting Fleet's publisher signature — the same way they likely trust signed binaries from your operating system vendor or your MDM provider — Option 1 is reasonable and gets you running quickly.
-
-If your posture is that every binary on your endpoints needs to be individually reviewed and approved, Option 2 fits better. Expect to invest time in maintaining it.
-
-Either path is defensible. Picking is a security posture question, not a technical one.
-
-### How do I do this in my EDR?
-
-Most enterprise EDRs support exclusions by publisher (Option 1) and by SHA-256 hash (Option 2). Exact terminology and configuration paths differ by vendor.
-
-The cleanest way to get this configured:
-
-1. Open a support case with your EDR provider and confirm their recommended remediation path for asset-visibility tooling. This is a routine request — exclusions for visibility, MDM, and asset-discovery agents are standard practice.
-2. Fleet support can supply the developer ID, current binary hashes, signing details, and behavior documentation you'll need to share with them.
-
-### Who do I contact?
-
-Fleet support has everything you need on the Fleet side: developer ID, current binary hashes, SLSA provenance attestations, signing certs, behavior documentation.
-
-Your EDR vendor owns the trust decision on their side. Fleet can provide technical context, but the exclusion or allowlist gets created by you and your EDR provider.
-
 ## Can you host Fleet for me?
 
 Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/pricing) customers with large deployments.
@@ -800,3 +727,15 @@ Finally, "shard" has been retired as an option for queries. In its place, we rec
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
+
+# My EDR is flagging Fleet — what's going on, and what should I do?
+
+### Why is my EDR flagging Fleet?
+
+Fleet and your EDR have overlapping interests with opposite jobs.
+
+Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
+
+Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
+
+If you notice a new flag or detection against Fleet, osquery, or orbit by your EDR, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
