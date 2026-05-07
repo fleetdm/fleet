@@ -95,7 +95,7 @@ type SoftwareInstaller struct {
 	// UninstallScriptContentID is the ID of the uninstall script content.
 	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install (SQL-sense)
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// UninstallScript is the script to run to uninstall the software package.
@@ -423,7 +423,7 @@ type HostSoftwareInstallerResult struct {
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output (SQL-sense)
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
@@ -825,7 +825,7 @@ func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install (SQL-sense)
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
@@ -885,7 +885,7 @@ type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
 	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install (SQL-sense)
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`

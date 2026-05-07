@@ -1348,8 +1348,8 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries (SQL-sense)
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides (SQL-sense)
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
