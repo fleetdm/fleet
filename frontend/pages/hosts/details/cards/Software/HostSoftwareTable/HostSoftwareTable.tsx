@@ -167,7 +167,8 @@ const HostSoftwareTable = ({
   // Truly empty: no software at all, no active search/filters
   const isTrulyEmpty = isSoftwareNotDetected && !hasVulnFilters;
 
-  const showFilterHeaders = isTrulyEmpty || hasData || hasQuery || hasVulnFilters;
+  const showFilterHeaders =
+    isTrulyEmpty || hasData || hasQuery || hasVulnFilters;
 
   const memoizedSoftwareCount = useCallback(() => {
     return <TableCount name="items" count={count} />;

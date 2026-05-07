@@ -250,7 +250,7 @@ const HostReportsTab = ({
         </div>
       </div>
 
-      {isTrulyEmpty ? (
+      {isTrulyEmpty && (
         <EmptyState
           header="No reports scheduled"
           info={
@@ -266,9 +266,11 @@ const HostReportsTab = ({
             ) : undefined
           }
         />
-      ) : reports.length === 0 && searchQuery ? (
+      )}
+      {!isTrulyEmpty && reports.length === 0 && searchQuery && (
         <EmptyReports isSearching />
-      ) : (
+      )}
+      {!isTrulyEmpty && reports.length > 0 && (
         <>
           <div className={`${baseClass}__reports-list`}>
             {reports.map((report) => (
