@@ -167,7 +167,7 @@ const Variables = () => {
       content={
         <>
           Manage custom variables that will be available in scripts and
-          profiles.{" "}
+          profiles across all fleets.{" "}
           <CustomLink
             text="Learn more"
             url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
