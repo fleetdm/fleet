@@ -361,6 +361,12 @@ func orbitAction(c *cli.Context) error {
 			}
 		} else {
 			secret := strings.TrimSpace(string(b))
+			// If the secret file contains the unused placeholder value, delete the
+			// file and fall through to the keystore.
+			if secret == unusedFlagKeyword {
+				deleteSecretPathIfExists(enrollSecretPath)
+				return nil
+			}
 			if err = c.Set("enroll-secret", secret); err != nil {
 				return fmt.Errorf("set enroll secret from file: %w", err)
 			}
