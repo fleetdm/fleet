@@ -89,8 +89,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
-| Fleet-maintained apps                  | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
-
+| Fleet-maintained apps                | <sup><sub>_[Allen Houchins](https://fleetdm.com/handbook/it#team)_</sup></sub>
+| Apple Enterprise integrations        | <sup><sub>_[George Karr](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 
 
 ## Meetings
@@ -483,6 +483,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Record at 1920x1080, 30 fps. Save as `.mp4` (h.264/AAC) or `.mov`. Don't use `.webm`.
 - Add a few seconds of silence at the start and end of each recording.
 - Name files: `[release number]-[issue #]-demo-[YYYY-MM-DD].[extension]`
+- Make sure videos are shared as downloadable
 
 #### Best practices
 **Browser and terminal:**
@@ -501,7 +502,7 @@ When posting about a personal or philosophical topic that potential Fleet custom
 - Don't show or say customer names, codenames, or real email addresses.
 
 **Playback:**
-- Don't enable closed captions during recording (they're added later if needed).
+- Don't enable closed captions during sprint demo recording (they're added later if needed).
 
 
 ## Feedback

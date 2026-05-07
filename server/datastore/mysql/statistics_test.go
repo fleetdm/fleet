@@ -28,6 +28,7 @@ func TestStatistics(t *testing.T) {
 		{"ShouldSend", testStatisticsShouldSend},
 		{"ConditionalAccessStatistics", testConditionalAccessStatistics},
 		{"FleetMaintainedAppsInUse", testFleetMaintainedAppsInUse},
+		{"GitOpsModeStatistics", testGitOpsModeStatistics},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -101,6 +102,10 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
 	assert.False(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
+	assert.False(t, stats.GitOpsModeEnabled)
+	// Existing-install defaults applied by migration 20260323144117_AddGitOpsExceptionsToAppConfig
+	// (labels + secrets on, software off) and baked into the dumped test schema.
+	assert.Equal(t, []string{"labels", "secrets"}, stats.GitOpsModeExceptions)
 
 	firstIdentifier := stats.AnonymousIdentifier
 
@@ -483,6 +488,12 @@ func testStatisticsShouldSend(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessBypassDisabled)
 }
 
+func markStatisticsStale(t *testing.T, ctx context.Context, ds *Datastore) {
+	_, err := ds.writer(ctx).ExecContext(ctx,
+		`UPDATE statistics SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR), updated_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) LIMIT 1`)
+	require.NoError(t, err)
+}
+
 func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	eh := ctxerr.MockHandler{}
 	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
@@ -501,9 +512,7 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.False(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
 
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
 	// Enable conditional access on appconfig (for "No team")
 	cfg, err := ds.AppConfig(ctx)
@@ -518,11 +527,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, stats.ConditionalAccessEnabled)
 	assert.False(t, stats.EntraConditionalAccessConfigured)
 
-	// Disable on appconfig
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Disable on appconfig
 	cfg.Integrations.ConditionalAccessEnabled = optjson.SetBool(false)
 	err = ds.SaveAppConfig(ctx, cfg)
 	require.NoError(t, err)
@@ -532,11 +539,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.ConditionalAccessEnabled)
 
-	// Enable conditional access on a team
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Enable conditional access on a team
 	team, err := ds.NewTeam(ctx, &fleet.Team{
 		Name:        "ca-team",
 		Description: "team with conditional access",
@@ -551,11 +556,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.ConditionalAccessEnabled)
 
-	// Disable on team
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Disable on team
 	team.Config.Integrations.ConditionalAccessEnabled = optjson.SetBool(false)
 	_, err = ds.SaveTeam(ctx, team)
 	require.NoError(t, err)
@@ -565,11 +568,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.ConditionalAccessEnabled)
 
-	// Test Entra conditional access: create the integration but without setup done
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Test Entra conditional access: create the integration but without setup done
 	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{
 		ProxyAPIKey: "test-key",
 	}
@@ -581,11 +582,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.False(t, stats.EntraConditionalAccessConfigured) // setup not done yet
 
-	// Mark setup done
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Mark setup done
 	err = ds.ConditionalAccessMicrosoftMarkSetupDone(ctx)
 	require.NoError(t, err)
 
@@ -594,11 +593,9 @@ func testConditionalAccessStatistics(t *testing.T, ds *Datastore) {
 	assert.True(t, shouldSend)
 	assert.True(t, stats.EntraConditionalAccessConfigured)
 
-	// Without the fleet config proxy key, should be false even with setup done
-	err = ds.RecordStatisticsSent(ctx)
-	require.NoError(t, err)
-	time.Sleep(1100 * time.Millisecond)
+	markStatisticsStale(t, ctx, ds)
 
+	// Without the fleet config proxy key, should be false even with setup done
 	fleetConfig.MicrosoftCompliancePartner = config.MicrosoftCompliancePartnerConfig{}
 	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
 	require.NoError(t, err)
@@ -771,4 +768,76 @@ func testFleetMaintainedAppsInUse(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"slack/darwin", "zoom/darwin"}, macOSApps)
 	assert.Equal(t, []string{"microsoft-teams/windows", "zoom/windows"}, windowsApps)
+}
+
+func testGitOpsModeStatistics(t *testing.T, ds *Datastore) {
+	eh := ctxerr.MockHandler{}
+	eh.RetrieveImpl = func(flush bool) ([]*ctxerr.StoredError, error) {
+		return nil, nil
+	}
+	ctx := ctxerr.NewContext(context.Background(), eh)
+
+	premiumLicense := &fleet.LicenseInfo{Tier: fleet.TierPremium, Organization: "Fleet"}
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	// Create a new app config so ApplyDefaults runs (new-install defaults: only "secrets" exception).
+	_, err := ds.NewAppConfig(ctx, &fleet.AppConfig{
+		OrgInfo: fleet.OrgInfo{OrgName: "Test", OrgLogoURL: "localhost:8080/logo.png"},
+	})
+	require.NoError(t, err)
+
+	// Default state (new install): GitOps mode disabled, only "secrets" is a default exception.
+	stats, shouldSend, err := ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.GitOpsModeEnabled)
+	assert.Equal(t, []string{"secrets"}, stats.GitOpsModeExceptions)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Enable GitOps mode and add labels + software exceptions.
+	cfg, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	cfg.GitOpsConfig.GitopsModeEnabled = true
+	cfg.GitOpsConfig.RepositoryURL = "https://github.com/example/fleet-config"
+	cfg.GitOpsConfig.Exceptions.Labels = true
+	cfg.GitOpsConfig.Exceptions.Software = true
+	cfg.GitOpsConfig.Exceptions.Secrets = true
+	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.True(t, stats.GitOpsModeEnabled)
+	assert.Equal(t, []string{"labels", "software", "secrets"}, stats.GitOpsModeExceptions)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Disable GitOps mode but keep exceptions configured — exceptions are persisted independently.
+	cfg, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	cfg.GitOpsConfig.GitopsModeEnabled = false
+	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.GitOpsModeEnabled)
+	assert.Equal(t, []string{"labels", "software", "secrets"}, stats.GitOpsModeExceptions)
+
+	markStatisticsStale(t, ctx, ds)
+
+	// Clear all exceptions: should serialize as empty slice, not nil.
+	cfg, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	cfg.GitOpsConfig.Exceptions.Labels = false
+	cfg.GitOpsConfig.Exceptions.Software = false
+	cfg.GitOpsConfig.Exceptions.Secrets = false
+	require.NoError(t, ds.SaveAppConfig(ctx, cfg))
+
+	stats, shouldSend, err = ds.ShouldSendStatistics(license.NewContext(ctx, premiumLicense), time.Millisecond, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, shouldSend)
+	assert.False(t, stats.GitOpsModeEnabled)
+	assert.Equal(t, []string{}, stats.GitOpsModeExceptions)
 }

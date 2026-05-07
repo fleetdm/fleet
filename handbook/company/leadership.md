@@ -59,7 +59,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
 
 ## Outline of departmental page structure
 
-Departmental pages outline intake, people, departmental philosophy, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+Departmental pages outline intake, people, departmental philosophy, responsibilities, and recurring rituals. They always follow the structure below. Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
 > For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
@@ -314,7 +314,7 @@ The CEO shadow program is a three-day temporary assignment (usually completed du
 
 > **AEs**: Account Executives (AEs) complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.
  
-> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determining factor for a promotion or raise. 
 
 As a CEO shadow, you will be attending both internal and external meetings regarding various areas of the company. In order to make the most of your time as a shadow:
 - **Be on time**: Your time is priceless, your time as a CEO shadow is short! Join each meeting on time, this limits the distraction for other attendees and gives the CEO the opportunity to introduce you to other folks on the call without interrupting the meeting.

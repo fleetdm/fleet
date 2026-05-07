@@ -106,7 +106,7 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
     fleet_id: location.query.fleet_id,
   });
 
@@ -139,12 +139,14 @@ const SoftwareAddPage = ({
               </TabList>
             </Tabs>
           </TabNav>
-          {React.cloneElement(children, {
-            router,
-            currentTeamId: parseInt(location.query.fleet_id, 10),
-            isSidePanelOpen,
-            setSidePanelOpen,
-          })}
+          <div key={location?.pathname} className="tab-nav-routed-content">
+            {React.cloneElement(children, {
+              router,
+              currentTeamId: parseInt(location.query.fleet_id, 10),
+              isSidePanelOpen,
+              setSidePanelOpen,
+            })}
+          </div>
         </MainContent>
         {isSidePanelOpen && (
           <SidePanelContent>

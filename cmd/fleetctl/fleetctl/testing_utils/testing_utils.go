@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
@@ -165,6 +167,21 @@ func RunServerWithMockedDS(t *testing.T, opts ...*service.TestServerOpts) (*http
 	ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
 		return &fleet.TeamMDM{}, nil
 	}
+	// Default mocks used by ApplyLabelSpecs to detect created vs edited labels
+	// for activity emission. Tests can override these.
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		return map[string]*fleet.Label{}, nil
+	}
+	ds.LabelFunc = func(ctx context.Context, lid uint, filter fleet.TeamFilter) (*fleet.LabelWithTeamName, []uint, error) {
+		return &fleet.LabelWithTeamName{Label: fleet.Label{ID: lid}}, nil, nil
+	}
+	ds.LabelMembershipHostIDsFunc = func(ctx context.Context, labelID uint) ([]uint, error) {
+		return nil, nil
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		return &fleet.TeamLite{ID: tid}, nil
+	}
+
 	var cachedDS fleet.Datastore
 	if len(opts) > 0 && opts[0].NoCacheDatastore {
 		cachedDS = ds
@@ -299,6 +316,15 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
 		return nil
 	}
+	// Default to "no existing vpp_apps row" so resolveAddAnchor takes the
+	// first-add path. Tests that assert subsequent-add or re-anchor behavior
+	// override these.
+	ds.GetVPPAppByAdamIDPlatformFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return nil, &notFoundError{}
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		return nil, &notFoundError{}
+	}
 	ds.ListSoftwareAutoUpdateSchedulesFunc = func(ctx context.Context, teamID uint, source string, optionalFilter ...fleet.SoftwareAutoUpdateScheduleFilter) ([]fleet.SoftwareAutoUpdateSchedule, error) {
 		return []fleet.SoftwareAutoUpdateSchedule{}, nil
 	}
@@ -398,6 +424,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		job.ID = 1
 		return job, nil
 	}
+	ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+		return false, nil
+	}
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = uint(len(savedTeams) + 1) //nolint:gosec // dismiss G115
 		savedTeams[team.Name] = &team
@@ -448,6 +477,22 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 			}
 		}
 		return nil, &notFoundError{}
+	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		// Match production semantics: both sides get NFC-normalized before
+		// the case-insensitive compare, so two names that only differ by
+		// Unicode composition (e.g., precomposed "é" vs. "e" + combining
+		// acute accent) are treated as equal.
+		needle := norm.NFC.String(name)
+		for _, tm := range savedTeams {
+			if (*tm).ID == excludeID {
+				continue
+			}
+			if strings.EqualFold(norm.NFC.String((*tm).Name), needle) {
+				return *tm, nil
+			}
+		}
+		return nil, nil
 	}
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		savedTeams[team.Name] = &team
@@ -647,7 +692,7 @@ func StartVPPApplyServer(t *testing.T, config *AppleVPPConfigSrvConf) {
 			return
 		}
 
-		resp := []byte(`{"locationName": "Fleet Location One"}`)
+		resp := []byte(`{"locationName": "Fleet Location One", "countryISO2ACode": "US"}`)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:

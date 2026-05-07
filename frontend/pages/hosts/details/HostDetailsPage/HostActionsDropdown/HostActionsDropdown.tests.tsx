@@ -1933,48 +1933,85 @@ describe("Host Actions Dropdown", () => {
       ).not.toBeInTheDocument();
     });
 
-    it.each(["pending", "failed"])(
-      "disables the action with 'still being created' tooltip when status is %s",
-      async (status) => {
-        const render = createCustomRenderer({
-          context: {
-            app: {
-              isGlobalAdmin: true,
-              isPremiumTier: true,
-              currentUser: createMockUser(),
-            },
+    it("disables the action with 'still being created' tooltip when status is pending", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
           },
-        });
+        },
+      });
 
-        const { user } = render(
-          <HostActionsDropdown
-            hostTeamId={null}
-            onSelect={noop}
-            hostStatus="online"
-            hostMdmEnrollmentStatus="On (automatic)"
-            hostMdmDeviceStatus="unlocked"
-            hostScriptsEnabled
-            isConnectedToFleetMdm
-            hostPlatform="darwin"
-            isManagedLocalAccountEnabled
-            managedAccountStatus={status}
-          />
-        );
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="pending"
+        />
+      );
 
-        await user.click(screen.getByText("Actions"));
+      await user.click(screen.getByText("Actions"));
 
-        const option = screen.getByText("Show managed account");
-        expect(option).toBeInTheDocument();
-        expect(option).toHaveAttribute("aria-disabled", "true");
+      const option = screen.getByText("Show managed account");
+      expect(option).toBeInTheDocument();
+      expect(option).toHaveAttribute("aria-disabled", "true");
 
-        await user.hover(option);
-        await waitFor(() => {
-          expect(
-            screen.getByText(/The managed account is still being/i)
-          ).toBeInTheDocument();
-        });
-      }
-    );
+      await user.hover(option);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/The managed account is still being/i)
+        ).toBeInTheDocument();
+      });
+    });
+
+    it("disables the action with 'failed' tooltip when status is failed", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="failed"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toBeInTheDocument();
+      expect(option).toHaveAttribute("aria-disabled", "true");
+
+      await user.hover(option);
+      await waitFor(() => {
+        expect(
+          screen.getByText(/The managed account failed to be/i)
+        ).toBeInTheDocument();
+      });
+    });
 
     it("disables the action with 'next enrollment' tooltip when status is null (no record)", async () => {
       const render = createCustomRenderer({
@@ -2012,6 +2049,40 @@ describe("Host Actions Dropdown", () => {
       await waitFor(() => {
         expect(screen.getByText(/at the next enrollment/i)).toBeInTheDocument();
       });
+    });
+
+    it("enables the action when status is pending but password is available (e.g. viewed-and-waiting)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="pending"
+          managedAccountPasswordAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toBeInTheDocument();
+      expect(option).not.toHaveAttribute("aria-disabled", "true");
     });
 
     it("renders the action for company-owned ADE enrollment status", async () => {

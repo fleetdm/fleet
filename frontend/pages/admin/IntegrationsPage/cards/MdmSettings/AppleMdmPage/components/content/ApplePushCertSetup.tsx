@@ -50,7 +50,7 @@ const ApplePushCertSetup = ({
   const onDownloadError = useCallback(
     (e: unknown) => {
       const msg = getErrorReason(e);
-      if (msg.toLowerCase().includes("email address")) {
+      if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else if (msg.toLowerCase().includes("required private key")) {
         // replace link with actually clickable link

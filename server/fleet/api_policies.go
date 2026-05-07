@@ -13,6 +13,7 @@ type GlobalPolicyRequest struct {
 	Platform         string   `json:"platform"`
 	Critical         bool     `json:"critical" premium:"true"`
 	LabelsIncludeAny []string `json:"labels_include_any"`
+	LabelsIncludeAll []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 }
 
@@ -161,6 +162,7 @@ type TeamPolicyRequest struct {
 	SoftwareTitleID          *uint    `json:"software_title_id"`
 	ScriptID                 *uint    `json:"script_id"`
 	LabelsIncludeAny         []string `json:"labels_include_any"`
+	LabelsIncludeAll         []string `json:"labels_include_all" premium:"true"`
 	LabelsExcludeAny         []string `json:"labels_exclude_any"`
 	ConditionalAccessEnabled bool     `json:"conditional_access_enabled"`
 	Type                     *string  `json:"type"`

@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"math/big"
@@ -2858,6 +2859,129 @@ func TestNewMDMProfilePremiumOnlyAndroid(t *testing.T) {
 			require.False(t, ds.NewMDMAndroidConfigProfileFuncInvoked)
 		})
 	}
+}
+
+func TestProcessIncomingMDMCmdsWipeFailedActivity(t *testing.T) {
+	ds := new(mock.Store)
+	opts := &TestServerOpts{}
+	svc, ctx := newTestService(t, ds, nil, nil, opts)
+
+	var svcImpl *Service
+	switch v := svc.(type) {
+	case validationMiddleware:
+		svcImpl = v.Service.(*Service)
+	case *Service:
+		svcImpl = v
+	}
+
+	testHostUUID := "test-host-uuid"
+	testHostID := uint(42)
+	testDeviceID := "test-device-id"
+	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID: testDeviceID,
+		HostUUID:    testHostUUID,
+	}
+
+	// MDMWindowsSaveResponse returns a WipeFailed result.
+	ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+		return &fleet.MDMWindowsSaveResponseResult{
+			WipeFailed: &fleet.MDMWindowsWipeResult{
+				HostUUID: testHostUUID,
+			},
+		}, nil
+	}
+
+	// Stub for the resending flow (no 418 commands in our test).
+	ds.GetWindowsMDMCommandsForResendingFunc = func(ctx context.Context, deviceID string, cmdUUIDs []string) ([]*fleet.MDMWindowsCommand, error) {
+		return nil, nil
+	}
+
+	// HostByIdentifier returns a test host.
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		require.Equal(t, testHostUUID, identifier)
+		return &fleet.Host{
+			ID:           testHostID,
+			ComputerName: "DESKTOP-TEST",
+			UUID:         testHostUUID,
+		}, nil
+	}
+
+	// Track activity creation.
+	var createdActivity activity_api.ActivityDetails
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, user *activity_api.User, activity activity_api.ActivityDetails) error {
+		assert.Nil(t, user, "wipe_failed_host activity should have nil user")
+		createdActivity = activity
+		return nil
+	}
+
+	// Build a minimal valid SyncML message with a <Status> entry so that
+	// NewEnrichedSyncML produces a non-empty CmdRefUUIDs and HasCommands()
+	// returns true, which is needed for saveResponse to call MDMWindowsSaveResponse.
+	fakeCmdUUID := uuid.NewString()
+	rawSyncML := fmt.Sprintf(`<SyncML xmlns="SYNCML:SYNCML1.2">
+		<SyncHdr>
+			<VerDTD>1.2</VerDTD>
+			<VerProto>DM/1.2</VerProto>
+			<SessionID>1</SessionID>
+			<MsgID>1</MsgID>
+			<Source><LocURI>%s</LocURI></Source>
+		</SyncHdr>
+		<SyncBody>
+			<Status>
+				<CmdID>1</CmdID>
+				<MsgRef>1</MsgRef>
+				<CmdRef>%s</CmdRef>
+				<Cmd>Exec</Cmd>
+				<Data>500</Data>
+			</Status>
+			<Final/>
+		</SyncBody>
+	</SyncML>`, testDeviceID, fakeCmdUUID)
+
+	reqMsg := &fleet.SyncML{}
+	require.NoError(t, xml.Unmarshal([]byte(rawSyncML), reqMsg))
+	reqMsg.Raw = []byte(rawSyncML)
+
+	_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+	require.NoError(t, err)
+
+	// Verify the activity was created.
+	require.NotNil(t, createdActivity)
+	wipeFailed, ok := createdActivity.(fleet.ActivityTypeWipeFailedHost)
+	require.True(t, ok, "expected ActivityTypeWipeFailedHost, got %T", createdActivity)
+	assert.Equal(t, testHostID, wipeFailed.HostID)
+	assert.Equal(t, "DESKTOP-TEST", wipeFailed.HostDisplayName)
+	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
+
+	t.Run("no activity when WipeFailed is nil", func(t *testing.T) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return nil, nil
+		}
+		opts.ActivityMock.NewActivityFuncInvoked = false
+
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
+
+	t.Run("activity skipped when host lookup fails", func(t *testing.T) {
+		ds.MDMWindowsSaveResponseFunc = func(ctx context.Context, _ *fleet.MDMWindowsEnrolledDevice, enrichedSyncML fleet.EnrichedSyncML, commandIDsBeingResent []string) (*fleet.MDMWindowsSaveResponseResult, error) {
+			return &fleet.MDMWindowsSaveResponseResult{
+				WipeFailed: &fleet.MDMWindowsWipeResult{
+					HostUUID: testHostUUID,
+				},
+			}, nil
+		}
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return nil, errors.New("host not found")
+		}
+		opts.ActivityMock.NewActivityFuncInvoked = false
+
+		_, err := svcImpl.processIncomingMDMCmds(ctx, enrolledDevice, reqMsg, RequestAuthStateTrusted)
+		require.NoError(t, err)
+		// Activity should NOT be created since host lookup failed.
+		assert.False(t, opts.ActivityMock.NewActivityFuncInvoked)
+	})
 }
 
 func TestGetDeviceSoftwareMDMCommandResultsVPPMetadata(t *testing.T) {

@@ -311,6 +311,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -355,6 +357,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
@@ -414,6 +418,8 @@ spec:
 		},
 		MacOSSetup: fleet.MacOSSetup{
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
@@ -462,6 +468,8 @@ spec:
 		MacOSSetup: fleet.MacOSSetup{
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
@@ -501,6 +509,8 @@ spec:
 			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
 			BootstrapPackage:            optjson.SetString(bootstrapURL),
 			EnableReleaseDeviceManually: optjson.SetBool(false),
+			EnableManagedLocalAccount:   optjson.SetBool(false),
+			EndUserLocalAccountType:     optjson.SetString("admin"),
 			LockEndUserInfo:             optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
@@ -596,7 +606,14 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 		depStorage := SetupMockDEPStorageAndMockDEPServer(t)
 		_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license, DEPStorage: depStorage})
 
-		tm1 := &fleet.Team{ID: 1, Name: "tm1"}
+		tm1 := &fleet.Team{ID: 1, Name: "tm1", Config: fleet.TeamConfig{
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
+		}}
 		teamsByName := map[string]*fleet.Team{
 			"tm1": tm1,
 		}
@@ -655,6 +672,12 @@ func TestApplyMacosSetupDeprecatedKeys(t *testing.T) {
 			MDM:            fleet.MDM{EnabledAndConfigured: true},
 			SMTPSettings:   &fleet.SMTPSettings{},
 			SSOSettings:    &fleet.SSOSettings{},
+			Features: fleet.Features{
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 		}
 		if premium {
 			mockStore.appConfig.ServerSettings.EnableAnalytics = true

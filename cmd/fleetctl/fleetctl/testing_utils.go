@@ -172,6 +172,9 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
 		return nil, nil
 	}
+	ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+		return nil, nil
+	}
 	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
 		return &fleet.TeamLite{}, nil
 	}
@@ -231,6 +234,14 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{}, nil
 	}
+	// Default to "no existing vpp_apps row" so resolveAddAnchor takes the
+	// first-add path. Tests that exercise re-anchor behavior override these.
+	ds.GetVPPAppByAdamIDPlatformFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return nil, vppAppNotFound{}
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		return nil, vppAppNotFound{}
+	}
 
 	// ABM
 	ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {
@@ -277,3 +288,8 @@ func setupEmptyGitOpsMocks(ds *mock.Store) {
 		return &fleet.Job{}, nil
 	}
 }
+
+type vppAppNotFound struct{}
+
+func (vppAppNotFound) Error() string    { return "vpp app not found" }
+func (vppAppNotFound) IsNotFound() bool { return true }

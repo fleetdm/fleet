@@ -228,6 +228,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		require.NoError(t, err)
 	}
 
+	orgLogoStore, err := filesystem.NewOrgLogoStore(t.TempDir())
+	require.NoError(t, err)
+
 	svc, err := NewService(
 		ctx,
 		ds,
@@ -254,6 +257,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		conditionalAccessMicrosoftProxy,
 		keyValueStore,
 		androidService,
+		orgLogoStore,
 	)
 	if err != nil {
 		panic(err)
@@ -500,7 +504,10 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
 	}
 
-	// Add activity routes if DBConns is provided
+	// Activity routes. If DBConns is provided, wire the real bounded context into
+	// the main handler. Otherwise, build a path-only stub from the same registration
+	// code and surface it to apiendpoints.Init for catalog validation only.
+	var extraInitFeatureRoutes []apiendpoints.FeatureRouteFunc
 	if len(opts) > 0 && opts[0].DBConns != nil {
 		legacyAuthorizer, err := authz.NewAuthorizer()
 		require.NoError(t, err)
@@ -517,6 +524,18 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 			return auth.AuthenticatedUser(svc, next)
 		}
 		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, activityRoutesFn(activityAuthMiddleware))
+	} else {
+		// DBConns is not available (e.g. mock-backed tests). The activity bounded context
+		// only dereferences its dependencies when an endpoint is actually served, so we
+		// can pass empty conns + nil deps just to extract the route declarations.
+		_, activityRoutesFn := activity_bootstrap.New(
+			&common_mysql.DBConnections{},
+			nil,
+			nil,
+			logger,
+		)
+		noopAuth := func(next endpoint.Endpoint) endpoint.Endpoint { return next }
+		extraInitFeatureRoutes = append(extraInitFeatureRoutes, apiendpoints.FeatureRouteFunc(activityRoutesFn(noopAuth)))
 	}
 
 	var mdmPusher nanomdm_push.Pusher
@@ -629,7 +648,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	var carveStore fleet.CarveStore = ds // In tests, we use MySQL as storage for carves.
 	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, carveStore, featureRoutes, extra...)
-	if err := apiendpoints.Init(apiHandler); err != nil {
+	if err := apiendpoints.Init(apiHandler, extraInitFeatureRoutes...); err != nil {
 		t.Fatalf("error initializing API endpoints: %v", err)
 	}
 	rootMux.Handle("/api/", apiHandler)

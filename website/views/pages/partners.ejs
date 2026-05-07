@@ -29,7 +29,7 @@
               <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
               <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
               <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
-              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <a href="https://eu1.hubs.ly/H0v39T-0" target="_blank" rel="noopener noreferrer" no-icon><img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png"></a>
               <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
               <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
@@ -43,7 +43,7 @@
               <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
               <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
               <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
-              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <a href="https://eu1.hubs.ly/H0v39T-0" target="_blank" rel="noopener noreferrer" no-icon><img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png"></a>
               <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
               <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
@@ -276,6 +276,10 @@
             <div class="invalid-feedback">Please provide more information</div>
           </div>
         </div>
+        <div purpose="hp-input" aria-hidden="true">
+          <label>Website</label>
+          <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="partnerFormData.websiteUrl">
+        </div>
         <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
           <p>
             Please enter your work email address.
@@ -449,6 +453,10 @@
             <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide more information</div>
           </div>
         </div>
+        <div purpose="hp-input" aria-hidden="true">
+          <label>Website</label>
+          <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="dealRegistrationFormData.websiteUrl">
+        </div>
         <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
           <p>
             Please enter your work email address.
@@ -463,7 +471,6 @@
     <div v-else>
       <h2>Thanks for registering</h2>
       <p>A member of our team will be in touch soon.</p>
-      <div class="btn btn-primary" purpose="submit-button" @click="clickResetForm()">Register another opportunity</div>
     </div>
   </modal>
 </div>

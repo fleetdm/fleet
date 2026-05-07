@@ -368,7 +368,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.22.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -447,7 +447,8 @@ module.exports.custom = {
   // For contact form submissions.
   // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
   bannedEmailDomainsForContactFormSubmissions: [
-    'example.com'
+    'email.tst',
+    'example.com',
   ],
 
   /***************************************************************************

@@ -22,6 +22,9 @@ jobs:
   goreleaser:
     runs-on: ubuntu-22.04-4-cores
     environment: Docker Hub
+    outputs:
+      binary_uploaded: ${{ steps.check_binary.outputs.exists }}
+      windows_msi_arches: ${{ steps.check_windows_binaries.outputs.arches }}
     permissions:
       contents: write
       id-token: write
@@ -156,3 +159,269 @@ jobs:
             docker tag fleetdm/fleet:${TAG} quay.io/fleetdm/fleet:${TAG}
             docker push quay.io/fleetdm/fleet:${TAG}
           done
+
+      - name: Check if signed binary exists
+        id: check_binary
+        continue-on-error: true
+        run: |
+          if [[ -f "dist/fleetctl_darwin_all/fleetctl" ]]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload signed fleetctl binary for .pkg creation
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        if: steps.check_binary.outputs.exists == 'true'
+        with:
+          name: fleetctl-signed-macos
+          path: dist/fleetctl_darwin_all/fleetctl
+          retention-days: 1
+
+      - name: Check if Windows fleetctl binaries exist
+        id: check_windows_binaries
+        continue-on-error: true
+        run: |
+          # Goreleaser v2 places binaries at dist/<id>_<os>_<arch>*/binary
+          ARCHES=()
+          for arch in amd64 arm64; do
+            EXE=$(find dist -name "fleetctl.exe" -path "*windows*${arch}*" -print -quit 2>/dev/null)
+            if [[ -n "$EXE" ]]; then
+              echo "Found: $EXE"
+              echo "windows_${arch}_path=$EXE" >> "$GITHUB_OUTPUT"
+              ARCHES+=("\"$arch\"")
+            else
+              echo "Warning: No fleetctl.exe found for windows/$arch"
+            fi
+          done
+          echo "arches=[$(IFS=,; echo "${ARCHES[*]}")]" >> "$GITHUB_OUTPUT"
+
+      - name: Upload unsigned Windows fleetctl amd64
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        if: steps.check_windows_binaries.outputs.windows_amd64_path != ''
+        with:
+          name: fleetctl-unsigned-windows-amd64
+          path: ${{ steps.check_windows_binaries.outputs.windows_amd64_path }}
+          retention-days: 1
+
+      - name: Upload unsigned Windows fleetctl arm64
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        if: steps.check_windows_binaries.outputs.windows_arm64_path != ''
+        with:
+          name: fleetctl-unsigned-windows-arm64
+          path: ${{ steps.check_windows_binaries.outputs.windows_arm64_path }}
+          retention-days: 1
+
+  build-fleetctl-pkg:
+    runs-on: macos-latest
+    needs: goreleaser
+    if: needs.goreleaser.outputs.binary_uploaded == 'true'
+    timeout-minutes: 120
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          fetch-depth: 0
+
+      - name: Download signed fleetctl binary
+        uses: actions/download-artifact@5e317d1137c093c30a278992a91e9db4e3c1f039 # v4.1.8
+        with:
+          name: fleetctl-signed-macos
+          path: dist/fleetctl_darwin_all
+
+      - name: Verify binary exists
+        run: |
+          if [[ ! -f "dist/fleetctl_darwin_all/fleetctl" ]]; then
+            echo "Error: Signed fleetctl binary not found"
+            exit 1
+          fi
+          # The download-artifact does not preserve the execute bit,
+          # so set it here so execution doesn't fail.
+          chmod +x dist/fleetctl_darwin_all/fleetctl
+          echo "Binary found, verifying signature..."
+          codesign --verify --verbose dist/fleetctl_darwin_all/fleetctl || exit 1
+          ./dist/fleetctl_darwin_all/fleetctl --version
+
+      - name: Build and upload macOS .pkg
+        env:
+          APPLE_INSTALLER_CERTIFICATE: ${{ secrets.APPLE_INSTALLER_CERTIFICATE }}
+          APPLE_INSTALLER_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_INSTALLER_CERTIFICATE_PASSWORD }}
+          APPLE_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          # Extract version from tag (e.g., fleet-v4.10.0 -> 4.10.0)
+          VERSION="${GITHUB_REF#refs/tags/fleet-v}"
+          chmod +x tools/build-fleetctl-pkg/main.sh
+          ./tools/build-fleetctl-pkg/main.sh dist/fleetctl_darwin_all/fleetctl "$VERSION"
+
+      - name: Attest package
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: dist/fleetctl_v*_mac.pkg
+
+  build-fleetctl-msi:
+    runs-on: windows-2022
+    needs: goreleaser
+    if: needs.goreleaser.outputs.windows_msi_arches != '[]'
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        arch: ${{ fromJSON(needs.goreleaser.outputs.windows_msi_arches) }}
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Download unsigned fleetctl binary
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        with:
+          name: fleetctl-unsigned-windows-${{ matrix.arch }}
+
+      - name: Verify binary exists
+        run: |
+          if [[ ! -f "fleetctl.exe" ]]; then
+            echo "Error: fleetctl.exe not found after download"
+            ls -la
+            exit 1
+          fi
+          echo "Binary found ($(wc -c < fleetctl.exe) bytes)"
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION="${TAG_NAME#fleet-}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Install WiX 3.14.1
+        run: |
+          curl -fSL -o wix314-binaries.zip \
+            https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip
+          mkdir -p "$RUNNER_TEMP/wix"
+          unzip -q wix314-binaries.zip -d "$RUNNER_TEMP/wix"
+          echo "$RUNNER_TEMP/wix" >> $GITHUB_PATH
+
+      - name: Setup DigiCert KeyLocker
+        env:
+          DIGICERT_KEYLOCKER_CERTIFICATE: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE }}
+          DIGICERT_KEYLOCKER_PASSWORD: ${{ secrets.DIGICERT_KEYLOCKER_PASSWORD }}
+          DIGICERT_KEYLOCKER_HOST_URL: ${{ secrets.DIGICERT_KEYLOCKER_HOST_URL }}
+          DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
+        run: |
+          echo "$DIGICERT_KEYLOCKER_CERTIFICATE" | base64 --decode > /d/Certificate_pkcs12.p12
+          echo "SM_HOST=$DIGICERT_KEYLOCKER_HOST_URL" >> "$GITHUB_ENV"
+          echo "SM_API_KEY=$DIGICERT_API_KEY" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_FILE=D:\\Certificate_pkcs12.p12" >> "$GITHUB_ENV"
+          echo "SM_CLIENT_CERT_PASSWORD=$DIGICERT_KEYLOCKER_PASSWORD" >> "$GITHUB_ENV"
+          echo "C:\Program Files (x86)\Windows Kits\10\App Certification Kit" >> $GITHUB_PATH
+          echo "C:\Program Files (x86)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools" >> $GITHUB_PATH
+          echo "C:\Program Files\DigiCert\DigiCert Keylocker Tools" >> $GITHUB_PATH
+
+      - name: Install DigiCert KeyLocker KSP
+        run: |
+          curl https://one.digicert.com/signingmanager/api-ui/v1/releases/Keylockertools-windows-x64.msi/download -H "x-api-key:%SM_API_KEY%" --fail-with-body -o Keylockertools-windows-x64.msi
+          msiexec /i Keylockertools-windows-x64.msi /quiet /qn
+          smksp_registrar.exe list
+          smctl.exe keypair ls
+          C:\Windows\System32\certutil.exe -csp "DigiCert Signing Manager KSP" -key -user
+        shell: cmd
+
+      - name: Sync certificates
+        run: |
+          smctl windows certsync
+        shell: cmd
+
+      - name: Build and sign MSI
+        env:
+          DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT: ${{ secrets.DIGICERT_KEYLOCKER_CERTIFICATE_FINGERPRINT }}
+          SKIP_UPLOAD: "true"
+        run: |
+          chmod +x tools/build-fleetctl-msi/main.sh
+          ./tools/build-fleetctl-msi/main.sh \
+            fleetctl.exe \
+            "${{ steps.version.outputs.version }}" \
+            "${{ matrix.arch }}"
+
+      - name: Upload signed MSI artifact
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: fleetctl-msi-${{ matrix.arch }}
+          path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+            matrix.arch }}.msi
+          retention-days: 1
+
+      - name: Attest MSI
+        continue-on-error: true
+        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        with:
+          subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+            matrix.arch }}.msi
+
+  upload-fleetctl-msi:
+    needs: build-fleetctl-msi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - name: Download signed MSI artifacts
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        with:
+          pattern: fleetctl-msi-*
+          merge-multiple: true
+          path: dist
+
+      - name: Upload MSIs to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          echo "Uploading MSIs to release $TAG_NAME..."
+
+          # Wait for release to exist
+          MAX_WAIT=300
+          ELAPSED=0
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            if gh release view "$TAG_NAME" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+              echo "Release found"
+              break
+            fi
+            echo "Waiting for release... (${ELAPSED}s/${MAX_WAIT}s)"
+            sleep 10
+            ELAPSED=$((ELAPSED + 10))
+          done
+
+          for msi in dist/*.msi; do
+            echo "Uploading $msi..."
+            gh release upload "$TAG_NAME" "$msi" --repo "$GITHUB_REPOSITORY" --clobber
+          done
+          echo "Upload complete"

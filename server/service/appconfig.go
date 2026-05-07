@@ -259,8 +259,42 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
+	// Mirror deprecated logo URL fields to the new mode-aware fields (and
+	// vice versa) so every read returns a consistent view to clients.
+	// NormalizeLogoFields only errors when both forms are set with
+	// conflicting values — that shouldn't happen via the normal write path
+	// (which 422s on conflict), so reaching this branch implies the row
+	// was edited out-of-band. Log it so the inconsistency is visible, then
+	// canonicalize by preferring the mode-aware fields.
+	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
+		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
+		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
+			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
+		}
+		if ac.OrgInfo.OrgLogoURLLightMode != "" {
+			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
+		}
+	}
+	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
+	// current ServerURL. Persisted form stays relative; this is purely a
+	// read-time view. Safe to do here because no SaveAppConfig caller
+	// consumes the result of AppConfigObfuscated — they all re-fetch via
+	// svc.ds.AppConfig directly.
+	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
+
 	ac.Obfuscate()
 
+	return ac, nil
+}
+
+func (svc *Service) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	// We skip auhtorization, as this is used where we don't have access to it, but that is why we return a subset of AppConfig fields.
+	svc.authz.SkipAuthorization(ctx)
+
+	ac, err := svc.ds.AppConfigUrls(ctx)
+	if err != nil {
+		return nil, err
+	}
 	return ac, nil
 }
 
@@ -402,6 +436,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
 	}
 
+	// Reject conflicting deprecated/new logo URL pairs and mirror them so
+	// both forms are persisted with identical values. Done on the incoming
+	// payload before merge so we surface the conflict at the source field.
+	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
+	}
+
 	if newAppConfig.SSOSettings != nil {
 		validateSSOSettings(newAppConfig, appConfig, invalid, lic)
 		if invalid.HasErrors() {
@@ -510,6 +551,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
+	if !oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount = optjson.SetBool(false)
+	}
+	if newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount.Valid {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = newAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	} else {
+		appConfig.MDM.MacOSSetup.EnableManagedLocalAccount = oldAppConfig.MDM.MacOSSetup.EnableManagedLocalAccount
+	}
+
+	if !oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType = optjson.SetString("admin")
+	}
+	if newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType.Valid {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = newAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	} else {
+		appConfig.MDM.MacOSSetup.EndUserLocalAccountType = oldAppConfig.MDM.MacOSSetup.EndUserLocalAccountType
+	}
+
 	if appConfig.MDM.MacOSSetup.ManualAgentInstall.Valid && appConfig.MDM.MacOSSetup.ManualAgentInstall.Value {
 		if !lic.IsPremium() {
 			invalid.Append("setup_experience.macos_manual_agent_install", ErrMissingLicense.Error())
@@ -546,6 +605,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
+	}
+
+	// Validate logo fields immediately after the merge
+	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
+	// instead of letting the request silently complete its side effects.
+	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -850,6 +916,50 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
+	newExceptions := appConfig.GitOpsConfig.Exceptions
+	exceptionChanges := []struct {
+		name       string
+		oldEnabled bool
+		newEnabled bool
+	}{
+		{"labels", oldExceptions.Labels, newExceptions.Labels},
+		{"software", oldExceptions.Software, newExceptions.Software},
+		{"secrets", oldExceptions.Secrets, newExceptions.Secrets},
+	}
+	for _, c := range exceptionChanges {
+		if c.oldEnabled == c.newEnabled {
+			continue
+		}
+		var act fleet.ActivityDetails
+		if c.newEnabled {
+			act = fleet.ActivityTypeEnabledGitOpsException{Exception: c.name}
+		} else {
+			act = fleet.ActivityTypeDisabledGitOpsException{Exception: c.name}
+		}
+		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
+		}
+	}
+
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
+	if err := fleet.OnHistoricalDataChanged(
+		ctx,
+		svc,
+		svc.ds,
+		authz.UserFromContext(ctx),
+		oldAppConfig.Features.HistoricalData,
+		appConfig.Features.HistoricalData,
+		nil, nil,
+	); err != nil {
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
+	}
+
 	addedEntraTenantIDs := make([]string, 0)
 	removedEntraTenantIDs := make([]string, 0)
 	oldTenantIDSet := make(map[string]struct{})
@@ -1123,6 +1233,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
 	appleMDMUrlChanged := oldAppConfig.MDMUrl() != appConfig.MDMUrl()
+
+	if appleMDMUrlChanged && appConfig.MDM.AppleServerURL != "" {
+		parsedURL, err := url.Parse(appConfig.MDM.AppleServerURL)
+		if err != nil {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must be a valid URL")
+		}
+		scheme := strings.ToLower(parsedURL.Scheme)
+		if scheme == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a URL scheme (e.g. https://)")
+		}
+
+		if scheme != "http" && scheme != "https" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "URL scheme must be http or https")
+		}
+
+		if parsedURL.Hostname() == "" {
+			return nil, fleet.NewInvalidArgumentError("mdmAppleServerURL", "must include a host")
+		}
+	}
+
 	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged || appleMDMUrlChanged) && lic.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")

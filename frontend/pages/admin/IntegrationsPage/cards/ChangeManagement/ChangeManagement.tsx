@@ -75,6 +75,7 @@ const ChangeManagement = () => {
     Error,
     IConfig
   >(["integrations"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
     onSuccess: (data) => {
       const {
         gitops: {

@@ -134,6 +134,19 @@ We utilize two general event plans, which act as templates depending on the scal
 2. **Workshop/Dinner:** Used for our GitOps workshop series (which often includes a post workshop dinner).
 3. **Meetups/Happy Hours** ...wip
 
+
+
+### Partner Involvement at GitOps Workshops
+
+It is a best practice and a goal for Fleet to have channel partner involvement in every   
+GitOps workshop we host. Partner involvement strengthens the workshop's reach, reinforces   
+Fleet's channel relationships, and increases qualified attendance.
+
+#### There are three defined partner engagement types for GitOps workshops:
+1. **Dedicated Partner Workshop:** Fleet hosts the workshop exclusively for a single partner, typically at the partner's office. The audience is the partner's internal staff only — no customers, prospects, or other partners are included. This format is used for partner enablement and training.  
+2. **Partner Co-Sponsored Workshop** *(most common):* A single channel partner co-sponsors the workshop alongside Fleet. Only one partner sponsor is permitted per event, and no other partners may attend. Fleet and the co-sponsoring partner each invite from their combined customer and prospect base to drive attendance.  
+3. **Fleet-Led Open Workshop:** Fleet runs and owns the workshop independently, with no dedicated local partner. This format is used when there is no established partner presence in the workshop's metro area. Any partner is welcome to attend. To drive registration, the channel manager and account executives run a targeted LinkedIn campaign inviting prospects and customers within the workshop's metro area.
+
 ### **Execution process**
 
 Once an event is approved, a Marketing directly responsible individual (DRI) is assigned. From there, the process is divided between the Marketing DRI and the Onsite DRI.
@@ -503,237 +516,7 @@ This will create a parent overview issue and six linked child issues in GitHub t
 
 Here's the script:
 
-```bash
-#!/bin/bash
-# --- Workshop specifics / details - change this
-WORKSHOP_SLUG="2606-GitOps-Workshop-Atlanta"
-PLANNING_DOC_URL="https://docs.google.com/document/d/1Td1XtFClRlOMDuoojXUkJvU8f6MUEjsBacMVRqEJbQQ/edit?tab=t.8is5oewuv3gg"
-REQUEST_ISSUE="#14488"
-
-# No need to change anything else to run the script
-
-# --- Static Configuration ---
-ORG="fleetdm"
-REPO="confidential"
-PROJECT_NUMBER="94"
-
-# 1. Define Labels
-NEW_LABEL=":mktg-event:${WORKSHOP_SLUG}"
-PARENT_LABELS=":mktg-event,:mktg-event:overview,:mktg-event:tp"
-CHILD_LABELS=":mktg-event,:mktg-event:detail,:mktg-event:tp"
-
-# Temp file for issue bodies (avoids heredoc/subshell parenthesis conflicts)
-BODY_FILE=$(mktemp)
-cleanup() { rm -f "$BODY_FILE"; }
-trap cleanup EXIT
-
-# Ensure the specific workshop label exists
-echo "1. Ensuring label '${NEW_LABEL}' exists..."
-gh label create "$NEW_LABEL" --repo "$ORG/$REPO" --force >/dev/null 2>&1 || true
-
-
-# ==========================================
-# STEP 1: CREATE THE PARENT ISSUE
-# ==========================================
-echo "2. Creating Parent Issue (Overview)..."
-
-PARENT_TITLE="${WORKSHOP_SLUG} Workshop Overview"
-
-cat > "$BODY_FILE" << EOF
-Master tracking issue for the GitOps Workshop: ${WORKSHOP_SLUG}.
-
-EXECUTION for request $REQUEST_ISSUE
-
-## Executive Snapshot & Key Decisions
-- [ ] Update the working google doc for the ${EVENT_SLUG}
-See: Planing Doc: $PLANNING_DOC_URL 
-
-- [ ] Finalize sponsorship agreements
-- [ ] Assign child issues/tasks
-
-## Progress Tracker - See SubIssues
-
-EOF
-
-PARENT_URL=$(gh issue create \
-  --repo "$ORG/$REPO" \
-  --title "$PARENT_TITLE" \
-  --body-file "$BODY_FILE" \
-  --label "$PARENT_LABELS,$NEW_LABEL")
-
-if [ -z "$PARENT_URL" ]; then
-    echo "❌ ERROR: Failed to create Parent Issue. Check if labels exist in the repo."
-    exit 1
-fi
-
-PARENT_NUM=$(echo "$PARENT_URL" | awk -F/ '{print $NF}')
-echo "   ✅ Parent Created: #$PARENT_NUM"
-
-PARENT_NODE_ID=$(gh api graphql -f query='
-  query($owner:String!, $repo:String!, $number:Int!) {
-    repository(owner:$owner, name:$repo) {
-      issue(number:$number) { id }
-    }
-  }' -f owner="$ORG" -f repo="$REPO" -F number="$PARENT_NUM" --jq '.data.repository.issue.id')
-
-if [ -z "$PARENT_NODE_ID" ] || [ "$PARENT_NODE_ID" == "null" ]; then
-    echo "❌ ERROR: Could not fetch GraphQL Node ID for Parent #$PARENT_NUM"
-    exit 1
-fi
-
-echo "   🔹 Parent Node ID: $PARENT_NODE_ID"
-gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$PARENT_URL" >/dev/null 2>&1
-
-
-# ==========================================
-# STEP 2: HELPER FUNCTION FOR CHILD ISSUES
-# ==========================================
-create_sub_issue() {
-    local TITLE="$1"
-    # Body is already written to $BODY_FILE by the caller
-
-    CHILD_URL=$(gh issue create \
-      --repo "$ORG/$REPO" \
-      --title "$TITLE: ${WORKSHOP_SLUG}" \
-      --body-file "$BODY_FILE" \
-      --label "$CHILD_LABELS,$NEW_LABEL")
-
-    if [ -n "$CHILD_URL" ]; then
-        CHILD_NUM=$(echo "$CHILD_URL" | awk -F/ '{print $NF}')
-
-        CHILD_NODE_ID=$(gh api graphql -f query='
-          query($owner:String!, $repo:String!, $number:Int!) {
-            repository(owner:$owner, name:$repo) {
-              issue(number:$number) { id }
-            }
-          }' -f owner="$ORG" -f repo="$REPO" -F number="$CHILD_NUM" --jq '.data.repository.issue.id')
-
-        echo "   ✅ Created Child: #$CHILD_NUM ($TITLE)"
-
-        LINK_RESULT=$(gh api graphql -f query='
-          mutation($parentId: ID!, $childId: ID!) {
-            addSubIssue(input: {issueId: $parentId, subIssueId: $childId}) {
-              clientMutationId
-            }
-          }
-        ' -f parentId="$PARENT_NODE_ID" -f childId="$CHILD_NODE_ID" 2>&1)
-
-        if [[ $? -eq 0 ]]; then
-            echo "      🔗 Linked as Sub-issue to Parent #$PARENT_NUM"
-        else
-            echo "      ⚠️ Failed to link. Error details:"
-            echo "$LINK_RESULT"
-        fi
-
-        gh project item-add "$PROJECT_NUMBER" --owner "$ORG" --url "$CHILD_URL" >/dev/null 2>&1
-    else
-        echo "   ❌ Failed to create child: $TITLE"
-    fi
-}
-
-
-# ==========================================
-# STEP 3: DEFINE & CREATE CHILD ISSUES
-# ==========================================
-echo "3. Creating and Linking Child Issues..."
-
-# --- Child 1 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Get the main workshop event live to start gathering leads.
-
-Note: You can launch with "Venue TBD" or "Downtown [City]" if the specific room isn't booked yet- SEE TEMPLATE LINK BELOW
-
-**Who:** Marketing DRI
-
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Create Workshop Landing Page on Eventbrite or Luma
-Link to [TEMPLATE in EventBrite](https://www.eventbrite.com/e/1985443830945?aff=oddtdtcreator)
-- Schedule Email Blast to target audience
-- Schedule LinkedIn and Twitter/X posts and request speaker graphics
-- Notify AEs and Partners to drive personal invites
-- Monitor registration — watch for waitlists or low attendance and adjust promo if needed
-- Update the $PLANNING_DOC_URL with "Promotion & Marketing Plan" details and registration link
-EOF
-create_sub_issue "1. Workshop Promotion & Registration Launch"
-
-
-# --- Child 2 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Secure the physical space for the workshop. Once confirmed, notify attendees.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Secure venue — confirm availability for workshop date
-- Power audit — confirm every seat has access to power, or plan to bring extension cords
-- AV check — confirm projector/HDMI availability
-- Update Workshop Landing Page with the specific venue name and address
-- Update the $PLANNING_DOC_URL with "Venue Details" section
-EOF
-create_sub_issue "2. Venue Selection & Logistics"
-
-
-# --- Child 3 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Plan the post-workshop networking. This is treated as a separate event to allow for broader networking — invite people who couldn't make the workshop itself.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Secure venue — find a bar/restaurant within a 5-minute walk of the workshop area
-- Confirm menu/tab — decide on Open Bar vs. Fixed Menu and set the budget cap
-- IF NEEDED: Create Dinner registration page on Eventbrite or Luma and promote separately
-EOF
-create_sub_issue "3. Dinner Planning"
-
-
-# --- Child 4 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Finalize in-room food and drink orders.
-
-Wait to complete this until ~1 week before the event so you have an accurate headcount.
-
-**Who:** Onsite DRI
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Check registration count — confirm headcount from Registered and Waitlist to avoid over-ordering
-- Order food and drinks
-
-EOF
-create_sub_issue "4. Workshop Catering"
-
-
-# --- Child 5 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-Ensure the instructor and support staff can get to the city and are prepared for the event.
-
-**Who:** Onsite DRI, Marketing DRI, Attendees
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Book flights for Lead Instructor and TA if traveling
-- Book hotel — ensure proximity to the venue
-- Confirm staffing assignments and attire
-
-EOF
-create_sub_issue "5. Travel & Staffing"
-
-
-# --- Child 6 ---
-cat > "$BODY_FILE" << EOF
-**Description**
-To be completed within 48 hours after the event. Close the loop on leads and technical feedback.
-- [ ] Update the $PLANNING_DOC_URL with these details
-- Calculate stats — record Registered, Attended, and No-Show rates for both Workshop and Dinner
-- Log technical issues — document any WiFi drops or firewall blockers for future reference
-- CRM upload — upload attendee list to Salesforce/HubSpot
-- Send follow-up email with slides and repo links
-
-EOF
-create_sub_issue "6. Post-Mortem & Follow-Up"
-
-echo "Done."
-```
+see new-workshop.sh in the marketing folder
 
 
 

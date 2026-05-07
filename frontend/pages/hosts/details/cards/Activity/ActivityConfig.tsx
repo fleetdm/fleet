@@ -26,8 +26,12 @@ import CanceledUninstallSoftwareActivtyItem from "./ActivityItems/CanceledUninst
 import InstalledCertificateActivityItem from "./ActivityItems/InstalledCertificateActivityItem";
 import ResentCertificateActivityItem from "./ActivityItems/ResentCertificateActivityItem";
 import ClearedPasscodeActivityItem from "./ActivityItems/ClearedPasscodeActivityItem";
+import FailedWipeActivityItem from "./ActivityItems/FailedWipeActivityItem";
 import ViewedManagedLocalAccountActivityItem from "./ActivityItems/ViewedManagedLocalAccountActivityItem/ViewedManagedLocalAccountActivityItem";
 import CreatedManagedLocalAccountActivityItem from "./ActivityItems/CreatedManagedLocalAccountActivityItem/CreatedManagedLocalAccountActivityItem";
+import RotatedManagedLocalAccountPasswordActivityItem from "./ActivityItems/RotatedManagedLocalAccountPassword";
+import FailedToRotateManagedLocalAccountPasswordActivityItem from "./ActivityItems/FailedToRotateManagedLocalAccountPassword";
+import FailedEnrollmentProfileRenewalActivityItem from "./ActivityItems/FailedEnrollmentProfileRenewalActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -58,6 +62,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.WipedHost]: WipedHostActivityItem,
+  [ActivityType.FailedWipe]: FailedWipeActivityItem,
   [ActivityType.ReadHostDiskEncryptionKey]: ReadHostDiskEncryptionKeyActivityItem,
   [ActivityType.ViewedHostRecoveryLockPassword]: ViewedHostRecoveryLockPasswordActivityItem,
   [ActivityType.SetHostRecoveryLockPassword]: SetHostRecoveryLockPasswordActivityItem,
@@ -76,6 +81,9 @@ export const pastActivityComponentMap: Record<
   [ActivityType.ClearedPasscode]: ClearedPasscodeActivityItem,
   [ActivityType.ViewedManagedLocalAccount]: ViewedManagedLocalAccountActivityItem,
   [ActivityType.CreatedManagedLocalAccount]: CreatedManagedLocalAccountActivityItem,
+  [ActivityType.RotatedManagedLocalAccountPassword]: RotatedManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]: FailedToRotateManagedLocalAccountPasswordActivityItem,
+  [ActivityType.FailedEnrollmentProfileRenewal]: FailedEnrollmentProfileRenewalActivityItem,
 };
 
 export const upcomingActivityComponentMap: Record<

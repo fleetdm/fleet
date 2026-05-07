@@ -20,13 +20,6 @@
     }
   }
 
-  &__no-queries {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-medium;
-    margin: $pad-large 0;
-  }
-
   .info {
     &__header,
     &__data {
