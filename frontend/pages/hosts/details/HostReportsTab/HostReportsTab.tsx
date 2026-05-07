@@ -218,6 +218,9 @@ const HostReportsTab = ({
           <span className={`${baseClass}__count`}>
             {totalCount} {pluralize(totalCount, "report")}
           </span>
+          {/* Slider stays enabled even when empty — the "truly empty" state
+              may be caused by don't-store-results reports being filtered out,
+              and the user needs the toggle to reveal them. */}
           {!saveReportsDisabledInConfig && (
             <Slider
               value={showDontStoreResults}
