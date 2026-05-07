@@ -17,8 +17,11 @@ To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-c
 To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
 1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
+
 2. Select the tab for your desired platform (e.g. **macOS**).
+
 3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
+
 4. Install fleetd on your host(s) to enroll it to Fleet.
 
 #### Mobile devices
@@ -26,8 +29,11 @@ To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleet
 To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
 
 1. Go to the **Hosts** page, select the fleet you want your host(s) to enroll to, and select **Add hosts**.
+
 2. Select the tab for your desired platform (e.g. **iOS**).
+
 3. Copy the enrollment link from the UI and share it with your end users.
+
 4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
 ## CLI
@@ -110,6 +116,7 @@ Fleet admins who are comfortable with this situation can skip step 2 below.
 To install the fleetd Chrome extension on Google Admin, there are two steps:
 
 1. Create an OU for all users who have Chromebooks and force-install the fleetd Chrome extension for those users
+
 2. Create an OU for all non-Chromebook devices and block the fleetd Chrome extension on this OU
 
 > More complex setups may be necessary, depending on the organization's needs, but the basic principle remains the same.
@@ -120,10 +127,15 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 
 1. In the navigation menu, visit **Devices > Chrome > Apps & Extensions > Users & browsers**.
+
 2. Select the relevant OU where you want the fleetd Chrome extension to be installed.
+
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
+
 4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+
 5. Enter the **Extension ID**, **Installation URL**, and **Policy for extensions** using the data provided in the modal.
+
 6. Under **Installation Policy**, select **Force install**, and under **Update URL**, select **Installation URL** (see above).
 
 > For the fleetd Chrome extension to have full access to Chrome data, it must be force-installed by enterprise policy as per above
@@ -134,10 +146,15 @@ Create an [organizational unit](https://support.google.com/a/answer/182537?hl=en
 In the Google Admin console:
 
 1. In the navigation menu, select **Devices > Chrome > Managed Browsers**.
+
 2. Select the relevant OU where you want the fleetd Chrome extension to be blocked.
+
 3. In the bottom right, select the **+** button and select **Add Chrome app or extension by ID**.
+
 4. Go to your Fleet instance and select **Hosts > Add Hosts** and select **ChromeOS** in the popup modal.
+
 5. Enter the **Extension ID** and **Installation URL** using the data provided in the modal.
+
 6. Under **Installation Policy**, select **Block**.
 
 ### Unenroll
@@ -153,7 +170,7 @@ In the Google Admin console:
 
 4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling it. This removes labels, prevents pending activity (like scripts or software installs) from running on the re-enrolled host, and avoids showing the original host’s vitals.
+> Delete the host from Fleet before re-enrolling to clear labels, prevent pending actions, and avoid showing stale vitals. **Apple Business (AB) hosts are the exception**. Fleet automatically clears stale state on re-enrollment, so deletion isn't needed. See the [Apple MDM setup guide](https://fleetdm.com/guides/macos-mdm-setup#re-enrolling-ab-hosts) for details.
 
 ## Debugging
 
