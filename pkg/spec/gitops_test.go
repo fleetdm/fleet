@@ -526,7 +526,9 @@ func TestMissingNameErrorMessages(t *testing.T) {
 	defaultPath, defaultBase := createNamedFileOnTempDir(t, "default.yml", "")
 	_, err := GitOpsFromFile(defaultPath, defaultBase, nil, nopLogf)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
 
 	// Empty no-team.yml should report the No Team name requirement.
 	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
@@ -544,7 +546,9 @@ func TestMissingNameErrorMessages(t *testing.T) {
 	teamPath, teamBase := createNamedFileOnTempDir(t, "workstations.yml", "")
 	_, err = GitOpsFromFile(teamPath, teamBase, nil, nopLogf)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
 }
 
 func TestPaddedTeamNameIsTrimmed(t *testing.T) {
