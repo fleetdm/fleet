@@ -128,15 +128,6 @@
           }
         }
 
-        &:focus-visible {
-          outline: none; // Undo primary tabbing through app styling as it runs into edges
-
-          .tab-text {
-            outline: 1px solid $core-focused-outline;
-            outline-offset: 1px;
-          }
-        }
-
         &--selected {
           background-color: transparent;
 
@@ -157,6 +148,20 @@
             width: 100%;
             height: 0;
             border-bottom: 2px solid $nav-active-underline;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+          }
+        }
+
+        &:focus-visible {
+          outline: none; // Undo primary tabbing through app styling as it runs into edges
+
+          &::after {
+            content: "";
+            width: 100%;
+            height: 0;
+            border-bottom: 3px solid $core-focused-outline;
             position: absolute;
             bottom: 0;
             left: 0;
