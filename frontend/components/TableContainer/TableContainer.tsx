@@ -411,8 +411,7 @@ const TableContainer = <T,>({
       );
     }
 
-    const countNode =
-      renderCount && !disableCount ? renderCount() : null;
+    const countNode = renderCount && !disableCount ? renderCount() : null;
     const customControlNode = customControl ? customControl() : null;
     const actionNode =
       actionButton && !actionButton.hideButton
