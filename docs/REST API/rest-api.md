@@ -5233,7 +5233,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is locked once it comes online.
 
 To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
@@ -5302,9 +5302,9 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 ### Wipe host
 
-Sends a command to wipe the specified macOS, iOS, iPadOS, Windows, or Linux host. The host is wiped once it comes online.
+Sends a command to wipe the specified macOS, iOS, iPadOS, Linux, Windows, or Android host. The host is wiped once it comes online.
 
-To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To wipe a macOS, iOS, iPadOS, or Windows host, the host must have MDM turned on. To wipe a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts). To wipe an Android host, the host must be enrolled as a fully managed device.
 
 `POST /api/v1/fleet/hosts/:id/wipe`
 
@@ -5697,6 +5697,36 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
+## Clear host passcode
+
+_Available in Fleet Premium._
+
+Remotely clear the passcode on a host. Requires iOS/iPadOS host to have sent its unlock token during MDM check-in.
+
+`POST /api/v1/fleet/hosts/:id/clear_passcode`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                         |
+| ----------- | ------ | ---- | ----------------------------------------------------------------------------------- |
+| id          | number | path | **Required.** The Fleet host ID of the ADE-enrolled host to clear the passcode for. |
+
+
+#### Example 
+
+`POST /api/v1/fleet/hosts/123/clear_passcode`
+
+#### Default response 
+
+`Status: 200` 
+
+```json
+{
+  "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
+  "request_type": "ClearPasscode",
+  "platform": "ios"
+}
+```
 
 ### Rotate host's managed local account password
 
