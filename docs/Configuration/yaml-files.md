@@ -745,6 +745,23 @@ org_settings:
     host_expiry_window: 10
 ```
 
+### activity_expiry_settings
+
+The `activity_expiry_settings` section lets you define how to handle activities.
+- `activity_expiry_enabled` when enabled, allows automatic cleanup of activities (and associated live query data) older than the specified number of days. Activities linked to a host are preserved until the host is deleted.
+- `activity_expiry_window` the number of days to retain activity records, if activity expiry is enabled.
+- `preserve_host_activity_on_reenrollment` When enabled, preserves host activities after a wipe and re-enrollment. Currently only supported for company-owned (AB) Apple hosts. **Delete activities > Max activity age** still applies. (Default: `false`)
+
+#### Example
+
+```yaml
+org_settings:
+  activity_expiry_settings:
+    activity_expiry_enabled: true
+    activity_expiry_window: 30
+    preserve_host_activity_on_reenrollment: true
+```
+
 ### org_info
 
 - `org_name` is the name of your organization (default: `""`)
