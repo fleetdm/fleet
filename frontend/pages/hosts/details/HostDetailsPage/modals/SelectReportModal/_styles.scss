@@ -1,11 +1,10 @@
 // Similar to AddPolicyModal
 .select-query-modal {
-  min-height: 400px;
-  height: 90%;
+  max-height: 90%;
   overflow: hidden;
 
   .modal__content-wrapper {
-    height: 95%;
+    max-height: 95%;
   }
 
   .modal__content {
