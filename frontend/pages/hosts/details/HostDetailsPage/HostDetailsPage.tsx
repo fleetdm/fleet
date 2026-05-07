@@ -1202,17 +1202,20 @@ const HostDetailsPage = ({
     host?.team_id
   );
 
+  const isHostTeamObserverPlus = permissions.isObserverPlus(
+    currentUser,
+    host?.team_id ?? null
+  );
+
   // CTA permissions are checked against the host's specific team, not the
-  // currently selected team in the nav. A user may be an admin on one team
-  // but only an observer on the host's team, so we must verify their role
-  // on the team this host actually belongs to.
+  // currently selected team in the nav. Must align with the /reports/new
+  // route guard (AuthAnyMaintainerAdminObserverPlusRoutes).
   const canScheduleReport =
     isGlobalAdmin ||
     isGlobalMaintainer ||
-    isGlobalTechnician ||
     isHostTeamAdmin ||
     isHostTeamMaintainer ||
-    isHostTeamTechnician;
+    isHostTeamObserverPlus;
 
   const canManagePolicies =
     isGlobalAdmin ||

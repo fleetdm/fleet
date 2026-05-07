@@ -40,12 +40,13 @@ const renderWithContext = (props = {}) =>
   createCustomRenderer()(<HostPolicies {...baseProps} {...props} />);
 
 describe("HostPolicies", () => {
-  it("renders empty state with Manage policies CTA when user has permission", () => {
+  it("renders empty state with 0 count and Manage policies CTA when user has permission", () => {
     renderWithContext({
       canManagePolicies: true,
       onManagePolicies: jest.fn(),
     });
 
+    expect(screen.getByText("0 policies")).toBeInTheDocument();
     expect(screen.getByText("No policies checked")).toBeInTheDocument();
     expect(
       screen.getByText(

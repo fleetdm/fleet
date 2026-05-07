@@ -9,7 +9,6 @@ import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
-import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import IconStatusMessage from "components/IconStatusMessage";

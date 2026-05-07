@@ -135,8 +135,6 @@ const HostSoftwareLibrary = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     isGlobalTechnician,
     currentUser,
   } = useContext(AppContext);
@@ -462,17 +460,26 @@ const HostSoftwareLibrary = ({
     isHostOnline,
   ]);
 
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, hostTeamId);
+  const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    hostTeamId
+  );
+
   const hasSWWriteRole = Boolean(
     isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer ||
       isGlobalTechnician ||
       permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 
   const canAddSoftware =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer) &&
     !isAndroidHost;
 
   // 4.77 Currently Android apps can only be installed via self-service by end user
