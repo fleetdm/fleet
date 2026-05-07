@@ -482,14 +482,12 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		}
 	default:
 		switch filepath.Base(filePath) {
-		case "default.yml":
-			multiError = multierror.Append(multiError, errors.New("'org_settings' is required in default.yml"))
 		case "no-team.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
 		case "unassigned.yml":
 			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 		default:
-			multiError = multierror.Append(multiError, errors.New("`name` must be provided outside of default.yml, no-team.yml and unassigned.yml"))
+			multiError = multierror.Append(multiError, fmt.Errorf("No `name` was provided in %s. If this file is intended to define org-level settings, add `org_settings:` as a top-level key. Otherwise, use `name` to specify the fleet name.", filePath))
 		}
 	}
 
