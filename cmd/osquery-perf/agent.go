@@ -63,6 +63,12 @@ var (
 	ubuntuSoftwareFS embed.FS
 	//go:embed ubuntu_2204-kernels.json
 	ubuntuKernelsFS embed.FS
+	//go:embed rhel_8-kernels.json
+	rhel8KernelsFS embed.FS
+	//go:embed rhel_9-kernels.json
+	rhel9KernelsFS embed.FS
+	//go:embed rhel_10-kernels.json
+	rhel10KernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
 
@@ -70,7 +76,15 @@ var (
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
-	ubuntuKernels                      []string
+	ubuntuKernels                      []map[string]string
+	rhel8Kernels                       []map[string]string
+	rhel9Kernels                       []map[string]string
+	rhel10Kernels                      []map[string]string
+
+	// softwareDBRPM caches a one-time filtered slice of softwareDB.Ubuntu where
+	// Source == "rpm_packages", reused by RHEL agents.
+	softwareDBRPMOnce sync.Once
+	softwareDBRPM     []softwaredb.UbuntuSoftware
 
 	// Software library database (loaded from SQLite if --software_db_path is specified)
 	softwareDB *softwaredb.DB
@@ -153,17 +167,114 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 	return softwareRows
 }
 
-func loadKernelList(fs embed.FS, path string) []string {
+// loadDebKernelList reads a JSON array of deb-style kernel package names
+// (e.g., "linux-image-6.8.0-51-generic") and returns kernel records with
+// name, version (the suffix after "linux-image-"), and source="deb_packages".
+func loadDebKernelList(fs embed.FS, path string) []map[string]string {
 	data, err := fs.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 
-	var kernels []string
-	if err := json.Unmarshal(data, &kernels); err != nil {
+	var names []string
+	if err := json.Unmarshal(data, &names); err != nil {
 		panic(err)
 	}
 
+	kernels := make([]map[string]string, 0, len(names))
+	for _, name := range names {
+		kernels = append(kernels, map[string]string{
+			"name":    name,
+			"version": strings.TrimPrefix(name, "linux-image-"),
+			"source":  "deb_packages",
+		})
+	}
+	return kernels
+}
+
+// loadSoftwareDBRPM returns a one-time filtered slice of softwareDB.Ubuntu
+// where Source == "rpm_packages". Returns nil if no software DB is loaded.
+func loadSoftwareDBRPM() []softwaredb.UbuntuSoftware {
+	if softwareDB == nil {
+		return nil
+	}
+	softwareDBRPMOnce.Do(func() {
+		filtered := make([]softwaredb.UbuntuSoftware, 0, len(softwareDB.Ubuntu)/4)
+		for _, s := range softwareDB.Ubuntu {
+			if s.Source == "rpm_packages" {
+				filtered = append(filtered, s)
+			}
+		}
+		softwareDBRPM = filtered
+	})
+	return softwareDBRPM
+}
+
+// rpmSliceToMaps converts UbuntuSoftware entries at the given indices to
+// osquery result maps. Mirrors softwaredb.DB.UbuntuToMaps but operates on a
+// caller-provided slice (the RPM-only filtered subset).
+func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[string]string {
+	results := make([]map[string]string, 0, len(indices))
+	for _, idx := range indices {
+		if int(idx) >= len(pool) {
+			continue
+		}
+		s := pool[idx]
+		m := map[string]string{
+			"name":    s.Name,
+			"source":  s.Source,
+			"version": s.Version,
+		}
+		if s.Vendor != nil {
+			m["vendor"] = *s.Vendor
+		}
+		if s.Arch != nil {
+			m["arch"] = *s.Arch
+		}
+		if s.Release != nil {
+			m["release"] = *s.Release
+		}
+		results = append(results, m)
+	}
+	return results
+}
+
+// loadRPMKernelList reads a JSON array of objects with name/version/release
+// (and optional vendor/arch) and returns kernel records stamped with
+// source="rpm_packages".
+func loadRPMKernelList(fs embed.FS, path string) []map[string]string {
+	data, err := fs.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	var entries []struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Release string `json:"release"`
+		Vendor  string `json:"vendor"`
+		Arch    string `json:"arch"`
+	}
+	if err := json.Unmarshal(data, &entries); err != nil {
+		panic(err)
+	}
+
+	kernels := make([]map[string]string, 0, len(entries))
+	for _, e := range entries {
+		entry := map[string]string{
+			"name":    e.Name,
+			"version": e.Version,
+			"release": e.Release,
+			"source":  "rpm_packages",
+		}
+		if e.Vendor != "" {
+			entry["vendor"] = e.Vendor
+		}
+		if e.Arch != "" {
+			entry["arch"] = e.Arch
+		}
+		kernels = append(kernels, entry)
+	}
 	return kernels
 }
 
@@ -172,7 +283,10 @@ func init() {
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
-	ubuntuKernels = loadKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
+	ubuntuKernels = loadDebKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
+	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
+	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
+	rhel10Kernels = loadRPMKernelList(rhel10KernelsFS, "rhel_10-kernels.json")
 }
 
 type nodeKeyManager struct {
@@ -231,15 +345,17 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex            int
-	MDMCheckInInterval    time.Duration
-	model                 string
-	serverAddress         string
-	softwareCount         softwareEntityCount
-	stats                 *osquery_perf.Stats
-	strings               map[string]string
-	softwareVersionMap    map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
-	mdmProfileFailureProb float64
+	agentIndex                 int
+	MDMCheckInInterval         time.Duration
+	model                      string
+	serverAddress              string
+	softwareCount              softwareEntityCount
+	stats                      *osquery_perf.Stats
+	strings                    map[string]string
+	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
+	mdmProfileFailureProb      float64
+	osVersion                  string
+	supplementalOSVersionExtra string
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -521,9 +637,10 @@ func newAgent(
 	// validTemplateNames below for the list of possible names, the OS is always
 	// the part before the underscore). Note that it is the OS and not the
 	// "normalized" platform, so "ubuntu" and not "linux", "macos" and not
-	// "darwin".
-	agentOS := strings.TrimRight(templates.Name(), ".tmpl")
-	agentOS, _, _ = strings.Cut(agentOS, "_")
+	// "darwin". osVariant is the part after the underscore, e.g., "8" / "9" /
+	// "10" for RHEL templates, used to pick the right kernel list.
+	templateBase := strings.TrimSuffix(templates.Name(), ".tmpl")
+	agentOS, osVariant, _ := strings.Cut(templateBase, "_")
 
 	var (
 		macMDMClient *mdmtest.TestAppleMDMClient
@@ -619,9 +736,19 @@ func newAgent(
 		AgentIndex:    agentIndex,
 	}, useHTTPSig, httpMessageSignatureP384Prob)
 
-	// Pre-select kernels for Ubuntu agents to ensure consistency across queries
-	if agentOS == "ubuntu" {
+	// Pre-select kernels for Linux agents to ensure consistency across queries
+	switch agentOS {
+	case "ubuntu":
 		agent.linuxKernels = selectKernels(ubuntuKernels)
+	case "rhel":
+		switch osVariant {
+		case "8":
+			agent.linuxKernels = selectKernels(rhel8Kernels)
+		case "9":
+			agent.linuxKernels = selectKernels(rhel9Kernels)
+		case "10":
+			agent.linuxKernels = selectKernels(rhel10Kernels)
+		}
 	}
 
 	return agent
@@ -2212,7 +2339,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	return software
 }
 
-func selectKernels(kernelList []string) []map[string]string {
+func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
 	var numKernels int
@@ -2242,15 +2369,11 @@ func selectKernels(kernelList []string) []map[string]string {
 	kernels := make([]map[string]string, 0, numKernels)
 
 	for i := 0; i < numKernels && i < len(indices); i++ {
-		kernelName := kernelList[indices[i]]
-		// Extract version from name (remove "linux-image-" prefix)
-		version := strings.TrimPrefix(kernelName, "linux-image-")
-
-		kernels = append(kernels, map[string]string{
-			"name":    kernelName,
-			"version": version,
-			"source":  "deb_packages",
-		})
+		// Copy the map so callers cannot mutate the shared package-level slice.
+		src := kernelList[indices[i]]
+		entry := make(map[string]string, len(src))
+		maps.Copy(entry, src)
+		kernels = append(kernels, entry)
 	}
 
 	return kernels
@@ -3111,7 +3234,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
+			switch a.os {
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
 				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
@@ -3157,6 +3280,34 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 				results = append(results, a.linuxKernels...)
 
 				a.installedSoftware.Range(func(key, value interface{}) bool {
+					results = append(results, value.(map[string]string))
+					return true
+				})
+
+			case "rhel":
+				// RHEL agents use the rpm_packages rows from the software DB
+				// (filtered once on first use). When the DB is unavailable, only
+				// kernels and per-host installed software are reported, which is
+				// sufficient for kernel-CVE load testing.
+				rpmPool := loadSoftwareDBRPM()
+				if len(rpmPool) > 0 {
+					if a.cachedSoftwareIndices == nil {
+						count := min(softwaredb.RandomSoftwareCount("ubuntu"), len(rpmPool))
+						perm := rand.Perm(len(rpmPool))
+						a.cachedSoftwareIndices = make([]uint32, count)
+						for i := range count {
+							a.cachedSoftwareIndices[i] = uint32(perm[i]) //nolint:gosec // perm[i] is bounded by len(rpmPool)
+						}
+					} else {
+						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
+					}
+					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices)
+				}
+
+				// Add pre-selected kernels for this agent
+				results = append(results, a.linuxKernels...)
+
+				a.installedSoftware.Range(func(key, value any) bool {
 					results = append(results, value.(map[string]string))
 					return true
 				})
@@ -3427,8 +3578,8 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles")
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3505,8 +3656,12 @@ func main() {
 		"windows_11_22H2_2861.tmpl": true,
 		"windows_11_22H2_3007.tmpl": true,
 		"ubuntu_22.04.tmpl":         true,
+		"rhel_8.tmpl":               true,
+		"rhel_9.tmpl":               true,
+		"rhel_10.tmpl":              true,
 		"iphone_14.6.tmpl":          true,
 		"ipad_13.18.tmpl":           true,
+		"iphone_17.tmpl":            true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -3618,13 +3773,18 @@ func main() {
 	flag.Parse()
 	rand.Seed(*randSeed)
 
-	// Load software from database if path provided
+	// Load software from database if path provided. macOS / Windows / Ubuntu
+	// have embedded fallback fixtures, and RHEL kernels are embedded too — the
+	// DB only adds non-kernel RPM/DEB variety. Treat load failure as a warning
+	// rather than fatal so running from the repo root (where the default
+	// relative path doesn't resolve) still works.
 	if *softwareDatabasePath != "" {
 		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
 		if err != nil {
-			log.Fatalf("Failed to load software database: %v", err)
+			log.Printf("WARNING: failed to load software database (%v); falling back to embedded software data", err)
+		} else {
+			softwareDB = db
 		}
-		softwareDB = db
 	} else {
 		log.Println("No software database specified (--software_db_path). Using embedded software data.")
 	}
@@ -3725,16 +3885,26 @@ func main() {
 			tmpl = tmplss[i%len(tmplss)]
 		}
 
-		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			model := "iPhone 14,6"
-			if tmpl.Name() == "ipad_13.18.tmpl" {
+			var osVersion, supplementalOSVersionExtra string
+			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
+			// which adds a SupplementalOSVersionExtra suffix to the OS version (e.g. "26.3.1 (a)").
+			switch tmpl.Name() {
+			case "ipad_13.18.tmpl":
 				model = "iPad 13,18"
+			case "iphone_17.tmpl":
+				model = "iPhone 17"
+				osVersion = "26.3.1"
+				supplementalOSVersionExtra = "(a)"
 			}
 			mobileDevice := mdmAgent{
-				agentIndex:         i + 1,
-				MDMCheckInInterval: *mdmCheckInInterval,
-				model:              model,
-				serverAddress:      *serverURL,
+				agentIndex:                 i + 1,
+				MDMCheckInInterval:         *mdmCheckInInterval,
+				model:                      model,
+				serverAddress:              *serverURL,
+				osVersion:                  osVersion,
+				supplementalOSVersionExtra: supplementalOSVersionExtra,
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,

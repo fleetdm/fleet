@@ -79,6 +79,7 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
       type,
       patch_software_title_id,
@@ -96,6 +97,7 @@ export default {
       critical,
       software_title_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
       type,
       patch_software_title_id,
@@ -117,6 +119,7 @@ export default {
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
     } = data;
     const { TEAMS } = endpoints;
@@ -134,6 +137,7 @@ export default {
       software_title_id,
       script_id,
       labels_include_any,
+      labels_include_all,
       labels_exclude_any,
     });
   },

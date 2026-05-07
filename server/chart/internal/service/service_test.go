@@ -58,23 +58,26 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 type mockDatastore struct {
 	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
 	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time) ([]uint, error)
-	affectedHostIDsByCVEFn    func(ctx context.Context) (map[string][]uint, error)
+	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	affectedHostIDsByCVEFn    func(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
 	trackedCriticalCVEsFn     func(ctx context.Context) ([]string, error)
 	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
 	recordBucketDataInvoked   bool
+	deleteAllForDatasetFn     func(ctx context.Context, dataset string, batchSize int) error
+	hostIDsInFleetsFn         func(ctx context.Context, fleetIDs []uint) ([]uint, error)
+	applyScrubMaskFn          func(ctx context.Context, dataset string, mask []byte, batchSize int) error
 }
 
-func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
+func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
 	if m.findRecentlySeenHostIDsFn != nil {
-		return m.findRecentlySeenHostIDsFn(ctx, since)
+		return m.findRecentlySeenHostIDsFn(ctx, since, disabledFleetIDs)
 	}
 	return nil, nil
 }
 
-func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
+func (m *mockDatastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
 	if m.affectedHostIDsByCVEFn != nil {
-		return m.affectedHostIDsByCVEFn(ctx)
+		return m.affectedHostIDsByCVEFn(ctx, disabledFleetIDs)
 	}
 	return nil, nil
 }
@@ -109,6 +112,27 @@ func (m *mockDatastore) GetHostIDsForFilter(ctx context.Context, hostFilter *typ
 }
 
 func (m *mockDatastore) CleanupSCDData(_ context.Context, _ int) error {
+	return nil
+}
+
+func (m *mockDatastore) DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error {
+	if m.deleteAllForDatasetFn != nil {
+		return m.deleteAllForDatasetFn(ctx, dataset, batchSize)
+	}
+	return nil
+}
+
+func (m *mockDatastore) HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error) {
+	if m.hostIDsInFleetsFn != nil {
+		return m.hostIDsInFleetsFn(ctx, fleetIDs)
+	}
+	return nil, nil
+}
+
+func (m *mockDatastore) ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error {
+	if m.applyScrubMaskFn != nil {
+		return m.applyScrubMaskFn(ctx, dataset, mask, batchSize)
+	}
 	return nil
 }
 
@@ -541,7 +565,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time) ([]uint, error) {
+	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time, _ []uint) ([]uint, error) {
 		assert.Equal(t, now.Add(-10*time.Minute), since)
 		return []uint{1, 2, 3}, nil
 	}
@@ -555,7 +579,7 @@ func TestCollectDatasetsUptime(t *testing.T) {
 		return nil
 	}
 
-	err := svc.CollectDatasets(t.Context(), now)
+	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
 }
@@ -568,7 +592,7 @@ func TestCollectDatasetsCVE(t *testing.T) {
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.affectedHostIDsByCVEFn = func(_ context.Context) (map[string][]uint, error) {
+	ds.affectedHostIDsByCVEFn = func(_ context.Context, _ []uint) (map[string][]uint, error) {
 		return map[string][]uint{
 			"CVE-2024-0001": {1, 2, 3},
 			"CVE-2024-0002": {2, 4},
@@ -585,9 +609,166 @@ func TestCollectDatasetsCVE(t *testing.T) {
 		return nil
 	}
 
-	err := svc.CollectDatasets(t.Context(), now)
+	err := svc.CollectDatasets(t.Context(), now, nil)
 	require.NoError(t, err)
 	assert.True(t, ds.recordBucketDataInvoked)
+}
+
+// TestCollectDatasetsForwardsScope verifies the scope resolver wiring:
+//   - skip=true → Collect not invoked
+//   - skip=false → disabledFleetIDs forwarded to the store query
+//   - nil scope → equivalent to (false, nil) for every dataset
+func TestCollectDatasetsForwardsScope(t *testing.T) {
+	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
+
+	t.Run("skip prevents Collect call", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, _ []uint) ([]uint, error) {
+			t.Fatal("FindRecentlySeenHostIDs should not have been called when scope returned skip=true")
+			return nil, nil
+		}
+		err := svc.CollectDatasets(t.Context(), now, func(name string) (bool, []uint) {
+			assert.Equal(t, "uptime", name)
+			return true, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, ds.recordBucketDataInvoked)
+	})
+
+	t.Run("disabledFleetIDs forwarded to FindRecentlySeenHostIDs", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		var gotDisabled []uint
+		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
+			gotDisabled = disabled
+			return []uint{1}, nil
+		}
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+			return nil
+		}
+		err := svc.CollectDatasets(t.Context(), now, func(_ string) (bool, []uint) {
+			return false, []uint{5, 7}
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []uint{5, 7}, gotDisabled)
+	})
+
+	t.Run("disabledFleetIDs forwarded to AffectedHostIDsByCVE", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.CVEDataset{})
+
+		var gotDisabled []uint
+		ds.affectedHostIDsByCVEFn = func(_ context.Context, disabled []uint) (map[string][]uint, error) {
+			gotDisabled = disabled
+			return map[string][]uint{"CVE-1": {1}}, nil
+		}
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+			return nil
+		}
+		err := svc.CollectDatasets(t.Context(), now, func(_ string) (bool, []uint) {
+			return false, []uint{5, 7}
+		})
+		require.NoError(t, err)
+		assert.Equal(t, []uint{5, 7}, gotDisabled)
+	})
+
+	t.Run("nil scope behaves as (false, nil) for every dataset", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		svc.RegisterDataset(&chart.UptimeDataset{})
+
+		gotDisabled := []uint{0xDEADBEEF} // sentinel — should be replaced with nil
+		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
+			gotDisabled = disabled
+			return []uint{1}, nil
+		}
+		ds.recordBucketDataFn = func(_ context.Context, _ string, _ time.Time, _ time.Duration, _ api.SampleStrategy, _ map[string][]byte) error {
+			return nil
+		}
+		err := svc.CollectDatasets(t.Context(), now, nil)
+		require.NoError(t, err)
+		assert.Nil(t, gotDisabled)
+	})
+}
+
+func TestScrubDatasetGlobal(t *testing.T) {
+	ds := &mockDatastore{}
+	svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+
+	var gotDataset string
+	var gotBatchSize int
+	ds.deleteAllForDatasetFn = func(_ context.Context, dataset string, batchSize int) error {
+		gotDataset = dataset
+		gotBatchSize = batchSize
+		return nil
+	}
+
+	require.NoError(t, svc.ScrubDatasetGlobal(t.Context(), "uptime"))
+	assert.Equal(t, "uptime", gotDataset)
+	assert.Equal(t, scrubBatchSize, gotBatchSize)
+}
+
+func TestScrubDatasetFleet(t *testing.T) {
+	t.Run("forwards mask built from fleet hosts", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+
+		var gotFleets []uint
+		ds.hostIDsInFleetsFn = func(_ context.Context, fleetIDs []uint) ([]uint, error) {
+			gotFleets = fleetIDs
+			return []uint{3, 7, 12}, nil
+		}
+
+		var gotDataset string
+		var gotMask []byte
+		var gotBatchSize int
+		ds.applyScrubMaskFn = func(_ context.Context, dataset string, mask []byte, batchSize int) error {
+			gotDataset = dataset
+			gotMask = mask
+			gotBatchSize = batchSize
+			return nil
+		}
+
+		require.NoError(t, svc.ScrubDatasetFleet(t.Context(), "cve", []uint{5, 7}))
+		assert.Equal(t, []uint{5, 7}, gotFleets)
+		assert.Equal(t, "cve", gotDataset)
+		assert.Equal(t, scrubBatchSize, gotBatchSize)
+		// Mask must have bits set at positions 3, 7, 12.
+		assert.Equal(t, 3, chart.BlobPopcount(gotMask))
+	})
+
+	t.Run("empty fleet IDs is no-op", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		ds.hostIDsInFleetsFn = func(_ context.Context, _ []uint) ([]uint, error) {
+			t.Fatal("HostIDsInFleets should not have been called for empty input")
+			return nil, nil
+		}
+		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ []byte, _ int) error {
+			t.Fatal("ApplyScrubMaskToDataset should not have been called for empty input")
+			return nil
+		}
+		require.NoError(t, svc.ScrubDatasetFleet(t.Context(), "uptime", nil))
+		require.NoError(t, svc.ScrubDatasetFleet(t.Context(), "uptime", []uint{}))
+	})
+
+	t.Run("no hosts resolved is no-op", func(t *testing.T) {
+		ds := &mockDatastore{}
+		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
+		ds.hostIDsInFleetsFn = func(_ context.Context, _ []uint) ([]uint, error) {
+			return nil, nil
+		}
+		ds.applyScrubMaskFn = func(_ context.Context, _ string, _ []byte, _ int) error {
+			t.Fatal("ApplyScrubMaskToDataset should not be called when no hosts resolved")
+			return nil
+		}
+		require.NoError(t, svc.ScrubDatasetFleet(t.Context(), "cve", []uint{5}))
+	})
 }
 
 func TestUptimeDatasetMetadata(t *testing.T) {

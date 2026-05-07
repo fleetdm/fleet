@@ -97,12 +97,13 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 
@@ -213,6 +214,28 @@ func TestGitOpsTeamSoftwareInstallersQueryEnv(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// gitops --dry-run with software.packages: [] must short-circuit on the server
+// and not exercise any of the batch-set or installer-validation datastore paths.
+// See ee/server/service/software_installers.go::BatchSetSoftwareInstallers.
+func TestGitOpsTeamSoftwareInstallersEmptyPackagesDryRun(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	ds.BatchSetSoftwareInstallersFunc = func(ctx context.Context, tmID *uint, installers []*fleet.UploadSoftwareInstallerPayload) error {
+		t.Errorf("BatchSetSoftwareInstallers must not be called for dry-run with empty packages")
+		return nil
+	}
+	ds.GetTeamsWithInstallerByHashFunc = func(ctx context.Context, sha256, url string) (map[uint][]*fleet.ExistingSoftwareInstaller, error) {
+		t.Errorf("GetTeamsWithInstallerByHash must not be called for dry-run with empty packages")
+		return nil, nil
+	}
+
+	_, err := fleetctl.RunAppNoChecks([]string{
+		"gitops", "--dry-run",
+		"-f", "../../fleetctl/testdata/gitops/team_software_installer_valid_empty_packages.yml",
+	})
+	require.NoError(t, err)
+}
+
 func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 	testing_utils.StartAndServeVPPServer(t)
 
@@ -271,12 +294,13 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 			labelToIDs := map[string]uint{
@@ -403,12 +427,13 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -556,12 +581,13 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: c.tokenExpiration,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   c.tokenExpiration,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 
@@ -663,12 +689,13 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 
 	// The following mocks are key to this test.
 	vppToken := &fleet.VPPTokenDB{
-		ID:        1,
-		OrgName:   "Fleet",
-		Location:  "Earth",
-		RenewDate: renewDate,
-		Token:     string(token),
-		Teams:     nil,
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       nil,
+		CountryCode: "us",
 	}
 	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
@@ -753,12 +780,13 @@ func TestGitOpsExistingTeamVPPAppsWithMissingTeam(t *testing.T) {
 	}
 
 	vppToken := &fleet.VPPTokenDB{
-		ID:        1,
-		OrgName:   "Fleet",
-		Location:  "Earth",
-		RenewDate: renewDate,
-		Token:     string(token),
-		Teams:     nil,
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       nil,
+		CountryCode: "us",
 	}
 	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
@@ -1134,7 +1162,7 @@ software:
 			}
 
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc."}, {Location: "Acme Inc."}}, nil
+				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc.", CountryCode: "us"}, {Location: "Acme Inc.", CountryCode: "us"}}, nil
 			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {

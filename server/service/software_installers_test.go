@@ -57,8 +57,8 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"global observer+ team 0", test.UserObserverPlus, ptr.Uint(0), true, true},
 		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true},
 		{"global gitops no team", test.UserGitOps, nil, true, false},
-		{"global gitops team 0", test.UserGitOps, ptr.Uint(0), true, false},
-		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false},
+		{"global gitops team 0", test.UserGitOps, ptr.Uint(0), false, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), false, false},
 		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true},
 		{"team admin team 0", test.UserTeamAdminTeam1, ptr.Uint(0), true, true},
 		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false},
@@ -77,7 +77,7 @@ func TestSoftwareInstallersAuth(t *testing.T) {
 		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true},
 		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true},
 		{"team gitops team 0", test.UserTeamGitOpsTeam1, ptr.Uint(0), true, true},
-		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), false, false},
 		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true},
 	}
 

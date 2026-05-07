@@ -1,20 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { IFormattedDataPoint } from "./types";
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
 
 const baseClass = "checkerboard-viz";
-
-// Returns a CSS class suffix for the color level (0-5). Buckets match the
-// six legend swatches declared in _styles.scss (level-0 is the no-data swatch).
-const getColorLevel = (percentage: number): number => {
-  if (percentage === 0) return 0;
-  if (percentage <= 20) return 1;
-  if (percentage <= 40) return 2;
-  if (percentage <= 60) return 3;
-  if (percentage <= 80) return 4;
-  return 5;
-};
 
 const formatHourLabel = (hourVal: number): string => {
   if (hourVal === 0) return "12am";
@@ -26,6 +20,8 @@ const formatHourLabel = (hourVal: number): string => {
 interface ICellData {
   dayIndex: number;
   hourRow: number;
+  value: number;
+  total?: number;
   percentage: number;
   dayLabel: string;
   hourLabel: string;
@@ -34,6 +30,9 @@ interface ICellData {
 interface ICheckerboardVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
+  theme?: ChartTheme;
+  tooltipFormatter?: TooltipFormatter;
+  relativeScale?: boolean;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -49,11 +48,45 @@ const WIDE_MULTIPLIER = 1.5;
 const CheckerboardViz = ({
   data,
   selectedDays,
+  theme = "green",
+  tooltipFormatter,
+  relativeScale = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollWrapperRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
+    "center"
+  );
+
+  let getColorLevel;
+  if (!relativeScale) {
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      if (percentage <= 20) return 1;
+      if (percentage <= 40) return 2;
+      if (percentage <= 60) return 3;
+      if (percentage <= 80) return 4;
+      return 5;
+    };
+  } else {
+    // When relativeScale is true, the color ramp is based on the min/max in
+    // this dataset, not fixed percentage thresholds. This surfaces more
+    // variation when values are generally low or generally high.
+    const minPerc = Math.min(...data.map((d) => d.percentage));
+    const maxPerc = Math.max(...data.map((d) => d.percentage));
+    const range = maxPerc - minPerc || 1; // avoid divide-by-zero
+
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      const scaled = ((percentage - minPerc) / range) * 5;
+      // Level zero is reserved for real 0, so ensure we return
+      // something between 1 and 5.
+      return Math.min(5, Math.ceil(scaled)) || 1;
+    };
+  }
 
   useEffect(() => {
     const node = containerRef.current;
@@ -89,8 +122,10 @@ const CheckerboardViz = ({
         return {
           dayIndex: 0,
           hourRow: i,
+          value: point.value,
+          total: point.total,
           percentage: point.percentage,
-          dayLabel: format(date, "MMM d"),
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
         };
       });
@@ -147,7 +182,9 @@ const CheckerboardViz = ({
           dayIndex,
           hourRow: row,
           percentage: point?.percentage ?? 0,
-          dayLabel: format(date, "MMM d"),
+          value: point?.value ?? 0,
+          total: point?.total,
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
       }
@@ -168,6 +205,30 @@ const CheckerboardViz = ({
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
 
+  // Scroll the grid to the far right so the most recent data is visible by
+  // default. Re-runs when the grid resizes (e.g. when the card crosses the
+  // wide breakpoint and cells scale up, growing scrollWidth).
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+    }
+  }, [gridWidth]);
+
+  // Also snap to the right edge whenever the wrapper resizes while the
+  // grid is clipped, so a window resize keeps the most recent data in view.
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(() => {
+      if (el.scrollWidth > el.clientWidth) {
+        el.scrollLeft = el.scrollWidth;
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
     if (dayLabels.length < 2) return { start: "", middle: "", end: "" };
@@ -184,10 +245,21 @@ const CheckerboardViz = ({
     const rect = (e.target as SVGElement).getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (containerRect) {
+      const cellCenterX = rect.left - containerRect.left + cellW / 2;
       setTooltipPos({
-        x: rect.left - containerRect.left + cellW / 2,
+        x: cellCenterX,
         y: rect.top - containerRect.top - 8,
       });
+      // Near either edge, the default centered tooltip would overflow or
+      // word-wrap. Flip the anchor so the tooltip grows inward instead.
+      const EDGE_ZONE = 100;
+      if (cellCenterX > containerRect.width - EDGE_ZONE) {
+        setTooltipAlign("right");
+      } else if (cellCenterX < EDGE_ZONE) {
+        setTooltipAlign("left");
+      } else {
+        setTooltipAlign("center");
+      }
     }
   };
 
@@ -199,7 +271,10 @@ const CheckerboardViz = ({
   const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
 
   return (
-    <div className={baseClass} ref={containerRef}>
+    <div
+      className={classnames(baseClass, `${baseClass}--theme-${theme}`)}
+      ref={containerRef}
+    >
       <div className={`${baseClass}__chart-row`}>
         {/* Y-axis 6am/6pm labels. Kept outside the scroll-wrapper so they stay
             pinned during horizontal scroll and label text can overflow
@@ -230,26 +305,33 @@ const CheckerboardViz = ({
           </div>
         )}
 
-        <div className={`${baseClass}__scroll-wrapper`}>
+        <div ref={scrollWrapperRef} className={`${baseClass}__scroll-wrapper`}>
           {/* Grid cells */}
           <svg width={gridWidth} height={gridHeight}>
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
+              const level = getColorLevel(cell.percentage);
+              // Filled cells have a bg-colored 1px stroke that visually blends
+              // away. The level-0 (empty) cell uses a colored stroke instead,
+              // so without insetting it would look 1px larger than filled
+              // cells. Inset by half the stroke so the outline's outer edge
+              // sits where the filled cell's invisible stroke does.
+              const inset = level === 0 ? 0.5 : 0;
               return (
                 <rect
                   key={`${cell.dayIndex}-${cell.hourRow}`}
-                  x={col * (cellW + CELL_GAP)}
-                  y={row * (cellH + CELL_GAP)}
-                  width={cellW}
-                  height={cellH}
+                  x={col * (cellW + CELL_GAP) + inset}
+                  y={row * (cellH + CELL_GAP) + inset}
+                  width={cellW - inset * 2}
+                  height={cellH - inset * 2}
                   rx={3}
                   ry={3}
-                  className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
-                    cell.percentage
-                  )}`}
+                  className={`${baseClass}__cell ${baseClass}__cell--level-${level}`}
                   role="img"
-                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
+                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${
+                    cell.value
+                  } host${cell.value === 1 ? "" : "s"}`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}
                   onMouseLeave={handleMouseLeave}
                 />
@@ -281,14 +363,20 @@ const CheckerboardViz = ({
 
       {hoveredCell && (
         <div
-          className={`chart-card__tooltip ${baseClass}__floating-tooltip`}
+          className={`chart-card__tooltip ${baseClass}__floating-tooltip ${baseClass}__floating-tooltip--align-${tooltipAlign}`}
           style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="chart-card__tooltip-label">
             {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
           </div>
           <div className="chart-card__tooltip-value">
-            {hoveredCell.percentage}% of hosts
+            {tooltipFormatter
+              ? tooltipFormatter({
+                  value: hoveredCell.value,
+                  percentage: hoveredCell.percentage,
+                  total: hoveredCell.total,
+                })
+              : `${hoveredCell.percentage}% of hosts`}
           </div>
         </div>
       )}
