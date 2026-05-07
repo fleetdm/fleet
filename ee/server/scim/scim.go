@@ -367,9 +367,7 @@ func debugSCIMPayloadsEnabled() bool {
 
 // debugPayloadDumpMiddleware logs the raw SCIM request body to scimLogger when enabled
 // is true. The full body is read into memory, written to the log, and then restored
-// for the downstream handler via a fresh io.ReadCloser. This is intentionally simple
-// at the cost of memory: SCIM payloads are small in practice, and the flag is intended
-// only for ad-hoc IdP debugging on a non-production cluster (see debugSCIMPayloadsEnabled).
+// for the downstream handler via a fresh io.ReadCloser.
 func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Handler) http.Handler {
 	if !enabled {
 		return next
