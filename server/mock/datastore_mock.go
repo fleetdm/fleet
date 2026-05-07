@@ -343,8 +343,6 @@ type ListHostCertificatesFunc func(ctx context.Context, hostID uint, opts fleet.
 
 type UpdateHostCertificatesFunc func(ctx context.Context, hostID uint, hostUUID string, certs []*fleet.HostCertificateRecord, origin fleet.HostCertificateOrigin) error
 
-type GetHostAndProfileByCommandUUIDFunc func(ctx context.Context, commandUUID string, hostUUID string) (hostID uint, platform string, profileUUID string, err error)
-
 type AreHostsConnectedToFleetMDMFunc func(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error)
 
 type AggregatedMunkiVersionFunc func(ctx context.Context, teamID *uint) ([]fleet.AggregatedMunkiVersion, time.Time, error)
@@ -2389,9 +2387,6 @@ type DataStore struct {
 
 	UpdateHostCertificatesFunc        UpdateHostCertificatesFunc
 	UpdateHostCertificatesFuncInvoked bool
-
-	GetHostAndProfileByCommandUUIDFunc        GetHostAndProfileByCommandUUIDFunc
-	GetHostAndProfileByCommandUUIDFuncInvoked bool
 
 	AreHostsConnectedToFleetMDMFunc        AreHostsConnectedToFleetMDMFunc
 	AreHostsConnectedToFleetMDMFuncInvoked bool
@@ -5860,13 +5855,6 @@ func (s *DataStore) UpdateHostCertificates(ctx context.Context, hostID uint, hos
 	s.UpdateHostCertificatesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostCertificatesFunc(ctx, hostID, hostUUID, certs, origin)
-}
-
-func (s *DataStore) GetHostAndProfileByCommandUUID(ctx context.Context, commandUUID string, hostUUID string) (hostID uint, platform string, profileUUID string, err error) {
-	s.mu.Lock()
-	s.GetHostAndProfileByCommandUUIDFuncInvoked = true
-	s.mu.Unlock()
-	return s.GetHostAndProfileByCommandUUIDFunc(ctx, commandUUID, hostUUID)
 }
 
 func (s *DataStore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*fleet.Host) (map[string]bool, error) {

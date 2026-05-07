@@ -1632,7 +1632,7 @@ WHERE
 func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
 	const darwinStmt = `
 SELECT
-	profile_identifier, retries
+	profile_identifier, profile_uuid, retries
 FROM
 	host_mdm_apple_profiles hmap
 WHERE
@@ -1667,37 +1667,6 @@ WHERE
 	}
 
 	return dest, nil
-}
-
-// GetHostAndProfileByCommandUUID returns identifying details about the host
-// and the Apple configuration profile that produced the given InstallProfile
-// command. Used by post-ack handlers that need to inspect the delivered
-// profile content.
-func (ds *Datastore) GetHostAndProfileByCommandUUID(ctx context.Context, commandUUID, hostUUID string) (uint, string, string, error) {
-	const stmt = `
-SELECT
-	h.id AS host_id,
-	h.platform AS platform,
-	hmap.profile_uuid AS profile_uuid
-FROM
-	host_mdm_apple_profiles hmap
-	JOIN hosts h ON h.uuid = hmap.host_uuid
-WHERE
-	hmap.command_uuid = ?
-	AND hmap.host_uuid = ?`
-
-	var dest struct {
-		HostID      uint   `db:"host_id"`
-		Platform    string `db:"platform"`
-		ProfileUUID string `db:"profile_uuid"`
-	}
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID); err != nil {
-		if err == sql.ErrNoRows {
-			return 0, "", "", notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
-		}
-		return 0, "", "", ctxerr.Wrap(ctx, err, "get host and profile by command uuid")
-	}
-	return dest.HostID, dest.Platform, dest.ProfileUUID, nil
 }
 
 func batchSetProfileLabelAssociationsDB(

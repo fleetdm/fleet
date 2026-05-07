@@ -311,6 +311,9 @@ type HostMDMProfileRetryCount struct {
 	ProfileIdentifier string `db:"profile_identifier"`
 	// ProfileName is the unique name used by Windows profiles
 	ProfileName string `db:"profile_name"`
+	// ProfileUUID is the Fleet-internal profile UUID; populated for both Apple and
+	// Windows profiles so callers can look up profile content by UUID.
+	ProfileUUID string `db:"profile_uuid"`
 	Retries     uint   `db:"retries"`
 }
 

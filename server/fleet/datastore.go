@@ -450,11 +450,6 @@ type Datastore interface {
 	// ingestion don't clobber each other's view.
 	UpdateHostCertificates(ctx context.Context, hostID uint, hostUUID string, certs []*HostCertificateRecord, origin HostCertificateOrigin) error
 
-	// GetHostAndProfileByCommandUUID returns the host ID, host platform, and
-	// profile UUID associated with the given InstallProfile command. Used by
-	// post-ack handlers that need to inspect the delivered profile.
-	GetHostAndProfileByCommandUUID(ctx context.Context, commandUUID, hostUUID string) (hostID uint, platform, profileUUID string, err error)
-
 	// AreHostsConnectedToFleetMDM checks each host MDM enrollment with
 	// this server and returns a map indexed by the host uuid and a boolean
 	// indicating if the enrollment is active.

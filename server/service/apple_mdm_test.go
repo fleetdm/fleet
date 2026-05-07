@@ -2146,9 +2146,10 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 			}
 			// Best-effort ACME-cert-list trigger fires on successful InstallProfile
 			// acks; stub the lookup to no-op so this test stays focused on the
-			// retry/status logic.
-			ds.GetHostAndProfileByCommandUUIDFunc = func(ctx context.Context, cmdUUID, hostUUID string) (uint, string, string, error) {
-				return 0, "", "", &notFoundError{}
+			// retry/status logic. Returning a non-darwin platform short-circuits
+			// the trigger before any other datastore calls.
+			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMCheckinInfo, error) {
+				return &fleet.HostMDMCheckinInfo{Platform: "ios"}, nil
 			}
 
 			_, err := svc.CommandAndReportResults(
@@ -2279,8 +2280,11 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.GetHostAndProfileByCommandUUIDFunc = func(ctx context.Context, cmdUUID, hUUID string) (uint, string, string, error) {
-				return hostID, c.platform, profileUUID, nil
+			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMCheckinInfo, error) {
+				return &fleet.HostMDMCheckinInfo{HostID: hostID, Platform: c.platform}, nil
+			}
+			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
+				return fleet.HostMDMProfileRetryCount{ProfileUUID: profileUUID}, nil
 			}
 			ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
 				return map[string]mobileconfig.Mobileconfig{profileUUID: c.profileContent}, nil

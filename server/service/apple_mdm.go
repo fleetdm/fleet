@@ -5011,18 +5011,28 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // Dedups via host_mdm_commands so multiple ACME profile installs on the same
 // host do not enqueue duplicate commands while one is in flight.
 func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
-	hostID, platform, profileUUID, err := svc.ds.GetHostAndProfileByCommandUUID(ctx, commandUUID, hostUUID)
+	checkin, err := svc.ds.GetHostMDMCheckinInfo(ctx, hostUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "look up host and profile")
+		return ctxerr.Wrap(ctx, err, "get host checkin info")
 	}
-	if platform != "darwin" {
+	if checkin.Platform != "darwin" {
 		return nil
 	}
 
-	contents, err := svc.ds.GetMDMAppleProfilesContents(ctx, []string{profileUUID})
+	retry, err := svc.ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, &fleet.Host{UUID: hostUUID, Platform: checkin.Platform}, commandUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get profile by command uuid")
+	}
+	if retry.ProfileUUID == "" {
+		return nil
+	}
+
+	contents, err := svc.ds.GetMDMAppleProfilesContents(ctx, []string{retry.ProfileUUID})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
+	profileUUID := retry.ProfileUUID
+	hostID := checkin.HostID
 	mc, ok := contents[profileUUID]
 	if !ok {
 		return nil

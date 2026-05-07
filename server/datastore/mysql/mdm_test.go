@@ -65,7 +65,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
-		{"TestGetHostAndProfileByCommandUUID", testGetHostAndProfileByCommandUUID},
 	}
 
 	for _, c := range cases {
@@ -10441,49 +10440,4 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, appleProfileUUID, uid)
 	})
-}
-
-func testGetHostAndProfileByCommandUUID(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("hp-osq-id"),
-		NodeKey:         ptr.String("hp-node-key"),
-		UUID:            "hp-host-uuid",
-		Hostname:        "hp-host",
-		Platform:        "darwin",
-	})
-	require.NoError(t, err)
-
-	profileUUID := uuid.NewString()
-	commandUUID := uuid.NewString()
-
-	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
-		ProfileUUID:   profileUUID,
-		HostUUID:      host.UUID,
-		Checksum:      []byte("checksum"),
-		Scope:         fleet.PayloadScopeSystem,
-		OperationType: fleet.MDMOperationTypeInstall,
-		CommandUUID:   commandUUID,
-	}}))
-
-	gotHostID, gotPlatform, gotProfileUUID, err := ds.GetHostAndProfileByCommandUUID(ctx, commandUUID, host.UUID)
-	require.NoError(t, err)
-	require.Equal(t, host.ID, gotHostID)
-	require.Equal(t, "darwin", gotPlatform)
-	require.Equal(t, profileUUID, gotProfileUUID)
-
-	// Mismatched host UUID returns not found.
-	_, _, _, err = ds.GetHostAndProfileByCommandUUID(ctx, commandUUID, "no-such-host")
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
-
-	// Unknown command UUID returns not found.
-	_, _, _, err = ds.GetHostAndProfileByCommandUUID(ctx, "no-such-command", host.UUID)
-	require.Error(t, err)
-	require.True(t, fleet.IsNotFound(err))
 }
