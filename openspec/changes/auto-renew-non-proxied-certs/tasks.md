@@ -47,26 +47,26 @@ Goal: hook `CertificateList` into the ACME `InstallProfile` ack flow on macOS. A
 
 # Phase 2 — #40639 non-proxied cert renewal
 
-> Depends on Phase 1 for the macOS leg. iOS/iPadOS/Windows legs work independently. Customer outcome: Hydrant ACME and Okta SCEP certs auto-renew before expiration *for profiles redeployed with the marker variable*.
+> Depends on Phase 1 for the macOS leg. iOS/iPadOS/Windows legs work independently. Customer outcome: non-proxied ACME (e.g. customer's Hydrant deployment) and Okta SCEP certs auto-renew before expiration *for profiles redeployed with the marker variable*.
 
-## 5. PR 2.1 — Schema and CA-list foundation
+## 5. PR 2.1 — Schema and renewal-cron foundation
 
 Goal: prepare the data model for ingestion-created managed-cert rows. No behavior change yet. Independently mergeable.
 
-- [ ] 5.1 Verify `profile_uuid` format across `host_mdm_apple_profiles` / `host_mdm_windows_profiles` (sample existing rows) to finalize the marker-extraction regex used in PR 2.2
-- [ ] 5.2 Migration: allow `host_mdm_managed_certificates.type` to be NULL (or add `non_proxied` enum value) — `server/datastore/mysql/migrations/tables/<timestamp>_AllowNullTypeOnHostMDMManagedCertificates.go` + test file
-- [ ] 5.3 Add `CAConfigHydrant` legacy constant in `server/fleet/certificate_authorities.go`; include it in `ListCATypesWithRenewalSupport()` and `ListCATypesWithRenewalIDSupport()`
-- [ ] 5.4 Update `RenewMDMManagedCertificates` SELECT in `server/datastore/mysql/mdm.go:2861-2960` to include rows where `type IS NULL` (or non-proxied sentinel)
-- [ ] 5.5 Datastore tests: existing-type rows still selected, NULL-type rows now selected, non-renewable types still ignored
+- [x] 5.1 Verify `profile_uuid` format across `host_mdm_apple_profiles` / `host_mdm_windows_profiles` — empirically resolved by reading the substitution code (`server/mdm/microsoft/profile_variables.go:125`, `server/mdm/apple/profile_processor.go:401-404`): the marker is always literally `"fleet-" + profile_uuid`. PR 2.2 marker extraction can rely on substring matching against CN/OU; no regex needed.
+- [x] 5.2 Migration: allow `host_mdm_managed_certificates.type` to be NULL — `server/datastore/mysql/migrations/tables/20260507160833_AllowNullTypeOnHostMDMManagedCertificates.go` + test file. NOTE: revise the stashed migration to drop the `'hydrant'` enum addition — Hydrant is not modeled as a CA type (see design.md Decision 2.4).
+- [ ] 5.3 (REMOVED — see design.md Decision 2.4) ~~Add `CAConfigHydrant` legacy constant; include in renewal lists~~. Hydrant is not modeled as a CA type. The NULL-`type` mechanism (5.4) is the entire renewal path for non-proxied flows.
+- [x] 5.4 Update `RenewMDMManagedCertificates` SELECT in `server/datastore/mysql/mdm.go` to iterate `ListCATypesWithRenewalSupport()` plus a single NULL bucket using null-safe equal (`hmmc.type <=> ?`).
+- [ ] 5.5 Datastore tests: existing-type rows still selected, NULL-type rows now selected, non-renewable types still ignored. (Reduce the stashed test — drop the `hydrant` arm; keep the `ndes` and NULL arms.)
 
 ## 6. PR 2.2 — Ingestion-driven managed-cert row creation
 
 Goal: extend `UpdateHostCertificates` to insert `host_mdm_managed_certificates` rows when ingested certs carry a renewal-ID marker. Core change.
 
-- [ ] 6.1 Define renewal-ID extraction helper (regex on cert Subject CN/OU) — new file under `server/fleet/` or shared utility
-- [ ] 6.2 Extend `UpdateHostCertificates` in `server/datastore/mysql/host_certificates.go` to scan newly inserted certs for the marker and INSERT missing `host_mdm_managed_certificates` rows
-- [ ] 6.3 Verify the extracted profile_uuid resolves to a profile installed on the host before insert; log mismatches at debug level; do not insert otherwise
-- [ ] 6.4 Datastore tests covering: first-time ingestion creates row; subsequent ingestion updates existing row; mismatched UUID ignored; multiple markers in same Subject (edge case); marker present but profile not installed on this host
+- [ ] 6.1 Marker extraction strategy: use substring search for `"fleet-" + profile_uuid` against ingested certs' CN/OU, mirroring the existing matcher loop's approach (origin/main `host_certificates.go:188-189`). No new regex helper needed — the source-of-truth profile UUID list comes from the host's `host_mdm_apple_profiles` / `host_mdm_windows_profiles` rows and can be enumerated.
+- [ ] 6.2 Extend `UpdateHostCertificates` in `server/datastore/mysql/host_certificates.go` to add an INSERT pass: for each profile installed on the host without a corresponding `host_mdm_managed_certificates` row, search the incoming/toInsert pool for a cert whose CN or OU contains `"fleet-" + profile_uuid`; if found, INSERT a row populated with the cert's `serial`, `not_valid_before`, `not_valid_after`, NULL `type`, NULL `ca_name`, NULL `challenge_retrieved_at`. Reuse `toInsertBySHA1` / `incomingBySHA1` already built by #44691.
+- [ ] 6.3 **Matcher-guard fix (load-bearing for ingestion-created rows):** adjust the existing matcher's `if !hostMDMManagedCert.Type.SupportsRenewalID() { continue }` skip so empty/NULL `Type` rows are NOT excluded. Without this, ingestion-created NULL-`type` rows would never have their `not_valid_after` advanced after a renewal completes, producing a non-terminating renewal loop. See design.md Decision 2.2.
+- [ ] 6.4 Datastore tests covering: first-time ingestion creates NULL-`type` row; subsequent ingestion updates existing NULL-`type` row's `not_valid_after` (validates 6.3); mismatched UUID ignored; marker present but profile not installed on this host; existing proxied-`type` rows continue to work as before (no regression)
 - [ ] 6.5 Service-level integration test: simulate an osquery cert report with a marker-bearing cert and verify the managed-cert row materializes
 - [ ] 6.6 Run `make generate-mock` if datastore interface signatures change
 
@@ -96,15 +96,15 @@ Goal: same as PR 2.3 for Windows. Separated because the Windows path has a pendi
 Can ship in parallel with PR 2.3 / 2.4.
 
 - [ ] 9.1 Update Fleet's certificate renewal guide (or create a new guide — Product decision pending) to document non-proxied SCEP and ACME renewal
-- [ ] 9.2 Add example profiles (Hydrant ACME, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject CN/OU
+- [ ] 9.2 Add example profiles (non-proxied ACME — generic plus a customer's-Hydrant illustration, Okta conditional access SCEP, Okta Verify static challenge SCEP) showing correct marker placement in Subject CN/OU
 - [ ] 9.3 **Customer-facing redeploy guidance**: explicit upgrade-step doc explaining that existing profiles must be re-uploaded with the marker for renewal to activate; ideally include a `fleetctl` snippet or query to identify which existing profiles need updating
 - [ ] 9.4 Reference doc note that `host_mdm_managed_certificates.type` may be NULL for non-proxied rows
 - [ ] 9.5 Final release-notes entry consolidating Phase 2 changes
 
 ## 10. Phase 2 verification (QA, not a PR)
 
-- [ ] 10.1 Hydrant ACME on real silicon Mac (Phase 1 fully shipped): redeploy a profile with the marker, force a cert near expiration, verify renewal cron triggers, profile re-pushes, new cert ingested via on-demand `CertificateList`, managed-cert row updated
-- [ ] 10.2 Hydrant ACME on iOS / iPadOS: redeploy profile with marker, verify existing `IOSiPadOSRefetch` cron path picks up the new flow without regression
+- [ ] 10.1 Non-proxied ACME (customer-cisneros-a's Hydrant deployment) on real silicon Mac (Phase 1 fully shipped): redeploy a profile with the marker, force a cert near expiration, verify renewal cron triggers, profile re-pushes, new cert ingested via on-demand `CertificateList`, managed-cert row updated; row remains NULL `type` throughout
+- [ ] 10.2 Non-proxied ACME on iOS / iPadOS: redeploy profile with marker, verify existing `IOSiPadOSRefetch` cron path picks up the new flow without regression
 - [ ] 10.3 Okta conditional access SCEP on macOS via osquery ingestion path (after profile redeploy)
 - [ ] 10.4 Okta Verify SCEP (static challenge) on macOS (after profile redeploy)
 - [ ] 10.5 Okta SCEP on Windows (after profile redeploy)

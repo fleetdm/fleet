@@ -2,7 +2,9 @@
 
 Fleet's existing renewal pipeline assumes the server is in the cert-issuance path. For Fleet-issued MDM enrollment certs, `RenewSCEPCertificates` reads `nano_cert_auth_associations`. For profile-delivered certs from CAs that Fleet proxies (NDES, Custom SCEP Proxy, DigiCert, Smallstep), `RenewMDMManagedCertificates` reads `host_mdm_managed_certificates` rows that the proxy step populates at issuance.
 
-For Hydrant ACME and non-proxied SCEP (Okta conditional access, Okta Verify), Fleet is not in the issuance path. The device performs the cert exchange directly with the CA. Fleet first sees the cert when it's reported via osquery (software certs) or the MDM `CertificateList` command (hardware-bound certs on Apple platforms). Today on macOS the `CertificateList` command is not used at all — only iOS/iPadOS use it via `IOSiPadOSRefetch`. So hardware-bound ACME certs on macOS are effectively invisible to Fleet, and even for software certs no `host_mdm_managed_certificates` row exists for the non-proxied flows so the renewal cron has nothing to act on.
+For non-proxied ACME (e.g. the customer-cisneros-a engagement, where the customer deploys an ACME profile against a private Hydrant fork) and non-proxied SCEP (Okta conditional access, Okta Verify), Fleet is not in the issuance path. The device performs the cert exchange directly with the CA. Fleet first sees the cert when it's reported via osquery (software certs) or the MDM `CertificateList` command (hardware-bound certs on Apple platforms). Today on macOS the `CertificateList` command is not used at all — only iOS/iPadOS use it via `IOSiPadOSRefetch`. So hardware-bound ACME certs on macOS are effectively invisible to Fleet, and even for software certs no `host_mdm_managed_certificates` row exists for the non-proxied flows so the renewal cron has nothing to act on.
+
+Importantly, this change does NOT add Hydrant ACME as a registerable CA type. Hydrant does not yet officially support ACME; the customer-cisneros-a use case relies on a private Hydrant fork. A `hydrant` CA type would not generalize to other customers, would bake a name into `host_mdm_managed_certificates.type` that may conflict with whatever the official Hydrant ACME integration looks like later, and is not necessary because the non-proxied mechanism described below works for any external ACME or SCEP server. When Hydrant ships official ACME support upstream, a first-class CA registration may be added separately.
 
 This change addresses both halves in two phases that ship as independent PR sequences:
 
@@ -13,7 +15,7 @@ This change addresses both halves in two phases that ship as independent PR sequ
 
 **Goals:**
 - Make MDM-delivered certs visible on the host details page on macOS (Phase 1).
-- Auto-renew Hydrant ACME and non-proxied SCEP profile-delivered certs on Apple platforms (macOS post-Phase 1, iOS, iPadOS today) and Windows (Phase 2).
+- Auto-renew non-proxied ACME (including the customer-cisneros-a Hydrant deployment) and non-proxied SCEP profile-delivered certs on Apple platforms (macOS post-Phase 1, iOS, iPadOS today) and Windows (Phase 2).
 - Reuse existing renewal cron unchanged. Reuse existing renewal threshold logic.
 - Use a single mechanism (extracting `fleet-<profile_uuid>` marker from cert Subject) for all platforms and all CA types in scope.
 - Validate at profile upload that renewable certs include the marker, so silent non-renewal becomes impossible to misconfigure.
@@ -21,6 +23,7 @@ This change addresses both halves in two phases that ship as independent PR sequ
 
 **Non-Goals:**
 - Custom EST Proxy renewal (deliberately deferred; no customer driver).
+- New first-class CA type for Hydrant ACME (Hydrant does not officially support ACME yet; customer's private fork is the only deployment in scope; the non-proxied mechanism handles it without a CA registration).
 - New first-class CA type for Okta SCEP (renewal works without one).
 - Renewal verification / silent-failure detection — orthogonal generic improvement that applies equally to existing proxied flows; out of scope here.
 - Generic operational alerting for unbounded renewal-loop scenarios — same reasoning, generic concern.
@@ -69,12 +72,17 @@ Store certs from both osquery and MDM `CertificateList` ingestion in `host_certi
 - *Create the row at profile install time* (a "pending" state). Rejected: produces orphan rows when a profile installs but the cert is never issued (CA failure, attestation rejected). The existing model — row exists iff a cert has been observed — has cleaner semantics.
 - *Add a separate "non-proxied managed cert" table*. Rejected: doubles the surface area of the renewal cron and the ingestion linkage logic. The existing table fits the new rows with one nullable column.
 
-### Decision 2.2: `host_mdm_managed_certificates.type` becomes nullable (or carries a sentinel)
+### Decision 2.2: `host_mdm_managed_certificates.type` becomes nullable
 
-For ingestion-created rows we don't know the CA type — Fleet wasn't in the issuance path. Either allow `type` to be NULL or add a `non_proxied` enum value. The renewal cron's `WHERE hmmc.type = ?` clause iterates `ListCATypesWithRenewalSupport()` and would skip these rows; either include the sentinel in the supported list, or change the cron to `WHERE (hmmc.type IN (...) OR hmmc.type IS NULL)`.
+For ingestion-created rows we don't know the CA type — Fleet wasn't in the issuance path. The migration drops the `NOT NULL DEFAULT 'ndes'` and allows NULL. The renewal cron iterates `ListCATypesWithRenewalSupport()` plus a single NULL bucket, using null-safe equal (`hmmc.type <=> ?`) so the same parameterized query handles both registered types and NULL with no SQL branching.
+
+We do NOT add a `non_proxied` enum sentinel. NULL has the right semantics (unknown — Fleet wasn't in the issuance path), avoids a fake CA-type value that has to be excluded from every CA-type-aware query, and matches how the column is read by code that expects the registered CA type when one is present.
+
+**Knock-on requirement — matcher guard:** the existing `UpdateHostCertificates` matcher (#44691) skips rows where `!Type.SupportsRenewalID()`, which evaluates to `false` for the empty-string zero value that NULL scans into. Without an adjustment here, ingestion-created NULL-`type` rows would never have their `not_valid_after` advanced after a renewal completes, producing a non-terminating renewal loop. Phase 2 must treat empty/NULL `Type` as renewal-eligible in the matcher path.
 
 **Alternatives considered:**
-- *Synthesize a type at insert time by inspecting the profile content* (e.g., is it `com.apple.security.acme`? a SCEP payload pointing at a registered Hydrant URL?). Rejected: brittle, leaks profile-content awareness into the datastore layer, and gains nothing — the renewal cron only cares about whether a row should be considered, not what produced it.
+- *Add a `non_proxied` enum sentinel.* Rejected per above — extra value to maintain, no semantic gain.
+- *Synthesize a type at insert time by inspecting the profile content* (e.g., is it `com.apple.security.acme`? a SCEP payload pointing at a registered URL?). Rejected: brittle, leaks profile-content awareness into the datastore layer, and gains nothing — the renewal cron only cares about whether a row should be considered, not what produced it.
 
 ### Decision 2.3: Marker extraction via regex on Subject CN/OU
 
@@ -88,9 +96,16 @@ Constraints on the extracted UUID:
 - *Match by Issuer + Serial recorded at issuance.* Rejected: only works for proxied flows where Fleet saw the issuance. Useless here.
 - *Match by Subject == host identifier.* Rejected: breaks when one host has multiple profiles using the same CA.
 
-### Decision 2.4: Add `hydrant` to renewal-supported CA list
+### Decision 2.4: Hydrant is not modeled as a CA type
 
-`ListCATypesWithRenewalSupport()` and `ListCATypesWithRenewalIDSupport()` in `server/fleet/certificate_authorities.go` use legacy `CAConfigAssetType`. Hydrant is currently only in the newer `CAType` enum. Either add a `CAConfigHydrant` legacy constant, or migrate the renewal lists to use `CAType` directly. Decision: add the legacy constant for symmetry, leave the `TODO HCA` rewrite for later — minimum-change approach.
+We do NOT add a `CAConfigHydrant` constant or include a `hydrant` value in `host_mdm_managed_certificates.type`. Reasoning:
+
+- Hydrant does not yet officially support ACME. The customer-cisneros-a deployment uses a private fork. A `hydrant` enum value or `CAConfigHydrant` constant would not generalize to other customers.
+- The non-proxied mechanism (Decision 2.2: NULL `type`, plus the renewal cron's NULL bucket) handles the customer's certs without any Hydrant-specific code path. The mechanism applies equally to any external ACME or SCEP server the customer's profile points at.
+- Once Hydrant ships official ACME support upstream, a first-class Hydrant ACME CA registration may be added separately. That work would include a CA configuration, an issuance proxy, and a real type value — the right model for it. Pre-baking the type now would force a name choice that may not match the eventual official integration.
+
+**Alternatives considered:**
+- *Add `CAConfigHydrant` now and use it for the customer.* Rejected: bakes a name into a shipped enum that may conflict with future official Hydrant ACME work; produces a CA type whose only meaning is "the customer-cisneros-a use case"; doesn't generalize to the next non-proxied customer.
 
 ### Decision 2.5: No DB-side linkage backfill — redeploy provides the marker-bearing certs
 
@@ -116,7 +131,7 @@ The expected ship cadence is "both phases together" — both deliver value to th
 
 Phase 1 alone (if Phase 2 is delayed): macOS ACME certs become visible after the customer reinstalls the delivering profile. No renewal yet.
 
-Phase 2 alone (if Phase 1 is delayed): iOS/iPadOS Hydrant ACME renewal works (existing `IOSiPadOSRefetch` cadence ingests the certs after redeploy), Windows Okta SCEP renewal works (osquery ingests), macOS Okta SCEP works (osquery ingests software certs after redeploy). Only macOS hardware-bound Hydrant ACME requires Phase 1.
+Phase 2 alone (if Phase 1 is delayed): iOS/iPadOS non-proxied ACME renewal works (existing `IOSiPadOSRefetch` cadence ingests the certs after redeploy), Windows Okta SCEP renewal works (osquery ingests), macOS Okta SCEP works (osquery ingests software certs after redeploy). Only macOS hardware-bound non-proxied ACME (the customer-cisneros-a target) requires Phase 1.
 
 ## Risks / Trade-offs
 

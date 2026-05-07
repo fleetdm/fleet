@@ -1,25 +1,28 @@
 ## ADDED Requirements
 
-### Requirement: Auto-renewal for Hydrant ACME certs on Apple platforms
+### Requirement: Auto-renewal for non-proxied ACME certs on Apple platforms
 
-The system SHALL automatically renew Hydrant ACME certificates on macOS, iOS, and iPadOS hosts before expiration by re-pushing the delivering profile, when the cert was issued in response to a profile installed by Fleet and the cert's Subject contains a Fleet-generated renewal-ID marker.
+The system SHALL automatically renew non-proxied ACME certificates (issued by an external CA that Fleet does not proxy — e.g. the customer-cisneros-a Hydrant deployment) on macOS, iOS, and iPadOS hosts before expiration by re-pushing the delivering profile, when the cert was issued in response to a profile installed by Fleet and the cert's Subject contains a Fleet-generated renewal-ID marker.
 
-#### Scenario: Hydrant ACME cert nears expiration on iOS
+The mechanism SHALL NOT depend on Fleet having a registered CA for the issuing service. Eligibility is determined by the presence of a `host_mdm_managed_certificates` row (created from ingestion when the marker is present), regardless of whether the row's `type` is set or NULL.
 
-- **WHEN** an iOS host has a Hydrant-issued ACME cert linked to a Fleet-installed profile, the cert's `not_valid_after` falls within the renewal threshold (validity_period > 30 days → 30 days; ≤ 30 days → validity_period/2)
+#### Scenario: Non-proxied ACME cert nears expiration on iOS
+
+- **WHEN** an iOS host has an ACME cert (issued by an external CA Fleet does not proxy) linked to a Fleet-installed profile, the cert's `not_valid_after` falls within the renewal threshold (validity_period > 30 days → 30 days; ≤ 30 days → validity_period/2)
 - **THEN** the system SHALL set the profile's status to NULL so the next profile-manager cron run triggers a re-push
-- **AND** SHALL NOT require any new code paths beyond extending the existing renewal cron's CA-type allowlist
+- **AND** SHALL select the row from the renewal cron's NULL-`type` bucket without requiring a registered CA for the issuing service
 
-#### Scenario: Hydrant ACME cert nears expiration on macOS
+#### Scenario: Non-proxied ACME cert nears expiration on macOS
 
-- **WHEN** a macOS host has a hardware-bound Hydrant ACME cert (visible only via MDM `CertificateList`) linked to a Fleet-installed profile and the cert nears expiration
-- **THEN** the system SHALL re-push the profile to trigger a new ACME exchange between the device and Hydrant
+- **WHEN** a macOS host has a hardware-bound non-proxied ACME cert (visible only via MDM `CertificateList`) linked to a Fleet-installed profile and the cert nears expiration
+- **THEN** the system SHALL re-push the profile to trigger a new ACME exchange between the device and the external CA
 - **AND** the new cert SHALL be ingested via the on-demand `CertificateList` triggered by the resulting profile-install ack (provided by #42827)
 - **AND** the linked managed-cert row's `not_valid_after` SHALL be advanced when the new cert is ingested
+- **AND** the matcher SHALL update the row even when its `type` is NULL — the existing `SupportsRenewalID()` skip MUST NOT exclude NULL-`type` rows
 
 ### Requirement: Auto-renewal for non-proxied SCEP certs (Okta)
 
-The system SHALL automatically renew non-proxied SCEP certificates (Okta conditional access, Okta Verify w/ static challenge) on macOS, iOS, iPadOS, and Windows hosts using the same profile re-push mechanism as Hydrant ACME, when the cert's Subject contains the renewal-ID marker.
+The system SHALL automatically renew non-proxied SCEP certificates (Okta conditional access, Okta Verify w/ static challenge) on macOS, iOS, iPadOS, and Windows hosts using the same profile re-push mechanism as non-proxied ACME, when the cert's Subject contains the renewal-ID marker.
 
 #### Scenario: Okta SCEP cert renewal on Windows
 
@@ -98,15 +101,17 @@ The system SHALL rely on customer profile redeploy as the activation step that s
 
 ### Requirement: Non-proxied managed-cert rows are eligible for renewal
 
-The system SHALL include `host_mdm_managed_certificates` rows with non-proxied/NULL `type` in the renewal cron's selection set, so they are processed alongside rows from proxied CAs.
+The system SHALL include `host_mdm_managed_certificates` rows with NULL `type` in the renewal cron's selection set, so they are processed alongside rows from proxied CAs. Hydrant ACME and other non-proxied flows SHALL NOT be modeled as registered CA types — the NULL bucket is the canonical mechanism for any external CA Fleet does not proxy.
 
 #### Scenario: Renewal cron selects non-proxied row near expiration
 
-- **WHEN** `RenewMDMManagedCertificates` runs and a row exists with type=NULL (or non_proxied sentinel), `not_valid_after` within the renewal threshold, and a non-NULL profile status
+- **WHEN** `RenewMDMManagedCertificates` runs and a row exists with `type` IS NULL, `not_valid_after` within the renewal threshold, and a non-NULL profile status
 - **THEN** the system SHALL include the row in the rows it processes
 - **AND** SHALL set the corresponding profile's status to NULL to trigger re-push
+- **AND** SHALL match the row using a null-safe equal predicate so the same SQL handles registered and NULL `type` values
 
-#### Scenario: Hydrant CA type is recognized for renewal
+#### Scenario: Matcher advances NULL-`type` row after renewal
 
-- **WHEN** `RenewMDMManagedCertificates` enumerates renewal-supported CA types
-- **THEN** the system SHALL include `hydrant` in `ListCATypesWithRenewalSupport()` and `ListCATypesWithRenewalIDSupport()`
+- **WHEN** a renewal completes for a NULL-`type` row, a fresh cert is ingested, and `UpdateHostCertificates` runs the matcher
+- **THEN** the system SHALL advance the row's `not_valid_after` from the new cert
+- **AND** SHALL NOT skip the row solely because its `type` is NULL or empty
