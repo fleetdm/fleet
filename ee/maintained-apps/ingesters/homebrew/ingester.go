@@ -113,69 +113,6 @@ func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintain
 	return i.BuildManifest(ctx, input, cask)
 }
 
-// FetchCask resolves the brew cask JSON for the given input app from either a
-// local file (input.CaskPath) or the default brew API.
-// Callers that need to mutate InputApp fields (e.g. UniqueIdentifier extracted
-// from the downloaded installer) can then call BuildManifest with the updated
-// input and the already-fetched cask, avoiding a second HTTP round-trip.
-func (i *BrewIngester) FetchCask(ctx context.Context, input InputApp) (*BrewCask, error) {
-	var cask BrewCask
-
-	if input.CaskPath != "" {
-		body, err := os.ReadFile(input.CaskPath)
-		if err != nil {
-			return nil, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
-		}
-		if err := json.Unmarshal(body, &cask); err != nil {
-			return nil, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
-		}
-		// Cross-check the cask file matches the configured input. This catches
-		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
-		if cask.Token != input.Token {
-			return nil, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
-		}
-		if len(cask.Name) == 0 {
-			return nil, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
-		}
-		return &cask, nil
-	}
-
-	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create http request")
-	}
-
-	res, err := i.Client.Do(req)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute http request")
-	}
-	defer res.Body.Close()
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "read http response body")
-	}
-
-	switch res.StatusCode {
-	case http.StatusOK:
-		// success, go on
-	case http.StatusNotFound:
-		return nil, ctxerr.New(ctx, "app not found in brew API")
-	default:
-		if len(body) > 512 {
-			body = body[:512]
-		}
-		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
-	}
-
-	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
-	}
-	return &cask, nil
-}
-
 // BuildManifest turns an InputApp + already-fetched BrewCask into an
 // FMAManifestApp, including install/uninstall scripts baked with
 // input.UniqueIdentifier (so macOS can quit/relaunch via the bundle ID).
@@ -286,6 +223,69 @@ func (i *BrewIngester) BuildManifest(ctx context.Context, input InputApp, cask *
 	}
 
 	return out, nil
+}
+
+// FetchCask resolves the brew cask JSON for the given input app from either a
+// local file (input.CaskPath) or the default brew API.
+// Callers that need to mutate InputApp fields (e.g. UniqueIdentifier extracted
+// from the downloaded installer) can then call BuildManifest with the updated
+// input and the already-fetched cask, avoiding a second HTTP round-trip.
+func (i *BrewIngester) FetchCask(ctx context.Context, input InputApp) (*BrewCask, error) {
+	var cask BrewCask
+
+	if input.CaskPath != "" {
+		body, err := os.ReadFile(input.CaskPath)
+		if err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
+		}
+		if err := json.Unmarshal(body, &cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
+		}
+		// Cross-check the cask file matches the configured input. This catches
+		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
+		if cask.Token != input.Token {
+			return nil, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
+		}
+		if len(cask.Name) == 0 {
+			return nil, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
+		}
+		return &cask, nil
+	}
+
+	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create http request")
+	}
+
+	res, err := i.Client.Do(req)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "execute http request")
+	}
+	defer res.Body.Close()
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read http response body")
+	}
+
+	switch res.StatusCode {
+	case http.StatusOK:
+		// success, go on
+	case http.StatusNotFound:
+		return nil, ctxerr.New(ctx, "app not found in brew API")
+	default:
+		if len(body) > 512 {
+			body = body[:512]
+		}
+		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, &cask); err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
+	}
+	return &cask, nil
 }
 
 // InputApp describes a homebrew cask that should be ingested, either as input
