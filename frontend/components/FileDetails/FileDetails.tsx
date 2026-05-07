@@ -22,6 +22,9 @@ interface IFileDetailsProps {
   canEdit: boolean;
   /** If present, will default to a custom editor section instead of edit icon */
   customEditor?: () => React.ReactNode;
+  /** If present, replaces the default Graphic on the left of the file
+   * details (e.g. to render a preview thumbnail of an uploaded image). */
+  customPreview?: React.ReactNode;
   /** If present, will show a trash icon */
   onDeleteFile?: () => void;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -39,6 +42,7 @@ const FileDetails = ({
   fileDetails,
   canEdit,
   customEditor,
+  customPreview,
   onDeleteFile,
   onFileSelect,
   accept,
@@ -97,11 +101,13 @@ const FileDetails = ({
     <div className={baseClass}>
       {/* disabling at this level preserves funcitonality of GitOpsModeTooltipWrapper around the edit icon */}
       <div className={infoClasses}>
-        <Graphic
-          name={
-            typeof graphicNames === "string" ? graphicNames : graphicNames[0]
-          }
-        />
+        {customPreview ?? (
+          <Graphic
+            name={
+              typeof graphicNames === "string" ? graphicNames : graphicNames[0]
+            }
+          />
+        )}
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__name`}>{fileDetails.name}</div>
           {fileDetails.description && (

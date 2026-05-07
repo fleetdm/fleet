@@ -229,10 +229,12 @@ const routes = (
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
-              to="integrations/mdm/abm"
+              to="integrations/mdm/ab"
             />
+            {/* Redirect old /abm URL to /ab */}
+            <Redirect from="integrations/mdm/abm" to="integrations/mdm/ab" />
             <Route
-              path="integrations/mdm/abm"
+              path="integrations/mdm/ab"
               component={AppleBusinessManagerPage}
             />
             <Route

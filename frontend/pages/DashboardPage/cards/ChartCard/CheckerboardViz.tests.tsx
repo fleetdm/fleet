@@ -3,8 +3,9 @@ import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
+import { IFormattedDataPoint } from "interfaces/charts";
+
 import CheckerboardViz from "./CheckerboardViz";
-import { IFormattedDataPoint } from "./types";
 
 // Generate data points for a given number of days with 12 two-hour slots each
 const generateData = (
@@ -164,6 +165,87 @@ describe("CheckerboardViz", () => {
     const classNames = Array.from(rects).map(
       (r) => r.getAttribute("class") || ""
     );
+    for (let level = 1; level <= 5; level += 1) {
+      expect(classNames.some((c) => c.includes(`--level-${level}`))).toBe(true);
+    }
+  });
+
+  it("stretches the color ramp across the dataset's min/max when relativeScale is true", async () => {
+    // All values fall in the 0–20% range, which the default fixed-threshold
+    // ramp would collapse entirely into level-1 (with 0% pinned to level-0).
+    // Relative scaling should rescale the non-zero values across levels 1–5.
+    const points: IFormattedDataPoint[] = [
+      {
+        timestamp: "2026-03-01T00:00:00",
+        label: "Mar 1, 12am",
+        value: 0,
+        percentage: 0,
+      },
+      {
+        timestamp: "2026-03-01T02:00:00",
+        label: "Mar 1, 2am",
+        value: 4,
+        percentage: 4,
+      },
+      {
+        timestamp: "2026-03-01T04:00:00",
+        label: "Mar 1, 4am",
+        value: 8,
+        percentage: 8,
+      },
+      {
+        timestamp: "2026-03-01T06:00:00",
+        label: "Mar 1, 6am",
+        value: 12,
+        percentage: 12,
+      },
+      {
+        timestamp: "2026-03-01T08:00:00",
+        label: "Mar 1, 8am",
+        value: 16,
+        percentage: 16,
+      },
+      {
+        timestamp: "2026-03-01T10:00:00",
+        label: "Mar 1, 10am",
+        value: 20,
+        percentage: 20,
+      },
+    ];
+
+    // Sanity check: with the default fixed ramp, every non-zero point lands
+    // in level-1.
+    const { container: defaultContainer } = renderWithSetup(
+      <CheckerboardViz data={points} selectedDays={1} />
+    );
+    await waitFor(() => {
+      expect(defaultContainer.querySelectorAll("rect").length).toBeGreaterThan(
+        0
+      );
+    });
+    const defaultClasses = Array.from(
+      defaultContainer.querySelectorAll("rect")
+    ).map((r) => r.getAttribute("class") || "");
+    for (let level = 2; level <= 5; level += 1) {
+      expect(defaultClasses.some((c) => c.includes(`--level-${level}`))).toBe(
+        false
+      );
+    }
+
+    const { container } = renderWithSetup(
+      <CheckerboardViz data={points} selectedDays={1} relativeScale />
+    );
+
+    await waitFor(() => {
+      expect(container.querySelectorAll("rect").length).toBeGreaterThan(0);
+    });
+
+    const classNames = Array.from(container.querySelectorAll("rect")).map(
+      (r) => r.getAttribute("class") || ""
+    );
+    // 0% stays reserved for level-0 even when the ramp is stretched.
+    expect(classNames.some((c) => c.includes("--level-0"))).toBe(true);
+    // The remaining values should span all five non-zero levels.
     for (let level = 1; level <= 5; level += 1) {
       expect(classNames.some((c) => c.includes(`--level-${level}`))).toBe(true);
     }

@@ -455,6 +455,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// Check if Windows host is in Autopilot setup experience. When awaiting_configuration is Pending or Active,
+	// orbit should run the setup experience to install software during the ESP.
+	//
+	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being turned off, the unenrollment branch
+	// above sets NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set RunSetupExperience for the
+	// same orbit response.
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		host.Platform == "windows" &&
+		isConnectedToFleetMDM {
+		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+		}
+		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
+			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
+			notifs.RunSetupExperience = true
+		}
+	}
+
 	// load the (active, ready to execute) pending script executions for that host
 	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {

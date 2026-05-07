@@ -63,6 +63,12 @@ export interface IUpdateTeamFormData {
     host_expiry_enabled: boolean;
     host_expiry_window: number; // days
   };
+  features: {
+    historical_data: {
+      uptime: boolean;
+      vulnerabilities: boolean;
+    };
+  };
 }
 
 export default {
@@ -114,6 +120,7 @@ export default {
       integrations,
       mdm,
       host_expiry_settings,
+      features,
     }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ILoadTeamResponse> => {
@@ -155,6 +162,9 @@ export default {
     }
     if (host_expiry_settings) {
       requestBody.host_expiry_settings = host_expiry_settings;
+    }
+    if (features) {
+      requestBody.features = features;
     }
 
     return sendRequest("PATCH", path, requestBody);

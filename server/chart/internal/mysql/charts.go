@@ -67,8 +67,8 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 // FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
 // "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
 // or host details/creation timestamps.
-func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error) {
-	const query = `
+func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
+	query := `
 		SELECT h.id
 		FROM hosts h
 			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
@@ -82,9 +82,21 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
 			h.created_at
 		) >= ?`
+	args := []any{since.UTC()}
+
+	if len(disabledFleetIDs) > 0 {
+		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`
+		args = append(args, disabledFleetIDs)
+	}
+
+	expanded, expandedArgs, err := sqlx.In(query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "expand recently-seen host args")
+	}
+	expanded = ds.rebind(expanded)
 
 	var ids []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, query, since.UTC()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, expanded, expandedArgs...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
 	}
 	return ids, nil
@@ -140,20 +152,38 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 // (software-level and OS-level vulnerabilities) and merges the results into a
 // single map. Duplicates across sources are harmless — the downstream
 // HostIDsToBlob setBit is idempotent.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error) {
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
 	result := make(map[string][]uint)
 
-	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+	// Both subqueries gain a hosts JOIN + WHERE only when there are fleets to
+	// exclude. Skipping the JOIN entirely when the slice is empty keeps the
+	// existing query plan unchanged for the common case (no fleets disabled).
+	swQuery := `
 		SELECT sc.cve, hs.host_id
 		FROM software_cve sc
-		JOIN host_software hs ON hs.software_id = sc.software_id`, result); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
-	}
-
-	if err := streamCVEHostPairs(ctx, ds.reader(ctx), `
+		JOIN host_software hs ON hs.software_id = sc.software_id`
+	osQuery := `
 		SELECT osv.cve, hos.host_id
 		FROM operating_system_vulnerabilities osv
-		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`, result); err != nil {
+		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`
+
+	var swArgs, osArgs []any
+	if len(disabledFleetIDs) > 0 {
+		swQuery += `
+			JOIN hosts h ON h.id = hs.host_id
+			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
+		swArgs = []any{disabledFleetIDs}
+
+		osQuery += `
+			JOIN hosts h ON h.id = hos.host_id
+			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
+		osArgs = []any{disabledFleetIDs}
+	}
+
+	if err := ds.streamCVEHostPairs(ctx, swQuery, swArgs, result); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
+	}
+	if err := ds.streamCVEHostPairs(ctx, osQuery, osArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream OS CVE host pairs")
 	}
 
@@ -249,10 +279,22 @@ func streamCVEStrings(ctx context.Context, q sqlx.QueryerContext, query string, 
 // host IDs into out under each CVE key. Streams rather than materializing the
 // join result, since on a large fleet the (cve, host_id) row count can reach
 // millions.
-func streamCVEHostPairs(ctx context.Context, q sqlx.QueryerContext, query string, out map[string][]uint) error {
+//
+// args are expanded via sqlx.In for slice arguments (e.g. team IDs) and
+// rebinds to the driver dialect.
+func (ds *Datastore) streamCVEHostPairs(ctx context.Context, query string, args []any, out map[string][]uint) error {
+	if len(args) > 0 {
+		expanded, expandedArgs, err := sqlx.In(query, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "expand CVE-host-pair args")
+		}
+		query = ds.rebind(expanded)
+		args = expandedArgs
+	}
+
 	// sqlclosecheck can't see through the QueryerContext interface to verify
 	// Close() is reached. The defer below provides it.
-	rows, err := q.QueryxContext(ctx, query) //nolint:sqlclosecheck
+	rows, err := ds.reader(ctx).QueryxContext(ctx, query, args...) //nolint:sqlclosecheck
 	if err != nil {
 		return err
 	}
