@@ -116,6 +116,7 @@
 #  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝  ╩═╝╩╝╚╝╚═╝   ╩ ╚═╝╚═╝╩═╝  └─  ╚═╝╩═╝╩  ─┘
 - industryName: Command line tool (CLI)
   friendlyName: fleetctl
+  description: Use fleetctl, Fleet's command-line interface, to manage Fleet from your terminal including running reports and managing hosts.
   documentationUrl: https://fleetdm.com/docs/using-fleet/fleetctl-cli
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Configuration]
@@ -167,6 +168,7 @@
 #  ╠╦╝║ ║║  ║╣───╠╩╗╠═╣╚═╗║╣  ║║  ╠═╣║  ║  ║╣ ╚═╗╚═╗  ║  ║ ║║║║ ║ ╠╦╝║ ║║  
 #  ╩╚═╚═╝╩═╝╚═╝  ╚═╝╩ ╩╚═╝╚═╝═╩╝  ╩ ╩╚═╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╝╚╝ ╩ ╩╚═╚═╝╩═╝
 - industryName: Role-based access control
+  description: Control who can see and do what in Fleet by assigning roles like admin, maintainer, observer, and GitOps to users globally or per-fleet.
   documentationUrl: https://fleetdm.com/guides/role-based-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Configuration]
@@ -784,7 +786,8 @@
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦ ╦  ╔═╗╔═╗╦═╗╔═╗╔═╗╦═╗╔╦╗╔═╗╔╗╔╔═╗╔═╗  ╔╦╗╔═╗╔╗╔╦╔╦╗╔═╗╦═╗╦╔╗╔╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝╚╦╝  ╠═╝║╣ ╠╦╝╠╣ ║ ║╠╦╝║║║╠═╣║║║║  ║╣   ║║║║ ║║║║║ ║ ║ ║╠╦╝║║║║║ ╦
 #  ╚═╝╚╚═╝╚═╝╩╚═ ╩   ╩  ╚═╝╩╚═╚  ╚═╝╩╚═╩ ╩╩ ╩╝╚╝╚═╝╚═╝  ╩ ╩╚═╝╝╚╝╩ ╩ ╚═╝╩╚═╩╝╚╝╚═╝
-- industryName: Query performance monitoring
+- industryName: Performance impact monitoring
+  description: Monitor the performance impact of reports running on your hosts, including CPU usage and memory consumption, to ensure reports don't degrade device performance.
   documentationUrl: https://fleetdm.com/docs/get-started/faq#will-fleet-slow-down-my-servers-what-about-my-employee-laptops
   tier: Free
   jamfProHasFeature: no
@@ -849,6 +852,7 @@
 #  ║  ╠═╣╠╩╗║╣ ║  ╚═╗
 #  ╩═╝╩ ╩╚═╝╚═╝╩═╝╚═╝
 - industryName: Labels
+  description: Create dynamic or manual groups of hosts using SQL queries or manual selection to filter and target devices across Fleet.
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#add-label
   friendlyName: Filter hosts using SQL
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -1055,6 +1059,7 @@
 #  ╚═╝╚═╝╝╚╝ ╩ ╩╝╚╝╚═╝╚═╝╚═╝╚═╝  ╚═╝╚═╝╩ ╩╝╚╝╝╚╝╩╝╚╝╚═╝
 - industryName: Continuous scanning
   friendlyName: Detect vulnerable software
+  description: Automatically and continuously scan all enrolled hosts for known vulnerabilities (CVEs) in installed software, matching against the National Vulnerability Database (NVD) and other sources.
   documentationUrl: https://fleetdm.com/vulnerability-management
   productCategories: [Vulnerability management]
   pricingTableCategories: [Devices]
@@ -1084,6 +1089,7 @@
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
 - industryName: Vulnerability scores
   friendlyName: EPSS and CVSS
+  description: Prioritize remediation using EPSS (Exploit Prediction Scoring System) and CVSS (Common Vulnerability Scoring System) scores to understand exploit likelihood and severity for each vulnerability.
   documentationUrl: https://fleetdm.com/vulnerability-management
   tier: Premium
   jamfProHasFeature: no
@@ -1148,7 +1154,7 @@
 #  ╩╚═╚═╝╚═╝ ╩   ╩ ╩╩  ╩
 - industryName: REST API
   friendlyName: Automate any feature
-  description: 
+  description: Programmatically access and automate every Fleet feature using a comprehensive REST API, including managing hosts, reports, policies, software, and more.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
@@ -1306,6 +1312,7 @@
 #  ║ ║╠═╝║╣ ║║║───╚═╗║ ║║ ║╠╦╝║  ║╣   ║╚═╗╚═╗║ ║║╣    ║ ╠╦╝╠═╣║  ╠╩╗║╣ ╠╦╝  ║ ╦║ ║ ╠═╣║ ║╠╩╗
 #  ╚═╝╩  ╚═╝╝╚╝   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝  ╩╚═╝╚═╝╚═╝╚═╝   ╩ ╩╚═╩ ╩╚═╝╩ ╩╚═╝╩╚═  ╚═╝╩ ╩ ╩ ╩╚═╝╚═╝
 - industryName: Open-source issue tracker (GitHub)
+  description: File bug reports, request features, and track progress publicly on Fleet's open-source GitHub issue tracker.
   documentationUrl: https://github.com/fleetdm/fleet/issues
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1317,6 +1324,7 @@
 #  ║  ║ ║║║║║║║║ ║║║║║ ║ ╚╦╝  ╚═╗║  ╠═╣║  ╠╩╗  ║  ╠═╣╠═╣║║║║║║║╣ ║  
 #  ╚═╝╚═╝╩ ╩╩ ╩╚═╝╝╚╝╩ ╩  ╩   ╚═╝╩═╝╩ ╩╚═╝╩ ╩  ╚═╝╩ ╩╩ ╩╝╚╝╝╚╝╚═╝╩═╝
 - industryName: Community Slack channel
+  description: Get help from Fleet engineers and community members in the public Fleet Slack channel.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1328,6 +1336,7 @@
 #  ║ ║║║║║  ║║║║║ ║ ║╣  ║║  ║╣ ║║║╠═╣║║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║
 #  ╚═╝╝╚╝╩═╝╩╩ ╩╩ ╩ ╚═╝═╩╝  ╚═╝╩ ╩╩ ╩╩╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩
 - industryName: Unlimited email support (confidential)
+  description: Get unlimited, confidential email support from Fleet's team for deployment, configuration, and troubleshooting.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
@@ -1339,6 +1348,7 @@
 #  ╠═╝╠═╣║ ║║║║║╣   ╠═╣║║║ ║║  ╚╗╔╝║ ║║║╣ ║ ║  ║  ╠═╣║  ║    ╚═╗║ ║╠═╝╠═╝║ ║╠╦╝ ║ 
 #  ╩  ╩ ╩╚═╝╝╚╝╚═╝  ╩ ╩╝╚╝═╩╝   ╚╝ ╩═╩╝╚═╝╚═╝  ╚═╝╩ ╩╩═╝╩═╝  ╚═╝╚═╝╩  ╩  ╚═╝╩╚═ ╩ 
 - industryName: Phone and video call support
+  description: Schedule phone or video calls with Fleet's support team for real-time help with complex issues and questions.
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]

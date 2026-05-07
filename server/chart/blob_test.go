@@ -92,6 +92,52 @@ func TestBlobOR(t *testing.T) {
 	assert.Equal(t, []byte{0x03, 0xFF}, result)
 }
 
+func TestBlobANDNOT(t *testing.T) {
+	t.Run("nil and empty a return nil", func(t *testing.T) {
+		assert.Nil(t, BlobANDNOT(nil, []byte{0xFF}))
+		assert.Nil(t, BlobANDNOT([]byte{}, []byte{0xFF}))
+	})
+
+	t.Run("equal-length operands", func(t *testing.T) {
+		result := BlobANDNOT([]byte{0xFF, 0x0F}, []byte{0x0F, 0xFF})
+		assert.Equal(t, []byte{0xF0, 0x00}, result)
+	})
+
+	t.Run("mask shorter than a passes high bytes through", func(t *testing.T) {
+		result := BlobANDNOT([]byte{0xFF, 0xFF, 0xFF}, []byte{0x0F})
+		assert.Equal(t, []byte{0xF0, 0xFF, 0xFF}, result)
+	})
+
+	t.Run("nil mask leaves a unchanged", func(t *testing.T) {
+		result := BlobANDNOT([]byte{0xFF, 0xAA}, nil)
+		assert.Equal(t, []byte{0xFF, 0xAA}, result)
+	})
+
+	t.Run("mask longer than a ignores excess", func(t *testing.T) {
+		result := BlobANDNOT([]byte{0xFF}, []byte{0x0F, 0xFF})
+		assert.Equal(t, []byte{0xF0}, result)
+	})
+
+	t.Run("all-zero mask is identity", func(t *testing.T) {
+		a := []byte{0xAB, 0xCD, 0xEF}
+		result := BlobANDNOT(a, []byte{0x00, 0x00, 0x00})
+		assert.Equal(t, a, result)
+	})
+
+	t.Run("all-ones equal-length mask clears everything", func(t *testing.T) {
+		result := BlobANDNOT([]byte{0xFF, 0xFF}, []byte{0xFF, 0xFF})
+		assert.Equal(t, []byte{0x00, 0x00}, result)
+	})
+
+	t.Run("does not mutate inputs", func(t *testing.T) {
+		a := []byte{0xFF, 0xFF}
+		mask := []byte{0x0F, 0xF0}
+		_ = BlobANDNOT(a, mask)
+		assert.Equal(t, []byte{0xFF, 0xFF}, a)
+		assert.Equal(t, []byte{0x0F, 0xF0}, mask)
+	})
+}
+
 func TestRoundTrip(t *testing.T) {
 	ids := []uint{1, 5, 10, 42, 100, 255}
 	blob := HostIDsToBlob(ids)

@@ -4,6 +4,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: $pad-medium;
+    min-height: 28px;
   }
 
   &__header-left {
@@ -15,6 +16,7 @@
   &__description-tooltip {
     display: inline-flex;
     align-items: center;
+    line-height: 1;
   }
 
   &__header-right {
@@ -36,15 +38,27 @@
       display: none;
     }
 
-    // Override inline styles from DropdownWrapper to make it look like a heading.
-    // !important is needed because react-select applies inline styles via the
-    // styles prop which always beat class-based selectors.
+    // DropdownWrapper sets the react-select container to a fixed 36px height
+    // via inline styles, which makes the chart-card header taller than the
+    // HostsEnrolledCard heading next to it. Collapse the SelectContainer to
+    // its natural content height so both card headings line up.
+    > div {
+      height: auto !important;
+    }
+
     .react-select__control {
       background-color: transparent !important;
       border-color: transparent !important;
+      border-width: 0 !important;
       box-shadow: none !important;
-      padding: 0;
-      min-height: auto;
+      // !important overrides DropdownWrapper's inline 8px left/right padding
+      // so the dropdown text starts at the card's left edge, matching the
+      // HostsEnrolledCard heading.
+      padding: 0 !important;
+      // !important defeats react-select's default 38px min-height on the
+      // control so the chart-card header collapses to its content height
+      // and lines up with the HostsEnrolledCard h2 next door.
+      min-height: 0 !important;
     }
 
     // When menu is open, show the border
@@ -54,9 +68,10 @@
     }
 
     .react-select__single-value {
-      font-size: 18px;
+      font-size: $small;
       font-weight: $bold;
       color: $core-fleet-black;
+      line-height: 1;
     }
 
     .react-select__indicator-separator {
@@ -64,7 +79,19 @@
     }
 
     .react-select__value-container {
-      padding: 4px 0 4px 8px;
+      padding: 0;
+    }
+
+    .react-select__indicators {
+      padding: 0;
+    }
+
+    // nowrapMenu anchors the menu to the right edge of the control, which is
+    // designed for table-filter dropdowns. Re-anchor to the left so the menu
+    // drops down under the title text rather than under the chevron.
+    .react-select__menu {
+      left: 0 !important;
+      right: auto !important;
     }
   }
 
@@ -82,6 +109,9 @@
   }
 
   &__settings-btn {
+    // Button variant="inverse" applies a 36px height that would make the
+    // chart-card header taller than HostsEnrolledCard's bare h2 next door.
+    // Shrink to content height so headers match.
     display: flex;
     align-items: center;
     justify-content: center;
@@ -89,6 +119,8 @@
     background: transparent;
     cursor: pointer;
     color: $ui-fleet-black-75;
+    height: auto !important;
+    padding: 0 !important;
   }
 
   &__chart-container {
@@ -121,6 +153,14 @@
   &__tooltip-value {
     font-weight: $bold;
   }
+
+  .react-tooltip {
+    a {
+      color: $static-white;
+      display: inline;
+      font-size: $xx-small;
+    }
+  }
 }
 
 .checkerboard-viz {
@@ -137,8 +177,33 @@
     min-width: 0;
     overflow-x: auto;
 
+    // Mac users with "Show scroll bars: Always" set in System Settings see a
+    // permanent scrollbar gutter that overlaps the cells. Force overlay-style
+    // behaviour: the track stays transparent and the thumb only appears when
+    // the user hovers the chart.
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+
+    &::-webkit-scrollbar {
+      height: 6px;
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 3px;
+    }
+
     svg {
       display: block;
+    }
+  }
+
+  &:hover &__scroll-wrapper {
+    scrollbar-color: $ui-fleet-black-25 transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: $ui-fleet-black-25;
     }
   }
 
@@ -163,6 +228,18 @@
     position: absolute;
     transform: translate(-50%, -100%);
     pointer-events: none;
+    white-space: nowrap;
+
+    // Near the right edge, anchor the tooltip's right side to the cell center
+    // so it grows leftward into the grid instead of overflowing the card.
+    &--align-right {
+      transform: translate(-100%, -100%);
+    }
+
+    // Mirror for the left edge.
+    &--align-left {
+      transform: translate(0, -100%);
+    }
   }
 
   &__x-axis {
@@ -210,40 +287,105 @@
   }
 
   // Color levels for cells (SVG fill) and legend swatches (background-color).
-  // Scale colors don't exist in the shared palette, so they stay as literal
-  // hex values; level-4 matches $core-fleet-green and is aliased accordingly.
+  // The per-level colors are exposed as custom properties so themes can
+  // override them with a single block of overrides below.
+  &--theme-green {
+    --level-0: #ebedf0;
+    --level-1: #e4f1ec;
+    --level-2: #badecf;
+    --level-3: #82d2b9;
+    --level-4: #009a7d;
+    --level-5: #005b4a;
+
+    body.dark-mode & {
+      --level-0: #515256;
+      --level-1: #2e363d;
+      --level-2: #2b4747;
+      --level-3: #006246;
+      --level-4: #008b64;
+      --level-5: #00c28b;
+    }
+  }
+
+  &--theme-red {
+    --level-0: #ebedf0;
+    --level-1: #f1e4e4;
+    --level-2: #debaba;
+    --level-3: #d28282;
+    --level-4: #9a0000;
+    --level-5: #5b0000;
+
+    body.dark-mode & {
+      --level-0: #515256;
+      --level-1: #5a2727;
+      --level-2: #7d2c2c;
+      --level-3: #a83232;
+      --level-4: #d04040;
+      --level-5: #ff5c5c;
+    }
+  }
+
   &__cell {
     stroke: $core-fleet-white;
     stroke-width: 1px;
 
     &--level-0 {
-      fill: #ebedf0;
-      background-color: #ebedf0;
+      fill: none;
+      stroke: var(--level-0);
+      // SVG only fires hover on filled regions or stroked lines; without
+      // pointer-events: all, hovering inside an outlined-only cell does
+      // nothing because the interior has no fill.
+      pointer-events: all;
+      // HTML legend swatch can't use SVG stroke; inset shadow gives the same
+      // outlined-only look without changing the swatch's outer dimensions.
+      background-color: transparent;
+      box-shadow: inset 0 0 0 1px var(--level-0);
     }
 
     &--level-1 {
-      fill: #e4f1ec;
-      background-color: #e4f1ec;
+      fill: var(--level-1);
+      background-color: var(--level-1);
     }
 
     &--level-2 {
-      fill: #badecf;
-      background-color: #badecf;
+      fill: var(--level-2);
+      background-color: var(--level-2);
     }
 
     &--level-3 {
-      fill: #82d2b9;
-      background-color: #82d2b9;
+      fill: var(--level-3);
+      background-color: var(--level-3);
     }
 
     &--level-4 {
-      fill: $core-fleet-green;
-      background-color: $core-fleet-green;
+      fill: var(--level-4);
+      background-color: var(--level-4);
     }
 
     &--level-5 {
-      fill: #005b4a;
-      background-color: #005b4a;
+      fill: var(--level-5);
+      background-color: var(--level-5);
     }
+  }
+}
+
+.data-collection-disabled-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: $pad-xxlarge $pad-large;
+  gap: $pad-small;
+
+  h3 {
+    margin: 0;
+    font-size: $medium;
+    color: var(--core-fleet-black);
+  }
+
+  p {
+    margin: 0;
+    color: var(--ui-fleet-black-75);
   }
 }

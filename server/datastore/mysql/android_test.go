@@ -1613,9 +1613,10 @@ func testListMDMAndroidProfilesToSendWithExcludeAny(t *testing.T, ds *Datastore)
 	// Set the hosts label_updated_at causing p4-p6 to become applicable to host 1
 	hosts[1].LabelUpdatedAt = time.Now().UTC().Add(time.Second) // just to be extra safe in tests
 	hosts[1].PolicyUpdatedAt = time.Now().UTC()
-	hosts[1].TeamID = &tm.ID
 	err = ds.UpdateHost(ctx, hosts[1])
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID})))
+	hosts[1].TeamID = &tm.ID
 
 	profs, toRemoveProfs, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)

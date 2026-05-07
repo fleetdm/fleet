@@ -44,9 +44,17 @@ func (s *Service) RegisterDataset(ds api.Dataset) {
 	s.datasets[ds.Name()] = ds
 }
 
-func (s *Service) CollectDatasets(ctx context.Context, now time.Time) error {
+func (s *Service) CollectDatasets(ctx context.Context, now time.Time, scope api.CollectScopeFn) error {
 	for name, dataset := range s.datasets {
-		if err := dataset.Collect(ctx, s.store, now); err != nil {
+		var disabledFleetIDs []uint
+		if scope != nil {
+			skip, disabled := scope(name)
+			if skip {
+				continue
+			}
+			disabledFleetIDs = disabled
+		}
+		if err := dataset.Collect(ctx, s.store, now, disabledFleetIDs); err != nil {
 			// Log and continue — don't let one dataset failure block others.
 			if s.logger != nil {
 				s.logger.ErrorContext(ctx, "collect chart dataset", "dataset", name, "err", ctxerr.Wrap(ctx, err, "collect chart dataset"))
@@ -129,7 +137,20 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, err
 	}
 
-	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, nil)
+	var entityIDs []string
+	if metric == "cve" {
+		// TODO(iteration-2): replace with user-configurable filter from
+		// RequestOpts when dynamic CVE filtering ships.
+		entityIDs, err = s.store.TrackedCriticalCVEs(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "resolve tracked critical CVEs")
+		}
+	}
+
+	// entityIDs semantics at the storage layer: nil = no filter; non-nil empty
+	// = match nothing (produces zero-valued buckets). Do NOT convert empty to
+	// nil here.
+	data, err := s.store.GetSCDData(ctx, metric, startDate, endDate, bucketSize, dataset.SampleStrategy(), filterMask, entityIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -177,6 +198,41 @@ func effectiveTeamIDs(requestedTeamID *uint, isGlobal bool, viewerTeamIDs []uint
 
 func (s *Service) CleanupData(ctx context.Context, days int) error {
 	return s.store.CleanupSCDData(ctx, days)
+}
+
+// scrubBatchSize is the upper bound on rows touched per statement during
+// scrub jobs. Tunable; chosen to bound lock duration without producing
+// excessive round trips on large tables.
+const scrubBatchSize = 5000
+
+func (s *Service) ScrubDatasetGlobal(ctx context.Context, dataset string) error {
+	return s.store.DeleteAllForDataset(ctx, dataset, scrubBatchSize)
+}
+
+func (s *Service) ScrubDatasetFleet(ctx context.Context, dataset string, fleetIDs []uint) error {
+	if len(fleetIDs) == 0 {
+		// Defensive: an enqueue with an empty fleet list shouldn't happen, but
+		// if it does treat as a no-op rather than scanning the entire table.
+		if s.logger != nil {
+			s.logger.WarnContext(ctx, "chart fleet scrub invoked with empty fleet list", "dataset", dataset)
+		}
+		return nil
+	}
+	hostIDs, err := s.store.HostIDsInFleets(ctx, fleetIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load hosts for chart fleet scrub")
+	}
+	if len(hostIDs) == 0 {
+		// No hosts currently in any of those fleets — fleets may have been
+		// deleted or every host moved out before the scrub ran. Best-effort
+		// per design decision; no work to do.
+		if s.logger != nil {
+			s.logger.InfoContext(ctx, "chart fleet scrub: no hosts resolved", "dataset", dataset, "fleet_ids", fleetIDs)
+		}
+		return nil
+	}
+	mask := chart.HostIDsToBlob(hostIDs)
+	return s.store.ApplyScrubMaskToDataset(ctx, dataset, mask, scrubBatchSize)
 }
 
 // computeBucketRange returns a (startDate, endDate) UTC pair such that the

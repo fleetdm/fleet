@@ -61,6 +61,8 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"CustomToFMAInstallerReplacement", testCustomToFMAInstallerReplacement},
 		{"GetInstallerByTeamAndURL", testGetInstallerByTeamAndURL},
 		{"BatchSetFMACancelsPendingOnActiveRow", testBatchSetFMACancelsPendingOnActiveRow},
+		{"MatchOrCreateSoftwareInstallerDuplicateConflicts", testMatchOrCreateSoftwareInstallerDuplicateConflicts},
+		{"SetHostSoftwareInstallResultResolvesOrphanedActivity", testSetHostSoftwareInstallResultResolvesOrphanedActivity},
 		{"GetHomebrewInstallers", testGetHomebrewInstallers},
 	}
 
@@ -297,6 +299,81 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, setupExperienceInstallDetails.HostID)
 	require.Equal(t, setupExperienceInstallID, setupExperienceInstallDetails.ExecutionID)
 	require.Equal(t, setupExperienceSoftwareInstallsRetries, setupExperienceInstallDetails.MaxRetries, "Setup experience install should have MaxRetries = %d", setupExperienceSoftwareInstallsRetries)
+}
+
+// testSetHostSoftwareInstallResultResolvesOrphanedActivity covers #44084: an
+// install whose software_installer_id was nulled by FK SET NULL must still be
+// resolvable by SetHostSoftwareInstallResult so the install loop stops.
+func testSetHostSoftwareInstallResultResolvesOrphanedActivity(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host := test.NewHost(t, ds, "host-orphan", "1", "host-orphan-key", "host-orphan-uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice-orphan@example.com", true)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "echo install",
+		InstallerFile:   tfr,
+		StorageID:       "storage-orphan",
+		Filename:        "orphan.pkg",
+		Title:           "orphan",
+		Version:         "1.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	executionID, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.GetSoftwareInstallDetails(ctx, executionID)
+	require.NoError(t, err)
+
+	// Simulate the FK SET NULL outcome directly so the test isn't coupled to
+	// DeleteSoftwareInstaller's own cleanup side-effects.
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_software_installs
+		SET software_installer_id = NULL
+		WHERE execution_id = ?`, executionID)
+	require.NoError(t, err)
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		UPDATE software_install_upcoming_activities siua
+		JOIN upcoming_activities ua ON ua.id = siua.upcoming_activity_id
+		SET siua.software_installer_id = NULL
+		WHERE ua.execution_id = ?`, executionID)
+	require.NoError(t, err)
+
+	_, err = ds.GetSoftwareInstallDetails(ctx, executionID)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           executionID,
+		InstallScriptExitCode: ptr.Int(fleet.ExitCodeInstallerNotFound),
+		InstallScriptOutput:   ptr.String("Installer no longer exists on the server. Abandoning install after retry window."),
+	}, nil)
+	require.NoError(t, err)
+
+	var exitCode sql.NullInt64
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &exitCode, `
+		SELECT install_script_exit_code
+		FROM host_software_installs
+		WHERE execution_id = ?`, executionID)
+	require.NoError(t, err)
+	require.True(t, exitCode.Valid)
+	require.EqualValues(t, fleet.ExitCodeInstallerNotFound, exitCode.Int64)
+
+	var remaining int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &remaining, `
+		SELECT COUNT(*)
+		FROM upcoming_activities
+		WHERE host_id = ? AND execution_id = ?`, host.ID, executionID)
+	require.NoError(t, err)
+	require.Zero(t, remaining, "stale upcoming_activities row should be deleted so orbit's loop stops")
 }
 
 func testSoftwareInstallRequests(t *testing.T, ds *Datastore) {
@@ -5048,6 +5125,255 @@ func testBatchSetFMACancelsPendingOnActiveRow(t *testing.T, ds *Datastore) {
 		`, v2ID)
 	})
 	require.Zero(t, pending, "re-submitting the active FMA version must cancel its pending installs")
+}
+
+func testMatchOrCreateSoftwareInstallerDuplicateConflicts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	const conflictMsg = "already has an installer available for"
+
+	// macOS installer conflicting with a VPP app on the same bundle id.
+	test.CreateInsertGlobalVPPToken(t, ds)
+	_, err = ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
+		VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "adam_vpp_mac", Platform: fleet.MacOSPlatform}},
+		Name:             "Mac VPP",
+		BundleIdentifier: "com.example.vpp",
+	}, &team.ID)
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "mac-vpp-clash-storage",
+		Filename:         "vpp-clash.pkg",
+		Title:            "Mac VPP Clash",
+		BundleIdentifier: "com.example.vpp",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// macOS installer sharing a bundle id with an in-house app is allowed:
+	// in-house apps only target iOS/iPadOS, so they don't conflict with macOS.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "iha-storage",
+		Filename:         "iha.ipa",
+		Title:            "iOS App",
+		BundleIdentifier: "com.example.iha",
+		Extension:        "ipa",
+		Source:           "ios_apps",
+		Platform:         "ios",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "mac-iha-coexist-storage",
+		Filename:         "mac-iha-coexist.pkg",
+		Title:            "Mac IHA Coexist",
+		BundleIdentifier: "com.example.iha",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.NoError(t, err)
+
+	// macOS installer conflicting with the same installer at a newer version.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "mac-base-storage",
+		Filename:         "mac-app.pkg",
+		Title:            "Mac App",
+		BundleIdentifier: "com.example.mac",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "1.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:        "mac-v2-storage",
+		Filename:         "mac-app-v2.pkg",
+		Title:            "Mac App",
+		BundleIdentifier: "com.example.mac",
+		Extension:        "pkg",
+		Source:           "apps",
+		Platform:         "darwin",
+		Version:          "2.0",
+		UserID:           user.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		TeamID:           &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// Windows installer conflicting with the same Title at a newer version.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-base-storage",
+		Filename:        "win-app.msi",
+		Title:           "Win App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "1.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-v2-storage",
+		Filename:        "win-app-v2.msi",
+		Title:           "Win App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "2.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// Windows installer conflicting on the upgrade code with a different Title.
+	const winUpgradeCode = "{ABCDEF12-3456-7890-ABCD-EF1234567890}"
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-uc-base-storage",
+		Filename:        "win-uc.msi",
+		Title:           "Win UC App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "1.0",
+		UpgradeCode:     winUpgradeCode,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-uc-v2-storage",
+		Filename:        "win-uc-other.msi",
+		Title:           "Win UC App Renamed",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "2.0",
+		UpgradeCode:     winUpgradeCode,
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// Windows: existing installer has an upgrade code, new upload has the same
+	// Title but no upgrade code.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-uc-existing-storage",
+		Filename:        "win-uc-existing.msi",
+		Title:           "Win UC Same Name",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "1.0",
+		UpgradeCode:     "{11111111-1111-1111-1111-111111111111}",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-uc-noupgrade-storage",
+		Filename:        "win-uc-custom.msi",
+		Title:           "Win UC Same Name",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "2.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// Reverse: existing installer has no upgrade code, new upload has the same
+	// Title with an upgrade code.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-plain-base-storage",
+		Filename:        "win-plain.msi",
+		Title:           "Win Plain App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "1.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "win-plain-uc-storage",
+		Filename:        "win-plain-uc.msi",
+		Title:           "Win Plain App",
+		Extension:       "msi",
+		Source:          "programs",
+		Platform:        "windows",
+		Version:         "2.0",
+		UpgradeCode:     "{22222222-2222-2222-2222-222222222222}",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
+
+	// Linux installer conflicting with the same Title at a newer version.
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "linux-base-storage",
+		Filename:        "linux-app.deb",
+		Title:           "Linux App",
+		Extension:       "deb",
+		Source:          "deb_packages",
+		Platform:        "linux",
+		Version:         "1.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		StorageID:       "linux-v2-storage",
+		Filename:        "linux-app-v2.deb",
+		Title:           "Linux App",
+		Extension:       "deb",
+		Source:          "deb_packages",
+		Platform:        "linux",
+		Version:         "2.0",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		TeamID:          &team.ID,
+	})
+	require.ErrorContains(t, err, conflictMsg)
 }
 
 func testGetHomebrewInstallers(t *testing.T, ds *Datastore) {

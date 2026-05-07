@@ -52,9 +52,13 @@ const (
 	// CronSendRecoveryLockCommands sends SetRecoveryLock MDM commands to macOS devices.
 	// Runs every 5 minutes.
 	CronSendRecoveryLockCommands CronScheduleName = "send_recovery_lock_commands"
-	CronAppleMDMWorker           CronScheduleName = "apple_mdm_worker"
-	CronHomebrewUpdates          CronScheduleName = "homebrew_updates"
-	CronChartDataCollection      CronScheduleName = "chart_data_collection" // Used by chart bounded context
+	// CronSendManagedLocalAccountRotationCommands rotates managed local account passwords.
+	// Runs every 5 minutes; picks up rows whose auto_rotate_at has elapsed (set by view or
+	// by a manual rotation that was deferred because the account UUID wasn't yet known).
+	CronSendManagedLocalAccountRotationCommands CronScheduleName = "send_managed_local_account_rotation_commands"
+	CronAppleMDMWorker                          CronScheduleName = "apple_mdm_worker"
+	CronHomebrewUpdates                         CronScheduleName = "homebrew_updates"
+	CronChartDataCollection                     CronScheduleName = "chart_data_collection" // Used by chart bounded context
 )
 
 type CronSchedulesService interface {

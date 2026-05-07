@@ -40,18 +40,26 @@ type Dataset interface {
 	// Name returns the dataset identifier used in the DB and API path.
 	Name() string
 
-	// DefaultResolutionHours returns the default display granularity in hours
-	// (1 for uptime, 24 for CVE). Used when the caller doesn't specify
-	// RequestOpts.Resolution. Unrelated to write-side granularity — all
-	// collectors write at 1h regardless of display resolution; see
-	// SampleStrategy for details.
+	// DefaultResolutionHours returns the default display granularity in hours.
+	// Used when the caller doesn't specify RequestOpts.Resolution. Unrelated
+	// to write-side granularity — all collectors write at 1h regardless of
+	// display resolution; see SampleStrategy for details.
 	DefaultResolutionHours() int
 
 	// SampleStrategy returns how samples combine within and across buckets.
 	SampleStrategy() SampleStrategy
 
 	// Collect is called by the cron job to populate data in bulk.
-	Collect(ctx context.Context, store DatasetStore, now time.Time) error
+	//
+	// disabledFleetIDs scopes which fleets contribute to this collection. The
+	// orchestrator derives it from per-team config (teams whose Enabled(name)
+	// is false). Implementations should use this to filter out hosts from
+	// disabled fleets when collecting data.
+	//
+	// No-team hosts (team_id IS NULL) are always included when the orchestrator
+	// invokes Collect — the orchestrator skips Collect entirely if the global
+	// flag is off.
+	Collect(ctx context.Context, store DatasetStore, now time.Time, disabledFleetIDs []uint) error
 
 	// DefaultVisualization returns the default visualization type (e.g. "line", "heatmap").
 	DefaultVisualization() string
@@ -64,7 +72,13 @@ type DatasetStore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
 	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+
+	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
+	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// underlying joins: a host's software/OS row transitions when it upgrades
+	// past the vulnerable version, so the join naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.

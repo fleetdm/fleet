@@ -24,10 +24,7 @@ import DataSet from "components/DataSet";
 import StatusIndicator from "components/StatusIndicator";
 import IssuesIndicator from "pages/hosts/components/IssuesIndicator";
 
-import {
-  DATE_FNS_FORMAT_STRINGS,
-  DEFAULT_EMPTY_CELL_VALUE,
-} from "utilities/constants";
+import { DATE_FNS_FORMAT_STRINGS } from "utilities/constants";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";

@@ -14,10 +14,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/client"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/ghodss/yaml"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -366,6 +368,22 @@ func (MockClient) GetPolicies(teamID *uint) ([]*fleet.Policy, error) {
 					SoftwareTitleID: 1,
 				},
 			},
+			{
+				PolicyData: fleet.PolicyData{
+					ID:          2,
+					Name:        "Global Policy Include All",
+					Query:       "SELECT * FROM global_policy WHERE id = 2",
+					Resolution:  ptr.String("Do another global thing"),
+					Description: "This is a global policy with include_all scope",
+					Platform:    "darwin",
+					LabelsIncludeAll: []fleet.LabelIdent{{
+						LabelName: "Label C",
+					}, {
+						LabelName: "Label D",
+					}},
+					Type: fleet.PolicyTypeDynamic,
+				},
+			},
 		}, nil
 	}
 	policies := []*fleet.Policy{
@@ -470,6 +488,23 @@ func (MockClient) GetQueries(teamID *uint, name *string) ([]fleet.Query, error) 
 				}},
 				MinOsqueryVersion: "1.2.3",
 				Logging:           "stdout",
+			},
+			{
+				ID:                 2,
+				Name:               "Global Query Include All",
+				Query:              "SELECT * FROM users;",
+				Description:        "This is a global query with include_all scope",
+				Platform:           "darwin",
+				Interval:           7200,
+				ObserverCanRun:     false,
+				AutomationsEnabled: false,
+				LabelsIncludeAll: []fleet.LabelIdent{{
+					LabelName: "Label C",
+				}, {
+					LabelName: "Label D",
+				}},
+				MinOsqueryVersion: "1.2.3",
+				Logging:           "snapshot",
 			},
 		}, nil
 	}
@@ -686,6 +721,11 @@ func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
 }
 
+func (MockClient) GetOrgLogoContent(mode fleet.OrgLogoMode) ([]byte, string, error) {
+	// PNG magic bytes + filler so validators that sniff content type see it as a real PNG.
+	return []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02, 0x03}, "image/png", nil
+}
+
 func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	if teamID == 1 {
 		return []fleet.SoftwareTitleListResult{
@@ -851,6 +891,7 @@ func (MockClient) GetCertificateTemplates(teamID string) ([]*fleet.CertificateTe
 				CertificateAuthorityName: "DIGIDOO",
 				Name:                     "my_certypoo",
 				SubjectName:              "CN=OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+				SubjectAlternativeName:   "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME",
 			},
 		}
 	}
@@ -1031,6 +1072,39 @@ func TestGenerateGitopsFree(t *testing.T) {
 			t.Fatalf("failed to remove temp dir: %v", err)
 		}
 	})
+}
+
+func TestGenerateGitopsPreserveHostActivitiesOnReenrollment(t *testing.T) {
+	// Verifies that fleetctl generate-gitops emits
+	// activity_expiry_settings.preserve_host_activities_on_reenrollment so
+	// existing customers can roundtrip the setting via GitOps.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	// Sanity-check the source config matches what the generated output should
+	// expose.
+	require.True(t, appConfig.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment)
+
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]any),
+		AppConfig:    appConfig,
+	}
+
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+
+	b, err := yamlMarshalRenamed(orgSettingsRaw)
+	require.NoError(t, err)
+
+	var orgSettings map[string]any
+	require.NoError(t, yaml.Unmarshal(b, &orgSettings))
+
+	aes, ok := orgSettings["activity_expiry_settings"].(map[string]any)
+	require.True(t, ok, "activity_expiry_settings should be present in generated org settings")
+	require.Equal(t, true, aes["preserve_host_activities_on_reenrollment"])
 }
 
 func TestGenerateOrgSettings(t *testing.T) {
@@ -2367,5 +2441,118 @@ func TestReplaceAliasKeys(t *testing.T) {
 		replaceAliasKeys(nil, rules, false)
 		var m map[string]any
 		replaceAliasKeys(m, rules, true)
+	})
+}
+
+// orgLogoStub embeds *MockClient so the full generateGitopsClient interface is
+// implemented; only GetOrgLogoContent is overridden so each test can drive the
+// fetch outcome (200, 404, or generic error).
+type orgLogoStub struct {
+	*MockClient
+	body        []byte
+	contentType string
+	err         error
+}
+
+func (s *orgLogoStub) GetOrgLogoContent(_ fleet.OrgLogoMode) ([]byte, string, error) {
+	return s.body, s.contentType, s.err
+}
+
+// newOrgLogoCommand builds a minimal GenerateGitopsCommand for exercising
+// generateOrgInfo / exportFleetHostedLogo without going through the full
+// generate-gitops action.
+func newOrgLogoCommand(t *testing.T, client generateGitopsClient, orgInfo fleet.OrgInfo) (*GenerateGitopsCommand, *bytes.Buffer) {
+	t.Helper()
+	errBuf := new(bytes.Buffer)
+	return &GenerateGitopsCommand{
+		Client: client,
+		CLI: cli.NewContext(&cli.App{
+			Writer:    new(bytes.Buffer),
+			ErrWriter: errBuf,
+		}, nil, nil),
+		AppConfig: &fleet.EnrichedAppConfig{
+			AppConfig: fleet.AppConfig{OrgInfo: orgInfo},
+		},
+		FilesToWrite: map[string]any{},
+	}, errBuf
+}
+
+func TestGenerateGitopsExportOrgLogos(t *testing.T) {
+	t.Parallel()
+
+	pngBody := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x01, 0x02}
+
+	t.Run("Fleet-hosted logo is downloaded and emitted as a path key", func(t *testing.T) {
+		cmd, _ := newOrgLogoCommand(t,
+			&orgLogoStub{MockClient: &MockClient{}, body: pngBody, contentType: "image/png"},
+			fleet.OrgInfo{
+				OrgName:             "ACME",
+				OrgLogoURLDarkMode:  "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
+				OrgLogoURLLightMode: "", // no light logo
+			},
+		)
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err)
+
+		// Path key replaces the URL key for dark; light is left empty.
+		assert.Equal(t, "./lib/org_logo/dark.png", orgInfo["org_logo_path_dark_mode"])
+		_, hasDarkURL := orgInfo["org_logo_url_dark_mode"]
+		assert.False(t, hasDarkURL, "Fleet-hosted dark URL should be removed in favor of the path key")
+		// The deprecated alias is also cleared so aliasRules can't resurrect the URL.
+		_, hasOldDark := orgInfo["org_logo_url"]
+		assert.False(t, hasOldDark)
+
+		// Bytes were queued for the on-disk export.
+		assert.Equal(t, string(pngBody), cmd.FilesToWrite["lib/org_logo/dark.png"])
+	})
+
+	t.Run("external URLs are exported unchanged (existing customer configs)", func(t *testing.T) {
+		stub := &orgLogoStub{
+			MockClient: &MockClient{},
+			err:        errors.New("GetOrgLogoContent should not be called for external URLs"),
+		}
+		cmd, _ := newOrgLogoCommand(t, stub, fleet.OrgInfo{
+			OrgName:             "ACME",
+			OrgLogoURLDarkMode:  "https://customer.example.com/dark.png",
+			OrgLogoURLLightMode: "https://customer.example.com/light.png",
+		})
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err)
+
+		assert.Equal(t, "https://customer.example.com/dark.png", orgInfo["org_logo_url_dark_mode"])
+		assert.Equal(t, "https://customer.example.com/light.png", orgInfo["org_logo_url_light_mode"])
+		_, hasDarkPath := orgInfo["org_logo_path_dark_mode"]
+		_, hasLightPath := orgInfo["org_logo_path_light_mode"]
+		assert.False(t, hasDarkPath)
+		assert.False(t, hasLightPath)
+		assert.Empty(t, cmd.FilesToWrite, "no logo files should be written for external URLs")
+	})
+
+	t.Run("404 from server prints a warning and keeps the URL", func(t *testing.T) {
+		stub := &orgLogoStub{
+			MockClient: &MockClient{},
+			err:        &client.NotFoundErr{Msg: "no logo stored"},
+		}
+		// Sanity: the stub error is recognized as a not-found.
+		require.True(t, service.IsNotFoundErr(stub.err))
+
+		cmd, errBuf := newOrgLogoCommand(t, stub, fleet.OrgInfo{
+			OrgName:            "ACME",
+			OrgLogoURLDarkMode: "https://fleet.example.com/api/latest/fleet/logo?mode=dark",
+		})
+
+		orgInfo, err := cmd.generateOrgInfo()
+		require.NoError(t, err, "404 must not abort the export")
+
+		// URL is kept (the inconsistency is upstream — operator needs to investigate),
+		// no path key is added, no bytes are queued for export.
+		assert.Equal(t, "https://fleet.example.com/api/latest/fleet/logo?mode=dark", orgInfo["org_logo_url_dark_mode"])
+		_, hasDarkPath := orgInfo["org_logo_path_dark_mode"]
+		assert.False(t, hasDarkPath)
+		assert.Empty(t, cmd.FilesToWrite)
+		assert.Contains(t, errBuf.String(), "warning")
+		assert.Contains(t, errBuf.String(), "dark")
 	})
 }

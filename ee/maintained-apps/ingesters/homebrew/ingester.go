@@ -101,24 +101,46 @@ type BrewIngester struct {
 	Client  *http.Client
 }
 
-// IngestOne fetches a single cask from the homebrew API and builds its
-// FMAManifestApp. It is a convenience wrapper around FetchCask + BuildManifest
-// for callers that don't need to intercept the parsed cask between the two
-// steps.
+// IngestOne resolves a single cask (from a local file when input.CaskPath is
+// set, otherwise via the homebrew API) and builds its FMAManifestApp. It is a
+// convenience wrapper around FetchCask + BuildManifest for callers that don't
+// need to intercept the parsed cask between the two steps.
 func (i *BrewIngester) IngestOne(ctx context.Context, input InputApp) (*maintained_apps.FMAManifestApp, error) {
-	cask, err := i.FetchCask(ctx, input.Token)
+	cask, err := i.FetchCask(ctx, input)
 	if err != nil {
 		return nil, err
 	}
 	return i.BuildManifest(ctx, input, cask)
 }
 
-// FetchCask performs the homebrew API call and returns the parsed cask.
+// FetchCask resolves the brew cask JSON for the given input app from either a
+// local file (input.CaskPath) or the default brew API.
 // Callers that need to mutate InputApp fields (e.g. UniqueIdentifier extracted
 // from the downloaded installer) can then call BuildManifest with the updated
 // input and the already-fetched cask, avoiding a second HTTP round-trip.
-func (i *BrewIngester) FetchCask(ctx context.Context, token string) (*BrewCask, error) {
-	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, token)
+func (i *BrewIngester) FetchCask(ctx context.Context, input InputApp) (*BrewCask, error) {
+	var cask BrewCask
+
+	if input.CaskPath != "" {
+		body, err := os.ReadFile(input.CaskPath)
+		if err != nil {
+			return nil, ctxerr.WrapWithData(ctx, err, "reading local cask JSON file", map[string]any{"cask_path": input.CaskPath})
+		}
+		if err := json.Unmarshal(body, &cask); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal local cask JSON for %s", input.Token)
+		}
+		// Cross-check the cask file matches the configured input. This catches
+		// subtle misconfiguration like pointing cask_path at the wrong JSON file.
+		if cask.Token != input.Token {
+			return nil, ctxerr.Errorf(ctx, "local cask JSON token %q does not match input token %q (cask_path: %s)", cask.Token, input.Token, input.CaskPath)
+		}
+		if len(cask.Name) == 0 {
+			return nil, ctxerr.Errorf(ctx, "local cask JSON for %s has empty name (cask_path: %s)", input.Token, input.CaskPath)
+		}
+		return &cask, nil
+	}
+
+	apiURL := fmt.Sprintf("%scask/%s.json", i.BaseURL, input.Token)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
@@ -148,9 +170,8 @@ func (i *BrewIngester) FetchCask(ctx context.Context, token string) (*BrewCask, 
 		return nil, ctxerr.Errorf(ctx, "brew API returned status %d: %s", res.StatusCode, string(body))
 	}
 
-	var cask BrewCask
 	if err := json.Unmarshal(body, &cask); err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", token)
+		return nil, ctxerr.Wrapf(ctx, err, "unmarshal brew cask for %s", input.Token)
 	}
 	return &cask, nil
 }
@@ -288,6 +309,13 @@ type InputApp struct {
 	InstallScriptPath    string   `json:"install_script_path"`
 	UninstallScriptPath  string   `json:"uninstall_script_path"`
 	PatchPolicyPath      string   `json:"patch_policy_path"`
+	// CaskPath optionally points at a local file (relative to the repo
+	// root) containing the cask JSON in the same schema as
+	// https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask
+	// metadata for third-party taps directly into this repo (see
+	// inputs/homebrew/custom-tap/). When empty, FetchCask fetches from
+	// formulae.brew.sh.
+	CaskPath string `json:"cask_path"`
 }
 
 // BrewCask is the parsed payload of a cask fetched from formulae.brew.sh.

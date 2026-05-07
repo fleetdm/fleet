@@ -246,6 +246,10 @@ type Datastore interface {
 	LabelByName(ctx context.Context, name string, filter TeamFilter) (*Label, error)
 	// Label returns the label and an array of host IDs members of this label, or an error.
 	Label(ctx context.Context, lid uint, teamFilter TeamFilter) (*LabelWithTeamName, []uint, error)
+	// LabelMembershipHostIDs returns every host_id row in label_membership for
+	// the given label ID, with no team-based filtering. Intended for internal
+	// activity tracking where the unfiltered membership is needed.
+	LabelMembershipHostIDs(ctx context.Context, labelID uint) ([]uint, error)
 	ListLabels(ctx context.Context, filter TeamFilter, opt ListOptions, includeHostCounts bool) ([]*Label, error)
 	LabelsSummary(ctx context.Context, filter TeamFilter) ([]*LabelSummary, error)
 
@@ -420,6 +424,9 @@ type Datastore interface {
 	CleanupHostMDMCommands(ctx context.Context) error
 	// CleanupHostMDMAppleProfiles removes abandoned host MDM Apple profiles entries.
 	CleanupHostMDMAppleProfiles(ctx context.Context) error
+	// CleanupWindowsMDMCommandQueue removes ACKed entries from the Windows MDM command queue
+	// whose corresponding result is older than 1 hour.
+	CleanupWindowsMDMCommandQueue(ctx context.Context) error
 	// CleanupAllHostMDMProfilesForPlatform deletes all host MDM profile rows for the given platform.
 	// Used when MDM is toggled off globally to prevent stale pending profiles from persisting.
 	CleanupAllHostMDMProfilesForPlatform(ctx context.Context, platform string) error
@@ -831,6 +838,7 @@ type Datastore interface {
 
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*UpcomingActivity, *PaginationMetadata, error)
 	CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (ActivityDetails, error)
+	BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]ActivityDetails, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) (bool, error)
 	GetHostUpcomingActivityMeta(ctx context.Context, hostID uint, executionID string) (*UpcomingActivityMeta, error)
 	UnblockHostsUpcomingActivityQueue(ctx context.Context, maxHosts int) (int, error)
@@ -1245,15 +1253,18 @@ type Datastore interface {
 	// GetJob returns a job from the database
 	GetJob(ctx context.Context, jobID uint) (*Job, error)
 
+	// HasQueuedJobWithArgs reports whether a job with the given name and
+	// args (compared as JSON values) currently exists in the jobs table in
+	// state JobStateQueued. Used by callers that need at-most-one pending
+	// job per (name, args) tuple — e.g. dedup of historical-data scrub
+	// enqueues across rapid disable/enable toggles.
+	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
 	InnoDBStatus(ctx context.Context) (string, error)
 	ProcessList(ctx context.Context) ([]MySQLProcess, error)
-
-	// WindowsUpdates Store
-	ListWindowsUpdatesByHostID(ctx context.Context, hostID uint) ([]WindowsUpdate, error)
-	InsertWindowsUpdates(ctx context.Context, hostID uint, updates []WindowsUpdate) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
@@ -1507,6 +1518,19 @@ type Datastore interface {
 	// remove for each affected host to pending for the provided criteria, which
 	// may be either a list of hostIDs, teamIDs, profileUUIDs or hostUUIDs (only
 	// one of those ID types can be provided).
+	//
+	// This reconciles Apple profiles, Apple declarations, and Android profiles
+	// synchronously. Windows profile reconciliation is deferred: the
+	// mdm_windows_profile_manager cron processes bounded host-window batches
+	// using a persisted cursor (see ReconcileWindowsProfiles), so large host
+	// populations may require multiple 30s ticks to converge. Callers must not
+	// assume host_mdm_windows_profiles rows are written by the time this
+	// function returns; if a caller needs immediate Windows state (e.g. a
+	// test, or a synchronous UX flow), it must trigger reconciliation
+	// explicitly. The returned MDMProfilesUpdates.WindowsConfigProfile is always false in
+	// production: the BatchSetMDMProfiles flow that consumes this field
+	// already gets an accurate transactional signal from BatchSetMDMProfiles
+	// itself, and no other caller reads the field.
 	BulkSetPendingMDMHostProfiles(ctx context.Context, hostIDs, teamIDs []uint,
 		profileUUIDs, hostUUIDs []string) (updates MDMProfilesUpdates,
 		err error)
@@ -1644,7 +1668,8 @@ type Datastore interface {
 	// Managed local account
 
 	// SaveHostManagedLocalAccount encrypts and stores the managed local account password
-	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE.
+	// for a host. Uses INSERT ... ON DUPLICATE KEY UPDATE. Clears the existing account_uuid
+	// if any since this is called on reenrollments
 	SaveHostManagedLocalAccount(ctx context.Context, hostUUID, plaintextPassword, commandUUID string) error
 
 	// GetHostManagedLocalAccountPassword retrieves and decrypts the managed local account
@@ -1662,6 +1687,68 @@ type Datastore interface {
 	// local account command UUID. Returns notFoundError if no matching record (i.e. SSO-only
 	// AccountConfiguration).
 	GetManagedLocalAccountByCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
+
+	// GetManagedLocalAccountUUID returns the account UUID captured from osquery for the
+	// managed local account on the given host. Returns a NotFound error when no
+	// managed_local_account row exists. A nil *string means the row exists but
+	// account_uuid has not yet been captured. Reads from the read replica.
+	GetManagedLocalAccountUUID(ctx context.Context, hostUUID string) (accountUUID *string, err error)
+
+	// SetManagedLocalAccountUUID captures the osquery-reported account UUID on an existing
+	// managed_local_account row. No-op if the row doesn't exist or account_uuid is already set
+	// to the specified UUID.
+	SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error
+
+	// MarkManagedLocalAccountPasswordViewed records that the managed local account password
+	// was viewed by a user (UI or API). On first view it sets status='pending',
+	// auto_rotate_at = NOW(6) + 65 minutes, and initiated_by_fleet=1. Subsequent views
+	// inside the window do NOT extend auto_rotate_at; the existing value is returned.
+	// Returns notFound if the row doesn't exist, encrypted_password IS NULL, status='failed',
+	// or a rotation is already pending.
+	MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+	// InitiateManagedLocalAccountRotation stores the (datastore-encrypted) pending
+	// password and pending_command_uuid for an in-flight SetAutoAdminPassword command.
+	// Eligibility: row exists, encrypted_password IS NOT NULL, status != 'failed',
+	// account_uuid IS NOT NULL, pending_encrypted_password IS NULL. Does NOT modify
+	// initiated_by_fleet — that flag is owned by the view path (sets to 1) and the
+	// deferred-manual path (sets to 0). Returns ErrManagedLocalAccountRotationPending
+	// or ErrManagedLocalAccountNotEligible when ineligible, or notFound when the row
+	// is missing.
+	InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error
+
+	// MarkManagedLocalAccountRotationDeferred records a manual rotation that the service
+	// could not enqueue immediately because account_uuid is missing. Sets status='pending',
+	// auto_rotate_at=NOW(6) (so the cron picks it up as soon as the UUID lands), and
+	// initiated_by_fleet=0 so the cron skips re-logging the activity. Idempotent.
+	MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error
+
+	// ClearManagedLocalAccountRotation unwinds pending rotation columns (used when the
+	// commander returned a non-APNs persistence error after InitiateManagedLocalAccountRotation
+	// already populated them).
+	ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// CompleteManagedLocalAccountRotation finalizes a successful rotation acknowledgment.
+	// Validates pending_command_uuid matches the acked command, swaps pending password into
+	// encrypted_password, clears pending_*/auto_rotate_at, sets status='verified', and
+	// resets initiated_by_fleet=0. Returns notFound when the command UUID does not match
+	// the row's pending one.
+	CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID string) error
+
+	// FailManagedLocalAccountRotation marks the row's status='failed' and clears pending
+	// columns; encrypted_password (the previous-known-good password) is left intact so
+	// the password remains usable.
+	FailManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID, errorMessage string) error
+
+	// GetManagedLocalAccountsForAutoRotation returns up to 100 rows whose auto_rotate_at
+	// has elapsed and which are eligible for an enqueue: account_uuid IS NOT NULL,
+	// encrypted_password IS NOT NULL, pending_encrypted_password IS NULL, status != 'failed'.
+	// status='pending' is intentionally allowed (a viewed row sits in pending while waiting).
+	GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountAutoRotationInfo, error)
+
+	// GetManagedLocalAccountByPendingCommandUUID resolves a SetAutoAdminPassword ack back
+	// to its host via pending_command_uuid. Returns notFound when no row matches.
+	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -1834,6 +1921,30 @@ type Datastore interface {
 	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a
+	// VPP token. Used to lazy-backfill the column for tokens uploaded before
+	// the country_code column existed.
+	UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error
+	// UpdateVPPAppCountryCode persists the anchored storefront country for a
+	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
+	// path when the original anchored country has no Fleet-known token left.
+	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
+	// BackfillVPPAppCountriesFromTokens populates `vpp_apps.country_code` for
+	// any rows that are still NULL, by joining through `vpp_apps_teams` to
+	// the `vpp_tokens` row whose `country_code` is set. Returns the number of
+	// rows updated. Used by the one-shot legacy backfill that runs at server
+	// startup. Becomes a no-op once all rows are populated.
+	BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error)
+	// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+	// (adam_id, platform), or a NotFound error if no row exists. Used by the
+	// anchoring logic to decide whether the next add is a first-add or a
+	// subsequent add.
+	GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform InstallableDevicePlatform) (*VPPApp, error)
+	// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code
+	// matches the given country and which owns the (adam_id, platform) app
+	// via vpp_apps_teams. Returns NotFound when no eligible token exists —
+	// callers may treat this as a re-anchor signal.
+	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
@@ -1933,6 +2044,11 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
+	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
+	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
+	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
@@ -1946,6 +2062,25 @@ type Datastore interface {
 
 	// UpdateMDMWindowsEnrollmentsHostUUID updates the host UUID for a given MDM device ID.
 	UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
+
+	// SetMDMWindowsAwaitingConfiguration performs a compare-and-swap update on the
+	// awaiting_configuration status for a Windows MDM enrollment identified by
+	// device ID. The update only applies if the current status matches expectFrom,
+	// preventing races between concurrent management checkins. Returns true if the
+	// transition occurred.
+	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
+
+	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
+	// configuration value for the Windows MDM enrollment of the given host.
+	// This is a lightweight read for the orbit config polling path.
+	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+
+	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
+	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
+	// global". Used by the ESP release gate to disambiguate between "no setup configured" (safe to release)
+	// and "setup configured but orbit hasn't initialized yet" (must wait) when
+	// setup_experience_status_results is empty.
+	HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
@@ -2024,10 +2159,44 @@ type Datastore interface {
 	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
 
+	// ListMDMWindowsProfilesToInstallForHost returns the profiles that should
+	// be installed for a specific host.
+	ListMDMWindowsProfilesToInstallForHost(ctx context.Context, hostUUID string) ([]*MDMWindowsProfilePayload, error)
+
 	// ListMDMWindowsProfilesToRemove returns all the profiles that should
 	// be removed based on diffing the ideal state vs the state we have
 	// registered in `host_mdm_windows_profiles`
 	ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToInstallForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToInstall: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToInstallForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListMDMWindowsProfilesToRemoveForHosts is the scoped variant of
+	// ListMDMWindowsProfilesToRemove: it returns rows only for the given
+	// host UUIDs. The cron uses this to bound per-tick work; see
+	// ReconcileWindowsProfiles.
+	ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMWindowsProfilePayload, error)
+
+	// ListNextPendingMDMWindowsHostUUIDs returns up to batchSize host UUIDs
+	// (sorted ascending) where host_uuid > afterHostUUID and the host has
+	// any pending Windows MDM profile reconciliation work. Used by the
+	// cron's batched reconciliation path; see ReconcileWindowsProfiles.
+	ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+
+	// GetMDMWindowsReconcileCursor returns the persisted host_uuid cursor
+	// used by the Windows MDM reconciliation cron to bound per-tick work.
+	// Returns "" if no cursor is set or if the implementation does not
+	// support cursor persistence (the bare mysql.Datastore returns "" here;
+	// the mysqlredis wrapper backs it with Redis). See
+	// ReconcileWindowsProfiles.
+	GetMDMWindowsReconcileCursor(ctx context.Context) (string, error)
+
+	// SetMDMWindowsReconcileCursor persists the host_uuid cursor used by
+	// the Windows MDM reconciliation cron. See GetMDMWindowsReconcileCursor.
+	SetMDMWindowsReconcileCursor(ctx context.Context, cursor string) error
 
 	// BulkUpsertMDMWindowsHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
@@ -2036,6 +2205,15 @@ type Datastore interface {
 	// GetMDMWindowsProfilesContents retrieves the XML contents of the
 	// profiles requested.
 	GetMDMWindowsProfilesContents(ctx context.Context, profileUUIDs []string) (map[string]MDMWindowsProfileContents, error)
+
+	// GetExistingMDMWindowsProfileUUIDs returns the subset of the given
+	// profile UUIDs that still exist in mdm_windows_configuration_profiles.
+	// Callers use this to detect profiles deleted by a concurrent admin
+	// action between listing and a downstream upsert (e.g. the
+	// mdm_windows_profile_manager cron's reconciliation loop); installing a
+	// profile that has since been deleted would create an unremovable zombie
+	// row because the <Delete> builder needs the now-missing SyncML.
+	GetExistingMDMWindowsProfileUUIDs(ctx context.Context, profileUUIDs []string) (map[string]struct{}, error)
 
 	// BulkDeleteMDMWindowsHostsConfigProfiles deletes entries from
 	// host_mdm_windows_profiles that match the given payload.
@@ -2936,6 +3114,14 @@ type Datastore interface {
 	MDMWindowsUpdateEnrolledDeviceCredentials(ctx context.Context, deviceId string, credentialsHash []byte) error
 	// MDMWindowsAcknowledgeEnrolledDeviceCredentials marks the enrolled Windows device credentials as acknowledged.
 	MDMWindowsAcknowledgeEnrolledDeviceCredentials(ctx context.Context, deviceId string) error
+
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
+
+	// MDMAppleResetOnReenrollment performs necessary datastore operations to reset the state of a host that is re-enrolling in MDM,
+	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
+	// Host activities will not be cleared if preserveHostActivities is true
+	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 }
 
 type AndroidDatastore interface {
@@ -3064,6 +3250,10 @@ type ProfileVerificationStore interface {
 	// GetHostMDMWindowsProfiles returns the current MDM profile status for the given
 	// Windows host
 	GetHostMDMWindowsProfiles(ctx context.Context, hostUUID string) ([]HostMDMWindowsProfile, error)
+
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
+	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
 }
 
 var _ ProfileVerificationStore = (Datastore)(nil)
@@ -3215,4 +3405,5 @@ type AccessesMDMConfigAssets interface {
 }
 type GetsAppConfig interface {
 	AppConfig(ctx context.Context) (*AppConfig, error)
+	AppConfigUrls(ctx context.Context) (*AppConfigUrls, error)
 }

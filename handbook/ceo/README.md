@@ -28,7 +28,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
  -  Marking spam emails as read (same for emails Mike doesn't actually need to read).
  -  Escalate actionable sales communication and update Mike directly.
  -  Ensure all calendar invites have the necessary documents included.
- -  Forward any emails from customers about paying Fleet to the Buisness Operations department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+ -  Forward any emails from customers about paying Fleet to the Finance department using [Fleet's billing email](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
 
 
 ### Process the CEO's calendar
@@ -122,7 +122,7 @@ The CEO's calendar should reflect the following schedule for travel:
   - Calendar event name: Travel to NAME_OF_AIRPORT
   - Location: Address of the airport the CEO needs to go to.
 - Time block to go through security,
-  - 30 minuites for domestic and international flights
+  - 30 minutes for domestic and international flights
   - Calendar event name: Security
   - Agenda: CEO's link to the boarding pass. You will get this when it's time to check in for the CEO's flight. It will come by email or by text to which you can email it to yourself or text it to yourself. If you cannot get a link, download the boarding pass and upload as a google doc. Make sure the CEO has access to the doc before placing the link in the agenda as the boarding pass. 
 - Time block to get water and boarding,
@@ -149,7 +149,7 @@ The CEO's calendar should reflect the following schedule for travel:
  - If the hotel says early check-in is possible, but depends on the hotel's availability, have the CEO try to check-in. 
  - 30 minutes
  - Calendar event: Check-in at hotel
- - Calednar event for CEO to try and check-in: Try to check-in
+ - Calendar event for CEO to try and check-in: Try to check-in
 
 
 ### Schedule CEO interview
@@ -182,7 +182,7 @@ Every Monday, the Executive Assistant will use the following steps to confirm CE
 
 > If the CEO shadow period is not in the best possible spot for those who will shadow Mike (e.g. during travel or long in-person meetings), move it. If no one is in the onboarding@ Google Group (or all members have already completed their CEO shadow period), delete the calendar event for that week.
 
-2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) durring the 3-day CEO shadow period  have "[no shadows]" in the event title.
+2. Verify all private meetings (e.g. 1:1's, E-Group, T-group, and quarterly board meetings, etc.) during the 3-day CEO shadow period  have "[no shadows]" in the event title.
 
 
 ### Program the CEO to do something

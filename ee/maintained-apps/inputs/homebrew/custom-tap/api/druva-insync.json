@@ -1,0 +1,88 @@
+{
+  "token": "druva-insync",
+  "old_tokens": [],
+  "name": [
+    "Druva inSync"
+  ],
+  "desc": "Endpoint data backup and recovery client",
+  "homepage": "https://www.druva.com/",
+  "url": "https://downloads.druva.com/downloads/inSync/MAC/7.6.1/inSync-7.6.1-r110931.dmg",
+  "url_specs": {},
+  "version": "7.6.1,110931",
+  "autobump": true,
+  "no_autobump_message": null,
+  "skip_livecheck": true,
+  "bundle_version": null,
+  "bundle_short_version": null,
+  "sha256": "a67784b4d6789e9a671e2d77789c408116b10c89c6c8893c3f08ed6212684bf2",
+  "artifacts": [
+    {
+      "uninstall": [
+        {
+          "launchctl": [
+            "com.druva.inSyncAgent",
+            "com.druva.inSyncDecom",
+            "com.druva.inSyncUpgrade",
+            "com.druva.inSyncUpgradeDaemon"
+          ],
+          "quit": "com.druva.inSyncClient",
+          "pkgutil": "com.druva.inSync.pkg",
+          "delete": [
+            "/Library/LaunchAgents/inSyncAgent.plist",
+            "/Library/LaunchAgents/inSyncUpgrade.plist",
+            "/Library/LaunchDaemons/inSyncDecommission.plist",
+            "/Library/LaunchDaemons/inSyncUpgradeDaemon.plist"
+          ]
+        }
+      ]
+    },
+    {
+      "pkg": [
+        "Install inSync.pkg"
+      ]
+    },
+    {
+      "zap": [
+        {
+          "trash": [
+            "~/Library/Application Support/Druva",
+            "~/Library/Caches/com.druva.inSyncClient",
+            "~/Library/Logs/Druva",
+            "~/Library/Preferences/com.druva.inSyncClient.plist",
+            "~/Library/Saved Application State/com.druva.inSyncClient.savedState"
+          ]
+        }
+      ]
+    }
+  ],
+  "caveats": null,
+  "caveats_rosetta": null,
+  "depends_on": {
+    "macos": {
+      ">=": [
+        "11"
+      ]
+    }
+  },
+  "conflicts_with": null,
+  "container": null,
+  "rename": [],
+  "auto_updates": null,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "deprecation_replacement_formula": null,
+  "deprecation_replacement_cask": null,
+  "deprecate_args": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "disable_replacement_formula": null,
+  "disable_replacement_cask": null,
+  "disable_args": null,
+  "languages": [],
+  "ruby_source_path": "Casks/druva-insync.rb",
+  "ruby_source_checksum": {
+    "sha256": "9443d1939f90512b0c4dc645ef19176e6c44c5bd0119043c6bc38657f9416791"
+  }
+}

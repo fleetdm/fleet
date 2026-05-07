@@ -1,9 +1,14 @@
 // Matches the fade-in on `.react-tabs__tab-panel--selected` for TabNav pages
-// that render content via React Router children instead of <TabPanel>. Consumers
-// should wrap their routed content in this class with `key={location.pathname}`
-// so the element remounts on tab change and re-triggers the animation.
+// that render content via React Router children instead of <TabPanel>.
+// Pages that key this element by pathname get the fade on every route change.
+// ManageControlsPage omits the key here and uses __fade (keyed by tab index)
+// so only top-level tab switches animate, not sub-route navigation.
 .tab-nav-routed-content {
   animation: fade-in 250ms ease-out;
+
+  &__fade {
+    animation: fade-in 250ms ease-out;
+  }
 }
 
 .tab-nav {
@@ -72,26 +77,15 @@
       }
 
       &--disabled {
-        cursor: not-allowed;
+        &:hover {
+          background-color: transparent;
+        }
       }
     }
 
     &__tab-panel--selected {
       margin-top: $gap-page-component;
       animation: fade-in 250ms ease-out;
-
-      .no-results-message {
-        margin-top: $pad-xxlarge;
-        font-size: $small;
-        font-weight: $bold;
-
-        span {
-          margin-top: $pad-medium;
-          font-size: $x-small;
-          font-weight: $regular;
-          display: block;
-        }
-      }
     }
 
     .tab-text {

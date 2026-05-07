@@ -19,8 +19,8 @@ func (u *UptimeDataset) DefaultResolutionHours() int        { return 3 }
 func (u *UptimeDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategyAccumulate }
 func (u *UptimeDataset) DefaultVisualization() string       { return "checkerboard" }
 
-func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow))
+func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow), disabledFleetIDs)
 	if err != nil {
 		return err
 	}
@@ -38,11 +38,19 @@ func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now
 type CVEDataset struct{}
 
 func (c *CVEDataset) Name() string                       { return "cve" }
-func (c *CVEDataset) DefaultResolutionHours() int        { return 24 }
+func (c *CVEDataset) DefaultResolutionHours() int        { return 3 }
 func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategySnapshot }
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
-// @todo implement CVE dataset collection.
-func (c *CVEDataset) Collect(_ context.Context, _ api.DatasetStore, _ time.Time) error {
-	return nil
+func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs)
+	if err != nil {
+		return err
+	}
+	bitmaps := make(map[string][]byte, len(hostIDsByCVE))
+	for cve, hostIDs := range hostIDsByCVE {
+		bitmaps[cve] = HostIDsToBlob(hostIDs)
+	}
+	bucketStart := now.UTC().Truncate(time.Hour)
+	return store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps)
 }

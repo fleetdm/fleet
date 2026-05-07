@@ -167,6 +167,44 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
+
+### Field event follow-up
+
+#### Solution Specialist: Tradeshows, GitOps & field events
+
+##### Post-event goals
+- Immediate outreach to all scans and attendees within 24 hours
+- Assign Partner, ICP, and pipeline accounts to the correct DRI
+- Direct non-ICP accounts to the "Let's Get You Set Up" engagement
+
+##### Follow-up process
+
+**Immediate**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Prioritize | Sort contacts by status. Tag each as ICP prospect, existing pipeline, partner, or non-ICP. Assign DRI immediately. | Within 2 hrs |
+| Pull from SF | Open recent events dashboard. Pull all "Attended", "Engaged", "Interacted", and "Registered" members from the campaign record. | Within 2 hrs |
+
+**Outreach**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| Email | Send a personalized email to every scan/attendee. Reference the event. Lead with value — not a generic follow-up. | Within 24 hrs |
+| Call to Action | ICP/pipeline: request a meeting or demo with a booking link. Non-ICP: direct to self-serve or "Let's Get You Set Up." | Within 24 hrs |
+| LinkedIn | Send a personalized connection request referencing the event. Follow up with a message after acceptance. | Within 24 hrs |
+| Log in SFDC | Update campaign member status. Log all tasks, activities, meetings booked, and opportunities identified. | Within 24 hrs |
+
+**Routing (concurrent with outreach)**
+
+| Phase | Action | Timing |
+|-------|--------|--------|
+| ICP Prospect | Begin discovery. Book intro/demo. Create opportunity in SFDC. | Immediate |
+| Pipeline Account | Notify DRI. Use event touch to accelerate the deal. Log against the open opportunity. | Immediate |
+| Partner Account | Route to channel DRI. Log in CRM. | Immediate |
+| Non-ICP | Send "Let's Get You Set Up." Point to self-serve. Log disposition in CRM. | Immediate |
+
+
 #### SWAG
 
 Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
@@ -198,6 +236,86 @@ ADRs research accounts to ensure there's a practical need Fleet can solve before
 
 Warm-up actions are that Fleet will take at any point in time to help move the psychological progress of contacts on any account.
 Our ADRs stay connected with Fleet’s engineering team to keep technical knowledge current and to coordinate any outreach. Everyone’s time is valuable, and this approach ensures that prospects have direct access to engineers who speak their language. (Munki, DDM, patch management, EPSS, etc.)
+
+
+### Solution Specialist inbound lead follow-up
+
+### Objective
+
+Convert high-intent inbound leads into qualified first meetings through fast engagement and strict response SLAs.
+
+### Source queue
+
+Salesforce Report: Solution Specialist — includes:
+- Demo Requests - ICP
+- Demo Requests (evaluate)
+- "Talk to Us" form submissions
+- Webinar Sign-ups
+- Document Downloads
+- Sign-ups and trial starts
+- Swag requests (lower priority)
+- Other website conversions
+
+Monitor hourly, sorted by Created Date (newest first). No lead untouched > 60 minutes. If a Solution Specialist is out of office, etc. another Solution Specialist will assume ownership of the follow-up.
+
+### Lead prioritization
+
+| Tier | SLA | Leads |
+|------|-----|-------|
+| Tier 1 | Immediate | "Talk to Us" forms, demo requests, 1K+ employee accounts |
+| Tier 2 | ≤ 1 hour | Sign-ups and trial starts |
+| Tier 3 | Same day | Swag requests, low-intent conversions — qualify fast or disqualify |
+
+### Workflow
+
+**Check for live engagement (last 10 min)**
+- Attempt real-time engagement via Qualified — SLA: ≤ 5 minutes
+
+**Immediate outreach (same hour, if not live)**
+- Send a personalized email referencing company name, use case, and source
+- LinkedIn connection request
+- Maximum three attempts at contact, if no response
+
+**Qualify quickly**
+- Clear use case? Relevant company size? Relevant role?
+- If unsure → treat as Tier 2 and follow up once
+- If no → disqualify and move on
+
+**Book meeting**
+- Schedule directly on AE calendar
+- Include: use case summary, lead source, and any urgency signals
+
+**Update Salesforce — before moving to next lead**
+- Status updated, activity logged, notes added (use case + tier)
+- Assign to AE if qualified
+
+### Response SLAs
+
+| Scenario | SLA |
+|----------|-----|
+| Live inbound (chat / Qualified) | ≤ 5 minutes |
+| New Tier 1 & 2 inbound | ≤ 1 hour |
+| Tier 3 (swag, low intent) | Same day |
+| Meeting scheduled after qualification | ≤ 48 hours |
+
+### Outreach standards
+
+- Always reference company name and action taken
+- No generic messaging. Keep it direct, outcome-focused, and short
+- No lead ends the day without a clear disposition
+
+### Escalate immediately if
+
+- 2,000+ employees in report
+- Known or high-value target
+- "Talk to Us" submission combined with strong buying signals (e.g., Calendly intent)
+
+### Daily standard
+
+- Zero backlog — every lead has an action taken and clear disposition
+- All priority leads engaged within SLA
+- Salesforce updated before moving to next lead
+
 
 
 ## Proof of value (POV)
@@ -258,11 +376,7 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
 
 7. If the quote is rejected, review the feedback, make the necessary changes to the quote or line items, and resubmit following step 6.
 
-8. Once the quote is approved, navigate back to the opportunity and advance the stage to **"Justification"**.
-
-9. Navigate to the approved quote record and click **"Start Sync"**. Confirm the prompt. Syncing is required before the opportunity can advance past **"Justification"**.
-
-10. Click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then click **"Save and Email Quote"**.
+8. Once the quote is approved, click **"Generate PDF"**, select the appropriate pre-approved template using the table below, and click **"Create PDF"**. Review the preview for accuracy, then send to stakeholders.
 
    | Template | When to use |
    | -------- | ----------- |
@@ -272,6 +386,23 @@ Navigate to the opportunity you are creating a quote for, then follow the steps 
    | Unauthorized partner | Selling through a channel partner pending authorization |
    | 3eye distributorship | Selling through the 3EYE distributor |
 
+
+
+### Remove a contact from the "Top contacts" list in Salesforce
+
+1. Navigate to the contact.
+2. Uncheck the ⭐ field in the system info section at the bottom and save the record.
+
+<img width="2489" height="612" alt="image" src="https://github.com/user-attachments/assets/d67e6890-4eb8-485b-8faf-4eed67a14ce1" />
+
+
+### Mark an account as a "Top target"
+
+Navigate to the account you would like to label as a "Top target". Edit the account, and check the box, and save the record.
+
+> Want to stack rank your target accounts?
+>
+> Once you check the "Top target" box, the "Target tier" field will appear. You can split your target accounts into 3 different tiers. "Tier 1" being the best, "Tier 3" being the least priority but still worth calling out.
 
 
 ## Signatures

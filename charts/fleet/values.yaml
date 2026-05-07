@@ -4,7 +4,7 @@ hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 revisionHistoryLimit: 10 # Number of old ReplicaSets for Fleet deployment to retain for rollback (set to 0 for unlimited)
 imageRepository: fleetdm/fleet
-imageTag: v4.83.2 # Version of Fleet to deploy
+imageTag: v4.84.3 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -321,8 +321,34 @@ environments:
 #       name: secret-name
 #       key: secret-key-name
 
+## Section: MySQL subchart
+## Set mysql.enabled=true to deploy a dev/test MySQL instance.
+## For production, use an external MySQL and leave this disabled.
+## When enabled, also point Fleet to the subchart service and secret:
+##   database.address: <release-name>-mysql:3306
+##   database.secretName: <release-name>-mysql
 mysql:
   enabled: false
+  auth:
+    rootPassword: ""
+    username: fleet
+    password: ""
+    database: fleet
 
+## Section: Redis/Valkey subchart
+## Set redis.enabled=true to deploy a dev/test Valkey (Redis-compatible) instance.
+## For production, use an external Redis/Valkey and leave this disabled.
+## NOTE: The condition key is "redis.enabled" for backwards compatibility,
+## but the sub-chart is now Valkey (https://valkey.io).
+## When enabled, also point Fleet to the subchart service:
+##   cache.address: <release-name>-valkey:6379
+## If valkey.auth.enabled=true, also set cache.usePassword/cache.secretName/
+## cache.passwordKey to match your Valkey secret configuration.
 redis:
   enabled: false
+
+valkey:
+  replica:
+    enabled: false
+  auth:
+    enabled: false

@@ -10,6 +10,7 @@ import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import TooltipWrapper from "components/TooltipWrapper";
+import EmptyState from "components/EmptyState";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -59,10 +60,11 @@ export const EMPTY_STATE_DETAILS: Record<ScriptBatchHostStatus, string> = {
 
 const getEmptyState = (status: ScriptBatchHostStatus) => {
   return (
-    <div className={`${baseClass}__empty`}>
-      <b>No hosts with this status</b>
-      <p>{EMPTY_STATE_DETAILS[status]}</p>
-    </div>
+    <EmptyState
+      variant="list"
+      header="No hosts with this status"
+      info={EMPTY_STATE_DETAILS[status]}
+    />
   );
 };
 

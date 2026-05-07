@@ -110,7 +110,7 @@ const SoftwareAddPage = ({
     setSelectedOsqueryTable(tableName);
   };
 
-  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+  const backUrl = getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
     fleet_id: location.query.fleet_id,
   });
 

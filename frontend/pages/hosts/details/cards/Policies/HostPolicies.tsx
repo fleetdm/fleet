@@ -6,7 +6,7 @@ import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
@@ -97,7 +97,7 @@ const Policies = ({
   const renderHostPolicies = () => {
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
-        <EmptyTable
+        <EmptyState
           header={<>Policies are not supported for this host</>}
           info={
             <>
@@ -112,7 +112,7 @@ const Policies = ({
 
     if (isAndroid(hostPlatform)) {
       return (
-        <EmptyTable
+        <EmptyState
           header={<>Policies are not supported for this host</>}
           info={
             <>
@@ -126,7 +126,7 @@ const Policies = ({
 
     if (policies.length === 0) {
       return (
-        <EmptyTable
+        <EmptyState
           header={
             <>
               No policies are checked{" "}
