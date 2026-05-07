@@ -456,6 +456,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>DeviceCapacity</string>
             <string>AvailableDeviceCapacity</string>
             <string>OSVersion</string>
+            <string>SupplementalOSVersionExtra</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
 			<string>IsMDMLostModeEnabled</string>
