@@ -10501,7 +10501,6 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		require.Equal(t, "darwin", got.Platform)
 		require.Equal(t, profUUID, got.ProfileUUID)
 		require.True(t, got.HasACMEPayload)
-		require.False(t, got.RefetchPending)
 	})
 
 	t.Run("darwin host with non-ACME profile reports has_acme_payload=false", func(t *testing.T) {
@@ -10513,28 +10512,6 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, "darwin", got.Platform)
 		require.False(t, got.HasACMEPayload)
-	})
-
-	t.Run("refetch already pending reports refetch_pending=true", func(t *testing.T) {
-		profUUID := mkProfile(t, "acme-pending", acmeXML)
-		cmdUUID := uuid.NewString()
-		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
-
-		require.NoError(t, ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
-			HostID:      host.ID,
-			CommandType: fleet.RefetchCertsCommandUUIDPrefix,
-		}}))
-		t.Cleanup(func() {
-			require.NoError(t, ds.RemoveHostMDMCommand(ctx, fleet.HostMDMCommand{
-				HostID:      host.ID,
-				CommandType: fleet.RefetchCertsCommandUUIDPrefix,
-			}))
-		})
-
-		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
-		require.NoError(t, err)
-		require.True(t, got.HasACMEPayload)
-		require.True(t, got.RefetchPending)
 	})
 
 	t.Run("unknown command returns not found", func(t *testing.T) {

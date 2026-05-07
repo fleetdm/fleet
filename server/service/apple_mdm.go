@@ -5008,11 +5008,19 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // hardware-bound ACME certs that osquery cannot see. iOS/iPadOS do not need
 // this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
-// All gating happens server-side in a single query
-// (ProfileHasACMEPayloadForCommand): host platform, ACME payload presence,
-// and pending-refetch dedup. The hot path early-returns for the common
-// non-ACME / non-darwin cases without parsing the profile or making
-// additional roundtrips.
+// Gating happens server-side in a single indexed query
+// (ProfileHasACMEPayloadForCommand): host platform and ACME payload presence.
+// The hot path early-returns for the common non-ACME / non-darwin cases
+// without parsing the profile or making additional roundtrips.
+//
+// We deliberately do NOT dedupe against an in-flight CertificateList: if a
+// previous refetch is still pending when this trigger fires, that earlier
+// refetch can capture state that predates the new ACME exchange completing
+// on-device. Letting the new install queue its own refetch ensures the new
+// cert is captured even if the earlier refetch was already in flight.
+// host_mdm_commands has a (host_id, command_type) PK so duplicate INSERTs
+// collapse via ON DUPLICATE KEY UPDATE, and handleRefetchCertsResults is
+// safe to call on an already-removed row.
 func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
 	res, err := svc.ds.ProfileHasACMEPayloadForCommand(ctx, hostUUID, commandUUID)
 	if err != nil {
@@ -5021,7 +5029,7 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		}
 		return ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
 	}
-	if res.Platform != "darwin" || !res.HasACMEPayload || res.RefetchPending {
+	if res.Platform != "darwin" || !res.HasACMEPayload {
 		return nil
 	}
 

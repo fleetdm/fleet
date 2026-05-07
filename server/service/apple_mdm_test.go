@@ -2199,7 +2199,7 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			name: "macOS + ACME profile: enqueues CertificateList",
 			probeResult: fleet.ProfileACMECommandResult{
 				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
-				HasACMEPayload: true, RefetchPending: false,
+				HasACMEPayload: true,
 			},
 			expectAddCommand: true,
 			expectEnqueue:    true,
@@ -2218,15 +2218,6 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 			probeResult: fleet.ProfileACMECommandResult{
 				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
 				HasACMEPayload: false,
-			},
-			expectAddCommand: false,
-			expectEnqueue:    false,
-		},
-		{
-			name: "macOS + ACME but refetch already pending: dedups",
-			probeResult: fleet.ProfileACMECommandResult{
-				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
-				HasACMEPayload: true, RefetchPending: true,
 			},
 			expectAddCommand: false,
 			expectEnqueue:    false,

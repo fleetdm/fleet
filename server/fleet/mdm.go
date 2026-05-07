@@ -316,16 +316,14 @@ type HostMDMProfileRetryCount struct {
 
 // ProfileACMECommandResult bundles the gates needed to decide whether an
 // InstallProfile ack should trigger a CertificateList refetch on macOS:
-// host platform, profile UUID, whether the delivered profile contains a
-// com.apple.security.acme payload, and whether a CertificateList refetch is
-// already pending for the host. All fields are computed in a single query
-// keyed on (host_uuid, command_uuid).
+// host platform, profile UUID, and whether the delivered profile contains a
+// com.apple.security.acme payload. Computed in a single query keyed on
+// (host_uuid, command_uuid).
 type ProfileACMECommandResult struct {
 	HostID         uint   `db:"host_id"`
 	Platform       string `db:"platform"`
 	ProfileUUID    string `db:"profile_uuid"`
 	HasACMEPayload bool   `db:"has_acme_payload"`
-	RefetchPending bool   `db:"refetch_pending"`
 }
 
 // TeamIDSetter defines the method to set a TeamID value on a struct,

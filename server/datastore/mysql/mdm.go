@@ -1675,13 +1675,7 @@ SELECT
 	h.id              AS host_id,
 	h.platform        AS platform,
 	hmap.profile_uuid AS profile_uuid,
-	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload,
-	EXISTS(
-		SELECT 1
-		FROM host_mdm_commands hmc
-		WHERE hmc.host_id = h.id
-		  AND hmc.command_type = ?
-	) AS refetch_pending
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
 FROM host_mdm_apple_profiles hmap
 	JOIN hosts h
 		ON h.uuid = hmap.host_uuid
@@ -1691,8 +1685,7 @@ WHERE hmap.command_uuid = ?
 	AND hmap.host_uuid    = ?`
 
 	var dest fleet.ProfileACMECommandResult
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt,
-		fleet.RefetchCertsCommandUUIDPrefix, commandUUID, hostUUID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
