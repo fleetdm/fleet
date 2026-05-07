@@ -38,7 +38,9 @@ const Variables = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageNumber, setPageNumber] = useState(0);
 
-  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier } = useContext(
+    AppContext
+  );
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
