@@ -75,12 +75,15 @@ const ConfirmSSOInvitePage = ({
     [invite_token, renderFlash, validInvite]
   );
 
+  const isInvalidInvite =
+    !isVerifyingInvite && (!!validateInviteError || !validInvite);
+
   const renderContent = () => {
     if (isVerifyingInvite) {
       return <Spinner />;
     }
 
-    if (validateInviteError || !validInvite) {
+    if (isInvalidInvite) {
       return (
         <p className={`${baseClass}__description`}>
           This invite token is invalid. Please confirm your invite link.
@@ -94,8 +97,8 @@ const ConfirmSSOInvitePage = ({
           Please provide your name to get started.
         </p>
         <ConfirmSSOInviteForm
-          defaultName={validInvite.name}
-          email={validInvite.email}
+          defaultName={validInvite?.name}
+          email={validInvite?.email}
           handleSubmit={onSubmit}
         />
       </>
@@ -104,7 +107,7 @@ const ConfirmSSOInvitePage = ({
 
   return (
     <AuthenticationFormWrapper
-      header={validateInviteError ? "Invalid invite token" : "Welcome to Fleet"}
+      header={isInvalidInvite ? "Invalid invite token" : "Welcome to Fleet"}
       className={baseClass}
     >
       {renderContent()}
