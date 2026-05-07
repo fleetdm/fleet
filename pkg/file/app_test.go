@@ -37,13 +37,13 @@ func synthICNS(t *testing.T) []byte {
 	var body bytes.Buffer
 	body.WriteString("ic10")
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(8+len(png)))
+	binary.BigEndian.PutUint32(lenBuf, uint32(8+len(png))) //nolint:gosec // dismiss G115
 	body.Write(lenBuf)
 	body.Write(png)
 
 	var out bytes.Buffer
 	out.WriteString("icns")
-	binary.BigEndian.PutUint32(lenBuf, uint32(8+body.Len()))
+	binary.BigEndian.PutUint32(lenBuf, uint32(8+body.Len())) //nolint:gosec // dismiss G115
 	out.Write(lenBuf)
 	out.Write(body.Bytes())
 	return out.Bytes()

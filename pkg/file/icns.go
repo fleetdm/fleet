@@ -23,10 +23,7 @@ func ExtractPNGFromICNS(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("not an icns file")
 	}
 
-	totalLen := int(binary.BigEndian.Uint32(data[4:8]))
-	if totalLen > len(data) {
-		totalLen = len(data)
-	}
+	totalLen := min(int(binary.BigEndian.Uint32(data[4:8])), len(data))
 
 	pngMagic := []byte{0x89, 0x50, 0x4E, 0x47} // \x89PNG
 

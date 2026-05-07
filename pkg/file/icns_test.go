@@ -23,7 +23,7 @@ func buildICNS(t *testing.T, chunks ...struct {
 		require.Len(t, c.tag, 4)
 		body.WriteString(c.tag)
 		lenBuf := make([]byte, 4)
-		binary.BigEndian.PutUint32(lenBuf, uint32(8+len(c.data)))
+		binary.BigEndian.PutUint32(lenBuf, uint32(8+len(c.data))) //nolint:gosec // dismiss G115
 		body.Write(lenBuf)
 		body.Write(c.data)
 	}
@@ -31,7 +31,7 @@ func buildICNS(t *testing.T, chunks ...struct {
 	var out bytes.Buffer
 	out.WriteString("icns")
 	lenBuf := make([]byte, 4)
-	binary.BigEndian.PutUint32(lenBuf, uint32(8+body.Len()))
+	binary.BigEndian.PutUint32(lenBuf, uint32(8+body.Len())) //nolint:gosec // dismiss G115
 	out.Write(lenBuf)
 	out.Write(body.Bytes())
 	return out.Bytes()
