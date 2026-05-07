@@ -1,4 +1,4 @@
-### L’adoption de Linux progresse. La gestion structurée n’a pas suivi.
+### Linux grandit. La gestion, non.
 
 * macOS et Windows disposent d’écosystèmes MDM matures. Linux n’a pas d’équivalent.
 * La plupart des équipes gèrent leurs postes Linux avec des scripts, Ansible ou Puppet. Cela couvre le déploiement, mais laisse des lacunes en matière de conformité et de visibilité en temps réel.
@@ -15,23 +15,23 @@ Vous découvrirez un modèle de maturité pour planifier votre démarche d’ado
 
 ### Liste des chapitres
 
-- **Pourquoi les appareils Linux sont importants**
+1. **Pourquoi les appareils Linux sont importants**
     * Ce qui stimule l’adoption de Linux en entreprise et pourquoi la gestion n’est plus facultative.
-- **L’analyse de rentabilité de la gestion des appareils Linux**
+2. **L’analyse de rentabilité de la gestion des appareils Linux**
     * Coûts, conformité, rétention des talents et le prix de l’inaction.
-- **Définir vos besoins en gestion des appareils Linux**
+3. **Définir vos besoins en gestion des appareils Linux**
     * Les questions clés à poser et un modèle de maturité pour préparer vos objectifs.
-- **Provisionnement automatisé des postes Linux en entreprise**
+4. **Provisionnement automatisé des postes Linux en entreprise**
     * Le fossé du provisionnement, les approches d’enrôlement et ce à quoi ressemble le zero-touch sous Linux.
-- **Référentiels de sécurité pour Linux**
+5. **Référentiels de sécurité pour Linux**
     * Pourquoi les référentiels sont essentiels, ce qu’il faut appliquer et comment lutter contre la dérive de configuration.
-- **Gestion des applications et des certificats pour Linux**
+6. **Gestion des applications et des certificats pour Linux**
     * Les défis de la distribution logicielle, le fossé de la notarisation, la rapidité des correctifs et la réduction des durées de vie des certificats.
-- **Protéger les appareils Linux**
+7. **Protéger les appareils Linux**
     * Les menaces USB et Bluetooth, le problème du sudo, et le verrouillage et l’effacement à distance.
-- **Garder le contrôle de vos logiciels et de vos données**
+8. **Garder le contrôle de vos logiciels et de vos données**
     * Souveraineté logicielle, souveraineté des données, et pourquoi vos outils de gestion devraient refléter les valeurs qui ont fait le succès de Linux.
-- **Choisir la bonne solution**
+9. **Choisir la bonne solution**
     * Exigences métier et techniques, un tableau de critères d’évaluation et une méthode structurée pour comparer les plateformes.
 
 <meta name="articleTitle" value="Le guide du responsable IT pour la gestion des appareils Linux"> 
