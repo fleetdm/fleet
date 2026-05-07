@@ -114,6 +114,12 @@
     .children-wrapper {
       white-space: nowrap;
     }
+
+    // Collapse the header row when it has no visible content so the flex gap
+    // between the page header and table data stays consistent.
+    &:not(:has(.table-container__results-count > *)):not(:has(.table-container__search)):not(:has(.controls > *)) {
+      display: none;
+    }
   }
 
   &__header-left {
