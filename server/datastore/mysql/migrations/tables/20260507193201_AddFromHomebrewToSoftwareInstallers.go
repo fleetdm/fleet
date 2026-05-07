@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20260424180053, Down_20260424180053)
+	MigrationClient.AddMigration(Up_20260507193201, Down_20260507193201)
 }
 
-func Up_20260424180053(tx *sql.Tx) error {
+func Up_20260507193201(tx *sql.Tx) error {
 	// from_homebrew stores the homebrew cask token this installer was imported from
 	// (e.g. "firefox"). Empty string means the installer was not imported from homebrew,
 	// so the column doubles as a boolean flag for the UI while also preserving enough
@@ -24,6 +24,6 @@ func Up_20260424180053(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20260424180053(tx *sql.Tx) error {
+func Down_20260507193201(tx *sql.Tx) error {
 	return nil
 }
