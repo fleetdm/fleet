@@ -946,6 +946,44 @@ This activity contains the following fields:
 }
 ```
 
+## enabled_historical_dataset
+
+Generated when collection of a chart historical dataset is enabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`. 
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "uptime",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
+}
+```
+
+## disabled_historical_dataset
+
+Generated when collection of a chart historical dataset is disabled, either globally or for a specific fleet.
+
+This activity contains the following fields:
+- "dataset": The public config sub-key of the dataset. One of `"uptime"`, `"vulnerabilities"`.
+- "fleet_id": The ID of the fleet the toggle applies to, `null` if applied globally.
+- "fleet_name": The name of the fleet the toggle applies to, `null` if applied globally.
+
+#### Example
+
+```json
+{
+  "dataset": "vulnerabilities",
+  "fleet_id": 2,
+  "fleet_name": "EMEA"
+}
+```
+
 ## added_bootstrap_package
 
 Generated when a user adds a new bootstrap package to a team (or no team).
