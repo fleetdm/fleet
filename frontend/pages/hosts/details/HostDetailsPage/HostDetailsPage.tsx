@@ -1202,10 +1202,9 @@ const HostDetailsPage = ({
     host?.team_id
   );
 
-  const isHostTeamObserverPlus = permissions.isObserverPlus(
-    currentUser,
-    host?.team_id ?? null
-  );
+  const isHostTeamObserverPlus =
+    !!currentUser &&
+    permissions.isObserverPlus(currentUser, host?.team_id ?? null);
 
   // CTA permissions are checked against the host's specific team, not the
   // currently selected team in the nav. Must align with the /reports/new
