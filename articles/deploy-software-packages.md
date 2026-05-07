@@ -47,7 +47,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 ### Script-only packages
 
-Script-only packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for Linux hosts, and `.ps1` files for Windows hosts.
+Script-only packages (`.sh`, `.py`, and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` and `.py` files are supported for macOS and Linux hosts, and `.ps1` files for Windows hosts.
 
 Script-only packages are useful for:
 - Self-service scripts (e.g., connecting to a VPN, configuring printers)
