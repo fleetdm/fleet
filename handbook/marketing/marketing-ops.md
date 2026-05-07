@@ -633,50 +633,24 @@ We use [Bunny.net](https://dash.bunny.net/stream) for video hosting. Credentials
 
 > **Note for webinars:** You can append a `t=xxs` parameter to the embed code URL to make the video start at a specific timestamp (e.g., `t=90s` to start at 1 minute 30 seconds). This parameter is **not** saved in Bunny.net — it must be added manually each time you use the embed code.
 
-## Virtual persona for email automation
+### Virtual persona for email automation
 
-### What it is
+Fleet uses a virtual persona — Grace West (gracewest@fleetdm.com) — as the sender for ActiveCampaign automated marketing emails. Using a realistic-looking sender improves open rates and engagement.
 
-We use a virtual team member — **"Grace"** — as the sender identity for our automated email campaigns, nurture sequences, and lifecycle communications. Grace has a name, a headshot, and a consistent voice, but she is not a real employee. She is a purpose-built persona that represents our marketing team.
+**How it's set up:** gracewest@fleetdm.com is a Google Group, not a licensed Gmail user. This avoids license fees and SSO/Okta complications, and allows multiple marketing team members to send as Grace when needed.
 
-People engage with people, not logos. Emails from a named individual consistently outperform emails sent from a brand name or a generic address like `marketing@` or `no-reply@`. A virtual persona gives us the warmth and approachability of a personal sender without the operational problems that come with tying automation to a real employee.
+**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to gracewest@fleetdm.com lands in their inboxes, and replies route back to the group rather than to individuals.
 
-- Turnover risk: When a real person is the face of automated email, their departure creates a jarring experience for recipients and a scramble to update templates, signatures, and sender addresses across every platform.
-- Scalability: No single employee can realistically "own" the relationship with every lead and contact in the database. A persona can.
-- Consistency: A virtual identity stays on-brand across every touchpoint — tone, title, photo, and signature never drift.
-- Privacy for the team: Real employees don't have their name and likeness attached to thousands of cold or automated emails they didn't personally write.
+**To send as Grace from your own Gmail:**
+1. In Gmail, click the gear icon → **See all settings**.
+2. Go to the **Accounts and Import** tab.
+3. Under **Send mail as**, click **Add another email address**.
+4. Set **Name:** Grace West, **Email:** gracewest@fleetdm.com.
+5. Uncheck "Treat as an alias" — this ensures replies from prospects route to the Google Group rather than your personal inbox.
+6. Click **Next Step** → **Send Verification**.
+7. The verification email lands in your inbox (since you're a group member). Click the link or copy the code.
 
-### Who is Grace?
-
-Grace is named after pioneering women in science and technology, grounding the persona in values we admire — curiosity, precision, and breaking new ground.
-
-| **Persona name**   | **Named after**                                                                 |
-|----------------|-----------------------------------------------------------------------------|
-| **Grace West**   | [Adm. **Grace** Hopper](https://en.wikipedia.org/wiki/Grace_Hopper) (She was a pioneer of computer programming. Hopper was the first to devise the theory of machine-independent programming languages) and </br>[Gladys **West**](https://en.wikipedia.org/wiki/Gladys_West) (She was known for her contributions to mathematical modeling of the shape of the Earth, and her work on the development of satellite geodesy models, which were later incorporated into the Global Positioning System (GPS) |
-
-
-What grace is not:
-
-- She is **not** a chatbot or AI assistant. She is a sender identity for outbound email.
-- She is **not** used to deceive. We disclose her nature in every message.
-- She is **not** a replacement for real human interaction. When a recipient replies, a real team member responds.
-
-
-### How it works in practice
-
-- Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
-- Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
-- Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
-- Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
-- Transparency: Every automated email includes a brief disclaimer identifying Grace as a virtual team member. Honesty builds trust; deception erodes it.
-
-Example disclaimers:
-> *P.S. Full transparency — Grace is a virtual member of our team who helps us stay in touch. Hit reply and a real human will be on the other end.*
-
-Alternative
-> *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
-
-
+Once verified, the **From** dropdown in Gmail's compose window lets you switch to "Grace West <gracewest@fleetdm.com>" when sending.
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">
