@@ -942,17 +942,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
-	// Dataset names are the public config sub-keys, not internal dataset names.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldAppConfig.Features.HistoricalData,
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
 	addedEntraTenantIDs := make([]string, 0)

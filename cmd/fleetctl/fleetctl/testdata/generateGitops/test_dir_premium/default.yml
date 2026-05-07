@@ -194,6 +194,19 @@ policies:
   resolution: Do a global thing
   type: dynamic
   webhooks_and_tickets_enabled: false
+- calendar_events_enabled: false
+  conditional_access_enabled: false
+  critical: false
+  description: This is a global policy with include_all scope
+  labels_include_all:
+  - Label C
+  - Label D
+  name: Global Policy Include All
+  platform: darwin
+  query: SELECT * FROM global_policy WHERE id = 2
+  resolution: Do another global thing
+  type: dynamic
+  webhooks_and_tickets_enabled: false
 reports:
 - automations_enabled: true
   description: This is a global query
@@ -208,3 +221,16 @@ reports:
   observer_can_run: true
   platform: darwin
   query: SELECT * FROM os_version;
+- automations_enabled: false
+  description: This is a global query with include_all scope
+  discard_data: false
+  interval: 7200
+  labels_include_all:
+  - Label C
+  - Label D
+  logging: snapshot
+  min_osquery_version: 1.2.3
+  name: Global Query Include All
+  observer_can_run: false
+  platform: darwin
+  query: SELECT * FROM users;

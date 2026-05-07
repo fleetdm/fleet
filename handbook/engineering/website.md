@@ -125,6 +125,15 @@ If the action fails, please complete the following steps:
 3. Head to the fleetdm/fleet GitHub repository and re-run the Deploy Fleet Website action.
 
 
+## Respond to website code scanning alerts
+
+Every week, the website maintainer looks for any new [code scanning alerts](https://github.com/fleetdm/fleet/security/code-scanning) that have been created for the `website/` folder. If any are found they:
+1. Determine if the alert is affecting the production evironment. If this is an alert for a vulnerability in a depedency, then the maintainer will look at what brings the depedency into the codebase.
+2. Respond to the alert. 
+   - If the alert is for code that has been merged into the repo, the maintiner will create a pull request to fix it. 
+   - If the alert is for a dependency that runs in production, the maintainer will upgrade it to a version that is not affected by the vulnerability. 
+   - If the alert is for a devDependency or a dependency of a devDependency, the maintainer will dismiss the alert as a false-positive, because it does not affect the production environment.
+
 ## Incubate website dependency changes
 
 Pull requests that modify `website/package.json` or `website/package-lock.json` must wait 72 hours after the most recent commit to either file before they can merge to `main`. This incubation period gives the maintainer time to spot regressions or supply-chain concerns introduced by a dependency bump before it reaches the website's production environment.

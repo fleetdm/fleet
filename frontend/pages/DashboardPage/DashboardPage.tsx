@@ -29,6 +29,7 @@ import {
 import { ISoftwareResponse, ISoftwareCountResponse } from "interfaces/software";
 import { API_ALL_TEAMS_ID, ITeam } from "interfaces/team";
 import { IConfig } from "interfaces/config";
+import { isHistoricalDataEnabled } from "interfaces/charts";
 
 import { useTeamIdParam } from "hooks/useTeamIdParam";
 
@@ -306,6 +307,29 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     ? teams?.find((t) => t.id === currentTeamId)?.features
     : config?.features;
   const isSoftwareEnabled = !!featuresConfig?.enable_software_inventory;
+
+  const teamHistoricalData = useMemo(
+    () =>
+      isAnyTeamSelected
+        ? teams?.find((t) => t.id === currentTeamId)?.features?.historical_data
+        : undefined,
+    [isAnyTeamSelected, teams, currentTeamId]
+  );
+  const historicalDataEnabled = useMemo(
+    () => ({
+      uptime: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "uptime"
+      ),
+      vulnerabilities: isHistoricalDataEnabled(
+        config?.features?.historical_data,
+        teamHistoricalData,
+        "vulnerabilities"
+      ),
+    }),
+    [config?.features?.historical_data, teamHistoricalData]
+  );
   const isViewingVulnerableSoftware = !!softwareNavTabIndex; // we can take the tab index as a boolean to represent the vulnerable flag
 
   const SOFTWARE_DEFAULT_SORT_DIRECTION = "desc";
@@ -895,7 +919,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             />
           </Card>
           <Card paddingSize="xlarge" borderRadiusSize="large">
-            <ChartCard currentTeamId={teamIdForApi} />
+            <ChartCard
+              currentTeamId={teamIdForApi}
+              historicalDataEnabled={historicalDataEnabled}
+            />
           </Card>
         </div>
         <div className={`${baseClass}__platforms`}>

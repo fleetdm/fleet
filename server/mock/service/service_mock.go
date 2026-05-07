@@ -414,7 +414,7 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
-type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error)
+type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
@@ -823,6 +823,8 @@ type ClearPasscodeFunc func(ctx context.Context, hostID uint) (*fleet.CommandEnq
 type RotateRecoveryLockPasswordFunc func(ctx context.Context, hostID uint) error
 
 type GetHostManagedAccountPasswordFunc func(ctx context.Context, hostID uint) (*fleet.HostManagedLocalAccountPassword, error)
+
+type RotateManagedLocalAccountPasswordFunc func(ctx context.Context, hostID uint) error
 
 type UploadSoftwareInstallerFunc func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error)
 
@@ -2130,6 +2132,9 @@ type Service struct {
 
 	GetHostManagedAccountPasswordFunc        GetHostManagedAccountPasswordFunc
 	GetHostManagedAccountPasswordFuncInvoked bool
+
+	RotateManagedLocalAccountPasswordFunc        RotateManagedLocalAccountPasswordFunc
+	RotateManagedLocalAccountPasswordFuncInvoked bool
 
 	UploadSoftwareInstallerFunc        UploadSoftwareInstallerFunc
 	UploadSoftwareInstallerFuncInvoked bool
@@ -3663,11 +3668,11 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
-func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
+func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName)
+	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName, subjectAlternativeName)
 }
 
 func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {
@@ -5096,6 +5101,13 @@ func (s *Service) GetHostManagedAccountPassword(ctx context.Context, hostID uint
 	s.GetHostManagedAccountPasswordFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostManagedAccountPasswordFunc(ctx, hostID)
+}
+
+func (s *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.RotateManagedLocalAccountPasswordFuncInvoked = true
+	s.mu.Unlock()
+	return s.RotateManagedLocalAccountPasswordFunc(ctx, hostID)
 }
 
 func (s *Service) UploadSoftwareInstaller(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (*fleet.SoftwareInstaller, error) {

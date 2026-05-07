@@ -458,6 +458,215 @@ labels:
 	assert.Empty(t, gitops.Labels[0].Hosts)
 }
 
+func TestLabelInvalidFieldCombinations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		label       string
+		wantErrs    []string
+		notWantErrs []string
+	}{
+		{
+			name: "manual label with query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    query: SELECT 1`,
+			wantErrs: []string{`label "bad" is declared as manual but contains a query`},
+		},
+		{
+			name: "manual label with criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as manual but contains criteria`},
+		},
+		{
+			name: "manual label with platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    platform: darwin`,
+			wantErrs: []string{`label "bad" is declared as manual but contains a platform`},
+		},
+		{
+			name: "manual label with all invalid fields",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    query: SELECT 1
+    platform: darwin
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{
+				`label "bad" is declared as manual but contains a query`,
+				`label "bad" is declared as manual but contains criteria`,
+				`label "bad" is declared as manual but contains a platform`,
+			},
+		},
+		{
+			name: "dynamic label with criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as dynamic but contains criteria`},
+		},
+		{
+			name: "dynamic label with hosts",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    hosts:
+      - host1`,
+			wantErrs: []string{`label "bad" is declared as dynamic but contains hosts`},
+		},
+		{
+			name: "dynamic label missing query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic`,
+			wantErrs: []string{`label "bad" is declared as dynamic but is missing a query`},
+		},
+		{
+			name: "dynamic label with invalid platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    platform: invalidplatform`,
+			wantErrs: []string{`label "bad" has invalid platform: "invalidplatform"`},
+		},
+		{
+			name: "dynamic label with valid platform is ok",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: dynamic
+    query: SELECT 1
+    platform: darwin`,
+		},
+		{
+			name: "host_vitals label with query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    query: SELECT 1
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains a query`},
+		},
+		{
+			name: "host_vitals label with platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    platform: darwin
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains a platform`},
+		},
+		{
+			name: "host_vitals label with hosts",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering
+    hosts:
+      - host1`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains hosts`},
+		},
+		{
+			name: "host_vitals label missing criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but is missing criteria`},
+		},
+		{
+			name: "valid manual label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: manual
+    hosts:
+      - host1`,
+		},
+		{
+			name: "valid dynamic label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: dynamic
+    query: SELECT 1`,
+		},
+		{
+			name: "valid host_vitals label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			config := getGlobalConfig([]string{})
+			config += tt.label
+			_, err := gitOpsFromString(t, config)
+			if len(tt.wantErrs) == 0 {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				for _, wantErr := range tt.wantErrs {
+					require.ErrorContains(t, err, wantErr)
+				}
+			}
+			for _, notWantErr := range tt.notWantErrs {
+				if err != nil {
+					assert.NotContains(t, err.Error(), notWantErr)
+				}
+			}
+		})
+	}
+}
+
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"reports"})
