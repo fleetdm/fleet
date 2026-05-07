@@ -215,6 +215,20 @@ const CheckerboardViz = ({
     }
   }, [gridWidth]);
 
+  // Also snap to the right edge whenever the wrapper resizes while the
+  // grid is clipped, so a window resize keeps the most recent data in view.
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(() => {
+      if (el.scrollWidth > el.clientWidth) {
+        el.scrollLeft = el.scrollWidth;
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
     if (dayLabels.length < 2) return { start: "", middle: "", end: "" };
