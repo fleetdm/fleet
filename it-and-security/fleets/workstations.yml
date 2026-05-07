@@ -128,7 +128,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
-    update_new_hosts: true
+    update_new_hosts: false
   windows_settings:
     configuration_profiles:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
