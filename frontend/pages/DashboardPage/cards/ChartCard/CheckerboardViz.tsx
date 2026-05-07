@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { IFormattedDataPoint } from "./types";
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
 
 const baseClass = "checkerboard-viz";
 
@@ -26,6 +31,8 @@ const formatHourLabel = (hourVal: number): string => {
 interface ICellData {
   dayIndex: number;
   hourRow: number;
+  value: number;
+  total?: number;
   percentage: number;
   dayLabel: string;
   hourLabel: string;
@@ -34,6 +41,8 @@ interface ICellData {
 interface ICheckerboardVizProps {
   data: IFormattedDataPoint[];
   selectedDays: number;
+  theme?: ChartTheme;
+  tooltipFormatter?: TooltipFormatter;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -49,11 +58,16 @@ const WIDE_MULTIPLIER = 1.5;
 const CheckerboardViz = ({
   data,
   selectedDays,
+  theme = "green",
+  tooltipFormatter,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
+    "center"
+  );
 
   useEffect(() => {
     const node = containerRef.current;
@@ -89,6 +103,8 @@ const CheckerboardViz = ({
         return {
           dayIndex: 0,
           hourRow: i,
+          value: point.value,
+          total: point.total,
           percentage: point.percentage,
           dayLabel: format(date, "MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
@@ -147,6 +163,8 @@ const CheckerboardViz = ({
           dayIndex,
           hourRow: row,
           percentage: point?.percentage ?? 0,
+          value: point?.value ?? 0,
+          total: point?.total,
           dayLabel: format(date, "MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
@@ -184,10 +202,21 @@ const CheckerboardViz = ({
     const rect = (e.target as SVGElement).getBoundingClientRect();
     const containerRect = containerRef.current?.getBoundingClientRect();
     if (containerRect) {
+      const cellCenterX = rect.left - containerRect.left + cellW / 2;
       setTooltipPos({
-        x: rect.left - containerRect.left + cellW / 2,
+        x: cellCenterX,
         y: rect.top - containerRect.top - 8,
       });
+      // Near either edge, the default centered tooltip would overflow or
+      // word-wrap. Flip the anchor so the tooltip grows inward instead.
+      const EDGE_ZONE = 100;
+      if (cellCenterX > containerRect.width - EDGE_ZONE) {
+        setTooltipAlign("right");
+      } else if (cellCenterX < EDGE_ZONE) {
+        setTooltipAlign("left");
+      } else {
+        setTooltipAlign("center");
+      }
     }
   };
 
@@ -199,7 +228,10 @@ const CheckerboardViz = ({
   const leftMargin = showYAxis ? Y_AXIS_WIDTH : 0;
 
   return (
-    <div className={baseClass} ref={containerRef}>
+    <div
+      className={classnames(baseClass, `${baseClass}--theme-${theme}`)}
+      ref={containerRef}
+    >
       <div className={`${baseClass}__chart-row`}>
         {/* Y-axis 6am/6pm labels. Kept outside the scroll-wrapper so they stay
             pinned during horizontal scroll and label text can overflow
@@ -281,14 +313,20 @@ const CheckerboardViz = ({
 
       {hoveredCell && (
         <div
-          className={`chart-card__tooltip ${baseClass}__floating-tooltip`}
+          className={`chart-card__tooltip ${baseClass}__floating-tooltip ${baseClass}__floating-tooltip--align-${tooltipAlign}`}
           style={{ left: tooltipPos.x, top: tooltipPos.y }}
         >
           <div className="chart-card__tooltip-label">
             {hoveredCell.dayLabel}, {hoveredCell.hourLabel}
           </div>
           <div className="chart-card__tooltip-value">
-            {hoveredCell.percentage}% of hosts
+            {tooltipFormatter
+              ? tooltipFormatter({
+                  value: hoveredCell.value,
+                  percentage: hoveredCell.percentage,
+                  total: hoveredCell.total,
+                })
+              : `${hoveredCell.percentage}% of hosts`}
           </div>
         </div>
       )}

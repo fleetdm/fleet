@@ -969,6 +969,85 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders a global 'enabled_historical_dataset' activity with the dataset label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledHistoricalDataset,
+      details: { dataset: "uptime", fleet_id: null, fleet_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
+    expect(screen.queryByText(/for the /)).toBeNull();
+  });
+
+  it("renders a global 'disabled_historical_dataset' activity with the dataset label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: { dataset: "vulnerabilities", fleet_id: null, fleet_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
+    expect(screen.queryByText(/for the /)).toBeNull();
+  });
+
+  it("renders a fleet-scoped 'enabled_historical_dataset' activity with the fleet suffix", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledHistoricalDataset,
+      details: { dataset: "uptime", fleet_id: 7, fleet_name: "Engineering" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+  });
+
+  it("renders a fleet-scoped 'disabled_historical_dataset' activity with the fleet suffix", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: {
+        dataset: "vulnerabilities",
+        fleet_id: 7,
+        fleet_name: "Engineering",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+  });
+
+  it("renders an unknown historical dataset key in sentence case", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: {
+        dataset: "policy_compliance",
+        fleet_id: null,
+        fleet_name: null,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Policy compliance")).toBeInTheDocument();
+  });
+
   it("renders a 'transferred_hosts' type activity for one host transferred to Unassigned.", () => {
     const activity = createMockActivity({
       type: ActivityType.TransferredHosts,
