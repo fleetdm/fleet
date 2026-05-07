@@ -45,10 +45,8 @@
   --ui-vibrant-blue-50: rgba(106, 103, 254, 0.5);
   --ui-vibrant-blue-25: #d9d9fe;
   --ui-vibrant-blue-10: #f1f0ff;
-  // Opaque equivalent of --ui-vibrant-blue-10 used by table rows that sit
-  // above a horizontal scroll-shadow gradient (must be opaque so the gradient
-  // doesn't show through). Themed separately so dark mode doesn't pick up the
-  // pure-blue cast that an alpha-on-dark composite produces.
+  // Opaque variant for surfaces above a scroll-shadow gradient. Themed
+  // separately so dark mode doesn't composite as a navy tint.
   --ui-vibrant-blue-10-opaque: #f1f0ff;
   --tooltip-bg: #3e4771;
 
@@ -151,8 +149,6 @@ body.dark-mode {
   --ui-shadow: #32363e;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
   --ui-vibrant-blue-25: #282736;
-  // Neutral surface tint for selected/active rows. Pure-blue tints read as
-  // navy against the dark UI; this mirrors the surface hierarchy instead.
   --ui-vibrant-blue-10: #2c2f37;
   --ui-vibrant-blue-10-opaque: #2c2f37;
   --tooltip-bg: #353940;
@@ -308,12 +304,10 @@ $dark-mode-table-header: #282c33;
 $dark-mode-table-row: #1f2229;
 $dark-mode-nav-hover: #1f2228;
 
-// Opaque colors for table shadows — themed via CSS custom properties so dark
-// mode gets a neutral surface instead of a pure-blue alpha-on-dark composite.
 $ui-vibrant-blue-10-opaque: var(--ui-vibrant-blue-10-opaque);
 
-// Compile-time SCSS math — not themed. These are subtle edge effects;
-// dark-mode polish can refine them later.
+// Opaque colors for table shadows — compile-time SCSS math, not themed.
+// These are subtle edge effects; dark-mode polish can refine them later.
 $ui-off-white-alpha: (255-249)/255; // rgba(249, 250, 252)
 $ui-off-white-opaque: rgba(
   (249-249) / $ui-off-white-alpha,

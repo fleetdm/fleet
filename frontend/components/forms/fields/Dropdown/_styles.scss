@@ -91,9 +91,6 @@
     border-radius: $border-radius;
     background-color: $core-fleet-white;
 
-    // The chip's "×" remove icon. Render the default react-select character
-    // in a themed neutral color that respects light/dark mode, instead of
-    // overlaying a fixed-color PNG (which read as blue on the chip background).
     .Select-value-icon {
       border: 0;
       float: right;
@@ -286,8 +283,6 @@
     box-sizing: border-box;
   }
 
-  // Override react-select's hardcoded grey-on-rest / red-on-hover for the
-  // "clear all" X. The red doesn't match Fleet's icon-only button styles.
   .Select-clear-zone {
     color: $ui-fleet-black-50;
     transition: color 150ms ease-in-out;
