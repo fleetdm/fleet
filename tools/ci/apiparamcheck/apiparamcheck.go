@@ -3,11 +3,12 @@
 //
 // Two renames are enforced:
 //   - "team" / "teams" was renamed to "fleet" / "fleets". Any occurrence of
-//     "team" or "teams" as a snake_case token in a tag name is flagged.
+//     "team" or "teams" as a token in a tag name is flagged, including in
+//     snake_case, camelCase/PascalCase, and kebab-case names.
 //   - "query" / "queries" was renamed to "report" / "reports" when referring
 //     to the product concept (the SQL sense of the word is fine). A tag name
 //     of exactly "query" or "queries" is allowed; any larger name containing
-//     "query" or "queries" as a snake_case token is flagged.
+//     "query" or "queries" as a token is flagged.
 package apiparamcheck
 
 import (
