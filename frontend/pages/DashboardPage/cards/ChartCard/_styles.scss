@@ -4,8 +4,7 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: $pad-medium;
-    position: relative;
-    top: -2.5px;
+    min-height: 28px;
   }
 
   &__header-left {

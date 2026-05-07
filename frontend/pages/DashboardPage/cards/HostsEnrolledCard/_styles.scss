@@ -3,6 +3,9 @@
     font-weight: $bold;
     margin: 0 0 $pad-medium !important;
     line-height: 1;
+    min-height: 28px;
+    display: flex;
+    align-items: center;
   }
 
   // The bar chart's plot height is set inline to match the checkerboard's
