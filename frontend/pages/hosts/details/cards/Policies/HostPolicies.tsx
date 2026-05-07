@@ -135,6 +135,7 @@ const Policies = ({
       const manageClause = canManagePolicies
         ? ", or manage its policies."
         : ".";
+
       return (
         <>
           <TableCount name="policies" count={0} />
@@ -177,12 +178,7 @@ const Policies = ({
     );
   };
 
-  return (
-    <div className={baseClass}>
-      <CardHeader header="Policies" />
-      {renderHostPolicies()}
-    </div>
-  );
+  return <div className={baseClass}>{renderHostPolicies()}</div>;
 };
 
 export default Policies;
