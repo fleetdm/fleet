@@ -44,7 +44,7 @@ const ConfirmSSOInvitePage = ({
     error: validateInviteError,
     isLoading: isVerifyingInvite,
   } = useQuery<IValidateInviteResp, AxiosError, IInvite>(
-    "invite",
+    ["invite", invite_token],
     () => inviteAPI.verify(invite_token),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
