@@ -1,11 +1,110 @@
 package apple_mdm
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/profiles"
+	"github.com/fleetdm/fleet/v4/server/variables"
 )
+
+// ErrUnresolvableAppConfigVar signals that one of the $FLEET_VAR_* tokens
+// referenced in a host's managed-app-configuration could not be resolved
+// (for example, the host is not linked to an end-user IDP account).
+// Callers should treat this as a non-retryable failure for the host —
+// retrying without first changing host state will keep failing.
+var ErrUnresolvableAppConfigVar = errors.New("apple_mdm: unresolvable Fleet variable in managed app configuration")
+
+// AppConfigSubstitutionHost carries the host context needed to substitute the
+// host-scoped $FLEET_VAR_* tokens supported in iOS / iPadOS managed app
+// configuration. The validator (fleet.ValidateAppleAppConfiguration) restricts
+// stored bytes to FleetVarsSupportedInAppleAppConfig, so this type only needs
+// to cover that set.
+type AppConfigSubstitutionHost struct {
+	UUID           string
+	HardwareSerial string
+	Platform       string
+}
+
+// SubstituteFleetVarsInAppConfig replaces every supported $FLEET_VAR_* token
+// in config with the resolved value for the given host, returning the
+// substituted bytes. End-user IDP fields are looked up via ds; for that
+// reason ds must be non-nil whenever the configuration references an IDP
+// variable. Returns ErrUnresolvableAppConfigVar (wrapped) if the host can't
+// supply a referenced variable — the caller is responsible for surfacing
+// that to the user (typically by failing the install for that host).
+func SubstituteFleetVarsInAppConfig(
+	ctx context.Context,
+	ds fleet.Datastore,
+	config []byte,
+	host AppConfigSubstitutionHost,
+) ([]byte, error) {
+	if len(config) == 0 {
+		return config, nil
+	}
+	used := variables.Find(string(config))
+	if len(used) == 0 {
+		return config, nil
+	}
+
+	contents := string(config)
+	idpUUIDCache := map[string]uint{}
+
+	for _, name := range used {
+		switch fleet.FleetVarName(name) {
+		case fleet.FleetVarHostUUID:
+			contents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostUUIDRegexp, contents, host.UUID)
+		case fleet.FleetVarHostHardwareSerial:
+			contents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostHardwareSerialRegexp, contents, host.HardwareSerial)
+		case fleet.FleetVarHostPlatform:
+			platform := host.Platform
+			if platform == "darwin" {
+				platform = "macos"
+			}
+			contents = profiles.ReplaceFleetVariableInXML(fleet.FleetVarHostPlatformRegexp, contents, platform)
+		case fleet.FleetVarHostEndUserEmailIDP:
+			emails, err := ds.GetHostEmails(ctx, host.UUID, fleet.DeviceMappingMDMIdpAccounts)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
+			}
+			if len(emails) == 0 {
+				return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+			}
+			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])
+		case fleet.FleetVarHostEndUserIDPUsername,
+			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			fleet.FleetVarHostEndUserIDPGroups,
+			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname:
+			replaced, ok, err := profiles.ReplaceHostEndUserIDPVariables(
+				ctx, ds, name, contents, host.UUID, idpUUIDCache,
+				// onError is only used by the profile processor to write a
+				// per-host failure record; for app config we surface the
+				// failure to the caller via ErrUnresolvableAppConfigVar.
+				func(string) error { return nil },
+			)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "substitute host idp variable in app config")
+			}
+			if !ok {
+				return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+			}
+			contents = replaced
+		default:
+			// The validator restricts to FleetVarsSupportedInAppleAppConfig at
+			// write time, so an unknown variable here means the validator and
+			// this switch have drifted. Treat it as unresolvable rather than
+			// silently leaving the literal token in the device-bound XML.
+			return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+		}
+	}
+
+	return []byte(contents), nil
+}
 
 // InstallApplicationParams carries the per-host inputs needed to build an
 // `InstallApplication` MDM command plist for either a VPP or in-house

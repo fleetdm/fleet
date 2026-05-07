@@ -1345,7 +1345,7 @@ ORDER BY
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, team_id, platform
+	uuid, team_id, platform, hardware_serial
 FROM
 	hosts
 WHERE
@@ -1376,9 +1376,10 @@ ORDER BY
 
 	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		TeamID   *uint  `db:"team_id"`
-		Platform string `db:"platform"`
+		UUID           string `db:"uuid"`
+		TeamID         *uint  `db:"team_id"`
+		Platform       string `db:"platform"`
+		HardwareSerial string `db:"hardware_serial"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host uuid")
@@ -1453,18 +1454,32 @@ WHERE
 	}
 
 	// Build the InstallApplication plist for each pending activation, then do
-	// one batch INSERT into nano_commands.
+	// one batch INSERT into nano_commands. Per-host, per-app build also drives
+	// $FLEET_VAR_* substitution against host context.
+	subHost := apple_mdm.AppConfigSubstitutionHost{
+		UUID:           hostData.UUID,
+		HardwareSerial: hostData.HardwareSerial,
+		Platform:       hostData.Platform,
+	}
 	insValues := make([]string, 0, len(pending))
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
 		manifestURL := fmt.Sprintf(
 			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
 			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+		cfg := configsByAppID[p.InHouseAppID]
+		if len(cfg) > 0 {
+			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "substitute fleet variables in in-house app configuration")
+			}
+			cfg = substituted
+		}
 		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
 			CommandUUID:   p.ExecutionID,
 			HostPlatform:  hostData.Platform,
 			ManifestURL:   manifestURL,
-			Configuration: configsByAppID[p.InHouseAppID],
+			Configuration: cfg,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
