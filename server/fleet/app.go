@@ -1287,6 +1287,22 @@ func (o *OrgInfo) AbsolutizeLogoURLs(serverURL string) {
 	o.OrgLogoURLLightMode = AbsolutizeLogoURL(o.OrgLogoURLLightMode, serverURL)
 }
 
+// IsFleetHostedLogoURL reports whether the given URL points at the Fleet logo
+// serving endpoint. Handles both the persisted relative form
+// ("/api/latest/fleet/logo?mode=...") and the absolutized form returned by
+// AbsolutizeLogoURLs. Match must be on the parsed Path so a sibling endpoint
+// like "/api/latest/fleet/logo-proxy" doesn't get falsely identified.
+func IsFleetHostedLogoURL(rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return u.Path == orgLogoServingPathPrefix
+}
+
 const DefaultOrgInfoContactURL = "https://fleetdm.com/company/contact"
 
 // ServerSettings contains general settings about the Fleet application.
@@ -1330,15 +1346,44 @@ type ActivityExpirySettings struct {
 }
 
 type Features struct {
-	EnableHostUsers         bool               `json:"enable_host_users"`
-	EnableSoftwareInventory bool               `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage   `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string `json:"detail_query_overrides,omitempty"`
+	EnableHostUsers         bool                   `json:"enable_host_users"`
+	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the Features Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+// HistoricalDataSettings controls per-dataset collection of the time-series
+// rollups that drive the dashboard charts. Each sub-key corresponds to a
+// chart dataset; `true` means collect, `false` means skip.
+//
+// Sub-key names are the public config keys (used in YAML and audit
+// activities). Internal dataset names (the values returned by Dataset.Name())
+// are translated to sub-keys via the Enabled method.
+type HistoricalDataSettings struct {
+	Uptime          bool `json:"uptime"`
+	Vulnerabilities bool `json:"vulnerabilities"`
+}
+
+// Enabled returns whether collection is enabled for the given internal
+// dataset name. The mapping is the single canonical translation between
+// internal dataset names (e.g. "cve") and config sub-keys (e.g.
+// "vulnerabilities"). Callers SHOULD use this method rather than reading
+// fields directly.
+func (h HistoricalDataSettings) Enabled(dataset string) (bool, error) {
+	switch dataset {
+	case "uptime":
+		return h.Uptime, nil
+	case "cve":
+		return h.Vulnerabilities, nil
+	default:
+		return false, fmt.Errorf("unknown dataset %q", dataset)
+	}
 }
 
 func (f *Features) ApplyDefaultsForNewInstalls() {
@@ -1351,6 +1396,8 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
+	f.HistoricalData.Uptime = true
+	f.HistoricalData.Vulnerabilities = true
 }
 
 // Clone implements cloner for Features.
@@ -1497,6 +1544,9 @@ type ListHostReportsOptions struct {
 	// false (default): only queries with discard_data=0 AND logging_type='snapshot' are returned.
 	// true: all queries are returned, including ones that don't store results.
 	IncludeReportsDontStoreResults bool
+	// ExcludeIncludeAllQueries hides queries that have any include_all
+	// (require_all=1) labels.
+	ExcludeIncludeAllQueries bool
 }
 
 // ApplySpecOptions are the options available when applying a YAML or JSON spec.
@@ -1852,6 +1902,7 @@ type CertificateTemplateSpec struct {
 	Name                     string `json:"name"`
 	CertificateAuthorityName string `json:"certificate_authority_name"`
 	SubjectName              string `json:"subject_name"`
+	SubjectAlternativeName   string `json:"subject_alternative_name,omitempty"`
 }
 
 func (c CertificateTemplateSpec) NameValid() bool {

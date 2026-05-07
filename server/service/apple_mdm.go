@@ -3816,8 +3816,28 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
 		}
+
+		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
+		}
+
+		skipDarwinMigration := info.MigrationInProgress && info.Platform == "darwin"
+
+		// Reset host details on re-enrollment, since we are in DEP (AwaitingConfiguration) and new TokenUpdate (TokenUpdateTally == 1).
+		if nanoEnroll != nil && nanoEnroll.TokenUpdateTally == 1 && !skipDarwinMigration {
+			appCfg, err := svc.ds.AppConfig(r.Context)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting app config")
+			}
+
+			if err := svc.ds.MDMAppleResetOnReenrollment(r.Context, r.ID, appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment); err != nil {
+				return ctxerr.Wrap(r.Context, err, "resetting enrollment on re-enrollment", "host_uuid", r.ID)
+			}
+		}
+
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
-		if info.MigrationInProgress && info.Platform == "darwin" {
+		if skipDarwinMigration {
 			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
 		} else {
 			enqueueSetupExperienceItems = true

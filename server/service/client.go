@@ -527,6 +527,7 @@ const (
 	dryRunAppliedFormat     = "[+] would've applied %s\n"
 	appliedFormat           = "[+] applied %s\n"
 	applyingTeamFormat      = "[+] applying %s for fleet %s\n"
+	appliedTeamFormat       = "[+] applied %s for fleet %s\n"
 	dryRunAppliedTeamFormat = "[+] would've applied %s for fleet %s\n"
 )
 
@@ -664,6 +665,12 @@ func (c *Client) ApplyGroup(
 				return nil, nil, nil, nil, fmt.Errorf("applying scripts for unassigned hosts: %w", err)
 			}
 			teamsScripts["No team"] = noTeamScripts
+
+			if opts.DryRun {
+				logfn(dryRunAppliedFormat, numberWithPluralization(len(scriptPayloads), "script", "scripts"))
+			} else {
+				logfn(appliedFormat, numberWithPluralization(len(noTeamScripts), "script", "scripts"))
+			}
 		}
 
 		rules, err := extractAppCfgYaraRules(specs.AppConfig)
@@ -1066,6 +1073,13 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("applying scripts for fleet %q: %w", tmName, err)
 				}
 				teamsScripts[tmName] = scriptResponses
+				if opts.DryRun {
+					// We split here on dry-run to capture the number we want to apply
+					logfn(dryRunAppliedTeamFormat, numberWithPluralization(len(scripts), "script", "scripts"), tmName)
+				} else {
+					// vs. the number that actually got applied and returned by the server
+					logfn(appliedTeamFormat, numberWithPluralization(len(scriptResponses), "script", "scripts"), tmName)
+				}
 			}
 		}
 		if len(tmSoftwarePackagesPayloads) > 0 {
@@ -1931,6 +1945,7 @@ func (c *Client) DoGitOps(
 		}
 	}
 
+	var orgLogoActions []orgLogoAction
 	if incoming.TeamName == nil {
 		// OrgSettings is the basis of the group AppConfig, but we will be adding and removing some
 		// items because the GitOps structure is not the same as the AppConfig structure.
@@ -1959,6 +1974,19 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
+		// Plan org logo upload/delete actions and strip the gitops-only path
+		// keys before the AppConfig PATCH. Execution runs after ApplyGroup so
+		// a PATCH failure leaves the logo store untouched. Skipped entirely
+		// when appConfig wasn't fetched (e.g. validation-only call paths in
+		// tests) — the planner needs the current OrgInfo to decide whether
+		// stale Fleet-hosted blobs should be deleted.
+		if appConfig != nil {
+			orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, &appConfig.OrgInfo, baseDir, dryRun, logFn)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		// Update labels if there were any changes.
 		if incoming.LabelChangesSummary.HasChanges() {
 			err := c.doGitOpsLabels(incoming, logFn, dryRun)
@@ -1980,6 +2008,12 @@ func (c *Client) DoGitOps(
 		}
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
+		}
+		// historical_data sub-keys default to true on every gitops apply so a
+		// deployment that doesn't pin them in YAML keeps dashboard collection
+		// enabled. Mirrors the enable_software_inventory carve-out above.
+		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
+			return nil, fmt.Errorf("org_settings.%w", err)
 		}
 
 		// Integrations
@@ -2232,6 +2266,11 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
+		// historical_data sub-keys default to true on every gitops apply.
+		// See ensureHistoricalDataDefaults for the rationale.
+		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
+			return nil, fmt.Errorf("Team %s %w", *incoming.TeamName, err)
+		}
 
 		// Integrations
 		var integrations interface{}
@@ -2413,6 +2452,13 @@ func (c *Client) DoGitOps(
 		return nil, err
 	}
 
+	// Apply org logo uploads/deletes after the AppConfig PATCH succeeded.
+	if incoming.TeamName == nil {
+		if err := c.doGitOpsOrgLogos(orgLogoActions, dryRun, logFn); err != nil {
+			return nil, err
+		}
+	}
+
 	var teamSoftwareInstallers []fleet.SoftwarePackageResponse
 	var teamVPPApps []fleet.VPPAppResponse
 	var teamScripts []fleet.ScriptResponse
@@ -2487,7 +2533,7 @@ func (c *Client) DoGitOps(
 	// prevents a race where the cron fires after profiles are uploaded (by
 	// ApplyGroup above) but before cert templates exist, which would cause ONC
 	// profiles to be sent without waiting for the cert.
-	err = c.doGitOpsAndroidCertificates(incoming, logFn, dryRun)
+	err = c.doGitOpsAndroidCertificates(incoming, appConfig, logFn, dryRun)
 	if err != nil {
 		var gitOpsErr *gitOpsValidationError
 		if errors.As(err, &gitOpsErr) {
@@ -2562,10 +2608,22 @@ func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads 
 	updates.SetLimit(concurrentUpdates)
 	for _, toUpdate := range iconUpdates.IconsToUpdate {
 		updates.Go(func() error {
-			if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+			err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash)
+			if err == nil {
+				return nil
+			}
+			if !errors.Is(err, ErrIconBytesMissing) {
 				return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
 			}
 
+			iconReader, openErr := os.OpenFile(toUpdate.Path, os.O_RDONLY, 0o0755)
+			if openErr != nil {
+				return fmt.Errorf("failed to read software icon for fallback upload %s: %w", toUpdate.Path, openErr)
+			}
+			defer iconReader.Close()
+			if uploadErr := c.UploadIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), iconReader); uploadErr != nil {
+				return fmt.Errorf("failed to recover software icon via upload %s: %w", toUpdate.Path, uploadErr)
+			}
 			return nil
 		})
 	}
@@ -3272,7 +3330,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	return nil
 }
 
-func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, appConfig *fleet.EnrichedAppConfig, logFn func(format string, args ...any), dryRun bool) error {
 	certificates := make([]fleet.CertificateTemplateSpec, 0)
 
 	// Extract Android certificates from config if there are any.
@@ -3309,64 +3367,104 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 		return nil
 	}
 
+	// Certificate templates require a custom SCEP CA, and CAs are Premium-only. If the YAML
+	// declares any certificates against a Free server, bail with a friendly error before doing
+	// anything destructive on the team. Mirrors the certificate_authorities check at line ~597.
+	// appConfig is passed in from DoGitOps, which has already fetched it once for upstream
+	// Premium checks; reuse rather than refetch.
+	if numCerts > 0 && (appConfig == nil || appConfig.License == nil || !appConfig.License.IsPremium()) {
+		return newGitOpsValidationError(
+			"Android certificate templates require a custom SCEP CA, which is available in Fleet Premium only.")
+	}
+
 	if dryRun {
 		logFn("[+] would have attempted to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	} else {
 		logFn("[+] attempting to apply %s\n", numberWithPluralization(numCerts, "Android certificate", "Android certificates"))
 	}
 
-	// getting certificate authorities
-	cas, err := c.GetCertificateAuthorities()
-	if err != nil {
-		return fmt.Errorf("getting certificate authorities: %w", err)
-	}
-	casByName := make(map[string]*fleet.CertificateAuthoritySummary)
-	for _, ca := range cas {
-		casByName[ca.Name] = ca
-	}
-
 	certRequests := make([]*fleet.CertificateRequestSpec, len(certificates))
 	certsToBeAdded := make(map[string]*fleet.CertificateRequestSpec, len(certificates))
-	for i := range certificates {
-		if !certificates[i].NameValid() {
-			return newGitOpsValidationError(
-				`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
-			)
+	// CA lookups + per-cert validation are only needed when the YAML declares at least one cert.
+	// Skipping the GetCertificateAuthorities call lets delete-only syncs (numCerts == 0,
+	// existingCertificates non-empty) succeed without CA-read access.
+	if numCerts > 0 {
+		cas, err := c.GetCertificateAuthorities()
+		if err != nil {
+			return fmt.Errorf("getting certificate authorities: %w", err)
+		}
+		casByName := make(map[string]*fleet.CertificateAuthoritySummary)
+		for _, ca := range cas {
+			casByName[ca.Name] = ca
 		}
 
-		// Validate Fleet variables in subject name
-		if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
-			return newGitOpsValidationError(
-				fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
-			)
-		}
+		for i := range certificates {
+			if !certificates[i].NameValid() {
+				return newGitOpsValidationError(
+					`Invalid characters in "name" field. Only letters, numbers, spaces, dashes, and underscores allowed.`,
+				)
+			}
 
-		ca, ok := casByName[certificates[i].CertificateAuthorityName]
-		if !ok {
-			return fmt.Errorf("certificate authority %q not found for certificate %q",
-				certificates[i].CertificateAuthorityName, certificates[i].Name)
-		}
-		// Validate that the CA is the right type.
-		if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
-			return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
-		}
+			// Validate Fleet variables in subject name
+			if err := validateCertificateTemplateFleetVariables(certificates[i].SubjectName); err != nil {
+				return newGitOpsValidationError(
+					fmt.Sprintf(`Invalid Fleet variable in certificate %q: %s`, certificates[i].Name, err.Error()),
+				)
+			}
 
-		certRequests[i] = &fleet.CertificateRequestSpec{
-			Name:                   certificates[i].Name,
-			Team:                   teamName,
-			CertificateAuthorityId: ca.ID,
-			SubjectName:            certificates[i].SubjectName,
-		}
-		if _, ok := certsToBeAdded[certificates[i].Name]; ok {
-			return newGitOpsValidationError(
-				fmt.Sprintf(
-					`The name %q is already used by another certificate. Please choose a different name and try again.`,
-					certificates[i].Name,
-				),
-			)
-		}
+			// Normalize whitespace-only SAN to "" so the value we send matches the server's
+			// read-back (the server stores whitespace-only as NULL and COALESCEs reads to ""). Without
+			// this, hand-authored YAML like `subject_alternative_name: "  "` would mismatch on every
+			// apply and trigger an infinite delete+recreate cycle.
+			san := certificates[i].SubjectAlternativeName
+			if strings.TrimSpace(san) == "" {
+				san = ""
+			}
 
-		certsToBeAdded[certificates[i].Name] = certRequests[i]
+			// Validate the optional SAN at GitOps time so admins get fast feedback before the apply
+			// reaches the server. Server re-validates as the source of truth.
+			if san != "" {
+				if err := validateCertificateTemplateSubjectAlternativeName(san, certificates[i].Name); err != nil {
+					return newGitOpsValidationError(
+						fmt.Sprintf(`Invalid subject_alternative_name in certificate %q: %s`, certificates[i].Name, err.Error()),
+					)
+				}
+				if err := validateCertificateTemplateFleetVariables(san); err != nil {
+					return newGitOpsValidationError(
+						fmt.Sprintf(`Invalid Fleet variable in subject_alternative_name of certificate %q: %s`,
+							certificates[i].Name, err.Error()),
+					)
+				}
+			}
+
+			ca, ok := casByName[certificates[i].CertificateAuthorityName]
+			if !ok {
+				return fmt.Errorf("certificate authority %q not found for certificate %q",
+					certificates[i].CertificateAuthorityName, certificates[i].Name)
+			}
+			// Validate that the CA is the right type.
+			if ca.Type != string(fleet.CATypeCustomSCEPProxy) {
+				return newGitOpsValidationError(fmt.Sprintf("Android certificates: CA `%s` has type `%s`. Currently, only the custom_scep_proxy certificate authority is supported.", ca.Name, ca.Type))
+			}
+
+			certRequests[i] = &fleet.CertificateRequestSpec{
+				Name:                   certificates[i].Name,
+				Team:                   teamName,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            certificates[i].SubjectName,
+				SubjectAlternativeName: san,
+			}
+			if _, ok := certsToBeAdded[certificates[i].Name]; ok {
+				return newGitOpsValidationError(
+					fmt.Sprintf(
+						`The name %q is already used by another certificate. Please choose a different name and try again.`,
+						certificates[i].Name,
+					),
+				)
+			}
+
+			certsToBeAdded[certificates[i].Name] = certRequests[i]
+		}
 	}
 
 	var certificatesToDelete []uint
@@ -3375,8 +3473,10 @@ func (c *Client) doGitOpsAndroidCertificates(config *spec.GitOps, logFn func(for
 			newCert, exists := certsToBeAdded[cert.Name]
 			if !exists {
 				certificatesToDelete = append(certificatesToDelete, cert.ID)
-			} else if cert.SubjectName != newCert.SubjectName || cert.CertificateAuthorityId != newCert.CertificateAuthorityId {
-				// SubjectName or CA changed, mark for deletion (will be recreated)
+			} else if cert.SubjectName != newCert.SubjectName ||
+				cert.SubjectAlternativeName != newCert.SubjectAlternativeName ||
+				cert.CertificateAuthorityId != newCert.CertificateAuthorityId {
+				// Subject, SAN, or CA changed; mark for deletion (will be recreated).
 				certificatesToDelete = append(certificatesToDelete, cert.ID)
 			}
 		}
@@ -3460,6 +3560,35 @@ func (c *Client) GetGitOpsSecrets(
 				return secretValues
 			}
 		}
+	}
+	return nil
+}
+
+// ensureHistoricalDataDefaults injects default `true` values for any
+// `historical_data` sub-key not explicitly specified in the gitops payload.
+// Called for both global and team-spec gitops applies so a deployment that
+// doesn't pin `historical_data` in YAML keeps the upgrade-friendly default
+// of dashboard collection enabled. Mirrors the existing carve-out for
+// `enable_software_inventory`.
+//
+// Returns an error if `historical_data` is present but is not a map (e.g.
+// `historical_data: true` or a list), so a malformed YAML fails the gitops
+// run loudly instead of being silently replaced with defaults.
+func ensureHistoricalDataDefaults(features map[string]any) error {
+	raw, present := features["historical_data"]
+	historicalData, ok := raw.(map[string]any)
+	switch {
+	case !present || raw == nil:
+		historicalData = map[string]any{}
+		features["historical_data"] = historicalData
+	case !ok:
+		return fmt.Errorf("features.historical_data must be a map, got %T", raw)
+	}
+	if v, ok := historicalData["uptime"]; !ok || v == nil {
+		historicalData["uptime"] = true
+	}
+	if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
+		historicalData["vulnerabilities"] = true
 	}
 	return nil
 }

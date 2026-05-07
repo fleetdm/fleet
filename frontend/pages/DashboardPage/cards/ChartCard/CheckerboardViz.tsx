@@ -2,7 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { ChartTheme, IFormattedDataPoint, TooltipFormatter } from "./types";
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
 
 const baseClass = "checkerboard-viz";
 

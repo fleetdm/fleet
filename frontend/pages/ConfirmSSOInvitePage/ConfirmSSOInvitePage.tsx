@@ -13,7 +13,9 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import ConfirmSSOInviteForm from "components/forms/ConfirmSSOInviteForm";
 
 interface IConfirmSSOInvitePageProps {
-  location: any; // no type in react-router v3
+  location: {
+    query: { email?: string; name?: string };
+  };
   params: Params;
   router: InjectedRouter;
 }

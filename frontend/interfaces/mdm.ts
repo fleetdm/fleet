@@ -37,6 +37,12 @@ export interface IMdmVppToken {
   id: number;
   org_name: string;
   location: string;
+  /**
+   * Lowercase ISO 3166-1 alpha-2 country code of the App Store storefront tied to
+   * this token's Apple Business Manager account (e.g. "us", "de"). Empty string
+   * for legacy tokens whose backfill hasn't completed yet.
+   */
+  country_code: string;
   renew_date: string;
   teams: ITokenTeam[] | null; // null means token isn't configured to a team; empty array means all teams
 }

@@ -1229,6 +1229,16 @@ type UpdateVPPTokenTeamsFunc func(ctx context.Context, id uint, teams []uint) (*
 
 type UpdateVPPTokenFunc func(ctx context.Context, id uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
 
+type UpdateVPPTokenCountryCodeFunc func(ctx context.Context, tokenID uint, countryCode string) error
+
+type UpdateVPPAppCountryCodeFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error
+
+type BackfillVPPAppCountriesFromTokensFunc func(ctx context.Context) (int64, error)
+
+type GetVPPAppByAdamIDPlatformFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error)
+
+type GetVPPTokenOwningAppInCountryFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error)
+
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
 type SetABMTokenTermsExpiredForOrgNameFunc func(ctx context.Context, orgName string, expired bool) (wasSet bool, err error)
@@ -1283,6 +1293,8 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
@@ -1294,6 +1306,10 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
+
+type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
+
+type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -1922,6 +1938,8 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
 type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
+
+type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -3733,6 +3751,21 @@ type DataStore struct {
 	UpdateVPPTokenFunc        UpdateVPPTokenFunc
 	UpdateVPPTokenFuncInvoked bool
 
+	UpdateVPPTokenCountryCodeFunc        UpdateVPPTokenCountryCodeFunc
+	UpdateVPPTokenCountryCodeFuncInvoked bool
+
+	UpdateVPPAppCountryCodeFunc        UpdateVPPAppCountryCodeFunc
+	UpdateVPPAppCountryCodeFuncInvoked bool
+
+	BackfillVPPAppCountriesFromTokensFunc        BackfillVPPAppCountriesFromTokensFunc
+	BackfillVPPAppCountriesFromTokensFuncInvoked bool
+
+	GetVPPAppByAdamIDPlatformFunc        GetVPPAppByAdamIDPlatformFunc
+	GetVPPAppByAdamIDPlatformFuncInvoked bool
+
+	GetVPPTokenOwningAppInCountryFunc        GetVPPTokenOwningAppInCountryFunc
+	GetVPPTokenOwningAppInCountryFuncInvoked bool
+
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
 
@@ -3814,6 +3847,9 @@ type DataStore struct {
 	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
 	MDMWindowsInsertCommandForHostsFuncInvoked bool
 
+	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
+	MDMWindowsInsertCommandsForHostFuncInvoked bool
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc        MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked bool
 
@@ -3831,6 +3867,12 @@ type DataStore struct {
 
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
+
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
+
+	HasWindowsSetupExperienceItemsForTeamFunc        HasWindowsSetupExperienceItemsForTeamFunc
+	HasWindowsSetupExperienceItemsForTeamFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -4773,6 +4815,9 @@ type DataStore struct {
 
 	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
 	IsAppleEnrollmentRenewalCommandFuncInvoked bool
+
+	MDMAppleResetOnReenrollmentFunc        MDMAppleResetOnReenrollmentFunc
+	MDMAppleResetOnReenrollmentFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -8998,6 +9043,41 @@ func (s *DataStore) UpdateVPPToken(ctx context.Context, id uint, tok *fleet.VPPT
 	return s.UpdateVPPTokenFunc(ctx, id, tok)
 }
 
+func (s *DataStore) UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenCountryCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenCountryCodeFunc(ctx, tokenID, countryCode)
+}
+
+func (s *DataStore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error {
+	s.mu.Lock()
+	s.UpdateVPPAppCountryCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPAppCountryCodeFunc(ctx, adamID, platform, countryCode)
+}
+
+func (s *DataStore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.BackfillVPPAppCountriesFromTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.BackfillVPPAppCountriesFromTokensFunc(ctx)
+}
+
+func (s *DataStore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppByAdamIDPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppByAdamIDPlatformFunc(ctx, adamID, platform)
+}
+
+func (s *DataStore) GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenOwningAppInCountryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenOwningAppInCountryFunc(ctx, adamID, platform, country)
+}
+
 func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
 	s.mu.Lock()
 	s.DeleteVPPTokenFuncInvoked = true
@@ -9187,6 +9267,13 @@ func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUI
 	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
 }
 
+func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertCommandsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertCommandsForHostFunc(ctx, hostUUIDOrDeviceID, cmds)
+}
+
 func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked = true
@@ -9227,6 +9314,20 @@ func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmD
 	s.SetMDMWindowsAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsAwaitingConfigurationFunc(ctx, mdmDeviceID, expectFrom, to)
+}
+
+func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasWindowsSetupExperienceItemsForTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasWindowsSetupExperienceItemsForTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {
@@ -11425,4 +11526,11 @@ func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, command
 	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+	s.mu.Lock()
+	s.MDMAppleResetOnReenrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleResetOnReenrollmentFunc(ctx, hostUUID, preserveHostActivities)
 }

@@ -254,6 +254,9 @@ const generateTableHeaders = (
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
+      // TODO: headerProps is `any` because local IHeaderProps is a simplified
+      // subset of react-table's HeaderProps. Fixing requires refactoring
+      // IDataColumn/IHeaderProps to align with react-table's actual types.
       Header: (headerProps: any) => {
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({

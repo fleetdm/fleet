@@ -18,10 +18,18 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 
+import {
+  IDataSet,
+  IFormattedDataPoint,
+  DATASET_CONFIG_KEY,
+  DATASET_LABEL,
+  HistoricalDataConfigKey,
+} from "interfaces/charts";
+
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
-import { IDataSet, IFormattedDataPoint } from "./types";
+import DataCollectionDisabledState from "./DataCollectionDisabledState";
 
 const baseClass = "chart-card";
 
@@ -32,7 +40,7 @@ const CHART_DAYS = 30;
 const DATASETS: IDataSet[] = [
   {
     name: "uptime",
-    label: "Hosts active",
+    label: "Hosts online",
     defaultChartType: "checkerboard",
     description: (
       <>
@@ -111,9 +119,13 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
 
 interface IChartCardProps {
   currentTeamId?: number;
+  historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
 }
 
-const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
+const ChartCard = ({
+  currentTeamId,
+  historicalDataEnabled,
+}: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
@@ -135,6 +147,14 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
   }, [currentTeamId]);
 
   const currentDataset = getDataset(selectedMetric);
+
+  const datasetConfigKey = DATASET_CONFIG_KEY[currentDataset.name];
+  // If a dataset has no config-key mapping (future addition), treat it as
+  // enabled — collection toggles only apply to known config keys.
+  const datasetCollectionEnabled =
+    datasetConfigKey === undefined
+      ? true
+      : historicalDataEnabled?.[datasetConfigKey] ?? true;
 
   const queryParams: IChartRequestParams = useMemo(() => {
     return {
@@ -170,6 +190,7 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     () => chartsAPI.getChartData(selectedMetric, queryParams),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: datasetCollectionEnabled,
       staleTime: 300000, // 5 minutes
     }
   );
@@ -192,6 +213,14 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
   }, [chartData]);
 
   const renderChart = () => {
+    if (!datasetCollectionEnabled && datasetConfigKey !== undefined) {
+      return (
+        <DataCollectionDisabledState
+          datasetLabel={DATASET_LABEL[datasetConfigKey]}
+          currentTeamId={currentTeamId}
+        />
+      );
+    }
     if (isLoading) {
       return <Spinner includeContainer={false} verticalPadding="small" />;
     }

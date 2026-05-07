@@ -557,6 +557,14 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 1)
 	require.Equal(t, "installer1", titles[0].Name)
 	require.Equal(t, "apps", titles[0].Source)
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "h.node_key"},
+			TeamID:      ptr.Uint(0),
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.Error(t, err)
+	})
 }
 
 func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions) []fleet.SoftwareTitleListResult {

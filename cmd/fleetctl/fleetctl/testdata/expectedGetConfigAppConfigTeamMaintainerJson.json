@@ -43,7 +43,11 @@
     },
     "features": {
       "enable_host_users": true,
-      "enable_software_inventory": false
+      "enable_software_inventory": false,
+      "historical_data": {
+        "uptime": true,
+        "vulnerabilities": true
+      }
     },
     "fleet_desktop": {
       "alternative_browser_host": "",

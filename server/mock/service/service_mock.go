@@ -414,7 +414,7 @@ type CancelHostUpcomingActivityFunc func(ctx context.Context, hostID uint, execu
 
 type ApplyUserRolesSpecsFunc func(ctx context.Context, specs fleet.UsersRoleSpec) error
 
-type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error)
+type CreateCertificateTemplateFunc func(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error)
 
 type ListCertificateTemplatesFunc func(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error)
 
@@ -3668,11 +3668,11 @@ func (s *Service) ApplyUserRolesSpecs(ctx context.Context, specs fleet.UsersRole
 	return s.ApplyUserRolesSpecsFunc(ctx, specs)
 }
 
-func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string) (*fleet.CertificateTemplateResponse, error) {
+func (s *Service) CreateCertificateTemplate(ctx context.Context, name string, teamID uint, certificateAuthorityID uint, subjectName string, subjectAlternativeName string) (*fleet.CertificateTemplateResponse, error) {
 	s.mu.Lock()
 	s.CreateCertificateTemplateFuncInvoked = true
 	s.mu.Unlock()
-	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName)
+	return s.CreateCertificateTemplateFunc(ctx, name, teamID, certificateAuthorityID, subjectName, subjectAlternativeName)
 }
 
 func (s *Service) ListCertificateTemplates(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.CertificateTemplateResponseSummary, *fleet.PaginationMetadata, error) {

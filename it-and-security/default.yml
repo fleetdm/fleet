@@ -87,6 +87,7 @@ reports:
   - path: ./lib/macos/reports/detect-apns-certificate.yml
   - path: ./lib/macos/reports/collect-xprotect-reports.yml
 controls:
+  apple_require_hardware_attestation: true
   enable_disk_encryption: true
   macos_migration:
     enable: true
