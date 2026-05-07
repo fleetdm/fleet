@@ -3302,7 +3302,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.Contains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
+		assert.Contains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
 		assert.Contains(t, logs.String(), "setup_experience: true")
 	})
 
@@ -3338,7 +3338,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.NotContains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software'  is deprecated")
 	})
 
 	t.Run("no_warning_when_setup_experience_software_empty", func(t *testing.T) {
@@ -3373,7 +3373,7 @@ controls:
 
 		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
 		require.NoError(t, err)
-		assert.NotContains(t, logs.String(), "'controls.setup_experience.software' is deprecated")
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
 	})
 }
 
