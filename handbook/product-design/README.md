@@ -78,11 +78,7 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 Additionally:
 
-- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request).
-
-- When you create a new UI pattern:
-  - Get review and approval from Mike T (Head of Design).
-  - Once approved, post in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5) to inform the team.
+- To make changes to [Fleet's design system] (e.g. button border-radius, modal width, or a new UI component), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request). Changes to the design system are up to the [Head of Design](#team). Once approved, it's up to the Head of Design post in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5) and @ mention all [Product Designers](#team) so they're aware.
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
  
