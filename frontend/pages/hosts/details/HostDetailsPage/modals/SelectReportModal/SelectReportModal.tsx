@@ -18,7 +18,6 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import DataError from "components/DataError";
 import EmptyState from "components/EmptyState";
-import CustomLink from "components/CustomLink";
 
 import {
   IListQueriesResponse,
