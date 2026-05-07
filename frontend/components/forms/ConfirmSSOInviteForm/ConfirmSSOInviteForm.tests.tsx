@@ -63,4 +63,23 @@ describe("ConfirmSSOInviteForm - component", () => {
     ).toBeInTheDocument();
     expect(handleSubmitSpy).not.toHaveBeenCalled();
   });
+
+  it("rejects a whitespace-only name and submits a trimmed value otherwise", async () => {
+    const { user } = renderWithSetup(
+      <ConfirmSSOInviteForm email={email} handleSubmit={handleSubmitSpy} />
+    );
+
+    const nameInput = screen.getByRole("textbox", { name: "Full name" });
+
+    await user.type(nameInput, "   ");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(
+      await screen.findByText("Full name must be present")
+    ).toBeInTheDocument();
+    expect(handleSubmitSpy).not.toHaveBeenCalled();
+
+    await user.type(nameInput, "Padded Name  ");
+    await user.click(screen.getByRole("button", { name: "Submit" }));
+    expect(handleSubmitSpy).toHaveBeenCalledWith("Padded Name");
+  });
 });

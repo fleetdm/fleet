@@ -21,16 +21,17 @@ const ConfirmSSOInviteForm = ({
 
   const onNameChange = (value: string) => {
     setName(value);
-    if (nameError && value) setNameError(null);
+    if (nameError && value.trim()) setNameError(null);
   };
 
   const onSubmit = (evt: React.FormEvent<HTMLFormElement>) => {
     evt.preventDefault();
-    if (!name) {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
       setNameError("Full name must be present");
       return;
     }
-    handleSubmit(name);
+    handleSubmit(trimmedName);
   };
 
   return (
