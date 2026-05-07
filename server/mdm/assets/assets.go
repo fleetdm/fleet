@@ -44,7 +44,7 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 	return &cert, nil
 }
 
-// KeyParWithMD5 returns the certificate from the keypair, along with the MD5 checksum of the certificate.
+// KeyPairWithMD5 returns the certificate from the keypair, along with the MD5 checksum of the certificate.
 func KeyPairWithMD5(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName fleet.MDMAssetName) (*tls.Certificate, string, error) {
 	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
 		certName,

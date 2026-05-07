@@ -507,6 +507,7 @@ func testRetrievePushCert(t *testing.T, ds *Datastore) {
 	t.Cleanup(func() {
 		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSCert)
 		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSKey)
+		pushCertStaleness = nil
 	})
 
 	apnsCert, apnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
@@ -558,6 +559,7 @@ func testIsPushCertStale(t *testing.T, ds *Datastore) {
 	t.Cleanup(func() {
 		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSCert)
 		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSKey)
+		pushCertStaleness = nil
 	})
 
 	// Initially there is no cert, so it should be considered stale

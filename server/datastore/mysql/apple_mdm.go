@@ -6427,7 +6427,7 @@ func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames
 
 	stmt := `
 SELECT
-    name, value, md5_checksum
+    name, value, HEX(md5_checksum) as md5_checksum
 FROM
    mdm_config_assets
 WHERE
@@ -6563,7 +6563,6 @@ VALUES
 		}
 
 		hexChecksum := md5ChecksumBytes(encryptedVal)
-		fmt.Println("Inserting checksum", hexChecksum, " for ", a.Name)
 		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
 		args = append(args, a.Name, encryptedVal, hexChecksum)
 	}
