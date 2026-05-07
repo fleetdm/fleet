@@ -1308,7 +1308,7 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, ds.SetTeamVPPAppsFuncInvoked)
 			require.Len(t, capturedApps, 1)
-			require.Equal(t, c.expectConfig, []byte(capturedApps[0].Configuration))
+			require.Equal(t, c.expectConfig, capturedApps[0].Configuration)
 		})
 	}
 }
@@ -1393,7 +1393,7 @@ func TestGitOpsTeamInHouseAppleConfiguration(t *testing.T) {
 			// .ipa generates two installers (iOS + iPadOS). All of them should
 			// carry the same Configuration value.
 			for _, inst := range capturedInstallers {
-				require.Equal(t, c.expectConfig, []byte(inst.Configuration))
+				require.Equal(t, c.expectConfig, inst.Configuration)
 			}
 		})
 	}
