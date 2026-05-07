@@ -257,4 +257,3 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, batchTeam.ID)
 	})
 }
-

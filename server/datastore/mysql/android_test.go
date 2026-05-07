@@ -2730,7 +2730,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
-	require.Equal(t, testConfig, meta.Configuration)
+	require.JSONEq(t, string(testConfig), string(meta.Configuration))
 
 	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)

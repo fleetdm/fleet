@@ -64,7 +64,6 @@ type addAppStoreAppRequest struct {
 	Configuration    json.RawMessage                 `json:"configuration,omitempty"`
 }
 
-
 type addAppStoreAppResponse struct {
 	TitleID uint  `json:"software_title_id,omitempty"`
 	Err     error `json:"error,omitempty"`
