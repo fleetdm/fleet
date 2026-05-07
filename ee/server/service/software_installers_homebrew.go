@@ -38,7 +38,7 @@ func (svc *Service) prepareHomebrewUpload(ctx context.Context, payload *fleet.Up
 	}
 	input := homebrew.InputApp{Token: payload.FromHomebrew}
 
-	cask, err := ingester.FetchCask(ctx, input.Token)
+	cask, err := ingester.FetchCask(ctx, input)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching homebrew cask")
 	}

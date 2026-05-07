@@ -164,7 +164,7 @@ func TestIngestValidations(t *testing.T) {
 func TestIngestCaskPath(t *testing.T) {
 	tempDir := t.TempDir()
 
-	caskJSON, err := json.Marshal(brewCask{
+	caskJSON, err := json.Marshal(BrewCask{
 		Token:   "local-cask",
 		Name:    []string{"Local Cask"},
 		URL:     "https://example.com/local/installer.pkg",
@@ -185,13 +185,13 @@ func TestIngestCaskPath(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	ctx := context.Background()
-	i := &brewIngester{
-		logger:  slog.New(slog.DiscardHandler),
-		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
-		baseURL: srv.URL + "/",
+	i := &BrewIngester{
+		Logger:  slog.New(slog.DiscardHandler),
+		Client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		BaseURL: srv.URL + "/",
 	}
 
-	out, err := i.ingestOne(ctx, inputApp{
+	out, err := i.IngestOne(ctx, InputApp{
 		Token:            "local-cask",
 		UniqueIdentifier: "com.example.localcask",
 		InstallerFormat:  "pkg",
@@ -205,7 +205,7 @@ func TestIngestCaskPath(t *testing.T) {
 	require.Equal(t, 0, httpHits, "cask_path path must not make an HTTP call")
 
 	// Missing file yields an actionable error.
-	_, err = i.ingestOne(ctx, inputApp{
+	_, err = i.IngestOne(ctx, InputApp{
 		Token:            "missing",
 		UniqueIdentifier: "com.example.missing",
 		InstallerFormat:  "pkg",
@@ -218,7 +218,7 @@ func TestIngestCaskPath(t *testing.T) {
 	// Token mismatch between input and cask file is rejected so a misconfigured
 	// cask_path can't silently ingest the wrong app.
 	mismatchPath := path.Join(tempDir, "mismatch.json")
-	mismatchJSON, err := json.Marshal(brewCask{
+	mismatchJSON, err := json.Marshal(BrewCask{
 		Token:   "some-other-cask",
 		Name:    []string{"Some Other Cask"},
 		URL:     "https://example.com/other/installer.pkg",
@@ -228,7 +228,7 @@ func TestIngestCaskPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(mismatchPath, mismatchJSON, 0o644))
 
-	_, err = i.ingestOne(ctx, inputApp{
+	_, err = i.IngestOne(ctx, InputApp{
 		Token:            "local-cask",
 		UniqueIdentifier: "com.example.localcask",
 		InstallerFormat:  "pkg",
@@ -240,7 +240,7 @@ func TestIngestCaskPath(t *testing.T) {
 
 	// Cask file with an empty name is rejected.
 	emptyNamePath := path.Join(tempDir, "empty-name.json")
-	emptyNameJSON, err := json.Marshal(brewCask{
+	emptyNameJSON, err := json.Marshal(BrewCask{
 		Token:   "local-cask",
 		Name:    []string{},
 		URL:     "https://example.com/local/installer.pkg",
@@ -250,7 +250,7 @@ func TestIngestCaskPath(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(emptyNamePath, emptyNameJSON, 0o644))
 
-	_, err = i.ingestOne(ctx, inputApp{
+	_, err = i.IngestOne(ctx, InputApp{
 		Token:            "local-cask",
 		UniqueIdentifier: "com.example.localcask",
 		InstallerFormat:  "pkg",
