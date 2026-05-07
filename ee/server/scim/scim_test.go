@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -15,8 +15,8 @@ import (
 )
 
 // closeTrackingBody wraps an io.Reader and records whether Close has been called.
-// It is used to verify that debugPayloadDumpMiddleware propagates Close() to the
-// original request body even when it stitches the body via io.MultiReader.
+// It is used to verify that debugPayloadDumpMiddleware closes the original request
+// body after consuming it for logging.
 type closeTrackingBody struct {
 	io.Reader
 	closed bool
@@ -41,6 +41,13 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		var buf bytes.Buffer
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 		handler := debugPayloadDumpMiddleware(logger, false, next)
+
+		// Lock in the zero-overhead promise: when disabled the middleware must return
+		// the next handler unchanged, not a wrapped one.
+		assert.Equal(t,
+			reflect.ValueOf(next).Pointer(),
+			reflect.ValueOf(handler).Pointer(),
+			"disabled middleware must return next handler unchanged")
 
 		req := httptest.NewRequest(http.MethodPatch, "/api/v1/fleet/scim/Users/1", strings.NewReader(samplePayload))
 		rec := httptest.NewRecorder()
@@ -106,51 +113,13 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		assert.Contains(t, out, "method=GET")
 	})
 
-	t.Run("enabled truncates large body in log but passes full body downstream", func(t *testing.T) {
-		// Append a recognizable tail marker after the truncation cap so we can prove the
-		// log doesn't include it (truncation actually happened) while the downstream
-		// handler still sees the full body including the marker (passthrough preserved).
-		const tailMarker = "TAIL_MARKER_NOT_IN_LOG_XYZ"
-		large := strings.Repeat("A", maxDumpedSCIMBodyBytes+1024) + tailMarker
-
-		var downstreamBody []byte
-		var downstreamReadErr error
-		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			downstreamBody, downstreamReadErr = io.ReadAll(r.Body)
-			w.WriteHeader(http.StatusOK)
-		})
-
-		var buf bytes.Buffer
-		logger := slog.New(slog.NewTextHandler(&buf, nil))
-		handler := debugPayloadDumpMiddleware(logger, true, next)
-
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/fleet/scim/Users", strings.NewReader(large))
-		rec := httptest.NewRecorder()
-		handler.ServeHTTP(rec, req)
-
-		require.NoError(t, downstreamReadErr)
-		assert.Len(t, downstreamBody, len(large), "downstream must still see the full body length")
-		assert.Contains(t, string(downstreamBody), tailMarker, "downstream must receive bytes beyond the log cap")
-		assert.Equal(t, http.StatusOK, rec.Code)
-
-		out := buf.String()
-		assert.Contains(t, out, "size="+strconv.Itoa(maxDumpedSCIMBodyBytes), "log should report the capped size")
-		assert.Contains(t, out, "truncated=true", "log should mark the entry as truncated")
-		assert.NotContains(t, out, tailMarker, "log must not contain bytes past the cap")
-	})
-
-	t.Run("enabled truncated path closes the original body", func(t *testing.T) {
-		// Regression: the truncated branch wraps the stitched body via a struct that must
-		// propagate Close() to the original http.Request.Body. Previously it used
-		// io.NopCloser, which leaked the underlying body/connection.
-		body := strings.Repeat("A", maxDumpedSCIMBodyBytes+10)
-		tracker := &closeTrackingBody{Reader: strings.NewReader(body)}
+	t.Run("enabled closes the original request body", func(t *testing.T) {
+		// The middleware must close the original body after reading it for the log,
+		// otherwise the underlying connection / body resource leaks.
+		tracker := &closeTrackingBody{Reader: strings.NewReader(samplePayload)}
 
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			_, _ = io.ReadAll(r.Body)
-			// The http.Server normally calls Close after the handler returns; emulate that here
-			// so we can assert close propagation works end-to-end through our wrapper.
-			_ = r.Body.Close()
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -164,11 +133,14 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.True(t, tracker.closed, "original body Close must be called when path is truncated")
+		assert.True(t, tracker.closed, "original body Close must be called after the middleware reads it")
 	})
 
-	t.Run("enabled body equal to cap is not marked truncated", func(t *testing.T) {
-		body := strings.Repeat("A", maxDumpedSCIMBodyBytes)
+	t.Run("enabled logs full body even for large payloads", func(t *testing.T) {
+		// The middleware reads the entire body and writes it to the log unchanged.
+		// Use a marker at the tail to prove we logged past any small head buffer.
+		const tailMarker = "TAIL_MARKER_PRESENT_IN_LOG"
+		large := strings.Repeat("A", 100*1024) + tailMarker
 
 		var downstreamBody []byte
 		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -180,14 +152,14 @@ func TestDebugPayloadDumpMiddleware(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&buf, nil))
 		handler := debugPayloadDumpMiddleware(logger, true, next)
 
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/fleet/scim/Users", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/fleet/scim/Users", strings.NewReader(large))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Len(t, downstreamBody, len(body))
+		assert.Len(t, downstreamBody, len(large), "downstream must see the full body")
+
 		out := buf.String()
-		assert.Contains(t, out, "size="+strconv.Itoa(maxDumpedSCIMBodyBytes))
-		assert.Contains(t, out, "truncated=false")
+		assert.Contains(t, out, tailMarker, "log must include the full body, including bytes past any head buffer")
 	})
 }

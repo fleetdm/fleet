@@ -170,6 +170,12 @@ func RegisterSCIM(
 			SchemaExtensions: []scim.SchemaExtension{
 				{
 					Schema: schema.Schema{
+						// Fleet stores only `department`, but we declare the full RFC 7643
+						// §4.3 enterprise attribute set so the elimity SCIM library accepts
+						// (rather than 400s) PATCH payloads from IdPs that bundle these
+						// alongside `department`. The handler reads only what it needs and
+						// silently drops the rest — see the `default` branches in
+						// UserHandler.Patch.
 						Attributes: []schema.CoreAttribute{
 							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
 								Name:     "department",
@@ -202,6 +208,9 @@ func RegisterSCIM(
 										Name:           "$ref",
 										ReferenceTypes: []schema.AttributeReferenceType{"User"},
 									}),
+									// `displayName` is ReadOnly per RFC 7643 §4.3. The elimity
+									// library silently strips ReadOnly sub-attrs from client
+									// input, so we don't need to tolerate it in the handler.
 									schema.SimpleStringParams(schema.StringParams{
 										Name:       "displayName",
 										Mutability: schema.AttributeMutabilityReadOnly(),
@@ -356,16 +365,11 @@ func debugSCIMPayloadsEnabled() bool {
 	return false
 }
 
-// maxDumpedSCIMBodyBytes caps how much of a SCIM request body the debug payload dump
-// middleware writes to the log. Larger bodies are still passed through to the handler
-// unchanged, but only this many bytes are emitted to the log to keep entries bounded.
-const maxDumpedSCIMBodyBytes = 64 * 1024
-
 // debugPayloadDumpMiddleware logs the raw SCIM request body to scimLogger when enabled
-// is true. The middleware buffers at most maxDumpedSCIMBodyBytes from the body for the log entry
-// and stitches the buffered head back in front of the unread remainder via io.MultiReader
-// so the downstream handler still sees the complete body. This caps memory use on the
-// dump path even for large payloads while preserving SCIM correctness.
+// is true. The full body is read into memory, written to the log, and then restored
+// for the downstream handler via a fresh io.ReadCloser. This is intentionally simple
+// at the cost of memory: SCIM payloads are small in practice, and the flag is intended
+// only for ad-hoc IdP debugging on a non-production cluster (see debugSCIMPayloadsEnabled).
 func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Handler) http.Handler {
 	if !enabled {
 		return next
@@ -374,72 +378,29 @@ func debugPayloadDumpMiddleware(logger *slog.Logger, enabled bool, next http.Han
 		ctx := r.Context()
 		if r.Body == nil || r.Body == http.NoBody {
 			logger.WarnContext(ctx, "scim payload dump",
-				"method", r.Method, "path", r.URL.Path, "size", 0, "truncated", false, "body", "")
+				"method", r.Method, "path", r.URL.Path, "size", 0, "body", "")
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		head := make([]byte, maxDumpedSCIMBodyBytes)
-		n, err := io.ReadFull(r.Body, head)
-		// fullyRead is true when the body is exhausted by ReadFull (shorter than the
-		// head buffer). Used below to skip the truncation probe, which would otherwise
-		// invoke Read on an already-exhausted body and may surface spurious errors on
-		// some http.Body implementations.
-		fullyRead := errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF)
-		switch {
-		case err == nil, fullyRead:
-			// Either the buffer is full or the body fits entirely on the buffer.
-		default:
-			logger.ErrorContext(ctx, "scim payload dump: failed to read body",
+		body, err := io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		if err != nil {
+			// Fail the request explicitly rather than passing an empty body to the
+			// downstream handler — that would surface as a confusing JSON parse
+			// error and mask the real read failure.
+			logger.ErrorContext(ctx, "scim payload dump: failed to read body — failing request to surface error",
 				"method", r.Method, "path", r.URL.Path, "err", err)
-			// Body is partially consumed and unreadable; reset to empty so the downstream
-			// handler fails cleanly rather than hanging waiting for bytes.
-			_ = r.Body.Close()
-			r.Body = io.NopCloser(bytes.NewReader(nil))
-			next.ServeHTTP(w, r)
+			http.Error(w, "internal error reading request body", http.StatusInternalServerError)
 			return
 		}
-		head = head[:n]
 
-		// Probe one byte beyond the cap to detect whether the body was truncated for
-		// logging purposes. Skip the probe when ReadFull already exhausted the body —
-		// a probe Read on an exhausted body adds no information and can spuriously log.
-		var probe [1]byte
-		var truncated bool
-		if !fullyRead {
-			probeN, probeErr := r.Body.Read(probe[:])
-			truncated = probeN > 0
-			if probeErr != nil && !errors.Is(probeErr, io.EOF) {
-				logger.WarnContext(ctx, "scim payload dump: probe read error",
-					"method", r.Method, "path", r.URL.Path, "err", probeErr)
-			}
-		}
-
-		// Build the restored body. Always include head; include the probe byte and
-		// remaining body only if we managed to read past the cap.
 		logger.WarnContext(ctx, "scim payload dump",
 			"method", r.Method, "path", r.URL.Path,
-			"size", len(head), "truncated", truncated, "body", string(head))
-		if truncated {
-			origBody := r.Body
-			r.Body = readCloser{
-				Reader: io.MultiReader(bytes.NewReader(head), bytes.NewReader(probe[:1]), origBody),
-				Closer: origBody,
-			}
-		} else {
-			_ = r.Body.Close()
-			r.Body = io.NopCloser(bytes.NewReader(head))
-		}
+			"size", len(body), "body", string(body))
+		r.Body = io.NopCloser(bytes.NewReader(body))
 		next.ServeHTTP(w, r)
 	})
-}
-
-// readCloser pairs an io.Reader with an independent io.Closer. It is used by
-// debugPayloadDumpMiddleware to expose a stitched body (head + probe + remaining
-// original body) while still propagating Close() to the underlying http.Request.Body.
-type readCloser struct {
-	io.Reader
-	io.Closer
 }
 
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.

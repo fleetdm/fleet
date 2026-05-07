@@ -1155,4 +1155,59 @@ func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 	})
+
+	t.Run("add op with unrecognized explicit path is silently skipped", func(t *testing.T) {
+		// The recognition refactor applies equally to add ops; verify a no-op add on
+		// an unrecognized path doesn't 400 and doesn't trigger a DB write.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationAdd, Path: &unknownPath, Value: "EMP-1"},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("remove op with unrecognized explicit path is silently skipped", func(t *testing.T) {
+		// Removing an attribute Fleet doesn't store is a no-op by definition; verify
+		// it doesn't 400 and doesn't trigger a DB write.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":costCenter"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationRemove, Path: &unknownPath, Value: nil},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("add op with unrecognized path mixed with recognized op applies the recognized one", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationAdd, Path: &unknownPath, Value: "EMP-2"},
+			{Op: scim.PatchOperationAdd, Path: &deptPath, Value: "Sales"},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
+	})
 }
