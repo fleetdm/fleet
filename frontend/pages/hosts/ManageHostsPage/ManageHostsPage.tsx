@@ -1775,18 +1775,18 @@ const ManageHostsPage = ({
         </>
       );
     } else if (isAllTeamsSelected && isPremiumTier) {
-      disableRunScriptBatchTooltipContent = "Select a fleet to run a script";
+      disableRunScriptBatchTooltipContent = "Select a fleet to run a script.";
     } else if (isAllMatchingHostsSelected) {
       if (runScriptBatchFilterNotSupported) {
         disableRunScriptBatchTooltipContent =
-          "Choose different filters to run a script";
+          "Choose different filters to run a script.";
       } else if (
         // default to blocking until count API responds
         !totalFilteredHostsCount ||
         totalFilteredHostsCount > MAX_SCRIPT_BATCH_TARGETS
       ) {
         disableRunScriptBatchTooltipContent =
-          "Target at most 5,000 hosts to run a script";
+          "Target at most 5,000 hosts to run a script.";
       }
     }
     const secondarySelectActions: IActionButtonProps[] = [
