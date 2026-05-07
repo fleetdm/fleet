@@ -184,8 +184,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     </InfoBanner>
   );
 
-  const canUploadScripts =
-    isTechnician || (!config.server_settings.scripts_disabled && isPremiumTier);
+  const canUploadScripts = !isTechnician;
 
   return (
     <div className={baseClass}>
