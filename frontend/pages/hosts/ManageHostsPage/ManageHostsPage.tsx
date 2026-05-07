@@ -1662,8 +1662,7 @@ const ManageHostsPage = ({
   );
 
   // No hosts enrolled at all, no filters active
-  const isTrulyEmpty =
-    canEnrollHosts && maybeEmptyHosts && !includesFilterQueryParam;
+  const isTrulyEmpty = maybeEmptyHosts && !includesFilterQueryParam;
 
   const renderHostCount = useCallback(() => {
     return (
@@ -1835,18 +1834,19 @@ const ManageHostsPage = ({
       };
       if (isTrulyEmpty) {
         emptyHosts.header = "No hosts";
-        emptyHosts.info = (
-          <>
-            Fleet refers to computers, servers, and mobile devices as hosts.
-            <br />
-            Add a host to start seeing data.
-          </>
-        );
-        emptyHosts.primaryButton = (
-          <Button onClick={toggleAddHostsModal} type="button">
-            Add hosts
-          </Button>
-        );
+        if (canEnrollHosts) {
+          emptyHosts.info =
+            "Fleet refers to computers, servers, and mobile devices as hosts. Add a host to start seeing data.";
+          emptyHosts.primaryButton = (
+            <Button onClick={toggleAddHostsModal} type="button">
+              Add hosts
+            </Button>
+          );
+        } else {
+          emptyHosts.info =
+            "Fleet refers to computers, servers, and mobile devices as hosts.";
+          emptyHosts.primaryButton = undefined;
+        }
       } else if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
