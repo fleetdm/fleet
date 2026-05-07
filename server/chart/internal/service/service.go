@@ -96,6 +96,12 @@ func (s *Service) GetChartData(ctx context.Context, metric string, opts api.Requ
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("unknown chart metric: %s", metric)}
 	}
 
+	// Don't allow requesting more days than the charts are designed to handle.
+	// This mostly prevents expensive queries for large day ranges.
+	if opts.Days < 1 || opts.Days > 31 {
+		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid days value: %d (must be between 1 and 31)", opts.Days)}
+	}
+
 	// Resolution must be 0 or a positive divisor of 24.
 	if opts.Resolution < 0 || (opts.Resolution != 0 && 24%opts.Resolution != 0) {
 		return nil, &platform_http.BadRequestError{Message: fmt.Sprintf("invalid resolution value: %d (must be 0 or a positive divisor of 24)", opts.Resolution)}
