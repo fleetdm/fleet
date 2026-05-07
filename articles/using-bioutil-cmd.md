@@ -61,7 +61,7 @@ echo "JSON written to $OUTPUT_FILE."
 
 ## Deploying the script via Fleet
 
-In this example, we just want to check a 'snapshot' of our fleet's configuration, but this script could also be added to a crobtab to generate refreshed data on a set interval.
+In this example, we just want to check a 'snapshot' of our fleet's configuration, but this script could also be added to a crontab to generate refreshed data on a set interval.
 
 From the Fleet UI, select **Controls** > **Scripts** and upload the script from the previous step.
 
