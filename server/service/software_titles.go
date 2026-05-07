@@ -140,7 +140,6 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		fmt.Println("auth")
 		return nil, err
 	}
 

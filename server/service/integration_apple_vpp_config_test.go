@@ -99,6 +99,22 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true)}, http.StatusOK, &updResp)
 	require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
 
+	// 3b. Update iOS app with `configuration: null` → row deleted (clear semantics
+	// must match the batch path; previously the single-app PATCH stored empty bytes).
+	updResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: json.RawMessage(`null`)},
+		http.StatusOK, &updResp)
+	_, err = s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, iosAdamID, team.ID)
+	require.True(t, fleet.IsNotFound(err), "expected configuration row to be deleted on null PATCH, got %v", err)
+
+	// Re-set the configuration so the rest of the test continues with state.
+	updResp = updateAppStoreAppResponse{}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", addResp.TitleID),
+		&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: asJSONString(validPlist2)},
+		http.StatusOK, &updResp)
+	require.Equal(t, []byte(validPlist2), readStoredConfig(iosAdamID, fleet.IOSPlatform))
+
 	// 4. Add iPadOS app with malformed XML → 422.
 	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 		TeamID:        &team.ID,
