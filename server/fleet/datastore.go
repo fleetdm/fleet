@@ -1253,6 +1253,13 @@ type Datastore interface {
 	// GetJob returns a job from the database
 	GetJob(ctx context.Context, jobID uint) (*Job, error)
 
+	// HasQueuedJobWithArgs reports whether a job with the given name and
+	// args (compared as JSON values) currently exists in the jobs table in
+	// state JobStateQueued. Used by callers that need at-most-one pending
+	// job per (name, args) tuple — e.g. dedup of historical-data scrub
+	// enqueues across rapid disable/enable toggles.
+	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 

@@ -1023,6 +1023,7 @@ func newWorkerIntegrationsSchedule(
 	depStorage *mysql.NanoDEPStorage,
 	commander *apple_mdm.MDMAppleCommander,
 	androidModule android.Service,
+	chartSvc chart_api.Service,
 ) (*schedule.Schedule, error) {
 	const (
 		name = string(fleet.CronWorkerIntegrations)
@@ -1085,7 +1086,15 @@ func newWorkerIntegrationsSchedule(
 		Log:           logger,
 		AndroidModule: androidModule,
 	}
-	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker)
+	chartScrubGlobal := &worker.ChartScrubGlobal{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	chartScrubFleet := &worker.ChartScrubFleet{
+		ChartService: chartSvc,
+		Log:          logger,
+	}
+	w.Register(jira, zendesk, macosSetupAsst, dbMigrate, vppVerify, softwareWorker, chartScrubGlobal, chartScrubFleet)
 
 	// Read app config a first time before starting, to clear up any failer client
 	// configuration if we're not on a fleet-owned server. Technically, the ServerURL
@@ -1513,6 +1522,37 @@ func newCleanupsAndAggregationSchedule(
 	return s, nil
 }
 
+// buildChartScopeResolver returns a per-dataset scope resolver for the chart
+// collection cron. It computes (skip, disabledFleetIDs) from the global and
+// per-team historical-data flags. Extracted from the cron closure so it can be
+// unit-tested without spinning up a schedule.
+func buildChartScopeResolver(appCfg *fleet.AppConfig, teams []*fleet.Team, logger *slog.Logger) chart_api.CollectScopeFn {
+	return func(name string) (skip bool, disabledFleetIDs []uint) {
+		ok, err := appCfg.Features.HistoricalData.Enabled(name)
+		if err != nil {
+			// Unknown dataset — fall back to enabled with no team filter.
+			// The chart service is the source of truth for which datasets are
+			// registered; an unknown name here means a new dataset was added
+			// without a corresponding entry in Enabled().
+			if logger != nil {
+				logger.WarnContext(context.Background(), "chart scope: unknown dataset", "dataset", name, "err", err)
+			}
+			return false, nil
+		}
+		if !ok {
+			return true, nil
+		}
+		var disabled []uint
+		for _, t := range teams {
+			tok, terr := t.Config.Features.HistoricalData.Enabled(name)
+			if terr == nil && !tok {
+				disabled = append(disabled, t.ID)
+			}
+		}
+		return false, disabled
+	}
+}
+
 func newChartDataCollectionSchedule(
 	ctx context.Context,
 	instanceID string,
@@ -1528,7 +1568,25 @@ func newChartDataCollectionSchedule(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger.With("cron", name)),
 		schedule.WithJob("collect_chart_datasets", func(ctx context.Context) error {
-			return chartSvc.CollectDatasets(ctx, time.Now())
+			// Build a per-dataset scope resolver from AppConfig + team configs.
+			// Loaded fresh each tick so config changes take effect without
+			// a process restart. Failures here halt this tick so that we don't
+			// collect data that we shouldn't (i.e. from disabled teams or datasets).
+			// The cron retries on its next interval.
+			appCfg, err := ds.AppConfig(ctx)
+			if err != nil {
+				logger.ErrorContext(ctx, "load app config for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "load app config for chart scope")
+			}
+			teams, err := ds.ListTeams(ctx,
+				fleet.TeamFilter{User: &fleet.User{GlobalRole: new(fleet.RoleAdmin)}},
+				fleet.ListOptions{},
+			)
+			if err != nil {
+				logger.ErrorContext(ctx, "list teams for chart scope", "err", err)
+				return ctxerr.Wrap(ctx, err, "list teams for chart scope")
+			}
+			return chartSvc.CollectDatasets(ctx, time.Now(), buildChartScopeResolver(appCfg, teams, logger))
 		}),
 	)
 
