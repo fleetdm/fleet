@@ -45,7 +45,7 @@ Vous découvrirez un modèle de maturité pour planifier votre démarche d’ado
 
 
 <meta name="articleImageUrl" value="../website/assets/images/articles/IT-leaders-guide-to-Linux-device-management-cover-image-504x336@2x.png">
-<meta name="whitepaperFilename" value="IT-leaders-guide-to-Linux-device-management.pdf"> 
+<meta name="whitepaperFilename" value="IT-leaders-guide-to-Linux-device-management-fr.pdf"> 
 <meta name="formHeadline" value="Combler le fossé de la gestion Linux avec Fleet">
 
 <meta name="introductionTextBlockOne" value="Linux dépasse désormais 5 % de part de marché sur le poste de travail. L’enquête Stack Overflow publiée en 2025 auprès des développeurs montre que près de 30 % d’entre eux utilisent Linux comme système d’exploitation principal au travail.">
