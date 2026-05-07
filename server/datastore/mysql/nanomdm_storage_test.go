@@ -12,9 +12,11 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,6 +31,9 @@ func TestNanoMDMStorage(t *testing.T) {
 		{"TestEnqueueDeviceLockCommandRaceCondition", testEnqueueDeviceLockCommandRaceCondition},
 		{"TestEnqueueDeviceUnlockCommand", testEnqueueDeviceUnlockCommand},
 		{"TestStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal", testStoreAuthenticatePreservesBootstrapTokenDuringSCEPRenewal},
+		{"TestRetrievePushCert", testRetrievePushCert},
+		{"TestIsPushCertStale", testIsPushCertStale},
+		{"TestStorePushCert", testStorePushCert},
 	}
 
 	for _, c := range cases {
@@ -492,4 +497,128 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	require.Equal(t, 1, commandCount, "Only one command should be in nano_commands table")
 	require.Len(t, pins, 1, "Only one PIN should be generated")
 	require.Equal(t, pins[0], storedPIN, "Stored PIN should match the successful request")
+}
+
+func testRetrievePushCert(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSCert)
+		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSKey)
+	})
+
+	apnsCert, apnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+
+	err = ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+	}, nil)
+	require.NoError(t, err)
+
+	cert, hash, err := ns.RetrievePushCert(ctx, "com.apple.mgmt.test")
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+	require.NotEmpty(t, hash)
+	require.NotNil(t, pushCertStaleness)
+	require.Equal(t, hash, pushCertStaleness.hash)
+	assert.WithinDuration(t, time.Now(), pushCertStaleness.updatedAt, 500*time.Millisecond)
+	oldUpdatedAt := pushCertStaleness.updatedAt
+
+	// Retrieve again with same cert - should not update staleness
+	cert2, hash2, err := ns.RetrievePushCert(ctx, "com.apple.mgmt.test")
+	require.NoError(t, err)
+	require.NotNil(t, cert2)
+	require.Equal(t, hash, hash2)
+	require.Equal(t, oldUpdatedAt, pushCertStaleness.updatedAt)
+	stalenessHash := pushCertStaleness.hash
+
+	// Insert a new cert with different content to simulate cert rotation
+	newApnsCert, newApnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+	require.NoError(t, ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSCert, Value: newApnsCert}))
+	require.NoError(t, ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSKey, Value: newApnsKey}))
+
+	cert3, hash3, err := ns.RetrievePushCert(ctx, "com.apple.mgmt.test")
+	require.NoError(t, err)
+	require.NotNil(t, cert3)
+	require.NotEqual(t, hash, hash3)
+	require.Equal(t, hash3, pushCertStaleness.hash)
+	assert.WithinDuration(t, time.Now(), pushCertStaleness.updatedAt, 500*time.Millisecond)
+	require.NotEqual(t, oldUpdatedAt, pushCertStaleness.updatedAt)
+	require.NotEqual(t, stalenessHash, pushCertStaleness.hash)
+}
+
+func testIsPushCertStale(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSCert)
+		_ = ds.HardDeleteMDMConfigAsset(ctx, fleet.MDMAssetAPNSKey)
+	})
+
+	// Initially there is no cert, so it should be considered stale
+	stale, err := ns.IsPushCertStale(ctx, "com.apple.mgmt.test", "nonexistent-token")
+	require.NoError(t, err)
+	require.True(t, stale)
+
+	// Insert a cert
+	apnsCert, apnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+
+	err = ds.InsertMDMConfigAssets(ctx, []fleet.MDMConfigAsset{
+		{Name: fleet.MDMAssetAPNSCert, Value: apnsCert},
+		{Name: fleet.MDMAssetAPNSKey, Value: apnsKey},
+	}, nil)
+	require.NoError(t, err)
+
+	// Retrieve the cert to get the current hash
+	cert, hash, err := ns.RetrievePushCert(ctx, "com.apple.mgmt.test")
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+	require.NotEmpty(t, hash)
+
+	// Check staleness with correct token - should not be stale
+	stale, err = ns.IsPushCertStale(ctx, "com.apple.mgmt.test", hash)
+	require.NoError(t, err)
+	require.False(t, stale)
+
+	// Check staleness with incorrect token - should be stale
+	stale, err = ns.IsPushCertStale(ctx, "com.apple.mgmt.test", "invalid-token")
+	require.NoError(t, err)
+	require.True(t, stale)
+
+	// Insert a new cert to simulate rotation
+	newApnsCert, newApnsKey, err := GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	require.NoError(t, err)
+	require.NoError(t, ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSCert, Value: newApnsCert}))
+	require.NoError(t, ds.InsertOrReplaceMDMConfigAsset(ctx, fleet.MDMConfigAsset{Name: fleet.MDMAssetAPNSKey, Value: newApnsKey}))
+
+	// Check staleness with old token - should not be stale since under 5 minutes
+	stale, err = ns.IsPushCertStale(ctx, "com.apple.mgmt.test", hash)
+	require.NoError(t, err)
+	require.False(t, stale, "We allow the wrong cert for up to 5 minutes after rotation")
+	require.WithinDuration(t, time.Now(), pushCertStaleness.updatedAt, 5*time.Minute)
+
+	// Fake 5 minutes passing
+	pushCertStaleness.updatedAt = time.Now().Add(-6 * time.Minute)
+
+	// Check staleness with old token - should be stale since cert is now old
+	stale, err = ns.IsPushCertStale(ctx, "com.apple.mgmt.test", hash)
+	require.NoError(t, err)
+	require.True(t, stale)
+}
+
+// ensure we always use our custom MDM config assets impl.
+func testStorePushCert(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	ns, err := ds.NewMDMAppleMDMStorage()
+	require.NoError(t, err)
+
+	err = ns.StorePushCert(ctx, nil, nil)
+	require.Error(t, err)
+	require.Equal(t, "please use fleet.Datastore to manage MDM assets", err.Error())
 }

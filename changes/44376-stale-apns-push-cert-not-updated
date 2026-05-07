@@ -1,0 +1,1 @@
+- Fixed an issue where an old APNs cert would stay in memory until a restart, instead of correctly updating in place.

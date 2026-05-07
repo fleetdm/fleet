@@ -6427,7 +6427,7 @@ func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames
 
 	stmt := `
 SELECT
-    name, value
+    name, value, md5_checksum
 FROM
    mdm_config_assets
 WHERE
@@ -6459,7 +6459,7 @@ WHERE
 			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
 		}
 
-		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal, MD5Checksum: asset.MD5Checksum}
 	}
 
 	if len(res) < len(assetNames) {
@@ -6563,6 +6563,7 @@ VALUES
 		}
 
 		hexChecksum := md5ChecksumBytes(encryptedVal)
+		fmt.Println("Inserting checksum", hexChecksum, " for ", a.Name)
 		insertVals.WriteString(`(?, ?, UNHEX(?)),`)
 		args = append(args, a.Name, encryptedVal, hexChecksum)
 	}
