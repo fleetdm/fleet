@@ -4,6 +4,13 @@ import com.fleetdm.agent.GetCertificateTemplateResponse
 import com.fleetdm.agent.IntegrationTest
 import com.fleetdm.agent.IntegrationTestRule
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
+import org.bouncycastle.asn1.ASN1OctetString
+import org.bouncycastle.asn1.DERIA5String
+import org.bouncycastle.asn1.DEROctetString
+import org.bouncycastle.asn1.x509.Extension
+import org.bouncycastle.asn1.x509.GeneralName
+import org.bouncycastle.asn1.x509.GeneralNames
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -123,6 +130,77 @@ class ScepIntegrationTest {
 
         // Typical SCEP enrollment should complete within 30 seconds
         assertTrue("Enrollment should complete within 30 seconds (took ${duration}ms)", duration < 30000)
+    }
+
+    @IntegrationTest
+    @Test
+    fun `SAN entries on the certificate template appear on the issued certificate`() = runTest {
+        // End-to-end check that the SAN extension we put on the CSR is accepted by the
+        // SCEP CA and copied verbatim to the issued certificate. Two entries per type
+        // exercise the repeated-key path and confirm the CA does not deduplicate.
+        // Unique values per run avoid duplicate-cert collisions on CAs that enforce it.
+        //
+        // UPN (otherName) is intentionally not asserted here: the reference CA used in
+        // CI (micromdm/scep) only copies DNS/Email/IP/URI from the CSR to the issued
+        // cert via the typed fields on Go's x509.Certificate, and drops otherName.
+        val uniqueId = System.currentTimeMillis()
+        val expectedDns = listOf("a-$uniqueId.example.com", "b-$uniqueId.example.com")
+        val expectedEmail = listOf("a-$uniqueId@example.com", "b-$uniqueId@example.com")
+        val expectedUri = listOf(
+            "spiffe://example.org/a-$uniqueId",
+            "spiffe://example.org/b-$uniqueId",
+        )
+        val expectedIpStrings = listOf("10.0.0.1", "10.0.0.2")
+        val expectedIpOctets = listOf(byteArrayOf(10, 0, 0, 1), byteArrayOf(10, 0, 0, 2))
+
+        val sanString = listOf(
+            "DNS=${expectedDns[0]}",
+            "DNS=${expectedDns[1]}",
+            "EMAIL=${expectedEmail[0]}",
+            "EMAIL=${expectedEmail[1]}",
+            "URI=${expectedUri[0]}",
+            "URI=${expectedUri[1]}",
+            "IP=${expectedIpStrings[0]}",
+            "IP=${expectedIpStrings[1]}",
+        ).joinToString(", ")
+
+        val template = testTemplate.copy(
+            name = "san-test-cert-$uniqueId",
+            subjectName = "CN=SanIntegrationTest-$uniqueId,O=FleetDM,C=US",
+            subjectAlternativeName = sanString,
+        )
+
+        val result = scepClient.enroll(template, testScepUrl)
+        val leafCert = result.certificateChain[0] as java.security.cert.X509Certificate
+
+        // Pull the SAN extension off the issued cert and parse via BouncyCastle. The
+        // cert's getExtensionValue returns the OCTET STRING wrapper, not the SAN
+        // contents directly, so we unwrap once before handing to GeneralNames.
+        val sanBytes = leafCert.getExtensionValue(Extension.subjectAlternativeName.id)
+        assertNotNull("Issued certificate has no SAN extension", sanBytes)
+        val sanContents = ASN1OctetString.getInstance(sanBytes).octets
+        val sanNames = GeneralNames.getInstance(sanContents).names
+
+        fun ia5ValuesForTag(tag: Int): List<String> = sanNames
+            .filter { it.tagNo == tag }
+            .map { (it.name as DERIA5String).string }
+
+        fun ipOctetsHex(): List<String> = sanNames
+            .filter { it.tagNo == GeneralName.iPAddress }
+            .map { (it.name as DEROctetString).octets.joinToString("") { b -> "%02x".format(b) } }
+
+        // Order is not pinned: some CAs canonicalize SAN ordering during signing.
+        // Sort each side and compare to verify both entries of each type round-trip.
+        assertEquals(expectedDns.sorted(), ia5ValuesForTag(GeneralName.dNSName).sorted())
+        assertEquals(expectedEmail.sorted(), ia5ValuesForTag(GeneralName.rfc822Name).sorted())
+        assertEquals(
+            expectedUri.sorted(),
+            ia5ValuesForTag(GeneralName.uniformResourceIdentifier).sorted(),
+        )
+        assertEquals(
+            expectedIpOctets.map { it.joinToString("") { b -> "%02x".format(b) } }.sorted(),
+            ipOctetsHex().sorted(),
+        )
     }
 
     @Test
