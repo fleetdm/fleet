@@ -1835,8 +1835,13 @@ const ManageHostsPage = ({
       if (isTrulyEmpty) {
         emptyHosts.header = "No hosts";
         if (canEnrollHosts) {
-          emptyHosts.info =
-            "Fleet refers to computers, servers, and mobile devices as hosts. Add a host to start seeing data.";
+          emptyHosts.info = (
+            <>
+              Fleet refers to computers, servers, and mobile devices as hosts.
+              <br />
+              Add a host to start seeing data.
+            </>
+          );
           emptyHosts.primaryButton = (
             <Button onClick={toggleAddHostsModal} type="button">
               Add hosts
