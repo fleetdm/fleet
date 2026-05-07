@@ -93,8 +93,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt types.ListOptions) 
 	}
 
 	// Always cap the upper bound on created_at so that results are consistent
-	// regardless of whether StartCreatedAt is provided. Defaults to now per the
-	// REST API contract.
+	// regardless of whether StartCreatedAt is provided. Defaults to now.
 	activitiesQ += " AND a.created_at <= ?"
 	if opt.EndCreatedAt != "" {
 		args = append(args, opt.EndCreatedAt)
