@@ -429,7 +429,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_windows_mdm: "Turned on Windows MDM",
   enabled_windows_mdm_migration: "Turned on Windows MDM migration",
   fleet_enrolled: "Host enrolled",
-  installed_app_store_app: "Installed App Store (VPP) app",
+  installed_app_store_app: "Installed App Store app",
   installed_software: "Install software",
   live_query: "Ran live report",
   locked_host: "Locked host",
