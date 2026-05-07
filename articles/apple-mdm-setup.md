@@ -75,7 +75,30 @@ When one of your uploaded AB tokens has expired or is within 30 days of expiring
 
 > If no default fleet is set for a host platform (macOS, iOS, or iPadOS), then newly enrolled hosts of that platform will be placed in "Unassigned".
 
-> A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
+ > A host can be transferred to a new (not default) fleet before it enrolls. In the Fleet UI, you can do this under **Settings** > **Fleets**.
+
+### Default automatic enrollment profile
+
+When macOS, iOS, or iPadOS hosts automatically enroll through Apple Business, Fleet sends an automatic enrollment (ADE) profile to Apple that controls how the Setup Assistant behaves. If no custom profile is uploaded for a fleet, Fleet uses a built-in default profile.
+
+The default profile sets options such as whether enrollment is mandatory, which Setup Assistant panes are skipped, and whether the MDM profile is removable. See the [Setup Assistant pane options](https://fleetdm.com/learn-more-about/apple-setup-assistant).
+
+#### Where to view the default profile
+
+- **Fleet UI:** Navigate to **Controls > Setup experience > Setup Assistant**. When no custom profile is uploaded, you can select **Download** to download the default profile JSON that your Fleet instance is currently using.
+- **API:** `GET /api/v1/fleet/enrollment_profiles/automatic/default`
+
+#### Stored once, never auto-refreshed
+
+The default profile is stored once per Fleet instance — at the time of your first automatic enrollment registration with Apple — and is **not** refreshed by Fleet upgrades, by adding or removing AB tokens, or by any other normal operation. This means that even if a newer version of Fleet ships updated default values, existing Fleet instances will continue using the default profile that was originally stored.
+
+#### Updating to Fleet's latest defaults
+
+There is no in-product "reset to latest default" action today. If you want your Fleet instance to use newer default values introduced in a later Fleet release:
+
+1. Check the latest defaults by reviewing the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#get-fleet-default-mdm-setup-enrollment-profile) or by checking a freshly created Fleet instance.
+2. Create a custom enrollment profile JSON containing the desired values. See the [Setup Assistant section of the setup experience guide](https://fleetdm.com/guides/setup-experience#setup-assistant) for instructions on creating and uploading a custom profile.
+3. Upload it via the Fleet UI (**Controls > Setup experience > Setup Assistant > Add profile**) or the [API](https://fleetdm.com/docs/rest-api/rest-api#update-custom-mdm-setup-enrollment-profile).
 
 ## Turn on MDM on a host
 
