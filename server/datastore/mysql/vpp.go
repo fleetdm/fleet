@@ -2667,6 +2667,22 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 	})
 }
 
+// nanoEnqueueVPPInstall is the single fan-in point for every InstallApplication
+// command Fleet sends for a VPP iOS / iPadOS / macOS app. All of:
+//
+//   - manual install from host details > software > library
+//   - self-service install
+//   - VPP auto-install policy fulfillment
+//   - scheduled auto-update (newer App Store version)
+//   - setup experience / DEP first-install
+//   - retry-on-failure (RetryVPPInstall calls this directly)
+//   - admin reinstall
+//
+// land here via activateNextVPPAppInstallActivity. Configuration is fetched
+// and per-host $FLEET_VAR_* substitution is performed inside this function so
+// every send path inherits the latest stored config — including the case
+// where the app was installed without config and config is added later
+// (next activation picks up the change).
 func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	// sanity-check that there's something to activate
 	if len(execIDs) == 0 {

@@ -1318,6 +1318,17 @@ ORDER BY
 	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)
 }
 
+// activateNextInHouseAppInstallActivity is the single fan-in point for every
+// InstallApplication command Fleet sends for an in-house (.ipa) app. All of:
+//
+//   - manual install from host details > software > library
+//   - self-service install
+//   - retry-on-failure
+//   - admin reinstall
+//
+// land here. Configuration is fetched and per-host $FLEET_VAR_* substitution
+// is performed inside this function so every send path inherits the latest
+// stored config.
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insStmt = `
 INSERT INTO

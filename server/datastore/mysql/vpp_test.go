@@ -47,6 +47,8 @@ func TestVPP(t *testing.T) {
 		{"AndroidAppConfigs", testAndroidAppConfigs},
 		{"VPPAppConfigCRUDFlow", testVPPAppConfigCRUDFlow},
 		{"VPPAppConfigHasChanged", testHasVPPAppConfigurationChanged},
+		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
+		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
@@ -3218,6 +3220,107 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
 	require.ErrorContains(t, err, "not found")
+}
+
+// testVPPInstallEnqueuesConfigurationDict exercises the fan-in point that
+// every VPP InstallApplication enqueue path lands on (nanoEnqueueVPPInstall):
+//   - first install (manual / self-service / policy auto-install fulfillment)
+//   - scheduled auto-update
+//   - setup experience
+//   - admin reinstall
+//   - retry
+//
+// They all funnel through InsertHostVPPSoftwareInstall → activateNextUpcomingActivity
+// → activateNextVPPAppInstallActivity → nanoEnqueueVPPInstall, so verifying
+// that one path produces a command with the Configuration dict (and
+// substituted host UUID) covers all of them by construction.
+func testVPPInstallEnqueuesConfigurationDict(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "iosmac-host",
+		UUID:           "test-host-uuid-9001",
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: "ABC-SERIAL",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "55556666"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	vpp := &fleet.VPPApp{
+		Name: "ConfigApp",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		BundleIdentifier: adamID,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	// Configuration that exercises both static plist content and a
+	// $FLEET_VAR_HOST_UUID substitution. global_or_team_id = 0 for "no team".
+	const cfg = `<dict><key>S</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, 0, adamID, []byte(cfg)))
+
+	const cmdUUID = "iosmac-cmd-1"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-1", fleet.HostSoftwareInstallOptions{}))
+
+	var commandXML string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &commandXML, "SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+	})
+
+	require.Contains(t, commandXML, "<key>Configuration</key>", "Configuration dict missing from InstallApplication command")
+	require.Contains(t, commandXML, "test-host-uuid-9001", "$FLEET_VAR_HOST_UUID was not substituted")
+	require.NotContains(t, commandXML, "$FLEET_VAR_HOST_UUID", "raw token leaked into device-bound XML")
+	require.Contains(t, commandXML, "<key>iTunesStoreID</key>")
+	require.Contains(t, commandXML, "<integer>"+adamID+"</integer>")
+}
+
+// testVPPInstallOmitsConfigurationOnMacOS confirms that when the configuration
+// is set up under iOS but a macOS install runs, the macOS InstallApplication
+// command does not carry a Configuration dict. Apple's MDM does not accept
+// the same Configuration shape on macOS, so this is both a correctness and a
+// safety check.
+func testVPPInstallOmitsConfigurationOnMacOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-host",
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "macos-app-1"
+	setupTestVPPApp(t, ds, adamID, fleet.MacOSPlatform)
+	vpp := &fleet.VPPApp{
+		Name: "MacApp",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform},
+		},
+		BundleIdentifier: adamID,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	const cmdUUID = "macos-cmd-1"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-mac", fleet.HostSoftwareInstallOptions{}))
+
+	var commandXML string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &commandXML, "SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+	})
+	require.NotContains(t, commandXML, "<key>Configuration</key>", "macOS VPP install must not carry Configuration dict")
+	require.Contains(t, commandXML, "<key>iTunesStoreID</key>")
 }
 
 func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
