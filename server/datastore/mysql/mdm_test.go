@@ -7836,6 +7836,9 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			})
 			require.Equal(t, 0, brokenAfter, "broken (NULL label_id) row should have been cleaned up")
 
+			// Verify the correct label association exists with the new label ID.
+			expectLabels(t, uuid, platform, profileLabels)
+
 			// Other profiles must remain untouched.
 			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
 			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
