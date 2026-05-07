@@ -258,6 +258,11 @@ const SelectReportModal = ({
     >
       {renderDescription()}
       {renderReports()}
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel} variant="inverse">
+          Close
+        </Button>
+      </div>
     </Modal>
   );
 };
