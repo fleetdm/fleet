@@ -49,17 +49,15 @@ object SubjectAlternativeNameParser {
 
     private fun parseToken(token: String): GeneralName {
         val eqIndex = token.indexOf('=')
-        if (eqIndex <= 0 || eqIndex == token.length - 1) {
-            throw IllegalArgumentException("Malformed SAN token: \"$token\" (expected KEY=value)")
+        require(eqIndex > 0 && eqIndex != token.length - 1) {
+            "Malformed SAN token: \"$token\" (expected KEY=value)"
         }
         // Locale.ROOT keeps the comparison locale-independent: a Turkish-locale device
         // would otherwise turn "ip" into "İP", which would not match the ASCII "IP" arm
         // and would fail enrollment.
         val key = token.substring(0, eqIndex).trim().uppercase(Locale.ROOT)
         val value = token.substring(eqIndex + 1).trim()
-        if (value.isEmpty()) {
-            throw IllegalArgumentException("Malformed SAN token: \"$token\" (empty value)")
-        }
+        require(value.isNotEmpty()) { "Malformed SAN token: \"$token\" (empty value)" }
         return when (key) {
             "DNS" -> GeneralName(GeneralName.dNSName, DERIA5String(value))
             "EMAIL" -> GeneralName(GeneralName.rfc822Name, DERIA5String(value))
@@ -90,11 +88,7 @@ object SubjectAlternativeNameParser {
             // parse, and trigger a real DNS lookup. Only hex digits, colons, and dotted-quad
             // suffixes (for IPv4-mapped IPv6) are permitted.
             if (!IPV6_LITERAL_CHARS.matches(value)) return null
-            return try {
-                InetAddress.getByName(value)
-            } catch (e: Exception) {
-                null
-            }
+            return runCatching { InetAddress.getByName(value) }.getOrNull()
         }
         val parts = value.split('.')
         if (parts.size != 4) return null
@@ -107,11 +101,7 @@ object SubjectAlternativeNameParser {
             if (part != n.toString()) return null
             bytes[i] = n.toByte()
         }
-        return try {
-            InetAddress.getByAddress(bytes)
-        } catch (e: Exception) {
-            null
-        }
+        return runCatching { InetAddress.getByAddress(bytes) }.getOrNull()
     }
 
     private fun encodeUpn(value: String): DERSequence = DERSequence(
