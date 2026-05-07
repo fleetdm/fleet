@@ -57,15 +57,30 @@ describe("HostPolicies", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders empty state without Manage policies CTA when user lacks permission", () => {
+  it("renders empty state without Manage policies CTA or manage clause when user lacks permission", () => {
     renderWithContext({
       canManagePolicies: false,
     });
 
     expect(screen.getByText("No policies checked")).toBeInTheDocument();
     expect(
+      screen.getByText(/Select Refetch to load the latest data from this host\./)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/manage its policies/)).not.toBeInTheDocument();
+    expect(
       screen.queryByRole("button", { name: /manage policies/i })
     ).not.toBeInTheDocument();
+  });
+
+  it("renders device user copy when deviceUser is true", () => {
+    renderWithContext({
+      deviceUser: true,
+      canManagePolicies: false,
+    });
+
+    expect(
+      screen.getByText(/Select Refetch to load the latest data from your device\./)
+    ).toBeInTheDocument();
   });
 
   it("renders policy count when policies exist", () => {

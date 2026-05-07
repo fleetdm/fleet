@@ -225,7 +225,6 @@ const HostReportsTab = ({
               activeText="Show reports that don't store results"
               inactiveText="Show reports that don't store results"
               className={`${baseClass}__toggle`}
-              disabled={isTrulyEmpty}
             />
           )}
         </div>
@@ -251,7 +250,11 @@ const HostReportsTab = ({
       {isTrulyEmpty ? (
         <EmptyState
           header="No reports scheduled"
-          info="Select Refetch to load the latest data from this host, or schedule a report."
+          info={
+            canScheduleReport
+              ? "Select Refetch to load the latest data from this host, or schedule a report."
+              : "Select Refetch to load the latest data from this host."
+          }
           primaryButton={
             canScheduleReport ? (
               <Button onClick={onScheduleReport} type="button">

@@ -131,10 +131,14 @@ const Policies = ({
     }
 
     if (policies.length === 0) {
+      const target = deviceUser ? "your device" : "this host";
+      const manageClause = canManagePolicies
+        ? ", or manage its policies."
+        : ".";
       return (
         <EmptyState
           header="No policies checked"
-          info="Select Refetch to load the latest data from this host, or manage its policies."
+          info={`Select Refetch to load the latest data from ${target}${manageClause}`}
           primaryButton={
             canManagePolicies ? (
               <Button onClick={onManagePolicies} type="button">

@@ -1202,6 +1202,24 @@ const HostDetailsPage = ({
     host?.team_id
   );
 
+  // CTA permissions are checked against the host's specific team, not the
+  // currently selected team in the nav. A user may be an admin on one team
+  // but only an observer on the host's team, so we must verify their role
+  // on the team this host actually belongs to.
+  const canScheduleReport =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isGlobalTechnician ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer ||
+    isHostTeamTechnician;
+
+  const canManagePolicies =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
+
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,
     details: host?.mdm.setup_experience?.details,
@@ -1557,7 +1575,7 @@ const HostDetailsPage = ({
                       config?.server_settings?.query_reports_disabled
                     }
                     showReportsEmptyState={showReportsEmptyState}
-                    canScheduleReport={!isOnlyObserver}
+                    canScheduleReport={canScheduleReport}
                     onScheduleReport={() =>
                       router.push(
                         getPathWithQueryParams(PATHS.NEW_REPORT, {
@@ -1577,11 +1595,7 @@ const HostDetailsPage = ({
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
                     hostPlatform={host.platform}
                     currentTeamId={currentTeam?.id}
-                    canManagePolicies={
-                      isGlobalAdmin ||
-                      isGlobalMaintainer ||
-                      isTeamMaintainerOrTeamAdmin
-                    }
+                    canManagePolicies={canManagePolicies}
                     onManagePolicies={() =>
                       router.push(
                         getPathWithQueryParams(PATHS.MANAGE_POLICIES, {

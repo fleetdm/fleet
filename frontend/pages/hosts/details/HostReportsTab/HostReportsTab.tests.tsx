@@ -2,7 +2,11 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 
-import { createCustomRenderer, createMockRouter, baseUrl } from "test/test-utils";
+import {
+  createCustomRenderer,
+  createMockRouter,
+  baseUrl,
+} from "test/test-utils";
 import mockServer from "test/mock-server";
 import createMockUser from "__mocks__/userMock";
 
@@ -71,9 +75,7 @@ describe("HostReportsTab", () => {
     );
 
     // Empty state copy
-    expect(
-      await screen.findByText("No reports scheduled")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("No reports scheduled")).toBeInTheDocument();
     expect(
       screen.getByText(
         /Select Refetch to load the latest data from this host, or schedule a report/
@@ -105,13 +107,13 @@ describe("HostReportsTab", () => {
       },
     });
 
-    render(
-      <HostReportsTab {...baseProps} canScheduleReport={false} />
-    );
+    render(<HostReportsTab {...baseProps} canScheduleReport={false} />);
 
+    expect(await screen.findByText("No reports scheduled")).toBeInTheDocument();
     expect(
-      await screen.findByText("No reports scheduled")
+      screen.getByText("Select Refetch to load the latest data from this host.")
     ).toBeInTheDocument();
+    expect(screen.queryByText(/schedule a report/)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /schedule a report/i })
     ).not.toBeInTheDocument();
