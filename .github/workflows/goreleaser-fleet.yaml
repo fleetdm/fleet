@@ -244,7 +244,8 @@ jobs:
             echo "Error: Signed fleetctl binary not found"
             exit 1
           fi
-          # download-artifact@v4 does not preserve the execute bit
+          # The download-artifact does not preserve the execute bit,
+          # so set it here so execution doesn't fail.
           chmod +x dist/fleetctl_darwin_all/fleetctl
           echo "Binary found, verifying signature..."
           codesign --verify --verbose dist/fleetctl_darwin_all/fleetctl || exit 1
@@ -370,14 +371,16 @@ jobs:
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: fleetctl-msi-${{ matrix.arch }}
-          path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{ matrix.arch }}.msi
+          path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+            matrix.arch }}.msi
           retention-days: 1
 
       - name: Attest MSI
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{ matrix.arch }}.msi
+          subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+            matrix.arch }}.msi
 
   upload-fleetctl-msi:
     needs: build-fleetctl-msi
