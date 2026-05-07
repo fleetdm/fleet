@@ -268,13 +268,11 @@ body.dark-mode pre {
   background-color: #111214;
 }
 
-body.dark-mode .data-table-block thead,
-body.dark-mode thead {
+body.dark-mode .data-table-block thead {
   background-color: $dark-mode-table-header;
 }
 
-body.dark-mode .data-table-block tbody tr,
-body.dark-mode tbody tr {
+body.dark-mode .data-table-block tbody tr {
   background-color: $dark-mode-table-row;
 }
 

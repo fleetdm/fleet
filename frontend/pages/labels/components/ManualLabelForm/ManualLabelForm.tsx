@@ -133,7 +133,6 @@ const ManualLabelForm = ({
         teamName={teamName}
         onCancel={onCancel}
         onSave={onSaveNewLabel}
-        isManualLabel
         immutableFields={teamName ? ["teams"] : []}
         additionalFields={
           <TargetsInput

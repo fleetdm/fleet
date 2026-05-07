@@ -411,6 +411,18 @@ const TableContainer = <T,>({
       );
     }
 
+    const countNode =
+      renderCount && !disableCount ? renderCount() : null;
+    const customControlNode = customControl ? customControl() : null;
+    const actionNode =
+      actionButton && !actionButton.hideButton
+        ? renderFilterActionButton()
+        : null;
+    const hasInlineSearch = searchable && !wideSearch;
+    const hasHeader =
+      !disableTableHeader &&
+      (!!countNode || !!customControlNode || !!actionNode || hasInlineSearch);
+
     return (
       <>
         {wideSearch && searchable && (
@@ -422,7 +434,7 @@ const TableContainer = <T,>({
             />
           </div>
         )}
-        {!disableTableHeader && (
+        {hasHeader && (
           <div
             className={`${baseClass}__header ${
               stackControls ? "stack-table-controls" : ""
@@ -433,26 +445,24 @@ const TableContainer = <T,>({
                 stackControls ? "stack-table-controls" : ""
               }`}
             >
-              {renderCount && !disableCount && (
+              {countNode && (
                 <div
                   className={`${baseClass}__results-count  ${
                     stackControls ? "stack-table-controls" : ""
                   }`}
                   style={opacity}
                 >
-                  {renderCount()}
+                  {countNode}
                 </div>
               )}
               <span className="controls">
-                {actionButton &&
-                  !actionButton.hideButton &&
-                  renderFilterActionButton()}
-                {customControl && customControl()}
+                {actionNode}
+                {customControlNode}
               </span>
             </div>
 
             {/* Render search bar only if not empty component */}
-            {searchable && !wideSearch && (
+            {hasInlineSearch && (
               <div className={`${baseClass}__search`}>
                 <TooltipWrapper
                   tipContent={

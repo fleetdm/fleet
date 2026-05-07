@@ -3,6 +3,7 @@
 // should wrap their routed content in this class with `key={location.pathname}`
 // so the element remounts on tab change and re-triggers the animation.
 .tab-nav-routed-content {
+  margin-top: $gap-page-component;
   animation: fade-in 250ms ease-out;
 }
 
