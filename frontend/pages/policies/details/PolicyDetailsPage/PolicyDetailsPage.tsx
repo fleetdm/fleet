@@ -36,7 +36,7 @@ interface IPolicyDetailsPageProps {
   location: {
     pathname: string;
     search: string;
-    query: { fleet_id?: string };
+    query: { fleet_id?: string; inherited_policy?: string };
   };
 }
 
@@ -105,14 +105,20 @@ const PolicyDetailsPage = ({
     router.push(PATHS.MANAGE_POLICIES);
   }
 
+  // Inherited (global) policies clicked from a team's policy list pass this
+  // hint so we fetch from the global endpoint even though the URL carries a
+  // fleet_id (team users can't render a teamless URL — useTeamIdParam
+  // redirects them to their default team).
+  const isInheritedPolicyLink = location.query.inherited_policy === "true";
+
   const { isLoading, data: storedPolicy, error: apiError } = useQuery<
     IStoredPolicyResponse,
     Error,
     IPolicy
   >(
-    ["policy", policyId, teamIdForApi],
+    ["policy", policyId, teamIdForApi, isInheritedPolicyLink],
     () =>
-      teamIdForApi && teamIdForApi > 0
+      !isInheritedPolicyLink && teamIdForApi && teamIdForApi > 0
         ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
         : globalPoliciesAPI.load(policyId as number),
     {

@@ -111,6 +111,7 @@ const generateTableHeaders = (
       accessor: "name",
       Cell: (cellProps: ICellProps): JSX.Element => {
         const { critical, id, team_id, type } = cellProps.row.original;
+        const isInherited = team_id === null;
         return (
           <LinkCell
             className="w250"
@@ -124,7 +125,7 @@ const generateTableHeaders = (
                     Patch
                   </PillBadge>
                 )}
-                {viewingTeamPolicies && team_id === null && (
+                {viewingTeamPolicies && isInherited && (
                   <PillBadge tipContent="This policy runs on all hosts.">
                     Inherited
                   </PillBadge>
@@ -132,7 +133,10 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
-              fleet_id: team_id,
+              // For inherited policies preserve the current fleet for back-nav,
+              // and flag the link so the details page uses the global endpoint.
+              fleet_id: isInherited ? selectedTeamId : team_id,
+              inherited_policy: isInherited ? "true" : undefined,
             })}
           />
         );
