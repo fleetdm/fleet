@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "147.0.7727.138",
+      "version": "148.0.7778.97",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC' AND version_compare(version, '147.0.7727.138') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC' AND version_compare(version, '148.0.7778.97') < 0);"
       },
       "installer_url": "https://dl.google.com/dl/chrome/install/googlechromestandaloneenterprise64.msi",
       "install_script_ref": "8959087b",

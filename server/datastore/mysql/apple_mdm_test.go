@@ -54,7 +54,6 @@ func TestMDMApple(t *testing.T) {
 		{"TestListMDMAppleConfigProfiles", testListMDMAppleConfigProfiles},
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
-		{"TestIOSManagedCertProfileStaysVerifying", testIOSManagedCertProfileStaysVerifying},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
@@ -77,6 +76,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestSetVerifiedMacOSProfiles", testSetVerifiedMacOSProfiles},
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestMDMAppleResetEnrollment", testMDMAppleResetEnrollment},
+		{"TestMDMAppleResetOnReenrollment", testMDMAppleResetOnReenrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
@@ -5484,6 +5484,192 @@ func testMDMAppleResetEnrollment(t *testing.T, ds *Datastore) {
 	require.False(t, details.HardwareAttested)
 }
 
+func testMDMAppleResetOnReenrollment(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	newHost := func(uuidSuffix string) *fleet.Host {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "reset-host-" + uuidSuffix,
+			OsqueryHostID: ptr.String("reset-osq-" + uuidSuffix),
+			NodeKey:       ptr.String("reset-key-" + uuidSuffix),
+			UUID:          "reset-uuid-" + uuidSuffix,
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		return h
+	}
+
+	// seedHostData inserts one row for the host into each of the tables that
+	// MDMAppleResetOnReenrollment is responsible for clearing. Returns counters
+	// so the assertions can be expressed as "host A had N rows; host A should
+	// have 0; host B should still have its N rows".
+	seedHostData := func(t *testing.T, h *fleet.Host) {
+		// label_membership (host_id ref - covered by appleHostRefsForMDMReset)
+		_, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO labels (name, query) VALUES (?, ?)`,
+			"label-"+h.UUID, "select 1")
+		require.NoError(t, err)
+		var labelID uint
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &labelID,
+			`SELECT id FROM labels WHERE name = ?`, "label-"+h.UUID))
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO label_membership (host_id, label_id) VALUES (?, ?)`,
+			h.ID, labelID)
+		require.NoError(t, err)
+
+		// upcoming_activities (cleared via batchCancelAllHostUpcomingActivities).
+		// 'script' rows require a paired row in script_upcoming_activities for the
+		// cancel path's INNER JOIN; a row with all-NULL refs is enough.
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO upcoming_activities (host_id, priority, activity_type, execution_id, payload) VALUES (?, 1, 'script', ?, JSON_OBJECT())`,
+			h.ID, uuid.NewString())
+		require.NoError(t, err)
+		uaID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO script_upcoming_activities (upcoming_activity_id) VALUES (?)`, uaID)
+		require.NoError(t, err)
+	}
+
+	type counts struct {
+		label    int
+		upcoming int
+	}
+	countRows := func(t *testing.T, h *fleet.Host) counts {
+		var c counts
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.label,
+			`SELECT COUNT(*) FROM label_membership WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.upcoming,
+			`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, h.ID))
+		return c
+	}
+	seeded := counts{label: 1, upcoming: 1}
+
+	t.Run("clears expected tables and leaves other hosts untouched", func(t *testing.T) {
+		hostA := newHost("clear-A")
+		hostB := newHost("clear-B")
+		seedHostData(t, hostA)
+		seedHostData(t, hostB)
+
+		// sanity: both hosts start fully seeded
+		require.Equal(t, seeded, countRows(t, hostA))
+		require.Equal(t, seeded, countRows(t, hostB))
+
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
+
+		// host A: everything cleared
+		assert.Equal(t, counts{label: 0, upcoming: 0}, countRows(t, hostA))
+
+		// host B: untouched (control - proves the reset is host-scoped)
+		assert.Equal(t, seeded, countRows(t, hostB))
+	})
+
+	t.Run("returns error and changes nothing when host UUID does not exist", func(t *testing.T) {
+		hostA := newHost("err-A")
+		seedHostData(t, hostA)
+
+		err := ds.MDMAppleResetOnReenrollment(ctx, "nonexistent-uuid-xyz", true)
+		require.Error(t, err)
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+
+		// host A's seeded data must still be present - the failed call must
+		// not have any side effects.
+		assert.Equal(t, seeded, countRows(t, hostA))
+	})
+
+	// seedHostActivityData seeds the rows whose deletion is gated by the
+	// preserveHostActivities flag: a past activity (activity_host_past) and a
+	// pair of MDM commands - one still active in nano_enrollment_queue and one
+	// already acknowledged (active=0 in the queue, with a corresponding
+	// nano_command_results row).
+	seedHostActivityData := func(t *testing.T, h *fleet.Host) {
+		res, err := ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO activity_past (user_id, activity_type, details, host_only, streamed)
+			 VALUES (NULL, 'ran_script', JSON_OBJECT(), 1, 0)`)
+		require.NoError(t, err)
+		actID, err := res.LastInsertId()
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO activity_host_past (host_id, activity_id) VALUES (?, ?)`,
+			h.ID, actID)
+		require.NoError(t, err)
+
+		nanoEnroll(t, ds, h, false)
+
+		// active (pending) MDM command: queue entry with active=1, no result yet.
+		activeCmdUUID := uuid.NewString()
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'ProfileList', '<?xml ?>')`,
+			activeCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 1)`,
+			h.UUID, activeCmdUUID)
+		require.NoError(t, err)
+
+		// acknowledged MDM command: queue entry already inactive, result stored.
+		ackedCmdUUID := uuid.NewString()
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, 'ProfileList', '<?xml ?>')`,
+			ackedCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_enrollment_queue (id, command_uuid, active) VALUES (?, ?, 0)`,
+			h.UUID, ackedCmdUUID)
+		require.NoError(t, err)
+		_, err = ds.writer(ctx).ExecContext(ctx,
+			`INSERT INTO nano_command_results (id, command_uuid, status, result) VALUES (?, ?, 'Acknowledged', '<?xml />')`,
+			h.UUID, ackedCmdUUID)
+		require.NoError(t, err)
+	}
+
+	type activityCounts struct {
+		pastActivity  int
+		activeQueue   int
+		inactiveQueue int
+		ackedCommand  int
+	}
+	countActivityRows := func(t *testing.T, h *fleet.Host) activityCounts {
+		var c activityCounts
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.pastActivity,
+			`SELECT COUNT(*) FROM activity_host_past WHERE host_id = ?`, h.ID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.activeQueue,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 1`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.inactiveQueue,
+			`SELECT COUNT(*) FROM nano_enrollment_queue WHERE id = ? AND active = 0`, h.UUID))
+		require.NoError(t, sqlx.GetContext(ctx, ds.writer(ctx), &c.ackedCommand,
+			`SELECT COUNT(*) FROM nano_command_results WHERE id = ? AND status = 'Acknowledged'`,
+			h.UUID))
+		return c
+	}
+
+	t.Run("preserveHostActivities flag controls past activity history", func(t *testing.T) {
+		hostA := newHost("preserve-A")
+		hostB := newHost("preserve-B")
+		seedHostActivityData(t, hostA)
+		seedHostActivityData(t, hostB)
+
+		seededAct := activityCounts{pastActivity: 1, activeQueue: 1, inactiveQueue: 1, ackedCommand: 1}
+		require.Equal(t, seededAct, countActivityRows(t, hostA))
+		require.Equal(t, seededAct, countActivityRows(t, hostB))
+
+		// preserveHostActivities=true: past activities, acked commands, and the
+		// active queue entry are all left alone.
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostA.UUID, true))
+		assert.Equal(t, seededAct, countActivityRows(t, hostA))
+
+		// preserveHostActivities=false: past activities are deleted and the
+		// previously-active queue entry is flipped to active=0 (so the host has
+		// two inactive queue rows now). The acknowledged command result row
+		// itself lives in nano_command_results, which the reset does not touch.
+		require.NoError(t, ds.MDMAppleResetOnReenrollment(ctx, hostB.UUID, false))
+		assert.Equal(t,
+			activityCounts{pastActivity: 0, activeQueue: 0, inactiveQueue: 2, ackedCommand: 1},
+			countActivityRows(t, hostB))
+	})
+}
+
 func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -7637,120 +7823,6 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 	}
 }
 
-// testIOSManagedCertProfileStaysVerifying covers the iOS/iPadOS race window in issue #44111.
-//
-// Non-cert iOS/iPadOS profiles short-circuit pending -> verified on MDM ack because there's
-// no osquery to drive the standard verifying -> verified transition. That short-circuit was
-// firing for managed-cert profiles too, which created a window where the renewal cron would
-// see status='verified' but the cert metadata in host_mdm_managed_certificates still
-// reflected the OLD cert — the renewal cron's renewal-window HAVING clause kept matching and
-// fired renewal redundantly each tick until CertificateList ingestion caught up.
-//
-// Fix: managed-cert profiles park at 'verifying' on ack and only flip to 'verified' when
-// updateHostMDMManagedCertDetailsDB ingests fresh cert metadata.
-func testIOSManagedCertProfileStaysVerifying(t *testing.T, ds *Datastore) {
-	ctx := t.Context()
-
-	cp, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
-		Name:         "scep-cert",
-		Identifier:   "com.example.scep",
-		Mobileconfig: []byte("scep-profile-bytes"),
-	}, nil)
-	require.NoError(t, err)
-
-	iOSHost, err := ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		OsqueryHostID:   ptr.String("ios-managed-cert-osquery-id"),
-		NodeKey:         ptr.String("ios-managed-cert-node-key"),
-		UUID:            "ios-managed-cert-uuid",
-		Hostname:        "ios-managed-cert",
-		Platform:        "ios",
-	})
-	require.NoError(t, err)
-
-	const cmdUUID = "ios-managed-cert-cmd"
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_mdm_apple_profiles
-				(host_uuid, profile_uuid, command_uuid, status, operation_type, detail, profile_name, profile_identifier, checksum)
-			VALUES (?, ?, ?, ?, ?, '', ?, ?, ?)`,
-			iOSHost.UUID, cp.ProfileUUID, cmdUUID, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall,
-			cp.Name, "com.test.profile."+cp.ProfileUUID, test.MakeTestChecksum(0),
-		)
-		return err
-	})
-
-	// Mark this profile as a managed-cert profile by inserting the matching row.
-	// At render time this only carries type/ca_name/challenge_retrieved_at; cert metadata
-	// arrives later via updateHostMDMManagedCertDetailsDB.
-	const caName = "test-ca"
-	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
-		{
-			HostUUID:    iOSHost.UUID,
-			ProfileUUID: cp.ProfileUUID,
-			Type:        fleet.CAConfigCustomSCEPProxy,
-			CAName:      caName,
-		},
-	}))
-
-	// MDM ack lands as 'verifying'. Without the fix, this would be intercepted and short-
-	// circuited to 'verified'. With the fix, it must remain 'verifying' for managed-cert
-	// profiles so the renewal cron's IN ('verified', 'failed') filter excludes the row
-	// while cert metadata is being refreshed.
-	require.NoError(t, ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		HostUUID:      iOSHost.UUID,
-		CommandUUID:   cmdUUID,
-		ProfileUUID:   cp.ProfileUUID,
-		Status:        &fleet.MDMDeliveryVerifying,
-		OperationType: fleet.MDMOperationTypeInstall,
-	}))
-
-	gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
-	require.NoError(t, err)
-	require.Len(t, gotProfs, 1)
-	require.NotNil(t, gotProfs[0].Status)
-	assert.Equal(t, fleet.MDMDeliveryVerifying, *gotProfs[0].Status,
-		"managed-cert profile must stay at 'verifying' on iOS until cert metadata refreshes")
-
-	// Simulate the device's CertificateList response landing in UpdateHostCertificates,
-	// which calls updateHostMDMManagedCertDetailsDB with fresh cert metadata. That path
-	// must flip the corresponding install row from 'verifying' to 'verified'.
-	notValidBefore := time.Now().Add(-1 * time.Hour).UTC().Round(time.Microsecond)
-	notValidAfter := time.Now().Add(30 * 24 * time.Hour).UTC().Round(time.Microsecond)
-	serial := "abcdef0123456789"
-	require.NoError(t, ds.UpdateHostCertificates(ctx, iOSHost.ID, iOSHost.UUID, []*fleet.HostCertificateRecord{
-		{
-			HostID:                    iOSHost.ID,
-			SHA1Sum:                   []byte("0123456789abcdef0123"), // 20 bytes
-			NotValidBefore:            notValidBefore,
-			NotValidAfter:             notValidAfter,
-			CommonName:                "fleet-managed-cert",
-			Serial:                    serial,
-			SubjectCommonName:         "fleet-" + cp.ProfileUUID,
-			SubjectOrganizationalUnit: "fleet",
-			Source:                    fleet.SystemHostCertificate,
-		},
-	}))
-
-	gotProfs, err = ds.GetHostMDMAppleProfiles(ctx, iOSHost.UUID)
-	require.NoError(t, err)
-	require.Len(t, gotProfs, 1)
-	require.NotNil(t, gotProfs[0].Status)
-	assert.Equal(t, fleet.MDMDeliveryVerified, *gotProfs[0].Status,
-		"updateHostMDMManagedCertDetailsDB must flip 'verifying' -> 'verified' once metadata refreshes")
-
-	// And cert metadata must reflect the new cert.
-	managedProf, err := ds.GetAppleHostMDMCertificateProfile(ctx, iOSHost.UUID, cp.ProfileUUID, caName)
-	require.NoError(t, err)
-	require.NotNil(t, managedProf)
-	require.NotNil(t, managedProf.Serial)
-	// Serials are stored zero-padded to 40 chars in the cert detail update path.
-	assert.Equal(t, fmt.Sprintf("%040s", serial), *managedProf.Serial)
-}
-
 func testMDMAppleBootstrapPackageWithS3(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	var nfe fleet.NotFoundError
@@ -8924,199 +8996,6 @@ func testMDMManagedSCEPCertificates(t *testing.T, ds *Datastore) {
 				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
 				require.NoError(t, err)
 				require.NotNil(t, profile)
-			})
-
-			// Regression test for issue #44111: renewal cron must not flip the status of a
-			// profile that's still being delivered ('pending' or 'verifying'). Otherwise an
-			// offline host that hasn't picked up the renewal yet would have its profile
-			// re-rendered with a fresh challenge every cron tick, generating orphan nano
-			// commands and challenge rows hourly.
-			t.Run("Renewal cron skips in-flight statuses (issue #44111)", func(t *testing.T) {
-				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
-					{
-						HostUUID:             host.UUID,
-						ProfileUUID:          initialCP.ProfileUUID,
-						ChallengeRetrievedAt: challengeRetrievedAt,
-						NotValidBefore:       &notValidBefore,
-						NotValidAfter:        &notValidAfter,
-						Type:                 caType,
-						CAName:               caName,
-						Serial:               &serial,
-					},
-				})
-				require.NoError(t, err)
-
-				for _, inFlightStatus := range []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryVerifying} {
-					ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-						_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
-			`, inFlightStatus, host.UUID, initialCP.ProfileUUID)
-						return err
-					})
-
-					err = ds.RenewMDMManagedCertificates(ctx)
-					require.NoError(t, err)
-					profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-					require.NoError(t, err)
-					require.NotNil(t, profile.Status)
-					assert.Equalf(t, inFlightStatus, *profile.Status,
-						"renewal cron must not flip status away from %q (in-flight delivery)", inFlightStatus)
-				}
-
-				// Sanity check: 'failed' must still be picked up so the cron can recover
-				// from a transient SCEP server outage on the next tick — but only after
-				// renewalFailedRetryBackoff has elapsed since the failure (gate against
-				// permanent-failure looping). Backdate updated_at to simulate the row
-				// having been in 'failed' long enough to be eligible for retry.
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = ?
-				WHERE host_uuid = ? AND profile_uuid = ?
-			`, fleet.MDMDeliveryFailed, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
-					return err
-				})
-				err = ds.RenewMDMManagedCertificates(ctx)
-				require.NoError(t, err)
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.Nil(t, profile.Status, "renewal cron must re-trigger 'failed' to recover from transient outages")
-			})
-
-			// Regression test for the permanent-failure loop. Pre-PR, BulkUpsert wiped cert
-			// metadata on every reconcile, which inadvertently kept permanent failures from
-			// looping. After the COALESCE fix that's gone, so we need an explicit backoff:
-			// 'failed' rows that were just marked failed (e.g., this cron tick's reconcile
-			// just rendered them as failed because the CA was deleted) must NOT be picked up
-			// on the very next tick. They become eligible only after renewalFailedRetryBackoff.
-			t.Run("Permanent-failure backoff (issue #44111)", func(t *testing.T) {
-				notValidBefore := time.Now().Add(-15 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
-					{
-						HostUUID:             host.UUID,
-						ProfileUUID:          initialCP.ProfileUUID,
-						ChallengeRetrievedAt: challengeRetrievedAt,
-						NotValidBefore:       &notValidBefore,
-						NotValidAfter:        &notValidAfter,
-						Type:                 caType,
-						CAName:               caName,
-						Serial:               &serial,
-					},
-				})
-				require.NoError(t, err)
-
-				// Mark failed with updated_at set to NOW — the typical path when reconcile
-				// just rendered the profile as failed (e.g. CA deleted, IDP missing).
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ?, updated_at = NOW(6)
-				WHERE host_uuid = ? AND profile_uuid = ?
-			`, fleet.MDMDeliveryFailed, host.UUID, initialCP.ProfileUUID)
-					return err
-				})
-
-				// Cron must NOT pick this up — would loop hourly otherwise.
-				err = ds.RenewMDMManagedCertificates(ctx)
-				require.NoError(t, err)
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.NotNil(t, profile.Status,
-					"renewal cron must NOT re-fire on a freshly-failed row (would loop on permanent failures)")
-				assert.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
-
-				// Once the backoff window has passed, the cron is allowed to retry once.
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET updated_at = ?
-				WHERE host_uuid = ? AND profile_uuid = ?
-			`, time.Now().Add(-25*time.Hour), host.UUID, initialCP.ProfileUUID)
-					return err
-				})
-				err = ds.RenewMDMManagedCertificates(ctx)
-				require.NoError(t, err)
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.Nil(t, profile.Status,
-					"renewal cron must re-fire 'failed' once renewalFailedRetryBackoff has elapsed")
-			})
-
-			// Regression test for issue #44111: the reconcile re-render that fires after a
-			// renewal trigger calls BulkUpsertMDMManagedCertificates with a payload that has
-			// nil NotValidBefore/NotValidAfter/Serial (those fields aren't known at profile
-			// render time). That upsert must not clobber the populated cert metadata, otherwise
-			// RenewMDMManagedCertificates' `HAVING validity_period IS NOT NULL` clause excludes
-			// the row and the renewal cron silently stops re-trying.
-			t.Run("Reconcile re-render preserves cert metadata (issue #44111)", func(t *testing.T) {
-				notValidBefore := time.Now().Add(-16 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				notValidAfter := time.Now().Add(14 * 24 * time.Hour).UTC().Round(time.Microsecond)
-				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
-					{
-						HostUUID:             host.UUID,
-						ProfileUUID:          initialCP.ProfileUUID,
-						ChallengeRetrievedAt: challengeRetrievedAt,
-						NotValidBefore:       &notValidBefore,
-						NotValidAfter:        &notValidAfter,
-						Type:                 caType,
-						CAName:               caName,
-						Serial:               &serial,
-					},
-				})
-				require.NoError(t, err)
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
-			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
-					return err
-				})
-
-				// Renewal cron flips status to NULL since the cert is in the renewal window.
-				err = ds.RenewMDMManagedCertificates(ctx)
-				require.NoError(t, err)
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.Nil(t, profile.Status)
-
-				// Reconcile re-renders the profile and upserts with the render-time payload —
-				// type/ca_name/challenge_retrieved_at set, all cert fields nil. Mirrors the
-				// payload built by ReplaceCustomSCEPProxyURLVariable and the NDES handler.
-				err = ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
-					{
-						HostUUID:             host.UUID,
-						ProfileUUID:          initialCP.ProfileUUID,
-						ChallengeRetrievedAt: challengeRetrievedAt,
-						Type:                 caType,
-						CAName:               caName,
-					},
-				})
-				require.NoError(t, err)
-
-				// Cert metadata must survive the reconcile re-render.
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.NotNil(t, profile)
-				require.NotNil(t, profile.Serial, "serial must be preserved across reconcile re-render")
-				assert.Equal(t, serial, *profile.Serial)
-				require.NotNil(t, profile.NotValidBefore, "not_valid_before must be preserved across reconcile re-render")
-				assert.Equal(t, &notValidBefore, profile.NotValidBefore)
-				require.NotNil(t, profile.NotValidAfter, "not_valid_after must be preserved across reconcile re-render")
-				assert.Equal(t, &notValidAfter, profile.NotValidAfter)
-
-				// If the device's SCEP handshake never completes, the renewal cron must still
-				// pick up the row on a subsequent run. Re-mark verified, re-run renewal — must
-				// flip status to NULL again, proving validity_period is still queryable.
-				ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-					_, err := q.ExecContext(ctx, `
-				UPDATE host_mdm_apple_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?
-			`, fleet.MDMDeliveryVerified, host.UUID, initialCP.ProfileUUID)
-					return err
-				})
-				err = ds.RenewMDMManagedCertificates(ctx)
-				require.NoError(t, err)
-				profile, err = ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, initialCP.ProfileUUID, caName)
-				require.NoError(t, err)
-				require.Nil(t, profile.Status, "renewal cron must still detect cert with preserved metadata")
 			})
 		})
 	}

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -329,6 +330,45 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+
+	// Re-Autopilot of an existing host: last_enrolled_at is >24h old (the
+	// pre-existing record predates this Autopilot cycle), but the host has
+	// just MDM-enrolled and is in awaiting_configuration=Pending.
+	host3UUID := "33333333-3333-3333-3333-333333333333"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-3-reautopilot",
+		OsqueryHostID:  ptr.String("osquery-windows-3"),
+		NodeKey:        ptr.String("node-key-windows-3"),
+		UUID:           host3UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321c-3",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host3UUID)
+		return err
+	})
+	// Insert a Windows MDM enrollment with awaiting_configuration=Pending,
+	// matching what a fresh Autopilot enrollment on the same host would create
+	// before last_enrolled_at gets refreshed.
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host3",
+		MDMHardwareID:          "hw-host3",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H3",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host3UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationPending,
+	}))
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host3UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued,
+		"re-Autopilot of an existing host (>24h old) with awaiting_configuration!=None must bypass the age guard")
 }
 
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {

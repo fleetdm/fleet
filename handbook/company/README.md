@@ -76,7 +76,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
-- **Keep it simple.** [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
+- **Keep it simple.** Avoid preemptive structure.  Reuse systems. Prefer ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/).  [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
 - **Be realistic.** Focus on one task at a time.  Resist [the urge to commit](https://www.linkedin.com/posts/37signals_the-problem-with-commitments-is-that-they-ugcPost-7252753513485619201-PdAw?utm_source=share&utm_medium=member_ios) to every good idea.  Work [hard](https://paulgraham.com/hwh.html).  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
@@ -93,7 +93,7 @@ Take the time to make [yourself](https://fleetdm.com/handbook/company/communica
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
-- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
+- **Public by default.** Get comfortable making decisions, being wrong, and being right in front of others. Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
 - **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
 
 <!--
