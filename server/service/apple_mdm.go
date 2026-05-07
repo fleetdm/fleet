@@ -5025,16 +5025,19 @@ func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEPro
 		return nil
 	}
 
+	cmdUUID := uuid.NewString()
+	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
+	}
+
+	// Track after the commander call so a CertificateList enqueue failure
+	// doesn't leave a stale tracking row that would suppress future
+	// triggers. Matches the iOS/iPadOS pattern in IOSiPadOSRefetch.
 	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
 		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 	}}); err != nil {
 		return ctxerr.Wrap(ctx, err, "track refetch certs command")
-	}
-
-	cmdUUID := uuid.NewString()
-	if err := svc.commander.CertificateList(ctx, []string{hostUUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "enqueue CertificateList")
 	}
 	return nil
 }
