@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import Button from "components/buttons/Button";
 import EmptyState from "./EmptyState";
+import CustomLink from "components/CustomLink";
 
 const meta: Meta<typeof EmptyState> = {
   title: "Components/EmptyState",

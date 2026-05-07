@@ -39,26 +39,59 @@ describe("Custom variables", () => {
     },
   });
   describe("empty state", () => {
+    const emptySecretsHandler = http.get(baseUrl("/custom_variables"), () => {
+      return HttpResponse.json({
+        custom_variables: [],
+        count: 0,
+        has_prev_results: false,
+        has_next_results: false,
+      });
+    });
+
     afterAll(() => {
       mockServer.resetHandlers();
     });
-    it("renders when no secrets are saved", async () => {
-      const secretsHandler = http.get(baseUrl("/custom_variables"), () => {
-        return HttpResponse.json({
-          custom_variables: [],
-          count: 0,
-          has_prev_results: false,
-          has_next_results: false,
-        });
-      });
-      mockServer.use(secretsHandler);
+    it("renders with Add CTA and edit info when user can edit", async () => {
+      mockServer.use(emptySecretsHandler);
 
       render(<Variables />);
       await waitFor(() => {
         expect(screen.getByText(/No custom variables/i)).toBeInTheDocument();
         expect(
+          screen.getByText(
+            "Add a custom variable to make it available in scripts and profiles."
+          )
+        ).toBeInTheDocument();
+        expect(
           screen.getByRole("button", { name: "Add custom variable" })
         ).toBeInTheDocument();
+      });
+    });
+
+    it("renders without Add CTA and with read-only info when user cannot edit", async () => {
+      mockServer.use(emptySecretsHandler);
+
+      const renderReadOnly = createCustomRenderer({
+        withBackendMock: true,
+        context: {
+          app: {
+            isGlobalAdmin: false,
+            isGlobalMaintainer: false,
+          },
+        },
+      });
+
+      renderReadOnly(<Variables />);
+      await waitFor(() => {
+        expect(screen.getByText("No custom variables")).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            "No custom variables are available for scripts and profiles."
+          )
+        ).toBeInTheDocument();
+        expect(
+          screen.queryByRole("button", { name: "Add custom variable" })
+        ).not.toBeInTheDocument();
       });
     });
   });

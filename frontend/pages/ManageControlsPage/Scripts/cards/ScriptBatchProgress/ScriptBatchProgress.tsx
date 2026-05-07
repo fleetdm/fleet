@@ -12,6 +12,7 @@ import scriptsAPI, {
 import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 
 import { COLORS } from "styles/var/colors";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import ProgressBar from "components/ProgressBar";
@@ -22,9 +23,10 @@ import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import ListItem from "components/ListItem";
 import Icon from "components/Icon/Icon";
 import EmptyState from "components/EmptyState";
+import CustomLink from "components/CustomLink";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
-import getWhen from "../../helpers";
+import { getWhen } from "../../helpers";
 
 const baseClass = "script-batch-progress";
 
@@ -34,19 +36,36 @@ const STATUS_BY_INDEX: ScriptBatchStatus[] = [
   "finished",
 ];
 
-export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, string> = {
-  started: "When a script is run on multiple hosts, progress will appear here.",
-  scheduled:
-    "When a script is scheduled to run in the future, it will appear here.",
-  finished:
-    "When a batch script is completed or canceled, historical results will appear here.",
+export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, JSX.Element> = {
+  started: (
+    <>
+      Scripts running on multiple hosts will appear here. <br />
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/batch-scripts`}
+        newTab
+        text="Learn more about batch scripts"
+      />
+    </>
+  ),
+  scheduled: (
+    <>
+      Scheduled scripts will appear here.
+      <br />
+      <CustomLink
+        url={`${LEARN_MORE_ABOUT_BASE_LINK}/batch-scripts`}
+        newTab
+        text="Learn more about batch scripts"
+      />
+    </>
+  ),
+  finished: <>Completed or canceled batch scripts will appear here.</>,
 };
 
 const getEmptyState = (status: ScriptBatchStatus) => {
   return (
     <EmptyState
       variant="list"
-      header={`No batch scripts ${status} for this fleet`}
+      header={`No batch scripts ${status}`}
       info={EMPTY_STATE_DETAILS[status]}
     />
   );

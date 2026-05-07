@@ -19,6 +19,7 @@ import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -26,8 +27,9 @@ import EditScriptModal from "../../components/EditScriptModal";
 import ScriptUploadModal from "../../components/ScriptUploadModal";
 import ScriptListHeading from "../../components/ScriptListHeading";
 import ScriptListItem from "../../components/ScriptListItem";
-import ScriptUploader from "../../components/ScriptUploader";
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
+import { SCRIPT_UPLOADER_EMPTY_STATE_TEXT } from "../../helpers";
+
 
 const baseClass = "script-library";
 
@@ -183,19 +185,32 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     </InfoBanner>
   );
 
+  const canUploadScripts =
+    isTechnician || (!config.server_settings.scripts_disabled && isPremiumTier);
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading &&
-        currentPage === 0 &&
-        !scripts?.length &&
-        (isTechnician ? (
-          <EmptyState variant="header-list" header="No scripts uploaded" />
-        ) : (
-          <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
-        ))}
+      {!isLoading && currentPage === 0 && !scripts?.length && (
+        <EmptyState
+          variant="header-list"
+          header="No scripts"
+          info={
+            canUploadScripts
+              ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT
+              : undefined
+          }
+          primaryButton={
+            canUploadScripts ? (
+              <Button onClick={() => setShowAddScriptModal(true)}>
+                Upload
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
       {showDeleteScriptModal && selectedScript.current && (
         <DeleteScriptModal
           scriptName={selectedScript.current?.name}

@@ -12,9 +12,7 @@ import { ScriptBatchStatus } from "interfaces/script";
 
 import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
 
-import ScriptBatchProgress, {
-  EMPTY_STATE_DETAILS,
-} from "./ScriptBatchProgress";
+import ScriptBatchProgress from "./ScriptBatchProgress";
 import { ScriptsLocation } from "../../Scripts";
 
 const waitForLoadingToFinish = async (container: HTMLElement) => {
@@ -114,6 +112,12 @@ const getTestLocation = (status: ScriptBatchStatus): ScriptsLocation => ({
   search: `?status=${status}`,
 });
 
+const EMPTY_STATE_TEXT: Record<ScriptBatchStatus, string> = {
+  started: "Scripts running on multiple hosts will appear here.",
+  scheduled: "Scheduled scripts will appear here.",
+  finished: "Completed or canceled batch scripts will appear here.",
+};
+
 const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
   const render = createCustomRenderer({
     withBackendMock: true,
@@ -144,7 +148,9 @@ const testTabURLNavAndEmpty = async (status: ScriptBatchStatus) => {
 
   await waitForLoadingToFinish(container);
 
-  expect(screen.getByText(EMPTY_STATE_DETAILS[status])).toBeInTheDocument();
+  expect(
+    screen.getByText(EMPTY_STATE_TEXT[status])
+  ).toBeInTheDocument();
   cleanup();
 };
 

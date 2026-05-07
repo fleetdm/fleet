@@ -202,8 +202,12 @@ const Variables = () => {
         </div>
         <EmptyState
           variant="header-list"
-          header="No custom variables created yet"
-          info="Add a custom variable to make it available in scripts and profiles."
+          header="No custom variables"
+          info={
+            canEdit
+              ? "Add a custom variable to make it available in scripts and profiles."
+              : "No custom variables are available for scripts and profiles."
+          }
           primaryButton={
             canEdit ? (
               <GitOpsModeTooltipWrapper
