@@ -189,3 +189,123 @@ func testCleanupHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *D
 	require.ErrorIs(t, err, context.Canceled)
 	assert.Equal(t, 1, tdb.CountSCDRows(t), "no rows should be deleted when ctx was canceled before the first batch")
 }
+
+func TestApplyScrubMaskToDataset(t *testing.T) {
+	tdb := testutils.SetupTestDB(t, "chart_mysql")
+	ds := NewDatastore(tdb.Conns(), tdb.Logger)
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, tdb *testutils.TestDB, ds *Datastore)
+	}{
+		{"EmptyMaskNoOp", testScrubEmptyMaskNoOp},
+		{"ClearsAffectedBits", testScrubClearsAffectedBits},
+		{"SkipsRowsMaskDoesNotTouch", testScrubSkipsRowsMaskDoesNotTouch},
+		{"ChunkedAcrossWriteBatches", testScrubChunkedAcrossWriteBatches},
+		{"HonorsCtxCancellation", testScrubHonorsCtxCancellation},
+		{"OtherDatasetUnaffected", testScrubOtherDatasetUnaffected},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer tdb.TruncateTables(t)
+			c.fn(t, tdb, ds)
+		})
+	}
+}
+
+func testScrubEmptyMaskNoOp(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC()
+	bitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
+	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
+
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", nil, 0))
+	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "nil mask must not modify the row")
+
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", []byte{}, 0))
+	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "empty mask must not modify the row")
+}
+
+func testScrubClearsAffectedBits(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC()
+	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "",
+		chart.HostIDsToBlob([]uint{1, 2, 3, 4, 5}), now.Add(-time.Hour), now)
+
+	mask := chart.HostIDsToBlob([]uint{2, 4})
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
+
+	got := tdb.SCDBitmap(t, id)
+	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3, 5}), got)
+}
+
+func testScrubSkipsRowsMaskDoesNotTouch(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	// Two rows: one with hosts the mask hits, one with hosts it doesn't. The
+	// untouched row's bitmap MUST be byte-for-byte identical post-scrub —
+	// this is the contract the skip-noop optimization promises.
+	now := time.Now().UTC()
+	hitBitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
+	missBitmap := chart.HostIDsToBlob([]uint{10, 11, 12})
+
+	hitID := tdb.InsertSCDRowWithBitmap(t, "uptime", "a", hitBitmap, now.Add(-time.Hour), now)
+	missID := tdb.InsertSCDRowWithBitmap(t, "uptime", "b", missBitmap, now.Add(-time.Hour), now)
+
+	mask := chart.HostIDsToBlob([]uint{2})
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
+
+	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3}), tdb.SCDBitmap(t, hitID))
+	assert.Equal(t, missBitmap, tdb.SCDBitmap(t, missID), "mask doesn't intersect — row must remain unchanged")
+}
+
+func testScrubChunkedAcrossWriteBatches(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	// Shrink the write-batch cap so a small number of rows still exercises
+	// the multi-chunk path.
+	prev := scdScrubWriteBatchCap
+	scdScrubWriteBatchCap = 3
+	t.Cleanup(func() { scdScrubWriteBatchCap = prev })
+
+	now := time.Now().UTC()
+	mask := chart.HostIDsToBlob([]uint{1})
+
+	// 7 rows, all containing host 1 → 7 affected rows → 3+3+1 across chunks.
+	// Read batch of 4 forces two read pages, each splitting into multiple
+	// CASE/WHEN UPDATEs.
+	bitmap := chart.HostIDsToBlob([]uint{1, 2})
+	ids := make([]uint, 7)
+	for i := range ids {
+		ids[i] = tdb.InsertSCDRowWithBitmap(t, "uptime", fmt.Sprintf("e%d", i),
+			bitmap, now.Add(-time.Hour), now)
+	}
+
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 4))
+
+	want := chart.HostIDsToBlob([]uint{2})
+	for _, id := range ids {
+		assert.Equal(t, want, tdb.SCDBitmap(t, id), "row %d", id)
+	}
+}
+
+func testScrubHonorsCtxCancellation(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC()
+	bitmap := chart.HostIDsToBlob([]uint{1, 2})
+	id := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := ds.ApplyScrubMaskToDataset(ctx, "uptime", chart.HostIDsToBlob([]uint{1}), 0)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, bitmap, tdb.SCDBitmap(t, id), "row must be untouched when ctx was canceled before the first read")
+}
+
+func testScrubOtherDatasetUnaffected(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	now := time.Now().UTC()
+	bitmap := chart.HostIDsToBlob([]uint{1, 2, 3})
+
+	uptimeID := tdb.InsertSCDRowWithBitmap(t, "uptime", "", bitmap, now.Add(-time.Hour), now)
+	cveID := tdb.InsertSCDRowWithBitmap(t, "cve", "CVE-1", bitmap, now.Add(-time.Hour), now)
+
+	mask := chart.HostIDsToBlob([]uint{2})
+	require.NoError(t, ds.ApplyScrubMaskToDataset(t.Context(), "uptime", mask, 0))
+
+	assert.Equal(t, chart.HostIDsToBlob([]uint{1, 3}), tdb.SCDBitmap(t, uptimeID))
+	assert.Equal(t, bitmap, tdb.SCDBitmap(t, cveID), "cve dataset must not be touched by an uptime scrub")
+}
