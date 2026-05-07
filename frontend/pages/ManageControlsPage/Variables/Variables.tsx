@@ -38,16 +38,20 @@ const Variables = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageNumber, setPageNumber] = useState(0);
 
-  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier } =
+    useContext(AppContext);
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
-  const { data, isFetching: isLoading, refetch } = useQuery<
-    IListSecretsResponse,
-    Error,
-    IListSecretsResponse
-  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
+  const {
+    data,
+    isFetching: isLoading,
+    refetch,
+  } = useQuery<IListSecretsResponse, Error, IListSecretsResponse>(
+    ["secrets", apiParams],
+    () => secretsAPI.getSecrets(apiParams),
+  );
 
   // Open add modal via query param (e.g. from command palette)
   useEffect(() => {
@@ -59,7 +63,7 @@ const Variables = () => {
       window.history.replaceState(
         {},
         "",
-        qs ? `${window.location.pathname}?${qs}` : window.location.pathname
+        qs ? `${window.location.pathname}?${qs}` : window.location.pathname,
       );
     }
   }, []);
@@ -166,8 +170,9 @@ const Variables = () => {
       variant="tab-panel"
       content={
         <>
-          Manage custom variables that will be available in scripts and
-          profiles.{" "}
+          {isPremiumTier
+            ? "Manage custom variables that will be available in scripts and profiles across all fleets."
+            : "Manage custom variables that will be available in scripts and profiles."}{" "}
           <CustomLink
             text="Learn more"
             url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
