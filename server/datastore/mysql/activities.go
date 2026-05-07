@@ -1420,9 +1420,9 @@ WHERE
 	ua.host_id = ? AND ua.execution_id IN (?)
 `
 	type ihPending struct {
-		ExecutionID    string `db:"execution_id"`
-		InHouseAppID   uint   `db:"in_house_app_id"`
-		SoftwareTitle  uint   `db:"software_title_id"`
+		ExecutionID   string `db:"execution_id"`
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		SoftwareTitle uint   `db:"software_title_id"`
 	}
 	stmt, args, err = sqlx.In(pendingStmt, hostID, execIDs)
 	if err != nil {
@@ -1440,17 +1440,13 @@ WHERE
 	// In-house Configuration is iOS/iPadOS-only; the builder drops it for
 	// macOS hosts anyway, but in_house_apps are always Apple-mobile so we just
 	// fetch unconditionally.
-	configsByAppID := map[uint][]byte{}
-	{
-		ids := make([]uint, 0, len(pending))
-		for _, p := range pending {
-			ids = append(ids, p.InHouseAppID)
-		}
-		got, err := ds.BulkGetInHouseAppConfigurations(ctx, ids)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
-		}
-		configsByAppID = got
+	ids := make([]uint, 0, len(pending))
+	for _, p := range pending {
+		ids = append(ids, p.InHouseAppID)
+	}
+	configsByAppID, err := ds.BulkGetInHouseAppConfigurations(ctx, ids)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
 	}
 
 	// Build the InstallApplication plist for each pending activation, then do

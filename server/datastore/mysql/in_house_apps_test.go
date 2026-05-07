@@ -36,6 +36,7 @@ func TestInHouseApps(t *testing.T) {
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
 		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
 		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
+		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
 		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
 	}
 	for _, c := range cases {
@@ -1908,6 +1909,69 @@ func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
 	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
 	require.ErrorContains(t, err, "not found")
+}
+
+func testInHouseAppConfigSiblingRows(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+
+	// Upload an .ipa with a configuration. insertInHouseApp creates two rows
+	// (ios + ipados) for the same bundle; both rows must end up with the
+	// configuration so platform-specific installer-ID lookups don't return
+	// "not found" on iPadOS (the bug this guards against).
+	cfg := []byte(`<dict><key>K</key><string>v</string></dict>`)
+	iosID, _, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		Title:           "siblings.ipa",
+		Filename:        "siblings.ipa",
+		BundleID:        "com.example.siblings",
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.IOSPlatform),
+		Configuration:   cfg,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var ipadID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID,
+		`SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ipados'`, "siblings.ipa"))
+
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIOS)
+
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err, "iPadOS row must also have the configuration set at upload time")
+	require.Equal(t, cfg, gotIPad)
+
+	// SaveInHouseAppUpdates with a new config (called against the iOS row's id)
+	// must propagate to the iPadOS sibling.
+	updated := []byte(`<dict><key>K</key><string>v2</string></dict>`)
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		InstallerID:   iosID,
+		Configuration: updated,
+		// Required passthrough fields for the UPDATE statement.
+		StorageID: uuid.NewString(),
+		Filename:  "siblings.ipa",
+		Version:   "1.0",
+	}))
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIOS)
+	gotIPad, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIPad)
+
+	// Clear (empty bytes) must propagate to both rows.
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		InstallerID:   iosID,
+		Configuration: []byte{},
+		StorageID:     uuid.NewString(),
+		Filename:      "siblings.ipa",
+		Version:       "1.0",
+	}))
+	_, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.True(t, fleet.IsNotFound(err), "iPadOS sibling row must also be cleared")
 }
 
 func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {

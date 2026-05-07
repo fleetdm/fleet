@@ -1404,4 +1404,3 @@ func (svc *Service) CreateAndroidWebApp(ctx context.Context, title, startURL str
 
 	return packageName, nil
 }
-
