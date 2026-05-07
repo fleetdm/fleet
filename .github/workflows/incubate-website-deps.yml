@@ -38,14 +38,26 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin "${GITHUB_BASE_REF}"
           THRESHOLD_SECONDS=$(( INCUBATION_HOURS * 3600 ))
-          LATEST_TS=$(git log -1 --format=%ct \
+          # Confirm this PR branch actually touches the dep files.
+          HAS_DEP_CHANGE=$(git log -1 --format=%H \
             "origin/${GITHUB_BASE_REF}..HEAD" \
             -- website/package.json website/package-lock.json || true)
-          if [ -z "${LATEST_TS}" ]; then
+          if [ -z "${HAS_DEP_CHANGE}" ]; then
             echo "No website dependency changes on this branch relative to ${GITHUB_BASE_REF}."
             exit 0
           fi
-          AGE=$(( $(date +%s) - LATEST_TS ))
+          # Use the wall-clock creation time of the *earliest* run for this workflow
+          # on this PR — unaffected by force-pushed commit timestamps.
+          EARLIEST_RUN_TS=$(gh run list \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow "${{ github.workflow }}" \
+            --event pull_request \
+            --branch "${{ github.head_ref }}" \
+            --limit 100 \
+            --json databaseId,createdAt \
+            --jq 'sort_by(.createdAt) | .[0].createdAt' )
+          EARLIEST_RUN_EPOCH=$(date -d "${EARLIEST_RUN_TS}" +%s)
+          AGE=$(( $(date +%s) - EARLIEST_RUN_EPOCH ))
           AGE_HOURS=$(( AGE / 3600 ))
           if [ "${AGE}" -lt "${THRESHOLD_SECONDS}" ]; then
             REMAINING=$(( (THRESHOLD_SECONDS - AGE + 3599) / 3600 ))
@@ -67,6 +79,7 @@ jobs:
             --workflow "${{ github.workflow }}" \
             --event pull_request \
             --status failure \
+            --created ">$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')" \
             --limit 100 \
             --json databaseId \
             --jq '.[].databaseId' \
