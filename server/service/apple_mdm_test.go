@@ -2145,11 +2145,10 @@ func TestMDMCommandAndReportResultsProfileHandling(t *testing.T) {
 				return nil
 			}
 			// Best-effort ACME-cert-list trigger fires on successful InstallProfile
-			// acks; stub the lookup to no-op so this test stays focused on the
-			// retry/status logic. Returning a non-darwin platform short-circuits
-			// the trigger before any other datastore calls.
-			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMCheckinInfo, error) {
-				return &fleet.HostMDMCheckinInfo{Platform: "ios"}, nil
+			// acks; stub the probe to a non-darwin platform so the trigger
+			// short-circuits without doing any further work.
+			ds.ProfileHasACMEPayloadForCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.ProfileACMECommandResult, error) {
+				return fleet.ProfileACMECommandResult{Platform: "ios"}, nil
 			}
 
 			_, err := svc.CommandAndReportResults(
@@ -2192,86 +2191,52 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 		hostID      = uint(42)
 	)
 
-	acmeProfile := mobileconfig.Mobileconfig(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key><string>com.apple.security.acme</string>
-			<key>PayloadIdentifier</key><string>com.example.acme</string>
-			<key>PayloadDisplayName</key><string>ACME</string>
-			<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000001</string>
-			<key>PayloadVersion</key><integer>1</integer>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key><string>ACME Profile</string>
-	<key>PayloadIdentifier</key><string>com.example.profile</string>
-	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000002</string>
-	<key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`)
-
-	scepProfile := mobileconfig.Mobileconfig(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key><string>com.apple.security.scep</string>
-			<key>PayloadIdentifier</key><string>com.example.scep</string>
-			<key>PayloadDisplayName</key><string>SCEP</string>
-			<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000003</string>
-			<key>PayloadVersion</key><integer>1</integer>
-		</dict>
-	</array>
-	<key>PayloadDisplayName</key><string>SCEP Profile</string>
-	<key>PayloadIdentifier</key><string>com.example.profile</string>
-	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>00000000-0000-0000-0000-000000000004</string>
-	<key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`)
-
 	cases := []struct {
 		name             string
-		platform         string
-		profileContent   mobileconfig.Mobileconfig
-		pendingCommands  []fleet.HostMDMCommand
+		probeResult      fleet.ProfileACMECommandResult
+		probeErr         error
 		expectAddCommand bool
 		expectEnqueue    bool
 	}{
 		{
-			name:             "macOS + ACME profile: enqueues CertificateList",
-			platform:         "darwin",
-			profileContent:   acmeProfile,
+			name: "macOS + ACME profile: enqueues CertificateList",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true, RefetchPending: false,
+			},
 			expectAddCommand: true,
 			expectEnqueue:    true,
 		},
 		{
-			name:             "iOS host: skipped (existing refetch cron handles it)",
-			platform:         "ios",
-			profileContent:   acmeProfile,
-			expectAddCommand: false,
-			expectEnqueue:    false,
-		},
-		{
-			name:             "macOS + non-ACME profile: no trigger",
-			platform:         "darwin",
-			profileContent:   scepProfile,
-			expectAddCommand: false,
-			expectEnqueue:    false,
-		},
-		{
-			name:           "macOS + ACME but refetch already pending: dedups",
-			platform:       "darwin",
-			profileContent: acmeProfile,
-			pendingCommands: []fleet.HostMDMCommand{
-				{HostID: hostID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+			name: "iOS host: skipped (existing refetch cron handles it)",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "ios", ProfileUUID: profileUUID,
+				HasACMEPayload: true,
 			},
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+		{
+			name: "macOS + non-ACME profile: no trigger",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: false,
+			},
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+		{
+			name: "macOS + ACME but refetch already pending: dedups",
+			probeResult: fleet.ProfileACMECommandResult{
+				HostID: hostID, Platform: "darwin", ProfileUUID: profileUUID,
+				HasACMEPayload: true, RefetchPending: true,
+			},
+			expectAddCommand: false,
+			expectEnqueue:    false,
+		},
+		{
+			name:             "command not found: no error, no trigger",
+			probeErr:         &notFoundError{},
 			expectAddCommand: false,
 			expectEnqueue:    false,
 		},
@@ -2280,17 +2245,10 @@ func TestMaybeQueueCertificateListForACMEProfile(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hUUID string) (*fleet.HostMDMCheckinInfo, error) {
-				return &fleet.HostMDMCheckinInfo{HostID: hostID, Platform: c.platform}, nil
-			}
-			ds.GetHostMDMProfileRetryCountByCommandUUIDFunc = func(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
-				return fleet.HostMDMProfileRetryCount{ProfileUUID: profileUUID}, nil
-			}
-			ds.GetMDMAppleProfilesContentsFunc = func(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
-				return map[string]mobileconfig.Mobileconfig{profileUUID: c.profileContent}, nil
-			}
-			ds.GetHostMDMCommandsFunc = func(ctx context.Context, hID uint) ([]fleet.HostMDMCommand, error) {
-				return c.pendingCommands, nil
+			ds.ProfileHasACMEPayloadForCommandFunc = func(ctx context.Context, hUUID, cmdUUID string) (fleet.ProfileACMECommandResult, error) {
+				require.Equal(t, hostUUID, hUUID)
+				require.Equal(t, commandUUID, cmdUUID)
+				return c.probeResult, c.probeErr
 			}
 			var addedCommands []fleet.HostMDMCommand
 			ds.AddHostMDMCommandsFunc = func(ctx context.Context, cmds []fleet.HostMDMCommand) error {

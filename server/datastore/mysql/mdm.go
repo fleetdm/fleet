@@ -1632,7 +1632,7 @@ WHERE
 func (ds *Datastore) GetHostMDMProfileRetryCountByCommandUUID(ctx context.Context, host *fleet.Host, cmdUUID string) (fleet.HostMDMProfileRetryCount, error) {
 	const darwinStmt = `
 SELECT
-	profile_identifier, profile_uuid, retries
+	profile_identifier, retries
 FROM
 	host_mdm_apple_profiles hmap
 WHERE
@@ -1666,6 +1666,50 @@ WHERE
 		return dest, ctxerr.Wrap(ctx, err, fmt.Sprintf("getting retry count for host %s command uuid %s", host.UUID, cmdUUID))
 	}
 
+	return dest, nil
+}
+
+// ProfileHasACMEPayloadForCommand bundles the gates needed to decide whether
+// an InstallProfile ack should trigger a CertificateList refetch on macOS:
+// host platform, profile UUID, whether the delivered profile contains a
+// com.apple.security.acme payload, and whether a CertificateList refetch is
+// already pending for the host. Computed in a single indexed lookup so the
+// per-ack hot path stays cheap.
+//
+// LOCATE on the mobileconfig blob is byte-exact (mediumblob, no collation).
+// False positive risk is bounded — if the substring appears outside an actual
+// payload-type element, the worst case is one redundant CertificateList
+// command queued for that host.
+func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	const stmt = `
+SELECT
+	h.id              AS host_id,
+	h.platform        AS platform,
+	hmap.profile_uuid AS profile_uuid,
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload,
+	EXISTS(
+		SELECT 1
+		FROM host_mdm_commands hmc
+		WHERE hmc.host_id = h.id
+		  AND hmc.command_type = ?
+	) AS refetch_pending
+FROM host_mdm_apple_profiles hmap
+	JOIN hosts h
+		ON h.uuid = hmap.host_uuid
+	JOIN mdm_apple_configuration_profiles mac
+		ON mac.profile_uuid = hmap.profile_uuid
+WHERE hmap.command_uuid = ?
+	AND hmap.host_uuid    = ?`
+
+	var dest fleet.ProfileACMECommandResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt,
+		fleet.RefetchCertsCommandUUIDPrefix, commandUUID, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
 	return dest, nil
 }
 

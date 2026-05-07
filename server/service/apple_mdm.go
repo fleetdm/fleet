@@ -5008,56 +5008,25 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchCertsResults(ctx conte
 // hardware-bound ACME certs that osquery cannot see. iOS/iPadOS do not need
 // this hook because IOSiPadOSRefetch already runs CertificateList on a cron.
 //
-// Dedups via host_mdm_commands so multiple ACME profile installs on the same
-// host do not enqueue duplicate commands while one is in flight.
+// All gating happens server-side in a single query
+// (ProfileHasACMEPayloadForCommand): host platform, ACME payload presence,
+// and pending-refetch dedup. The hot path early-returns for the common
+// non-ACME / non-darwin cases without parsing the profile or making
+// additional roundtrips.
 func (svc *MDMAppleCheckinAndCommandService) maybeQueueCertificateListForACMEProfile(ctx context.Context, hostUUID, commandUUID string) error {
-	checkin, err := svc.ds.GetHostMDMCheckinInfo(ctx, hostUUID)
+	res, err := svc.ds.ProfileHasACMEPayloadForCommand(ctx, hostUUID, commandUUID)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get host checkin info")
-	}
-	if checkin.Platform != "darwin" {
-		return nil
-	}
-
-	retry, err := svc.ds.GetHostMDMProfileRetryCountByCommandUUID(ctx, &fleet.Host{UUID: hostUUID, Platform: checkin.Platform}, commandUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get profile by command uuid")
-	}
-	if retry.ProfileUUID == "" {
-		return nil
-	}
-
-	contents, err := svc.ds.GetMDMAppleProfilesContents(ctx, []string{retry.ProfileUUID})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get profile contents")
-	}
-	profileUUID := retry.ProfileUUID
-	hostID := checkin.HostID
-	mc, ok := contents[profileUUID]
-	if !ok {
-		return nil
-	}
-	hasACME, err := mc.HasPayloadType(mobileconfig.ACMEPayloadType)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "check ACME payload")
-	}
-	if !hasACME {
-		return nil
-	}
-
-	// Skip if a CertificateList is already pending for this host.
-	pending, err := svc.ds.GetHostMDMCommands(ctx, hostID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get pending mdm commands")
-	}
-	for _, cmd := range pending {
-		if cmd.CommandType == fleet.RefetchCertsCommandUUIDPrefix {
+		if fleet.IsNotFound(err) {
 			return nil
 		}
+		return ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
+	if res.Platform != "darwin" || !res.HasACMEPayload || res.RefetchPending {
+		return nil
 	}
 
 	if err := svc.ds.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{{
-		HostID:      hostID,
+		HostID:      res.HostID,
 		CommandType: fleet.RefetchCertsCommandUUIDPrefix,
 	}}); err != nil {
 		return ctxerr.Wrap(ctx, err, "track refetch certs command")
