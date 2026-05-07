@@ -4332,7 +4332,46 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 			}
 		}
-		// No matching row = SSO-only AccountConfiguration → no-op
+		// No matching row = SSO-only AccountConfiguration, no-op
+
+	case fleet.SetAutoAdminPasswordCmdName:
+		host, err := svc.ds.GetManagedLocalAccountByPendingCommandUUID(r.Context, cmdResult.CommandUUID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Hard to say what happened here, most likely a command was superseded by another or a user
+				// sent this command manually (e.g. via Commands endpoint)
+				break
+			}
+			return nil, ctxerr.Wrap(r.Context, err, "get managed local account by pending command uuid")
+		}
+		if host == nil || host.UUID == "" {
+			break
+		}
+		if host.UUID != r.ID {
+			svc.logger.WarnContext(r.Context, "SetAutoAdminPassword command UUID matched a different host",
+				"expected_host_uuid", host.UUID, "checkin_host_uuid", r.ID, "command_uuid", cmdResult.CommandUUID)
+			break
+		}
+		// NotNow will leave the row in pending state; the device will retry on the next checkin.
+		switch cmdResult.Status {
+		case fleet.MDMAppleStatusAcknowledged:
+			if err := svc.ds.CompleteManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "complete managed local account rotation")
+			}
+		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+			errMsg := "device returned " + cmdResult.Status
+			if err := svc.ds.FailManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID, errMsg); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "fail managed local account rotation")
+			}
+			// Failure activity is always attributed to Fleet (no viewer context here,
+			// and the original initiating user — if any — isn't tracked on the row).
+			if err := svc.newActivityFn(r.Context, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			}); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "create failed-to-rotate managed local account activity")
+			}
+		}
 	}
 
 	return nil, nil

@@ -23686,7 +23686,7 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 	}`, abmOrgName, team.Name)), http.StatusOK, &acResp)
 
 	// Mock DEP response with devices
-	serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2", "MANAGED_ACCT_3"}
+	serials := []string{"MANAGED_ACCT_1", "MANAGED_ACCT_2", "MANAGED_ACCT_3", "MANAGED_ACCT_4"}
 	syncCount := 0
 	s.mockDEPResponse(abmOrgName, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -23727,12 +23727,16 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		host, err := s.ds.HostByIdentifier(ctx, serials[0])
 		require.NoError(t, err)
 
-		// Get host API should show managed account as pending
+		// Get host API should show managed account as pending. The password is
+		// available even before the device acks AccountConfiguration: under the
+		// new (rotation) semantics, password_available is decoupled from the
+		// command lifecycle and tracks "we have a current encrypted_password and
+		// status != failed".
 		var hostResp getHostResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
 		require.Equal(t, "pending", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
-		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 
 		// Device acknowledges AccountConfiguration command → status becomes verified
 		cmd, err := mdmDevice.Idle()
@@ -23966,6 +23970,253 @@ func (s *integrationMDMTestSuite) TestManagedLocalAccount() {
 		require.False(t, acResp.MDM.MacOSSetup.EnableManagedLocalAccount.Value)
 		require.Greater(t, s.lastActivityOfTypeMatches(fleet.ActivityTypeDisabledManagedLocalAccount{}.ActivityName(),
 			`{"team_id": null, "team_name": null, "fleet_id": null, "fleet_name": null}`, 0), lastActivityID)
+	})
+
+	t.Run("Rotation flow", func(t *testing.T) {
+		// The integration test scaffold doesn't register the rotation cron, so
+		// we drive it directly the same way the recovery-lock subtests do.
+		runRotationCron := func(t *testing.T) {
+			t.Helper()
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			require.NoError(t, apple_mdm.SendManagedLocalAccountRotationCommands(
+				t.Context(), s.ds, s.mdmCommander, logger, s.fleetSvc.NewActivity))
+		}
+
+		// Re-enable managed local account on the team for this subtest.
+		s.Do("PATCH", "/api/latest/fleet/setup_experience",
+			fleet.MDMAppleSetupPayload{TeamID: &team.ID, EnableManagedLocalAccount: new(true)}, http.StatusNoContent)
+
+		// DEP-enroll a fresh host (serial #4) so we can drive the rotation
+		// state machine end-to-end without disturbing earlier subtests' hosts.
+		s.runDEPSchedule()
+		depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+		mdmDevice := mdmtest.NewTestMDMClientAppleDEPFromDevice(s.server.URL, depURLToken, serials[3], "MacBookPro16,1")
+		require.NoError(t, mdmDevice.Enroll())
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+
+		// Ack AccountConfiguration so status flips to verified.
+		cmd, err := mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		host, err := s.ds.HostByIdentifier(ctx, serials[3])
+		require.NoError(t, err)
+
+		// Capture _fleetadmin's account_uuid so we exercise the immediate (not deferred) path.
+		require.NoError(t, s.ds.SetManagedLocalAccountUUID(ctx, mdmDevice.UUID, "AAAAAAAA-BBBB-CCCC-DDDD-FFFFFFFFFFFF"))
+
+		// View the password — first view sets auto_rotate_at and flips status to pending.
+		var pwdResp getHostManagedAccountPasswordResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotNil(t, pwdResp.ManagedLocalAccount)
+		originalPassword := pwdResp.ManagedLocalAccount.Password
+		require.NotEmpty(t, originalPassword)
+
+		var hostResp getHostResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+		firstRotateAt := *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt
+		require.Equal(t, "pending", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
+
+		// Second view inside the window must NOT extend the timer.
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.NotNil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+		require.True(t, firstRotateAt.Equal(*hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt),
+			"second view inside the window must not extend auto_rotate_at")
+
+		// Manual rotation (UUID present) → 204, pending_rotation true.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
+
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.True(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PendingRotation)
+		// Once the rotation command has been sent, auto_rotate_at must be cleared
+		// — the API should not keep returning the stale view-driven deadline.
+		require.Nil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+
+		// Activity logged with the calling user (admin) — NOT Fleet.
+		rotatedName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
+		manualRotationActivityID := s.lastActivityOfTypeMatches(rotatedName,
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		require.NotZero(t, manualRotationActivityID)
+
+		// Rotating again while one is already in flight is rejected with 400 — the
+		// previous behavior was an idempotent 204, but per spec this should now
+		// surface a clear error to the caller.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusBadRequest)
+		// And the activity count must not have grown — the rejected call must
+		// not log a duplicate triggered-rotation activity.
+		require.Equal(t, manualRotationActivityID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
+			"rejected rotate-while-pending must not emit a new activity")
+
+		// Drain commands and ack the SetAutoAdminPassword. Verify state transitions to verified.
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		var foundSetAutoAdmin bool
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.SetAutoAdminPasswordCmdName {
+				foundSetAutoAdmin = true
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.True(t, foundSetAutoAdmin, "SetAutoAdminPassword command should have been queued")
+
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.Equal(t, "verified", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PendingRotation)
+		require.Nil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+
+		// Password actually changed.
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotEqual(t, originalPassword, pwdResp.ManagedLocalAccount.Password)
+		afterFirstRotation := pwdResp.ManagedLocalAccount.Password
+
+		// No new rotation activity was emitted by the ack handler — the most
+		// recent rotation activity must still be the one logged at click time.
+		require.Equal(t, manualRotationActivityID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
+			"ack handler must not log a duplicate rotation activity")
+
+		// Auto rotation: backdate auto_rotate_at into the past, trigger the cron,
+		// ack — assert the activity is logged with FleetInitiated=true.
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_managed_local_account_passwords SET auto_rotate_at = NOW(6) - INTERVAL 1 MINUTE WHERE host_uuid = ?`,
+				mdmDevice.UUID)
+			return err
+		})
+		runRotationCron(t)
+
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		foundSetAutoAdmin = false
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.SetAutoAdminPasswordCmdName {
+				foundSetAutoAdmin = true
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.True(t, foundSetAutoAdmin, "auto-rotation should have queued a SetAutoAdminPassword command")
+
+		// Auto-rotation activity exists and is FleetInitiated.
+		var fleetActivities listActivitiesResponse
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &fleetActivities,
+			"order_key", "a.id", "order_direction", "desc", "per_page", "20")
+		rotateActivityName := fleet.ActivityTypeRotatedManagedLocalAccountPassword{}.ActivityName()
+		var sawFleetRotation bool
+		for _, a := range fleetActivities.Activities {
+			if a.Type != rotateActivityName || !a.FleetInitiated || a.Details == nil {
+				continue
+			}
+			var d fleet.ActivityTypeRotatedManagedLocalAccountPassword
+			if err := json.Unmarshal(*a.Details, &d); err != nil {
+				continue
+			}
+			if d.HostID == host.ID {
+				sawFleetRotation = true
+				break
+			}
+		}
+		require.True(t, sawFleetRotation, "expected an auto-rotation activity with FleetInitiated=true for this host")
+
+		// Password changed again.
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password", host.ID), nil, http.StatusOK, &pwdResp)
+		require.NotEqual(t, afterFirstRotation, pwdResp.ManagedLocalAccount.Password)
+
+		// Deferred rotation: clear account_uuid, click rotate, verify deferred state
+		// without a command in the queue.
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_managed_local_account_passwords SET account_uuid = NULL WHERE host_uuid = ?`,
+				mdmDevice.UUID)
+			return err
+		})
+
+		preDeferredID := s.lastActivityOfTypeMatches(rotatedName, "", 0)
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
+		// Activity logged at click time with user actor (FleetInitiated=false).
+		afterDeferredID := s.lastActivityOfTypeMatches(rotatedName, "", 0)
+		require.Greater(t, afterDeferredID, preDeferredID, "deferred manual rotate should log an activity at click time")
+
+		// No SetAutoAdminPassword in the queue (UUID was missing).
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			require.NotEqual(t, fleet.SetAutoAdminPasswordCmdName, cmd.Command.RequestType,
+				"deferred rotation must not have queued a SetAutoAdminPassword command yet")
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+
+		// Restore account_uuid and run the cron — the row should now be picked up,
+		// the command enqueued, and after ack NO new activity should be added
+		// (the deferred manual click already logged it).
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`UPDATE host_managed_local_account_passwords SET account_uuid = ? WHERE host_uuid = ?`,
+				"AAAAAAAA-BBBB-CCCC-DDDD-FFFFFFFFFFFF", mdmDevice.UUID)
+			return err
+		})
+		runRotationCron(t)
+
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		foundSetAutoAdmin = false
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.SetAutoAdminPasswordCmdName {
+				foundSetAutoAdmin = true
+			}
+			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.True(t, foundSetAutoAdmin, "cron should fulfill the deferred rotation once UUID lands")
+
+		// Activity count must NOT have grown after the cron-driven completion.
+		require.Equal(t, afterDeferredID, s.lastActivityOfTypeMatches(rotatedName, "", 0),
+			"deferred rotation must not be re-logged by the cron")
+
+		// Failure path: trigger another manual rotation, then NACK the
+		// SetAutoAdminPassword command. Assert the failed-to-rotate activity
+		// is logged and the row transitions to status=failed.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/managed_account_password/rotate", host.ID), nil, http.StatusNoContent)
+
+		cmd, err = mdmDevice.Idle()
+		require.NoError(t, err)
+		var nackedSetAutoAdmin bool
+		for cmd != nil {
+			if cmd.Command.RequestType == fleet.SetAutoAdminPasswordCmdName {
+				nackedSetAutoAdmin = true
+				cmd, err = mdmDevice.Err(cmd.CommandUUID, []mdm.ErrorChain{{ErrorCode: 12345, ErrorDomain: "test"}})
+			} else {
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+			}
+			require.NoError(t, err)
+		}
+		require.True(t, nackedSetAutoAdmin, "device should have received a SetAutoAdminPassword command to NACK")
+
+		// failed-to-rotate activity logged with the host's display name. No actor —
+		// the activity is intentionally attributed to Fleet at ack time.
+		failedName := fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{}.ActivityName()
+		failedActivityID := s.lastActivityOfTypeMatches(failedName,
+			fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), 0)
+		require.NotZero(t, failedActivityID, "device error should produce a failed-to-rotate activity")
+
+		hostResp = getHostResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
+		require.Equal(t, "failed", *hostResp.Host.MDM.OSSettings.ManagedLocalAccount.Status)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PendingRotation)
+		require.Nil(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.AutoRotateAt)
+		require.False(t, hostResp.Host.MDM.OSSettings.ManagedLocalAccount.PasswordAvailable)
 	})
 
 	t.Run("Setup experience team config", func(t *testing.T) {

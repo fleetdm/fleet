@@ -1692,6 +1692,57 @@ type Datastore interface {
 	// to the specified UUID.
 	SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error
 
+	// MarkManagedLocalAccountPasswordViewed records that the managed local account password
+	// was viewed by a user (UI or API). On first view it sets status='pending',
+	// auto_rotate_at = NOW(6) + 65 minutes, and initiated_by_fleet=1. Subsequent views
+	// inside the window do NOT extend auto_rotate_at; the existing value is returned.
+	// Returns notFound if the row doesn't exist, encrypted_password IS NULL, status='failed',
+	// or a rotation is already pending.
+	MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+	// InitiateManagedLocalAccountRotation stores the (datastore-encrypted) pending
+	// password and pending_command_uuid for an in-flight SetAutoAdminPassword command.
+	// Eligibility: row exists, encrypted_password IS NOT NULL, status != 'failed',
+	// account_uuid IS NOT NULL, pending_encrypted_password IS NULL. Does NOT modify
+	// initiated_by_fleet — that flag is owned by the view path (sets to 1) and the
+	// deferred-manual path (sets to 0). Returns ErrManagedLocalAccountRotationPending
+	// or ErrManagedLocalAccountNotEligible when ineligible, or notFound when the row
+	// is missing.
+	InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error
+
+	// MarkManagedLocalAccountRotationDeferred records a manual rotation that the service
+	// could not enqueue immediately because account_uuid is missing. Sets status='pending',
+	// auto_rotate_at=NOW(6) (so the cron picks it up as soon as the UUID lands), and
+	// initiated_by_fleet=0 so the cron skips re-logging the activity. Idempotent.
+	MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error
+
+	// ClearManagedLocalAccountRotation unwinds pending rotation columns (used when the
+	// commander returned a non-APNs persistence error after InitiateManagedLocalAccountRotation
+	// already populated them).
+	ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// CompleteManagedLocalAccountRotation finalizes a successful rotation acknowledgment.
+	// Validates pending_command_uuid matches the acked command, swaps pending password into
+	// encrypted_password, clears pending_*/auto_rotate_at, sets status='verified', and
+	// resets initiated_by_fleet=0. Returns notFound when the command UUID does not match
+	// the row's pending one.
+	CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID string) error
+
+	// FailManagedLocalAccountRotation marks the row's status='failed' and clears pending
+	// columns; encrypted_password (the previous-known-good password) is left intact so
+	// the password remains usable.
+	FailManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID, errorMessage string) error
+
+	// GetManagedLocalAccountsForAutoRotation returns up to 100 rows whose auto_rotate_at
+	// has elapsed and which are eligible for an enqueue: account_uuid IS NOT NULL,
+	// encrypted_password IS NOT NULL, pending_encrypted_password IS NULL, status != 'failed'.
+	// status='pending' is intentionally allowed (a viewed row sits in pending while waiting).
+	GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountAutoRotationInfo, error)
+
+	// GetManagedLocalAccountByPendingCommandUUID resolves a SetAutoAdminPassword ack back
+	// to its host via pending_command_uuid. Returns notFound when no row matches.
+	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
+
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
 	InsertMDMAppleBootstrapPackage(ctx context.Context, bp *MDMAppleBootstrapPackage, pkgStore MDMBootstrapPackageStore) error
