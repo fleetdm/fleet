@@ -29,6 +29,16 @@ on:
         required: false
         type: boolean
         default: false
+      run_args_override:
+        description: 'When set, overrides RUN_TESTS_ARG (the -run/-skip flags). Used by sharded matrix jobs.'
+        required: false
+        type: string
+        default: ''
+      shard_name:
+        description: 'Optional shard label appended to artifact names so sharded jobs do not collide (e.g. "shard1").'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -96,10 +106,18 @@ jobs:
       run: |
         if [[ -n "${{ inputs.mysql }}" ]]; then
           MYSQL_ID=$(echo "${{ inputs.mysql }}" | tr -d ':')
-          echo "ARTIFACT_PREFIX=${{ inputs.suite }}-${MYSQL_ID}" >> $GITHUB_ENV
+          PREFIX="${{ inputs.suite }}-${MYSQL_ID}"
         else
-          echo "ARTIFACT_PREFIX=${{ inputs.suite }}" >> $GITHUB_ENV
+          PREFIX="${{ inputs.suite }}"
         fi
+        if [[ -n "${{ inputs.shard_name }}" ]]; then
+          PREFIX="${PREFIX}-${{ inputs.shard_name }}"
+        fi
+        echo "ARTIFACT_PREFIX=${PREFIX}" >> $GITHUB_ENV
+
+    - name: Override RUN_TESTS_ARG for sharded jobs
+      if: ${{ inputs.run_args_override != '' }}
+      run: echo "RUN_TESTS_ARG=${{ inputs.run_args_override }}" >> $GITHUB_ENV
 
     - name: Set Go race setting on schedule
       if: ${{ inputs.is_cron }}

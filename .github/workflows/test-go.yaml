@@ -71,12 +71,56 @@ jobs:
   test-go:
     strategy:
       matrix:
-        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "mysql", "service", "vuln"]
+        suite: ["integration-core", "integration-enterprise", "integration-mdm", "fleetctl", "main", "service", "vuln"]
         mysql: ["mysql:8.0.44", "mysql:9.5.0"]
     uses: ./.github/workflows/test-go-suite.yaml
     with:
       suite: ${{ matrix.suite }}
       mysql: ${{ matrix.mysql }}
+      is_cron: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # The mysql suite is sharded: it dominates wall-clock for the whole workflow
+  # (~18 min, mostly serialized in TestSoftware/TestHosts/TestPolicies/TestMDM*
+  # in the mysql package, and the recent slow migrations). Running two shards
+  # in parallel cuts wall-clock by ~6 min.
+  #
+  # Tuning: the shard list must split ~equally across both
+  #   github.com/fleetdm/fleet/v4/server/datastore/mysql (parallel via implicit
+  #   t.Parallel) and
+  #   github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables
+  #   (sequential — migrations dominate the floor).
+  # If timings drift, rebalance using:
+  #   gh run download <id> -n mysql-mysql8.0.44-shard1-test-json -D /tmp/x
+  #   jq -r 'select(.Action=="pass" and .Test!=null and (.Test|contains("/")|not)) | [.Elapsed,.Test] | @tsv' /tmp/x/test-output.json | sort -rn
+  # ──────────────────────────────────────────────────────────────────────────
+  test-go-mysql:
+    strategy:
+      matrix:
+        mysql: ["mysql:8.0.44", "mysql:9.5.0"]
+        shard:
+          - name: shard1
+            # Shard 1 runs only the heaviest tests (~half the work).
+            # Notes on the regex:
+            #   - Single quotes around the pattern are required: the value is
+            #     later spliced verbatim into a `make` recipe, where bash would
+            #     otherwise interpret `(`, `)`, `|` as metacharacters.
+            #   - We use `\b` instead of `$` as the right anchor. A literal `$`
+            #     would be eaten by `make`, which interprets `$'` as a
+            #     reference to a variable named `'` and substitutes empty,
+            #     breaking the quoting. `\b` is equivalent here because no
+            #     name in the list is a prefix of another test's name.
+            run_args: "-run='^(TestSoftware|TestHosts|TestPolicies|TestMDMApple|TestMDMWindows|TestUp_20260316120007|TestUp_20260324161944|TestUp_20260401153503_ManyAssignments|TestUp_20260326210603|TestUp_20260409153715)\\b'"
+          - name: shard2
+            # Shard 2 runs everything else in the mysql suite.
+            run_args: "-skip='^(TestSoftware|TestHosts|TestPolicies|TestMDMApple|TestMDMWindows|TestUp_20260316120007|TestUp_20260324161944|TestUp_20260401153503_ManyAssignments|TestUp_20260326210603|TestUp_20260409153715)\\b'"
+    uses: ./.github/workflows/test-go-suite.yaml
+    with:
+      suite: mysql
+      mysql: ${{ matrix.mysql }}
+      shard_name: ${{ matrix.shard.name }}
+      run_args_override: ${{ matrix.shard.run_args }}
       is_cron: ${{ github.event_name == 'schedule' }}
     secrets: inherit
 
@@ -214,7 +258,7 @@ jobs:
 
   # We upload all backend coverage in one step so that we're less like to end up in a situation with a partial coverage report.
   upload-coverage:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql, test-go-nanomdm]
+    needs: [test-go-no-db, test-go, test-go-mysql, test-go-extended-mysql, test-go-nanomdm]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
@@ -239,7 +283,7 @@ jobs:
   # Our Go test suites are run with continue-on-error: true, so they don't contribute to the workflow pass/fail.
   # This job explicitly checks if any Go test suites have failed and marks the overall workflow with the proper pass/fail status.
   aggregate-result:
-    needs: [test-go-no-db, test-go, test-go-extended-mysql]
+    needs: [test-go-no-db, test-go, test-go-mysql, test-go-extended-mysql]
     # Run even if extended-mysql was skipped (non-cron) or individual suites failed.
     if: always()
     runs-on: ubuntu-latest
