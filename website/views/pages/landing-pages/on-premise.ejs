@@ -10,15 +10,15 @@
             <h1>Your device data belongs in your environment.</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Fleet runs entirely on your infrastructure.<br>Every feature intact. Your data never leaves your network.</p>
+            <p>Fleet runs entirely on your infrastructure. Every feature intact. Your data never leaves your network.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
-            <a purpose="cta-button" href="/contact" no-underline>Talk to our team</a>
+            <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
           </div>
         </div>
       </div><%/* /landing-page-hero */%>
 
-      <%/* ── TRUST ITEMS ──────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section" class="pt-0">
         <div purpose="four-column-feature-row">
           <div purpose="feature-item">
@@ -36,7 +36,7 @@
         </div>
       </div>
 
-      <%/* ── WHO NEEDS ON-PREM ────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>Who needs on-premise MDM</h3>
@@ -70,11 +70,11 @@
         </div>
       </div>
 
-      <%/* ── PROBLEM ──────────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>The problem with cloud-only MDM</h3>
-          <p>Most modern MDMs are cloud-first.<br>Device inventory, policy results, and user data flow through vendor infrastructure.<br>For strict data governance requirements, that's a structural blocker.</p>
+          <p>Most modern MDMs are cloud-first. Device inventory, policy results, and user data flow through vendor infrastructure. For strict data governance requirements, that's a structural blocker.</p>
         </div>
         <div purpose="section-quote">
           <p purpose="quote-text">"Every other MDM vendor told us our data had to live in their cloud. Fleet was the only one that said run it on your own infrastructure. Same features, no exceptions."</p>
@@ -85,7 +85,7 @@
         </div>
       </div>
 
-      <%/* ── HOW IT WORKS ─────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>How Fleet on-premise works</h3>
@@ -106,8 +106,10 @@
             <p purpose="feature-text">Terraform into your own cloud account. VPC-isolated, no cross-account data access, no vendor visibility.</p>
           </div>
         </div>
+      </div>
 
-        <div purpose="feature-with-image" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-start">
+      <div purpose="landing-page-section">
+        <div purpose="feature-with-image" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-start">
           <div purpose="feature-text" class="d-flex flex-column">
             <h3>Deploy on your infrastructure. Own every byte of your data.</h3>
             <p>Spin up Fleet using the official Terraform module, Helm chart, or Docker Compose. Fleet's architecture is a single binary + database no microservices sprawl, no vendor agents phoning home, no surprise egress.</p>
@@ -136,13 +138,12 @@
 }
 
 <span purpose="tc"># Data residency: your VPC only.</span>
-<span purpose="tc"># No calls to fleetdm.com required.</span>
 <span purpose="tc"># Audit logs: your CloudTrail. Your SIEM.</span></pre>
           </div>
         </div>
       </div>
 
-      <%/* ── FEATURES ─────────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>What you get with Fleet on-premise</h3>
@@ -206,9 +207,9 @@
         </div>
       </div>
 
-      <%/* ── PARITY CHECKLIST ─────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
-        <div purpose="feature-with-image" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-start">
+        <div purpose="feature-with-image" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-start">
           <div purpose="feature-text" class="d-flex flex-column">
             <h3>Self-hosted Fleet gets everything Fleet Cloud gets.</h3>
             <p>With Fleet, you get: one codebase, one feature set - if it ships, it ships everywhere.</p>
@@ -225,11 +226,13 @@
         </div>
       </div>
 
-      <%/* ── COMPARISON TABLE ─────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h4>Head to head</h4>
-          <h2>The only MDM built for self-hosted from day one</h2>
+          <div purpose="heading-group">
+            <h4>Head to head</h4>
+            <h2>The only MDM built for self-hosted from day one</h2>
+          </div>
         </div>
         <div purpose="comparison-table-section">
           <div purpose="table-legend">
@@ -308,10 +311,132 @@
               </tbody>
             </table>
           </div>
+          <div purpose="mobile-comparison-table">
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Self-hosted option</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Full deployment, zero vendor dependency</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Exists but actively losing features vs. Jamf Cloud</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No self-hosted option Azure cloud only</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Feature parity (on-prem vs. cloud)</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">100% one codebase, same features everywhere</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Cloud-only features growing on-prem falling behind</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">N/A cloud only</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Air-gap / offline operation</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Zero internet dependency in air-gap mode</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Possible but not officially supported</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Requires internet connectivity to Microsoft Azure</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Open-source / auditable code</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Every line public on GitHub</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary binary only</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary no source access</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Customer-controlled encryption keys</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Bring your own KMS AWS, Vault, HSM</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Limited depends on database configuration</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> Customer-managed keys in E5 tier only</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Data residency guarantees</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Absolute data never leaves your infrastructure</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><span purpose="tilde">~</span> On-prem only if self-hosted; licensing telemetry goes to Jamf</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft Azure region selectable, not truly sovereign</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">GitOps / version-controlled config</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">YAML in Git PR review, rollback, full audit trail</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">GUI-only on-prem no GitOps workflow</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No native GitOps requires third-party tooling</div>
+              </div>
+            </div>
+            <div purpose="mobile-comparison">
+              <div purpose="capability">Upgrade control</div>
+              <div purpose="fleet-row">
+                <div purpose="product-name"><strong>Fleet (self-hosted)</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Your schedule no forced upgrades</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Jamf Pro on-prem</strong></div>
+                <div purpose="status"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Self-managed upgrade control retained</div>
+              </div>
+              <div purpose="competitor-row">
+                <div purpose="product-name"><strong>Microsoft Intune</strong></div>
+                <div purpose="status"><img alt="No support" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Microsoft-controlled automatic updates</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <%/* ── PROOF QUOTES ─────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>From teams that could not compromise on data residency</h3>
@@ -341,23 +466,24 @@
         </div>
       </div>
 
-    </div><%/* /landing-page-content */%>
-  </div><%/* /landing-page-container */%>
+    </div>
+  </div>
 
-  <%/* ── BOTTOM CTA ───────────────────────────────────────────────────────── */%>
+
   <div purpose="bottom-gradient">
-    <div purpose="page-container" class="container">
+    <div purpose="page-container">
       <div purpose="bottom-cta" class="text-center">
-        <h4>On-premise deployment</h4>
-        <h1>Your infrastructure. Your data. Your terms.</h1>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Talk to our team</a>
+        <div>
+          <h4>On-premise deployment</h4>
+          <h1>Your infrastructure. Your data. Your terms.</h1>
+        </div>
+        <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
+          <a purpose="cta-button" class="mr-0" href="/contact" no-underline>Get a demo</a>
         </div>
       </div>
     </div>
   </div>
 
-  <%/* ── CLOUD CITY ───────────────────────────────────────────────────────── */%>
   <parallax-city></parallax-city>
 
 </div>
