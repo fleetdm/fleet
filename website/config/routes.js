@@ -586,6 +586,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /on-premise': {
+    action: 'landing-pages/view-on-premise',
+    locals: {
+      pageTitleForMeta: 'On-premise device management',
+      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
