@@ -1,10 +1,3 @@
-<meta name="articleTitle" value="Managing Google Chrome with Fleet">
-<meta name="authorFullName" value="Gray Williams">
-<meta name="authorGithubUsername" value="grayw">
-<meta name="category" value="guides">
-<meta name="publishedOn" value="2026-05-04">
-<meta name="description" value="Learn how to manage Google Chrome on Windows devices with Fleet by deploying the Chrome ADMX file and configuring browser policies using configuration profiles.">
-
 # Managing Google Chrome with Fleet
 
 Use configuration profiles to enforce consistent Chrome browser settings across your Windows devices. Before configuring Chrome policies, you must first deploy the Google Chrome ADMX file to your devices — skipping this step will cause errors during verification or prevent policies from applying.
@@ -128,3 +121,10 @@ Use the following XML to enforce Chrome policies. Note the use of `int` for REG_
 
 - Explore additional Chrome policies in the [Chrome Enterprise Policy List](https://chromeenterprise.google/policies/).
 - Test policies in a staging environment before fleet-wide deployment.
+
+<meta name="articleTitle" value="Managing Google Chrome with Fleet">
+<meta name="authorFullName" value="Gray Williams">
+<meta name="authorGitHubUsername" value="GrayW">
+<meta name="category" value="guides">
+<meta name="publishedOn" value="2026-05-04">
+<meta name="description" value="Learn to manage Google Chrome on Windows with Fleet by deploying the Chrome ADMX file and configuring browser policies using configuration profiles.">
