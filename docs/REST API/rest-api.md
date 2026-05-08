@@ -2553,7 +2553,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. The minimum required macOS version. Accepts a version number (e.g., `"15.4.1"`), `"latest"`, `"latest_major"`, or `"latest_minor"`. Pair with `deadline` for version numbers or `deadline_days` for automatic options. |
+| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. The minimum required iOS version. Accepts a version number (e.g., `"15.4.1"`), `"latest"`, `"latest_major"`, or `"latest_minor"`. Pair with `deadline` for version numbers or `deadline_days` for automatic options. |
 | deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
 | deadline_days                     | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`, `"latest_major"`, or `"latest_minor"`. Cannot be used with a version number. |
 
@@ -2567,7 +2567,7 @@ _Available in Fleet Premium._
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. The minimum required macOS version. Accepts a version number (e.g., `"15.4.1"`), `"latest"`, `"latest_major"`, or `"latest_minor"`. Pair with `deadline` for version numbers or `deadline_days` for automatic options. |
+| minimum_version                   | string  | Hosts that are "Unassigned" and have MDM turned on will be prompted to update when their OS is below this version. The minimum required iPadOS version. Accepts a version number (e.g., `"15.4.1"`), `"latest"`, `"latest_major"`, or `"latest_minor"`. Pair with `deadline` for version numbers or `deadline_days` for automatic options. |
 | deadline                          | string  | Hosts that are "Unassigned" will be forced to update their OS after this deadline (7PM local time). Required when `minimum_version` is a version number. Cannot be used with automatic options. |
 | deadline_days                     | string  | Hosts that are "Unassigned" and have MDM turned on will be forced to update their OS the specified number of days after Apple releases an update. Required when `minimum_version` is `"latest"`, `"latest_major"`, or `"latest_minor"`. Cannot be used with a version number. |
 
