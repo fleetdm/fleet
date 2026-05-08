@@ -17,6 +17,7 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
 
 import {
   IDataSet,
@@ -46,6 +47,7 @@ const DATASETS: IDataSet[] = [
       <>
         The number of hosts detected online during a given hour.
         <br />
+        <br />
         A host is considered online if it&rsquo;s actively checking in to Fleet.
         <br />
         This includes sleeping hosts (e.g. lid closed).{" "}
@@ -61,29 +63,24 @@ const DATASETS: IDataSet[] = [
     defaultChartType: "checkerboard",
     description: (
       <>
-        Shows the number of hosts with{" "}
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138"
-        >
-          certain critical
-          <br />
-          vulnerabilities
-        </a>{" "}
-        during a given hour.
+        The number of hosts with critical vulnerabilities detected in browsers
+        and{" "}
+        <CustomLink
+          newTab
+          text="other common software "
+          variant="tooltip-link"
+          url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
+        />
         <br />
         <br />
-        Want more control over this chart? Comprehensive vulnerability filtering
+        Want more control? Comprehensive vulnerability filtering
         is{" "}
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://github.com/fleetdm/fleet/issues/44746"
-        >
-          coming soon
-        </a>
-        .
+        <CustomLink
+          newTab
+          text="coming soon "
+          variant="tooltip-link"
+          url="https://github.com/fleetdm/fleet/issues/44746"
+        />
       </>
     ),
     tooltipFormatter: ({ value }: { value: number }) =>
@@ -163,12 +160,12 @@ const ChartCard = ({
         : undefined,
       include_host_ids:
         chartFilters.hostFilterMode === "include" &&
-        chartFilters.selectedHosts.length
+          chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
       exclude_host_ids:
         chartFilters.hostFilterMode === "exclude" &&
-        chartFilters.selectedHosts.length
+          chartFilters.selectedHosts.length
           ? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
     };
