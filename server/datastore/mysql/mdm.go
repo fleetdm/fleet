@@ -1741,7 +1741,7 @@ func batchSetProfileLabelAssociationsDB(
 	`
 
 	selectStmt := `
-		SELECT %s_profile_uuid as profile_uuid, label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
+		SELECT %s_profile_uuid as profile_uuid, COALESCE(label_id, 0) as label_id, label_name, exclude, require_all FROM mdm_configuration_profile_labels
 		WHERE (%s_profile_uuid, label_name) IN (%s)
 	`
 

@@ -4883,7 +4883,7 @@ WHERE
 		totalProcessed += len(serials)
 	}
 	if totalProcessed != len(serials) {
-		ds.logger.ErrorContext(ctx, fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
+		ds.logger.WarnContext(ctx, fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
 	}
 
 	return skipSerialsByOrgName, serialsByOrgName, nil
@@ -5599,7 +5599,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	// unrelated decl+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
-	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((apple_declaration_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  apple_declaration_uuid IN (?)
 	`
 
@@ -5622,7 +5622,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	`
 
 	selectStmt := `
-		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude, require_all FROM mdm_declaration_labels
+		SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id, exclude, require_all FROM mdm_declaration_labels
 		WHERE (apple_declaration_uuid, label_name) IN (%s)
 	`
 
@@ -6427,7 +6427,7 @@ func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames
 
 	stmt := `
 SELECT
-    name, value
+    name, value, HEX(md5_checksum) as md5_checksum
 FROM
    mdm_config_assets
 WHERE
@@ -6459,7 +6459,7 @@ WHERE
 			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
 		}
 
-		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal, MD5Checksum: asset.MD5Checksum}
 	}
 
 	if len(res) < len(assetNames) {
