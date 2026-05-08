@@ -1,0 +1,1 @@
+- Fixed an issue where a GitOps controls with only certain keys would not be seen as set.

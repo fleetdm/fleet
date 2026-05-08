@@ -1,0 +1,1 @@
+- Made `created_at` upper-bound filtering consistent on the list activities API. The endpoint now caps results at `now` by default whether or not `start_created_at` is provided, matching the documented behavior of `end_created_at`.
