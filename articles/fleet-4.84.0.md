@@ -8,11 +8,11 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- [GitOps mode exceptions](#gitop-mode-exceptions)
-- [Automatically rotate Recovery Lock passwords](#anchor-02)
-- [Run Python scripts on macOS & Linux](#anchor-03)
-- [Entra conditional access for Windows](#anchor-04)
-- [Remove settings from Windows when profile is deleted](#anchor-05)
+- [GitOps mode exceptions](#gitops-mode-exceptions)
+- [Automatically rotate Recovery Lock passwords](#automatically-rotate-recovery-lock-passwords)
+- [Run Python scripts on macOS & Linux](#run-python-scripts-on-macos-linux)
+- [Entra conditional access for Windows](#entra-conditional-access-for-windows)
+- [Remove settings from Windows when profile is deleted](#remove-settings-from-windows-when-profile-is-deleted)
 
 
 ### GitOps mode exceptions
@@ -31,7 +31,6 @@ This makes it easier to ramp up with GitOps incrementally: start by managing pol
 
 GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 
-<a name="anchor-02"></a>
 
 ### Automatically rotate Recovery Lock passwords
 
@@ -45,7 +44,6 @@ Admins can still trigger a manual rotation at any time from the Host details pag
 
 GitHub issue: [#41003](https://github.com/fleetdm/fleet/issues/41003)
 
-<a name="anchor-03"></a>
 
 ### Run Python scripts on macOS & Linux
 
@@ -59,7 +57,6 @@ Python scripts follow the same rules as other script types: they respect Fleet's
 
 GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 
-<a name="anchor-04"></a>
 
 ### Entra conditional access for Windows
 
@@ -73,7 +70,6 @@ This extends the existing macOS conditional access integration to Windows, using
 
 GitHub issue: [#38041](https://github.com/fleetdm/fleet/issues/38041)
 
-<a name="anchor-05"></a>
 
 ### Remove settings from Windows when profile is deleted
 
