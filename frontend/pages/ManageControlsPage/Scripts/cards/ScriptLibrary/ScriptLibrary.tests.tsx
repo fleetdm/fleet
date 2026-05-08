@@ -32,8 +32,8 @@ const baseProps = {
   location: mockLocation,
 };
 
-describe("ScriptLibrary", () => {
-  it("renders empty state with Upload CTA for non-technician users", async () => {
+describe("ScriptLibrary empty state", () => {
+  it("renders Upload CTA and info text for global admin", async () => {
     mockServer.use(emptyScriptsHandler);
 
     const render = createCustomRenderer({
@@ -41,8 +41,6 @@ describe("ScriptLibrary", () => {
       context: {
         app: {
           isGlobalAdmin: true,
-          isGlobalTechnician: false,
-          isTeamTechnician: false,
           config: {
             server_settings: { scripts_disabled: false },
           },
@@ -63,7 +61,32 @@ describe("ScriptLibrary", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders empty state without Upload CTA for technician users", async () => {
+  it("renders Upload CTA even when scripts are disabled (managing library is still allowed)", async () => {
+    mockServer.use(emptyScriptsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isGlobalAdmin: true,
+          config: {
+            server_settings: { scripts_disabled: true },
+          },
+        },
+      },
+    });
+
+    render(<ScriptLibrary {...baseProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No scripts")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: /upload/i })
+    ).toBeInTheDocument();
+  });
+
+  it("hides Upload CTA and info text for global technician", async () => {
     mockServer.use(emptyScriptsHandler);
 
     const render = createCustomRenderer({
@@ -85,6 +108,37 @@ describe("ScriptLibrary", () => {
     });
     expect(
       screen.queryByRole("button", { name: /upload/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Upload shell \(.sh\) or Python \(.py\)/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it("hides Upload CTA and info text for team technician", async () => {
+    mockServer.use(emptyScriptsHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          isTeamTechnician: true,
+          config: {
+            server_settings: { scripts_disabled: false },
+          },
+        },
+      },
+    });
+
+    render(<ScriptLibrary {...baseProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("No scripts")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByRole("button", { name: /upload/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Upload shell \(.sh\) or Python \(.py\)/i)
     ).not.toBeInTheDocument();
   });
 });
