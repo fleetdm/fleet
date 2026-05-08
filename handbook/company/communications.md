@@ -731,7 +731,7 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-if-or-lose-it" monthly budget that cannot be carried over to future months. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. This is a "use-it-or-lose-it" monthly budget that cannot be carried over to future months. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
