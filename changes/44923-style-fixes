@@ -1,3 +1,0 @@
-* Moved the "Save" button to the left of "Cancel" on the Add/edit label page.
-* Removed the empty filter row above the empty state on the Reports and Policies pages so the empty state sits closer to the page header.
-* Cleaned up dark-mode styling on the initial Fleet setup page (active breadcrumb, input field hover/active borders, and confirmation table row backgrounds).
