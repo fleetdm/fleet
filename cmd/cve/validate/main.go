@@ -9,14 +9,82 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/goval_dictionary"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 )
+
+// anyVulnerableCPEMatch reports whether any node (or descendant) carries a
+// CPEMatch that's both marked vulnerable and has a non-empty CPE 2.3 URI.
+// Non-vulnerable matches (typical of AND-operator context entries that
+// describe the platform a vulnerable component runs on) and empty URIs are
+// excluded so the canary measures real enrichment, not just slice length.
+func anyVulnerableCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) bool {
+	for _, n := range nodes {
+		for _, m := range n.CPEMatch {
+			if m.Vulnerable && m.Cpe23Uri != "" {
+				return true
+			}
+		}
+		if anyVulnerableCPEMatch(n.Children) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkEnrichmentCanary panics if the per-year NVD feed for `year` shows signs
+// of broken VulnCheck enrichment.
+//
+// Two thresholds catch different failure modes:
+//   - Absolute floor (10k): trips if the year file itself shrinks pathologically
+//     (corrupt download, partial sync) regardless of ratio.
+//   - Ratio floor (30%): trips if enrichment quality regresses while the feed
+//     size stays normal. Reference points: 2025 feed at the last healthy run
+//     was 31,197 / 42,477 = 73.4%; 2026 mid-year is 13,589 / 16,894 = 80.4%.
+//     30% leaves wide margin while still firing on a wholesale regression.
+func checkEnrichmentCanary(vulnPath string, year int) {
+	const (
+		minEnriched      = 10000
+		minEnrichedRatio = 0.30
+	)
+	file := fmt.Sprintf("nvdcve-1.1-%d.json.gz", year)
+	prefix := fmt.Sprintf("CVE-%d-", year)
+
+	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, file))
+	if err != nil {
+		panic(err)
+	}
+
+	total, enriched := 0, 0
+	for id, v := range vulns {
+		if !strings.HasPrefix(id, prefix) {
+			continue
+		}
+		total++
+		entry, ok := v.(*feednvd.Vuln)
+		if !ok || entry.Schema().Configurations == nil {
+			continue
+		}
+		if anyVulnerableCPEMatch(entry.Schema().Configurations.Nodes) {
+			enriched++
+		}
+	}
+	ratio := 0.0
+	if total > 0 {
+		ratio = float64(enriched) / float64(total)
+	}
+	if enriched < minEnriched || ratio < minEnrichedRatio {
+		panic(fmt.Errorf("%d enrichment canary failed: %d/%d (%.1f%%) CVEs have vulnerable CPE matches, expected >= %d AND >= %.0f%%",
+			year, enriched, total, ratio*100, minEnriched, minEnrichedRatio*100))
+	}
+}
 
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
@@ -40,18 +108,21 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		panic(err)
 	}
 
+	// NVD leaves many recent CVEs without CPE matches (Deferred, Awaiting Analysis), so
+	// most populated configurations in this feed come from VulnCheck enrichment. Counting
+	// CVEs with any vulnerable CPE match catches a broken enrichment without pegging the
+	// canary to a single CVE's row count — VulnCheck drifts per-CVE and that broke this
+	// pipeline repeatedly when the canary was CVE-2025-0938.
+	//
+	// The canary runs against the previous calendar year's feed: a stable corpus
+	// (no longer growing rapidly) with the highest density of Deferred CVEs, where
+	// VulnCheck enrichment is doing the most visible work. Rotating year-over-year
+	// avoids the maintenance treadmill of bumping a hardcoded year.
+	checkEnrichmentCanary(vulnPath, time.Now().UTC().Year()-1)
+
 	vulns, err := cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2025.json.gz"))
 	if err != nil {
 		panic(err)
-	}
-
-	// make sure VulnCheck enrichment is working
-	vulnEntry, ok := vulns["CVE-2025-0938"].(*feednvd.Vuln)
-	if !ok {
-		panic("failed to cast CVE-2025-0938 to a Vuln")
-	}
-	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 6 {
-		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 
 	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.5 { // Should pull primary CVSSv3 score, (has primary and secondary)
@@ -64,7 +135,7 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	}
 
 	// make sure VulnCheck enrichment is working on less recent vulns
-	vulnEntry, ok = vulns["CVE-2024-6286"].(*feednvd.Vuln)
+	vulnEntry, ok := vulns["CVE-2024-6286"].(*feednvd.Vuln)
 	if !ok {
 		panic("failed to cast CVE-2024-6286 to a Vuln")
 	}
