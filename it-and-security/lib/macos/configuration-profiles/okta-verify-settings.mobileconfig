@@ -2,19 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.okta-verify.settings</string>
+	<key>PayloadUUID</key>
+	<string>F908093E-F3CD-4879-93D5-3545A4E9686B</string>
+	<key>PayloadDisplayName</key>
+	<string>Okta Verify settings</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Privacy Preferences Policy Control</string>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.TCC.configuration-profile-policy.DFBB4921-A766-42FE-AC3E-47150B51991F</string>
 			<key>PayloadType</key>
 			<string>com.apple.TCC.configuration-profile-policy</string>
-			<key>PayloadUUID</key>
-			<string>DFBB4921-A766-42FE-AC3E-47150B51991F</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.TCC.configuration-profile-policy.DFBB4921-A766-42FE-AC3E-47150B51991F</string>
+			<key>PayloadUUID</key>
+			<string>AC220167-D6BB-468E-950D-AA95884052A8</string>
 			<key>Services</key>
 			<dict>
 				<key>BluetoothAlways</key>
@@ -23,7 +31,7 @@
 						<key>Authorization</key>
 						<string>Allow</string>
 						<key>CodeRequirement</key>
-						<string>anchor apple generic and identifier "com.okta.mobile" and (certificate leaf[field.1.2.840.113635.100.6.1.9] /* exists */ or certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = B7F62B65BN)</string>
+						<string>anchor apple generic and identifier &quot;com.okta.mobile&quot; and (certificate leaf[field.1.2.840.113635.100.6.1.9] /* exists */ or certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = B7F62B65BN)</string>
 						<key>Identifier</key>
 						<string>com.okta.mobile</string>
 						<key>IdentifierType</key>
@@ -33,31 +41,41 @@
 					</dict>
 				</array>
 			</dict>
+			<key>PayloadDisplayName</key>
+			<string>Privacy Preferences Policy Control</string>
 		</dict>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Service Management - Managed Login Items</string>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.servicemanagement.C06873D1-CEE5-4CBD-8C3B-EE96BAF487D1</string>
 			<key>PayloadType</key>
 			<string>com.apple.servicemanagement</string>
-			<key>PayloadUUID</key>
-			<string>C06873D1-CEE5-4CBD-8C3B-EE96BAF487D1</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.C06873D1-CEE5-4CBD-8C3B-EE96BAF487D1</string>
+			<key>PayloadUUID</key>
+			<string>0ECC09F1-C21D-495D-A420-260D18F1E2D1</string>
 			<key>Rules</key>
 			<array>
 				<dict>
 					<key>RuleType</key>
-					<string>BundleIdentifier</string>
+					<string>BundleIdentifierPrefix</string>
 					<key>RuleValue</key>
-					<string>com.okta.mobile</string>
+					<string>com.okta.</string>
 					<key>TeamIdentifier</key>
 					<string>B7F62B65BN</string>
 				</dict>
 			</array>
+			<key>PayloadDisplayName</key>
+			<string>Service Management - Managed Login Items</string>
 		</dict>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.notificationsettings</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.notificationsettings.C2C42EC8-D883-4102-AD50-C7B03FDD6E01</string>
+			<key>PayloadUUID</key>
+			<string>C5BFFE2B-06E0-44F7-988A-271DF4FCC15F</string>
 			<key>NotificationSettings</key>
 			<array>
 				<dict>
@@ -71,59 +89,41 @@
 			</array>
 			<key>PayloadDisplayName</key>
 			<string>Notifications</string>
-			<key>PayloadIdentifier</key>
-			<string>com.apple.notificationsettings.C2C42EC8-D883-4102-AD50-C7B03FDD6E01</string>
-			<key>PayloadType</key>
-			<string>com.apple.notificationsettings</string>
-			<key>PayloadUUID</key>
-			<string>C2C42EC8-D883-4102-AD50-C7B03FDD6E01</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Okta Verify</string>
-			<key>PayloadIdentifier</key>
-			<string>com.okta.mobile.025AA0BB-1D39-456C-BA51-7274DFD0C4F5</string>
 			<key>PayloadType</key>
 			<string>com.okta.mobile</string>
-			<key>PayloadUUID</key>
-			<string>025AA0BB-1D39-456C-BA51-7274DFD0C4F5</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.okta.mobile.025AA0BB-1D39-456C-BA51-7274DFD0C4F5</string>
+			<key>PayloadUUID</key>
+			<string>8C5C8025-B0D9-4C50-84EF-621848460B15</string>
+			<key>PayloadDisplayName</key>
+			<string>Okta Verify</string>
 			<key>OktaVerify.OrgUrl</key>
 			<string>fleetdm.okta.com</string>
 			<key>OktaVerify.LaunchOptions</key>
 			<string>HideMainWindow</string>
 		</dict>
 		<dict>
-			<key>PayloadDisplayName</key>
-			<string>Okta Verify Auth Service Extension</string>
-			<key>PayloadIdentifier</key>
-			<string>com.okta.mobile.auth-service-extension.F8A21C44-3E9B-4D5C-9F2A-1B8E7D4A9C3F</string>
 			<key>PayloadType</key>
 			<string>com.okta.mobile.auth-service-extension</string>
-			<key>PayloadUUID</key>
-			<string>F8A21C44-3E9B-4D5C-9F2A-1B8E7D4A9C3F</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.okta.mobile.auth-service-extension.F8A21C44-3E9B-4D5C-9F2A-1B8E7D4A9C3F</string>
+			<key>PayloadUUID</key>
+			<string>6119F3AF-DBB8-4B6B-95DD-E0FA24D82951</string>
+			<key>PayloadDisplayName</key>
+			<string>Okta Verify Auth Service Extension</string>
 			<key>OktaVerify.OrgUrl</key>
 			<string>fleetdm.okta.com</string>
 			<key>OktaVerify.LaunchOptions</key>
 			<string>HideMainWindow</string>
 		</dict>
 	</array>
-	<key>PayloadDisplayName</key>
-	<string>Okta Verify settings</string>
-	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.okta-verify.settings</string>
 	<key>PayloadScope</key>
 	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>078FDE56-2002-4189-AFE6-019167F0F9F9</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
 </dict>
 </plist>

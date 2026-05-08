@@ -1,37 +1,39 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-	<dict>
-		<key>PayloadContent</key>
-		<array>
-			<dict>
-				<key>PayloadDisplayName</key>
-				<string>Ensure Show Status Bar Is Enabled</string>
-				<key>PayloadType</key>
-				<string>com.apple.Safari</string>
-				<key>PayloadIdentifier</key>
-				<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
-				<key>PayloadUUID</key>
-				<string>708B39DB-E2B7-405C-A523-88F3DDC8DFFC</string>
-				<key>ShowOverlayStatusBar</key>
-				<true/>
-			</dict>
-		</array>
-		<key>PayloadDescription</key>
-		<string>Ensure Show Status Bar Is Enabled</string>
-		<key>PayloadDisplayName</key>
-		<string>Ensure Show Status Bar Is Enabled</string>
-		<key>PayloadIdentifier</key>
-		<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
-		<key>PayloadRemovalDisallowed</key>
-		<false/>
-		<key>PayloadScope</key>
-		<string>System</string>
-		<key>PayloadType</key>
-		<string>Configuration</string>
-		<key>PayloadUUID</key>
-		<string>00FB5D02-8044-4E6F-884C-D73E7A32A2E7</string>
-		<key>PayloadVersion</key>
-		<integer>1</integer>
-	</dict>
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
+	<key>PayloadUUID</key>
+	<string>949F0A1F-0486-4B47-A75C-E6D578F74300</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Show Status Bar Is Enabled</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.Safari</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-ensure-show-status-bar-is-enabled</string>
+			<key>PayloadUUID</key>
+			<string>75AC3663-83A9-4A94-A423-981F6113A1A7</string>
+			<key>PayloadDisplayName</key>
+			<string>Ensure Show Status Bar Is Enabled</string>
+			<key>ShowOverlayStatusBar</key>
+			<true/>
+		</dict>
+	</array>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadDescription</key>
+	<string>Ensure Show Status Bar Is Enabled</string>
+</dict>
 </plist>

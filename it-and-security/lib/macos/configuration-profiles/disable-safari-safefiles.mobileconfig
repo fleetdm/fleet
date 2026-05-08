@@ -2,27 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>PayloadDescription</key>
-	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
-	<key>PayloadDisplayName</key>
-	<string>Disable Safari Safe Files</string>
-	<key>PayloadEnabled</key>
-	<true/>
-	<key>PayloadIdentifier</key>
-	<string>cis.macOSBenchmark.Section6.SafariSafeFiles</string>
-	<key>PayloadScope</key>
-	<string>System</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>EC6020B6-EAF9-4632-BCD4-FE2A289EFF05</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
-    <key>PayloadRemovalDisallowed</key>
-    <true/>
+	<key>PayloadIdentifier</key>
+	<string>cis.macOSBenchmark.Section6.SafariSafeFiles</string>
+	<key>PayloadUUID</key>
+	<string>ADCE9EF1-B05D-4D32-9599-8C4B703AAEA8</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable Safari Safe Files</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.ManagedClient.preferences</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>3589C72C-145C-43D1-85D9-7EECE1201775</string>
+			<key>PayloadUUID</key>
+			<string>2147345D-4DC3-446C-8F16-960063DA685E</string>
+			<key>PayloadEnabled</key>
+			<true/>
 			<key>PayloadContent</key>
 			<dict>
 				<key>com.apple.Safari</key>
@@ -43,17 +45,15 @@
 			<string>6.3 - Ensure Automatic Opening of Safe Files in Safari Is Disabled</string>
 			<key>PayloadDisplayName</key>
 			<string>Custom</string>
-			<key>PayloadEnabled</key>
-			<true/>
-			<key>PayloadIdentifier</key>
-			<string>3589C72C-145C-43D1-85D9-7EECE1201775</string>
-			<key>PayloadType</key>
-			<string>com.apple.ManagedClient.preferences</string>
-			<key>PayloadUUID</key>
-			<string>3589C72C-145C-43D1-85D9-7EECE1201775</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 	</array>
+	<key>PayloadDescription</key>
+	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadEnabled</key>
+	<true/>
 </dict>
 </plist>

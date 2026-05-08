@@ -2,9 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.santa.rules</string>
+	<key>PayloadUUID</key>
+	<string>274C8541-158A-4BCE-9288-30E8922A4DF1</string>
+	<key>PayloadDisplayName</key>
+	<string>Santa rules</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.ManagedClient.preferences</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.359E3C7D-396F-4C45-99E7-F429620B9B21</string>
+			<key>PayloadUUID</key>
+			<string>256488D5-A23B-4015-8F1D-9C4CA3B0D486</string>
 			<key>PayloadContent</key>
 			<dict>
 				<key>com.northpolesec.santa</key>
@@ -42,33 +60,15 @@
 			</dict>
 			<key>PayloadEnabled</key>
 			<true/>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.359E3C7D-396F-4C45-99E7-F429620B9B21</string>
-			<key>PayloadType</key>
-			<string>com.apple.ManagedClient.preferences</string>
-			<key>PayloadUUID</key>
-			<string>359E3C7D-396F-4C45-99E7-F429620B9B21</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 	</array>
-	<key>PayloadDescription</key>
-	<string>Santa rules</string>
-	<key>PayloadDisplayName</key>
-	<string>Santa rules</string>
-	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.santa.rules</string>
-	<key>PayloadOrganization</key>
-	<string>Fleet</string>
 	<key>PayloadRemovalDisallowed</key>
 	<true/>
+	<key>PayloadDescription</key>
+	<string>Santa rules</string>
 	<key>PayloadScope</key>
 	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>AFA02DE3-ACA6-49C4-9980-A3664E22E446</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
 </dict>
 </plist>

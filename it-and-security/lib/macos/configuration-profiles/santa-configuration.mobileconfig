@@ -2,23 +2,29 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.santa.configuration</string>
+	<key>PayloadUUID</key>
+	<string>8F06A206-9393-4798-B439-A9E6382529B8</string>
+	<key>PayloadDisplayName</key>
+	<string>Santa configuration</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>PayloadDescription</key>
-			<string>Allows Santa background tasks without notifications</string>
-			<key>PayloadDisplayName</key>
-			<string>Background Apps</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.servicemanagement</string>
-			<key>PayloadOrganization</key>
-			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.servicemanagement</string>
-			<key>PayloadUUID</key>
-			<string>1161A7ED-2E7B-4744-B933-D3B9F58A1AAE</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>CF1F18D8-ACB3-40A6-8340-85C7B2C5B076</string>
+			<key>PayloadDescription</key>
+			<string>Allows Santa background tasks without notifications</string>
 			<key>Rules</key>
 			<array>
 				<dict>
@@ -28,8 +34,20 @@
 					<string>ZMCG7MLDV9</string>
 				</dict>
 			</array>
+			<key>PayloadDisplayName</key>
+			<string>Background Apps</string>
+			<key>PayloadOrganization</key>
+			<string>Fleet</string>
 		</dict>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.ManagedClient.preferences</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.preferences</string>
+			<key>PayloadUUID</key>
+			<string>384CE88D-DF7E-4F8B-91C2-03037C496796</string>
 			<key>PayloadContent</key>
 			<dict>
 				<key>com.northpolesec.santa</key>
@@ -66,24 +84,28 @@
 					</array>
 				</dict>
 			</dict>
-			<key>PayloadDescription</key>
-			<string>Manages Santa's configuration settings</string>
-			<key>PayloadDisplayName</key>
-			<string>Santa Configuration</string>
-			<key>PayloadEnabled</key>
-			<true/>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.preferences</string>
 			<key>PayloadOrganization</key>
 			<string>Fleet</string>
-			<key>PayloadType</key>
-			<string>com.apple.ManagedClient.preferences</string>
-			<key>PayloadUUID</key>
-			<string>359E3C7D-396F-4C45-99E7-F429620B9B21</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
+			<key>PayloadEnabled</key>
+			<true/>
+			<key>PayloadDescription</key>
+			<string>Manages Santa&apos;s configuration settings</string>
+			<key>PayloadDisplayName</key>
+			<string>Santa Configuration</string>
 		</dict>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.notificationsettings</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.notificationsettings</string>
+			<key>PayloadUUID</key>
+			<string>3080FF9D-9ED9-41CC-8D67-6F22C1771E89</string>
+			<key>PayloadDescription</key>
+			<string>Configures notification settings for Santa</string>
+			<key>PayloadOrganization</key>
+			<string>Fleet</string>
 			<key>NotificationSettings</key>
 			<array>
 				<dict>
@@ -105,34 +127,23 @@
 					<false/>
 				</dict>
 			</array>
-			<key>PayloadDescription</key>
-			<string>Configures notification settings for Santa</string>
 			<key>PayloadDisplayName</key>
 			<string>Notifications Settings</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.notificationsettings</string>
-			<key>PayloadOrganization</key>
-			<string>Fleet</string>
-			<key>PayloadType</key>
-			<string>com.apple.notificationsettings</string>
-			<key>PayloadUUID</key>
-			<string>510236AE-D7F8-4131-A4CA-5CC930C51866</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.system-extension-policy</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.system-extension</string>
+			<key>PayloadUUID</key>
+			<string>FFEE1028-C42B-4D57-A1AE-03307340FD9E</string>
 			<key>AllowedSystemExtensionTypes</key>
 			<dict>
 				<key>ZMCG7MLDV9</key>
 				<array>
 					<string>EndpointSecurityExtension</string>
-				</array>
-			</dict>
-			<key>AllowedSystemExtensions</key>
-			<dict>
-				<key>ZMCG7MLDV9</key>
-				<array>
-					<string>com.northpolesec.santa.daemon</string>
 				</array>
 			</dict>
 			<key>NonRemovableSystemExtensions</key>
@@ -142,36 +153,33 @@
 					<string>com.northpolesec.santa.daemon</string>
 				</array>
 			</dict>
+			<key>AllowedSystemExtensions</key>
+			<dict>
+				<key>ZMCG7MLDV9</key>
+				<array>
+					<string>com.northpolesec.santa.daemon</string>
+				</array>
+			</dict>
 			<key>PayloadDescription</key>
-			<string>Allow Santa's system extension and prevent removal</string>
+			<string>Allow Santa&apos;s system extension and prevent removal</string>
+			<key>PayloadOrganization</key>
+			<string>Fleet</string>
 			<key>PayloadDisplayName</key>
 			<string>System Extension</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.system-extension</string>
-			<key>PayloadOrganization</key>
-			<string>Fleet</string>
-			<key>PayloadType</key>
-			<string>com.apple.system-extension-policy</string>
-			<key>PayloadUUID</key>
-			<string>67EF74B6-F4FB-49FC-A086-5DE3E61B838A</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
 		</dict>
 		<dict>
-			<key>PayloadDescription</key>
-			<string>Allows full-disk access for Santa</string>
-			<key>PayloadDisplayName</key>
-			<string>TCC Permissions</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.santa.tcc</string>
-			<key>PayloadOrganization</key>
-			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.TCC.configuration-profile-policy</string>
-			<key>PayloadUUID</key>
-			<string>8339162A-75E7-4E07-91DC-45DC939A4764</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.santa.tcc</string>
+			<key>PayloadUUID</key>
+			<string>0A4D0AFF-7A3F-44AE-8120-3E6CC3CD1DE7</string>
+			<key>PayloadDisplayName</key>
+			<string>TCC Permissions</string>
+			<key>PayloadDescription</key>
+			<string>Allows full-disk access for Santa</string>
 			<key>Services</key>
 			<dict>
 				<key>SystemPolicyAllFiles</key>
@@ -180,7 +188,7 @@
 						<key>Allowed</key>
 						<true/>
 						<key>CodeRequirement</key>
-						<string>identifier "com.northpolesec.santa.daemon" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = ZMCG7MLDV9</string>
+						<string>identifier &quot;com.northpolesec.santa.daemon&quot; and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = ZMCG7MLDV9</string>
 						<key>Comment</key>
 						<string></string>
 						<key>Identifier</key>
@@ -194,7 +202,7 @@
 						<key>Allowed</key>
 						<true/>
 						<key>CodeRequirement</key>
-						<string>identifier "com.northpolesec.santa.bundleservice" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = ZMCG7MLDV9</string>
+						<string>identifier &quot;com.northpolesec.santa.bundleservice&quot; and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = ZMCG7MLDV9</string>
 						<key>Comment</key>
 						<string></string>
 						<key>Identifier</key>
@@ -206,27 +214,19 @@
 					</dict>
 				</array>
 			</dict>
+			<key>PayloadOrganization</key>
+			<string>Fleet</string>
 		</dict>
 	</array>
-	<key>PayloadDescription</key>
-	<string>Santa configuration including background apps, settings, notifications, system extension, and TCC permissions</string>
-	<key>PayloadDisplayName</key>
-	<string>Santa configuration</string>
-	<key>PayloadEnabled</key>
-	<true/>
-	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.santa.configuration</string>
-	<key>PayloadOrganization</key>
-	<string>Fleet</string>
 	<key>PayloadRemovalDisallowed</key>
 	<false/>
+	<key>PayloadEnabled</key>
+	<true/>
+	<key>PayloadDescription</key>
+	<string>Santa configuration including background apps, settings, notifications, system extension, and TCC permissions</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
 	<key>PayloadScope</key>
 	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>BBA4AD4E-9A70-4EF7-B33A-072D05B128C0</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
 </dict>
 </plist>

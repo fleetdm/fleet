@@ -2,48 +2,48 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.F302AA03-F873-4249-A1C3-7BD94B9B855F</string>
+	<key>PayloadUUID</key>
+	<string>253B89F8-0F0D-423A-8D21-42EFAB2E30F1</string>
+	<key>PayloadDisplayName</key>
+	<string>Turn on Firewall stealth mode</string>
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>AllowSigned</key>
-			<true/>
-			<key>BlockAllIncoming</key>
-			<false/>
-			<key>EnableFirewall</key>
-			<true/>
-			<key>EnableStealthMode</key>
-			<false/>
+			<key>PayloadType</key>
+			<string>com.apple.security.firewall</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.0E0E1617-E88D-45C6-9E9B-C56BFD80C730</string>
+			<key>PayloadUUID</key>
+			<string>33E24FC2-014F-43A6-94E1-51ED905BF530</string>
 			<key>PayloadDescription</key>
 			<string>Configures Firewall settings</string>
 			<key>PayloadDisplayName</key>
 			<string>Firewall</string>
-			<key>PayloadIdentifier</key>
-			<string>com.fleetdm.0E0E1617-E88D-45C6-9E9B-C56BFD80C730</string>
 			<key>PayloadOrganization</key>
 			<string></string>
-			<key>PayloadType</key>
-			<string>com.apple.security.firewall</string>
-			<key>PayloadUUID</key>
-			<string>0E0E1617-E88D-45C6-9E9B-C56BFD80C730</string>
-			<key>PayloadVersion</key>
-			<integer>1</integer>
+			<key>BlockAllIncoming</key>
+			<false/>
+			<key>AllowSigned</key>
+			<true/>
+			<key>EnableFirewall</key>
+			<true/>
+			<key>EnableStealthMode</key>
+			<false/>
 		</dict>
 	</array>
-	<key>PayloadDescription</key>
-	<string>Configures the firewall to be enabled in stealth mode</string>
-	<key>PayloadDisplayName</key>
-	<string>Turn on Firewall stealth mode</string>
-	<key>PayloadIdentifier</key>
-	<string>com.fleetdm.F302AA03-F873-4249-A1C3-7BD94B9B855F</string>
 	<key>PayloadOrganization</key>
 	<string>Fleet</string>
+	<key>PayloadDescription</key>
+	<string>Configures the firewall to be enabled in stealth mode</string>
 	<key>PayloadScope</key>
 	<string>System</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>F302AA03-F873-4249-A1C3-7BD94B9B855F</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
 </dict>
 </plist>
