@@ -132,6 +132,15 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     const mdmConfig = globalConfig.mdm;
     return (
       <SetupExperienceContentContainer>
+        <p className={`${baseClass}__section-description`}>
+          Customize local user accounts. You can automatically create local user
+          accounts using IdP credentials (PSSO).{" "}
+          <CustomLink
+            url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+            text="Learn how"
+            newTab
+          />
+        </p>
         <UsersForm
           currentTeamId={currentTeamId}
           defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
