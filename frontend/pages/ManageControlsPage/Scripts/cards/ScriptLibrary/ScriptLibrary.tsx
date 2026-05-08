@@ -192,7 +192,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
       <SectionHeader title="Library" alignLeftHeaderVertically />
       {config.server_settings.scripts_disabled && renderScriptsDisabledBanner()}
       {renderScriptsList()}
-      {!isLoading && currentPage === 0 && !scripts?.length && (
+      {!isLoading && !isError && currentPage === 0 && !scripts?.length && (
         <EmptyState
           variant="header-list"
           header="No scripts"
