@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "124.0",
+      "version": "125.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.drivefs';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.drivefs' AND version_compare(bundle_short_version, '124.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.drivefs' AND version_compare(bundle_short_version, '125.0') < 0);"
       },
       "installer_url": "https://dl.google.com/drive-file-stream/5-percent/GoogleDrive.dmg",
       "install_script_ref": "fe628b65",
