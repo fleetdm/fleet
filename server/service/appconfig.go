@@ -422,6 +422,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
+	// In Overwrite mode (gitops), default any absent
+	// `features.historical_data` sub-keys to `true` before unmarshaling.
+	// Older clients (e.g. fleetctl <=4.84 that predates this field) send
+	// payloads with historical_data missing; without this the Overwrite
+	// branch below wipes the previously-persisted values to false because
+	// Go's bool zero value is indistinguishable from "absent" once the
+	// payload is unmarshaled. Per policy, absent must always mean true.
+	if applyOpts.Overwrite {
+		rewritten, err := injectHistoricalDataDefaults(p)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "inject historical_data defaults")
+		}
+		p = rewritten
+	}
+
 	invalid := &fleet.InvalidArgumentError{}
 	var newAppConfig fleet.AppConfig
 	if err := json.Unmarshal(p, &newAppConfig); err != nil {
@@ -2016,6 +2031,60 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 			}
 		}
 	}
+}
+
+// injectHistoricalDataDefaults rewrites the raw app config payload to
+// populate `features.historical_data` sub-keys with their default
+// `true` values when absent from the incoming JSON. Operates on the
+// raw payload because Features.HistoricalData uses plain bool fields,
+// which cannot distinguish "absent" from "false" once unmarshaled.
+//
+// Mirrors the client-side defaulting in fleetctl gitops so any caller
+// (older fleetctl, third-party tooling, direct API hits) gets the
+// same upgrade-friendly default in Overwrite mode. PATCH mode does
+// not need this — absent fields preserve previously-persisted values
+// via the second json.Unmarshal in ModifyAppConfig.
+//
+// Returns the original payload unchanged when it isn't a JSON object,
+// doesn't contain `features`, or contains a malformed historical_data
+// value; the main decode path will surface those as typed errors.
+func injectHistoricalDataDefaults(p []byte) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(p))
+	dec.UseNumber()
+	var top map[string]any
+	if err := dec.Decode(&top); err != nil {
+		return p, nil //nolint:nilerr // let the main decode path produce the typed error
+	}
+
+	rawFeatures, ok := top["features"]
+	if !ok || rawFeatures == nil {
+		return p, nil
+	}
+	features, ok := rawFeatures.(map[string]any)
+	if !ok {
+		return p, nil
+	}
+
+	rawHist, present := features["historical_data"]
+	historical, isMap := rawHist.(map[string]any)
+	switch {
+	case !present || rawHist == nil:
+		historical = map[string]any{}
+		features["historical_data"] = historical
+	case !isMap:
+		return p, nil
+	}
+
+	var defaults fleet.Features
+	defaults.ApplyDefaults()
+	if _, ok := historical["uptime"]; !ok {
+		historical["uptime"] = defaults.HistoricalData.Uptime
+	}
+	if _, ok := historical["vulnerabilities"]; !ok {
+		historical["vulnerabilities"] = defaults.HistoricalData.Vulnerabilities
+	}
+
+	return json.Marshal(top)
 }
 
 // //////////////////////////////////////////////////////////////////////////////
