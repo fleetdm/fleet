@@ -1568,16 +1568,11 @@ const ManageHostsPage = ({
     async (evt: React.MouseEvent<HTMLButtonElement>) => {
       evt.preventDefault();
 
-      const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-      let currentHiddenColumns = [];
       let visibleColumns;
-      if (hiddenColumnsStorage) {
-        currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
-      }
 
       if (config && currentUser) {
         const tableColumns = generateVisibleTableColumns({
-          hiddenColumns: currentHiddenColumns,
+          hiddenColumns,
           isFreeTier,
           isOnlyObserver,
           teamId: teamIdForApi,
@@ -1619,6 +1614,9 @@ const ManageHostsPage = ({
         configProfileStatus,
         scriptBatchExecutionStatus,
         scriptBatchExecutionId,
+        diskEncryptionStatus,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
       };
 
       options = {
@@ -1679,6 +1677,10 @@ const ManageHostsPage = ({
       configProfileStatus,
       scriptBatchExecutionStatus,
       scriptBatchExecutionId,
+      diskEncryptionStatus,
+      depProfileError,
+      depAssignProfileResponse,
+      hiddenColumns,
       queryParams.fleet_id,
       renderFlash,
     ]
@@ -1717,12 +1719,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [
-    isLoadingHostsCount,
-    totalFilteredHostsCount,
-    isTrulyEmpty,
-    onExportHostsResults,
-  ]);
+  }, [totalFilteredHostsCount, isTrulyEmpty, onExportHostsResults]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
