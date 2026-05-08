@@ -209,18 +209,18 @@ func TestTeamPolicyVPPAutomationRejectsNonMacOS(t *testing.T) {
 // populateAutomationsForTeamPolicy helper.
 func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 	const (
-		teamID                  = uint(1)
-		policyID                = uint(42)
-		softwareInstallerID     = uint(101)
-		softwareInstallerTitle  = uint(201)
-		scriptID                = uint(301)
-		patchSoftwareTitleID    = uint(401)
-		patchInstallerTitleID   = uint(501)
-		installerSoftwareTitle  = "Cool Installer"
-		installerDisplayName    = "Cool Installer.app"
-		scriptName              = "remediate.sh"
-		patchSoftwareTitleName  = "Patchable App"
-		patchSoftwareDisplay    = "Patchable App.app"
+		teamID                 = uint(1)
+		policyID               = uint(42)
+		softwareInstallerID    = uint(101)
+		softwareInstallerTitle = uint(201)
+		scriptID               = uint(301)
+		patchSoftwareTitleID   = uint(401)
+		patchInstallerTitleID  = uint(501)
+		installerSoftwareTitle = "Cool Installer"
+		installerDisplayName   = "Cool Installer.app"
+		scriptName             = "remediate.sh"
+		patchSoftwareTitleName = "Patchable App"
+		patchSoftwareDisplay   = "Patchable App.app"
 	)
 
 	// Returns a fresh team-scoped policy with all three automation IDs set.
