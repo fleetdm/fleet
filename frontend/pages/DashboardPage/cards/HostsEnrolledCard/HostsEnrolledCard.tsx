@@ -234,6 +234,7 @@ const HostsEnrolledCard = ({
               tickLine={false}
               tickMargin={6}
               tick={{ fontSize: tickFontSize }}
+              allowDecimals={false}
             />
             <YAxis
               type="category"
