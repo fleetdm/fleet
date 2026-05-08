@@ -14,11 +14,16 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
 1. Head to the **Controls** > **OS updates** tab.
 
-2. To enforce OS updates for enrolled macOS, iOS, or iPadOS hosts, select the platform and set a **Minimum version** and **Deadline**.
+2. To enforce OS updates for enrolled Apple hosts, select the **macOS**, **iOS**, or **iPadOS** tab and choose an enforcement policy:
+
+   - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
+   - **Latest version** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
+   - **Latest within major** — Same as above, but hosts stay on their current major version (e.g., a host on macOS 14 gets the latest 14.x release, not macOS 15).
+   - **Latest within minor** — Same as above, but hosts stay on their current minor version (e.g., a host on 15.4 gets the latest 15.4.x patch).
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings.
+4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using any of the automatic enforcement options (Latest version, Latest within major, Latest within minor).
 
 Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
 + `macos_updates`
@@ -33,6 +38,43 @@ OS version enforcement options are declared within the [controls](https://fleetd
 + [ios_updates](https://fleetdm.com/docs/configuration/yaml-files#ios-updates)
 + [ipados_updates](https://fleetdm.com/docs/configuration/yaml-files#ipados-updates)
 + [windows_updates](https://fleetdm.com/docs/configuration/yaml-files#windows-updates)
+
+### Apple (macOS, iOS, and iPadOS) examples
+_Examples also work with ios_updates and ipados_updates._
+
+Custom version with an absolute deadline:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "15.4.1"
+    deadline: "2025-07-01"
+```
+
+Automatically enforce the latest macOS version, giving hosts 14 days after Apple releases it:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "latest"
+    deadline_days: 14
+```
+
+Keep hosts on their current major version, enforcing the latest minor/patch update 7 days after release:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "latest_major"
+    deadline_days: 7
+```
+
+Keep hosts on their current minor version, enforcing the latest patch 3 days after release:
+```yaml
+controls:
+  macos_updates:
+    minimum_version: "latest_minor"
+    deadline_days: 3
+```
+
+> `deadline` (a date) is used with a specific version number. `deadline_days` (an integer) is used with automatic options (`latest`, `latest_major`, `latest_minor`). These cannot be mixed.
 
 ## Apple (macOS, iOS, and iPadOS) end user experience
 
