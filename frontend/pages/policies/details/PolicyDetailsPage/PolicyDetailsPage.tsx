@@ -118,7 +118,7 @@ const PolicyDetailsPage = ({
   >(
     ["policy", policyId, teamIdForApi, isInheritedPolicyLink],
     () =>
-      !isInheritedPolicyLink && teamIdForApi && teamIdForApi > 0
+      !isInheritedPolicyLink && teamIdForApi !== undefined
         ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
         : globalPoliciesAPI.load(policyId as number),
     {
