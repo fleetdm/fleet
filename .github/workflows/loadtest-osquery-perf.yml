@@ -103,6 +103,20 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
+      - name: Check infra workspace exists
+        id: check-infra-workspace
+        working-directory: infrastructure/loadtesting/terraform/infra
+        run: |
+          echo "infra_workspace_missing=true" >> $GITHUB_OUTPUT
+          terraform init
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
+            echo -e "\n\nOK: matching infra workspace '${{ inputs.terraform_workspace }}' exists."
+            echo "infra_workspace_missing=false" >> $GITHUB_OUTPUT
+          else
+            echo -e "\n\nBLOCK: infra workspace '${{ inputs.terraform_workspace }}' does not exist."
+            echo "Deploy the infra workspace first, then deploy osquery-perf."
+            exit 1
+          fi
       - name: Terraform workspace
         id: workspace
         run: |
