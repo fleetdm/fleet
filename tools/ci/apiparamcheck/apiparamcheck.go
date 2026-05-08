@@ -14,6 +14,7 @@ package apiparamcheck
 import (
 	"go/ast"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -45,11 +46,11 @@ func run(pass *analysis.Pass) (any, error) {
 			if field.Tag == nil {
 				continue
 			}
-			raw := field.Tag.Value
-			if len(raw) < 2 {
+			unquoted, err := strconv.Unquote(field.Tag.Value)
+			if err != nil {
 				continue
 			}
-			tag := reflect.StructTag(strings.Trim(raw, "`"))
+			tag := reflect.StructTag(unquoted)
 			// A non-empty `renameto:"new_name"` tag opts the field out of this
 			// check. It declares the new tag name this field will eventually
 			// be renamed to, letting us grandfather legacy names while still
