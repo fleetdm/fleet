@@ -146,7 +146,7 @@ body.dark-mode {
   --ui-shadow: #32363e;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
   --ui-vibrant-blue-25: #282736;
-  --ui-vibrant-blue-10: #1e1f2a;
+  --ui-vibrant-blue-10: #2c2f37;
   --tooltip-bg: #353940;
 
   // Notifications & status — slightly brighter
@@ -302,13 +302,6 @@ $dark-mode-nav-hover: #1f2228;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.
-$ui-vibrant-blue-10-alpha: (255-240)/255; // rgba(241, 240, 255)
-$ui-vibrant-blue-10-opaque: rgba(
-  (241-240) / $ui-vibrant-blue-10-alpha,
-  (240-240) / $ui-vibrant-blue-10-alpha,
-  (255-240) / $ui-vibrant-blue-10-alpha,
-  $ui-vibrant-blue-10-alpha
-);
 $ui-off-white-alpha: (255-249)/255; // rgba(249, 250, 252)
 $ui-off-white-opaque: rgba(
   (249-249) / $ui-off-white-alpha,
