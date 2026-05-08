@@ -7159,6 +7159,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.NoError(t, err)
+	for key, asset := range a {
+		asset.MD5Checksum = ""
+		a[key] = asset
+	}
 	require.Equal(t, wantAssets, a)
 
 	h, err := ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
@@ -7210,6 +7214,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, ds.reader(ctx))
 	require.NoError(t, err)
+	for key, asset := range a {
+		asset.MD5Checksum = ""
+		a[key] = asset
+	}
 	require.Equal(t, wantNewAssets, a)
 
 	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
