@@ -100,6 +100,48 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			wantErr: true,
 			errSub:  "invalid plist",
 		},
+		{
+			name:    "hex-entity-encoded $ does not bypass disallow list",
+			input:   `<dict><key>K</key><string>&#x24;FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:    "decimal-entity-encoded $ does not bypass disallow list",
+			input:   `<dict><key>K</key><string>&#36;FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:    "disallowed variable inside a CDATA section is caught",
+			input:   `<dict><key>K</key><string><![CDATA[$FLEET_VAR_NDES_SCEP_CHALLENGE]]></string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:    "disallowed variable nested inside an array is caught",
+			input:   `<dict><key>K</key><array><dict><key>Inner</key><string>$FLEET_VAR_BOGUS</string></dict></array></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_BOGUS",
+		},
+		{
+			name:    "disallowed variable used as a key is caught",
+			input:   `<dict><key>$FLEET_VAR_BOGUS</key><string>x</string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_BOGUS",
+		},
+		{
+			name:    "openstep dict format rejected",
+			input:   `{ServerURL = "https://x.com";}`,
+			wantErr: true,
+			errSub:  "must be an XML plist",
+		},
+		{
+			name:    "binary plist rejected",
+			input:   "bplist00\xd1\x01\x02Q1Q2\x08\x0b\r\x00\x00\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x0f",
+			wantErr: true,
+			errSub:  "must be an XML plist",
+		},
 	}
 
 	for _, c := range cases {
