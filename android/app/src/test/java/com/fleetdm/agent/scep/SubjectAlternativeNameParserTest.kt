@@ -58,7 +58,10 @@ class SubjectAlternativeNameParserTest {
         assertEquals(GeneralName.otherName, name.tagNo)
         val seq = name.name as ASN1Sequence
         val tagged = seq.getObjectAt(1) as ASN1TaggedObject
-        return (tagged.baseObject as DERUTF8String).string
+        // getExplicitBaseObject throws if the tag is implicit, so the multi-entry tests
+        // that call this helper would catch a regression that emits implicit-tagged UPN
+        // OtherName values without needing a separate isExplicit assertion per call.
+        return (tagged.getExplicitBaseObject() as DERUTF8String).string
     }
 
     // -- null and blank inputs -------------------------------------------
