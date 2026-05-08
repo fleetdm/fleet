@@ -17,9 +17,11 @@
   // No background color as TabNav is often over a background gradient
 
   // react-tabs ships a default `:focus::after` that paints a 5px #fff bar
-  // below the focused tab; suppress it so we control the focus indicator.
+  // below the focused tab. Hide its visuals (not `content`) so our own
+  // ::after rules for selected/hover/focus-visible still paint.
   .react-tabs__tab:focus::after {
-    content: none;
+    height: 0;
+    background: transparent;
   }
 
   .react-tabs {
