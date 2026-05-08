@@ -1275,7 +1275,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
@@ -1413,6 +1413,13 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
 		}); err != nil {
 			initFatal(err, "failed to register recovery lock password schedule")
+		}
+
+		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
+		}); err != nil {
+			initFatal(err, "failed to register managed local account rotation schedule")
 		}
 	}
 

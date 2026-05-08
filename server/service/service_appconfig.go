@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"html/template"
 	"strings"
 
@@ -64,6 +65,9 @@ func (svc *Service) sendTestEmail(ctx context.Context, config *fleet.AppConfig) 
 	}
 
 	if err := mail.Test(svc.mailService, testMail); err != nil {
+		if errors.Is(err, mail.ErrSTARTTLSWithoutSSLTLS) {
+			return mail.ErrSTARTTLSWithoutSSLTLS
+		}
 		return MailError{Message: err.Error()}
 	}
 	return nil

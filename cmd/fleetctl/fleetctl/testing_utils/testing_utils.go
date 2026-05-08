@@ -424,6 +424,9 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 		job.ID = 1
 		return job, nil
 	}
+	ds.HasQueuedJobWithArgsFunc = func(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+		return false, nil
+	}
 	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		team.ID = uint(len(savedTeams) + 1) //nolint:gosec // dismiss G115
 		savedTeams[team.Name] = &team

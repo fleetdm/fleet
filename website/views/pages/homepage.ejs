@@ -26,8 +26,8 @@
               </div>
             </div>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button" href="https://fleetdm.com/gitops-workshop"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See how it works<%/* <span>3 mins</span> */%></a>
+              <a purpose="cta-button" href="/register">Try it yourself</a>
+              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
           </div>
         </div>
@@ -72,6 +72,54 @@
   <div purpose="homepage-content" class="container">
     <div purpose="page-section" class="mb-0">
       <div purpose="homepage-text-block">
+        <h2>Freedom at every level</h2>
+        <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
+      </div>
+      <div purpose="feature-with-image" class="reverse">
+        <div purpose="feature-image">
+          <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
+        </div>
+        <div purpose="feature-text">
+          <div purpose="feature-block">
+            <h5>One platform for every OS — even Linux</h5>
+            <p>Manage macOS, Linux, Windows, iOS, and Android from a single console, without compromising management and security.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>UI, API, or infrastructure as code</h5>
+            <p>Work in the UI, automate with the API, or manage settings as code.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>All features, flexible deployment</h5>
+            <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
+          </div>
+          <!-- <a purpose="cta-button" href="/device-management">Explore device management</a> -->
+        </div>
+      </div>
+      <div purpose="homepage-text-block">
+        <h2>See reality clearly</h2>
+        <p>See what’s happening across your devices. Run live reports, collect data, and export logs. Answer questions from security, leadership, or auditors in minutes.</p>
+      </div>
+      <div purpose="feature-with-image">
+        <div purpose="feature-image">
+          <img alt="See reality clearly" src="/images/see-reality-clearly-688x516@2x.png">
+        </div>
+        <div purpose="feature-text">
+          <div purpose="feature-block">
+            <h5>Cut the busywork</h5>
+            <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>Enroll any device</h5>
+            <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
+          </div>
+          <div purpose="feature-block">
+            <h5>Tell your story</h5>
+            <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
+          </div>
+          <!-- <a purpose="cta-button" href="/orchestration">More about visibility</a> -->
+        </div>
+      </div>
+      <div purpose="homepage-text-block">
         <h2>Get things done faster</h2>
         <p>The world is changing rapidly, and traditional device management systems were built for computer labs.  In Fleet, you can become a power user in the UI, manage infrastructure as code, or adopt new ways of working.  For example:</p>
       </div>
@@ -98,55 +146,9 @@
               <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
             </div>
           </div>
+          <!-- <a purpose="cta-button" href="/infrastructure-as-code">Manage devices as code</a> -->
         </div>
       </div>
-      <div purpose="homepage-text-block">
-        <h2>Freedom at every level</h2>
-        <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
-      </div>
-      <div purpose="feature-with-image" class="reverse">
-        <div purpose="feature-image">
-          <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>All features, flexible deployment</h5>
-            <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>UI, API, or infrastructure as code</h5>
-            <p>Work in the UI, automate with the API, or manage settings as code.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Real device choice, even Linux</h5>
-            <p>Let employees use the OS they need, without compromising management and security.</p>
-          </div>
-        </div>
-      </div>
-      <div purpose="homepage-text-block">
-        <h2>See reality clearly</h2>
-        <p>See what’s happening across your devices. Run live reports, collect data, and export logs. Answer questions from security, leadership, or auditors in minutes.</p>
-      </div>
-      <div purpose="feature-with-image">
-        <div purpose="feature-image">
-          <img alt="See reality clearly" src="/images/see-reality-clearly-688x516@2x.png">
-        </div>
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>Cut the busywork</h5>
-            <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Enroll any device</h5>
-            <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Tell your story</h5>
-            <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
-          </div>
-        </div>
-      </div>
-
       <div purpose="testimonials-header">
         <h2>What people are saying</h2>
       </div>
@@ -181,14 +183,14 @@
                 {{comparisonModeFriendlyNames[comparisonModeForIt]}}<img class="d-flex" style="width: 16px; height: 16px;" src="/images/chevron-down-16x16@2x.png" alt="a small chevron pointing downwards">
               </div>
               <div purpose="comparison-selector-dropwdown" class="dropdown-menu" aria-labelledby="dropdownMenuSelectPurpose">
-                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
                 <div class="dropdown-item" data-compare-with="jamf" @click="clickSwitchComparisonTableColumn('jamf')">Jamf Pro</div>
+                <div class="dropdown-item" data-compare-with="omnissa" @click="clickSwitchComparisonTableColumn('omnissa')">Workspace ONE</div>
                 <div class="dropdown-item" data-compare-with="sccm" @click="clickSwitchComparisonTableColumn('sccm')">SCCM</div>
                 <div class="dropdown-item" data-compare-with="intune" @click="clickSwitchComparisonTableColumn('intune')">Intune</div>
-                <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div>
-                <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div>
-                <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div>
-                <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div>
+                <!-- <div class="dropdown-item" data-compare-with="ansible" @click="clickSwitchComparisonTableColumn('ansible')">Ansible</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="tanium" @click="clickSwitchComparisonTableColumn('tanium')">Tanium</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="puppet" @click="clickSwitchComparisonTableColumn('puppet')">Puppet</div> -->
+                <!-- <div class="dropdown-item" data-compare-with="chef" @click="clickSwitchComparisonTableColumn('chef')">Chef</div> -->
                 <div class="dropdown-item" data-compare-with="patchmypc" @click="clickSwitchComparisonTableColumn('patchmypc')">PatchMyPC</div>
               </div>
             </div>
@@ -1433,7 +1435,7 @@
 
         <div purpose="button-row">
           <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/contact">Get a demo</animated-arrow-button>
+          <animated-arrow-button href="/customers">See case studies</animated-arrow-button>
         </div>
       </div>
 
@@ -1467,7 +1469,7 @@
   <div purpose="bottom-gradient">
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
-        <h4>Reduce sprawl</h4>
+        <h4>High-agency device management</h4>
         <h1 class="mx-auto <%= primaryBuyingSituation%>">
           One agent for every<br>
           <div purpose="ticker-container" class="d-flex align-items-center mx-auto flex-row text-nowrap">

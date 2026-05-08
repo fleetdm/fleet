@@ -55,6 +55,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestHostDetailsMDMProfiles", testHostDetailsMDMProfiles},
 		{"TestHostDetailsMDMProfilesIOSIPadOS", testHostDetailsMDMProfilesIOSIPadOS},
 		{"TestBatchSetMDMAppleProfiles", testBatchSetMDMAppleProfiles},
+		{"TestBatchSetMDMAppleProfilesClearsStaleBrokenLabels", testBatchSetMDMAppleProfilesClearsStaleBrokenLabels},
 		{"TestMDMAppleProfileManagement", testMDMAppleProfileManagement},
 		{"TestMDMAppleProfileManagementBatch2", testMDMAppleProfileManagementBatch2},
 		{"TestMDMAppleProfileManagementBatch3", testMDMAppleProfileManagementBatch3},
@@ -1487,6 +1488,71 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	// cleaning profiles still leaves the profile managed by Fleet
 	applyAndExpect(nil, nil, fleetProfiles)
 	applyAndExpect(nil, ptr.Uint(1), expectFleetProfiles)
+}
+
+// Regression test for https://github.com/fleetdm/fleet/issues/42637.
+func testBatchSetMDMAppleProfilesClearsStaleBrokenLabels(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	labelX, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-x-42637", Query: "select 1 from osquery_info;"})
+	require.NoError(t, err)
+	labelY, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-any-y-42637", Query: "select 1 from osquery_info;"})
+	require.NoError(t, err)
+
+	// First gitops apply: profile with labels_exclude_any: [labelX].
+	prof := configProfileForTest(t, "Repro42637", "com.fleetdm.repro.42637", "u1", labelX)
+	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}))
+
+	var profileUUID string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &profileUUID,
+			`SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`,
+			prof.Identifier)
+	})
+	require.NotEmpty(t, profileUUID)
+
+	type row struct {
+		LabelID   *uint  `db:"label_id"`
+		LabelName string `db:"label_name"`
+		Exclude   bool   `db:"exclude"`
+	}
+	loadRows := func() []row {
+		var rows []row
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(ctx, q, &rows,
+				`SELECT label_id, label_name, exclude FROM mdm_configuration_profile_labels WHERE apple_profile_uuid = ? ORDER BY label_name`,
+				profileUUID)
+		})
+		return rows
+	}
+
+	rows := loadRows()
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].LabelID)
+	require.Equal(t, labelX.ID, *rows[0].LabelID)
+	require.Equal(t, labelX.Name, rows[0].LabelName)
+	require.True(t, rows[0].Exclude)
+
+	// Simulate labelX being deleted.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE apple_profile_uuid = ? AND label_name = ?`,
+			profileUUID, labelX.Name)
+		return err
+	})
+	rows = loadRows()
+	require.Len(t, rows, 1)
+	require.Nil(t, rows[0].LabelID, "row should be in broken (NULL label_id) state")
+
+	prof = configProfileForTest(t, "Repro42637", "com.fleetdm.repro.42637", "u1", labelY)
+	require.NoError(t, ds.BatchSetMDMAppleProfiles(ctx, nil, []*fleet.MDMAppleConfigProfile{prof}))
+
+	rows = loadRows()
+	require.Len(t, rows, 1, "stale broken row was not cleared")
+	require.NotNil(t, rows[0].LabelID)
+	require.Equal(t, labelY.ID, *rows[0].LabelID)
+	require.Equal(t, labelY.Name, rows[0].LabelName)
+	require.False(t, rows[0].Exclude)
 }
 
 func configProfileBytesForTest(name, identifier, uuid string) []byte {
@@ -7093,6 +7159,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	a, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, nil)
 	require.NoError(t, err)
+	for key, asset := range a {
+		asset.MD5Checksum = ""
+		a[key] = asset
+	}
 	require.Equal(t, wantAssets, a)
 
 	h, err := ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})
@@ -7144,6 +7214,10 @@ func testMDMConfigAsset(t *testing.T, ds *Datastore) {
 
 	a, err = ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey}, ds.reader(ctx))
 	require.NoError(t, err)
+	for key, asset := range a {
+		asset.MD5Checksum = ""
+		a[key] = asset
+	}
 	require.Equal(t, wantNewAssets, a)
 
 	h, err = ds.GetAllMDMConfigAssetsHashes(ctx, []fleet.MDMAssetName{fleet.MDMAssetCACert, fleet.MDMAssetCAKey})

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2026.85",
+      "version": "2026.120",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos' AND version_compare(bundle_short_version, '2026.85') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.twingate.macos' AND version_compare(bundle_short_version, '2026.120') < 0);"
       },
-      "installer_url": "https://binaries.twingate.com/client/macos/2026.85.23872/Twingate.pkg",
+      "installer_url": "https://binaries.twingate.com/client/macos/2026.120.24748/Twingate.pkg",
       "install_script_ref": "bc774d90",
       "uninstall_script_ref": "7acfe28f",
-      "sha256": "a7e0a6afea03c3d1902b526ccdc403bccd41a9a3565f258c97f972848ba4f28e",
+      "sha256": "586da34201d8dd4afb7e777efb4ce8c93b0a3afa34ab26782b6c608382594ee1",
       "default_categories": [
         "Productivity"
       ]

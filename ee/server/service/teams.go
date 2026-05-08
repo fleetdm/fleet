@@ -411,15 +411,26 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped on this team. SaveTeam (above) has already
+	// committed; the worker will see the new config when it picks up the
+	// job.
+	//
+	// Log-and-continue on failure: the joined error covers both activity
+	// emit and scrub enqueue, both non-fatal individually. See design
+	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldHistoricalData,
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
 	if macOSMinVersionUpdated {
@@ -1861,16 +1872,25 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped on this team via GitOps batch apply. SaveTeam
+	// (above) has already committed.
+	//
+	// Log-and-continue on failure: the joined error covers both activity
+	// emit and scrub enqueue, both non-fatal individually. See design
+	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldHistoricalData,
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {

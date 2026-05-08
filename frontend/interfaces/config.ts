@@ -123,6 +123,10 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
   enable_conditional_access: boolean;
   enable_conditional_access_bypass: boolean;
+  historical_data: {
+    uptime: boolean;
+    vulnerabilities: boolean;
+  };
 }
 
 export interface IConfigServerSettings {

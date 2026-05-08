@@ -339,60 +339,64 @@
     gap: 24px;
     align-self: center;
     max-width: 600px;
+    [purpose='quote-image'] {
+      img {
+        height: 32px;
+      }
+    }
     [purpose='quote-text'] {
       color: #515774;
       text-align: center;
       font-family: Inter;
-      font-size: 22px;
+      font-size: 18px;
       font-style: italic;
       font-weight: 400;
       line-height: 150%;
     }
     [purpose='quote-attribution'] {
       color: #515774;
-
-
       font-family: Inter;
       font-size: 12px;
       font-style: normal;
       font-weight: 400;
       line-height: 150%;
-
     }
     [purpose='quote-author-info'] {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       justify-content: center;
       align-items: center;
-      gap: 4px;
+      gap: 16px;
       align-self: center;
     }
     [purpose='quote-author-image'] {
       img {
         height: 48px;
+        width: 48px;
+        border-radius: 50%;
+        object-fit: cover;
       }
+    }
+    [purpose='name-and-title'] {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
     }
     [purpose='author-name'] {
       color: #192147;
-      text-align: center;
-
-
       font-family: Inter;
-      font-size: 14px;
+      font-size: 12px;
       font-style: normal;
       font-weight: 700;
       line-height: 150%;
     }
     [purpose='author-title'] {
       color: #515774;
-      text-align: center;
-
-
       font-family: Inter;
-      font-size: 14px;
+      font-size: 12px;
       font-style: normal;
       font-weight: 400;
-      line-height: 20px;
+      line-height: 150%;
     }
   }
   [purpose='feature-row'] {

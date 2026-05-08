@@ -511,7 +511,11 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
+type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error)
+
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
+
+type ListSoftwareVulnerabilitiesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
@@ -891,6 +895,8 @@ type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, 
 
 type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
 
+type HasQueuedJobWithArgsFunc func(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -1107,6 +1113,22 @@ type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (
 
 type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
 
+type MarkManagedLocalAccountPasswordViewedFunc func(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+type InitiateManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error
+
+type MarkManagedLocalAccountRotationDeferredFunc func(ctx context.Context, hostUUID string) error
+
+type ClearManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string) error
+
+type CompleteManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string) error
+
+type FailManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error
+
+type GetManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error)
+
+type GetManagedLocalAccountByPendingCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -1277,6 +1299,8 @@ type MDMWindowsDeleteEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, md
 
 type MDMWindowsInsertCommandForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand) error
 
+type MDMWindowsInsertCommandsForHostFunc func(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error
+
 type MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc func(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error
 
 type MDMWindowsGetPendingCommandsFunc func(ctx context.Context, enrollmentID uint) ([]*fleet.MDMWindowsCommand, error)
@@ -1288,6 +1312,10 @@ type GetMDMWindowsCommandResultsFunc func(ctx context.Context, commandUUID strin
 type UpdateMDMWindowsEnrollmentsHostUUIDFunc func(ctx context.Context, hostUUID string, mdmDeviceID string) (bool, error)
 
 type SetMDMWindowsAwaitingConfigurationFunc func(ctx context.Context, mdmDeviceID string, expectFrom fleet.WindowsMDMAwaitingConfiguration, to fleet.WindowsMDMAwaitingConfiguration) (bool, error)
+
+type GetMDMWindowsAwaitingConfigurationByHostUUIDFunc func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error)
+
+type HasWindowsSetupExperienceItemsForTeamFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type GetMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error)
 
@@ -2652,8 +2680,14 @@ type DataStore struct {
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
+	ListSoftwareForVulnDetectionByOSVersionFunc        ListSoftwareForVulnDetectionByOSVersionFunc
+	ListSoftwareForVulnDetectionByOSVersionFuncInvoked bool
+
 	ListSoftwareVulnerabilitiesByHostIDsSourceFunc        ListSoftwareVulnerabilitiesByHostIDsSourceFunc
 	ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked bool
+
+	ListSoftwareVulnerabilitiesBySoftwareIDsFunc        ListSoftwareVulnerabilitiesBySoftwareIDsFunc
+	ListSoftwareVulnerabilitiesBySoftwareIDsFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -3222,6 +3256,9 @@ type DataStore struct {
 	GetJobFunc        GetJobFunc
 	GetJobFuncInvoked bool
 
+	HasQueuedJobWithArgsFunc        HasQueuedJobWithArgsFunc
+	HasQueuedJobWithArgsFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -3546,6 +3583,30 @@ type DataStore struct {
 	SetManagedLocalAccountUUIDFunc        SetManagedLocalAccountUUIDFunc
 	SetManagedLocalAccountUUIDFuncInvoked bool
 
+	MarkManagedLocalAccountPasswordViewedFunc        MarkManagedLocalAccountPasswordViewedFunc
+	MarkManagedLocalAccountPasswordViewedFuncInvoked bool
+
+	InitiateManagedLocalAccountRotationFunc        InitiateManagedLocalAccountRotationFunc
+	InitiateManagedLocalAccountRotationFuncInvoked bool
+
+	MarkManagedLocalAccountRotationDeferredFunc        MarkManagedLocalAccountRotationDeferredFunc
+	MarkManagedLocalAccountRotationDeferredFuncInvoked bool
+
+	ClearManagedLocalAccountRotationFunc        ClearManagedLocalAccountRotationFunc
+	ClearManagedLocalAccountRotationFuncInvoked bool
+
+	CompleteManagedLocalAccountRotationFunc        CompleteManagedLocalAccountRotationFunc
+	CompleteManagedLocalAccountRotationFuncInvoked bool
+
+	FailManagedLocalAccountRotationFunc        FailManagedLocalAccountRotationFunc
+	FailManagedLocalAccountRotationFuncInvoked bool
+
+	GetManagedLocalAccountsForAutoRotationFunc        GetManagedLocalAccountsForAutoRotationFunc
+	GetManagedLocalAccountsForAutoRotationFuncInvoked bool
+
+	GetManagedLocalAccountByPendingCommandUUIDFunc        GetManagedLocalAccountByPendingCommandUUIDFunc
+	GetManagedLocalAccountByPendingCommandUUIDFuncInvoked bool
+
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
 
@@ -3801,6 +3862,9 @@ type DataStore struct {
 	MDMWindowsInsertCommandForHostsFunc        MDMWindowsInsertCommandForHostsFunc
 	MDMWindowsInsertCommandForHostsFuncInvoked bool
 
+	MDMWindowsInsertCommandsForHostFunc        MDMWindowsInsertCommandsForHostFunc
+	MDMWindowsInsertCommandsForHostFuncInvoked bool
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc        MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFunc
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked bool
 
@@ -3818,6 +3882,12 @@ type DataStore struct {
 
 	SetMDMWindowsAwaitingConfigurationFunc        SetMDMWindowsAwaitingConfigurationFunc
 	SetMDMWindowsAwaitingConfigurationFuncInvoked bool
+
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFunc        GetMDMWindowsAwaitingConfigurationByHostUUIDFunc
+	GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked bool
+
+	HasWindowsSetupExperienceItemsForTeamFunc        HasWindowsSetupExperienceItemsForTeamFunc
+	HasWindowsSetupExperienceItemsForTeamFuncInvoked bool
 
 	GetMDMWindowsConfigProfileFunc        GetMDMWindowsConfigProfileFunc
 	GetMDMWindowsConfigProfileFuncInvoked bool
@@ -6475,11 +6545,25 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fle
 	return s.ListSoftwareForVulnDetectionFunc(ctx, filter)
 }
 
+func (s *DataStore) ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error) {
+	s.mu.Lock()
+	s.ListSoftwareForVulnDetectionByOSVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareForVulnDetectionByOSVersionFunc(ctx, osVer)
+}
+
 func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
 	s.mu.Lock()
 	s.ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSoftwareVulnerabilitiesByHostIDsSourceFunc(ctx, hostIDs, source)
+}
+
+func (s *DataStore) ListSoftwareVulnerabilitiesBySoftwareIDs(ctx context.Context, softwareIDs []uint, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	s.mu.Lock()
+	s.ListSoftwareVulnerabilitiesBySoftwareIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareVulnerabilitiesBySoftwareIDsFunc(ctx, softwareIDs, source)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -7805,6 +7889,13 @@ func (s *DataStore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) 
 	return s.GetJobFunc(ctx, jobID)
 }
 
+func (s *DataStore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+	s.mu.Lock()
+	s.HasQueuedJobWithArgsFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasQueuedJobWithArgsFunc(ctx, name, args)
+}
+
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.InnoDBStatusFuncInvoked = true
@@ -8561,6 +8652,62 @@ func (s *DataStore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID str
 	return s.SetManagedLocalAccountUUIDFunc(ctx, hostUUID, accountUUID)
 }
 
+func (s *DataStore) MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error) {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error {
+	s.mu.Lock()
+	s.InitiateManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateManagedLocalAccountRotationFunc(ctx, hostUUID, pendingPlaintextPassword, cmdUUID)
+}
+
+func (s *DataStore) MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountRotationDeferredFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountRotationDeferredFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearManagedLocalAccountRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string) error {
+	s.mu.Lock()
+	s.CompleteManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CompleteManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID)
+}
+
+func (s *DataStore) FailManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error {
+	s.mu.Lock()
+	s.FailManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID, errorMessage)
+}
+
+func (s *DataStore) GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountsForAutoRotationFunc(ctx)
+}
+
+func (s *DataStore) GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountByPendingCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountByPendingCommandUUIDFunc(ctx, commandUUID)
+}
+
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
@@ -9156,6 +9303,13 @@ func (s *DataStore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUI
 	return s.MDMWindowsInsertCommandForHostsFunc(ctx, hostUUIDs, cmd)
 }
 
+func (s *DataStore) MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.MDMWindowsInsertCommandsForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMWindowsInsertCommandsForHostFunc(ctx, hostUUIDOrDeviceID, cmds)
+}
+
 func (s *DataStore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, profilePayloads []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
 	s.mu.Lock()
 	s.MDMWindowsInsertCommandAndUpsertHostProfilesForHostsFuncInvoked = true
@@ -9196,6 +9350,20 @@ func (s *DataStore) SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmD
 	s.SetMDMWindowsAwaitingConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetMDMWindowsAwaitingConfigurationFunc(ctx, mdmDeviceID, expectFrom, to)
+}
+
+func (s *DataStore) GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+	s.mu.Lock()
+	s.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.HasWindowsSetupExperienceItemsForTeamFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasWindowsSetupExperienceItemsForTeamFunc(ctx, teamID)
 }
 
 func (s *DataStore) GetMDMWindowsConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMWindowsConfigProfile, error) {

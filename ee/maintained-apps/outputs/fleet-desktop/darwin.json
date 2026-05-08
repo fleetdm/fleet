@@ -9,7 +9,7 @@
       "installer_url": "https://github.com/allenhouchins/fleet-desktop/releases/download/v1.2.0/fleet_desktop-v1.2.0.pkg",
       "install_script_ref": "b6404dfa",
       "uninstall_script_ref": "e179ad0c",
-      "sha256": "4e7352b5faac94f8176a8291d170663f220fd4268ee33dd67b2723f7fe721a09",
+      "sha256": "d58a07e71d350b6c7fc39319080c28ad56d298f41ef45c67e0114940dce41420",
       "default_categories": [
         "Productivity"
       ]
