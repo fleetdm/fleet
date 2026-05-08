@@ -1682,6 +1682,32 @@ WHERE
 	return dest, nil
 }
 
+func (ds *Datastore) ProfileHasACMEPayloadForCommand(ctx context.Context, hostUUID, commandUUID string) (fleet.ProfileACMECommandResult, error) {
+	const stmt = `
+SELECT
+	h.id              AS host_id,
+	h.platform        AS platform,
+	hmap.profile_uuid AS profile_uuid,
+	LOCATE('com.apple.security.acme', mac.mobileconfig) > 0 AS has_acme_payload
+FROM host_mdm_apple_profiles hmap
+	JOIN hosts h
+		ON h.uuid = hmap.host_uuid
+	JOIN mdm_apple_configuration_profiles mac
+		ON mac.profile_uuid = hmap.profile_uuid
+WHERE hmap.command_uuid = ?
+	AND hmap.host_uuid    = ?`
+
+	var dest fleet.ProfileACMECommandResult
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, commandUUID, hostUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return dest, notFound("HostMDMAppleProfile").WithMessage(fmt.Sprintf("command uuid %s not found for host uuid %s", commandUUID, hostUUID))
+		}
+		return dest, ctxerr.Wrap(ctx, err, "probe profile for ACME payload")
+	}
+	return dest, nil
+}
+
 func batchSetProfileLabelAssociationsDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,

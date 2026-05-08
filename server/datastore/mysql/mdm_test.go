@@ -65,6 +65,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
+		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
 	}
 
 	for _, c := range cases {
@@ -10517,5 +10518,93 @@ func testCleanUpMDMManagedCertificates(t *testing.T, ds *Datastore) {
 				appleProfileUUID)
 		})
 		require.Equal(t, appleProfileUUID, uid)
+	})
+}
+
+func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("acme-probe-osq"),
+		NodeKey:         ptr.String("acme-probe-nk"),
+		UUID:            "acme-probe-host-uuid",
+		Hostname:        "acme-probe-host",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	mkProfile := func(t *testing.T, name string, mobileconfig []byte) string {
+		t.Helper()
+		teamID := uint(0)
+		profileUUID := uuid.NewString()
+		stmt := `
+			INSERT INTO mdm_apple_configuration_profiles
+				(profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+			VALUES (?, ?, ?, ?, ?, ?, NOW())`
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, stmt,
+				profileUUID, teamID, name, name, mobileconfig, []byte("0123456789abcdef"))
+			return err
+		})
+		return profileUUID
+	}
+
+	mkHostProfileLink := func(t *testing.T, hostUUID, profileUUID, commandUUID string) {
+		t.Helper()
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:   profileUUID,
+			HostUUID:      hostUUID,
+			Checksum:      []byte("0123456789abcdef"),
+			Scope:         fleet.PayloadScopeSystem,
+			OperationType: fleet.MDMOperationTypeInstall,
+			CommandUUID:   commandUUID,
+		}}))
+	}
+
+	acmeXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.acme</string></dict></array></dict></plist>`)
+	scepXML := []byte(`<?xml version="1.0"?><plist><dict><key>PayloadContent</key><array><dict><key>PayloadType</key><string>com.apple.security.scep</string></dict></array></dict></plist>`)
+
+	t.Run("darwin host with ACME profile, no pending refetch", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-darwin", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, host.ID, got.HostID)
+		require.Equal(t, "darwin", got.Platform)
+		require.Equal(t, profUUID, got.ProfileUUID)
+		require.True(t, got.HasACMEPayload)
+	})
+
+	t.Run("darwin host with non-ACME profile reports has_acme_payload=false", func(t *testing.T) {
+		profUUID := mkProfile(t, "scep-darwin", scepXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		got, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, cmdUUID)
+		require.NoError(t, err)
+		require.Equal(t, "darwin", got.Platform)
+		require.False(t, got.HasACMEPayload)
+	})
+
+	t.Run("unknown command returns not found", func(t *testing.T) {
+		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, host.UUID, "no-such-command")
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
+	})
+
+	t.Run("unknown host returns not found", func(t *testing.T) {
+		profUUID := mkProfile(t, "acme-unknown-host", acmeXML)
+		cmdUUID := uuid.NewString()
+		mkHostProfileLink(t, host.UUID, profUUID, cmdUUID)
+
+		_, err := ds.ProfileHasACMEPayloadForCommand(ctx, "no-such-host", cmdUUID)
+		require.Error(t, err)
+		require.True(t, fleet.IsNotFound(err))
 	})
 }
