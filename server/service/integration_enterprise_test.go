@@ -6402,7 +6402,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 	allEqual(s.T(), patchPol1.Policy, listPol.Policies[0], fields...)
 	allEqual(s.T(), patchPol2.Policy, listPol.Policies[1], fields...)
 
-	getPol2 := &fleet.GetGlobalPolicyByIDResponse{}
+	getPol2 := &fleet.GetTeamPolicyByIDResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, createPol2.Policy.ID), nil, http.StatusOK, getPol2)
 	require.Equal(s.T(), listPol.Policies[1], getPol2.Policy)
 }

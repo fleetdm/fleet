@@ -1607,7 +1607,7 @@ func (s *integrationTestSuite) TestGetGlobalPolicyByIDOnlyReturnsGlobalPolicies(
 	teamPolicyID := tpResp.Policy.ID
 
 	// Sanity check: the team policy can be fetched via the team-scoped endpoint.
-	var teamScopedResp fleet.GetGlobalPolicyByIDResponse
+	var teamScopedResp fleet.GetTeamPolicyByIDResponse
 	s.DoJSON(
 		"GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team.ID, teamPolicyID),
 		nil, http.StatusOK, &teamScopedResp,
@@ -3527,8 +3527,8 @@ func (s *integrationTestSuite) TestTeamPoliciesProprietary() {
 	assert.Equal(t, "some team resolution updated", *mtpResp.Policy.Resolution)
 	assert.Equal(t, "darwin", mtpResp.Policy.Platform)
 
-	gtpResp := fleet.GetGlobalPolicyByIDResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetGlobalPolicyByIDRequest{}, http.StatusOK, &gtpResp)
+	gtpResp := fleet.GetTeamPolicyByIDResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/%d", team1.ID, tpResp.Policy.ID), fleet.GetTeamPolicyByIDRequest{}, http.StatusOK, &gtpResp)
 	require.NotNil(t, gtpResp.Policy)
 	assert.Equal(t, tpNameNew, gtpResp.Policy.Name)
 	assert.Equal(t, "select * from osquery_info;", gtpResp.Policy.Query)
