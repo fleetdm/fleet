@@ -5599,7 +5599,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	// unrelated decl+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
-	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((apple_declaration_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  apple_declaration_uuid IN (?)
 	`
 
@@ -5622,7 +5622,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	`
 
 	selectStmt := `
-		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude, require_all FROM mdm_declaration_labels
+		SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id, exclude, require_all FROM mdm_declaration_labels
 		WHERE (apple_declaration_uuid, label_name) IN (%s)
 	`
 
