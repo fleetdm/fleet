@@ -71,7 +71,8 @@ const (
 var fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 	fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 	fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname, fleet.FleetVarSCEPRenewalID,
+	fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname,
+	fleet.FleetVarSCEPRenewalID, fleet.FleetVarCertificateRenewalID,
 	fleet.FleetVarHostUUID, fleet.FleetVarHostPlatform,
 }
 
@@ -510,6 +511,16 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
+	// ACME payloads must carry the renewal-ID marker in Subject CN/OU so the
+	// non-proxied renewal mechanism can later link the issued cert back to the
+	// installing profile. This check runs before the Fleet-variable early
+	// return because an ACME profile with no other Fleet variables would
+	// otherwise sneak through and never auto-renew. Fast-path on a substring
+	// match avoids parsing for the common (non-ACME) case.
+	if err := additionalACMEValidation(contents); err != nil {
+		return nil, err
+	}
+
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -649,8 +660,8 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *CustomSCEPV
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(customSCEPVars.CAs()) {
 		for _, ca := range customSCEPVars.CAs() {
@@ -702,13 +713,77 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		}
 		foundCAs = append(foundCAs, ca)
 	}
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 	if len(foundCAs) < len(smallstepVars.CAs()) {
 		for _, ca := range smallstepVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fleet.SCEPVariablesNotInSCEPPayloadErrMsg}
+			}
+		}
+	}
+	return nil
+}
+
+// acmePayloadForValidation captures just the fields needed to enforce the
+// renewal-ID marker requirement. ACME payload shape differs from SCEP: Subject
+// is a sibling of PayloadType rather than nested under PayloadContent.
+type acmePayloadForValidation struct {
+	PayloadType string       `plist:"PayloadType"`
+	Subject     [][][]string `plist:"Subject"`
+}
+
+type acmeProfileForValidation struct {
+	PayloadContent []acmePayloadForValidation `plist:"PayloadContent"`
+}
+
+// additionalACMEValidation checks that any com.apple.security.acme payload in
+// the profile carries the renewal-ID marker variable in the cert Subject's CN
+// or OU. Either the preferred $FLEET_VAR_CERTIFICATE_RENEWAL_ID or the legacy
+// $FLEET_VAR_SCEP_RENEWAL_ID is accepted. Without the marker, the cert issued
+// by the device's ACME exchange cannot be linked back to its profile and will
+// never be auto-renewed.
+func additionalACMEValidation(contents string) error {
+	if !strings.Contains(contents, "com.apple.security.acme") {
+		return nil
+	}
+	// Strip variables embedded in <data> elements so the plist unmarshal
+	// doesn't choke on them (consistent with unmarshalSCEPProfile).
+	contents = variables.ProfileDataVariableRegex.ReplaceAllString(contents, "")
+	var acmeProf acmeProfileForValidation
+	if err := plist.Unmarshal([]byte(contents), &acmeProf); err != nil {
+		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse ACME payload with Fleet variables: %s", err.Error())}
+	}
+	for _, payload := range acmeProf.PayloadContent {
+		if payload.PayloadType != "com.apple.security.acme" {
+			continue
+		}
+		var commonName, orgUnit strings.Builder
+		for _, rdn := range payload.Subject {
+			for _, kv := range rdn {
+				if len(kv) != 2 {
+					continue
+				}
+				switch kv[0] {
+				case "CN":
+					if commonName.Len() > 0 {
+						commonName.WriteByte(',')
+					}
+					commonName.WriteString(kv[1])
+				case "OU":
+					if orgUnit.Len() > 0 {
+						orgUnit.WriteByte(',')
+					}
+					orgUnit.WriteString(kv[1])
+				}
+			}
+		}
+		if !fleet.FleetVarRenewalIDRegexp.MatchString(commonName.String()) &&
+			!fleet.FleetVarRenewalIDRegexp.MatchString(orgUnit.String()) {
+			return &fleet.BadRequestError{
+				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
+					" must be in the ACME certificate's organizational unit (OU).",
 			}
 		}
 	}
@@ -824,8 +899,8 @@ func additionalNDESValidation(contents string, ndesVars *NDESVarsFound) error {
 		return err
 	}
 
-	if !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
-		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
+	if !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) && !fleet.FleetVarRenewalIDRegexp.MatchString(scepPayloadContent.OrganizationalUnit) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 	}
 
 	// Check for the exact match on challenge and URL

@@ -193,7 +193,7 @@ func (cs *CustomSCEPVarsFound) ErrorMessage() string {
 	}
 
 	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
-		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+		return fmt.Sprintf("SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarCustomSCEPChallengePrefix, fleet.FleetVarCustomSCEPProxyURLPrefix, fleet.FleetVarCertificateRenewalID)
 	}
 
 	for ca := range cs.challengeCA {
@@ -296,7 +296,7 @@ func (cs *SmallstepVarsFound) ErrorMessage() string {
 		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
 	}
 	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
-		return fmt.Sprintf("SCEP profile for Smallstep certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarSmallstepSCEPChallengePrefix, fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+		return fmt.Sprintf("SCEP profile for Smallstep certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarSmallstepSCEPChallengePrefix, fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarCertificateRenewalID)
 	}
 	for ca := range cs.challengeCA {
 		if _, ok := cs.urlCA[ca]; !ok {
@@ -454,10 +454,11 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		case k == string(fleet.FleetVarNDESSCEPChallenge):
 			caFound = true
 			ndesVars, ok = ndesVars.SetChallenge()
-		case k == string(fleet.FleetVarSCEPRenewalID):
+		case k == string(fleet.FleetVarSCEPRenewalID), k == string(fleet.FleetVarCertificateRenewalID):
 			caFound = true
-			// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep
-			// share the renewal ID Fleet variable, we need to set the
+			// Custom SCEP, NDES, and Smallstep all share the renewal-ID
+			// Fleet variable. The legacy SCEP_RENEWAL_ID and the preferred
+			// CERTIFICATE_RENEWAL_ID names are interchangeable here.
 
 			customSCEPVars, ok = customSCEPVars.SetRenewalID()
 			if ok {
@@ -473,9 +474,10 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 				return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s does not exist.", k)}
 			}
 
-			if k == string(fleet.FleetVarSCEPRenewalID) {
-				// Special message for renewal ID
-				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU)."}
+			if k == string(fleet.FleetVarSCEPRenewalID) || k == string(fleet.FleetVarCertificateRenewalID) {
+				// Special message for renewal ID — surface the preferred name
+				// in the error regardless of which form the user authored.
+				return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) + " must be in the SCEP certificate's organizational unit (OU)."}
 			}
 
 			return &fleet.BadRequestError{Message: fmt.Sprintf("Fleet variable $FLEET_VAR_%s is already present in configuration profile.", k)}
@@ -505,9 +507,12 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		if smallstepVars.RenewalOnly() {
 			smallstepVars = nil
 		}
-		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
-		// by the 3 CA types but is only allowed when CA vars are in use
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
+		// If only the renewal ID variable appeared without any of its associated SCEP variables,
+		// return an error — UNLESS the profile contains an ACME payload, where the renewal-ID
+		// variable stands alone (no SCEP URL/Challenge) and validation lives in
+		// additionalACMEValidation upstream.
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil &&
+			!strings.Contains(profileContents, "com.apple.security.acme") {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}

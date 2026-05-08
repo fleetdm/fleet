@@ -76,9 +76,14 @@ const (
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
 	// Certificate authority variables
-	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarNDESSCEPChallenge FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL  FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarSCEPRenewalID     FleetVarName = "SCEP_RENEWAL_ID"
+	// FleetVarCertificateRenewalID is the preferred name for the renewal-ID
+	// marker variable as of 4.86 (PR #44069). The legacy SCEP_RENEWAL_ID name
+	// remains accepted for back-compat with profiles authored against earlier
+	// docs. Both substitute to "fleet-" + profile_uuid.
+	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
 	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
@@ -97,7 +102,7 @@ const (
 func HasCAVariables(fleetVars []string) bool {
 	for _, v := range fleetVars {
 		if v == string(FleetVarNDESSCEPChallenge) || v == string(FleetVarNDESSCEPProxyURL) ||
-			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
+			v == string(FleetVarSCEPRenewalID) || v == string(FleetVarCertificateRenewalID) || v == string(FleetVarSCEPWindowsCertificateID) ||
 			strings.HasPrefix(v, string(FleetVarDigiCertDataPrefix)) || strings.HasPrefix(v, string(FleetVarDigiCertPasswordPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarCustomSCEPProxyURLPrefix)) ||
 			strings.HasPrefix(v, string(FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(v, string(FleetVarSmallstepSCEPProxyURLPrefix)) {
@@ -118,9 +123,17 @@ var (
 	FleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarNDESSCEPProxyURL))
 	FleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostEndUserIDPFullname))
 	FleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPRenewalID))
-	FleetVarHostUUIDRegexp                        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
-	FleetVarHostPlatformRegexp                    = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
-	FleetVarSCEPWindowsCertificateIDRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
+	FleetVarCertificateRenewalIDRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarCertificateRenewalID))
+	// FleetVarRenewalIDRegexp matches either the preferred CERTIFICATE_RENEWAL_ID
+	// or the legacy SCEP_RENEWAL_ID name. Use this for validation checks where
+	// either form satisfies the requirement.
+	FleetVarRenewalIDRegexp = regexp.MustCompile(fmt.Sprintf(
+		`(\$FLEET_VAR_%[1]s)|(\${FLEET_VAR_%[1]s})|(\$FLEET_VAR_%[2]s)|(\${FLEET_VAR_%[2]s})`,
+		FleetVarCertificateRenewalID, FleetVarSCEPRenewalID,
+	))
+	FleetVarHostUUIDRegexp                 = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostUUID))
+	FleetVarHostPlatformRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarHostPlatform))
+	FleetVarSCEPWindowsCertificateIDRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, FleetVarSCEPWindowsCertificateID))
 
 	// Fleet variable replacement failed errors
 	HostEndUserEmailIDPVariableReplacementFailedError = fmt.Sprintf("There is no IdP email for this host. "+

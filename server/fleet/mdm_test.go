@@ -569,6 +569,7 @@ func TestHasCAVariables(t *testing.T) {
 		{"NDES challenge", []string{string(fleet.FleetVarHostUUID), string(fleet.FleetVarNDESSCEPChallenge)}, true},
 		{"NDES proxy URL", []string{string(fleet.FleetVarNDESSCEPProxyURL)}, true},
 		{"SCEP renewal", []string{string(fleet.FleetVarSCEPRenewalID)}, true},
+		{"Certificate renewal (preferred)", []string{string(fleet.FleetVarCertificateRenewalID)}, true},
 		{"DigiCert data", []string{string(fleet.FleetVarDigiCertDataPrefix) + "my_ca"}, true},
 		{"DigiCert password", []string{string(fleet.FleetVarDigiCertPasswordPrefix) + "my_ca"}, true},
 		{"Custom SCEP challenge", []string{string(fleet.FleetVarCustomSCEPChallengePrefix) + "my_ca"}, true},
@@ -583,6 +584,27 @@ func TestHasCAVariables(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := fleet.HasCAVariables(tc.vars)
 			require.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+func TestFleetVarRenewalIDRegexp(t *testing.T) {
+	cases := []struct {
+		input string
+		want  bool
+	}{
+		{"$FLEET_VAR_CERTIFICATE_RENEWAL_ID", true},
+		{"${FLEET_VAR_CERTIFICATE_RENEWAL_ID}", true},
+		{"$FLEET_VAR_SCEP_RENEWAL_ID", true},
+		{"${FLEET_VAR_SCEP_RENEWAL_ID}", true},
+		{"prefix $FLEET_VAR_CERTIFICATE_RENEWAL_ID suffix", true},
+		{"$FLEET_VAR_OTHER_VAR", false},
+		{"static-value", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.input, func(t *testing.T) {
+			require.Equal(t, tc.want, fleet.FleetVarRenewalIDRegexp.MatchString(tc.input))
 		})
 	}
 }

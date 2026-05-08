@@ -7061,7 +7061,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
 			name: "Custom SCEP profile is not scep",
@@ -7140,7 +7140,7 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_NDES_SCEP_CHALLENGE", "$FLEET_VAR_NDES_SCEP_PROXY_URL",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
 			name: "NDES profile is not scep",
@@ -7232,13 +7232,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			profile: customSCEPForValidationWithoutRenewalID("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName",
 				"$FLEET_VAR_SCEP_RENEWAL_ID",
 				"com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
 			name: "Smallstep renewal ID in both CN and OU",
 			profile: customSCEPWithOURenewalIDForValidation("${FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_smallstepName}", "${FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_smallstepName}",
 				"Name $FLEET_VAR_SCEP_RENEWAL_ID", "com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_SCEP_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
 		},
 		{
 			name: "Smallstep challenge is not a fleet variable",
@@ -7278,6 +7278,82 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T) {
+	t.Parallel()
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	groupedCAs := &fleet.GroupedCertificateAuthorities{}
+
+	const acmeProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key>
+			<string>com.test.acme</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>DirectoryURL</key>
+			<string>https://acme.example.com/directory</string>
+			<key>Subject</key>
+			<array>
+				<array><array><string>CN</string><string>device-cn</string></array></array>
+				<array><array><string>OU</string><string>%s</string></array></array>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadIdentifier</key>
+	<string>com.test.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`
+
+	t.Run("ACME profile with preferred CERTIFICATE_RENEWAL_ID is accepted", func(t *testing.T) {
+		profile := fmt.Sprintf(acmeProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
+		require.NoError(t, err)
+	})
+
+	t.Run("ACME profile with legacy SCEP_RENEWAL_ID is accepted", func(t *testing.T) {
+		profile := fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")
+		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
+		require.NoError(t, err)
+	})
+
+	t.Run("ACME profile missing renewal-ID marker is rejected", func(t *testing.T) {
+		profile := fmt.Sprintf(acmeProfile, "static-ou-value")
+		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+		require.Contains(t, err.Error(), "ACME certificate")
+		require.NotContains(t, err.Error(), "SCEP_RENEWAL_ID",
+			"error message must not advertise the legacy variable name")
+	})
+
+	t.Run("Non-ACME profile without Fleet vars is unaffected", func(t *testing.T) {
+		const wifiProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadIdentifier</key><string>com.test.wifi</string>
+	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`
+		_, err := validateConfigProfileFleetVariables(wifiProfile, premiumLic, groupedCAs)
+		require.NoError(t, err)
+	})
 }
 
 func TestValidateDeclarationFleetVariables(t *testing.T) {
