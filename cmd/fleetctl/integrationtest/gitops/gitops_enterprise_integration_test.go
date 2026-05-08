@@ -3837,7 +3837,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) stri
 				InstallerURL:       installerServer.URL + "/foo.pkg",
 				InstallScriptRef:   "fooscript",
 				UninstallScriptRef: "fooscript",
-				SHA256:             "no_check",
+				SHA256:             "no_check", // See ma.noCheckHash
 			}},
 			Refs: map[string]string{"fooscript": "echo hello"},
 		}
@@ -3852,9 +3852,9 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) stri
 // installer is removed from the YAML, gitops emits a deleted_policy activity
 // for every policy that referenced it — covering all three automation shapes:
 //
-//   - regular policy with install_software (type=dynamic, software_installer_id)
-//   - patch policy without install automation (type=patch, patch_software_title_id)
-//   - patch policy with install automation (type=patch, both fields set)
+//   - regular policy with install_software referencing an FMA
+//   - patch policy referencing an FMA
+//   - patch policy that also has install_software
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
 	t := s.T()
 	ctx := context.Background()
@@ -3863,11 +3863,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDe
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	// Two FMAs are needed because patch policies have a unique index on
-	// (team_id, patch_software_title_id) — patch-policy and
-	// patch-and-install-policy must reference different titles.
-	slugA := s.setupDarwinFMA(t)
-	slugB := s.setupDarwinFMA(t)
+	sharedSlug := s.setupDarwinFMA(t)         // used by install-policy and patch-policy
+	patchAndInstallSlug := s.setupDarwinFMA(t) // own FMA so the two patch policies don't collide on the (team_id, patch_software_title_id) unique index
 	teamName := uuid.NewString()
 
 	const globalConfig = `
@@ -3906,7 +3903,7 @@ name: %s
 settings:
   secrets: [{"secret":"enroll_secret"}]
 reports:
-`, slugA, slugB, slugA, slugA, slugB, slugB, teamName)
+`, sharedSlug, patchAndInstallSlug, sharedSlug, sharedSlug, patchAndInstallSlug, patchAndInstallSlug, teamName)
 	teamEmpty := fmt.Sprintf(`
 controls:
 software:
@@ -3945,16 +3942,17 @@ reports:
 	// removed and each should emit a deleted_policy activity.
 	//
 	// Capture deleted_policy activities by overriding the mock's callback.
-	// fleetctl gitops makes API calls sequentially, so the slice append runs
-	// from a single HTTP-handler goroutine at a time and the post-apply read
-	// is synchronized by the HTTP response.
+	// Could race if any test in this suite ever runs in parallel.
 	deletedIDs := map[uint]bool{}
 	prev := s.activityMock.NewActivityFunc
-	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+	s.activityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
 		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
 			deletedIDs[d.ID] = true
 		}
-		return prev(ctx, user, a)
+		if prev != nil {
+			return prev(ctx, nil, a)
+		}
+		return nil
 	}
 	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
 
