@@ -38,7 +38,21 @@ How to connect Fleet to APNs:
 
 > Available in Fleet Premium
 
-Connect Fleet to your AB to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
+
+### Re-enrolling AB hosts
+
+When an AB host re-enrolls in Fleet (e.g., after a wipe or OS reinstall), Fleet automatically:
+  - Cancels pending MDM commands, script runs, and software installs
+  - Clears completed commands, scripts, and software from the previous enrollment
+  - Resets host labels
+
+This means you **do not need to delete** an ABM host from Fleet before 
+re-enrolling it. Fleet handles clearing stale state automatically.
+
+> This automatic state clearing does not apply to hosts undergoing ABM MDM migration. During migration, the host's existing state (labels, pending activity) is preserved to ensure a seamless transition from your previous MDM solution.
+
+### To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token:
 
 1. In Fleet, navigate to the **Settings > Integrations > MDM** page.
 2. Under **Apple Business (AB)**, select **Add AB**.
@@ -194,6 +208,8 @@ For manually enrolled devices, if SCEP certificate renewal fails, MDM will be tu
 ## Troubleshooting failed enrollments
 
 If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
+
+> For AB hosts, you do not need to delete the host from Fleet before re-enrolling. Fleet automatically clears pending and completed commands, scripts, software installs, and labels when the host re-enrolls. See [Re-enrolling AB hosts](#re-enrolling-ab-hosts).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
