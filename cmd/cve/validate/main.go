@@ -15,8 +15,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed"
 	feednvd "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
+	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd/schema"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 )
+
+func anyCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) bool {
+	for _, n := range nodes {
+		if len(n.CPEMatch) > 0 {
+			return true
+		}
+		if anyCPEMatch(n.Children) {
+			return true
+		}
+	}
+	return false
+}
 
 func main() {
 	dbDir := flag.String("db_dir", "/tmp/vulndbs", "Path to the vulnerability database")
@@ -45,13 +58,26 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		panic(err)
 	}
 
-	// make sure VulnCheck enrichment is working
-	vulnEntry, ok := vulns["CVE-2025-0938"].(*feednvd.Vuln)
-	if !ok {
-		panic("failed to cast CVE-2025-0938 to a Vuln")
+	// NVD leaves many recent CVEs without CPE matches (Deferred, Awaiting Analysis), so
+	// most populated configurations in this feed come from VulnCheck enrichment. Counting
+	// CVEs with any CPE match catches a broken enrichment without pegging the canary to a
+	// single CVE's row count — VulnCheck drifts per-CVE and that broke this pipeline
+	// repeatedly when the canary was CVE-2025-0938. The 2025 feed had ~31k enriched CVEs
+	// at the last healthy run; 10k leaves wide margin while still firing on a wholesale
+	// enrichment regression.
+	const minEnrichedCVEs2025 = 10000
+	enriched2025 := 0
+	for _, v := range vulns {
+		entry, ok := v.(*feednvd.Vuln)
+		if !ok || entry.Schema().Configurations == nil {
+			continue
+		}
+		if anyCPEMatch(entry.Schema().Configurations.Nodes) {
+			enriched2025++
+		}
 	}
-	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 6 {
-		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
+	if enriched2025 < minEnrichedCVEs2025 {
+		panic(fmt.Errorf("2025 enrichment canary failed: %d CVEs have CPE matches, expected >= %d", enriched2025, minEnrichedCVEs2025))
 	}
 
 	if vulns["CVE-2025-3196"].CVSSv3BaseScore() != 5.5 { // Should pull primary CVSSv3 score, (has primary and secondary)
@@ -64,7 +90,7 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	}
 
 	// make sure VulnCheck enrichment is working on less recent vulns
-	vulnEntry, ok = vulns["CVE-2024-6286"].(*feednvd.Vuln)
+	vulnEntry, ok := vulns["CVE-2024-6286"].(*feednvd.Vuln)
 	if !ok {
 		panic("failed to cast CVE-2024-6286 to a Vuln")
 	}
