@@ -67,7 +67,10 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	// enrichment regression.
 	const minEnrichedCVEs2025 = 10000
 	enriched2025 := 0
-	for _, v := range vulns {
+	for id, v := range vulns {
+		if !strings.HasPrefix(id, "CVE-2025-") {
+			continue
+		}
 		entry, ok := v.(*feednvd.Vuln)
 		if !ok || entry.Schema().Configurations == nil {
 			continue
