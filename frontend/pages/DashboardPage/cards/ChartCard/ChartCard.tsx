@@ -73,8 +73,7 @@ const DATASETS: IDataSet[] = [
         />
         <br />
         <br />
-        Want more control? Comprehensive vulnerability filtering
-        is{" "}
+        Want more control? Comprehensive vulnerability filtering is{" "}
         <CustomLink
           newTab
           text="coming soon "
