@@ -233,8 +233,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	// If so, create the row from the cert's metadata. This activates
 	// renewal for ACME / non-proxied SCEP flows where Fleet isn't in the
 	// issuance path so no row gets created at issuance time.
-	hostMDMManagedCertsToInsert := make([]*fleet.MDMManagedCertificate, 0, len(toInsertBySHA1))
-	if len(toInsertBySHA1) > 0 {
+	hostMDMManagedCertsToInsert := make([]*fleet.MDMManagedCertificate, 0, len(incomingBySHA1))
+	if len(incomingBySHA1) > 0 {
 		existingProfileUUIDs := make(map[string]struct{}, len(hostMDMManagedCerts))
 		for _, row := range hostMDMManagedCerts {
 			existingProfileUUIDs[row.ProfileUUID] = struct{}{}
@@ -257,7 +257,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			}
 			renewalIDString := "fleet-" + profileUUID
 			var bestMatch *fleet.HostCertificateRecord
-			for _, cert := range toInsertBySHA1 {
+			for _, cert := range incomingBySHA1 {
 				if !strings.Contains(cert.SubjectCommonName, renewalIDString) &&
 					!strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
 					continue
