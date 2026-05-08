@@ -3810,10 +3810,50 @@ labels:
 	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
-func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) string {
+// captureDeletedPolicyActivities replaces the suite's activity mock with a
+// recorder for deleted_policy activities. It returns a function that returns
+// and resets the captured activities. Cleanup restores the previous
+// NewActivityFunc.
+func (s *enterpriseIntegrationGitopsTestSuite) captureDeletedPolicyActivities(t *testing.T) func() []fleet.ActivityTypeDeletedPolicy {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []fleet.ActivityTypeDeletedPolicy
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
+			mu.Lock()
+			captured = append(captured, d)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []fleet.ActivityTypeDeletedPolicy {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+// setupDarwinFMA inserts a darwin FMA record and starts a per-FMA installer
+// server. Returns the slug and the installer server URL. The caller is
+// responsible for wiring a manifest server (FLEET_DEV_MAINTAINED_APPS_BASE_URL)
+// that serves a manifest for /<slug>.json — calling this helper twice within
+// the same test requires a single combined manifest server because
+// dev_mode.SetOverride only supports one base URL at a time.
+func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slug, installerURL string) {
 	t.Helper()
 	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")
-	slug := fmt.Sprintf("foo%s/darwin", suffix)
+	slug = fmt.Sprintf("foo%s/darwin", suffix)
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(),
 			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
@@ -3825,24 +3865,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) stri
 		_, _ = w.Write([]byte("foo"))
 	}))
 	t.Cleanup(installerServer.Close)
-
-	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		manifest := ma.FMAManifestFile{
-			Versions: []*ma.FMAManifestApp{{
-				Version:            "1.0",
-				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
-				InstallerURL:       installerServer.URL + "/foo.pkg",
-				InstallScriptRef:   "fooscript",
-				UninstallScriptRef: "fooscript",
-				SHA256:             "no_check", // See ma.noCheckHash
-			}},
-			Refs: map[string]string{"fooscript": "echo hello"},
-		}
-		_ = json.NewEncoder(w).Encode(manifest)
-	}))
-	t.Cleanup(manifestServer.Close)
-	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
-	return slug
+	return slug, installerServer.URL
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
@@ -3853,9 +3876,38 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDe
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	sharedSlug := s.setupDarwinFMA(t)
-	patchAndInstallSlug := s.setupDarwinFMA(t)
+	sharedSlug, sharedInstaller := s.setupDarwinFMA(t)
+	patchAndInstallSlug, patchAndInstallInstaller := s.setupDarwinFMA(t)
 	teamName := uuid.NewString()
+
+	manifestFor := func(installerURL string) ma.FMAManifestFile {
+		return ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerURL + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check", // See ma.noCheckHash
+			}},
+			Refs: map[string]string{"fooscript": "echo hello"},
+		}
+	}
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var installerURL string
+		switch r.URL.Path {
+		case "/" + sharedSlug + ".json":
+			installerURL = sharedInstaller
+		case "/" + patchAndInstallSlug + ".json":
+			installerURL = patchAndInstallInstaller
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(manifestFor(installerURL))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	const globalConfig = `
 agent_options:
@@ -3927,20 +3979,7 @@ reports:
 	require.Contains(t, policyIDsByName, "patch-policy")
 	require.Contains(t, policyIDsByName, "patch-and-install-policy")
 
-	// Could race if any test in this suite ever runs in parallel.
-	deletedIDs := map[uint]bool{}
-	prev := s.activityMock.NewActivityFunc
-	s.activityMock.NewActivityFunc = func(ctx context.Context, _ *activity_api.User, a activity_api.ActivityDetails) error {
-		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
-			deletedIDs[d.ID] = true
-		}
-		if prev != nil {
-			return prev(ctx, nil, a)
-		}
-		return nil
-	}
-	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
-
+	flush := s.captureDeletedPolicyActivities(t)
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamEmpty), 0o644))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
@@ -3950,6 +3989,10 @@ reports:
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
+	deletedIDs := map[uint]bool{}
+	for _, d := range flush() {
+		deletedIDs[d.ID] = true
+	}
 	for _, name := range []string{"install-policy", "patch-policy", "patch-and-install-policy"} {
 		require.True(t, deletedIDs[policyIDsByName[name]],
 			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
