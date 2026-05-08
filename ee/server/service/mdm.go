@@ -1134,6 +1134,12 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
 	}
 
+	// OTA enrollments (e.g. Android, BYOD iPhone/iPad) don't need the Apple
+	// DEP automatic enrollment profile.
+	if strings.HasPrefix(originalURL, "/enroll?") {
+		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
+	}
+
 	var depProfToken string
 	// For automatic enrollments, get the automatic profile to access the authentication token.
 	if ssoRequestData.Initiator != "setup_experience" {
