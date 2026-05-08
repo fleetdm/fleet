@@ -8,7 +8,7 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- [GitOps mode exceptions](#anchor-01)
+- [GitOps mode exceptions](#gitop-mode-exceptions)
 - [Automatically rotate Recovery Lock passwords](#anchor-02)
 - [Run Python scripts on macOS & Linux](#anchor-03)
 - [Entra conditional access for Windows](#anchor-04)
