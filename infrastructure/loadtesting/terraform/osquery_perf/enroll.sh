@@ -13,6 +13,10 @@ END_INDEX=$4
 SLEEP_TIME_SECONDS=${5:-60}
 INCREMENT=${6:-4}
 
+if ! [[ "$INCREMENT" =~ ^[0-9]+$ ]] || (( INCREMENT <= 0 )); then
+	echo "INCREMENT must be a positive integer, got: $INCREMENT"
+	exit 1
+fi
 if [ -z "$BRANCH_NAME" ]; then
 	echo "Missing BRANCH_NAME"
 fi
