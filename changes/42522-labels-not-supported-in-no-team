@@ -1,0 +1,1 @@
+- Improved `fleetctl gitops` to warn when `labels:` is specified in no-team/unassigned files, where it is not supported.

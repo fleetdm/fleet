@@ -523,7 +523,7 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	if _, ok := top["labels"]; ok {
 		result.LabelsPresent = true
 		if result.IsNoTeam() {
-			multiError = multierror.Append(multiError, fmt.Errorf("'labels' is not supported in %s", filepath.Base(filePath)))
+			logFn("[!] 'labels' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
 		} else {
 			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
 		}
