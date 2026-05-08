@@ -1,7 +1,7 @@
 # Fleet 4.84.0 | Python scripts, Entra for Windows, auto-rotate Recovery Lock, and more...
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/mpKDV7zpb-I?si=PG5inruNQNzHrPVw" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/mpKDV7zpb-I?si=PG5inruNQNzHrPVw" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.84.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
@@ -18,7 +18,7 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 ### GitOps mode exceptions
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/B4t2XvwUoZE?si=SSYAG_MM5m-XDxNI" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/B4t2XvwUoZE?si=SSYAG_MM5m-XDxNI" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet now lets IT admins opt specific resources out of GitOps enforcement. When GitOps mode is enabled, admins can configure exceptions for software, labels, and enroll secrets — allowing those resources to be managed via the UI or API instead of git.
@@ -35,7 +35,7 @@ GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 ### Automatically rotate Recovery Lock passwords
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/xMj-ezBO0zQ?si=Xa02JjilZrg2I6j1" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/xMj-ezBO0zQ?si=Xa02JjilZrg2I6j1" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet now automatically rotates macOS Recovery Lock passwords after an IT admin views them. Previously, Fleet escrowed a unique password per host and let IT admins rotate it on demand — but rotation was a manual step. Now, after a password is viewed, Fleet schedules an automatic rotation (1 hr after view) so passwords aren't reused.
@@ -48,7 +48,7 @@ GitHub issue: [#41003](https://github.com/fleetdm/fleet/issues/41003)
 ### Run Python scripts on macOS & Linux
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/GzVT6TfnrUE?si=D8sx4qLfvXfOcdCO" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/GzVT6TfnrUE?si=D8sx4qLfvXfOcdCO" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet now supports Python scripts alongside shell (`.sh`) and PowerShell (`.ps1`) scripts. IT admins can upload `.py` files in **Controls > Scripts** and run them on macOS and Linux hosts — on demand, in bulk, or as a policy automation.
@@ -61,7 +61,7 @@ GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 ### Entra conditional access for Windows
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/2ZmPeq26oqI?si=cnQxZg0ktknmiZu7" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/2ZmPeq26oqI?si=cnQxZg0ktknmiZu7" title="0" allowfullscreen></iframe>
 </div>
 
 Fleet now supports [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) for Windows hosts. IT admins can mark policies as conditional access policies targeting Windows hosts — when a host fails one of those policies, Entra blocks the end user from accessing corporate resources such as Microsoft Teams and Office.
@@ -74,7 +74,7 @@ GitHub issue: [#38041](https://github.com/fleetdm/fleet/issues/38041)
 ### Remove settings from Windows when profile is deleted
 
 <div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/v4m93tCjw40?si=QvSQvO0ee93qB7gG" title="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube-nocookie.com/embed/v4m93tCjw40?si=QvSQvO0ee93qB7gG" title="0" allowfullscreen></iframe>
 </div>
 
 When an IT admin deletes a Windows configuration profile in Fleet, Fleet now actively removes those settings from enrolled hosts. This ensures that hosts match the intended configuration state regardless of when they enrolled.
