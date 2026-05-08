@@ -318,13 +318,12 @@ const ManageHostsPage = ({
   const depAssignProfileResponse = queryParams?.dep_assign_profile_response?.toUpperCase();
 
   // ========= routeParams
-  const { active_label: activeLabel, label_id: labelID } = routeParams;
+  const { label_id: labelID } = routeParams;
   const selectedLabels = useMemo(() => {
     const filters: string[] = [];
     labelID && filters.push(`${LABEL_SLUG_PREFIX}${labelID}`);
-    activeLabel && filters.push(activeLabel);
     return filters;
-  }, [activeLabel, labelID]);
+  }, [labelID]);
 
   // All possible filter states - these align with ILoadHostsOptions, but state names here can
   // differ from param names there:
