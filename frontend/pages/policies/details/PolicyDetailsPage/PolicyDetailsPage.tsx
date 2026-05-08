@@ -8,10 +8,14 @@ import { AppContext } from "context/app";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
-import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
-import globalPoliciesAPI from "services/entities/global_policies";
-import teamPoliciesAPI from "services/entities/team_policies";
+import policiesAPI from "services/entities/policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
@@ -57,7 +61,6 @@ const PolicyDetailsPage = ({
     isGlobalTechnician,
     isOnGlobalTeam,
     config,
-    currentTeam,
   } = useContext(AppContext);
 
   const {
@@ -111,10 +114,7 @@ const PolicyDetailsPage = ({
     IPolicy
   >(
     ["policy", policyId, teamIdForApi],
-    () =>
-      teamIdForApi && teamIdForApi > 0
-        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+    () => policiesAPI.load(policyId as number),
     {
       enabled: isRouteOk && !!policyId,
       refetchOnWindowFocus: false,
@@ -148,11 +148,17 @@ const PolicyDetailsPage = ({
     }
   );
 
+  // Drive the team display from the policy's own team_id rather than the URL's
+  // fleet_id: a user can land here from another team's list (e.g. clicking an
+  // inherited policy from team 42's view), and the displayed Fleet must reflect
+  // the policy's owner, not the navigation context.
+  const policyTeamId = storedPolicy?.team_id ?? undefined;
+
   const { data: teamData } = useQuery<ILoadTeamResponse>(
-    ["team", teamIdForApi],
-    () => teamsAPI.load(teamIdForApi as number),
+    ["team", policyTeamId],
+    () => teamsAPI.load(policyTeamId as number),
     {
-      enabled: !!teamIdForApi && teamIdForApi > 0,
+      enabled: policyTeamId !== undefined && policyTeamId > 0,
       refetchOnWindowFocus: false,
     }
   );
@@ -385,13 +391,36 @@ const PolicyDetailsPage = ({
               />
             )}
             {renderAuthor()}
-            {currentTeam && (
-              <DataSet
-                className={`${baseClass}__fleet`}
-                title="Fleet"
-                value={currentTeam.name}
-              />
-            )}
+            {storedPolicy &&
+              (() => {
+                if (storedPolicy.team_id === null) {
+                  return (
+                    <DataSet
+                      className={`${baseClass}__fleet`}
+                      title="Fleet"
+                      value={APP_CONTEXT_ALL_TEAMS_SUMMARY.name}
+                    />
+                  );
+                }
+                if (storedPolicy.team_id === 0) {
+                  return (
+                    <DataSet
+                      className={`${baseClass}__fleet`}
+                      title="Fleet"
+                      value={APP_CONTEXT_NO_TEAM_SUMMARY.name}
+                    />
+                  );
+                }
+                return (
+                  teamData?.team && (
+                    <DataSet
+                      className={`${baseClass}__fleet`}
+                      title="Fleet"
+                      value={teamData.team.name}
+                    />
+                  )
+                );
+              })()}
             {renderPlatforms()}
             {renderLabels()}
             {storedPolicy && (
