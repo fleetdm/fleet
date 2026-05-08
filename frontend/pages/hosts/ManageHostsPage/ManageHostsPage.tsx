@@ -1757,7 +1757,7 @@ const ManageHostsPage = ({
         totalFilteredHostsCount > MAX_SCRIPT_BATCH_TARGETS
       ) {
         disableRunScriptBatchTooltipContent =
-          "Target at most 5,000 hosts to run a script.";
+          `Target at most ${MAX_SCRIPT_BATCH_TARGETS.toLocaleString()} hosts to run a script.`;
       }
     }
     const secondarySelectActions: IActionButtonProps[] = [
