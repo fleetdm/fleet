@@ -1717,7 +1717,12 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, totalFilteredHostsCount, isTrulyEmpty, onExportHostsResults]);
+  }, [
+    isLoadingHostsCount,
+    totalFilteredHostsCount,
+    isTrulyEmpty,
+    onExportHostsResults,
+  ]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
