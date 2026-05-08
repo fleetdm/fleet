@@ -53,9 +53,7 @@ describe("ScriptLibrary empty state", () => {
     await waitFor(() => {
       expect(screen.getByText("No scripts")).toBeInTheDocument();
     });
-    expect(
-      screen.getByRole("button", { name: /upload/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload/i })).toBeInTheDocument();
     expect(
       screen.getByText(/Upload shell \(.sh\) or Python \(.py\)/i)
     ).toBeInTheDocument();
@@ -81,9 +79,7 @@ describe("ScriptLibrary empty state", () => {
     await waitFor(() => {
       expect(screen.getByText("No scripts")).toBeInTheDocument();
     });
-    expect(
-      screen.getByRole("button", { name: /upload/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /upload/i })).toBeInTheDocument();
   });
 
   it("hides Upload CTA and info text for global technician", async () => {
