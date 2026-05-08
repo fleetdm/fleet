@@ -1756,8 +1756,7 @@ const ManageHostsPage = ({
         !totalFilteredHostsCount ||
         totalFilteredHostsCount > MAX_SCRIPT_BATCH_TARGETS
       ) {
-        disableRunScriptBatchTooltipContent =
-          `Target at most ${MAX_SCRIPT_BATCH_TARGETS.toLocaleString()} hosts to run a script.`;
+        disableRunScriptBatchTooltipContent = `Target at most ${MAX_SCRIPT_BATCH_TARGETS.toLocaleString()} hosts to run a script.`;
       }
     }
     const secondarySelectActions: IActionButtonProps[] = [

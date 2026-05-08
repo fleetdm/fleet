@@ -130,9 +130,7 @@ const Policies = ({
     }
 
     const target = deviceUser ? "your device" : "this host";
-    const manageClause = canManagePolicies
-      ? ", or manage its policies."
-      : ".";
+    const manageClause = canManagePolicies ? ", or manage its policies." : ".";
 
     return (
       <>
