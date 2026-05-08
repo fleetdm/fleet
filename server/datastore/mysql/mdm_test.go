@@ -66,6 +66,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 		{"TestProfileHasACMEPayloadForCommand", testProfileHasACMEPayloadForCommand},
+		{"TestRenewMDMManagedCertificatesNullType", testRenewMDMManagedCertificatesNullType},
 	}
 
 	for _, c := range cases {
@@ -10607,4 +10608,97 @@ func testProfileHasACMEPayloadForCommand(t *testing.T, ds *Datastore) {
 		require.Error(t, err)
 		require.True(t, fleet.IsNotFound(err))
 	})
+}
+
+func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("renew-null-osq"),
+		NodeKey:         ptr.String("renew-null-nk"),
+		UUID:            "renew-null-host-uuid",
+		Hostname:        "renew-null-host",
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Helper: create an Apple config profile + a host_mdm_apple_profiles row
+	// in 'verified' state (eligible for renewal cron resend) and an associated
+	// host_mdm_managed_certificates row with the given type and an expiring
+	// not_valid_after. Returns the profile UUID.
+	mkExpiringRow := func(t *testing.T, name string, certType *string, caName string) string {
+		t.Helper()
+		profileUUID := uuid.NewString()
+		// Insert mdm_apple_configuration_profiles row.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO mdm_apple_configuration_profiles
+					(profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+				VALUES (?, 0, ?, ?, ?, ?, NOW())`,
+				profileUUID, name, name, []byte("dummy"), []byte("0123456789abcdef"))
+			return err
+		})
+		// Insert host_mdm_apple_profiles row in verified state, eligible for renewal.
+		require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{{
+			ProfileUUID:       profileUUID,
+			ProfileIdentifier: name,
+			ProfileName:       name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryVerified,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-" + profileUUID,
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		}}))
+		// Insert host_mdm_managed_certificates row with cert that expires soon
+		// (within the renewal cron's 30-day threshold, validity_period > 30).
+		notValidBefore := time.Now().AddDate(-1, 0, 0) // 1 year ago
+		notValidAfter := time.Now().AddDate(0, 0, 5)   // 5 days from now
+		serial := "0000000000000000000000000000000000000001"
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `
+				INSERT INTO host_mdm_managed_certificates
+					(host_uuid, profile_uuid, ca_name, type,
+					 not_valid_before, not_valid_after, serial)
+				VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				host.UUID, profileUUID, caName, certType, notValidBefore, notValidAfter, serial)
+			return err
+		})
+		return profileUUID
+	}
+
+	ndesStr := "ndes"
+
+	// Two rows: NULL, ndes. Both with the same expiring schedule.
+	// NULL exercises the new non-proxied path (the central change in this PR).
+	// ndes exercises the existing proxied path to confirm no regression.
+	nullProfile := mkExpiringRow(t, "null-prof", nil, "non-proxied-ca")
+	ndesProfile := mkExpiringRow(t, "ndes-prof", &ndesStr, "ndes-ca")
+
+	// Sanity: both start as 'verified'.
+	for _, profUUID := range []string{nullProfile, ndesProfile} {
+		var status *string
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &status, `
+			SELECT status FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, profUUID))
+		require.NotNil(t, status)
+		require.Equal(t, fleet.MDMDeliveryVerified, fleet.MDMDeliveryStatus(*status))
+	}
+
+	require.NoError(t, ds.RenewMDMManagedCertificates(ctx))
+
+	// Both should now have status=NULL (queued for resend).
+	for _, profUUID := range []string{nullProfile, ndesProfile} {
+		var status *string
+		require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &status, `
+			SELECT status FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND profile_uuid = ?`,
+			host.UUID, profUUID))
+		require.Nil(t, status, "profile %s should be queued for resend", profUUID)
+	}
 }
