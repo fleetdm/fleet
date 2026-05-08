@@ -160,8 +160,8 @@ const ChartCard = ({
         : undefined,
       include_host_ids:
         chartFilters.hostFilterMode === "include" &&
-          chartFilters.selectedHosts.length
-          ? chartFilters.selectedHosts.map((h) => h.id).join(",")
+        chartFilters.selectedHosts.length
+? chartFilters.selectedHosts.map((h) => h.id).join(",")
           : undefined,
       exclude_host_ids:
         chartFilters.hostFilterMode === "exclude" &&
