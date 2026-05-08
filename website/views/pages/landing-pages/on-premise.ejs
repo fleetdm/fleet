@@ -2,7 +2,7 @@
   <div purpose="landing-page-container">
     <div purpose="landing-page-content">
 
-      <%/* ── HERO ─────────────────────────────────────────────────────────── */%>
+
       <div purpose="landing-page-hero">
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
@@ -16,7 +16,7 @@
             <a purpose="cta-button" href="/contact" no-underline>Get a demo</a>
           </div>
         </div>
-      </div><%/* /landing-page-hero */%>
+      </div>
 
 
       <div purpose="landing-page-section" class="pt-0">
@@ -129,7 +129,7 @@
             </div>
             <pre purpose="terminal-body"><span purpose="tc"># Deploy Fleet in your own AWS account</span>
 <span purpose="tk">module</span> <span purpose="ts">"fleet"</span> {
-  <span purpose="tk">source</span>  = <span purpose="ts">"fleetdm/fleet/aws"</span>
+  <span purpose="tk">source</span>  = <span purpose="ts">"github.com/fleetdm/fleet-terraform"</span>
   <span purpose="tk">version</span> = <span purpose="ts">"~> 8.0"</span>
 
   <span purpose="tk">vpc_id</span>     = <span purpose="ts">var.vpc_id</span>
