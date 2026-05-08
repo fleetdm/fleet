@@ -17,6 +17,7 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
@@ -528,4 +529,100 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			return nil
 		})
 	})
+}
+
+// TestDEPService_RunAssigner_ReplicaLag exercises the bug from #44980:
+// IngestMDMAppleDevicesFromDEPSync writes ghost host rows + host_dep_assignments
+// to the primary, then ScreenDEPAssignProfileSerialsForCooldown reads from the
+// replica. Under replica lag, the cooldown SELECT returns no rows for the new
+// serials and they get silently dropped from both the skip and assign buckets.
+//
+// We use the dummy-replica harness with explicit replication control: any writes
+// that happen between RunReplication() calls remain on the primary only, exactly
+// matching the production lag scenario.
+func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
+	ctx := context.Background()
+	opts := &testing_utils.DatastoreTestOptions{
+		DummyReplica:   true,
+		UniqueTestName: "dep_runassigner_replica_lag",
+	}
+	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	t.Cleanup(func() { ds.Close() })
+
+	const abmTokenOrgName = "test_org"
+	depStorage, err := ds.NewMDMAppleDEPStorage()
+	require.NoError(t, err)
+
+	mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
+	// Replicate ABM-related rows (abm_tokens, certs, app_config) so the JOIN target
+	// for the screen query exists on the replica. The lag we want to simulate is
+	// for the ghost-host rows ingested *during* RunAssigner, not for ABM setup.
+	opts.RunReplication()
+
+	laggedSerial := "LAGGED-001"
+	onTimeSerial := "ONTIME-001"
+	devices := []godep.Device{
+		{SerialNumber: laggedSerial, OpType: "added"},
+		{SerialNumber: onTimeSerial, OpType: "added"},
+	}
+
+	var assignedSerials []string
+	syncCallCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
+		case "/profile":
+			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		case "/server/devices", "/devices/sync":
+			syncCallCount++
+			// Return our two devices on the very first sync; empty thereafter so the
+			// syncer terminates instead of looping on the same devices.
+			if syncCallCount == 1 {
+				require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
+			} else {
+				require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: nil}))
+			}
+		case "/profile/devices":
+			body, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			var assignReq godep.Profile
+			require.NoError(t, json.Unmarshal(body, &assignReq))
+			assignedSerials = append(assignedSerials, assignReq.Devices...)
+			apiResp := godep.ProfileResponse{
+				ProfileUUID: assignReq.ProfileUUID,
+				Devices:     map[string]string{},
+			}
+			for _, s := range assignReq.Devices {
+				apiResp.Devices[s] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			require.NoError(t, encoder.Encode(apiResp))
+		default:
+			t.Errorf("unexpected request to %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	require.NoError(t, depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL}))
+	logger := slog.New(slog.Default().Handler())
+	svc := apple_mdm.NewDEPService(ds, depStorage, logger)
+
+	// CRITICAL: never call opts.RunReplication() after this point. RunAssigner
+	// internally:
+	//   1. Writes the new hosts + host_dep_assignments to the primary
+	//      (IngestMDMAppleDevicesFromDEPSync).
+	//   2. Immediately calls ScreenDEPAssignProfileSerialsForCooldown, which reads
+	//      from the replica. The replica is stale, so the JOIN finds no rows and
+	//      drops the serials.
+	require.NoError(t, svc.RunAssigner(ctx))
+
+	// Both serials must reach AssignProfile, even though their host /
+	// host_dep_assignments rows were invisible to the cooldown screen on the
+	// lagged replica.
+	require.ElementsMatch(t, []string{laggedSerial, onTimeSerial}, assignedSerials,
+		"serials newly inserted on primary but not yet replicated must still be sent to AssignProfile")
 }
