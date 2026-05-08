@@ -3810,11 +3810,8 @@ labels:
 	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
-// setupDarwinFMA inserts a darwin FMA record with a unique slug and starts a
-// manifest+installer server pair for it. Returns the slug to use in YAML.
 func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) string {
 	t.Helper()
-	// Slug must have the form "<name>/<platform>" — Platform() splits on "/".
 	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")
 	slug := fmt.Sprintf("foo%s/darwin", suffix)
 	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
@@ -3848,13 +3845,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) stri
 	return slug
 }
 
-// TestGitOpsRemovedFMAEmitsPolicyDeletedActivities verifies that when an FMA
-// installer is removed from the YAML, gitops emits a deleted_policy activity
-// for every policy that referenced it — covering all three automation shapes:
-//
-//   - regular policy with install_software referencing an FMA
-//   - patch policy referencing an FMA
-//   - patch policy that also has install_software
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
 	t := s.T()
 	ctx := context.Background()
@@ -3863,8 +3853,8 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDe
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	sharedSlug := s.setupDarwinFMA(t)          // used by install-policy and patch-policy
-	patchAndInstallSlug := s.setupDarwinFMA(t) // own FMA so the two patch policies don't collide on the (team_id, patch_software_title_id) unique index
+	sharedSlug := s.setupDarwinFMA(t)
+	patchAndInstallSlug := s.setupDarwinFMA(t)
 	teamName := uuid.NewString()
 
 	const globalConfig = `
@@ -3919,7 +3909,6 @@ reports:
 	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
 	teamFile := filepath.Join(t.TempDir(), "team.yml")
 
-	// Phase 1: apply with FMA installer + three policies referencing it.
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamWithFMAAndPolicies), 0o644))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
@@ -3938,10 +3927,6 @@ reports:
 	require.Contains(t, policyIDsByName, "patch-policy")
 	require.Contains(t, policyIDsByName, "patch-and-install-policy")
 
-	// Phase 2: re-apply with no FMA and no policies. All three should be
-	// removed and each should emit a deleted_policy activity.
-	//
-	// Capture deleted_policy activities by overriding the mock's callback.
 	// Could race if any test in this suite ever runs in parallel.
 	deletedIDs := map[uint]bool{}
 	prev := s.activityMock.NewActivityFunc
