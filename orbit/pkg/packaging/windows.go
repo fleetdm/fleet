@@ -111,8 +111,12 @@ func BuildMSI(opt Options) (string, error) {
 
 	// Write files
 
-	if err := writeSecret(opt, orbitRoot); err != nil {
-		return "", fmt.Errorf("write enroll secret: %w", err)
+	// Don't write the dummy enroll secret to secret.txt. The installer will supply it on install and writing it
+	// here can cause "dummy" to attempt to be used as the secret, which will of course fail
+	if opt.EnrollSecret != "dummy" {
+		if err := writeSecret(opt, orbitRoot); err != nil {
+			return "", fmt.Errorf("write enroll secret: %w", err)
+		}
 	}
 
 	if err := writeOsqueryFlagfile(opt, orbitRoot); err != nil {
