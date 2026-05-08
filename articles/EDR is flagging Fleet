@@ -67,9 +67,9 @@ Your EDR vendor owns the trust decision on their side. Fleet can provide technic
 
 
 <meta name="articleTitle" value="My EDR is flagging Fleet — what's going on, and what should I do?">
-<meta name="authorFullName" value="Dhruv Sharma">
+<meta name="authorFullName" value="Dhruv Majumdar">
 <meta name="authorGitHubUsername" value="karmine05">
-<meta name="category" value="troubleshooting guide">
+<meta name="category" value="guides">
 <meta name="publishedOn" value="2026-05-07">
 <meta name="description" value="Why EDR tools flag Fleet, what that means, and how to safely handle exclusions or canary-based hash allowlisting with your EDR vendor.">
 <meta name="useBasicArticleTemplate" value="true">
