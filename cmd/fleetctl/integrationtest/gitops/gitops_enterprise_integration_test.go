@@ -3841,7 +3841,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) stri
 			}},
 			Refs: map[string]string{"fooscript": "echo hello"},
 		}
-		require.NoError(t, json.NewEncoder(w).Encode(manifest))
+		_ = json.NewEncoder(w).Encode(manifest)
 	}))
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
@@ -3863,7 +3863,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDe
 	fleetctlConfig := s.createFleetctlConfig(t, user)
 	t.Setenv("FLEET_URL", s.Server.URL)
 
-	sharedSlug := s.setupDarwinFMA(t)         // used by install-policy and patch-policy
+	sharedSlug := s.setupDarwinFMA(t)          // used by install-policy and patch-policy
 	patchAndInstallSlug := s.setupDarwinFMA(t) // own FMA so the two patch policies don't collide on the (team_id, patch_software_title_id) unique index
 	teamName := uuid.NewString()
 
