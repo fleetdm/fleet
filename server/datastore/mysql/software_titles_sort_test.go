@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSoftwareTitlesSortByDisplayName(t *testing.T) {
@@ -48,7 +49,7 @@ func TestSoftwareTitlesSortByDisplayName(t *testing.T) {
 		sql, _, err := selectSoftwareTitlesSQL(fleet.SoftwareTitleListOptions{
 			TeamID: nil,
 		})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Contains(t, sql, "software_title_display_names stdn")
 	})
 }
