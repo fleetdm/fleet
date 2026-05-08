@@ -517,7 +517,7 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 
 func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
 	requestParams := initiateMDMSSORequest{
-		Initiator:      "account_driven_enroll",
+		Initiator:      fleet.SSOInitiatorAccountDrivenEnroll,
 		UserIdentifier: username + "@example.com",
 	}
 	body, err := json.Marshal(requestParams)

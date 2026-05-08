@@ -20446,7 +20446,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	require.True(t, strings.HasPrefix(u.Path, "/enroll"), "expected redirect to /enroll, got: %s", location)
 	require.Empty(t, u.Query().Get("error"), "expected no error in redirect, got: %s", location)
 	require.NotEmpty(t, u.Query().Get("enrollment_reference"), "expected enrollment_reference in redirect")
-	require.Equal(t, "ota_enroll", u.Query().Get("initiator"))
+	require.Equal(t, fleet.SSOInitiatorOTAEnroll, u.Query().Get("initiator"))
 }
 
 func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
