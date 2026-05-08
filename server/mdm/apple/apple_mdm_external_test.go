@@ -531,15 +531,8 @@ func TestDEPService_RunAssigner(t *testing.T) {
 	})
 }
 
-// TestDEPService_RunAssigner_ReplicaLag exercises the bug from #44980:
-// IngestMDMAppleDevicesFromDEPSync writes ghost host rows + host_dep_assignments
-// to the primary, then ScreenDEPAssignProfileSerialsForCooldown reads from the
-// replica. Under replica lag, the cooldown SELECT returns no rows for the new
-// serials and they get silently dropped from both the skip and assign buckets.
-//
 // We use the dummy-replica harness with explicit replication control: any writes
-// that happen between RunReplication() calls remain on the primary only, exactly
-// matching the production lag scenario.
+// that happen between RunReplication() calls remain on the primary node only.
 func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 	ctx := context.Background()
 	opts := &testing_utils.DatastoreTestOptions{
@@ -611,14 +604,8 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 	logger := slog.New(slog.Default().Handler())
 	svc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
-	// CRITICAL: never call opts.RunReplication() after this point. RunAssigner
-	// internally:
-	//   1. Writes the new hosts + host_dep_assignments to the primary
-	//      (IngestMDMAppleDevicesFromDEPSync).
-	//   2. Immediately calls ScreenDEPAssignProfileSerialsForCooldown, which reads
-	//      from the replica. The replica is stale, so the JOIN finds no rows and
-	//      drops the serials.
 	require.NoError(t, svc.RunAssigner(ctx))
+	// never call opts.RunReplication() after this point, so we exercise the replica lag.
 
 	// Both serials must reach AssignProfile, even though their host /
 	// host_dep_assignments rows were invisible to the cooldown screen on the
