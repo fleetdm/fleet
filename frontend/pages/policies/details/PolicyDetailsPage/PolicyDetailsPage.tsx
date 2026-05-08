@@ -391,11 +391,15 @@ const PolicyDetailsPage = ({
               />
             )}
             {renderAuthor()}
-            {currentTeam && (
+            {storedPolicy && (
               <DataSet
                 className={`${baseClass}__fleet`}
                 title="Fleet"
-                value={currentTeam.name}
+                value={
+                  storedPolicy.team_id === null
+                    ? "All fleets"
+                    : currentTeam?.name
+                }
               />
             )}
             {renderPlatforms()}
