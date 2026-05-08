@@ -1,11 +1,21 @@
 name: Close legacy trivy alerts
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      categories:
+        description: 'JSON array of categories to dismiss'
+        required: true
+        default: '["trivy-rc-patch-fleet-v4.84.2","trivy-rc-patch-fleet-v4.84.3"]'
 permissions:
   security-events: write
   contents: read
 jobs:
   reset:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        category: ${{ fromJSON(inputs.categories) }}
     steps:
       - run: |
           cat > clean.sarif <<'EOF'
@@ -18,4 +28,4 @@ jobs:
       - uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: clean.sarif
-          category: .github/workflows/trivy-scan.yml:trivy
+          category: ${{ matrix.category }}
