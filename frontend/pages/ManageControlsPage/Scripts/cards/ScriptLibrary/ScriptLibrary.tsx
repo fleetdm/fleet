@@ -20,6 +20,7 @@ import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -198,9 +199,16 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
           info={canUploadScripts ? SCRIPT_UPLOADER_EMPTY_STATE_TEXT : undefined}
           primaryButton={
             canUploadScripts ? (
-              <Button onClick={() => setShowAddScriptModal(true)}>
-                Upload
-              </Button>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <Button
+                    onClick={() => setShowAddScriptModal(true)}
+                    disabled={disableChildren}
+                  >
+                    Upload
+                  </Button>
+                )}
+              />
             ) : undefined
           }
         />

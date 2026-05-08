@@ -69,11 +69,11 @@ const AddCustomVariableModal = ({
         onSave();
       } catch (error) {
         if (hasStatusKey(error) && error.status === 409) {
-          renderFlash("error", "A secret with this name already exists.");
+          renderFlash("error", "A variable with this name already exists.");
         } else {
           renderFlash(
             "error",
-            "An error occurred while saving the secret. Please try again."
+            "An error occurred while saving the variable. Please try again."
           );
         }
       } finally {
