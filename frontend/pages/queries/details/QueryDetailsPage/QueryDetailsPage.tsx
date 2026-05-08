@@ -235,21 +235,24 @@ const QueryDetailsPage = ({
   const isClipped = queryReport?.report_clipped;
   const isLiveQueryDisabled = config?.server_settings.live_query_disabled;
 
-  const renderHeader = () => {
-    // Team admins/maintainers can only edit queries assigned to a team
-    const canEditQuery =
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+  const canLiveQuery =
+    lastEditedQueryObserverCanRun ||
+    isObserverPlus ||
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isTeamMaintainerOrTeamAdmin ||
+    isGlobalTechnician ||
+    isTeamTechnician;
 
-    const canLiveQuery =
-      lastEditedQueryObserverCanRun ||
-      isObserverPlus ||
-      isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isTeamMaintainerOrTeamAdmin ||
-      isGlobalTechnician ||
-      isTeamTechnician;
+  const canRunLiveReport = canLiveQuery && !isLiveQueryDisabled;
+
+  // Team admins/maintainers can only edit queries assigned to a team
+  const canEditQuery =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
+
+  const renderHeader = () => {
 
     const backPath = () => {
       if (hostId)
@@ -420,16 +423,26 @@ const QueryDetailsPage = ({
     if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
+          queryId={queryId}
           queryInterval={storedQuery?.interval}
           queryUpdatedAt={storedQuery?.updated_at}
           disabledCaching={disabledCaching}
           disabledCachingGlobally={disabledCachingGlobally}
           discardDataEnabled={lastEditedQueryDiscardData}
           loggingSnapshot={loggingSnapshot}
+          canLiveQuery={canRunLiveReport}
+          canEditQuery={!!canEditQuery}
         />
       );
     }
-    return <QueryReport {...{ queryReport, isClipped }} />;
+    return (
+      <QueryReport
+        queryReport={queryReport}
+        queryId={queryId}
+        isClipped={isClipped}
+        canLiveQuery={canRunLiveReport}
+      />
+    );
   };
 
   return (

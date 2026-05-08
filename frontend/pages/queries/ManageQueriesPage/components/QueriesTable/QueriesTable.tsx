@@ -264,8 +264,8 @@ const QueriesTable = ({
     [currentUser, currentTeamId, curTeamScopeQueriesPresent]
   );
 
-  const searchable =
-    (totalQueriesCount ?? 0) > 0 || !!targetedPlatformParam || !!searchQuery;
+  const isTrulyEmpty =
+    (totalQueriesCount ?? 0) === 0 && !targetedPlatformParam && !searchQuery;
 
   const trimmedSearchQuery = searchQuery.trim();
 
@@ -293,17 +293,15 @@ const QueriesTable = ({
             onClick: onDeleteQueryClick,
           }}
           emptyComponent={() => <EmptyState {...emptyParams} />}
-          renderCount={() =>
-            ((totalQueriesCount || searchQuery) && (
-              <TableCount name="reports" count={totalQueriesCount} />
-            )) ||
-            null
-          }
+          renderCount={() => (
+            <TableCount name="reports" count={totalQueriesCount} />
+          )}
           inputPlaceHolder="Search by name"
           onQueryChange={onQueryChange}
-          searchable={searchable}
-          disableTableHeader={!searchable}
-          customControl={searchable ? renderPlatformDropdown : undefined}
+          searchable
+          disableSearch={isTrulyEmpty}
+          disableActionButton={isTrulyEmpty}
+          customControl={!isTrulyEmpty ? renderPlatformDropdown : undefined}
           disableMultiRowSelect={!curTeamScopeQueriesPresent}
           onClickRow={handleRowSelect}
           selectedDropdownFilter={curTargetedPlatformFilter}

@@ -34,7 +34,7 @@ describe("Policies table", () => {
 
     expect(screen.getByText("You don't have any policies")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
-    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
   });
 
   it("Renders the page-wide empty state when no policies are present (all teams)", async () => {
@@ -66,7 +66,7 @@ describe("Policies table", () => {
       screen.getByText("You don't have any policies that apply to all fleets")
     ).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
-    expect(screen.queryByPlaceholderText("Search by name")).toBeNull();
+    expect(screen.getByPlaceholderText("Search by name")).toBeDisabled();
   });
 
   it("Renders the page-wide empty state when no policies are present (specific team)", async () => {

@@ -9,6 +9,7 @@ import {
   generateCSVQueryResults,
 } from "utilities/generate_csv";
 import { IQueryReport, IQueryReportResultRow } from "interfaces/query_report";
+import PATHS from "router/paths";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -17,12 +18,15 @@ import TableCount from "components/TableContainer/TableCount";
 import { generateResultsCountText } from "components/TableContainer/utilities/TableContainerUtils";
 import TooltipWrapper from "components/TooltipWrapper";
 import EmptyState from "components/EmptyState";
+import CustomLink from "components/CustomLink";
 
 import generateReportColumnConfigsFromResults from "./QueryReportTableConfig";
 
 interface IQueryReportProps {
   queryReport?: IQueryReport;
+  queryId: number;
   isClipped?: boolean;
+  canLiveQuery?: boolean;
 }
 
 const baseClass = "query-report";
@@ -44,7 +48,9 @@ const flattenResults = (results: IQueryReportResultRow[]) => {
 
 const QueryReport = ({
   queryReport,
+  queryId,
   isClipped,
+  canLiveQuery,
 }: IQueryReportProps): JSX.Element => {
   const { lastEditedQueryName } = useContext(QueryContext);
 
@@ -128,7 +134,22 @@ const QueryReport = ({
               <EmptyState
                 className={baseClass}
                 header="Nothing to report yet"
-                info="This report has returned no data so far."
+                info={
+                  <>
+                    This report hasn&apos;t returned data yet.
+                    {canLiveQuery && (
+                      <>
+                        <br />
+                        Expecting to see results? Run a{" "}
+                        <CustomLink
+                          url={PATHS.LIVE_REPORT(queryId)}
+                          text="live report"
+                        />{" "}
+                        to troubleshoot.
+                      </>
+                    )}
+                  </>
+                }
               />
             );
           }}

@@ -89,11 +89,8 @@ const PoliciesTable = ({
     emptyState.info = "No policies match the current filters.";
   }
 
-  const searchable = !(
-    policiesList?.length === 0 &&
-    searchQuery === "" &&
-    !isFiltered
-  );
+  const isTrulyEmpty =
+    policiesList?.length === 0 && searchQuery === "" && !isFiltered;
 
   const isPrimoMode = config?.partnerships?.enable_primo || false;
   const viewingTeamPolicies =
@@ -154,9 +151,10 @@ const PoliciesTable = ({
         renderCount={renderPoliciesCount}
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
-        searchable={searchable}
-        disableTableHeader={!searchable}
-        customControl={customControl}
+        searchable
+        disableSearch={isTrulyEmpty}
+        disableActionButton={isTrulyEmpty}
+        customControl={!isTrulyEmpty ? customControl : undefined}
       />
     </div>
   );
