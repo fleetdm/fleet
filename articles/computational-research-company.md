@@ -12,7 +12,7 @@ Fleet is the foundation of that strategy. The team has rolled out Fleet for macO
 - **Primary requirements:** Unified visibility (long-term), security enforcement, GitOps, osquery support
 - **Previous challenge:** Fragmented tooling across operating systems and limited Linux visibility
 
-## The challenge: fragmented tooling across operating systems
+## The challenge
 
 Before Fleet, the company relied on multiple tools across operating systems. Workspace ONE did not meet expectations for support and communication. Intune lacked some Windows capabilities the team needed, and Jamf did not provide sufficient depth for a mixed environment with a large Linux footprint.
 
