@@ -26,7 +26,7 @@ The team focused on three priorities:
 2. **Security and compliance enforcement** — Automatically apply policies and reduce manual work.
 3. **GitOps and osquery support** — Manage configuration through code and use SQL-based telemetry for deeper visibility.
 
-## The solution: macOS first, with a path to unified management
+## The solution
 
 Fleet gave the team a single system for macOS policy management, device visibility, and automation — and a clear path to extend the same platform to Linux and Windows over time.
 
