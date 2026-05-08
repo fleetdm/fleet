@@ -1,9 +1,9 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { ISecretPayload } from "interfaces/secrets";
+import { IVariablePayload } from "interfaces/variables";
 import { hasStatusKey } from "interfaces/errors";
-import secretsAPI from "services/entities/secrets";
+import variablesAPI from "services/entities/variables";
 import { NotificationContext } from "context/notification";
 import InputField from "components/forms/fields/InputField";
 import { validateFormData, IAddCustomVariableFormValidation } from "./helpers";
@@ -59,12 +59,12 @@ const AddCustomVariableModal = ({
     const validation = validateFormData({ name, value }, true);
     if (validation.isValid) {
       setIsSaving(true);
-      const newSecret: ISecretPayload = {
+      const newVariable: IVariablePayload = {
         name: secretName,
         value: secretValue,
       };
       try {
-        await secretsAPI.addSecret(newSecret);
+        await variablesAPI.addVariable(newVariable);
         renderFlash("success", "Variable created.");
         onSave();
       } catch (error) {

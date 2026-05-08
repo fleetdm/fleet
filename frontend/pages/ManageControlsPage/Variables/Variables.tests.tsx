@@ -1,7 +1,7 @@
 import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 
-import { ISecret } from "interfaces/secrets";
+import { IVariable } from "interfaces/variables";
 import { UserEvent } from "@testing-library/user-event";
 import { createCustomRenderer } from "test/test-utils";
 import { http, HttpResponse } from "msw";
@@ -97,7 +97,7 @@ describe("Custom variables", () => {
   });
 
   describe("non-empty state", () => {
-    const mockSecrets: ISecret[] = [
+    const mockSecrets: IVariable[] = [
       {
         name: "SECRET_UNO",
         id: 1,
@@ -111,7 +111,7 @@ describe("Custom variables", () => {
         updated_at: new Date().toISOString(),
       },
     ];
-    const secretsResponse: { secrets: ISecret[] } = { secrets: [] };
+    const secretsResponse: { secrets: IVariable[] } = { secrets: [] };
     // Mock the scripts endpoint to return our two test scripts.
     const secretsHandler = http.get(baseUrl("/custom_variables"), () => {
       return HttpResponse.json({
@@ -136,7 +136,7 @@ describe("Custom variables", () => {
           value,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        } as ISecret;
+        } as IVariable;
         secretsResponse.secrets.push(newSecret);
         return HttpResponse.json(newSecret);
       }

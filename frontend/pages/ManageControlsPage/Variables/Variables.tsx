@@ -2,8 +2,10 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 
 import { useQuery } from "react-query";
 
-import secretsAPI, { IListSecretsResponse } from "services/entities/secrets";
-import { ISecret } from "interfaces/secrets";
+import variablesAPI, {
+  IListVariablesResponse,
+} from "services/entities/variables";
+import { IVariable } from "interfaces/variables";
 
 import { AppContext } from "context/app";
 
@@ -24,17 +26,19 @@ import DeleteCustomVariableModal from "./components/DeleteCustomVariableModal";
 
 const baseClass = "variables";
 
-export const SECRETS_PAGE_SIZE = 20;
+export const VARIABLES_PAGE_SIZE = 20;
 
 const Variables = () => {
-  const paginatedListRef = useRef<IPaginatedListHandle<ISecret>>(null);
+  const paginatedListRef = useRef<IPaginatedListHandle<IVariable>>(null);
 
   const [copyMessage, setCopyMessage] = useState("");
-  const [copiedSecretName, setCopiedSecretName] = useState("");
+  const [copiedVariableName, setCopiedVariableName] = useState("");
   const copyMessageTimeoutIdRef = useRef<NodeJS.Timeout | null>(null);
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [secretToDelete, setSecretToDelete] = useState<ISecret | undefined>();
+  const [variableToDelete, setVariableToDelete] = useState<
+    IVariable | undefined
+  >();
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageNumber, setPageNumber] = useState(0);
 
@@ -44,12 +48,12 @@ const Variables = () => {
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
-  const apiParams = { page: pageNumber, per_page: SECRETS_PAGE_SIZE };
+  const apiParams = { page: pageNumber, per_page: VARIABLES_PAGE_SIZE };
   const { data, isFetching: isLoading, refetch } = useQuery<
-    IListSecretsResponse,
+    IListVariablesResponse,
     Error,
-    IListSecretsResponse
-  >(["secrets", apiParams], () => secretsAPI.getSecrets(apiParams));
+    IListVariablesResponse
+  >(["variables", apiParams], () => variablesAPI.getVariables(apiParams));
 
   // Open add modal via query param (e.g. from command palette)
   useEffect(() => {
@@ -66,45 +70,45 @@ const Variables = () => {
     }
   }, []);
 
-  const onClickAddSecret = () => {
+  const onClickAddVariable = () => {
     setShowAddModal(true);
   };
 
-  const onSaveSecret = () => {
+  const onSaveVariable = () => {
     setShowAddModal(false);
     refetch();
   };
 
-  const onDeleteSecret = () => {
+  const onDeleteVariable = () => {
     setShowDeleteModal(false);
     refetch();
   };
 
-  const onClickDeleteSecret = (secret: ISecret) => {
-    setSecretToDelete(secret);
+  const onClickDeleteVariable = (variable: IVariable) => {
+    setVariableToDelete(variable);
     setShowDeleteModal(true);
   };
 
-  const getTokenFromSecretName = (secretName: string): string => {
-    return `$FLEET_SECRET_${secretName.toUpperCase()}`;
+  const getTokenFromVariableName = (variableName: string): string => {
+    return `$FLEET_SECRET_${variableName.toUpperCase()}`;
   };
 
-  const onCopySecretName = (evt: React.MouseEvent, secretName: string) => {
+  const onCopyVariableName = (evt: React.MouseEvent, variableName: string) => {
     evt.preventDefault();
 
     if (copyMessageTimeoutIdRef.current) {
       clearTimeout(copyMessageTimeoutIdRef.current);
     }
 
-    setCopiedSecretName(secretName);
-    stringToClipboard(getTokenFromSecretName(secretName))
+    setCopiedVariableName(variableName);
+    stringToClipboard(getTokenFromVariableName(variableName))
       .then(() => setCopyMessage("Copied!"))
       .catch(() => setCopyMessage("Copy failed"));
 
     // Clear message after 1 second
     copyMessageTimeoutIdRef.current = setTimeout(() => {
       setCopyMessage("");
-      setCopiedSecretName("");
+      setCopiedVariableName("");
     }, 1000);
 
     return false;
@@ -119,27 +123,27 @@ const Variables = () => {
     };
   }, []);
 
-  const renderSecretRow = (secret: ISecret) => (
+  const renderVariableRow = (variable: IVariable) => (
     <>
       <ListItem
-        title={secret.name.toUpperCase()}
+        title={variable.name.toUpperCase()}
         details={
           <span>
-            <span className="secret-details__text">
+            <span className="variable-details__text">
               Updated{" "}
-              <HumanTimeDiffWithDateTip timeString={secret.updated_at} /> &bull;{" "}
-              {getTokenFromSecretName(secret.name)}
+              <HumanTimeDiffWithDateTip timeString={variable.updated_at} />{" "}
+              &bull; {getTokenFromVariableName(variable.name)}
             </span>
             <Button
               variant="unstyled"
-              className={`${baseClass}__copy-secret-icon`}
+              className={`${baseClass}__copy-variable-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
-                onCopySecretName(e, secret.name)
+                onCopyVariableName(e, variable.name)
               }
             >
               <Icon name="copy" />
             </Button>
-            {copyMessage && copiedSecretName === secret.name && (
+            {copyMessage && copiedVariableName === variable.name && (
               <span
                 className={`${baseClass}__copy-message`}
               >{`${copyMessage} `}</span>
@@ -152,7 +156,7 @@ const Variables = () => {
           variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
-            onClickDeleteSecret(secret);
+            onClickDeleteVariable(variable);
           }}
         >
           <>
@@ -212,7 +216,10 @@ const Variables = () => {
             canEdit ? (
               <GitOpsModeTooltipWrapper
                 renderChildren={(disableChildren) => (
-                  <Button onClick={onClickAddSecret} disabled={disableChildren}>
+                  <Button
+                    onClick={onClickAddVariable}
+                    disabled={disableChildren}
+                  >
                     Add custom variable
                   </Button>
                 )}
@@ -223,7 +230,7 @@ const Variables = () => {
         {showAddModal && (
           <AddCustomVariableModal
             onCancel={() => setShowAddModal(false)}
-            onSave={onSaveSecret}
+            onSave={onSaveVariable}
           />
         )}
       </div>
@@ -240,7 +247,7 @@ const Variables = () => {
               <Button
                 variant="inverse"
                 size="small"
-                onClick={onClickAddSecret}
+                onClick={onClickAddVariable}
                 disabled={disableChildren}
               >
                 <Icon name="plus" />
@@ -250,15 +257,15 @@ const Variables = () => {
           />
         )}
       </div>
-      <PaginatedList<ISecret>
+      <PaginatedList<IVariable>
         ref={paginatedListRef}
-        pageSize={SECRETS_PAGE_SIZE}
-        renderItemRow={renderSecretRow}
+        pageSize={VARIABLES_PAGE_SIZE}
+        renderItemRow={renderVariableRow}
         count={data?.count || 0}
         data={data?.custom_variables || []}
         currentPage={pageNumber}
         onChangePage={setPageNumber}
-        onClickRow={(secret) => secret}
+        onClickRow={(variable) => variable}
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
@@ -278,14 +285,14 @@ const Variables = () => {
       {showAddModal && (
         <AddCustomVariableModal
           onCancel={() => setShowAddModal(false)}
-          onSave={onSaveSecret}
+          onSave={onSaveVariable}
         />
       )}
       {showDeleteModal && (
         <DeleteCustomVariableModal
-          secret={secretToDelete}
+          variable={variableToDelete}
           onExit={() => setShowDeleteModal(false)}
-          onDeleteSecret={onDeleteSecret}
+          onDeleteVariable={onDeleteVariable}
         />
       )}
     </div>
