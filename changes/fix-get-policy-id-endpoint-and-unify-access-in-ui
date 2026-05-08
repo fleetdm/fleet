@@ -1,5 +1,3 @@
-* Fixed `GET /api/v1/fleet/policies/:id` endpoint to return (and properly populate) team policies.
-
-* Fixed `GET /api/v1/fleet/policies/:id` to perform authz check on team policies before returning.
-
-* Unify access to policies in UI by using the now generic `GET /api/v1/fleet/policies/:id` endpoint.
+- Fixed `GET /api/latest/fleet/policies/:id` endpoint (and alias `GET /api/v1/fleet/global/policies/:id`) to return (and properly populate) team policies.
+- Fixed `GET /api/latest/fleet/policies/:id` endpoint (and alias `GET /api/v1/fleet/global/policies/:id`) to perform authorization check on team policies before returning.
+- Unify access to global and team policies in UI by using the now generic `GET /api/latest/fleet/policies/:id` endpoint.

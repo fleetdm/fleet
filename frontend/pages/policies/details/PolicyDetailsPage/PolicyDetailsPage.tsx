@@ -46,6 +46,16 @@ interface IPolicyDetailsPageProps {
 
 const baseClass = "policy-details-page";
 
+const getPolicyFleetName = (
+  policy: IPolicy | undefined,
+  teamData: ILoadTeamResponse | undefined
+): string | null => {
+  if (!policy) return null;
+  if (policy.team_id === null) return APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+  if (policy.team_id === 0) return APP_CONTEXT_NO_TEAM_SUMMARY.name;
+  return teamData?.team?.name ?? null;
+};
+
 const PolicyDetailsPage = ({
   router,
   params: { id: paramsPolicyId },
@@ -112,56 +122,54 @@ const PolicyDetailsPage = ({
     IStoredPolicyResponse,
     Error,
     IPolicy
-  >(
-    ["policy", policyId, teamIdForApi],
-    () => policiesAPI.load(policyId as number),
-    {
-      enabled: isRouteOk && !!policyId,
-      refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IStoredPolicyResponse) => data.policy,
-      onSuccess: (returnedPolicy) => {
-        setLastEditedQueryId(returnedPolicy.id);
-        setLastEditedQueryName(returnedPolicy.name);
-        setLastEditedQueryDescription(returnedPolicy.description);
-        setLastEditedQueryBody(returnedPolicy.query);
-        setLastEditedQueryResolution(returnedPolicy.resolution);
-        setLastEditedQueryCritical(returnedPolicy.critical);
-        setLastEditedQueryPlatform(returnedPolicy.platform);
-        setLastEditedQueryLabelsIncludeAny(
-          returnedPolicy.labels_include_any || []
-        );
-        setLastEditedQueryLabelsIncludeAll(
-          returnedPolicy.labels_include_all || []
-        );
-        setLastEditedQueryLabelsExcludeAny(
-          returnedPolicy.labels_exclude_any || []
-        );
-        const deNulledTeamId = returnedPolicy.team_id ?? undefined;
-        setPolicyTeamId(
-          deNulledTeamId === API_ALL_TEAMS_ID
-            ? APP_CONTEXT_ALL_TEAMS_ID
-            : deNulledTeamId
-        );
-      },
-      onError: (error) => handlePageError(error),
-    }
-  );
+  >(["policy", policyId], () => policiesAPI.load(policyId as number), {
+    enabled: isRouteOk && !!policyId,
+    refetchOnWindowFocus: false,
+    retry: false,
+    select: (data: IStoredPolicyResponse) => data.policy,
+    onSuccess: (returnedPolicy) => {
+      setLastEditedQueryId(returnedPolicy.id);
+      setLastEditedQueryName(returnedPolicy.name);
+      setLastEditedQueryDescription(returnedPolicy.description);
+      setLastEditedQueryBody(returnedPolicy.query);
+      setLastEditedQueryResolution(returnedPolicy.resolution);
+      setLastEditedQueryCritical(returnedPolicy.critical);
+      setLastEditedQueryPlatform(returnedPolicy.platform);
+      setLastEditedQueryLabelsIncludeAny(
+        returnedPolicy.labels_include_any || []
+      );
+      setLastEditedQueryLabelsIncludeAll(
+        returnedPolicy.labels_include_all || []
+      );
+      setLastEditedQueryLabelsExcludeAny(
+        returnedPolicy.labels_exclude_any || []
+      );
+      const deNulledTeamId = returnedPolicy.team_id ?? undefined;
+      setPolicyTeamId(
+        deNulledTeamId === API_ALL_TEAMS_ID
+          ? APP_CONTEXT_ALL_TEAMS_ID
+          : deNulledTeamId
+      );
+    },
+    onError: (error) => handlePageError(error),
+  });
 
   // Drive the team display from the policy's own team_id rather than the URL's
   // fleet_id: a user can land here from another team's list (e.g. clicking an
   // inherited policy from team 42's view), and the displayed Fleet must reflect
   // the policy's owner, not the navigation context.
-  const policyTeamId = storedPolicy?.team_id ?? undefined;
+  const policyTeamId = storedPolicy?.team_id;
 
   const { data: teamData } = useQuery<ILoadTeamResponse>(
     ["team", policyTeamId],
     () => teamsAPI.load(policyTeamId as number),
     {
-      enabled: policyTeamId !== undefined && policyTeamId > 0,
+      enabled: !!policyTeamId && policyTeamId > 0,
       refetchOnWindowFocus: false,
     }
   );
+
+  const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
   let currentAutomatedPolicies: number[] = [];
   if (teamData?.team) {
@@ -391,36 +399,13 @@ const PolicyDetailsPage = ({
               />
             )}
             {renderAuthor()}
-            {storedPolicy &&
-              (() => {
-                if (storedPolicy.team_id === null) {
-                  return (
-                    <DataSet
-                      className={`${baseClass}__fleet`}
-                      title="Fleet"
-                      value={APP_CONTEXT_ALL_TEAMS_SUMMARY.name}
-                    />
-                  );
-                }
-                if (storedPolicy.team_id === 0) {
-                  return (
-                    <DataSet
-                      className={`${baseClass}__fleet`}
-                      title="Fleet"
-                      value={APP_CONTEXT_NO_TEAM_SUMMARY.name}
-                    />
-                  );
-                }
-                return (
-                  teamData?.team && (
-                    <DataSet
-                      className={`${baseClass}__fleet`}
-                      title="Fleet"
-                      value={teamData.team.name}
-                    />
-                  )
-                );
-              })()}
+            {policyFleetName && (
+              <DataSet
+                className={`${baseClass}__fleet`}
+                title="Fleet"
+                value={policyFleetName}
+              />
+            )}
             {renderPlatforms()}
             {renderLabels()}
             {storedPolicy && (
