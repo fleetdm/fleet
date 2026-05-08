@@ -1736,32 +1736,6 @@ const ManageHostsPage = ({
     if (hasErrors) {
       return <DataError verticalPaddingSize="pad-xxxlarge" />;
     }
-    if (maybeEmptyHosts && !isTrulyEmpty) {
-      const emptyState = () => {
-        const emptyHosts: IEmptyStateProps = {
-          header: "Hosts will show up here once they’re added to Fleet",
-          info:
-            "Expecting to see hosts? Try again soon as the system catches up.",
-        };
-        if (includesFilterQueryParam) {
-          emptyHosts.header = "No hosts match the current criteria";
-          emptyHosts.info =
-            "Expecting to see new hosts? Try again soon as the system catches up.";
-        }
-        return emptyHosts;
-      };
-
-      return (
-        <>
-          {EmptyState({
-            header: emptyState().header,
-            info: emptyState().info,
-            additionalInfo: emptyState().additionalInfo,
-            primaryButton: emptyState().primaryButton,
-          })}
-        </>
-      );
-    }
 
     let disableRunScriptBatchTooltipContent: React.ReactNode;
     if (config?.server_settings?.scripts_disabled) {
