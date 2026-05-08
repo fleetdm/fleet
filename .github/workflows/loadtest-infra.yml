@@ -116,7 +116,7 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}";
           then
             echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
@@ -176,10 +176,30 @@ jobs:
           else
             echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ inputs.terraform_workspace }}"
           fi
-      - name: Terraform Destroy
+      - name: Check osquery-perf workspace
         if: inputs.terraform_action == 'destroy'
+        id: check-osquery-perf
+        working-directory: infrastructure/loadtesting/terraform/osquery_perf
+        run: |
+          echo "osquery_perf_block=false" >> $GITHUB_OUTPUT
+          terraform init
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
+            terraform workspace select ${{ inputs.terraform_workspace }}
+            RESOURCE_COUNT=$(terraform state list | wc -l)
+            if [[ $RESOURCE_COUNT -gt 0 ]]; then
+              echo "BLOCK: osquery-perf workspace '${{ inputs.terraform_workspace }}' has $RESOURCE_COUNT resources deployed."
+              echo "Destroying infra would break the osquery-perf deployment. Destroy the osquery-perf workspace first."
+              echo "osquery_perf_block=true" >> $GITHUB_OUTPUT
+            else
+              echo "OK: osquery-perf workspace '${{ inputs.terraform_workspace }}' exists but has no resources."
+            fi
+          else
+            echo "OK: no matching osquery-perf workspace '${{ inputs.terraform_workspace }}' found."
+          fi
+      - name: Terraform Destroy
+        if: inputs.terraform_action == 'destroy' && steps.check-osquery-perf.outputs.osquery_perf_block == 'false'
         id: destroy
-        run: | 
+        run: |
           if [[ `terraform workspace show` = "${{ inputs.terraform_workspace }}" ]];
           then
             echo "TERRAFORM WORKSPACE: MATCHES - ${{ inputs.terraform_workspace }}"

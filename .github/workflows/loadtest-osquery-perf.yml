@@ -106,7 +106,7 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          if terraform workspace list | grep -q ${{ inputs.terraform_workspace }};
+          if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}";
           then
             echo "MATCH - TF_WORKSPACE: ${{ inputs.terraform_workspace }}\n"
             
