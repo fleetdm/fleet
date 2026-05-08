@@ -184,10 +184,10 @@ jobs:
           echo "osquery_perf_block=true" >> $GITHUB_OUTPUT
           terraform init
           if terraform workspace list | sed 's/^[* ]*//' | grep -Fxq "${{ inputs.terraform_workspace }}"; then
-            echo "BLOCK: matching osquery-perf workspace '${{ inputs.terraform_workspace }}' exists."
+            echo -e "\n\nBLOCK: matching osquery-perf workspace '${{ inputs.terraform_workspace }}' exists."
             echo "Destroy the osquery-perf workspace first."
           else
-            echo "OK: no matching osquery-perf workspace '${{ inputs.terraform_workspace }}' found."
+            echo -e "\n\nOK: no matching osquery-perf workspace '${{ inputs.terraform_workspace }}' found."
             echo "osquery_perf_block=false" >> $GITHUB_OUTPUT
           fi
       - name: Terraform Destroy
