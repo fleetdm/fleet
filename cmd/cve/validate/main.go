@@ -19,12 +19,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/oval"
 )
 
-func anyCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) bool {
+// anyVulnerableCPEMatch reports whether any node (or descendant) carries a
+// CPEMatch that's both marked vulnerable and has a non-empty CPE 2.3 URI.
+// Non-vulnerable matches (typical of AND-operator context entries that
+// describe the platform a vulnerable component runs on) and empty URIs are
+// excluded so the canary measures real enrichment, not just slice length.
+func anyVulnerableCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) bool {
 	for _, n := range nodes {
-		if len(n.CPEMatch) > 0 {
-			return true
+		for _, m := range n.CPEMatch {
+			if m.Vulnerable && m.Cpe23Uri != "" {
+				return true
+			}
 		}
-		if anyCPEMatch(n.Children) {
+		if anyVulnerableCPEMatch(n.Children) {
 			return true
 		}
 	}
@@ -84,7 +91,7 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 		if !ok || entry.Schema().Configurations == nil {
 			continue
 		}
-		if anyCPEMatch(entry.Schema().Configurations.Nodes) {
+		if anyVulnerableCPEMatch(entry.Schema().Configurations.Nodes) {
 			enriched2025++
 		}
 	}
