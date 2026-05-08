@@ -70,9 +70,6 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// unusedFlagKeyword is used by the MSI installer to populate parameters, which cannot be empty
-const unusedFlagKeyword = "dummy"
-
 type logError string
 
 const (
@@ -441,7 +438,7 @@ func orbitAction(c *cli.Context) error {
 		return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", hostIdentifier)
 	}
 
-	if email := c.String("end-user-email"); email != "" && email != unusedFlagKeyword && !fleet.IsLooseEmail(email) {
+	if email := c.String("end-user-email"); email != "" && email != constant.UnusedFlagKeyword && !fleet.IsLooseEmail(email) {
 		return fmt.Errorf("the provided end-user email address %q is not a valid email address", email)
 	}
 
@@ -1158,7 +1155,7 @@ func orbitAction(c *cli.Context) error {
 
 	// Set the EUA token from the MSI installer (Windows MDM enrollment).
 	// Must be set before any authenticated request triggers enrollment.
-	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != unusedFlagKeyword {
+	if euaToken := c.String("eua-token"); euaToken != "" && euaToken != constant.UnusedFlagKeyword {
 		orbitClient.SetEUAToken(euaToken)
 	}
 
@@ -1485,7 +1482,7 @@ func orbitAction(c *cli.Context) error {
 	// --end-user-email is only supported on Windows and Linux (for macOS it gets the
 	// email from the enrollment profile)
 	endUserEmail := c.String("end-user-email")
-	if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != unusedFlagKeyword {
+	if (runtime.GOOS == "windows" || runtime.GOOS == "linux") && endUserEmail != "" && endUserEmail != constant.UnusedFlagKeyword {
 		if orbitClient.GetServerCapabilities().Has(fleet.CapabilityEndUserEmail) {
 			log.Debug().Msg("sending end-user email to Fleet")
 			if err := orbitClient.SetOrUpdateDeviceMappingEmail(endUserEmail); err != nil {
