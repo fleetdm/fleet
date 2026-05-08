@@ -20408,10 +20408,6 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	t := s.T()
 	ctx := t.Context()
 
-	if !hasBuildTag("full") {
-		t.Skip("This test requires running with -tags full")
-	}
-
 	s.setSkipWorkerJobs(t)
 	s.setUpMDMSSO(t, false)
 
@@ -20421,7 +20417,7 @@ func (s *integrationMDMTestSuite) TestOTAEnrollSSOWithoutAppleDEPProfile() {
 	teamIdP.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
 	_, err = s.ds.SaveTeam(ctx, teamIdP)
 	require.NoError(t, err)
-	err = s.ds.ApplyEnrollSecrets(ctx, &teamIdP.ID, []*fleet.EnrollSecret{{Secret: "ota-sso-test"}})
+	err = s.ds.ApplyEnrollSecrets(ctx, &teamIdP.ID, []*fleet.EnrollSecret{{Secret: "ota-sso-test"}}) //nolint:gosec // test credential
 	require.NoError(t, err)
 
 	// Remove any Apple DEP automatic enrollment profiles to simulate an

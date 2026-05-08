@@ -928,7 +928,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 	}
 
-	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorSetupExperience {
+	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
 		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
@@ -941,11 +941,13 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	}
 
 	q := url.Values{
-		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
 	}
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
+	}
+	if profileToken != "" {
+		q.Add("profile_token", profileToken)
 	}
 
 	q.Add("initiator", ssoRequestData.Initiator)
@@ -1113,7 +1115,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 
 	// If the initiator is setup_experience, we can insert the host idp account record
 	// right away, as the host uuid is provided in the SSO request data.
-	if ssoRequestData.Initiator == fleet.SSOInitiatorSetupExperience && ssoRequestData.HostUUID != "" {
+	if ssoRequestData.Initiator == fleet.SSOInitiatorOrbitSetupExperience && ssoRequestData.HostUUID != "" {
 		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, idpAcc.UUID)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
@@ -1129,20 +1131,9 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		eulaToken = eula.Token
 	}
 
-	// If this is account driven enrollment there is no need to fetch the profile
-	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
-		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
-	}
-
-	// OTA enrollments (e.g. Android, BYOD iPhone/iPad) don't need the Apple
-	// DEP automatic enrollment profile.
-	if strings.HasPrefix(originalURL, "/enroll?") {
-		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
-	}
-
-	var depProfToken string
 	// For automatic enrollments, get the automatic profile to access the authentication token.
-	if ssoRequestData.Initiator != fleet.SSOInitiatorSetupExperience {
+	var depProfToken string
+	if ssoRequestData.Initiator == fleet.SSOInitiatorAppleMDMSSO {
 		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")

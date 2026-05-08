@@ -465,6 +465,10 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 		t.Skip("SSO tests are disabled")
 	}
 
+	prevCookieSecure := cookieSecure
+	t.Cleanup(func() {
+		cookieSecure = prevCookieSecure
+	})
 	cookieSecure = false
 	jar, err := cookiejar.New(nil)
 	require.NoError(t, err)
@@ -481,10 +485,12 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
 	idpURL := resp.Header.Get("Location")
 	require.NotEmpty(t, idpURL, "expected redirect to IdP")
+	require.NoError(t, resp.Body.Close())
 
 	// Step 2: Follow IdP redirect to get the login page
 	resp, err = client.Get(idpURL)
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 
 	// Step 3: Extract AuthState and submit login credentials
 	parsed, err := url.Parse(resp.Header.Get("Location"))
@@ -498,9 +504,10 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	require.NoError(t, err)
 
 	// Step 4: Extract SAMLResponse from the IdP HTML form
-	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 
 	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
 	matches := re.FindSubmatch(body)
@@ -511,6 +518,7 @@ func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret str
 	callbackURL := ts.server.URL + "/api/v1/fleet/mdm/sso/callback?SAMLResponse=" + url.QueryEscape(samlResponse)
 	resp, err = client.Post(callbackURL, "application/x-www-form-urlencoded", nil)
 	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
 
 	return resp
 }

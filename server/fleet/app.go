@@ -40,21 +40,6 @@ const (
 	MaskedPassword = "********"
 )
 
-// MDM SSO initiator constants identify which enrollment flow initiated the SSO
-// authentication. These values are stored in the SSO session and used in the
-// callback to determine the correct behavior.
-const (
-	// SSOInitiatorOTAEnroll is used for OTA/BYOD enrollment flows (Android,
-	// iPhone, iPad) initiated from the /enroll page.
-	SSOInitiatorOTAEnroll = "ota_enroll"
-	// SSOInitiatorSetupExperience is used when the Orbit agent opens the SSO
-	// browser window during the macOS Setup Assistant.
-	SSOInitiatorSetupExperience = "setup_experience"
-	// SSOInitiatorAccountDrivenEnroll is used for Apple's native account-driven
-	// MDM enrollment flow.
-	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
-)
-
 type SSOProviderSettings struct {
 	// EntityID is a uri that identifies this service provider
 	EntityID string `json:"entity_id"`
