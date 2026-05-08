@@ -349,7 +349,7 @@
   path: "/api/v1/fleet/fleets/:fleet_id/policies/count"
   display_name: "Get a fleet's policies count"
 - method: "GET"
-  path: "/api/v1/fleet/global/policies/:id"
+  path: "/api/v1/fleet/policies/:id"
   display_name: "Get policy"
 - method: "GET"
   path: "/api/v1/fleet/fleets/:fleet_id/policies/:policy_id"

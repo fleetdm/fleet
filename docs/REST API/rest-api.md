@@ -8325,7 +8325,7 @@ _Available in Fleet Premium_
 
 ### Get policy
 
-`GET /api/v1/fleet/global/policies/:id`
+`GET /api/v1/fleet/policies/:id`
 
 #### Parameters
 
@@ -8335,7 +8335,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/global/policies/1`
+`GET /api/v1/fleet/policies/1`
 
 ##### Default response
 
