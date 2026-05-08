@@ -454,6 +454,67 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 	return res
 }
 
+// LoginOTAEnrollSSOUser initiates the OTA enrollment SSO flow by hitting
+// /enroll?enroll_secret=... (as an Android or BYOD device would), follows the
+// SAML login at the IdP, and posts the SAMLResponse back to the MDM SSO
+// callback. Returns the callback response (a redirect).
+func (ts *withServer) LoginOTAEnrollSSOUser(username, password, enrollSecret string) *http.Response {
+	t := ts.s.T()
+
+	if _, ok := os.LookupEnv("SAML_IDP_TEST"); !ok {
+		t.Skip("SSO tests are disabled")
+	}
+
+	cookieSecure = false
+	jar, err := cookiejar.New(nil)
+	require.NoError(t, err)
+
+	client := fleethttp.NewClient(
+		fleethttp.WithFollowRedir(false),
+		fleethttp.WithCookieJar(jar),
+	)
+
+	// Step 1: GET /enroll?enroll_secret=... → 303 redirect to IdP (sets SSO cookie)
+	enrollURL := ts.server.URL + "/enroll?enroll_secret=" + url.QueryEscape(enrollSecret)
+	resp, err := client.Get(enrollURL)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusSeeOther, resp.StatusCode)
+	idpURL := resp.Header.Get("Location")
+	require.NotEmpty(t, idpURL, "expected redirect to IdP")
+
+	// Step 2: Follow IdP redirect to get the login page
+	resp, err = client.Get(idpURL)
+	require.NoError(t, err)
+
+	// Step 3: Extract AuthState and submit login credentials
+	parsed, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	data := url.Values{
+		"username":  {username},
+		"password":  {password},
+		"AuthState": {parsed.Query().Get("AuthState")},
+	}
+	resp, err = client.PostForm(parsed.Scheme+"://"+parsed.Host+parsed.Path, data)
+	require.NoError(t, err)
+
+	// Step 4: Extract SAMLResponse from the IdP HTML form
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+
+	re := regexp.MustCompile(`name="SAMLResponse" value="([^\s]*)" />`)
+	matches := re.FindSubmatch(body)
+	require.NotEmptyf(t, matches, "callback HTML doesn't contain a SAMLResponse value, got body: %s", body)
+	samlResponse := string(matches[1])
+
+	// Step 5: POST SAMLResponse to Fleet's MDM SSO callback (cookie jar carries the SSO session)
+	callbackURL := ts.server.URL + "/api/v1/fleet/mdm/sso/callback?SAMLResponse=" + url.QueryEscape(samlResponse)
+	resp, err = client.Post(callbackURL, "application/x-www-form-urlencoded", nil)
+	require.NoError(t, err)
+
+	return resp
+}
+
 func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
 	requestParams := initiateMDMSSORequest{
 		Initiator:      "account_driven_enroll",
