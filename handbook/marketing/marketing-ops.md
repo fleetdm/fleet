@@ -683,7 +683,7 @@ Fleet uses a virtual persona — Grace West (gracewest at fleetdm.com) — as th
 
 **How it's set up:** gracewest at fleetdm.com is a Google Group, not a licensed Gmail user. This avoids license fees and SSO/Okta complications, and allows multiple marketing team members to send as Grace when needed.
 
-**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to gracewest@fleetdm.com lands in their inboxes, and replies route back to the group rather than to individuals.
+**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to (gracewest at fleetdm.com) lands in their inboxes, and replies route back to the group rather than to individuals.
 
 **To send as Grace from your own Gmail:**
 1. In Gmail, click the gear icon → **See all settings**.
