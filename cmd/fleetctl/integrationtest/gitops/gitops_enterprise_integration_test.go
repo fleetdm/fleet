@@ -3810,39 +3810,6 @@ labels:
 	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
-// captureDeletedPolicyActivities replaces the suite's activity mock with a
-// recorder for deleted_policy activities. Returns a flush function that
-// returns and resets the captured activities.
-func (s *enterpriseIntegrationGitopsTestSuite) captureDeletedPolicyActivities(t *testing.T) func() []fleet.ActivityTypeDeletedPolicy {
-	t.Helper()
-	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
-	prev := s.activityMock.NewActivityFunc
-	var (
-		mu       sync.Mutex
-		captured []fleet.ActivityTypeDeletedPolicy
-	)
-	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
-		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
-			mu.Lock()
-			captured = append(captured, d)
-			mu.Unlock()
-		}
-		if prev != nil {
-			return prev(ctx, user, a)
-		}
-		return nil
-	}
-	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
-
-	return func() []fleet.ActivityTypeDeletedPolicy {
-		mu.Lock()
-		defer mu.Unlock()
-		out := captured
-		captured = nil
-		return out
-	}
-}
-
 // setupDarwinFMA inserts a darwin FMA record with a unique slug and starts a
 // manifest+installer server pair for it. Returns the slug to use in YAML.
 func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) string {
@@ -3976,7 +3943,21 @@ reports:
 
 	// Phase 2: re-apply with no FMA and no policies. All three should be
 	// removed and each should emit a deleted_policy activity.
-	flush := s.captureDeletedPolicyActivities(t)
+	//
+	// Capture deleted_policy activities by overriding the mock's callback.
+	// fleetctl gitops makes API calls sequentially, so the slice append runs
+	// from a single HTTP-handler goroutine at a time and the post-apply read
+	// is synchronized by the HTTP response.
+	deletedIDs := map[uint]bool{}
+	prev := s.activityMock.NewActivityFunc
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
+			deletedIDs[d.ID] = true
+		}
+		return prev(ctx, user, a)
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
 	require.NoError(t, os.WriteFile(teamFile, []byte(teamEmpty), 0o644))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
@@ -3986,10 +3967,6 @@ reports:
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
-	deletedIDs := map[uint]bool{}
-	for _, d := range flush() {
-		deletedIDs[d.ID] = true
-	}
 	for _, name := range []string{"install-policy", "patch-policy", "patch-and-install-policy"} {
 		require.True(t, deletedIDs[policyIDsByName[name]],
 			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
