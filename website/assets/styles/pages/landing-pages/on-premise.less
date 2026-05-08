@@ -20,7 +20,7 @@
     margin: auto;
   }
 
-  // ── Hero ──────────────────────────────────────────────────────────────────
+
   [purpose='landing-page-hero'] {
     padding-top: 64px;
     display: flex;
@@ -87,7 +87,7 @@
     gap: 4px;
   }
 
-  // ── Shared section layout ─────────────────────────────────────────────────
+
   [purpose='landing-page-section'] {
     display: flex;
     flex-direction: column;
@@ -138,7 +138,7 @@
     }
   }
 
-  // ── Four-column feature row ───────────────────────────────────────────────
+
   [purpose='four-column-feature-row'] {
     display: flex;
     flex-direction: row;
@@ -169,7 +169,7 @@
     }
   }
 
-  // ── Six-column feature row (wraps to 3-col) ───────────────────────────────
+
   [purpose='feature-row'] {
     display: flex;
     align-items: flex-start;
@@ -198,7 +198,7 @@
     }
   }
 
-  // ── Three-column list ─────────────────────────────────────────────────────
+
   [purpose='three-column-list'] {
     display: flex;
     align-items: flex-start;
@@ -231,7 +231,7 @@
     }
   }
 
-  // ── Section quote ─────────────────────────────────────────────────────────
+
   [purpose='section-quote'] {
     display: flex;
     flex-direction: column;
@@ -272,7 +272,7 @@
     }
   }
 
-  // ── Feature with image (checklist side) ───────────────────────────────────
+
   [purpose='feature-with-image'] {
     align-self: stretch;
     width: 100%;
@@ -292,7 +292,7 @@
       line-height: @text-lineheight;
       margin-bottom: 16px;
     }
-    // Scoped here so width: 468px doesn't leak into three-column-list
+
     [purpose='feature-text'] {
       width: 468px;
       gap: 32px;
@@ -326,7 +326,7 @@
     }
   }
 
-  // ── Terminal block ────────────────────────────────────────────────────────
+
   [purpose='terminal-block'] {
     background: @core-fleet-black;
     border-radius: 12px;
@@ -351,9 +351,9 @@
     height: 10px;
     border-radius: 50%;
     display: inline-block;
-    &.dot-red    { background: #ff5f57; }
+    &.dot-red { background: #ff5f57; }
     &.dot-yellow { background: #febc2e; }
-    &.dot-green  { background: #28c840; }
+    &.dot-green { background: #28c840; }
   }
 
   [purpose='terminal-filename'] {
@@ -376,7 +376,7 @@
     [purpose='ts'] { color: #ffa657; }
   }
 
-  // ── Feature cards (replace-jamf style) ───────────────────────────────────
+
   [purpose='feature-cards'] {
     display: flex;
     align-items: flex-start;
@@ -390,12 +390,12 @@
     display: flex;
     align-self: stretch;
     min-width: 240px;
-    max-width: ~"calc(33.33% - 16px)";
+    max-width: ~'calc(33.33% - 16px)';
     padding: 32px;
     flex-direction: column;
     align-items: flex-start;
     justify-content: space-between;
-    flex: 1 1 ~"calc(33.33% - 16px)";
+    flex: 1 1 ~'calc(33.33% - 16px)';
     border-radius: 16px;
     border: 1px solid @core-fleet-black-10;
     gap: 24px;
@@ -432,7 +432,7 @@
     }
   }
 
-  // ── Comparison table (matches replace-jamf exactly) ───────────────────────
+
   [purpose='comparison-table-section'] {
     width: 100%;
   }
@@ -525,7 +525,7 @@
     }
   }
 
-  // ── Mobile comparison table ───────────────────────────────────────────────
+
   [purpose='mobile-comparison-table'] {
     display: none;
     flex-direction: column;
@@ -551,8 +551,7 @@
         font-weight: 700;
         line-height: @text-lineheight;
       }
-      [purpose='fleet-row'],
-      [purpose='competitor-row'] {
+      [purpose='fleet-row'], [purpose='competitor-row'] {
         display: flex;
         align-items: center;
         align-self: stretch;
@@ -600,7 +599,7 @@
     }
   }
 
-  // ── Proof quote cards ─────────────────────────────────────────────────────
+
   [purpose='proof-cards'] {
     display: flex;
     gap: 24px;
@@ -646,7 +645,7 @@
     margin-top: 2px;
   }
 
-  // ── Bottom CTA ────────────────────────────────────────────────────────────
+
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
   }
@@ -689,7 +688,7 @@
     }
   }
 
-  // ── Responsive ────────────────────────────────────────────────────────────
+
   @media (max-width: 1200px) {
     [purpose='landing-page-content'] { gap: 120px; }
   }
@@ -705,15 +704,15 @@
       padding-bottom: 40px;
     }
     [purpose='four-column-feature-row'] [purpose='feature-item'] {
-      flex: 0 1 ~"calc(50% - 16px)";
-      max-width: ~"calc(50% - 16px)";
+      flex: 0 1 ~'calc(50% - 16px)';
+      max-width: ~'calc(50% - 16px)';
     }
     [purpose='feature-row'] [purpose='feature-item'] {
       flex: 1 0 40%;
     }
     [purpose='three-column-list'] [purpose='feature'] {
-      flex: 0 1 ~"calc(50% - 16px)";
-      max-width: ~"calc(50% - 16px)";
+      flex: 0 1 ~'calc(50% - 16px)';
+      max-width: ~'calc(50% - 16px)';
       min-width: 0;
     }
     [purpose='feature-with-image'] {
@@ -727,12 +726,12 @@
       order: -1;
     }
     [purpose='feature-card'] {
-      flex: 1 1 ~"calc(50% - 12px)";
-      max-width: ~"calc(50% - 12px)";
+      flex: 1 1 ~'calc(50% - 12px)';
+      max-width: ~'calc(50% - 12px)';
     }
     [purpose='proof-card'] {
-      flex: 0 1 ~"calc(50% - 12px)";
-      max-width: ~"calc(50% - 12px)";
+      flex: 0 1 ~'calc(50% - 12px)';
+      max-width: ~'calc(50% - 12px)';
     }
     [purpose='bottom-cta'] {
       padding: 48px;
@@ -757,8 +756,7 @@
       min-width: unset;
       flex: 1 0 100%;
     }
-    [purpose='feature-card'],
-    [purpose='proof-card'] {
+    [purpose='feature-card'], [purpose='proof-card'] {
       flex: 1 0 100%;
       max-width: unset;
       min-width: unset;
