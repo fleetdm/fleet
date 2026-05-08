@@ -1563,39 +1563,97 @@ const ManageHostsPage = ({
     </div>
   );
 
-  const onExportHostsResults = async (
-    evt: React.MouseEvent<HTMLButtonElement>
-  ) => {
-    evt.preventDefault();
+  const onExportHostsResults = useCallback(
+    async (evt: React.MouseEvent<HTMLButtonElement>) => {
+      evt.preventDefault();
 
-    const hiddenColumnsStorage = localStorage.getItem("hostHiddenColumns");
-    let currentHiddenColumns = [];
-    let visibleColumns;
-    if (hiddenColumnsStorage) {
-      currentHiddenColumns = JSON.parse(hiddenColumnsStorage);
-    }
+      let visibleColumns;
 
-    if (config && currentUser) {
-      const tableColumns = generateVisibleTableColumns({
-        hiddenColumns: currentHiddenColumns,
-        isFreeTier,
-        isOnlyObserver,
+      if (config && currentUser) {
+        const tableColumns = generateVisibleTableColumns({
+          hiddenColumns,
+          isFreeTier,
+          isOnlyObserver,
+          teamId: teamIdForApi,
+        });
+
+        const columnIds = tableColumns
+          .map((column) => (column.id ? column.id : ""))
+          // "selection" colum does not include any relevent data for the CSV
+          // so we filter it out.
+          .filter((element) => element !== "" && element !== "selection");
+        visibleColumns = columnIds.join(",");
+      }
+
+      let options = {
+        selectedLabels,
+        globalFilter: searchQuery,
+        sortBy,
         teamId: teamIdForApi,
-      });
+        policyId,
+        policyResponse,
+        macSettingsStatus,
+        softwareId,
+        softwareTitleId,
+        softwareVersionId,
+        softwareStatus,
+        status,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        osName,
+        osVersionId,
+        osVersion,
+        osSettings: osSettingsStatus,
+        bootstrapPackageStatus,
+        vulnerability,
+        visibleColumns,
+        configProfileUUID,
+        configProfileStatus,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
+        diskEncryptionStatus,
+        depProfileError: strToBool(depProfileError),
+        depAssignProfileResponse,
+      };
 
-      const columnIds = tableColumns
-        .map((column) => (column.id ? column.id : ""))
-        // "selection" colum does not include any relevent data for the CSV
-        // so we filter it out.
-        .filter((element) => element !== "" && element !== "selection");
-      visibleColumns = columnIds.join(",");
-    }
+      options = {
+        ...options,
+        teamId: teamIdForApi,
+      };
 
-    let options = {
+      if (
+        queryParams.fleet_id !== API_ALL_TEAMS_ID &&
+        queryParams.fleet_id !== ""
+      ) {
+        options.teamId = queryParams.fleet_id;
+      }
+
+      try {
+        const exportHostResults = await hostsAPI.exportHosts(options);
+
+        const formattedTime = format(new Date(), "yyyy-MM-dd");
+        const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
+        const file = new global.window.File([exportHostResults], filename, {
+          type: "text/csv",
+        });
+
+        FileSaver.saveAs(file);
+      } catch (error) {
+        console.error(error);
+        renderFlash("error", "Could not export hosts. Please try again.");
+      }
+    },
+    [
+      config,
+      currentUser,
+      isFreeTier,
+      isOnlyObserver,
+      teamIdForApi,
       selectedLabels,
-      globalFilter: searchQuery,
+      searchQuery,
       sortBy,
-      teamId: teamIdForApi,
       policyId,
       policyResponse,
       macSettingsStatus,
@@ -1611,43 +1669,21 @@ const ManageHostsPage = ({
       osName,
       osVersionId,
       osVersion,
-      osSettings: osSettingsStatus,
+      osSettingsStatus,
       bootstrapPackageStatus,
       vulnerability,
-      visibleColumns,
       configProfileUUID,
       configProfileStatus,
       scriptBatchExecutionStatus,
       scriptBatchExecutionId,
-    };
-
-    options = {
-      ...options,
-      teamId: teamIdForApi,
-    };
-
-    if (
-      queryParams.fleet_id !== API_ALL_TEAMS_ID &&
-      queryParams.fleet_id !== ""
-    ) {
-      options.teamId = queryParams.fleet_id;
-    }
-
-    try {
-      const exportHostResults = await hostsAPI.exportHosts(options);
-
-      const formattedTime = format(new Date(), "yyyy-MM-dd");
-      const filename = `${CSV_HOSTS_TITLE} ${formattedTime}.csv`;
-      const file = new global.window.File([exportHostResults], filename, {
-        type: "text/csv",
-      });
-
-      FileSaver.saveAs(file);
-    } catch (error) {
-      console.error(error);
-      renderFlash("error", "Could not export hosts. Please try again.");
-    }
-  };
+      diskEncryptionStatus,
+      depProfileError,
+      depAssignProfileResponse,
+      hiddenColumns,
+      queryParams.fleet_id,
+      renderFlash,
+    ]
+  );
 
   // TODO: try to reduce overlap between maybeEmptyHosts and includesFilterQueryParam
   const maybeEmptyHosts =
@@ -1663,7 +1699,7 @@ const ManageHostsPage = ({
   // No hosts enrolled at all, no filters active
   const isTrulyEmpty = maybeEmptyHosts && !includesFilterQueryParam;
 
-  const renderHostCount = useCallback(() => {
+  const renderHostCountAndExport = useCallback(() => {
     return (
       <>
         <TableCount name="hosts" count={totalFilteredHostsCount} />
@@ -1682,7 +1718,7 @@ const ManageHostsPage = ({
         )}
       </>
     );
-  }, [isLoadingHostsCount, totalFilteredHostsCount, isTrulyEmpty]);
+  }, [totalFilteredHostsCount, isTrulyEmpty, onExportHostsResults]);
 
   const renderCustomControls = () => {
     // we filter out the status labels as we dont want to display them in the label
@@ -1892,7 +1928,7 @@ const ManageHostsPage = ({
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         disableSearch={isTrulyEmpty}
-        renderCount={renderHostCount}
+        renderCount={renderHostCountAndExport}
         searchToolTipText={HOSTS_SEARCH_BOX_TOOLTIP}
         disableActionButton={isTrulyEmpty}
         emptyComponent={() => (
