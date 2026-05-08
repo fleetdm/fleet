@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-# Script for enrolling osquery-perf hosts by `terraform apply`ing in increments of 8 `loadtest` containers.
+# Script for enrolling osquery-perf hosts by `terraform apply`ing in increments of 4 `loadtest` containers.
 # NOTE(lucas): This is the currently known configuration that won't tip the loadtest environment,
 # but maybe in the future we can be more aggressive (and reduce enroll time).
 #
@@ -11,7 +11,7 @@ TASK_SIZE=${2:?}
 START_INDEX=$3
 END_INDEX=$4
 SLEEP_TIME_SECONDS=${5:-60}
-INCREMENT=${6:-8}
+INCREMENT=${6:-4}
 
 if [ -z "$BRANCH_NAME" ]; then
 	echo "Missing BRANCH_NAME"
