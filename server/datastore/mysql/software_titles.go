@@ -21,7 +21,7 @@ import (
 
 var softwareTitlesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":                "st.id",
-	"name":              "COALESCE(stdn.display_name, st.name)",
+	"name":              "COALESCE(NULLIF(stdn.display_name, ''), st.name)",
 	"source":            "st.source",
 	"extension_for":     "st.extension_for",
 	"bundle_identifier": "st.bundle_identifier",
@@ -576,7 +576,7 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	case "name":
 		secondaryOrderBy = ", hosts_count DESC"
 	default:
-		secondaryOrderBy = ", COALESCE(stdn.display_name, st.name) ASC"
+		secondaryOrderBy = ", COALESCE(NULLIF(stdn.display_name, ''), st.name) ASC"
 	}
 
 	if k != "source" {
