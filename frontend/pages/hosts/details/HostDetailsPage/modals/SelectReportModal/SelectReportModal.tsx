@@ -28,7 +28,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import { getPathWithQueryParams } from "utilities/url";
 
-export interface ISelectQueryModalProps {
+export interface ISelectReportModalProps {
   onCancel: () => void;
   isOnlyObserver?: boolean;
   hostId: number;
@@ -39,17 +39,17 @@ export interface ISelectQueryModalProps {
 
 const baseClass = "select-query-modal";
 
-const SelectQueryModal = ({
+const SelectReportModal = ({
   onCancel,
   isOnlyObserver,
   hostId,
   hostTeamId,
   router,
   currentTeamId,
-}: ISelectQueryModalProps): JSX.Element => {
+}: ISelectReportModalProps): JSX.Element => {
   const { setSelectedQueryTargetsByType } = useContext(QueryContext);
 
-  const { data: queries, error: queriesErr } = useQuery<
+  const { data: reports, error: reportsErr } = useQuery<
     IListQueriesResponse,
     Error,
     ISchedulableQuery[],
@@ -72,7 +72,7 @@ const SelectQueryModal = ({
     }
   );
 
-  const onQueryHostCustom = () => {
+  const onRunCustomReport = () => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
       getPathWithQueryParams(PATHS.NEW_REPORT, {
@@ -82,17 +82,17 @@ const SelectQueryModal = ({
     );
   };
 
-  const onQueryHostSaved = (selectedQuery: ISchedulableQuery) => {
+  const onRunSavedReport = (selectedReport: ISchedulableQuery) => {
     setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
     router.push(
-      getPathWithQueryParams(PATHS.EDIT_REPORT(selectedQuery.id), {
+      getPathWithQueryParams(PATHS.EDIT_REPORT(selectedReport.id), {
         host_id: hostId,
         fleet_id: currentTeamId,
       })
     );
   };
 
-  let queriesAvailableToRun = queries;
+  let reportsAvailableToRun = reports;
 
   const { currentUser, isObserverPlus } = useContext(AppContext);
 
@@ -102,52 +102,55 @@ const SelectQueryModal = ({
     ? permissions.isObserverPlus(currentUser, hostTeamId)
     : false;
 
-  const [queriesFilter, setQueriesFilter] = useState("");
+  const canCreateReport =
+    !isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus;
+
+  const [reportsFilter, setReportsFilter] = useState("");
 
   if (isOnlyObserver && !isObserverPlus && !isHostsTeamObserverPlus) {
-    queriesAvailableToRun =
-      queries?.filter((query) => query.observer_can_run === true) || [];
+    reportsAvailableToRun =
+      reports?.filter((report) => report.observer_can_run === true) || [];
   }
 
-  const getQueries = () => {
-    if (!queriesFilter) {
-      return queriesAvailableToRun;
+  const getReports = () => {
+    if (!reportsFilter) {
+      return reportsAvailableToRun;
     }
 
-    const lowerQueryFilter = queriesFilter.toLowerCase();
+    const lowerReportFilter = reportsFilter.toLowerCase();
 
-    return filter(queriesAvailableToRun, (query) => {
-      if (!query.name) {
+    return filter(reportsAvailableToRun, (report) => {
+      if (!report.name) {
         return false;
       }
 
-      const lowerQueryName = query.name.toLowerCase();
+      const lowerReportName = report.name.toLowerCase();
 
-      return includes(lowerQueryName, lowerQueryFilter);
+      return includes(lowerReportName, lowerReportFilter);
     });
   };
 
-  const onFilterQueries = useCallback(
+  const onFilterReports = useCallback(
     (filterString: string): void => {
-      setQueriesFilter(filterString);
+      setReportsFilter(filterString);
     },
-    [setQueriesFilter]
+    [setReportsFilter]
   );
 
-  const queriesFiltered = getQueries();
+  const reportsFiltered = getReports();
 
-  const queriesCount = queriesFiltered?.length || 0;
+  const reportsCount = reportsFiltered?.length || 0;
 
   const renderDescription = (): JSX.Element => {
     return (
       <div className={`${baseClass}__description`}>
         Choose a report to run on this host
-        {(!isOnlyObserver || isObserverPlus || isHostsTeamObserverPlus) && (
+        {canCreateReport && (
           <>
             {" "}
             or{" "}
-            <Button variant="link" onClick={onQueryHostCustom}>
-              create your own report
+            <Button variant="link" onClick={onRunCustomReport}>
+              create a report
             </Button>
           </>
         )}
@@ -156,35 +159,46 @@ const SelectQueryModal = ({
     );
   };
 
-  const renderQueries = (): JSX.Element => {
-    if (queriesErr) {
+  const renderReports = (): JSX.Element => {
+    if (reportsErr) {
       return <DataError />;
     }
 
-    if (!queriesFilter && queriesCount === 0) {
+    if (!reportsFilter && reportsCount === 0) {
       return (
         <EmptyState
           variant="list"
-          header="You have no saved reports"
-          info="Expecting to see reports? Try again in a few seconds as the system catches up."
+          header="No saved reports"
+          info={
+            canCreateReport ? (
+              <>
+                <Button variant="link" onClick={onRunCustomReport}>
+                  Create a report
+                </Button>{" "}
+                to run.
+              </>
+            ) : (
+              "No reports are available to run."
+            )
+          }
         />
       );
     }
 
-    if (queriesCount > 0) {
-      const queryList =
-        queriesFiltered?.map((query) => {
+    if (reportsCount > 0) {
+      const reportList =
+        reportsFiltered?.map((report) => {
           return (
             <Button
-              key={query.id}
+              key={report.id}
               variant="unstyled-modal-query"
               className={`${baseClass}__modal-query-button`}
-              onClick={() => onQueryHostSaved(query)}
+              onClick={() => onRunSavedReport(report)}
             >
               <>
-                <span className="info__header">{query.name}</span>
-                {query.description && (
-                  <span className="info__data">{query.description}</span>
+                <span className="info__header">{report.name}</span>
+                {report.description && (
+                  <span className="info__data">{report.description}</span>
                 )}
               </>
             </Button>
@@ -194,27 +208,27 @@ const SelectQueryModal = ({
       return (
         <>
           <InputFieldWithIcon
-            name="query-filter"
-            onChange={onFilterQueries}
+            name="report-filter"
+            onChange={onFilterReports}
             placeholder="Filter reports"
-            value={queriesFilter}
+            value={reportsFilter}
             autofocus
             iconSvg="search"
           />
-          <div className={`${baseClass}__query-selection`}>{queryList}</div>
+          <div className={`${baseClass}__report-selection`}>{reportList}</div>
         </>
       );
     }
 
-    if (queriesFilter && queriesCount === 0) {
+    if (reportsFilter && reportsCount === 0) {
       return (
         <>
           <div className={`${baseClass}__filter-queries`}>
             <InputFieldWithIcon
-              name="query-filter"
-              onChange={onFilterQueries}
+              name="report-filter"
+              onChange={onFilterReports}
               placeholder="Filter reports"
-              value={queriesFilter}
+              value={reportsFilter}
               autofocus
               iconSvg="search"
             />
@@ -239,9 +253,14 @@ const SelectQueryModal = ({
       width="large"
     >
       {renderDescription()}
-      {renderQueries()}
+      {renderReports()}
+      <div className="modal-cta-wrap">
+        <Button onClick={onCancel} variant="inverse">
+          Close
+        </Button>
+      </div>
     </Modal>
   );
 };
 
-export default SelectQueryModal;
+export default SelectReportModal;
