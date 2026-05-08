@@ -86,4 +86,7 @@ const (
 	FleetHTTPSignatureTPMKeyFileName = "host_identity_tpm.pem"
 	// FleetHTTPSignatureTPMKeyBackupFileName is the filename for the backup of the TPM key during renewal
 	FleetHTTPSignatureTPMKeyBackupFileName = "host_identity_tpm.old.pem"
+
+	// unusedFlagKeyword is used by the MSI builder and installer to populate parameters, which cannot be empty
+	UnusedFlagKeyword = "dummy"
 )
