@@ -14,7 +14,6 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 - [Entra conditional access for Windows](#anchor-04)
 - [Remove settings from Windows when profile is deleted](#anchor-05)
 
-<a name="anchor-01"></a>
 
 ### GitOps mode exceptions
 
