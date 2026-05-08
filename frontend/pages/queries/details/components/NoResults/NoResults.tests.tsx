@@ -15,21 +15,17 @@ describe("NoResults", () => {
   describe("no interval set", () => {
     it("shows interval and live report text when user can edit and run live", () => {
       render(
-        <NoResults
-          {...baseProps}
-          queryInterval={0}
-          canEditQuery
-          canLiveQuery
-        />
+        <NoResults {...baseProps} queryInterval={0} canEditQuery canLiveQuery />
       );
 
       expect(screen.getByText("Nothing to report")).toBeInTheDocument();
       expect(screen.getByText(/Add an/)).toBeInTheDocument();
       expect(screen.getByText("interval")).toBeInTheDocument();
       expect(screen.getByText("live report")).toBeInTheDocument();
-      expect(
-        screen.getByRole("link", { name: /live report/ })
-      ).toHaveAttribute("href", expect.stringContaining("/reports/42/live"));
+      expect(screen.getByRole("link", { name: /live report/ })).toHaveAttribute(
+        "href",
+        expect.stringContaining("/reports/42/live")
+      );
     });
 
     it("shows only interval text when user can edit but not run live", () => {

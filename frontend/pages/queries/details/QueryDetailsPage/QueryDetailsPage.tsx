@@ -253,7 +253,7 @@ const QueryDetailsPage = ({
     (isTeamMaintainerOrTeamAdmin && storedQuery?.team_id);
 
   const renderHeader = () => {
-
+    // Function instead of constant eliminates race condition with filteredQueriesPath
     const backPath = () => {
       if (hostId)
         return getPathWithQueryParams(
