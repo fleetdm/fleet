@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -540,7 +541,6 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 		UniqueTestName: "dep_runassigner_replica_lag",
 	}
 	ds := mysql.CreateMySQLDSWithOptions(t, opts)
-	t.Cleanup(func() { ds.Close() })
 
 	const abmTokenOrgName = "test_org"
 	depStorage, err := ds.NewMDMAppleDEPStorage()
@@ -568,23 +568,23 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName)))
+			_, _ = w.Write(fmt.Appendf([]byte{}, `{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName))
 		case "/profile":
-			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		case "/server/devices", "/devices/sync":
 			syncCallCount++
 			// Return our two devices on the very first sync; empty thereafter so the
 			// syncer terminates instead of looping on the same devices.
 			if syncCallCount == 1 {
-				require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
 			} else {
-				require.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: nil}))
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: nil}))
 			}
 		case "/profile/devices":
 			body, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			assert.NoError(t, err)
 			var assignReq godep.Profile
-			require.NoError(t, json.Unmarshal(body, &assignReq))
+			assert.NoError(t, json.Unmarshal(body, &assignReq))
 			assignedSerials = append(assignedSerials, assignReq.Devices...)
 			apiResp := godep.ProfileResponse{
 				ProfileUUID: assignReq.ProfileUUID,
@@ -593,7 +593,7 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 			for _, s := range assignReq.Devices {
 				apiResp.Devices[s] = string(fleet.DEPAssignProfileResponseSuccess)
 			}
-			require.NoError(t, encoder.Encode(apiResp))
+			assert.NoError(t, encoder.Encode(apiResp))
 		default:
 			t.Errorf("unexpected request to %s", r.URL.Path)
 		}
@@ -601,7 +601,7 @@ func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	require.NoError(t, depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL}))
-	logger := slog.New(slog.Default().Handler())
+	logger := slog.New(slog.DiscardHandler)
 	svc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	require.NoError(t, svc.RunAssigner(ctx))

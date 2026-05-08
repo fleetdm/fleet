@@ -856,7 +856,7 @@ func (d *DEPService) processDeviceResponse(
 		if len(missing) > 0 {
 			// We did not get all serials passed in, back assigned to a bucket, could be due to potential replica lag.
 			// We force the remaining serials into the assign bucket, to ensure they get processed.
-			d.logger.InfoContext(ctx, "found missing serials after cooldown screening, adding them to assign profile operation", "serials", fmt.Sprintf("%s", missing), "count", len(missing), "org_name", abmOrganizationName)
+			logger.InfoContext(ctx, "found missing serials after cooldown screening, adding them to assign profile operation", "serials", missing, "count", len(missing), "org_name", abmOrganizationName)
 			assignSerials[abmOrganizationName] = append(assignSerials[abmOrganizationName], missing...)
 		}
 
