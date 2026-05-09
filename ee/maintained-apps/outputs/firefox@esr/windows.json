@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "140.10.1",
+      "version": "140.10.2",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '140.10.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '140.10.2') < 0);"
       },
-      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.10.1esr/win64/en-US/Firefox%20Setup%20140.10.1esr.exe",
+      "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/140.10.2esr/win64/en-US/Firefox%20Setup%20140.10.2esr.exe",
       "install_script_ref": "36995f4f",
       "uninstall_script_ref": "5dc712f7",
-      "sha256": "ef9b237e30a0c6d0e32ad92704875b49972ec734fff2e8cbba146d3c2e468184",
+      "sha256": "cbcb876cd0e781448307580c4342ba7675774b5f7b2a008b6e67ffef0f39d3f7",
       "default_categories": [
         "Browsers"
       ]
