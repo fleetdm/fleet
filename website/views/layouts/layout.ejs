@@ -940,6 +940,7 @@
     <script src="/js/pages/landing-pages/deployment.page.js"></script>
     <script src="/js/pages/landing-pages/gitops-workshop.page.js"></script>
     <script src="/js/pages/landing-pages/linux-management.page.js"></script>
+    <script src="/js/pages/landing-pages/on-premise.page.js"></script>
     <script src="/js/pages/landing-pages/replace-jamf.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
@@ -1064,6 +1065,21 @@
       // Keep footer hidden until the document is ready (prevents flicker that is especially unattractive on mobile)
       $(function() {
         $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
+      });
+
+      // Lazy-load YouTube embeds: show a thumbnail on page load (no YouTube cookies), swap in an autoplay iframe on click.
+      $(function() {
+        document.querySelectorAll('[purpose="embedded-content"] a[href*="youtube.com"]').forEach(function(link) {
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            var videoId = new URL(link.href).searchParams.get('v');
+            var iframe = document.createElement('iframe');
+            iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1';
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('allow', 'autoplay; fullscreen');
+            link.replaceWith(iframe);
+          });
+        });
       });
 
       // Adding hover events to header dropdown menus.
