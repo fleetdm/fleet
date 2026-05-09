@@ -28672,7 +28672,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
-func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesObsoletePatchPolicy() {
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObsoletePatchPolicy() {
 	t := s.T()
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
@@ -28729,8 +28729,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
 
-	// Batch set only zoom/windows — should not fail and should delete the obsolete patch policy.
+	// Batch set only zoom/windows — should not fail and should unset the obsolete patch policy's
+	// patch_software_title_id without deleting the policy. Gitops then deletes it via the policy
+	// delete API so the deletion produces a deleted_policy activity.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
@@ -28738,10 +28741,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
-	// Verify the patch policy was deleted.
+	// Verify the patch policy still exists but no longer references a software title.
 	listPolResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-	require.Empty(t, listPolResp.Policies)
+	require.Len(t, listPolResp.Policies, 1)
+	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.Nil(t, listPolResp.Policies[0].PatchSoftware)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
