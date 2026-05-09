@@ -1072,7 +1072,10 @@
         document.querySelectorAll('[purpose="embedded-content"] a[href*="youtube.com"]').forEach(function(link) {
           link.addEventListener('click', function(e) {
             e.preventDefault();
-            var videoId = new URL(link.href).searchParams.get('v');
+            var u = new URL(link.href);
+            if (!/(^|\.)youtube\.com$/.test(u.hostname)) { return; }
+            var videoId = u.searchParams.get('v');
+            if (!videoId || !/^[A-Za-z0-9_-]{6,20}$/.test(videoId)) { return; }
             var iframe = document.createElement('iframe');
             iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1';
             iframe.setAttribute('allowfullscreen', '');

@@ -1,7 +1,7 @@
 # Fleet 4.84.0 | Python scripts, Entra for Windows, auto-rotate Recovery Lock, and more...
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=mpKDV7zpb-I" target="_blank">
+   <a href="https://www.youtube.com/watch?v=mpKDV7zpb-I" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/mpKDV7zpb-I/maxresdefault.jpg" alt="Fleet 4.84.0 overview video" />
    </a>
 </div>
@@ -20,7 +20,7 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 ### GitOps mode exceptions
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=B4t2XvwUoZE" target="_blank">
+   <a href="https://www.youtube.com/watch?v=B4t2XvwUoZE" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/B4t2XvwUoZE/maxresdefault.jpg" alt="GitOps mode exceptions" />
    </a>
 </div>
@@ -39,7 +39,7 @@ GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 ### Automatically rotate Recovery Lock passwords
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=xMj-ezBO0zQ" target="_blank">
+   <a href="https://www.youtube.com/watch?v=xMj-ezBO0zQ" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/xMj-ezBO0zQ/maxresdefault.jpg" alt="Automatically rotate Recovery Lock passwords" />
    </a>
 </div>
@@ -54,7 +54,7 @@ GitHub issue: [#41003](https://github.com/fleetdm/fleet/issues/41003)
 ### Run Python scripts on macOS & Linux
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=GzVT6TfnrUE" target="_blank">
+   <a href="https://www.youtube.com/watch?v=GzVT6TfnrUE" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/GzVT6TfnrUE/maxresdefault.jpg" alt="Run Python scripts on macOS and Linux" />
    </a>
 </div>
@@ -69,7 +69,7 @@ GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 ### Entra conditional access for Windows
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=2ZmPeq26oqI" target="_blank">
+   <a href="https://www.youtube.com/watch?v=2ZmPeq26oqI" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/2ZmPeq26oqI/maxresdefault.jpg" alt="Entra conditional access for Windows" />
    </a>
 </div>
@@ -84,7 +84,7 @@ GitHub issue: [#38041](https://github.com/fleetdm/fleet/issues/38041)
 ### Remove settings from Windows when profile is deleted
 
 <div purpose="embedded-content">
-   <a href="https://www.youtube.com/watch?v=v4m93tCjw40" target="_blank">
+   <a href="https://www.youtube.com/watch?v=v4m93tCjw40" target="_blank" rel="noopener noreferrer">
       <img src="https://img.youtube.com/vi/v4m93tCjw40/maxresdefault.jpg" alt="Remove settings from Windows when profile is deleted" />
    </a>
 </div>
