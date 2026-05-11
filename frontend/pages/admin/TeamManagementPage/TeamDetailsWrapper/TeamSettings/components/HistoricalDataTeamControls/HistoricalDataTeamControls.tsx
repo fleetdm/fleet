@@ -72,7 +72,7 @@ const HistoricalDataTeamControls = ({
                   )
             }
           >
-            Disable vulnerabilities
+            Disable vulnerability exposure historical reporting
           </Checkbox>
         )}
       />
