@@ -171,7 +171,8 @@ const SoftwareOSTable = ({
   const hasData = data?.os_versions && data?.os_versions.length > 0;
   const hasPlatformFilter = platform !== "all";
 
-  const isTrulyEmpty = isSoftwareEnabled && !hasData && !hasPlatformFilter;
+  const isTrulyEmpty = !hasData && !hasPlatformFilter;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const renderSoftwareCount = () => {
     if (!data) return null;
@@ -179,7 +180,7 @@ const SoftwareOSTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {!isTrulyEmpty && data?.counts_updated_at && (
+        {!controlsDisabled && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
@@ -234,7 +235,7 @@ const SoftwareOSTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
-        isDisabled={isTrulyEmpty}
+        isDisabled={controlsDisabled}
       />
     );
   };

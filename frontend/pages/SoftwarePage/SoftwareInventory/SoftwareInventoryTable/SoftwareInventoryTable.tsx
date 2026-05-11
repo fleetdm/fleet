@@ -176,8 +176,8 @@ const SoftwareTable = ({
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const isTrulyEmpty =
-    isSoftwareEnabled && !hasData && !hasQuery && !hasVulnFilters;
+  const isTrulyEmpty = !hasData && !hasQuery && !hasVulnFilters;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -238,7 +238,7 @@ const SoftwareTable = ({
           onChange={handleShowVersionsToggle}
           inactiveText="Show versions"
           activeText="Show versions"
-          disabled={isTrulyEmpty}
+          disabled={controlsDisabled}
         />
         <TooltipWrapper
           className={`${baseClass}__filters`}
@@ -252,7 +252,7 @@ const SoftwareTable = ({
           <Button
             variant="inverse"
             onClick={onAddFiltersClick}
-            disabled={isTrulyEmpty}
+            disabled={controlsDisabled}
           >
             <Icon name="filter" />
             <span>{vulnFilterDetails.buttonText}</span>
@@ -298,7 +298,7 @@ const SoftwareTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable
-        disableSearch={isTrulyEmpty}
+        disableSearch={controlsDisabled}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
         customControl={renderCustomControls}

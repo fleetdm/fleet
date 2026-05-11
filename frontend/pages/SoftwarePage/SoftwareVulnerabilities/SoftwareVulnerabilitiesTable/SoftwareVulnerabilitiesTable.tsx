@@ -62,7 +62,7 @@ const SoftwareVulnerabilitiesTable = ({
   isSoftwareEnabled,
   data,
   emptyStateReason,
-  query,
+  query = "",
   perPage,
   orderDirection,
   orderKey,
@@ -146,7 +146,8 @@ const SoftwareVulnerabilitiesTable = ({
   const hasQuery = query !== "";
 
   const isTrulyEmpty =
-    isSoftwareEnabled && !hasData && !hasQuery && !showExploitedVulnerabilitiesOnly;
+    !hasData && !hasQuery && !showExploitedVulnerabilitiesOnly;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
@@ -245,7 +246,7 @@ const SoftwareVulnerabilitiesTable = ({
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
         variant="table-filter"
-        isDisabled={isTrulyEmpty}
+        isDisabled={controlsDisabled}
       />
     );
   };
@@ -276,7 +277,7 @@ const SoftwareVulnerabilitiesTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable
-        disableSearch={isTrulyEmpty}
+        disableSearch={controlsDisabled}
         searchQueryColumn="vulnerability"
         inputPlaceHolder="Search by CVE"
         searchToolTipText={VULNERABILITIES_SEARCH_BOX_TOOLTIP}

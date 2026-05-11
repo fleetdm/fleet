@@ -140,8 +140,8 @@ const SoftwareLibraryTable = ({
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
 
-  const isTrulyEmpty =
-    isSoftwareEnabled && !hasData && !hasQuery && !selfServiceOnly;
+  const isTrulyEmpty = !hasData && !hasQuery && !selfServiceOnly;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleSelfServiceToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -201,7 +201,7 @@ const SoftwareLibraryTable = ({
         onChange={handleSelfServiceToggle}
         inactiveText="Self-service only"
         activeText="Self-service only"
-        disabled={isTrulyEmpty}
+        disabled={controlsDisabled}
       />
     );
   };
@@ -273,7 +273,7 @@ const SoftwareLibraryTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable
-        disableSearch={isTrulyEmpty}
+        disableSearch={controlsDisabled}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         additionalQueries={String(selfServiceOnly)}
