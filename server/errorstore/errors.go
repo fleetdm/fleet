@@ -36,6 +36,14 @@ func maybeReplaceSocketAddr(s string) string {
 	return socketAddrPattern.ReplaceAllString(s, "<addr>")
 }
 
+// statusCoder duck-types errors that expose an HTTP status code (matches
+// service.OsqueryError.Status). Used below to limit the socket-address
+// normalization to request-timeout errors only, without introducing a
+// service -> errorstore import cycle.
+type statusCoder interface {
+	Status() int
+}
+
 // Handler defines an error handler. Call Handler.Store to handle an error, and
 // Handler.Retrieve to retrieve all stored errors and optionally clear them
 // from the store. It is safe to call those methods concurrently.
@@ -160,10 +168,14 @@ func hashError(err error) string {
 
 	var sb strings.Builder
 	// hash the cause type and message (it might not be a FleetError).
-	// Socket addresses are normalized away first so that errors which
-	// only differ by ephemeral TCP source port (e.g. *net.OpError
-	// "read tcp ...: i/o timeout") collapse into a single dedup entry.
-	fmt.Fprintf(&sb, "%T\n%s\n", cause, maybeReplaceSocketAddr(cause.Error()))
+	// For request-timeout errors only, socket addresses are normalized
+	// away first so that occurrences which differ only by ephemeral TCP
+	// source port collapse into a single dedup entry.
+	msg := cause.Error()
+	if sc, ok := cause.(statusCoder); ok && sc.Status() == http.StatusRequestTimeout {
+		msg = maybeReplaceSocketAddr(msg)
+	}
+	fmt.Fprintf(&sb, "%T\n%s\n", cause, msg)
 
 	// hash the stack trace of the root FleetError in the chain
 	if ferr != nil {
