@@ -42,7 +42,9 @@ describe("Advanced settings — Activity & data retention", () => {
       screen.getByLabelText(/Disable hosts online historical reporting/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByLabelText(/Disable vulnerabilities/i)
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
     ).toBeInTheDocument();
   });
 
