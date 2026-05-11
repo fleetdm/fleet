@@ -54,7 +54,9 @@ describe("Advanced settings — Activity & data retention", () => {
       screen.getByLabelText(/Disable hosts online historical reporting/i)
     ).not.toBeChecked();
     expect(
-      screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
     ).not.toBeChecked();
   });
 
@@ -64,7 +66,9 @@ describe("Advanced settings — Activity & data retention", () => {
     });
     expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
     expect(
-      screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)
+      screen.getByLabelText(
+        /Disable vulnerability exposure historical reporting/i
+      )
     ).not.toBeChecked();
   });
 
