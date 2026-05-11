@@ -171,14 +171,13 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const showFilterHeaders =
-    isSoftwareEnabled && (hasData || hasQuery || hasVulnFilters);
+  const isTrulyEmpty =
+    isSoftwareEnabled && !hasData && !hasQuery && !hasVulnFilters;
 
   const handleShowVersionsToggle = () => {
     const queryParams: Record<string, string | number | boolean | undefined> = {
@@ -227,32 +226,39 @@ const SoftwareTable = ({
             }
           />
         )}
+      </>
+    );
+  };
+
+  const renderCustomControls = () => {
+    return (
+      <>
         <Slider
           value={showVersions}
           onChange={handleShowVersionsToggle}
           inactiveText="Show versions"
           activeText="Show versions"
+          disabled={isTrulyEmpty}
         />
+        <TooltipWrapper
+          className={`${baseClass}__filters`}
+          position="left"
+          underline={false}
+          showArrow
+          tipOffset={12}
+          tipContent={vulnFilterDetails.tooltipText}
+          disableTooltip={!hasVulnFilters}
+        >
+          <Button
+            variant="inverse"
+            onClick={onAddFiltersClick}
+            disabled={isTrulyEmpty}
+          >
+            <Icon name="filter" />
+            <span>{vulnFilterDetails.buttonText}</span>
+          </Button>
+        </TooltipWrapper>
       </>
-    );
-  };
-
-  const renderCustomFiltersButton = () => {
-    return (
-      <TooltipWrapper
-        className={`${baseClass}__filters`}
-        position="left"
-        underline={false}
-        showArrow
-        tipOffset={12}
-        tipContent={vulnFilterDetails.tooltipText}
-        disableTooltip={!hasVulnFilters}
-      >
-        <Button variant="inverse" onClick={onAddFiltersClick}>
-          <Icon name="filter" />
-          <span>{vulnFilterDetails.buttonText}</span>
-        </Button>
-      </TooltipWrapper>
     );
   };
 
@@ -291,12 +297,11 @@ const SoftwareTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={showFilterHeaders}
+        searchable
+        disableSearch={isTrulyEmpty}
         inputPlaceHolder="Search by name or vulnerability (CVE)"
         onQueryChange={onQueryChange}
-        customControl={
-          showFilterHeaders ? renderCustomFiltersButton : undefined
-        }
+        customControl={renderCustomControls}
         stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}

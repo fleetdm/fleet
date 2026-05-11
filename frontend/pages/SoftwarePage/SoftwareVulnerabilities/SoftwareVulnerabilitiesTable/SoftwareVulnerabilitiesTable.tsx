@@ -142,12 +142,11 @@ const SoftwareVulnerabilitiesTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  // determines if a user be able to search in the table
-  const searchable =
-    isSoftwareEnabled &&
-    (!!data?.vulnerabilities ||
-      query !== "" ||
-      showExploitedVulnerabilitiesOnly);
+  const hasData = !!data?.vulnerabilities;
+  const hasQuery = query !== "";
+
+  const isTrulyEmpty =
+    isSoftwareEnabled && !hasData && !hasQuery && !showExploitedVulnerabilitiesOnly;
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
@@ -246,6 +245,7 @@ const SoftwareVulnerabilitiesTable = ({
           newValue && handleExploitedVulnFilterDropdownChange(newValue.value)
         }
         variant="table-filter"
+        isDisabled={isTrulyEmpty}
       />
     );
   };
@@ -275,14 +275,13 @@ const SoftwareVulnerabilitiesTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={searchable}
+        searchable
+        disableSearch={isTrulyEmpty}
         searchQueryColumn="vulnerability"
         inputPlaceHolder="Search by CVE"
         searchToolTipText={VULNERABILITIES_SEARCH_BOX_TOOLTIP}
         onQueryChange={onQueryChange}
-        customControl={
-          searchable ? renderExploitedVulnerabilitiesDropdown : undefined
-        }
+        customControl={renderExploitedVulnerabilitiesDropdown}
         stackControls
         renderCount={renderVulnerabilityCount}
         renderTableHelpText={renderTableHelpText}

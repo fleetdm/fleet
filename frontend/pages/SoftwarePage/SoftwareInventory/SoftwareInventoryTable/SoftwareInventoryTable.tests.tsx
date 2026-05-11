@@ -100,12 +100,16 @@ describe("Software inventory table", () => {
       screen.getByText("Expecting to see software? Check back later.")
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
-    expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Updated")).toBeNull();
-    expect(screen.queryByText("Add filters")).toBeNull();
+    expect(
+      screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /add filters/i })
+    ).toBeDisabled();
+    expect(screen.getByText("Show versions")).toBeInTheDocument();
   });
 
-  it("Renders the page-wide empty state hiding vulnerability filtering when search query does not exist but versions toggle is applied", () => {
+  it("Renders the page-wide empty state with disabled controls when versions toggle is applied but no data", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -146,8 +150,12 @@ describe("Software inventory table", () => {
     expect(
       screen.getByText("Expecting to see software? Check back later.")
     ).toBeInTheDocument();
-    expect(screen.queryByText("Search")).toBeNull();
-    expect(screen.queryByText("Add filters")).toBeNull();
+    expect(
+      screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /add filters/i })
+    ).toBeDisabled();
   });
 
   it("Renders the empty search state and vulnerability filtering when search query does not exist but vulnerability filter is applied", () => {

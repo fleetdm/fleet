@@ -168,11 +168,10 @@ const SoftwareOSTable = ({
     router.push(path);
   };
 
-  // Determines if a user should be able to filter the table
   const hasData = data?.os_versions && data?.os_versions.length > 0;
   const hasPlatformFilter = platform !== "all";
 
-  const showFilterHeaders = isSoftwareEnabled && (hasData || hasPlatformFilter);
+  const isTrulyEmpty = isSoftwareEnabled && !hasData && !hasPlatformFilter;
 
   const renderSoftwareCount = () => {
     if (!data) return null;
@@ -180,7 +179,7 @@ const SoftwareOSTable = ({
     return (
       <>
         <TableCount name="items" count={data?.count} />
-        {showFilterHeaders && data?.counts_updated_at && (
+        {!isTrulyEmpty && data?.counts_updated_at && (
           <LastUpdatedText
             lastUpdatedAt={data.counts_updated_at}
             customTooltipText={
@@ -235,6 +234,7 @@ const SoftwareOSTable = ({
         options={PLATFORM_FILTER_OPTIONS}
         onChange={handlePlatformFilterDropdownChange}
         variant="table-filter"
+        isDisabled={isTrulyEmpty}
       />
     );
   };
@@ -260,7 +260,7 @@ const SoftwareOSTable = ({
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        customControl={showFilterHeaders ? renderPlatformDropdown : undefined}
+        customControl={renderPlatformDropdown}
         disableNextPage={!data?.meta.has_next_results}
         searchable={false}
         onQueryChange={onQueryChange}
