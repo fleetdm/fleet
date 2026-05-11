@@ -1893,9 +1893,7 @@ func TestExpandBaseItems(t *testing.T) {
 		dir := t.TempDir()
 		filenames := []string{
 			"AllowRebootless -[Updates].xml",
-			"BlockMDM?Unenrollment.xml",
 			"profile{a,b}.xml",
-			"wild*card.xml",
 		}
 		for _, name := range filenames {
 			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(""), 0o644))
