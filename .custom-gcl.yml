@@ -9,3 +9,6 @@ plugins:
   - module: "github.com/fleetdm/fleet/v4/tools/ci/setboolcheck"
     import: "github.com/fleetdm/fleet/v4/tools/ci/setboolcheck/cmd/gclplugin"
     path: "tools/ci/setboolcheck"
+  - module: "github.com/fleetdm/fleet/v4/tools/ci/apiparamcheck"
+    import: "github.com/fleetdm/fleet/v4/tools/ci/apiparamcheck/cmd/gclplugin"
+    path: "tools/ci/apiparamcheck"
