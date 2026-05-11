@@ -1443,7 +1443,7 @@ WHERE
 	for _, p := range pending {
 		ids = append(ids, p.InHouseAppID)
 	}
-	configsByAppID, err := ds.BulkGetInHouseAppConfigurations(ctx, ids)
+	configsByAppID, err := ds.BulkGetInHouseAppConfigurationsTx(ctx, tx, ids)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
 	}

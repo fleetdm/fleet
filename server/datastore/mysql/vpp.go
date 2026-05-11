@@ -2739,7 +2739,7 @@ WHERE
 			}
 		}
 		for platform, adamIDs := range adamIDsByPlatform {
-			cfgs, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.InstallableDevicePlatform(platform), adamIDs, tid)
+			cfgs, err := ds.BulkGetVPPAppConfigurationsTx(ctx, tx, fleet.InstallableDevicePlatform(platform), adamIDs, tid)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "bulk get vpp app configurations for install")
 			}
@@ -2867,6 +2867,14 @@ func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.
 }
 
 func (ds *Datastore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, ds.reader(ctx), platform, adamIDs, teamID)
+}
+
+func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, tx, platform, adamIDs, teamID)
+}
+
+func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
 	if len(adamIDs) == 0 {
 		return nil, nil
 	}
@@ -2888,7 +2896,7 @@ WHERE application_id IN (?) AND team_id = ? AND platform = ?
 		ApplicationID string `db:"application_id"`
 		Configuration []byte `db:"configuration"`
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get vpp app configurations")
 	}

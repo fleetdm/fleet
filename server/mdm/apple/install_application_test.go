@@ -111,6 +111,35 @@ func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
 	}
 }
 
+func TestBuildInstallApplicationCommand_FullPlistDocumentNormalized(t *testing.T) {
+	fullDoc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ServerURL</key>
+	<string>https://example.com</string>
+</dict>
+</plist>`)
+
+	out := string(BuildInstallApplicationCommand(InstallApplicationParams{
+		CommandUUID:   "uuid",
+		HostPlatform:  "ios",
+		ITunesStoreID: "1",
+		Configuration: fullDoc,
+	}))
+
+	var parsed map[string]any
+	_, err := plist.Unmarshal([]byte(out), &parsed)
+	require.NoError(t, err, "output with full-doc config must be a valid plist")
+	require.Equal(t, 1, strings.Count(out, "<?xml"), "only one XML declaration allowed")
+	require.Equal(t, 1, strings.Count(out, "<plist"), "only one <plist> element allowed")
+
+	cmd := parsed["Command"].(map[string]any)
+	cfgDict, ok := cmd["Configuration"].(map[string]any)
+	require.True(t, ok, "Configuration value should be a dict")
+	require.Equal(t, "https://example.com", cfgDict["ServerURL"])
+}
+
 func TestBuildInstallApplicationCommand_ConfigurationOuterDictPreserved(t *testing.T) {
 	// The validator stores the bytes including the outer <dict>...</dict>.
 	// Builder must inline them as-is so the resulting plist nests correctly:
