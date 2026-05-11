@@ -18,8 +18,8 @@ func CAKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificat
 	return KeyPair(ctx, ds, fleet.MDMAssetCACert, fleet.MDMAssetCAKey)
 }
 
-func APNSKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificate, error) {
-	return KeyPair(ctx, ds, fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey)
+func APNSKeyPair(ctx context.Context, ds fleet.MDMAssetRetriever) (*tls.Certificate, string, error) {
+	return KeyPairWithMD5(ctx, ds, fleet.MDMAssetAPNSCert, fleet.MDMAssetAPNSKey)
 }
 
 func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName fleet.MDMAssetName) (*tls.Certificate, error) {
@@ -42,6 +42,29 @@ func KeyPair(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName 
 	}
 
 	return &cert, nil
+}
+
+// KeyPairWithMD5 returns the certificate from the keypair, along with the MD5 checksum of the certificate.
+func KeyPairWithMD5(ctx context.Context, ds fleet.MDMAssetRetriever, certName, keyName fleet.MDMAssetName) (*tls.Certificate, string, error) {
+	assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{
+		certName,
+		keyName,
+	}, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("loading %s, %s keypair from the database: %w", certName, keyName, err)
+	}
+
+	cert, err := tls.X509KeyPair(assets[certName].Value, assets[keyName].Value)
+	if err != nil {
+		return nil, "", fmt.Errorf("parsing %s, %s keypair: %w", certName, keyName, err)
+	}
+
+	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return nil, "", fmt.Errorf("parsing %s certificate leaf: %w", certName, err)
+	}
+
+	return &cert, assets[certName].MD5Checksum, nil
 }
 
 func X509Cert(ctx context.Context, ds fleet.MDMAssetRetriever, certName fleet.MDMAssetName) (*x509.Certificate, error) {

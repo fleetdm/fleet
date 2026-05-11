@@ -19,6 +19,8 @@ Fleet API users can access host certificate information via the "Get host's cert
 
 For macOS hosts, Fleet retrieves certificate information using osquery's `certificates` [table](https://fleetdm.com/learn-more-about/certificates-query). For iOS and iPadOS hosts, Fleet retrieves certificates via MDM using the `CertificateList` [command](https://developer.apple.com/documentation/devicemanagement/certificate-list-command).
 
+When a macOS host installs a configuration profile containing an ACME payload, Fleet also retrieves the resulting certificate via the MDM `CertificateList` command. This surfaces hardware-bound ACME certificates that don't appear in osquery's `certificates` table. Ingestion runs per-host on each ACME profile install and re-install — there is no recurring cadence — so certificates from a given profile become visible the first time the profile is installed or re-deployed on a host.
+
 ## Conclusion
 
 The certificates section in host vitals provides you with a quick overview of the certificates installed on your macOS, iOS, and iPadOS devices. This feature helps you identify and troubleshoot certificate-related issues that may prevent your end users from connecting to the corporate network.

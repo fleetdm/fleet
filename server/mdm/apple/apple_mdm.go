@@ -834,6 +834,32 @@ func (d *DEPService) processDeviceResponse(
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "process device response")
 		}
+
+		seen := make(map[string]struct{}, len(serials))
+		for _, ss := range skipSerials {
+			for _, s := range ss {
+				seen[s] = struct{}{}
+			}
+		}
+		for _, ss := range assignSerials {
+			for _, s := range ss {
+				seen[s] = struct{}{}
+			}
+		}
+		var missing []string
+		for _, s := range serials {
+			if _, ok := seen[s]; !ok {
+				missing = append(missing, s)
+			}
+		}
+
+		if len(missing) > 0 {
+			// We did not get all serials passed in, back assigned to a bucket, could be due to potential replica lag.
+			// We force the remaining serials into the assign bucket, to ensure they get processed.
+			logger.InfoContext(ctx, "found missing serials after cooldown screening, adding them to assign profile operation", "serials", missing, "count", len(missing), "org_name", abmOrganizationName)
+			assignSerials[abmOrganizationName] = append(assignSerials[abmOrganizationName], missing...)
+		}
+
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over

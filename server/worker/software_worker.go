@@ -46,13 +46,13 @@ type softwareWorkerArgs struct {
 	EnterpriseName string             `json:"enterprise_name,omitempty"`
 	// AppTeamID is *not* a team ID, it is the vpp_apps_teams.id value. This is a bit confusing
 	// as a name, but that is what is expected in this field.
-	AppTeamID uint `json:"app_team_id,omitempty"`
+	AppTeamID uint `json:"app_team_id,omitempty"` //nolint:apiparamcheck
 	HostID    uint `json:"host_id,omitempty"`
 
 	// HostEnrollTeamID is the team ID associated with the host at the time
 	// of enrollment, which is the one used to run the setup experience.
 	// A value of 0 is used to represent "no team".
-	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"`
+	HostEnrollTeamID uint `json:"host_enroll_team_id,omitempty"` //nolint:apiparamcheck // not user-facing
 
 	// PolicyID is the Android Management API Policy ID associated with the host, *not*
 	// a Fleet policy ID.
@@ -281,7 +281,8 @@ func (v *SoftwareWorker) makeAndroidAppsAvailableForHost(ctx context.Context, ho
 }
 
 func (v *SoftwareWorker) runAndroidSetupExperience(ctx context.Context,
-	hostUUID string, hostEnrollTeamID uint, enterpriseName string) error {
+	hostUUID string, hostEnrollTeamID uint, enterpriseName string,
+) error {
 	host, err := v.Datastore.AndroidHostLiteByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return ctxerr.Wrapf(ctx, err, "getting android host lite by uuid %s", hostUUID)
@@ -400,8 +401,8 @@ func (v *SoftwareWorker) bulkMakeAndroidAppsAvailableForHost(ctx context.Context
 }
 
 func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
-	configsByAppID map[string]json.RawMessage, installType string) ([]*androidmanagement.ApplicationPolicy, error) {
-
+	configsByAppID map[string]json.RawMessage, installType string,
+) ([]*androidmanagement.ApplicationPolicy, error) {
 	appPolicies := make([]*androidmanagement.ApplicationPolicy, 0, len(appIDs))
 	for _, appID := range appIDs {
 		var androidAppConfig struct {
@@ -430,8 +431,8 @@ func buildApplicationPolicyWithConfig(ctx context.Context, appIDs []string,
 }
 
 func QueueRunAndroidSetupExperience(ctx context.Context, ds fleet.Datastore, logger *slog.Logger,
-	hostUUID string, hostEnrollTeamID *uint, enterpriseName string) error {
-
+	hostUUID string, hostEnrollTeamID *uint, enterpriseName string,
+) error {
 	var enrollTeamID uint
 	if hostEnrollTeamID != nil {
 		enrollTeamID = *hostEnrollTeamID
@@ -496,7 +497,6 @@ func QueueBulkSetAndroidAppsAvailableForHost(
 	applicationIDs []string,
 	enterpriseName string,
 ) error {
-
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostTask,
 		HostUUID:       hostUUID,
@@ -560,7 +560,6 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 		}
 
 		err = v.AndroidModule.SetAppsForAndroidPolicy(ctx, enterpriseName, appPolicies, map[string]string{uuid: uuid})
-
 		if err != nil {
 			return ctxerr.WrapWithData(ctx, err, "set apps for android policy", map[string]any{"host_id": hostID})
 		}
@@ -568,7 +567,6 @@ func (v *SoftwareWorker) bulkSetAndroidAppsAvailableForHosts(ctx context.Context
 	}
 
 	return nil
-
 }
 
 func QueueBulkSetAndroidAppsAvailableForHosts(
@@ -576,8 +574,8 @@ func QueueBulkSetAndroidAppsAvailableForHosts(
 	ds fleet.Datastore,
 	logger *slog.Logger,
 	uuidsToIDs map[string]uint,
-	enterpriseName string) error {
-
+	enterpriseName string,
+) error {
 	args := &softwareWorkerArgs{
 		Task:           bulkSetAndroidAppsAvailableForHostsTask,
 		UUIDsToIDs:     uuidsToIDs,

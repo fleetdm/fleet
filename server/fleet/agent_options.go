@@ -205,7 +205,7 @@ type osqueryAgentOptions struct {
 	FileAccesses []string            `json:"file_accesses"`
 	// Documentation for the following 2 fields is "hidden" in osquery's FIM page:
 	// https://osquery.readthedocs.io/en/stable/deployment/file-integrity-monitoring/
-	FilePathsQuery map[string][]string `json:"file_paths_query"`
+	FilePathsQuery map[string][]string `json:"file_paths_query"` //nolint:apiparamcheck // osquery FIM field
 	ExcludePaths   map[string][]string `json:"exclude_paths"`
 
 	YARA struct {

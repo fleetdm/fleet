@@ -165,6 +165,7 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 	return nil
 }
 
+// If you add a new key to this struct, ensure the Set() method below also checks for it
 type GitOpsControls struct {
 	fleet.BaseItem
 	MacOSUpdates   any               `json:"macos_updates"`
@@ -200,7 +201,9 @@ func (c GitOpsControls) Set() bool {
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
-		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
+		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
+		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
+		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
@@ -522,7 +525,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
 	if _, ok := top["labels"]; ok {
 		result.LabelsPresent = true
-		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		if result.IsNoTeam() {
+			logFn("[!] 'labels' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
+		} else {
+			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		}
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)

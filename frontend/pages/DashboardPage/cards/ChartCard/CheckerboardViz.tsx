@@ -75,8 +75,12 @@ const CheckerboardViz = ({
     // When relativeScale is true, the color ramp is based on the min/max in
     // this dataset, not fixed percentage thresholds. This surfaces more
     // variation when values are generally low or generally high.
-    const minPerc = Math.min(...data.map((d) => d.percentage));
-    const maxPerc = Math.max(...data.map((d) => d.percentage));
+    // Exclude 0% points from the min/max calculation — they represent
+    // "no data" cells (level-0) and would otherwise compress the ramp
+    // toward zero whenever the grid contains empty slots.
+    const nonZeroPercs = data.map((d) => d.percentage).filter((p) => p > 0);
+    const minPerc = nonZeroPercs.length ? Math.min(...nonZeroPercs) : 0;
+    const maxPerc = nonZeroPercs.length ? Math.max(...nonZeroPercs) : 0;
     const range = maxPerc - minPerc || 1; // avoid divide-by-zero
 
     getColorLevel = (percentage: number): number => {
@@ -164,13 +168,21 @@ const CheckerboardViz = ({
       }
     });
 
+    // The API window is anchored to "now" in UTC, so for users west of UTC
+    // the earliest local calendar day in the response is partially populated
+    // (the leading hours fall before the window starts). The caller works
+    // around this by requesting `selectedDays + 1` so the trailing
+    // `selectedDays` local days are always full. Trim the leading partial
+    // day(s) here so the grid only renders the requested window.
+    const visibleDays = dayOrder.slice(-selectedDays);
+
     // Emit one cell per (day, slot) pair in a fixed grid. Days with no data
     // for a given slot still get a cell with percentage 0 so the grid stays
     // rectangular and the color ramp renders the "no data" swatch.
     const labels: string[] = [];
     const cells: ICellData[] = [];
 
-    dayOrder.forEach((dayKey, dayIndex) => {
+    visibleDays.forEach((dayKey, dayIndex) => {
       const date = parseISO(dayKey);
       labels.push(format(date, "MMM d"));
       const hourMap = dayMap.get(dayKey);
@@ -191,7 +203,7 @@ const CheckerboardViz = ({
     });
 
     return { grid: cells, dayLabels: labels };
-  }, [data, hoursPerSlot, hourRows, is24h]);
+  }, [data, hoursPerSlot, hourRows, is24h, selectedDays]);
 
   const numDays = dayLabels.length || 1;
 

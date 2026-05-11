@@ -14,7 +14,15 @@ The system SHALL collect installed certificates from MDM-enrolled macOS hosts us
 
 - **WHEN** the system processes its scheduled MDM cron jobs on macOS hosts
 - **THEN** the system SHALL NOT enqueue `CertificateList` on a recurring cadence
-- **AND** SHALL rely on `InstallProfile`-ack triggers and the deploy-time backfill (defined below) for macOS ingestion
+- **AND** SHALL rely on `InstallProfile`-ack triggers (per Decision 1.1) for macOS ingestion. There is no deploy-time backfill (per Decision 1.2 — the customer redeploy step that activates Phase 2 also produces the `InstallProfile` acks that drive Phase 1 ingestion).
+
+#### Scenario: Multiple ACME profile acks in flight do not dedupe the trigger
+
+- **WHEN** an `InstallProfile` ack arrives for an ACME profile on a macOS host while a previous `CertificateList` refetch for the same host is still pending
+- **THEN** the system SHALL still enqueue a new `CertificateList` for the new ack, not skip it because of the in-flight refetch
+- **AND** the duplicate enqueue SHALL collapse via the `host_mdm_commands` `(host_id, command_type)` primary key (`ON DUPLICATE KEY UPDATE`)
+- **AND** when both refetch results eventually arrive, the result handler SHALL process each idempotently (the second is safe to receive after the first removes the tracking row)
+- **AND** this guarantees the post-ACME-exchange cert state is captured even if the prior refetch returned before the device's ACME exchange completed
 
 #### Scenario: iOS and iPadOS continue using existing refetch cadence
 

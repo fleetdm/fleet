@@ -2683,6 +2683,21 @@ func (a *agent) diskEncryption() []map[string]string {
 	return []map[string]string{}
 }
 
+func (a *agent) diskEncryptionWindows() []map[string]string {
+	// 50% of results have encryption enabled
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
+		return []map[string]string{{
+			"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn),
+			"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted),
+		}}
+	}
+	return []map[string]string{{
+		"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff),
+		"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted),
+	}}
+}
+
 func (a *agent) diskEncryptionLinux() []map[string]string {
 	// 50% of results have encryption enabled
 	a.DiskEncryptionEnabled = rand.Intn(2) == 1
@@ -3336,11 +3351,16 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
-		name == hostDetailQueryPrefix+"disk_encryption_windows":
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"disk_encryption_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryptionWindows()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
