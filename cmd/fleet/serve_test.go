@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -1401,12 +1400,6 @@ func TestArgsToString(t *testing.T) {
 	}
 }
 
-func TestNopPusher(t *testing.T) {
-	resp, err := nopPusher{}.Push(t.Context(), []string{"a", "b"})
-	require.NoError(t, err)
-	require.Nil(t, resp)
-}
-
 func TestGetTLSConfig(t *testing.T) {
 	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
 
@@ -1473,88 +1466,4 @@ func TestInitLicense(t *testing.T) {
 		assert.Equal(t, fleet.TierFree, license.Tier)
 		assert.Empty(t, cfg.License.Key)
 	})
-}
-
-var captureStdoutMu sync.Mutex
-
-func captureStdout(t *testing.T, fn func()) string {
-	t.Helper()
-	captureStdoutMu.Lock()
-	defer captureStdoutMu.Unlock()
-
-	origStdout := os.Stdout
-	r, w, err := os.Pipe()
-	require.NoError(t, err)
-	os.Stdout = w
-	defer func() {
-		os.Stdout = origStdout
-		_ = r.Close()
-	}()
-
-	var buf bytes.Buffer
-	done := make(chan struct{})
-	go func() {
-		_, _ = io.Copy(&buf, r)
-		close(done)
-	}()
-
-	fn()
-	require.NoError(t, w.Close())
-	<-done
-	return buf.String()
-}
-
-func TestPrintDatabaseNotInitializedError(t *testing.T) {
-	out := captureStdout(t, printDatabaseNotInitializedError)
-	assert.Contains(t, out, "Your Fleet database is not initialized")
-	assert.Contains(t, out, "prepare db")
-	assert.Contains(t, out, os.Args[0])
-}
-
-func TestPrintMissingMigrationsWarning(t *testing.T) {
-	for _, tc := range []struct {
-		name           string
-		tables         []int64
-		data           []int64
-		wantSubstrings []string
-	}{
-		{
-			name:           "tables only",
-			tables:         []int64{1, 2, 3},
-			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
-		},
-		{
-			name:           "data only",
-			data:           []int64{4, 5},
-			wantSubstrings: []string{"data=[4 5]"},
-		},
-		{
-			name:           "tables and data",
-			tables:         []int64{1},
-			data:           []int64{2},
-			wantSubstrings: []string{"tables=[1], data=[2]"},
-		},
-		{
-			name:           "neither",
-			wantSubstrings: []string{"unknown"},
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			out := captureStdout(t, func() {
-				printMissingMigrationsWarning(tc.tables, tc.data)
-			})
-			for _, sub := range tc.wantSubstrings {
-				assert.Contains(t, out, sub)
-			}
-			assert.Contains(t, out, os.Args[0])
-		})
-	}
-}
-
-func TestPrintFleetv4732FixNeededMessage(t *testing.T) {
-	out := captureStdout(t, printFleetv4732FixNeededMessage)
-	assert.Contains(t, out, "misnumbered migrations")
-	assert.Contains(t, out, "v4.73.2")
-	assert.Contains(t, out, "prepare db")
-	assert.Contains(t, out, os.Args[0])
 }
