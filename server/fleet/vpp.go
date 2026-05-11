@@ -242,10 +242,14 @@ func ValidateAppleAppConfiguration(config []byte) error {
 		return NewInvalidArgumentError("configuration", "configuration must be an XML plist")
 	}
 
-	// Scan the decoded structure (not the raw bytes) so XML-entity-encoded
-	// tokens like &#x24;FLEET_VAR_NDES_SCEP_CHALLENGE — which the parser
-	// resolves back to a literal $-prefixed string — can't slip past the
-	// allow-list check.
+	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
+	// siblings) invisible to the decoded tree. The decoded-tree walk below
+	// catches XML-entity-encoded tokens the regex won't match.
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		}
+	}
 	if name, ok := findUnsupportedFleetVar(root); ok {
 		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
 	}
