@@ -275,12 +275,12 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			if bestMatch == nil {
 				continue
 			}
-			// Surface the issuer's CN as ca_name for support visibility;
-			// fall back to a sentinel since the column is NOT NULL.
-			caName := bestMatch.IssuerCommonName
-			if caName == "" {
-				caName = "non_proxied"
-			}
+			// Use a fixed sentinel for ca_name on non-proxied rows.
+			// Proxied flows set ca_name from Fleet-controlled CA
+			// registration (stable across renewals); deriving it from
+			// the cert's Issuer CN would drift if the upstream CA ever
+			// renames. The cert's actual issuer is available in
+			// host_certificates for support visibility.
 			// Type is written as NULL by insertHostMDMManagedCertDB —
 			// Fleet wasn't in the issuance path so it doesn't know the
 			// CA type. The struct's Type field is left unset.
@@ -289,7 +289,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 				ProfileUUID:    profileUUID,
 				NotValidBefore: &bestMatch.NotValidBefore,
 				NotValidAfter:  &bestMatch.NotValidAfter,
-				CAName:         caName,
+				CAName:         "non_proxied",
 				Serial:         ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
 			})
 		}

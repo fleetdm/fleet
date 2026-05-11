@@ -823,7 +823,7 @@ func testInsertingHostMDMManagedCertificatesFromIngestion(t *testing.T, ds *Data
 	}
 	require.NotNil(t, nonProxiedRow, "non-proxied profile should have a created hmmc row")
 	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow.Type, "Type should be NULL/empty for non-proxied row")
-	assert.Equal(t, "Customer Hydrant ACME", nonProxiedRow.CAName, "CAName should be derived from Issuer CN")
+	assert.Equal(t, "non_proxied", nonProxiedRow.CAName, "CAName should be the fixed non-proxied sentinel, not derived from the cert")
 	require.NotNil(t, nonProxiedRow.Serial)
 	assert.Equal(t, fmt.Sprintf("%040s", certNonProxied.SerialNumber.Text(16)), *nonProxiedRow.Serial)
 	require.NotNil(t, nonProxiedRow.NotValidAfter)
