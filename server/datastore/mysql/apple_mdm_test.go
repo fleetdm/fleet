@@ -48,6 +48,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
+		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -303,6 +304,193 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.Len(t, prof.LabelsIncludeAll, 1)
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
 	require.True(t, prof.LabelsIncludeAll[0].Broken)
+}
+
+func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Build a mobileconfig with an explicit PayloadScope key, so that the
+	// "implicit scope change" detection (which compares the parsed XML scope to
+	// the DB scope) can be exercised in both directions.
+	mcWithScope := func(name, identifier, uuid string, scope fleet.PayloadScope) []byte {
+		return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadScope</key>
+	<string>%s</string>
+</dict>
+</plist>
+`, name, identifier, uuid, scope)
+	}
+
+	t.Run("empty input returns nil", func(t *testing.T) {
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, nil))
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{}))
+	})
+
+	t.Run("no existing profile with matching identifier returns nil", func(t *testing.T) {
+		cp := &fleet.MDMAppleConfigProfile{
+			Name:         "no-match",
+			Identifier:   "id-no-match",
+			Mobileconfig: configProfileBytesForTest("no-match", "id-no-match", "u-no-match"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{cp}))
+	})
+
+	t.Run("same identifier same scope across teams returns nil", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "same-scope",
+			Identifier:   "id-same-scope",
+			TeamID:       new(uint(1)),
+			Mobileconfig: configProfileBytesForTest("same-scope", "id-same-scope", "u-same-scope"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming profile for a different team with the same scope: no conflict.
+		incoming := existing
+		incoming.TeamID = new(uint(2))
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{&incoming}))
+	})
+
+	t.Run("edit within same team with same scope returns nil", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "edit-same-scope",
+			Identifier:   "id-edit-same-scope",
+			Mobileconfig: configProfileBytesForTest("edit-same-scope", "id-edit-same-scope", "u-edit-same-scope"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Re-submitting the same profile (no-team -> no-team) with the same scope is not a conflict.
+		incoming := existing
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{&incoming}))
+	})
+
+	t.Run("add conflict: same identifier different team different scope", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "add-conflict",
+			Identifier:   "id-add-conflict",
+			TeamID:       new(uint(10)),
+			Mobileconfig: configProfileBytesForTest("add-conflict", "id-add-conflict", "u-add-conflict"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Adding the same identifier under a different team with a different scope is a conflict.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "add-conflict",
+			Identifier:   "id-add-conflict",
+			TeamID:       new(uint(11)),
+			Mobileconfig: configProfileBytesForTest("add-conflict", "id-add-conflict", "u-add-conflict-different"),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't add configuration profile`)
+		require.Contains(t, bre.Message, `same "PayloadIdentifier" but a different "PayloadScope"`)
+	})
+
+	t.Run("edit conflict: same team scope change", func(t *testing.T) {
+		// Existing profile has an explicit XML PayloadScope=System matching its DB scope,
+		// so the conflict path should not be classified as an "implicit" scope change.
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "edit-conflict",
+			Identifier:   "id-edit-conflict",
+			TeamID:       new(uint(20)),
+			Mobileconfig: mcWithScope("edit-conflict", "id-edit-conflict", "u-edit-conflict", fleet.PayloadScopeSystem),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Same team, different scope, different mobileconfig contents (so the legacy-migration shortcut does not apply).
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "edit-conflict",
+			Identifier:   "id-edit-conflict",
+			TeamID:       new(uint(20)),
+			Mobileconfig: mcWithScope("edit-conflict", "id-edit-conflict", "u-edit-conflict-new", fleet.PayloadScopeUser),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't edit configuration profile (id-edit-conflict)`)
+		require.Contains(t, bre.Message, `the profile's "PayloadScope" has changed`)
+	})
+
+	t.Run("edit conflict: implicit scope change", func(t *testing.T) {
+		// The existing profile's XML has no PayloadScope (parses as "System"), but its DB scope is User.
+		// This simulates a profile uploaded before user-channel support was added and then migrated.
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "implicit-scope-change",
+			Identifier:   "id-implicit-scope-change",
+			TeamID:       new(uint(30)),
+			Mobileconfig: configProfileBytesForTest("implicit-scope-change", "id-implicit-scope-change", "u-implicit"),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming has a different scope and different content, so the legacy-migration shortcut does not apply.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "implicit-scope-change",
+			Identifier:   "id-implicit-scope-change",
+			TeamID:       new(uint(30)),
+			Mobileconfig: configProfileBytesForTest("implicit-scope-change", "id-implicit-scope-change", "u-implicit-different"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't edit configuration profile (id-implicit-scope-change)`)
+		require.Contains(t, bre.Message, `previously delivered to some hosts on the device channel`)
+	})
+
+	t.Run("legacy migration: System existing with matching checksum coerces incoming User to System", func(t *testing.T) {
+		mc := configProfileBytesForTest("legacy", "id-legacy", "u-legacy")
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "legacy",
+			Identifier:   "id-legacy",
+			Mobileconfig: mc,
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming uses the exact same mobileconfig bytes but declares User scope; this is the
+		// pre-user-channel compatibility case and must not error. The verifier coerces cp.Scope
+		// back to System so the caller writes the same scope as the existing row.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "legacy",
+			Identifier:   "id-legacy",
+			Mobileconfig: mc,
+			Scope:        fleet.PayloadScopeUser,
+		}
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming}))
+		require.Equal(t, fleet.PayloadScopeSystem, incoming.Scope)
+	})
 }
 
 func generateAppleCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
