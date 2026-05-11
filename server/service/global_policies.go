@@ -106,38 +106,6 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 	return svc.ds.ListGlobalPolicies(ctx, opts)
 }
 
-/////////////////////////////////////////////////////////////////////////////////
-// Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetPolicyByIDRequest)
-	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
-	if err != nil {
-		return fleet.GetPolicyByIDResponse{Err: err}, nil
-	}
-	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
-}
-
-func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	policy, err := svc.ds.Policy(ctx, policyID)
-	if err != nil {
-		return nil, err
-	}
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-
-	return policy, nil
-}
-
 // ///////////////////////////////////////////////////////////////////////////////
 // Count
 // ///////////////////////////////////////////////////////////////////////////////

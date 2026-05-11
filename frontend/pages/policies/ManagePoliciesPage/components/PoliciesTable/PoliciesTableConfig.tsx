@@ -132,7 +132,11 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
-              fleet_id: team_id,
+              // Inherited policies show team_id === null; preserve the
+              // current team context so back nav returns to the same list
+              // instead of "All teams".
+              fleet_id:
+                team_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );

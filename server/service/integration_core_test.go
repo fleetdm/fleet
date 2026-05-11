@@ -8340,6 +8340,61 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
 }
 
+// TestGetPolicyByIDCrossTeamAccess verifies that GET /api/latest/fleet/policies/{id}
+// returns a team policy to a user that has access to the team it belongs to and
+// rejects the request with 403 when the requesting user has no role on that team.
+// This guards the security fix for the "Cross-Team Policy Data Exposure" disclosure.
+func (s *integrationTestSuite) TestGetPolicyByIDCrossTeamAccess() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:  t.Name() + "_team1_policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	password := test.GoodPassword
+
+	team1Observer := &fleet.User{
+		Name:  "team1 observer",
+		Email: t.Name() + "_team1_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team1Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team1Observer)
+	require.NoError(t, err)
+
+	team2Observer := &fleet.User{
+		Name:  "team2 observer",
+		Email: t.Name() + "_team2_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team2Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team2Observer)
+	require.NoError(t, err)
+
+	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
+
+	// A user with access to the policy's team can read it.
+	s.setTokenForTest(t, team1Observer.Email, password)
+	var okResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusOK, &okResp)
+	require.NotNil(t, okResp.Policy)
+	assert.Equal(t, policy.ID, okResp.Policy.ID)
+	require.NotNil(t, okResp.Policy.TeamID)
+	assert.Equal(t, team1.ID, *okResp.Policy.TeamID)
+
+	// A user with no role on the policy's team is forbidden from reading it.
+	s.setTokenForTest(t, team2Observer.Email, password)
+	s.Do("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusForbidden)
+}
+
 func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	t := s.T()
 
