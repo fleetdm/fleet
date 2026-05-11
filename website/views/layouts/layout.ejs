@@ -1078,6 +1078,7 @@
             e.preventDefault();
             var iframe = document.createElement('iframe');
             iframe.src = 'https://www.youtube.com/embed/' + videoId + '?autoplay=1';
+            iframe.setAttribute('title', 'YouTube video player');
             iframe.setAttribute('allowfullscreen', '');
             iframe.setAttribute('allow', 'autoplay; fullscreen');
             link.replaceWith(iframe);
