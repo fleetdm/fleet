@@ -32,7 +32,22 @@ type Datastore interface {
 	// FindRecentlySeenHostIDs returns host IDs that have reported since the
 	// given cutoff. Used by datasets like uptime that derive their sample from
 	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+
+	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
+	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// underlying joins: a host's software/OS row transitions when it upgrades
+	// past the vulnerable version, so the join naturally stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+
+	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
+	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
+	// titles, unioned with all critical OS vulnerabilities. Returns a non-nil
+	// empty slice when nothing matches — callers pass this to GetSCDData's
+	// entityIDs parameter where nil vs empty have distinct semantics.
+	//
+	// TODO(iteration-2): replace with user-configurable filtering.
+	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket using
 	// the specified sample strategy. See api.SampleStrategy for the semantics of
@@ -72,4 +87,22 @@ type Datastore interface {
 	// CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 	// retention cutoff. Open rows (valid_to = sentinel) are never deleted.
 	CleanupSCDData(ctx context.Context, days int) error
+
+	// DeleteAllForDataset removes every host_scd_data row whose dataset column
+	// matches `dataset`, in batches of up to `batchSize` rows per statement,
+	// looping until no rows remain. Used by the global scrub worker when an
+	// admin disables a dataset entirely. Each batch is its own transaction so
+	// long-running deletes don't hold locks for unbounded durations.
+	DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error
+
+	// HostIDsInFleets returns host IDs whose team_id is in fleetIDs. Used by
+	// the per-fleet scrub worker to build the bit mask of hosts to clear from
+	// existing host_scd_data rows. Returns nil/empty for empty input.
+	HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error)
+
+	// ApplyScrubMaskToDataset walks every host_scd_data row for the given
+	// dataset in id-order with `batchSize`-row pages, computing
+	// chart.BlobANDNOT(host_bitmap, mask) and writing the result back via
+	// UPDATE. Used by the per-fleet scrub worker.
+	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error
 }

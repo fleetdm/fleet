@@ -87,7 +87,7 @@ const isIdPConfigured = ({
   );
 };
 
-const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
+const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
@@ -155,6 +155,7 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
       />
       <PageDescription
         variant="right-panel"
+<<<<<<< 43984-setup-experience-psso-ui-updates
         content={
           <>
             Customize local user accounts. You can automatically create local
@@ -166,6 +167,9 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
             />
           </>
         }
+=======
+        content="Configure end user authentication and local account settings for hosts that automatically enroll to Fleet."
+>>>>>>> main
       />
       <SetupExperienceContentContainer>
         {renderContent()}

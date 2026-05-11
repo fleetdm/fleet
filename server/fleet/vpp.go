@@ -86,6 +86,12 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
+	// CountryCode is the App Store storefront country (lowercase ISO 3166-1
+	// alpha-2 such as "us", "de") that this app is "anchored" to. It is set
+	// on the first add of the (adam_id, platform) and re-used for all future
+	// metadata fetches so the displayed name/icon/version stay consistent
+	// regardless of which team's token triggers the fetch.
+	CountryCode string `db:"country_code" json:"-"`
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.

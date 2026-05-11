@@ -68,6 +68,7 @@ const PolicyPage = ({
     setLastEditedQueryCritical,
     setLastEditedQueryPlatform,
     setLastEditedQueryLabelsIncludeAny,
+    setLastEditedQueryLabelsIncludeAll,
     setLastEditedQueryLabelsExcludeAny,
     setPolicyTeamId,
   } = useContext(PolicyContext);
@@ -169,6 +170,9 @@ const PolicyPage = ({
         setLastEditedQueryPlatform(returnedQuery.platform);
         setLastEditedQueryLabelsIncludeAny(
           returnedQuery.labels_include_any || []
+        );
+        setLastEditedQueryLabelsIncludeAll(
+          returnedQuery.labels_include_all || []
         );
         setLastEditedQueryLabelsExcludeAny(
           returnedQuery.labels_exclude_any || []

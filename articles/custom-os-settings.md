@@ -1,6 +1,6 @@
-# Custom OS settings
+# Configuration profiles
 
-In Fleet you can enforce OS settings like security restrictions, screen lock, Wi-Fi, etc., on your macOS, iOS, iPadOS, Windows, and Android hosts using configuration profiles.
+In Fleet you can use configuration profiles to enforce OS settings like security restrictions, screen lock, Wi-Fi, etc., on your macOS, iOS, iPadOS, Windows, and Android hosts.
 
 ## Create configuration profile
 
@@ -148,6 +148,8 @@ Also, some settings from the profile might be overridden by another configuratio
 
 The error message will provide the reason from the Android Management API (AMAPI) for why certain settings are not applied. Possible reasons are listed in the [AMAPI docs](https://developers.google.com/android/management/reference/rest/v1/NonComplianceReason).
 
+Note that the "Resend" button is only available for certificates. Fleet pushes certificates via Fleet's Android app. Other configuration profiles don't have the "Resend" button because othey are sent via a different mechanism: the host checks in for these profiles periodically similarly to Apple declaration (DDM) profiles, rather than Fleet pushing them. 
+
 ## Broken profiles
 
 If one or more labels included in the profile's scope are deleted, the profile will not apply to new hosts that enroll.
@@ -168,5 +170,5 @@ To manually remove unmanaged profiles, ask the end user to go to **System Settin
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="publishedOn" value="2024-07-27">
-<meta name="articleTitle" value="Custom OS settings">
+<meta name="articleTitle" value="Configuration profiles">
 <meta name="description" value="Learn how to enforce custom settings on macOS and Window hosts using Fleet's configuration profiles.">

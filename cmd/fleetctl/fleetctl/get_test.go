@@ -157,7 +157,9 @@ spec:
 func TestGetTeams(t *testing.T) {
 	var expiredBanner strings.Builder
 	fleet.WriteExpiredLicenseBanner(&expiredBanner)
-	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+	bannerStr := expiredBanner.String()
+	require.Contains(t, bannerStr, "Your license for Fleet Premium is about to expire")
+	require.Contains(t, bannerStr, "https://fleetdm.com/learn-more-about/downgrading")
 
 	testCases := []struct {
 		name                    string
@@ -198,6 +200,10 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								EnableHostUsers:         true,
 								EnableSoftwareInventory: true,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 						},
 					},
@@ -212,6 +218,10 @@ func TestGetTeams(t *testing.T) {
 							AgentOptions: &agentOpts,
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 							HostExpirySettings: fleet.HostExpirySettings{
 								HostExpiryEnabled: true,
@@ -714,7 +724,13 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			Features:              fleet.Features{EnableHostUsers: true},
+			Features: fleet.Features{
+				EnableHostUsers: true,
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
@@ -1832,6 +1848,116 @@ spec:
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "report", "--yaml", "--fleet", "1", "teamQuery1"}))
 	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"}))
+}
+
+func TestGetQueryLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		if teamID != nil || name != "qall" {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Query{
+			ID:             77,
+			Name:           "qall",
+			Description:    "include_all roundtrip",
+			Query:          "select 1;",
+			Saved:          true,
+			ObserverCanRun: false,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: "labelA", LabelID: 1},
+				{LabelName: "labelB", LabelID: 2},
+			},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: include_all roundtrip
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"include_all roundtrip","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "qall"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "qall"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "qall"}))
+}
+
+func TestGetReportsLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID != nil {
+			return nil, 0, 0, nil, errors.New("unexpected team scope")
+		}
+		return []*fleet.Query{
+			{
+				ID:    78,
+				Name:  "qall-bulk",
+				Query: "select 1;",
+				Saved: true,
+				LabelsIncludeAll: []fleet.LabelIdent{
+					{LabelName: "labelA", LabelID: 1},
+					{LabelName: "labelB", LabelID: 2},
+				},
+			},
+		}, 1, 0, nil, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: ""
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall-bulk
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall-bulk","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "reports", "--json"}))
 }
 
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
