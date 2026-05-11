@@ -57,7 +57,9 @@ describe("Advanced settings — Activity & data retention", () => {
       historicalData: { uptime: false, vulnerabilities: true },
     });
     expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)
+    ).not.toBeChecked();
   });
 
   it("submits without confirmation when no dataset is being newly disabled", async () => {
