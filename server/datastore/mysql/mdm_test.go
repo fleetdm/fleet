@@ -10701,4 +10701,42 @@ func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
 			host.UUID, profUUID))
 		require.Nil(t, status, "profile %s should be queued for resend", profUUID)
 	}
+
+	// Verify the read paths handle NULL `type` cleanly. The struct fields
+	// `MDMManagedCertificate.Type` and `HostMDMCertificateProfile.Type` are
+	// `CAConfigAssetType` (a string alias), not pointers. sqlx scans a NULL
+	// column into a string-aliased field as the empty string — no error, no
+	// special-case handling needed. This is the convention used throughout the
+	// non-proxied flow: NULL in the column == zero value in Go.
+	listed, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err, "ListHostMDMManagedCertificates must round-trip rows with NULL type")
+	var sawNullRow, sawNDESRow bool
+	for _, row := range listed {
+		switch row.ProfileUUID {
+		case nullProfile:
+			sawNullRow = true
+			require.Equal(t, fleet.CAConfigAssetType(""), row.Type,
+				"NULL type column should scan to empty CAConfigAssetType")
+			require.Equal(t, "non-proxied-ca", row.CAName)
+		case ndesProfile:
+			sawNDESRow = true
+			require.Equal(t, fleet.CAConfigNDES, row.Type,
+				"non-NULL type column should round-trip unchanged")
+		}
+	}
+	require.True(t, sawNullRow, "ListHostMDMManagedCertificates must return the NULL-type row")
+	require.True(t, sawNDESRow, "ListHostMDMManagedCertificates must return the existing ndes row")
+
+	// Same expectation via GetAppleHostMDMCertificateProfile, which returns
+	// HostMDMCertificateProfile (different struct, same nullable column).
+	nullProfileDetail, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, nullProfile, "non-proxied-ca")
+	require.NoError(t, err)
+	require.NotNil(t, nullProfileDetail)
+	require.Equal(t, fleet.CAConfigAssetType(""), nullProfileDetail.Type,
+		"HostMDMCertificateProfile.Type must scan a NULL column as empty string")
+
+	ndesProfileDetail, err := ds.GetAppleHostMDMCertificateProfile(ctx, host.UUID, ndesProfile, "ndes-ca")
+	require.NoError(t, err)
+	require.NotNil(t, ndesProfileDetail)
+	require.Equal(t, fleet.CAConfigNDES, ndesProfileDetail.Type)
 }
