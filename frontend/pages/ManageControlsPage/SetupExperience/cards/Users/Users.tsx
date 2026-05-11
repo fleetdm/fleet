@@ -1,5 +1,4 @@
 import React from "react";
-import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
 import configAPI from "services/entities/config";
@@ -8,6 +7,7 @@ import { IConfig, IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -131,24 +131,13 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     }
     const mdmConfig = globalConfig.mdm;
     return (
-      <SetupExperienceContentContainer>
-        <p className={`${baseClass}__section-description`}>
-          Customize local user accounts. You can automatically create local user
-          accounts using IdP credentials (PSSO).{" "}
-          <CustomLink
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
-            text="Learn how"
-            newTab
-          />
-        </p>
-        <UsersForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-          defaultLockEndUserInfo={defaultLockEndUserInfo}
-          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          isIdPConfigured={isIdPConfigured(mdmConfig)}
-        />
-      </SetupExperienceContentContainer>
+      <UsersForm
+        currentTeamId={currentTeamId}
+        defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        defaultLockEndUserInfo={defaultLockEndUserInfo}
+        defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
+        isIdPConfigured={isIdPConfigured(mdmConfig)}
+      />
     );
   };
 
@@ -164,7 +153,23 @@ const Users = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Customize local user accounts. You can automatically create local
+            user accounts using IdP credentials (PSSO).{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+              text="Learn how"
+              newTab
+            />
+          </>
+        }
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
     </section>
   );
 };
