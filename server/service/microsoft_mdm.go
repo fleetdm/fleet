@@ -2466,14 +2466,6 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 		// per-software-item progress state that Fleet cannot populate today; until that gap is closed (documented in
 		// https://github.com/fleetdm/fleet/issues/43776), the timeout trigger above is the only mechanism that
 		// reliably surfaces the failure UI for these enrollments.
-		//
-		// TODO: replace this empirical hack with documented per-tracker InstallationState=4 once orbit reports
-		// setup-experience progress via the LocalMDM channel (subtask
-		// https://github.com/fleetdm/fleet/issues/43776). At that point each setup-experience software item becomes
-		// a TrackedResourceTypes/{tracker} on the device, a failed install reports InstallationError on its tracker,
-		// and the ESP renders the failure UI natively from per-tracker state -- no timeout trick required. Setting
-		// InstallationState=4 on the parent PolicyProviders node alone (as we tested) does NOT escalate the UI
-		// without trackers underneath, which is why we keep the timeout-based approach for now.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
