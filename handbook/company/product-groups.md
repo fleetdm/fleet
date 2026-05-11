@@ -35,58 +35,10 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                                         | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 60       |
-| [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 60       |
 | [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 60       |
 | [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 38       |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
-
-
-### MDM group
-
-The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://fleetdm.com/device-management) in the "MDM" product category.
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
-| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
-| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
-
-**Areas of expertise**:
-- MDM protocol & configuration
-- Configuration profiles
-- New device onboarding
-- Scripts
-- Setup experience
-- OS configuration & updates
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
-
-
-### Software group
-
-The goal of the software group is to increase and exceed [Fleet's product maturity goals in the software management category](https://fleetdm.com/software-management).
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
-| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
-| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
-| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
-
-**Areas of expertise**:
-- Software Install / uninstall / patch
-- Fleet-maintained apps (FMAs)
-- Apple Volume Purchasing Program (VPP) apps
-- Google Play apps
-- In-house apps (IPAs) 
-- End user self-service
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
 
 
 ### Orchestration group
@@ -163,27 +115,88 @@ Items to cover in the section:
 
 ### Continuous flow
 
-Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, stories flow continuously from "in drafting" to "in progress" to "in QA" to "ready for release."
-
-#### Weekly planning
-
-Each working group holds a weekly planning session where the group and [HPD](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) review what's done, what's in progress, and what's next. There is no formal sprint boundary, sprint commitment, or velocity tracking.
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, issues flow continuously across the working group's board from intake to release.
 
 #### What is the same
 
-- **3-week release cadence**: Planning is decoupled from the release boundary.
-- **Daily standups**: These remain important for staying in sync and getting unblocked quickly.
-- **Release retrospectives**: These become even more important as we calibrate a new way of working.
+- **3-week release cadence**: Planning is decoupled from the release boundary. Most changes ship at the next release. Some agent changes (e.g. fleetd, Orbit) follow their own cadence.
 
-#### Drafting tracks
+#### Roles
 
-Working groups use two drafting tracks. Default to fast draft and escalate to full draft only when there is genuine design ambiguity or customer-facing risk. The HPD makes this call. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+Working groups use the same [product group roles](#product-group-roles), with the following continuous-flow responsibilities:
 
-**Full draft** is for significant new features, architectural changes, and customer deliverables. Issues go through the [drafting board](https://github.com/orgs/fleetdm/projects/67) and keep the product checklist, user story review, and engineering checklist. Target one week from prioritization to implementation-ready.
+| Role                 | Responsibility in continuous flow |
+|:---------------------|:----------------------------------|
+| Engineering Manager  | Runs the board and all rituals (standup, weekly planning, release demo, release retro). |
+| Product Designer     | Places new user stories on the board and is responsible for moving them to **Ready**. |
+| Tech Lead            | Owns architecture decisions. |
+| Software Engineer    | Implements issues assigned to them and moves them through the implementation columns. |
+| Quality Assurance    | Validates changes in **Awaiting QA**. |
 
-**Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. Once prioritized as ready, the issue goes straight to the working group's board. The Product Designer picks it up, moves it into the "In drafting" column, and collaborates with the team on what product design guidance is needed to implement the change. This may require Figma wireframes, a quick sketch, or a bulleted list of changes. Increasingly, the team may decide to draft changes by discussing them, implementing different options into the product, and choosing the best one. 
+#### Item types
 
-> Fast draft items still receive review from appropriate stakeholders like the HPD and CTO before they ship, but review happens in the [weekly planning session](#weekly-planning), after implementation.
+Working groups use the same six [scrum items](#scrum-items) as product groups: user stories, sub-tasks, timeboxes, bugs, quick wins, and reliability issues.
+
+#### Board columns
+
+Each working group runs its own GitHub project board with the following columns, ordered left-to-right:
+
+| Column | What it means |
+|:---|:---|
+| 📨 Inbox | Any issue labeled with the working group's `#g-*` label lands here. |
+| 🦢 Full draft | The HPD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the working group board until drafting is complete. |
+| 🪿 Fast draft | The PD and team are drafting in-place on the issue itself. |
+| 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
+| 🐣 In progress | An engineer is actively implementing the change. |
+| 🐥 Ready for review | A pull request is open and awaiting code review. |
+| ✔️ Awaiting QA | The change is merged and waiting for QA verification. |
+| ✅ Ready for release | QA has verified the change. Held until the next release boundary. |
+| Done | Released. |
+
+There are no formal WIP limits today, but the group should watch for buildup in any one column.
+
+#### Drafting tracks: full draft vs. fast draft
+
+The HPD picks the lane. Default to **fast draft** and escalate to **full draft** only when there is genuine design ambiguity or customer-facing risk. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+
+**Full draft** is for significant new features, architectural changes, and customer deliverables. The HPD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist). When drafting is complete, the HPD removes the `:product` label, takes the issue off the drafting board, and brings it to the next planning meeting where it moves to **Ready**.
+
+**Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. Fast draft items still receive review from the HPD and CTO before they ship, but review happens at the weekly planning session, after implementation.
+
+#### Estimation
+
+Continuous flow does not use story points or track velocity. At the weekly planning meeting, customer promises and activation blockers are [t-shirt sized](#t-shirt-sizing-capacity-planning) so the working group can plan releases weeks in advance.
+
+#### How issues move
+
+- **Inbox → drafting**:
+  - Bugs are triaged at the daily standup.
+  - Stories are triaged at the weekly planning meeting.
+  - In both cases, the HPD picks a drafting lane (see above).
+- **Ready → In progress → Ready for review → Awaiting QA → Ready for release**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
+
+#### Working the board
+
+- **Multiple issues in flight is OK.** With AI-augmented engineering, contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
+- **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
+- **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
+- **Hit a blocker or have a question?** Move the issue back to **Fast draft** and raise it at the next standup, rather than blocking on async followup.
+
+#### Daily standup (30 minutes)
+
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup only for bugs.
+
+#### Weekly planning (1 hour, Monday)
+
+The working group and HPD walk the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged into a drafting lane during this meeting.
+
+#### Release demo (every 3 weeks)
+
+On the last day of each three-week release cycle, working groups demo shipped changes alongside product groups at the [release demo](#sprint-ceremonies).
+
+#### Release retro (30 minutes, every 3 weeks)
+
+At the end of every three-week release cycle, the working group holds a 30-minute retro. Action items are created as [`~timebox`](https://github.com/fleetdm/fleet/labels/~timebox) issues, added to the board, and assigned to the EM for the next release cycle.
 
 
 ### Website group
@@ -200,6 +213,9 @@ The goal of the website group is to increase and exceed Fleet's product maturity
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this working group is `#g-website`.
 
 
+<!--
+Paused as of the 4.88.0 release cycle.
+
 ### First Impressions group
 
 The goal of the First Impressions working group is to make changes to the core Fleet product that improve first impressions of Fleet at workshops, conferences, and demos.
@@ -212,6 +228,8 @@ The goal of the First Impressions working group is to make changes to the core F
 | Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0ACJ8L1FD0), [kanban board](https://github.com/orgs/fleetdm/projects/105/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-first-impressions) for this working group is `#g-first-impressions`.
+-->
+
 
 
 ### Power to the PC group
@@ -224,9 +242,70 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
+
+
+### Apple @ Work group
+
+The goal of the Apple @ Work working group is to increase and exceed [Fleet's product maturity goals](https://fleetdm.com/device-management) for managing Apple devices at work.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_
+
+**Areas of expertise**:
+- MDM protocol & configuration
+- Configuration profiles
+- New device onboarding
+- Scripts
+- Setup experience
+- OS configuration & updates
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this working group is `#g-mdm`.
+
+
+### Auto Patches group
+
+The goal of the Auto Patches working group is to increase and exceed [Fleet's product maturity goals in the software management category](https://fleetdm.com/software-management).
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
+| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
+| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+
+**Areas of expertise**:
+- Software install / uninstall / patch
+- Fleet-maintained apps (FMAs)
+- Apple Volume Purchasing Program (VPP) apps
+- Google Play apps
+- In-house apps (IPAs)
+- End user self-service
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this working group is `#g-software`.
+
+
+### BYOD group
+
+The goal of the BYOD working group is to enable Fleet to manage personally-owned Android and iOS devices used at work.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Tech Lead                         | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Software Engineer                 | Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
+
+> Slack channel, kanban board, and GitHub label for this working group: TBD.
 
 <!--
 Example working group section
@@ -1100,7 +1179,7 @@ Each sprint is marked by five essential ceremonies:
 2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Scrum of scrums**: Each product group's Tech Lead, and optionally the EMs, meet once per sprint. This is a coordination technique used to scale scrum for multiple teams working on a large, complex product by having representatives from each team meet regularly to share progress, discuss dependencies, and solve inter-team issues. 
-5. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
+5. **Release demo**: On the last day of each release cycle, product groups and working groups demo shipped changes for the upcoming release alongside stakeholders. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 6. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.
 
 
