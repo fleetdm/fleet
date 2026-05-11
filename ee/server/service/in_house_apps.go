@@ -111,18 +111,16 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		payload.SelfService = &existingInstaller.SelfService
 	}
 
+	if len(payload.Configuration) > 0 {
+		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+			return nil, err
+		}
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "storing software installer")
-		}
-	}
-
-	// Validate iOS / iPadOS managed app configuration (if provided) before
-	// persisting; SaveInHouseAppUpdates handles the storage inside its tx.
-	if len(payload.Configuration) > 0 {
-		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
-			return nil, err
 		}
 	}
 
