@@ -1297,11 +1297,21 @@ func expandBaseItems[T any, PT interface {
 			result = append(result, entity)
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
-			if containsGlobMeta(*baseItem.Path) {
-				errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
-				continue
-			}
 			resolved := resolveApplyRelativePath(baseDir, *baseItem.Path)
+			// Reject glob metacharacters in "path:" only when the literal path
+			// does not resolve to an existing file. This allows filenames that
+			// contain literal glob metacharacters (e.g. Windows CSP names like
+			// "[AllowSpotlightCollection].xml") to be referenced via "path:".
+			if containsGlobMeta(*baseItem.Path) {
+				if _, err := os.Stat(resolved); err != nil {
+					if os.IsNotExist(err) {
+						errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
+					} else {
+						errs = append(errs, fmt.Errorf("failed to stat %s path %q: %w", entityType, resolved, err))
+					}
+					continue
+				}
+			}
 			// Check for duplicate filenames if requested.
 			if opts.RequireUniqueBasenames {
 				base := filepath.Base(resolved)
