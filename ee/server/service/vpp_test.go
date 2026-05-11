@@ -3,9 +3,18 @@ package service
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
+	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -94,4 +103,188 @@ func TestBatchAssociateVPPApps(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestGetAnchoredVPPAppsMetadataSkipsReAnchorOnEmptyMetadata guards against
+// the row mismatch where reAnchors holds an entry for a (adamID, platform)
+// whose metadata fetch was skipped because Apple returned blanks. Before the
+// fix the trailing UpdateVPPAppCountryCode in BatchAssociateVPPApps would
+// rewrite the row's country without a matching metadata insert, leaving the
+// row internally inconsistent until the next refresh.
+func TestGetAnchoredVPPAppsMetadataSkipsReAnchorOnEmptyMetadata(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, which is incompatible with t.Parallel.
+
+	// Fake Apple metadata endpoint that returns the requested adamID with a
+	// blank Name, the documented transiently-degraded path that the second
+	// loop's empty-metadata guard skips.
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		type plat struct {
+			BundleID         string            `json:"bundleId"`
+			Artwork          map[string]any    `json:"artwork"`
+			LatestVersionRaw map[string]string `json:"latestVersionInfo"`
+		}
+		type attrs struct {
+			Name           string          `json:"name"`
+			DeviceFamilies []string        `json:"deviceFamilies"`
+			Platforms      map[string]plat `json:"platformAttributes"`
+		}
+		type meta struct {
+			ID         string `json:"id"`
+			Attributes attrs  `json:"attributes"`
+		}
+		type resp struct {
+			Data []meta `json:"data"`
+		}
+		out := resp{Data: []meta{{
+			ID: "100",
+			Attributes: attrs{
+				Name:           "",
+				DeviceFamilies: []string{"mac"},
+				Platforms: map[string]plat{
+					"osx": {
+						BundleID:         "com.example.100",
+						Artwork:          map[string]any{"url": "https://example.test/icon.png"},
+						LatestVersionRaw: map[string]string{"versionDisplay": "1.0"},
+					},
+				},
+			},
+		}}}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(out)
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	ds := new(mock.Store)
+	// Existing row anchored to "us". The DE team adding it has no owning
+	// token in the anchored country, so resolveAddAnchor returns
+	// reAnchor=true with anchorCountry="de".
+	ds.GetVPPAppByAdamIDPlatformFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+		return &fleet.VPPApp{
+			VPPAppTeam:    fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: platform}},
+			CountryCode:   "us",
+			Name:          "Todoist US",
+			LatestVersion: "0.1",
+		}, nil
+	}
+	ds.GetVPPTokenOwningAppInCountryFunc = func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+		return nil, &batchNotFoundError{}
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		// Non-empty AppleConnectJWT so getVPPConfig's authenticator
+		// short-circuits to the JWT instead of querying the datastore.
+		config: config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}},
+	}
+
+	apps, reAnchors, err := svc.getAnchoredVPPAppsMetadata(t.Context(),
+		[]fleet.VPPAppTeam{{VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform}}},
+		vppTokenInfo{Secret: "de-secret", Country: "de"},
+	)
+	require.NoError(t, err)
+	require.Empty(t, apps, "row with empty Apple metadata must not be inserted")
+	require.Empty(t, reAnchors, "reAnchors must not contain entries for skipped rows")
+}
+
+// batchNotFoundError satisfies fleet.IsNotFound for the GetVPPTokenOwningAppInCountry mock.
+type batchNotFoundError struct{}
+
+func (batchNotFoundError) Error() string    { return "not found" }
+func (batchNotFoundError) IsNotFound() bool { return true }
+
+// TestGetAppStoreAppsDoesNotWriteMetadata guards the picker against writing
+// the team's current-storefront metadata onto rows whose stored country
+// is anchored elsewhere.
+func TestGetAppStoreAppsDoesNotWriteMetadata(t *testing.T) {
+	// dev_mode.SetOverride uses t.Setenv, incompatible with t.Parallel.
+
+	metaSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		type plat struct {
+			BundleID         string            `json:"bundleId"`
+			Artwork          map[string]any    `json:"artwork"`
+			LatestVersionRaw map[string]string `json:"latestVersionInfo"`
+		}
+		type attrs struct {
+			Name           string          `json:"name"`
+			DeviceFamilies []string        `json:"deviceFamilies"`
+			Platforms      map[string]plat `json:"platformAttributes"`
+		}
+		type meta struct {
+			ID         string `json:"id"`
+			Attributes attrs  `json:"attributes"`
+		}
+		type resp struct {
+			Data []meta `json:"data"`
+		}
+		out := resp{Data: []meta{{
+			ID: "100",
+			Attributes: attrs{
+				Name:           "Todoist DE",
+				DeviceFamilies: []string{"mac"},
+				Platforms: map[string]plat{
+					"osx": {
+						BundleID:         "com.example.100",
+						Artwork:          map[string]any{"url": "https://example.test/de-icon.png"},
+						LatestVersionRaw: map[string]string{"versionDisplay": "9.9"},
+					},
+				},
+			},
+		}}}
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(out)
+	}))
+	t.Cleanup(metaSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", metaSrv.URL, t)
+
+	vppSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"assets":[{"adamId":"100","pricingParam":"STDQ"}]}`))
+	}))
+	t.Cleanup(vppSrv.Close)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", vppSrv.URL, t)
+
+	teamID := uint(1)
+	ds := new(mock.Store)
+	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, _ *uint) (*fleet.VPPTokenDB, error) {
+		return &fleet.VPPTokenDB{
+			ID:          1,
+			OrgName:     "de-org",
+			Token:       "de-secret",
+			RenewDate:   time.Now().Add(24 * time.Hour),
+			CountryCode: "de",
+		}, nil
+	}
+	// Existing row anchored to "us" while the team's current token is "de".
+	ds.GetAssignedVPPAppsFunc = func(ctx context.Context, _ *uint) (map[fleet.VPPAppID]fleet.VPPAppTeam, error) {
+		return map[fleet.VPPAppID]fleet.VPPAppTeam{
+			{AdamID: "100", Platform: fleet.MacOSPlatform}: {
+				VPPAppID: fleet.VPPAppID{AdamID: "100", Platform: fleet.MacOSPlatform},
+			},
+		}, nil
+	}
+	batchInsertCalled := false
+	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, _ []*fleet.VPPApp) error {
+		batchInsertCalled = true
+		return nil
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{
+		authz:  authorizer,
+		ds:     ds,
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		config: config.FleetConfig{MDM: config.MDMConfig{AppleConnectJWT: "test-jwt"}},
+	}
+	ctx := viewer.NewContext(t.Context(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	apps, err := svc.GetAppStoreApps(ctx, &teamID)
+	require.NoError(t, err)
+	require.Empty(t, apps, "already-assigned apps must be filtered out of the picker list")
+	require.False(t, batchInsertCalled, "picker must not write metadata back")
 }

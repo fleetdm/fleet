@@ -50,7 +50,12 @@ func checkNVDVulnerabilities(vulnPath string, logger *slog.Logger) {
 	if !ok {
 		panic("failed to cast CVE-2025-0938 to a Vuln")
 	}
-	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 6 {
+	// NVD lists CVE-2025-0938 as Deferred with no configurations, so any CPE match
+	// here proves VulnCheck enrichment ran. The threshold was previously the historical
+	// row count (6), which broke the daily release pipeline whenever VulnCheck dropped
+	// a row. Floor of 1 catches a complete enrichment failure for this CVE without
+	// breaking on per-CVE drift.
+	if len(vulnEntry.Schema().Configurations.Nodes) < 1 || len(vulnEntry.Schema().Configurations.Nodes[0].CPEMatch) < 1 {
 		panic(errors.New("enriched vulnerability spot-check failed for Python on CVE-2025-0938"))
 	}
 

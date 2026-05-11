@@ -1,0 +1,1 @@
+* Added support for the `subject_alternative_name` field on Android certificate templates.

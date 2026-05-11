@@ -73,6 +73,7 @@ import (
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/cryptoutil"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -1274,7 +1275,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 
 	if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
-		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc)
+		return newWorkerIntegrationsSchedule(ctx, instanceID, ds, logger, depStorage, commander, androidSvc, chartSvc)
 	}); err != nil {
 		initFatal(err, "failed to register worker integrations schedule")
 	}
@@ -1402,11 +1403,23 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			initFatal(err, "failed to register refresh vpp app versions schedule")
 		}
 
+		// One-shot backfill for VPP token and app country codes that
+		// predate the country_code column. Fire-and-forget is safe because
+		// the work is idempotent and ctx cancels on shutdown.
+		go vpp.BackfillLegacyCountries(ctx, ds, logger)
+
 		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 			return newRecoveryLockPasswordSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
 		}); err != nil {
 			initFatal(err, "failed to register recovery lock password schedule")
+		}
+
+		if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+			commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+			return newManagedLocalAccountRotationSchedule(ctx, instanceID, ds, commander, logger, svc.NewActivity)
+		}); err != nil {
+			initFatal(err, "failed to register managed local account rotation schedule")
 		}
 	}
 

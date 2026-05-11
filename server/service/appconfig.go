@@ -431,6 +431,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
+	// In Overwrite mode (gitops), older clients (e.g. fleetctl <=4.84
+	// predating the field) omit features.historical_data entirely.
+	// Without defaulting here, the Overwrite branch below would persist
+	// those sub-keys as false because Go's bool zero value is
+	// indistinguishable from "absent".
+	if applyOpts.Overwrite {
+		applyHistoricalDataOverwriteDefaults(p, &newAppConfig)
+	}
+
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
 	if fleetDesktopSettingsInvalidErr.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
@@ -942,17 +951,22 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
-	// Dataset names are the public config sub-keys, not internal dataset names.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldAppConfig.Features.HistoricalData,
 		appConfig.Features.HistoricalData,
 		nil, nil,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
 	addedEntraTenantIDs := make([]string, 0)
@@ -2010,6 +2024,48 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 			}
 		}
+	}
+}
+
+// gitopsHistoricalDataView is the narrow tri-state view of
+// features.historical_data used to detect which sub-keys were absent
+// from a gitops payload. Pointer fields distinguish "absent" from
+// "false" — something the fleet.HistoricalDataSettings plain bools
+// cannot do once unmarshaled.
+//
+// Only used by applyHistoricalDataOverwriteDefaults below.
+type gitopsHistoricalDataView struct {
+	Features struct {
+		HistoricalData struct {
+			Uptime          *bool `json:"uptime"`
+			Vulnerabilities *bool `json:"vulnerabilities"`
+		} `json:"historical_data"`
+	} `json:"features"`
+}
+
+// applyHistoricalDataOverwriteDefaults defaults absent
+// features.historical_data sub-keys to true.
+// Older clients will not send values for these keys,
+// and in Overwrite mode we want to preserve the default
+// "enabled" state so that we don't disable data collection
+// and wipe data incorrectly.
+func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
+	var view gitopsHistoricalDataView
+	if err := json.Unmarshal(p, &view); err != nil {
+		return // main decode path will surface the typed error
+	}
+	var defaults fleet.Features
+	defaults.ApplyDefaults()
+	// For each sub-key, check if the incoming data provided a value (true or false).
+	// If not, then set the config to the default value we want rather than
+	// the Go default for bools (false).
+	cfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+	if v := view.Features.HistoricalData.Uptime; v != nil {
+		cfg.Features.HistoricalData.Uptime = *v
+	}
+	cfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
+		cfg.Features.HistoricalData.Vulnerabilities = *v
 	}
 }
 

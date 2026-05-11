@@ -279,13 +279,25 @@ $shadow-transition-width: 16px;
           cursor: pointer;
         }
         &:active {
-          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+          background-color: $ui-vibrant-blue-10;
         }
       }
 
       .clickable-row {
         &:hover {
           cursor: pointer;
+        }
+      }
+
+      // Match the wrapper's rounded corners so the last row's hover
+      // background doesn't bleed past them.
+      tr:last-child,
+      .single-row:last-child {
+        td:first-child {
+          border-bottom-left-radius: 6px;
+        }
+        td:last-child {
+          border-bottom-right-radius: 6px;
         }
       }
 
@@ -296,9 +308,17 @@ $shadow-transition-width: 16px;
         word-wrap: break-word;
 
         &.actions__cell {
-          display: flex;
-          justify-content: end; // Aligns actions dropdown to right of table
+          // Keep the cell as table-cell (not display:flex) so the bottom-right
+          // border-radius of the last row renders cleanly. Right-align the
+          // dropdown by making its wrapper inline-flex.
+          text-align: right;
           max-width: 99px;
+
+          .actions-dropdown__wrapper {
+            display: inline-flex;
+            // Reset cell's right-align so menu option text stays left-aligned.
+            text-align: left;
+          }
         }
 
         &.linkToFilteredHosts__cell,

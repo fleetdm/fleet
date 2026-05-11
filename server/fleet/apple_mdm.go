@@ -29,6 +29,16 @@ var (
 	ErrRecoveryLockNotEligible = errors.New("host not eligible for recovery lock rotation")
 )
 
+// Sentinel errors for managed local account password rotation.
+var (
+	// ErrManagedLocalAccountRotationPending indicates a rotation is already in progress for the host.
+	ErrManagedLocalAccountRotationPending = errors.New("managed local account rotation already pending")
+
+	// ErrManagedLocalAccountNotEligible indicates the host is not eligible for rotation
+	// (e.g., no existing password, status=failed, missing account UUID).
+	ErrManagedLocalAccountNotEligible = errors.New("host not eligible for managed local account rotation")
+)
+
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, name string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string, name string) error
@@ -40,6 +50,7 @@ type MDMAppleCommandIssuer interface {
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
 	SetRecoveryLock(ctx context.Context, hostUUIDs []string, cmdUUID string) error
 	RotateRecoveryLock(ctx context.Context, hostUUID string, cmdUUID string) error
+	SetAutoAdminPassword(ctx context.Context, hostUUID, guid string, passwordHashPlist []byte, cmdUUID string) error
 	ClearPasscode(ctx context.Context, hostUUID []string, cmdUUID string) error
 }
 
@@ -1203,6 +1214,7 @@ type MDMManagedCertificate struct {
 	Type                 CAConfigAssetType `db:"type"`
 	CAName               string            `db:"ca_name"`
 	Serial               *string           `db:"serial"`
+	UpdatedAt            time.Time         `db:"updated_at"`
 }
 
 func (m MDMManagedCertificate) Equal(other MDMManagedCertificate) bool {
@@ -1250,6 +1262,7 @@ const (
 	DisableLostModeCmdName      = "DisableLostMode"
 	SetRecoveryLockCmdName      = "SetRecoveryLock"
 	AccountConfigurationCmdName = "AccountConfiguration"
+	SetAutoAdminPasswordCmdName = "SetAutoAdminPassword"
 )
 
 // ManagedLocalAccountUsername is the short name Fleet provisions on macOS hosts
@@ -1291,4 +1304,16 @@ type HostAutoRotationInfo struct {
 	HostUUID    string `db:"host_uuid"`
 	HostID      uint   `db:"host_id"`
 	DisplayName string `db:"display_name"`
+}
+
+// HostManagedLocalAccountAutoRotationInfo carries the per-host data the rotation cron
+// needs to enqueue a SetAutoAdminPassword command and decide whether to log the activity.
+// InitiatedByFleet=false means a manual rotation was deferred (UUID was missing at click
+// time) and the activity has already been logged by the service layer.
+type HostManagedLocalAccountAutoRotationInfo struct {
+	HostUUID         string `db:"host_uuid"`
+	HostID           uint   `db:"host_id"`
+	DisplayName      string `db:"display_name"`
+	AccountUUID      string `db:"account_uuid"`
+	InitiatedByFleet bool   `db:"initiated_by_fleet"`
 }

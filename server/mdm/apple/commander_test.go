@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -619,6 +620,65 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 	}
 
 	err := cmdr.SetRecoveryLock(ctx, hostUUIDs, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
+
+func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	guid := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
+	cmdUUID := uuid.New().String()
+	hashPlist, err := GenerateSaltedSHA512PBKDF2Hash("test-password-1234")
+	require.NoError(t, err)
+	expectedB64 := base64.StdEncoding.EncodeToString(hashPlist)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "SetAutoAdminPassword", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Contains(t, string(cmd.Raw), "<key>GUID</key>")
+		require.Contains(t, string(cmd.Raw), "<string>"+guid+"</string>")
+		require.Contains(t, string(cmd.Raw), "<key>passwordHash</key>")
+		require.Contains(t, string(cmd.Raw), "<data>"+expectedB64+"</data>")
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, u := range targetUUIDs {
+			pushes[u] = &mdm.Push{
+				PushMagic: "magic" + u,
+				Token:     []byte("token" + u),
+				Topic:     "topic" + u,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err = cmdr.SetAutoAdminPassword(ctx, hostUUID, guid, hashPlist, cmdUUID)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
