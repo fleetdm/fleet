@@ -11613,3 +11613,57 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Prohibit installation and configuration of Network Bridge on your DNS domain network' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    You can use this procedure to control a user's ability to install and configure a Network Bridge. The Network Bridge setting, if enabled, allows users to create a Layer 2 Media Access Control (MAC) bridge, enabling them to connect two or more physical network segments together.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit installation and configuration of Network Bridge on your DNS domain network'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_AllowNetBridge_NLA' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    Although this legacy setting traditionally applied to the use of Internet Connection Sharing (ICS), this setting now freshly applies to the Mobile Hotspot feature in Windows 10 and Server 2016.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit use of Internet Connection Sharing on your DNS domain network'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_ShowSharedAccessUI' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether to require domain users to elevate when setting a network's location. Allowing regular users to set a network location increases the risk and attack surface.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Require domain users to elevate when setting a network's location'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_StdDomainUserSetLocation' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
