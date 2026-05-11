@@ -195,11 +195,11 @@ reports:
   - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
+  - path: ../lib/macos/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/dex-queries.yml
   - path: ../lib/all/reports/collect-local-user-accounts.yml
   - path: ../lib/all/reports/collect-usb-devices.yml
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
-  - path: ../lib/all/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
 software:

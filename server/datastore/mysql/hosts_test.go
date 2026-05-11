@@ -13130,6 +13130,82 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 		assert.Equal(t, 0, count)
 	})
 
+	t.Run("new scim user matching an already-mapped host reassigns the mapping", func(t *testing.T) {
+		defer cleanup()
+
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			UUID:     uuid.NewString(),
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+
+		// Set up mdm_idp_accounts so any SCIM user with username "shared@example.com" matches this host.
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO mdm_idp_accounts (uuid, username, fullname, email) VALUES (?,?,?,?)`,
+				"mdm-uuid-dup", "shared@example.com", "Shared User", "shared@example.com",
+			)
+			return err
+		})
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx,
+				`INSERT INTO host_mdm_idp_accounts (host_uuid, account_uuid) VALUES (?,?)`,
+				host.UUID, "mdm-uuid-dup",
+			)
+			return err
+		})
+
+		// First SCIM user: associates with the host.
+		firstUser := fleet.ScimUser{
+			UserName:   "shared@example.com",
+			GivenName:  ptr.String("First"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+		}
+		firstUserID, err := ds.CreateScimUser(ctx, &firstUser)
+		require.NoError(t, err)
+
+		var existingScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &existingScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		require.Equal(t, firstUserID, existingScimUserID)
+
+		// Second SCIM user matches the same host via primary email. Without idempotent insert
+		// handling this would 500 with a duplicate-entry error on host_scim_user.PRIMARY.
+		secondUser := fleet.ScimUser{
+			UserName:   "different-username",
+			GivenName:  ptr.String("Second"),
+			FamilyName: ptr.String("User"),
+			Active:     ptr.Bool(true), //nolint:modernize
+			Emails: []fleet.ScimUserEmail{
+				{
+					Email:   "shared@example.com",
+					Primary: ptr.Bool(true), //nolint:modernize
+					Type:    ptr.String("work"),
+				},
+			},
+		}
+		secondUserID, err := ds.CreateScimUser(ctx, &secondUser)
+		require.NoError(t, err)
+
+		// The mapping should now point to the newly-created SCIM user (upsert).
+		var associatedScimUserID uint
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &associatedScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, secondUserID, associatedScimUserID)
+
+		var count int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &count,
+				`SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?`, host.ID)
+		})
+		assert.Equal(t, 1, count)
+	})
+
 	t.Run("association works when both mdm_idp_accounts and host_emails exist", func(t *testing.T) {
 		defer cleanup()
 

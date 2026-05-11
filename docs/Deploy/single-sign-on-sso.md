@@ -9,6 +9,8 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 ## Okta
 
+> Okta added a built-in Fleet app and Fleet is testing it internally. Keep in mind that adding push groups will create new fleets. Currently, the best practice is to create a SAML app (instructions below).
+
 Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
