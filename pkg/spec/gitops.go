@@ -1251,7 +1251,11 @@ func expandBaseItems[T any, PT interface {
 			// "[AllowSpotlightCollection].xml") to be referenced via "path:".
 			if containsGlobMeta(*baseItem.Path) {
 				if _, err := os.Stat(resolved); err != nil {
-					errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
+					if os.IsNotExist(err) {
+						errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
+					} else {
+						errs = append(errs, fmt.Errorf("failed to stat %s path %q: %w", entityType, resolved, err))
+					}
 					continue
 				}
 			}
