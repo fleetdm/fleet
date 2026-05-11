@@ -4670,13 +4670,22 @@ func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint,
 }
 
 func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
-	_, err := tx.ExecContext(
+	// On conflict with host_scim_user.PRIMARY (host_id), reassign the host to the current SCIM user.
+	result, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)
+		 ON DUPLICATE KEY UPDATE scim_user_id = VALUES(scim_user_id)`,
 		hostID, scimUserID,
 	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
+	}
+	if rows == 0 {
+		return nil
 	}
 	// resend profiles that depend on the user now associated with that host
 	//

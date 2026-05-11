@@ -149,6 +149,47 @@ Today (4.85 and earlier) the only valid name is `SCEP_RENEWAL_ID`. The rename is
 - *Hard-rename with a deprecation warning on uploads using the old name.* Considered. Same back-compat issue for already-deployed profiles that don't get re-uploaded — they'd silently stop substituting. Reject for the same reason.
 - *Keep `SCEP_RENEWAL_ID` as the only name and revert the docs PR.* Rejected: docs decision is product-led and reflects the variable's actual scope (any cert, not just SCEP). The mismatch is a code-side gap to close, not a docs error to revert.
 
+### Decision 2.8: INSERT path inherits the matcher's date-validity filter
+
+The INSERT path added in Decision 2.1 reuses the same per-cert validity filter as the existing matcher (#44691):
+
+```
+if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+    continue
+}
+```
+
+For the **matcher's UPDATE path** this filter is clearly correct: it prevents the matcher from regressing an existing `hmmc.not_valid_after` backward when the device is reporting both a stale (just-expired) cert and a freshly-issued one alongside it. Without the filter, best-match-by-NotValidBefore could latch onto the older cert.
+
+For the **INSERT path** the filter is a deliberate design choice with a real trade-off:
+
+```
+   Cert in pool: marker matches profile, NotValidAfter < now (already expired)
+   No existing hmmc row.
+
+   With filter (chosen):
+     INSERT skipped → no hmmc row → renewal cron has nothing to act on
+     → cert stays unrenewed until device reports a fresh cert with the marker
+     (i.e., until the device successfully re-ACMEs on its own)
+
+   Without filter:
+     INSERT with expired dates → cron immediately triggers re-push
+     → device hopefully re-ACMEs → matcher updates row with fresh dates
+     If device DOESN'T re-ACME (attestation failure, CA rejection, etc.):
+        row sticks around with expired dates, cron loops forever
+```
+
+We keep the filter on the INSERT path for two reasons:
+
+- **Symmetry with the matcher.** Same shape of pool iteration on both paths makes the code easier to reason about and avoids two subtly different "how do we evaluate a pool cert" rules in the same function.
+- **Silent renewal-failure detection is a Non-Goal.** If a device's cert is already past expiry without a fresh one alongside it, that's a deeper failure mode (attestation rejection, CA outage, profile delivery problem) that re-pushing the profile won't necessarily fix. Inserting an expired-dates row would create a permanently-stuck row that the renewal cron loops on indefinitely — exactly the silent-failure pattern this story explicitly defers to a future change.
+
+The trade-off: customers whose certs have already expired BEFORE Phase 2 deploys (and whose devices haven't re-ACMEd to produce a fresh cert) won't get auto-recovered by Phase 2 alone. They need to either redeploy the profile manually or wait for the eventual silent-failure-detection follow-up.
+
+**Alternatives considered:**
+- *Drop the filter on INSERT only.* Rejected per the silent-failure-loop concern. Re-push without verification of the renewal outcome is the exact pattern that the deferred renewal-verification story is meant to address; building it into INSERT now would short-circuit that future design.
+- *Drop the filter on INSERT but require not-too-old (e.g., expired within last N days).* Considered. Adds a new tunable constant for one edge case; defers rather than resolves the silent-failure problem; rejected as over-engineering.
+
 ## Phase Independence
 
 The expected ship cadence is "both phases together" — both deliver value to the same customer-cisneros-a use case and the redeploy step that activates Phase 2 is also what surfaces certs into Phase 1's ingestion. Each phase is still independently mergeable to keep PRs reviewable in isolation.
