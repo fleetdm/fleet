@@ -11811,3 +11811,129 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections' is set to 'Enabled: Negotiate' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls which protocols incoming Remote Procedure Call (RPC) connections to the print spooler are allowed to use. Configuring this setting to Enabled: Kerberos also conforms to the benchmark.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Negotiate or Enabled: Kerberos:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC listener settings: Configure protocol options for incoming RPC connections'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\ForceKerberosForRpc' AND (data = 0 OR data = 1);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Configure RPC over TCP port' is set to 'Enabled: 0'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls which port is used for RPC over TCP for incoming connections to the print spooler and outgoing connections to remote print spoolers. Using dynamic ports makes it more difficult for a threat actor to know which port is being used.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 0:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC over TCP port'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcTcpPort' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Configure RPC packet level privacy setting for incoming connections' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls packet level privacy for Remote Procedure Call (RPC) incoming connections. Enabling this enforces the server-side to increase the authentication level to minimize the Print Spooler Spoofing Vulnerability (CVE-2021-1678).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure RPC packet level privacy setting for incoming connections'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\RpcAuthnLevelPrivacyEnabled' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether users who aren't Administrators can install print drivers on the system. Restricting the installation of print drivers to Administrators can help mitigate the PrintNightmare vulnerability (CVE-2021-34527).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Limits print driver installation to Administrators'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint\RestrictDriverInstallationToAdministrators' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Manage processing of Queue-specific files' is set to 'Enabled: Limit Queue-specific files to Color profiles'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting manages how queue-specific files are processed during printer installation. A Windows Print Spooler Remote Code Execution Vulnerability (CVE-2021-36958) exists when the service improperly performs privileged file operations.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Limit Queue-specific files to Color profiles:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Manage processing of Queue-specific files'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\CopyFilesPolicy' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Point and Print Restrictions: When installing drivers for a new connection' is set to 'Enabled: Show warning and elevation prompt'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether computers will show a warning and a security elevation prompt when users create a new printer connection using Point and Print. This helps mitigate the PrintNightmare vulnerability (CVE-2021-34527).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Show warning and elevation prompt:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When installing drivers for a new connection'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\NoWarningNoElevationOnInstall' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Point and Print Restrictions: When updating drivers for an existing connection' is set to 'Enabled: Show warning and elevation prompt'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether computers will show a warning and a security elevation prompt when users are updating drivers for an existing connection using Point and Print. This helps mitigate the PrintNightmare vulnerability (CVE-2021-34527).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Show warning and elevation prompt:
+    'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When updating drivers for an existing connection'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\UpdatePromptSettings' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
