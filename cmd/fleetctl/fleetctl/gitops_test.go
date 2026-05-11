@@ -2682,6 +2682,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		savedTeam = team
 		return team, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 
 	teamFileBasic := createTeamFileBasic(t, secret)
@@ -3169,6 +3172,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 		return nil, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	for _, useDeprecatedKeys := range []bool{false, true} {
 		t.Run(fmt.Sprintf("useDeprecatedKeys=%t", useDeprecatedKeys), func(t *testing.T) {
@@ -3447,6 +3453,9 @@ func TestGitOpsCustomSettings(t *testing.T) {
 					}
 				}
 				return ret, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
 			}
 			_, err := RunAppNoChecks([]string{"gitops", "-f", c.file})
 			if c.wantErr == "" {
