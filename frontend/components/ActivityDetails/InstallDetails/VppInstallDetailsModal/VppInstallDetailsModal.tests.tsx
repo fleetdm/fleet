@@ -1,8 +1,21 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import {
+  createCustomRenderer,
+  renderWithSetup,
+  baseUrl,
+} from "test/test-utils";
+import mockServer from "test/mock-server";
+import {
+  createMockHostAppStoreApp,
+  createMockHostSoftware,
+} from "__mocks__/hostMock";
 
-import { getStatusMessage, ModalButtons } from "./VppInstallDetailsModal";
+import VppInstallDetailsModal, {
+  getStatusMessage,
+  ModalButtons,
+} from "./VppInstallDetailsModal";
 
 describe("getStatusMessage helper function", () => {
   it("shows NotNow message when isStatusNotNow is true", () => {
@@ -145,10 +158,12 @@ describe("getStatusMessage helper function", () => {
       })
     );
     expect(
-      screen.getByText(
-        /but the installation has not been verified. Please re-attempt this installation/i
-      )
+      screen.getByText(/installation has not been verified/i)
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Please re-attempt this installation/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/within 10 minutes/i)).not.toBeInTheDocument();
   });
 
   it("shows Apple-specific failed verification message for macOS", () => {
@@ -161,16 +176,18 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
+        vppVerifyTimeoutSeconds: 1200,
       })
     );
     expect(
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(/install hasn't been verified/i)
     ).toBeInTheDocument();
+    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(/If you're updating the app and the app is open/i)
@@ -193,10 +210,10 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(/install hasn't been verified/i)
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
   });
 
@@ -216,11 +233,30 @@ describe("getStatusMessage helper function", () => {
       screen.getByText(/The host acknowledged the MDM command to install/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/but the app failed to install/i)
+      screen.getByText(/install hasn't been verified/i)
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/but the installation has not been verified/i)
+      screen.queryByText(/but the app failed to install/i)
     ).not.toBeInTheDocument();
+  });
+
+  it("on the My device page, timeout copy omits the host display name", () => {
+    render(
+      getStatusMessage({
+        isMyDevicePage: true,
+        displayStatus: "failed_install",
+        isMDMStatusNotNow: false,
+        isMDMStatusAcknowledged: true,
+        appName: "Keynote",
+        hostDisplayName: "Marko's MacBook Pro",
+        commandUpdatedAt: "2025-07-29T22:49:52Z",
+        platform: "darwin",
+        vppVerifyTimeoutSeconds: 1200,
+      })
+    );
+
+    expect(screen.getByText(/within 20 minutes/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Marko's MacBook Pro/i)).not.toBeInTheDocument();
   });
 
   it("treats failed_install as installed when app is already installed on macOS", () => {
@@ -233,7 +269,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -254,7 +291,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPhone",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ios",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -275,7 +313,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's iPad",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "ipados",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -296,7 +335,8 @@ describe("getStatusMessage helper function", () => {
         hostDisplayName: "Marko's MacBook Pro",
         commandUpdatedAt: "2025-07-29T22:49:52Z",
         platform: "darwin",
-        hasInstalledVersions: true,
+        canOverrideFailureWithInstalled: true,
+        hasInstalledVersionsOnHost: true,
       })
     );
 
@@ -403,17 +443,17 @@ describe("getStatusMessage helper function", () => {
 });
 
 describe("VPP Install Details Modal - ModalButtons component", () => {
-  it("renders Done button by default", async () => {
+  it("renders Close button by default", async () => {
     const onCancel = jest.fn();
 
     const { user } = renderWithSetup(
       <ModalButtons displayStatus="installed" onCancel={onCancel} />
     );
 
-    const doneButton = screen.getByRole("button", { name: /done/i });
-    expect(doneButton).toBeInTheDocument();
+    const closeButton = screen.getByRole("button", { name: /close/i });
+    expect(closeButton).toBeInTheDocument();
 
-    await user.click(doneButton);
+    await user.click(closeButton);
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -441,5 +481,84 @@ describe("VPP Install Details Modal - ModalButtons component", () => {
     await user.click(retryButton);
     expect(onRetry).toHaveBeenCalledWith(123);
     expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("VPP Install Details Modal", () => {
+  const renderWithBackend = createCustomRenderer({ withBackendMock: true });
+
+  afterEach(() => {
+    mockServer.resetHandlers();
+  });
+
+  it("renders timeout follow-up copy on host details", async () => {
+    mockServer.use(
+      http.get(baseUrl("/commands/results"), ({ request }) => {
+        const url = new URL(request.url);
+        const commandUuid = url.searchParams.get("command_uuid");
+
+        return HttpResponse.json({
+          results: [
+            {
+              host_uuid: "11111111-2222-3333-4444-555555555555",
+              command_uuid: commandUuid,
+              status: "Acknowledged",
+              updated_at: "2025-08-10T12:05:00Z",
+              request_type: "InstallApplication",
+              hostname: "Mock iPhone",
+              payload: btoa("<Command />"),
+              result: btoa("<Result />"),
+              results_metadata: {
+                software_installed: false,
+                vpp_verify_timeout_seconds: 1200,
+              },
+            },
+          ],
+        });
+      })
+    );
+
+    const hostSoftware = createMockHostSoftware({
+      id: 123,
+      status: "failed_install",
+      name: "Keynote",
+      display_name: "Keynote",
+      installed_versions: [],
+      source: "apps",
+      app_store_app: createMockHostAppStoreApp({
+        platform: "darwin",
+        last_install: {
+          command_uuid: "acknowledged-uuid",
+          installed_at: "2025-08-10T12:00:00Z",
+        },
+      }),
+    });
+
+    renderWithBackend(
+      <VppInstallDetailsModal
+        details={{
+          fleetInstallStatus: "failed_install",
+          hostDisplayName: "Marko's MacBook Pro",
+          appName: "Keynote",
+          commandUuid: "acknowledged-uuid",
+          platform: "darwin",
+        }}
+        hostSoftware={hostSoftware}
+        onCancel={jest.fn()}
+      />
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Fleet marks as failed if the install isn't verified within 20 minutes/i
+        )
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(
+        /If the app is installed later, Fleet will update the status when the host is refetched/i
+      )
+    ).toBeInTheDocument();
   });
 });

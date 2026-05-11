@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	gopsutil_process "github.com/shirou/gopsutil/v3/process"
+	gopsutil_process "github.com/shirou/gopsutil/v4/process"
 )
 
 // ChmodRestrictFile sets the appropriate permissions on a file so it can not be read by everyone

@@ -1,13 +1,14 @@
 import React, { useCallback } from "react";
-import { InjectedRouter } from "react-router";
+
 import { Row } from "react-table";
 
 import { isAndroid } from "interfaces/platform";
 import { IHostPolicy } from "interfaces/policy";
 import { SUPPORT_LINK } from "utilities/constants";
 import TableContainer from "components/TableContainer";
-import EmptyTable from "components/EmptyTable";
-import CardHeader from "components/CardHeader";
+import TableCount from "components/TableContainer/TableCount";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import IconStatusMessage from "components/IconStatusMessage";
@@ -26,10 +27,12 @@ interface IPoliciesProps {
   deviceUser?: boolean;
   togglePolicyDetailsModal: (policy: IHostPolicy) => void;
   hostPlatform: string;
-  router: InjectedRouter;
+
   currentTeamId?: number;
   conditionalAccessEnabled?: boolean;
   conditionalAccessBypassed?: boolean;
+  canManagePolicies?: boolean;
+  onManagePolicies?: () => void;
 }
 
 interface IHostPoliciesRowProps extends Row {
@@ -42,10 +45,12 @@ const Policies = ({
   deviceUser,
   togglePolicyDetailsModal,
   hostPlatform,
-  router,
+
   currentTeamId,
   conditionalAccessEnabled,
   conditionalAccessBypassed,
+  canManagePolicies,
+  onManagePolicies,
 }: IPoliciesProps): JSX.Element => {
   const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
@@ -59,7 +64,7 @@ const Policies = ({
     (row: IHostPoliciesRowProps) => {
       togglePolicyDetailsModal(row.original);
     },
-    [router]
+    [togglePolicyDetailsModal]
   );
 
   const renderBanner = () => {
@@ -68,7 +73,7 @@ const Policies = ({
     }
     if (conditionalAccessBypassed) {
       return (
-        <InfoBanner color="grey" borderRadius="xlarge">
+        <InfoBanner borderRadius="xlarge">
           <IconStatusMessage
             iconName="clock"
             iconColor="ui-fleet-black-50"
@@ -97,7 +102,7 @@ const Policies = ({
   const renderHostPolicies = () => {
     if (hostPlatform === "ios" || hostPlatform === "ipados") {
       return (
-        <EmptyTable
+        <EmptyState
           header={<>Policies are not supported for this host</>}
           info={
             <>
@@ -112,7 +117,7 @@ const Policies = ({
 
     if (isAndroid(hostPlatform)) {
       return (
-        <EmptyTable
+        <EmptyState
           header={<>Policies are not supported for this host</>}
           info={
             <>
@@ -124,25 +129,8 @@ const Policies = ({
       );
     }
 
-    if (policies.length === 0) {
-      return (
-        <EmptyTable
-          header={
-            <>
-              No policies are checked{" "}
-              {deviceUser ? `on your device` : `for this host`}
-            </>
-          }
-          info={
-            <>
-              Expecting to see policies? Try selecting “Refetch” to ask{" "}
-              {deviceUser ? `your device ` : `this host `}
-              to report new vitals.
-            </>
-          }
-        />
-      );
-    }
+    const target = deviceUser ? "your device" : "this host";
+    const manageClause = canManagePolicies ? ", or manage its policies." : ".";
 
     return (
       <>
@@ -153,10 +141,24 @@ const Policies = ({
           isLoading={isLoading}
           defaultSortHeader="status"
           resultsTitle="policies"
-          emptyComponent={() => <></>}
+          emptyComponent={() => (
+            <EmptyState
+              header="No policies checked"
+              info={`Select Refetch to load the latest data from ${target}${manageClause}`}
+              primaryButton={
+                canManagePolicies ? (
+                  <Button onClick={onManagePolicies} type="button">
+                    Manage policies
+                  </Button>
+                ) : undefined
+              }
+            />
+          )}
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          disableCount
+          renderCount={() => (
+            <TableCount name="policies" count={policies.length} />
+          )}
           disableMultiRowSelect // Removes hover/click state
           isClientSidePagination
           onClickRow={onClickRow}
@@ -166,12 +168,7 @@ const Policies = ({
     );
   };
 
-  return (
-    <div className={baseClass}>
-      <CardHeader header="Policies" />
-      {renderHostPolicies()}
-    </div>
-  );
+  return <div className={baseClass}>{renderHostPolicies()}</div>;
 };
 
 export default Policies;

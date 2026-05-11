@@ -1,88 +1,307 @@
+// =============================================================================
+// CSS Custom Properties — the single source of truth for all themed colors.
+// Light mode values live on :root; dark mode overrides live on body.dark-mode.
+// SCSS variables below are thin aliases so every existing stylesheet just works.
+// =============================================================================
+
+// ---------------------------------------------------------------------------
+// Light mode (default)
+// ---------------------------------------------------------------------------
+:root {
+  // 2025 branding
+  --core-fleet-black: #192147;
+  --core-fleet-green: #009a7d;
+  --core-fleet-white: #ffffff;
+  --ui-fleet-black-75: #515774;
+  --ui-fleet-black-50: #8b8fa2;
+  --ui-fleet-black-33: #b3b6c1;
+  --ui-fleet-black-25: #c5c7d1;
+  --ui-fleet-black-10: #e2e4ea;
+  --ui-fleet-black-5: #f4f4f6;
+
+  // 2025 secondary / interaction colors
+  --ui-fleet-black-75-over: #454c66;
+  --ui-fleet-black-75-down: #3a3e59;
+  --core-fleet-green-over: #00886c;
+  --core-fleet-green-down: #00775f;
+  --ui-fleet-black-5-down: #f0f1f4;
+
+  // Core accent
+  --core-fleet-blue: #3e4771;
+  --core-vibrant-blue: #6a67fe;
+  --core-vibrant-red: #ff5c83;
+  --core-fleet-purple: #ae6ddf;
+  --core-dark-blue-grey: #506e92;
+  --site-nav-on-hover: #0e1533;
+
+  // UI
+  --ui-fleet-blue-10: #f9fafc;
+  --ui-dark-blue-gray: #afbec1;
+  --ui-blue-gray: #dbe3e5;
+  --ui-gray: #e3e3e3;
+  --ui-light-grey: #fafafa;
+  --ui-off-white: #f9fafc;
+  --ui-shadow: #e9e9e9;
+  --ui-vibrant-blue-50: rgba(106, 103, 254, 0.5);
+  --ui-vibrant-blue-25: #d9d9fe;
+  --ui-vibrant-blue-10: #f1f0ff;
+  --tooltip-bg: #3e4771;
+
+  // Notifications & status
+  --ui-offline: #8b8fa2;
+  --ui-success: #3db67b;
+  --ui-warning: #ebbc43;
+  --ui-error: #d66c7b;
+  --ui-info: #6a67fe;
+  --ui-yellow-banner: #fef7e0;
+  --ui-yellow-banner-outline: #ece0bb;
+
+  // Toast surfaces. Same as base status colors in light mode; muted in dark
+  // mode so the large filled surface isn't blinding.
+  --ui-success-toast-bg: #3db67b;
+  --ui-error-toast-bg: #d66c7b;
+
+  // TS COLORS aliases (match keys used in colors.ts for JS inline styles)
+  --core-fleet-red: #ff5c83;
+  --ui-blue-hover: #5d5ae7;
+  --ui-blue-pressed: #4b4ab4;
+  --ui-blue-50: rgba(106, 103, 254, 0.5);
+  --ui-blue-25: #d9d9fe;
+  --ui-blue-10: #f1f0ff;
+  --status-success: #3db67b;
+  --status-warning: #f8cd6b;
+  --status-error: #ed6e85;
+
+  // Rainbow
+  --rainbow-orange: #faa669;
+  --rainbow-green: #63c740;
+  --rainbow-blue: #5cabdf;
+
+  // Gradients
+  --gradient-background: #eff6fa;
+
+  // Button hover / active
+  --core-vibrant-red-over: #e93661;
+  --core-vibrant-red-down: #cb3559;
+  --core-vibrant-blue-over: #5d5ae7;
+  --core-vibrant-blue-down: #4b4ab4;
+  --ui-success-over: #36a26d;
+  --ui-success-down: #2b7f56;
+  --core-fleet-blue-over: #303860;
+  --core-fleet-blue-down: #192147;
+
+  // Nav active underline
+  --nav-active-underline: var(--core-fleet-black);
+
+  // Overlay / semi-transparent (used in Modal & Button)
+  --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
+  --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
+  --loading-overlay: rgba(255, 255, 255, 0.8);
+
+  // Dropdown menu outline — transparent in light mode (drop-shadow alone is
+  // enough); a 1px gray ring in dark mode where the shadow disappears.
+  --dropdown-menu-outline: transparent;
+}
+
+// ---------------------------------------------------------------------------
+// Dark mode
+// ---------------------------------------------------------------------------
+body.dark-mode {
+  // Branding — text lightens, backgrounds darken
+  // Surface hierarchy (darkest → lightest):
+  //   Base #181a1f → Surface-0 #1e2128 → Surface-1 #252830
+  //   → Surface-2 #32363e → Surface-3 #42464f
+  --core-fleet-black: #e2e4ea;
+  --core-fleet-green: #00c28b;
+  --core-fleet-white: #1a1c21;
+  --ui-fleet-black-75: #bebebf;
+  --ui-fleet-black-50: #87888b;
+  --ui-fleet-black-33: #636777;
+  --ui-fleet-black-25: #42464f;
+  --ui-fleet-black-10: #474c58;
+  --ui-fleet-black-5: #25272d;
+
+  // Secondary / interaction
+  --ui-fleet-black-75-over: #c5c7d1;
+  --ui-fleet-black-75-down: #d5d7de;
+  --core-fleet-green-over: #01a889;
+  --core-fleet-green-down: #02be9c;
+  --ui-fleet-black-5-down: #2c2f37;
+
+  // Core accent — slightly brighter for dark-bg contrast
+  --core-fleet-blue: #6a6f8a;
+  --core-vibrant-blue: #7b79ff;
+  --core-vibrant-red: #ff7a9a;
+  --core-fleet-purple: #c08ae8;
+  --core-dark-blue-grey: #6e8eaf;
+  --site-nav-on-hover: #252830;
+
+  // UI
+  --ui-fleet-blue-10: #1e2128;
+  --ui-dark-blue-gray: #4a5560;
+  --ui-blue-gray: #2d313a;
+  --ui-gray: #32363e;
+  --ui-light-grey: #1e2128;
+  --ui-off-white: #1e2128;
+  --ui-shadow: #32363e;
+  --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
+  --ui-vibrant-blue-25: #282736;
+  --ui-vibrant-blue-10: #2c2f37;
+  --tooltip-bg: #353940;
+
+  // Notifications & status — slightly brighter
+  --ui-offline: #8b8fa2;
+  --ui-success: #4dc98b;
+  --ui-warning: #f0ca5e;
+  --ui-error: #e07888;
+  --ui-info: #7b79ff;
+  --ui-yellow-banner: #2e291d;
+  --ui-yellow-banner-outline: #4e4125;
+
+  // Toast surfaces — muted in dark mode so the large filled fill is easy on
+  // the eyes against the darkened UI.
+  --ui-success-toast-bg: #2d8f5f;
+  --ui-error-toast-bg: #a8525f;
+
+  // TS COLORS aliases
+  --core-fleet-red: #ff7a9a;
+  --ui-blue-hover: #8c8aff;
+  --ui-blue-pressed: #6b69d9;
+  --ui-blue-50: rgba(123, 121, 255, 0.3);
+  --ui-blue-25: #282736;
+  --ui-blue-10: #1e1f2a;
+  --status-success: #4dc98b;
+  --status-warning: #f0ca5e;
+  --status-error: #e07888;
+
+  // Rainbow
+  --rainbow-orange: #fbb580;
+  --rainbow-green: #75d455;
+  --rainbow-blue: #70bbea;
+
+  // Gradients — slightly lighter top for subtle depth
+  --gradient-background: #202226;
+
+  // Button hover / active
+  --core-vibrant-red-over: #ff8da5;
+  --core-vibrant-red-down: #e07090;
+  --core-vibrant-blue-over: #8c8aff;
+  --core-vibrant-blue-down: #6b69d9;
+  --ui-success-over: #5dd99b;
+  --ui-success-down: #4dc98b;
+  --core-fleet-blue-over: #7a7f96;
+  --core-fleet-blue-down: #e2e4ea;
+
+  // Nav active underline
+  --nav-active-underline: var(--core-fleet-green);
+
+  // Overlays
+  --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
+  --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
+  --loading-overlay: rgba(24, 26, 31, 0.8);
+
+  --dropdown-menu-outline: var(--ui-fleet-black-10);
+}
+
+// =============================================================================
+// SCSS variable aliases — every existing component stylesheet keeps working.
+// =============================================================================
+
 // 2025 branding
-$core-fleet-black: #192147;
-$core-fleet-green: #009a7d;
-$core-fleet-white: #ffffff;
-$ui-fleet-black-75: #515774;
-$ui-fleet-black-50: #8b8fa2;
-$ui-fleet-black-33: #b3b6c1;
-$ui-fleet-black-25: #c5c7d1;
-$ui-fleet-black-10: #e2e4ea;
-$ui-fleet-black-5: #f4f4f6;
-$core-focused-outline: $core-fleet-black;
+$core-fleet-black: var(--core-fleet-black);
+$core-fleet-green: var(--core-fleet-green);
+$core-fleet-white: var(--core-fleet-white);
+$ui-fleet-black-75: var(--ui-fleet-black-75);
+$ui-fleet-black-50: var(--ui-fleet-black-50);
+$ui-fleet-black-33: var(--ui-fleet-black-33);
+$ui-fleet-black-25: var(--ui-fleet-black-25);
+$ui-fleet-black-10: var(--ui-fleet-black-10);
+$ui-fleet-black-5: var(--ui-fleet-black-5);
+$core-focused-outline: var(--core-fleet-black);
+$nav-active-underline: var(--nav-active-underline);
 
 // 2025 secondary colors
-$ui-fleet-black-75-over: darken(#515774, 5%);
-$ui-fleet-black-75-down: darken(#515774, 10%);
-$core-fleet-green-over: darken(#009a7d, 5%);
-$core-fleet-green-down: darken(#009a7d, 10%);
-$ui-fleet-black-5-down: #f0f1f4; // As specified in design system
+$ui-fleet-black-75-over: var(--ui-fleet-black-75-over);
+$ui-fleet-black-75-down: var(--ui-fleet-black-75-down);
+$core-fleet-green-over: var(--core-fleet-green-over);
+$core-fleet-green-down: var(--core-fleet-green-down);
+$ui-fleet-black-5-down: var(--ui-fleet-black-5-down);
 
 // Core
-$core-fleet-blue: #3e4771;
-$core-vibrant-blue: #6a67fe;
-$core-vibrant-red: #ff5c83;
-$core-fleet-purple: #ae6ddf;
-$core-dark-blue-grey: #506e92;
-$site-nav-on-hover: #0e1533;
+$core-fleet-blue: var(--core-fleet-blue);
+$core-vibrant-blue: var(--core-vibrant-blue);
+$core-vibrant-red: var(--core-vibrant-red);
+$core-fleet-purple: var(--core-fleet-purple);
+$core-dark-blue-grey: var(--core-dark-blue-grey);
+$site-nav-on-hover: var(--site-nav-on-hover);
 
 // UI
-$ui-fleet-blue-10: #f9fafc;
-$ui-dark-blue-gray: #afbec1;
-$ui-blue-gray: #dbe3e5;
-$ui-gray: #e3e3e3;
-$ui-light-grey: #fafafa;
-$ui-off-white: #f9fafc; // rgba(249, 250, 252, 1)
-$ui-shadow: #e9e9e9;
-$ui-vibrant-blue-50: rgba(106, 103, 254, 0.5);
-$ui-vibrant-blue-25: #d9d9fe;
-$ui-vibrant-blue-10: #f1f0ff; // rgba(241, 240, 255, 1)
-$tooltip-bg: #3e4771;
+$ui-fleet-blue-10: var(--ui-fleet-blue-10);
+$ui-dark-blue-gray: var(--ui-dark-blue-gray);
+$ui-blue-gray: var(--ui-blue-gray);
+$ui-gray: var(--ui-gray);
+$ui-light-grey: var(--ui-light-grey);
+$ui-off-white: var(--ui-off-white);
+$ui-shadow: var(--ui-shadow);
+$ui-vibrant-blue-50: var(--ui-vibrant-blue-50);
+$ui-vibrant-blue-25: var(--ui-vibrant-blue-25);
+$ui-vibrant-blue-10: var(--ui-vibrant-blue-10);
+$tooltip-bg: var(--tooltip-bg);
 
 // Notifications & status & specific messages
-$ui-offline: #8b8fa2;
-$ui-success: #3db67b;
-$ui-warning: #ebbc43;
-$ui-error: #d66c7b;
-$ui-info: #6a67fe;
-$ui-yellow-banner: #fef7e0;
-$ui-yellow-banner-outline: #ece0bb;
+$ui-offline: var(--ui-offline);
+$ui-success: var(--ui-success);
+$ui-warning: var(--ui-warning);
+$ui-error: var(--ui-error);
+$ui-info: var(--ui-info);
+$ui-yellow-banner: var(--ui-yellow-banner);
+$ui-yellow-banner-outline: var(--ui-yellow-banner-outline);
+$ui-success-toast-bg: var(--ui-success-toast-bg);
+$ui-error-toast-bg: var(--ui-error-toast-bg);
 
 // Rainbow
-$rainbow-orange: #faa669;
-$rainbow-green: #63c740;
-$rainbow-blue: #5cabdf;
+$rainbow-orange: var(--rainbow-orange);
+$rainbow-green: var(--rainbow-green);
+$rainbow-blue: var(--rainbow-blue);
 
 // Gradients
-$gradient-background: #eff6fa; // 2025 gradient start color
-$gradients-dark-gradient: linear-gradient(270deg, #201e43 0%, #353d62 100%);
+$gradient-background: var(--gradient-background);
+// These gradients are already dark; no theme swap needed.
+$gradients-dark-gradient: linear-gradient(270deg, #202226 0%, #353840 100%);
 $gradients-dark-gradient-vertical: linear-gradient(
   360deg,
-  #201e43 0%,
-  #353d62 100%
+  #202226 0%,
+  #353840 100%
 );
 $gradients-bright-gradient: linear-gradient(180deg, #ae6ddf 0%, #6a67fe 100%);
 
-// Colors for over (hover) and down (active) buttons styles
-$core-vibrant-red-over: #e93661;
-$core-vibrant-red-down: #cb3559;
-$core-vibrant-blue-over: #5d5ae7;
-$core-vibrant-blue-down: #4b4ab4;
-$ui-success-over: #36a26d;
-$ui-success-down: #2b7f56;
-$core-fleet-blue-over: #303860;
-$core-fleet-blue-down: $core-fleet-black;
+// Colors for over (hover) and down (active) button styles
+$core-vibrant-red-over: var(--core-vibrant-red-over);
+$core-vibrant-red-down: var(--core-vibrant-red-down);
+$core-vibrant-blue-over: var(--core-vibrant-blue-over);
+$core-vibrant-blue-down: var(--core-vibrant-blue-down);
+$ui-success-over: var(--ui-success-over);
+$ui-success-down: var(--ui-success-down);
+$core-fleet-blue-over: var(--core-fleet-blue-over);
+$core-fleet-blue-down: var(--core-fleet-blue-down);
 
 $transparent: rgba(255, 255, 255, 0);
 
-// Opaque colors for table shadows
-// l = lowest color  a = (255-l)/255
-$ui-vibrant-blue-10-alpha: (255-240)/255; // rgba(241, 240, 255)
-$ui-vibrant-blue-10-opaque: rgba(
-  (241-240) / $ui-vibrant-blue-10-alpha,
-  (240-240) / $ui-vibrant-blue-10-alpha,
-  (255-240) / $ui-vibrant-blue-10-alpha,
-  $ui-vibrant-blue-10-alpha
-);
+// Overlay aliases (replace inline rgba($core-fleet-black, …) calls)
+$core-fleet-black-overlay-40: var(--core-fleet-black-overlay-40);
+$core-fleet-black-overlay-05: var(--core-fleet-black-overlay-05);
+$loading-overlay: var(--loading-overlay);
+
+// Static colors — not themed, same in both light and dark mode.
+// Use for elements that are always dark surfaces with light text (tooltips, code blocks).
+$static-white: #e8eaf0;
+$static-black: #192147;
+$dark-mode-table-header: #282c33;
+$dark-mode-table-row: #1f2229;
+$dark-mode-nav-hover: #1f2228;
+
+// Opaque colors for table shadows — compile-time SCSS math, not themed.
+// These are subtle edge effects; dark-mode polish can refine them later.
 $ui-off-white-alpha: (255-249)/255; // rgba(249, 250, 252)
 $ui-off-white-opaque: rgba(
   (249-249) / $ui-off-white-alpha,

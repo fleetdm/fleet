@@ -25,6 +25,10 @@ import EmptySearchCheck from "./EmptySearchCheck";
 import EmptySearchQuestion from "./EmptySearchQuestion";
 import CollectingResults from "./CollectingResults";
 import DataError from "./DataError";
+import Calendar from "./Calendar";
+import Lock from "./Lock";
+import Settings from "./Settings";
+import FleetLogo from "./FleetLogo";
 
 export const GRAPHIC_MAP = {
   // Empty state graphics
@@ -57,6 +61,10 @@ export const GRAPHIC_MAP = {
   // Other graphics
   "collecting-results": CollectingResults,
   "data-error": DataError,
+  calendar: Calendar,
+  lock: Lock,
+  settings: Settings,
+  "fleet-logo": FleetLogo,
 };
 
 export type GraphicNames = keyof typeof GRAPHIC_MAP;

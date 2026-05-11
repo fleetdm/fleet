@@ -157,7 +157,9 @@ spec:
 func TestGetTeams(t *testing.T) {
 	var expiredBanner strings.Builder
 	fleet.WriteExpiredLicenseBanner(&expiredBanner)
-	require.Contains(t, expiredBanner.String(), "Your license for Fleet Premium is about to expire")
+	bannerStr := expiredBanner.String()
+	require.Contains(t, bannerStr, "Your license for Fleet Premium is about to expire")
+	require.Contains(t, bannerStr, "https://fleetdm.com/learn-more-about/downgrading")
 
 	testCases := []struct {
 		name                    string
@@ -198,6 +200,10 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								EnableHostUsers:         true,
 								EnableSoftwareInventory: true,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 						},
 					},
@@ -212,12 +218,17 @@ func TestGetTeams(t *testing.T) {
 							AgentOptions: &agentOpts,
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
+								HistoricalData: fleet.HistoricalDataSettings{
+									Uptime:          true,
+									Vulnerabilities: true,
+								},
 							},
 							HostExpirySettings: fleet.HostExpirySettings{
 								HostExpiryEnabled: true,
 								HostExpiryWindow:  15,
 							},
 							MDM: fleet.TeamMDM{
+								EnableRecoveryLockPassword: true,
 								MacOSUpdates: fleet.AppleOSUpdateSettings{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
@@ -268,7 +279,7 @@ func TestGetTeams(t *testing.T) {
 
 			var errBuffer strings.Builder
 
-			actualText, err := RunWithErrWriter([]string{"get", "teams"}, &errBuffer)
+			actualText, err := RunWithErrWriter([]string{"get", "fleets"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, expectedText, actualText.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
@@ -276,20 +287,20 @@ func TestGetTeams(t *testing.T) {
 			// cannot use assert.JSONEq like we do for YAML because this is not a
 			// single JSON value, it is a list of 2 JSON objects.
 			errBuffer.Reset()
-			actualJSON, err := RunWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
+			actualJSON, err := RunWithErrWriter([]string{"get", "fleets", "--json"}, &errBuffer)
 			require.NoError(t, err)
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 			require.Equal(t, expectedJson, actualJSON.String())
 
 			errBuffer.Reset()
-			actualYaml, err := RunWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
+			actualYaml, err := RunWithErrWriter([]string{"get", "fleets", "--yaml"}, &errBuffer)
 			require.NoError(t, err)
 			assert.YAMLEq(t, expectedYaml, actualYaml.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
 
 			// Test --remove-deprecated-keys: "fleet" present, "team" absent at spec level
 			errBuffer.Reset()
-			actualRemovedJSON, err := RunWithErrWriter([]string{"get", "teams", "--json", "--remove-deprecated-keys"}, &errBuffer)
+			actualRemovedJSON, err := RunWithErrWriter([]string{"get", "fleets", "--json", "--remove-deprecated-keys"}, &errBuffer)
 			require.NoError(t, err)
 			dec2 := json.NewDecoder(bytes.NewReader(actualRemovedJSON.Bytes()))
 			for dec2.More() {
@@ -325,13 +336,13 @@ func TestGetTeamsByName(t *testing.T) {
 		}, nil
 	}
 
-	expectedText := `+-----------+---------+------------+------------+
-| TEAM NAME | TEAM ID | HOST COUNT | USER COUNT |
-+-----------+---------+------------+------------+
-| team1     |      42 |         43 |         99 |
-+-----------+---------+------------+------------+
+	expectedText := `+------------+----------+------------+------------+
+| FLEET NAME | FLEET ID | HOST COUNT | USER COUNT |
++------------+----------+------------+------------+
+| team1      |       42 |         43 |         99 |
++------------+----------+------------+------------+
 `
-	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "teams", "--name", "test1"}))
+	assert.Equal(t, expectedText, RunAppForTest(t, []string{"get", "fleets", "--name", "test1"}))
 }
 
 func TestGetHosts(t *testing.T) {
@@ -426,33 +437,33 @@ func TestGetHosts(t *testing.T) {
 		return []*fleet.HostPolicy{
 			{
 				PolicyData: fleet.PolicyData{
-					ID:                             1,
-					Name:                           "query1",
-					Query:                          defaultPolicyQuery,
-					Description:                    "Some description",
-					AuthorID:                       ptr.Uint(1),
-					AuthorName:                     "Alice",
-					AuthorEmail:                    "alice@example.com",
-					Resolution:                     ptr.String("Some resolution"),
-					TeamID:                         ptr.Uint(1),
-					CalendarEventsEnabled:          true,
-					ConditionalAccessBypassEnabled: ptr.Bool(true),
+					ID:                    1,
+					Name:                  "query1",
+					Query:                 defaultPolicyQuery,
+					Description:           "Some description",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            ptr.String("Some resolution"),
+					TeamID:                ptr.Uint(1),
+					CalendarEventsEnabled: true,
+					Type:                  "dynamic",
 				},
 				Response: "passes",
 			},
 			{
 				PolicyData: fleet.PolicyData{
-					ID:                             2,
-					Name:                           "query2",
-					Query:                          defaultPolicyQuery,
-					Description:                    "",
-					AuthorID:                       ptr.Uint(1),
-					AuthorName:                     "Alice",
-					AuthorEmail:                    "alice@example.com",
-					Resolution:                     nil,
-					TeamID:                         nil,
-					CalendarEventsEnabled:          false,
-					ConditionalAccessBypassEnabled: ptr.Bool(false),
+					ID:                    2,
+					Name:                  "query2",
+					Query:                 defaultPolicyQuery,
+					Description:           "",
+					AuthorID:              ptr.Uint(1),
+					AuthorName:            "Alice",
+					AuthorEmail:           "alice@example.com",
+					Resolution:            nil,
+					TeamID:                nil,
+					CalendarEventsEnabled: false,
+					Type:                  "dynamic",
 				},
 				Response: "fails",
 			},
@@ -713,7 +724,13 @@ func TestGetConfig(t *testing.T) {
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
-			Features:              fleet.Features{EnableHostUsers: true},
+			Features: fleet.Features{
+				EnableHostUsers: true,
+				HistoricalData: fleet.HistoricalDataSettings{
+					Uptime:          true,
+					Vulnerabilities: true,
+				},
+			},
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
@@ -1009,7 +1026,7 @@ spec:
 	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "software", "--yaml"}))
 	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "software", "--json"}))
 
-	RunAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	RunAppForTest(t, []string{"get", "software", "--json", "--fleet", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
@@ -1178,7 +1195,7 @@ spec:
 	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
 	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	RunAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
+	RunAppForTest(t, []string{"get", "software", "--versions", "--json", "--fleet", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
@@ -1616,7 +1633,7 @@ func TestGetQueries(t *testing.T) {
 
 	expectedYAMLGlobal := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -1632,7 +1649,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -1651,7 +1668,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: some desc 4
@@ -1666,9 +1683,9 @@ spec:
   query: select 4;
   team: ""
 `
-	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;","team":""}}
+	expectedJSONGlobal := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":true,"fleet":"","interval":0,"labels_include_any":["label1","label2"],"logging":"","min_osquery_version":"","name":"query2","observer_can_run":false,"platform":"","query":"select 2;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some desc 4","discard_data":false,"fleet":"","interval":60,"logging":"differential_ignore_removals","min_osquery_version":"5.3.0","name":"query4","observer_can_run":true,"platform":"darwin,windows","query":"select 4;","team":""}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1690,7 +1707,7 @@ spec:
 
 	expectedYAMLTeam := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 3
@@ -1705,20 +1722,20 @@ spec:
   query: select 3;
   team: Foobar
 `
-	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;","team":"Foobar"}}
+	expectedJSONTeam := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"snapshot","min_osquery_version":"5.4.0","name":"query3","observer_can_run":true,"platform":"darwin","query":"select 3;","team":"Foobar"}}
 `
 
-	assert.Equal(t, expectedGlobal, RunAppForTest(t, []string{"get", "queries"}))
-	assert.Equal(t, expectedYAMLGlobal, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
-	assert.Equal(t, expectedJSONGlobal, RunAppForTest(t, []string{"get", "queries", "--json"}))
+	assert.Equal(t, expectedGlobal, RunAppForTest(t, []string{"get", "reports"}))
+	assert.Equal(t, expectedYAMLGlobal, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+	assert.Equal(t, expectedJSONGlobal, RunAppForTest(t, []string{"get", "reports", "--json"}))
 
-	assert.Equal(t, expectedTeam, RunAppForTest(t, []string{"get", "queries", "--team", "1"}))
-	assert.Equal(t, expectedYAMLTeam, RunAppForTest(t, []string{"get", "queries", "--yaml", "--team", "1"}))
-	assert.Equal(t, expectedJSONTeam, RunAppForTest(t, []string{"get", "queries", "--json", "--team", "1"}))
+	assert.Equal(t, expectedTeam, RunAppForTest(t, []string{"get", "reports", "--fleet", "1"}))
+	assert.Equal(t, expectedYAMLTeam, RunAppForTest(t, []string{"get", "reports", "--yaml", "--fleet", "1"}))
+	assert.Equal(t, expectedJSONTeam, RunAppForTest(t, []string{"get", "reports", "--json", "--fleet", "1"}))
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--team", "2"}))
-	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--yaml", "--team", "2"}))
-	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries", "--json", "--team", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "reports", "--fleet", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "reports", "--yaml", "--fleet", "2"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "reports", "--json", "--fleet", "2"}))
 }
 
 func TestGetQuery(t *testing.T) {
@@ -1786,7 +1803,7 @@ func TestGetQuery(t *testing.T) {
 
 	expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -1801,7 +1818,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
 `
 
 	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1810,7 +1827,7 @@ spec:
 
 	expectedYaml = `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: some team desc
@@ -1825,12 +1842,122 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
+	expectedJson = `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
 `
 
-	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
-	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "--team", "1", "teamQuery1"}))
-	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "--team", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "report", "--yaml", "--fleet", "1", "teamQuery1"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"}))
+}
+
+func TestGetQueryLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		if teamID != nil || name != "qall" {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Query{
+			ID:             77,
+			Name:           "qall",
+			Description:    "include_all roundtrip",
+			Query:          "select 1;",
+			Saved:          true,
+			ObserverCanRun: false,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: "labelA", LabelID: 1},
+				{LabelName: "labelB", LabelID: 2},
+			},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: include_all roundtrip
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"include_all roundtrip","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "qall"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "qall"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "qall"}))
+}
+
+func TestGetReportsLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID != nil {
+			return nil, 0, 0, nil, errors.New("unexpected team scope")
+		}
+		return []*fleet.Query{
+			{
+				ID:    78,
+				Name:  "qall-bulk",
+				Query: "select 1;",
+				Saved: true,
+				LabelsIncludeAll: []fleet.LabelIdent{
+					{LabelName: "labelA", LabelID: 1},
+					{LabelName: "labelB", LabelID: 2},
+				},
+			},
+		}, 1, 0, nil, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: ""
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall-bulk
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall-bulk","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "reports", "--json"}))
 }
 
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
@@ -1931,7 +2058,7 @@ func TestGetQueriesAsObserver(t *testing.T) {
 `
 			expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -1946,12 +2073,12 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
+			expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
 `
 
-			assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
-			assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
-			assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "queries", "--json"}))
+			assert.Equal(t, expected, RunAppForTest(t, []string{"get", "reports"}))
+			assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+			assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "reports", "--json"}))
 		})
 	}
 
@@ -2016,7 +2143,7 @@ spec:
 `
 	expectedYaml := `---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc
@@ -2032,7 +2159,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 2
@@ -2048,7 +2175,7 @@ spec:
   team: ""
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: some desc 3
@@ -2063,14 +2190,14 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
-{"kind":"query","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;","team":""}}
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 2","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query2","observer_can_run":true,"platform":"","query":"select 2;","team":""}}
+{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc 3","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"query3","observer_can_run":false,"platform":"","query":"select 3;","team":""}}
 `
 
-	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
-	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "queries", "--yaml"}))
-	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "queries", "--json"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "reports"}))
+	assert.Equal(t, expectedYaml, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "reports", "--json"}))
 
 	// No queries are returned if none is observer_can_run.
 	setCurrentUserSession(t, ds, &fleet.User{
@@ -2099,7 +2226,7 @@ spec:
 			},
 		}, 2, 0, nil, nil
 	}
-	assert.Equal(t, "", RunAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, "", RunAppForTest(t, []string{"get", "reports"}))
 
 	// No filtering is performed if all are observer_can_run.
 	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
@@ -2148,7 +2275,7 @@ spec:
 |        |             |           |           | discard_data: false        |
 +--------+-------------+-----------+-----------+----------------------------+
 `
-	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "queries"}))
+	assert.Equal(t, expected, RunAppForTest(t, []string{"get", "reports"}))
 }
 
 func TestEnrichedAppConfig(t *testing.T) {
@@ -2374,7 +2501,7 @@ func TestGetAppleBM(t *testing.T) {
 		}
 
 		out := RunAppForTest(t, []string{"get", "mdm_apple_bm"})
-		assert.Contains(t, out, "No Apple Business Manager server token found.")
+		assert.Contains(t, out, "No Apple Business server token found.")
 	})
 
 	t.Run("premium license, multiple tokens", func(t *testing.T) {
@@ -2609,7 +2736,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 		return map[string]uint{fleet.BuiltinLabelMacOS14Plus: 1}, nil
 	}
-	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 		declaration.DeclarationUUID = uuid.NewString()
 		return declaration, nil
 	}
@@ -2620,10 +2747,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		return nil
 	}
 
-	actualYaml := RunAppForTest(t, []string{"get", "teams", "--yaml"})
+	actualYaml := RunAppForTest(t, []string{"get", "fleets", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 fleets\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {

@@ -29,7 +29,8 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import GenericMsgWithNavButton from "components/GenericMsgWithNavButton";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 
 import InstallSoftwareForm from "./components/InstallSoftwareForm";
@@ -82,7 +83,7 @@ const InstallSoftware = ({
     () =>
       mdmAPI.getSetupExperienceSoftware({
         platform: selectedPlatform,
-        team_id: currentTeamId,
+        fleet_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
@@ -107,7 +108,7 @@ const InstallSoftware = ({
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     enabled: isValidPlatform && currentTeamId !== API_NO_TEAM_ID,
-    select: (res) => res.team,
+    select: (res) => res.fleet,
   });
 
   const handleTabChange = useCallback(
@@ -137,6 +138,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 
@@ -157,47 +159,53 @@ const InstallSoftware = ({
         (platform === "macos" || platform === "ios" || platform === "ipados") &&
         !appleMdmAndAbmEnabled;
 
-      const turnOnWindowsMdm =
-        platform === "windows" &&
-        !globalConfig?.mdm.windows_enabled_and_configured;
-
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm || turnOnAndroidMdm;
+      // Only Apple and Android setup experience require MDM. Windows admins can
+      // pre-stage setup-experience software without MDM, but the
+      // require_all_software_windows option does require Windows MDM to be on
+      // (gated at the checkbox level inside InstallSoftwareForm).
+      const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
-      return (
-        <SetupExperienceContentContainer>
-          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
-          {turnOnMdm ? (
-            <GenericMsgWithNavButton
-              header={`${
-                platform === "android"
-                  ? "Turn on Android MDM"
-                  : "Additional configuration required"
-              }`}
-              info={`To customize, first turn on ${
-                platform === "android" ? "Android MDM" : "automatic enrollment"
-              }.`}
-              buttonText="Turn on"
-              path={PATHS.ADMIN_INTEGRATIONS_MDM}
-              router={router}
-            />
-          ) : (
-            <InstallSoftwareForm
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              softwareTitles={softwareTitles}
-              platform={platform}
-              savedRequireAllSoftwareMacOS={
-                currentTeamId
-                  ? teamConfig?.mdm?.macos_setup?.require_all_software_macos
-                  : globalConfig?.mdm?.macos_setup?.require_all_software_macos
-              }
-              router={router}
-              refetchSoftwareTitles={refetchSoftwareTitles}
-            />
-          )}
-        </SetupExperienceContentContainer>
+      return turnOnMdm ? (
+        <EmptyState
+          header={
+            platform === "android"
+              ? "Turn on Android MDM"
+              : "Additional configuration required"
+          }
+          info={
+            platform === "android"
+              ? "Turn on MDM to install software during setup experience."
+              : "Turn on MDM and automatic enrollment to install software during setup experience."
+          }
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      ) : (
+        <InstallSoftwareForm
+          currentTeamId={currentTeamId}
+          hasManualAgentInstall={hasManualAgentInstall}
+          softwareTitles={softwareTitles}
+          platform={platform}
+          savedRequireAllSoftwareMacOS={
+            currentTeamId
+              ? teamConfig?.mdm?.setup_experience?.require_all_software_macos
+              : globalConfig?.mdm?.setup_experience?.require_all_software_macos
+          }
+          savedRequireAllSoftwareWindows={
+            currentTeamId
+              ? teamConfig?.mdm?.setup_experience?.require_all_software_windows
+              : globalConfig?.mdm?.setup_experience
+                  ?.require_all_software_windows
+          }
+          isWindowsMdmEnabled={!!isWindowsMdmEnabled}
+          router={router}
+          refetchSoftwareTitles={refetchSoftwareTitles}
+        />
       );
     }
 
@@ -216,42 +224,50 @@ const InstallSoftware = ({
           />
         }
       />
-      {isLoadingConfig ? (
-        <Spinner />
-      ) : (
-        <TabNav secondary>
-          <Tabs
-            selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
-            onSelect={handleTabChange}
-          >
-            <TabList>
-              <Tab>
-                <TabText>macOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Windows</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Linux</TabText>
-              </Tab>
-              <Tab>
-                <TabText>iOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>iPadOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Android</TabText>
-              </Tab>
-            </TabList>
-            {PLATFORM_BY_INDEX.map((platform) => {
-              return (
-                <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
-              );
-            })}
-          </Tabs>
-        </TabNav>
-      )}
+      <PageDescription
+        variant="right-panel"
+        content="Install software on hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {isLoadingConfig ? (
+          <Spinner />
+        ) : (
+          <TabNav secondary>
+            <Tabs
+              selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+              onSelect={handleTabChange}
+            >
+              <TabList>
+                <Tab>
+                  <TabText>macOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Windows</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Linux</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>iOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>iPadOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Android</TabText>
+                </Tab>
+              </TabList>
+              {PLATFORM_BY_INDEX.map((platform) => {
+                return (
+                  <TabPanel key={platform}>
+                    {renderTabContent(platform)}
+                  </TabPanel>
+                );
+              })}
+            </Tabs>
+          </TabNav>
+        )}
+      </SetupExperienceContentContainer>
     </section>
   );
 };

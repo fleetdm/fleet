@@ -6,20 +6,27 @@ import (
 	"errors"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	platform_logging "github.com/fleetdm/fleet/v4/server/platform/logging"
 )
 
 type addFleetMaintainedAppRequest struct {
-	TeamID            *uint    `json:"team_id" renameto:"fleet_id"`
+	TeamID *uint `json:"team_id"` //nolint:apiparamcheck // alias handled manually via sibling FleetID field (see DecodeRequest below)
+	// Note that we're adding an explicit FleetID field rather than using `renameto`.
+	// The POST /software/fleet_maintained_apps endpoint has a custom decoder
+	// and in this special case it's easier to handle the aliasing manually.
+	FleetID           *uint    `json:"fleet_id"`
 	AppID             uint     `json:"fleet_maintained_app_id"`
 	InstallScript     string   `json:"install_script"`
-	PreInstallQuery   string   `json:"pre_install_query"`
+	PreInstallQuery   string   `json:"pre_install_query"` //nolint:apiparamcheck
 	PostInstallScript string   `json:"post_install_script"`
 	SelfService       bool     `json:"self_service"`
 	UninstallScript   string   `json:"uninstall_script"`
 	LabelsIncludeAny  []string `json:"labels_include_any"`
 	LabelsExcludeAny  []string `json:"labels_exclude_any"`
+	LabelsIncludeAll  []string `json:"labels_include_all"`
 	AutomaticInstall  bool     `json:"automatic_install"`
 	Categories        []string `json:"categories"`
 }
@@ -39,6 +46,23 @@ func (addFleetMaintainedAppRequest) DecodeRequest(ctx context.Context, r *http.R
 		}
 	}
 
+	// Resolve fleet_id → team_id aliasing. The struct has both fields so
+	// json.Decode populates whichever the caller sent; we normalize here.
+	if req.FleetID != nil {
+		if req.TeamID != nil {
+			return nil, &fleet.BadRequestError{
+				Message: `Specify only one of "team_id" or "fleet_id"`,
+			}
+		}
+		req.TeamID = req.FleetID
+		req.FleetID = nil
+	} else if req.TeamID != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		// Add a deprecation warning.
+		logging.WithExtras(ctx,
+			"deprecated_fields", "[team_id]",
+			"deprecation_warning", "use the updated field names (fleet_id) instead",
+		)
+	}
 	// Check if scripts are base64 encoded
 	if isScriptsEncoded(r) {
 		var err error
@@ -82,6 +106,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 		req.AutomaticInstall,
 		req.LabelsIncludeAny,
 		req.LabelsExcludeAny,
+		req.LabelsIncludeAll,
 	)
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
@@ -93,7 +118,7 @@ func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc
 	return &addFleetMaintainedAppResponse{SoftwareTitleID: titleId}, nil
 }
 
-func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _ []string) (uint, error) {
+func (svc *Service) AddFleetMaintainedApp(ctx context.Context, _ *uint, _ uint, _, _, _, _ string, _ bool, _ bool, _, _, _ []string) (uint, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

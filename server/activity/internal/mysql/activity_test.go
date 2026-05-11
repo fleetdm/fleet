@@ -8,7 +8,6 @@ import (
 	activityapi "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/testutils"
 	"github.com/fleetdm/fleet/v4/server/activity/internal/types"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,7 +52,7 @@ func testListActivitiesBasic(t *testing.T, env *testEnv) {
 
 	// Create user activities and a system activity (nil user)
 	for i := range 3 {
-		env.InsertActivity(t, ptr.Uint(userID), fmt.Sprintf("test_activity_%d", i), map[string]any{"detail": i})
+		env.InsertActivity(t, &userID, fmt.Sprintf("test_activity_%d", i), map[string]any{"detail": i})
 	}
 	env.InsertActivity(t, nil, "system_activity", map[string]any{})
 
@@ -83,14 +82,14 @@ func testListActivitiesStreamed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	var activityIDs []uint
+	activityIDs := make([]uint, 0, 3)
 	for i := range 3 {
-		id := env.InsertActivity(t, ptr.Uint(userID), "test_activity", map[string]any{"detail": i})
+		id := env.InsertActivity(t, &userID, "test_activity", map[string]any{"detail": i})
 		activityIDs = append(activityIDs, id)
 	}
 
 	// Mark first activity as streamed
-	_, err := env.DB.ExecContext(ctx, "UPDATE activities SET streamed = true WHERE id = ?", activityIDs[0])
+	_, err := env.DB.ExecContext(ctx, "UPDATE activity_past SET streamed = true WHERE id = ?", activityIDs[0])
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -99,8 +98,8 @@ func testListActivitiesStreamed(t *testing.T, env *testEnv) {
 		expectedIDs []uint
 	}{
 		{"all", nil, activityIDs},
-		{"non-streamed only", ptr.Bool(false), activityIDs[1:]},
-		{"streamed only", ptr.Bool(true), activityIDs[:1]},
+		{"non-streamed only", new(false), activityIDs[1:]},
+		{"streamed only", new(true), activityIDs[:1]},
 	}
 
 	for _, tc := range cases {
@@ -121,7 +120,7 @@ func testListActivitiesPaginationMetadata(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	for i := range 3 {
-		env.InsertActivity(t, ptr.Uint(userID), fmt.Sprintf("test_%d", i), map[string]any{})
+		env.InsertActivity(t, &userID, fmt.Sprintf("test_%d", i), map[string]any{})
 	}
 
 	cases := []struct {
@@ -153,9 +152,9 @@ func testListActivitiesActivityTypeFilter(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	env.InsertActivity(t, ptr.Uint(userID), "edited_script", map[string]any{})
-	env.InsertActivity(t, ptr.Uint(userID), "edited_script", map[string]any{})
-	env.InsertActivity(t, ptr.Uint(userID), "mdm_enrolled", map[string]any{})
+	env.InsertActivity(t, &userID, "edited_script", map[string]any{})
+	env.InsertActivity(t, &userID, "edited_script", map[string]any{})
+	env.InsertActivity(t, &userID, "mdm_enrolled", map[string]any{})
 
 	cases := []struct {
 		activityType string
@@ -183,14 +182,16 @@ func testListActivitiesDateRangeFilter(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 	now := time.Now().UTC().Truncate(time.Second)
 
-	// Only create activities in the past/present (activities can't have future creation dates)
+	// Includes a future-dated row to verify that the default upper bound caps
+	// at now regardless of whether StartCreatedAt is provided.
 	dates := []time.Time{
 		now.Add(-48 * time.Hour),
 		now.Add(-24 * time.Hour),
 		now,
+		now.Add(24 * time.Hour),
 	}
 	for _, dt := range dates {
-		env.InsertActivityWithTime(t, ptr.Uint(userID), "test_activity", map[string]any{}, dt)
+		env.InsertActivityWithTime(t, &userID, "test_activity", map[string]any{}, dt)
 	}
 
 	cases := []struct {
@@ -199,10 +200,12 @@ func testListActivitiesDateRangeFilter(t *testing.T, env *testEnv) {
 		end       string
 		wantCount int
 	}{
-		{"no filter", "", "", 3},
-		{"start only", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
+		{"no filter excludes future", "", "", 3},
+		{"start only excludes future", now.Add(-72 * time.Hour).Format(time.RFC3339), "", 3},
 		{"start and end", now.Add(-72 * time.Hour).Format(time.RFC3339), now.Add(-12 * time.Hour).Format(time.RFC3339), 2},
 		{"end only", "", now.Add(-30 * time.Hour).Format(time.RFC3339), 1},
+		{"end inclusive of exact match", "", now.Format(time.RFC3339), 3},
+		{"end in future includes future", "", now.Add(48 * time.Hour).Format(time.RFC3339), 4},
 	}
 
 	for _, tc := range cases {
@@ -220,8 +223,8 @@ func testListActivitiesMatchQuery(t *testing.T, env *testEnv) {
 	johnUserID := env.InsertUser(t, "john_doe", "john@example.com")
 	janeUserID := env.InsertUser(t, "jane_smith", "jane@example.com")
 
-	env.InsertActivity(t, ptr.Uint(johnUserID), "test_activity", map[string]any{})
-	env.InsertActivity(t, ptr.Uint(janeUserID), "test_activity", map[string]any{})
+	env.InsertActivity(t, &johnUserID, "test_activity", map[string]any{})
+	env.InsertActivity(t, &janeUserID, "test_activity", map[string]any{})
 
 	cases := []struct {
 		name            string
@@ -252,9 +255,9 @@ func testListActivitiesOrdering(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	now := time.Now().UTC().Truncate(time.Second)
-	env.InsertActivityWithTime(t, ptr.Uint(userID), "activity_oldest", map[string]any{}, now.Add(-2*time.Hour))
-	env.InsertActivityWithTime(t, ptr.Uint(userID), "activity_middle", map[string]any{}, now.Add(-1*time.Hour))
-	env.InsertActivityWithTime(t, ptr.Uint(userID), "activity_newest", map[string]any{}, now)
+	env.InsertActivityWithTime(t, &userID, "activity_oldest", map[string]any{}, now.Add(-2*time.Hour))
+	env.InsertActivityWithTime(t, &userID, "activity_middle", map[string]any{}, now.Add(-1*time.Hour))
+	env.InsertActivityWithTime(t, &userID, "activity_newest", map[string]any{}, now)
 
 	cases := []struct {
 		name      string
@@ -290,7 +293,7 @@ func testListActivitiesCursorPagination(t *testing.T, env *testEnv) {
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
 	for i := range 5 {
-		env.InsertActivity(t, ptr.Uint(userID), fmt.Sprintf("activity_%d", i), map[string]any{})
+		env.InsertActivity(t, &userID, fmt.Sprintf("activity_%d", i), map[string]any{})
 	}
 
 	// Get first page
@@ -368,8 +371,8 @@ func testListHostPastActivities(t *testing.T, env *testEnv) {
 	hostID := env.InsertHost(t, "h1.local", nil)
 
 	// Create activities linked to host with different types
-	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "ran_script", map[string]any{"host_id": float64(hostID)}))
-	env.InsertHostActivity(t, hostID, env.InsertActivity(t, ptr.Uint(userID), "installed_software", map[string]any{"host_id": float64(hostID)}))
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, &userID, "ran_script", map[string]any{"host_id": float64(hostID)}))
+	env.InsertHostActivity(t, hostID, env.InsertActivity(t, &userID, "installed_software", map[string]any{"host_id": float64(hostID)}))
 
 	cases := []struct {
 		name      string
@@ -406,14 +409,14 @@ func testMarkActivitiesAsStreamed(t *testing.T, env *testEnv) {
 	ctx := t.Context()
 	userID := env.InsertUser(t, "testuser", "test@example.com")
 
-	actA := env.InsertActivity(t, ptr.Uint(userID), "activity_a", map[string]any{})
-	actB := env.InsertActivity(t, ptr.Uint(userID), "activity_b", map[string]any{})
+	actA := env.InsertActivity(t, &userID, "activity_a", map[string]any{})
+	actB := env.InsertActivity(t, &userID, "activity_b", map[string]any{})
 
 	err := env.ds.MarkActivitiesAsStreamed(ctx, []uint{actA, actB})
 	require.NoError(t, err)
 
 	// Verify marked as streamed
-	activities, meta, err := env.ds.ListActivities(ctx, listOpts(withStreamed(ptr.Bool(true)), withMetadata()))
+	activities, meta, err := env.ds.ListActivities(ctx, listOpts(withStreamed(new(true)), withMetadata()))
 	require.NoError(t, err)
 	assert.Len(t, activities, 2)
 	require.NotNil(t, meta)

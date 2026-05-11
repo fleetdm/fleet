@@ -49,6 +49,8 @@ func TestVPP(t *testing.T) {
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
 		{"RetryVPPInstallForHost", testRetryVPPAppInstallForHost},
+		{"BackfillVPPAppCountriesLowestIDWins", testBackfillVPPAppCountriesLowestIDWins},
+		{"GetVPPTokenOwningAppInCountrySkipsExpired", testGetVPPTokenOwningAppInCountrySkipsExpired},
 	}
 
 	for _, c := range cases {
@@ -575,6 +577,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 2)
 		require.Len(t, meta.LabelsExcludeAny, 0)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 
 		// insert a VPP app with exclude_any labels
 		labeledApp = &fleet.VPPApp{
@@ -599,6 +602,7 @@ func testVPPApps(t *testing.T, ds *Datastore) {
 
 		require.Len(t, meta.LabelsIncludeAny, 0)
 		require.Len(t, meta.LabelsExcludeAny, 2)
+		require.Len(t, meta.LabelsIncludeAll, 0)
 	})
 
 	// create a host with some non-VPP software
@@ -1765,7 +1769,7 @@ func testDeleteVPPAssignedToPolicy(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteVPPAppFromTeam(ctx, ptr.Uint(0), va1.VPPAppID)
 	require.Error(t, err)
-	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedPolicy)
+	require.ErrorIs(t, err, errDeleteInstallerWithAssociatedInstallPolicy)
 
 	_, err = ds.DeleteTeamPolicies(ctx, fleet.PolicyNoTeamID, []uint{p1.ID})
 	require.NoError(t, err)
@@ -1939,6 +1943,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 2)
 	require.Len(t, app1Meta.LabelsExcludeAny, 0)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsIncludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1946,6 +1951,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 2)
 	require.Len(t, app2Meta.LabelsIncludeAny, 0)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsExcludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -1998,6 +2004,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app1Meta.LabelsIncludeAny, 0)
 	require.Len(t, app1Meta.LabelsExcludeAny, 2)
+	require.Len(t, app1Meta.LabelsIncludeAll, 0)
 	for _, l := range app1Meta.LabelsExcludeAny {
 		_, ok := app1.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -2005,6 +2012,7 @@ func testSetTeamVPPAppsWithLabels(t *testing.T, ds *Datastore) {
 
 	require.Len(t, app2Meta.LabelsExcludeAny, 0)
 	require.Len(t, app2Meta.LabelsIncludeAny, 2)
+	require.Len(t, app2Meta.LabelsIncludeAll, 0)
 	for _, l := range app2Meta.LabelsIncludeAny {
 		_, ok := app2.VPPAppTeam.ValidatedLabels.ByName[l.LabelName]
 		require.True(t, ok)
@@ -2772,7 +2780,7 @@ func testMapAdamIDsPendingInstallVerification(t *testing.T, ds *Datastore) {
 		require.Len(t, adamIDs, 1)
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, installCmdUUID, true)
 		require.NoError(t, err)
 
 		// Should get adam_vpp_1 as pending installation.
@@ -2967,7 +2975,7 @@ func testMapAdamIDsRecentInstalls(t *testing.T, ds *Datastore) {
 		require.Contains(t, adamIDs, "adam_vpp_1")
 
 		// Cancel the installation.
-		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID)
+		_, err = ds.cancelHostUpcomingActivity(ctx, ds.writer(ctx), iPadOSHost.ID, vpp1CmdUUID, true)
 		require.NoError(t, err)
 
 		// Should not get the install request (more than 1 second has passed since the install request).
@@ -3109,4 +3117,131 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, queueCommandCount)
 		return nil
 	})
+}
+
+// testBackfillVPPAppCountriesLowestIDWins guards the deterministic
+// lowest-id-wins behavior of the backfill SQL when multiple eligible
+// (token, country) candidates exist via vpp_apps_teams. Without this,
+// MySQL's join-row choice could silently flip across runs.
+func testBackfillVPPAppCountriesLowestIDWins(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "country-backfill-team-1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "country-backfill-team-2"})
+	require.NoError(t, err)
+
+	// tok1 is set up to be the lower-id (US) candidate, tok2 the higher-id
+	// (DE) candidate, so the assertion below pins which country wins.
+	tok1Data, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "BackfillUS", "US Library")
+	require.NoError(t, err)
+	tok1Data.CountryCode = "us"
+	tok1, err := ds.InsertVPPToken(ctx, tok1Data)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{team1.ID})
+	require.NoError(t, err)
+
+	tok2Data, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "BackfillDE", "DE Library")
+	require.NoError(t, err)
+	tok2Data.CountryCode = "de"
+	tok2, err := ds.InsertVPPToken(ctx, tok2Data)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, tok2.ID, []uint{team2.ID})
+	require.NoError(t, err)
+	require.Less(t, tok1.ID, tok2.ID, "test setup expects tok1 to have the lower id")
+
+	// Both teams own the same app, so the backfill UPDATE has two candidate
+	// (token, country) tuples to choose from.
+	app := &fleet.VPPApp{
+		Name:             "Backfill App",
+		BundleIdentifier: "com.app.backfill",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_backfill_low_id", Platform: fleet.MacOSPlatform},
+		},
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app, &team1.ID)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app, &team2.ID)
+	require.NoError(t, err)
+
+	// InsertVPPAppWithTeam may have already populated country_code from the
+	// adding token, so reset it to NULL to force the backfill to do work.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE vpp_apps SET country_code = NULL WHERE adam_id = ? AND platform = ?`,
+			"adam_backfill_low_id", fleet.MacOSPlatform)
+		return err
+	})
+
+	rows, err := ds.BackfillVPPAppCountriesFromTokens(ctx)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, rows, int64(1))
+
+	got, err := ds.GetVPPAppByAdamIDPlatform(ctx, "adam_backfill_low_id", fleet.MacOSPlatform)
+	require.NoError(t, err)
+	require.Equal(t, "us", got.CountryCode, "lowest-id token's country should win")
+
+	// A second run should be idempotent once everything is filled.
+	rows, err = ds.BackfillVPPAppCountriesFromTokens(ctx)
+	require.NoError(t, err)
+	require.Zero(t, rows, "second run should be a no-op")
+}
+
+// testGetVPPTokenOwningAppInCountrySkipsExpired guards the renew_at filter
+// so an expired token is treated as no eligible owner instead of being
+// returned and used for an Apple call that would fail.
+func testGetVPPTokenOwningAppInCountrySkipsExpired(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "expired-token-team-1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "expired-token-team-2"})
+	require.NoError(t, err)
+
+	expiredData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "ExpiredUS", "Expired Library")
+	require.NoError(t, err)
+	expiredData.CountryCode = "us"
+	expiredTok, err := ds.InsertVPPToken(ctx, expiredData)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, expiredTok.ID, []uint{team1.ID})
+	require.NoError(t, err)
+	// renew_at is forced into the past so the filter has to exclude this
+	// token, since CreateVPPTokenData picks a future expiration.
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			`UPDATE vpp_tokens SET renew_at = ? WHERE id = ?`,
+			time.Now().Add(-1*time.Hour), expiredTok.ID)
+		return err
+	})
+
+	validData, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "ValidUS", "Valid Library")
+	require.NoError(t, err)
+	validData.CountryCode = "us"
+	validTok, err := ds.InsertVPPToken(ctx, validData)
+	require.NoError(t, err)
+	_, err = ds.UpdateVPPTokenTeams(ctx, validTok.ID, []uint{team2.ID})
+	require.NoError(t, err)
+
+	app := &fleet.VPPApp{
+		Name:             "Expired-Filter App",
+		BundleIdentifier: "com.app.expired",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: "adam_expired_filter", Platform: fleet.MacOSPlatform},
+		},
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, app, &team1.ID)
+	require.NoError(t, err)
+	_, err = ds.InsertVPPAppWithTeam(ctx, app, &team2.ID)
+	require.NoError(t, err)
+
+	got, err := ds.GetVPPTokenOwningAppInCountry(ctx, "adam_expired_filter", fleet.MacOSPlatform, "us")
+	require.NoError(t, err)
+	require.Equal(t, validTok.ID, got.ID, "expected the non-expired token to be picked")
+
+	// With the valid token gone the only eligible candidate is expired, so
+	// NotFound signals callers to take the re-anchor path.
+	require.NoError(t, ds.DeleteVPPToken(ctx, validTok.ID))
+	_, err = ds.GetVPPTokenOwningAppInCountry(ctx, "adam_expired_filter", fleet.MacOSPlatform, "us")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "expected NotFound when only expired tokens remain")
 }

@@ -10,7 +10,7 @@ import campaignHelpers from "utilities/campaign_helpers";
 import debounce from "utilities/debounce";
 import { BASE_URL, DEFAULT_CAMPAIGN_STATE } from "utilities/constants";
 
-import { authToken } from "utilities/local";
+import authToken from "utilities/auth_token";
 
 import { ICampaign, ICampaignState } from "interfaces/campaign";
 import { IQuery } from "interfaces/query";
@@ -113,7 +113,7 @@ const RunQuery = ({
       websocket?.send(
         JSON.stringify({
           type: "auth",
-          data: { token: authToken() },
+          data: { token: authToken.get() },
         })
       );
       websocket?.send(
@@ -127,7 +127,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -163,7 +163,7 @@ const RunQuery = ({
         "error",
         "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -179,8 +179,8 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
-      const err = campaignError.toString();
+    } catch (campaignError) {
+      const err = String(campaignError);
       if (err.includes("no hosts targeted")) {
         renderFlash(
           "error",
@@ -194,7 +194,7 @@ const RunQuery = ({
       } else if (err.includes("forbidden") || err.includes("unauthorized")) {
         renderFlash(
           "error",
-          "It seems you do not have the rights to run this report. If you believe this is in error, please contact your administrator."
+          "It seems you do not have the rights to run this report. If you believe this is an error, please contact your administrator."
         );
       } else {
         renderFlash("error", "Something has gone wrong. Please try again.");

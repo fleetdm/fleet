@@ -37,21 +37,19 @@ const DeleteAutoEnrollProfile = ({
       title="Delete automatic enrollment profile"
       onExit={onCancel}
     >
-      <>
-        <p>Delete the automatic enrollment profile to upload a new one.</p>
-        <p>
-          Without an automatic enrollment profile, new macOS hosts will
-          automatically enroll with the default setup settings.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button type="button" onClick={handleDelete} variant="alert">
-            Delete
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>Delete the automatic enrollment profile to upload a new one.</p>
+      <p>
+        Without an automatic enrollment profile, new macOS hosts will
+        automatically enroll with the default setup settings.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button type="button" onClick={handleDelete} variant="alert">
+          Delete
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

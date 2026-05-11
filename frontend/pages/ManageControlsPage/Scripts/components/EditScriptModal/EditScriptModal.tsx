@@ -7,6 +7,7 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import RunScriptHelpText from "pages/hosts/components/ScriptDetailsModal/RunScriptHelpText";
 import scriptAPI from "services/entities/scripts";
+import useGitOpsMode from "hooks/useGitOpsMode";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -14,6 +15,7 @@ import Editor from "components/Editor";
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { ScriptContent } from "interfaces/script";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -39,30 +41,28 @@ const WarningModal = ({
       title="Save changes?"
       onExit={onExit}
     >
-      <>
-        <p>
-          The changes you are making will cancel any pending script runs for{" "}
-          <b>{scriptName}</b>.<br />
-          <br />
-          If this script is currently running on a host, it will complete, but
-          results won&apos;t appear in Fleet. <br />
-          <br />
-          You cannot undo this action.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            onClick={onSave}
-            className="save-loading"
-            isLoading={isSubmitting}
-          >
-            Save
-          </Button>
-          <Button onClick={onExit} variant="inverse">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        The changes you are making will cancel any pending script runs for{" "}
+        <b>{scriptName}</b>.<br />
+        <br />
+        If this script is currently running on a host, it will complete, but
+        results won&apos;t appear in Fleet. <br />
+        <br />
+        You cannot undo this action.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          onClick={onSave}
+          className="save-loading"
+          isLoading={isSubmitting}
+        >
+          Save
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };
@@ -95,6 +95,7 @@ const EditScriptModal = ({
     isTeamTechnician,
     isGlobalTechnician,
   } = useContext(AppContext);
+  const { gitOpsModeEnabled } = useGitOpsMode();
 
   const isTechnician = !!isTeamTechnician || !!isGlobalTechnician;
 
@@ -179,7 +180,12 @@ const EditScriptModal = ({
     }
 
     // Set editing mode based on the file extension.
-    const mode = scriptName.match(/\.sh$/) ? "sh" : "powershell";
+    let mode = "sh";
+    if (scriptName.match(/\.ps1$/)) {
+      mode = "powershell";
+    } else if (scriptName.match(/\.py$/)) {
+      mode = "python";
+    }
 
     return (
       <>
@@ -191,6 +197,7 @@ const EditScriptModal = ({
             onBlur={onBlur}
             onChange={onChange}
             value={scriptFormData}
+            readOnly={gitOpsModeEnabled}
           />
           <RunScriptHelpText
             className="form-field__help-text"
@@ -206,13 +213,19 @@ const EditScriptModal = ({
                 <Button onClick={onExit} variant="inverse">
                   Cancel
                 </Button>
-                <Button
-                  onClick={onSave}
-                  isLoading={isSubmitting}
-                  disabled={!!formError}
-                >
-                  Save
-                </Button>
+                <GitOpsModeTooltipWrapper
+                  renderChildren={(gitopsEnabled) => {
+                    return (
+                      <Button
+                        onClick={onSave}
+                        isLoading={isSubmitting}
+                        disabled={!!formError || gitopsEnabled}
+                      >
+                        Save
+                      </Button>
+                    );
+                  }}
+                />
               </>
             }
           />

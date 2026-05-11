@@ -118,7 +118,7 @@ func (s *Service) fireActivityWebhook(
 		retryStrategy.MaxElapsedTime = 30 * time.Minute
 		err := backoff.Retry(
 			func() error {
-				if err := s.webhookSendFn(
+				if err := platformhttp.PostJSONWithTimeout(
 					spanCtx, webhookURL, &webhookPayload{
 						Timestamp:     timestamp,
 						ActorFullName: userName,
@@ -126,7 +126,7 @@ func (s *Service) fireActivityWebhook(
 						ActorEmail:    userEmail,
 						Type:          activityType,
 						Details:       (*json.RawMessage)(&detailsBytes),
-					},
+					}, s.logger,
 				); err != nil {
 					var statusCoder kithttp.StatusCoder
 					if errors.As(err, &statusCoder) && statusCoder.StatusCode() == http.StatusTooManyRequests {

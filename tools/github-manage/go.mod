@@ -1,6 +1,6 @@
 module fleetdm/gm
 
-go 1.25.7
+go 1.26.2
 
 require (
 	github.com/charmbracelet/bubbles v0.21.0

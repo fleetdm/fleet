@@ -1,0 +1,459 @@
+- name: DEX - Hardware inventory - system information
+  description: Comprehensive system hardware identification including model, serial, manufacturer, and form factor.
+  query: |
+    SELECT
+      si.hostname,
+      si.computer_name,
+      si.hardware_vendor,
+      si.hardware_model,
+      si.hardware_serial,
+      si.cpu_type,
+      si.cpu_brand,
+      si.cpu_physical_cores,
+      si.cpu_logical_cores,
+      si.physical_memory,
+      ROUND(CAST(si.physical_memory AS REAL) / 1073741824, 2) AS memory_gb,
+      si.hardware_version,
+      si.board_vendor,
+      si.board_model
+    FROM system_info si;
+  platform: darwin,linux,windows
+  automations_enabled: true
+  logging: snapshot
+  interval: 604800
+- name: DEX - Application experience - macOS running apps
+  description: Currently running macOS applications and their activity status.
+  query: |
+    SELECT
+      ra.pid,
+      ra.bundle_identifier,
+      ra.is_active,
+      p.name,
+      p.path,
+      ROUND(p.resident_size / 1048576.0, 2) AS memory_mb,
+      p.threads
+    FROM running_apps ra
+    JOIN processes p ON ra.pid = p.pid;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 1800
+- name: DEX - Network experience - Wi-Fi signal quality
+  description: Wi-Fi connection signal strength and quality metrics. Poor Wi-Fi directly impacts cloud application performance and user experience.
+  query: |
+    SELECT
+      interface,
+      security_type,
+      rssi,
+      noise,
+      (rssi - noise)                                    AS snr_db,
+      channel,
+      channel_width,
+      channel_band,
+      transmit_rate,
+      CASE channel_band
+        WHEN 1 THEN '2.4GHz'
+        WHEN 5 THEN '5GHz'
+        WHEN 6 THEN '6GHz'
+        ELSE 'unknown'
+      END                                               AS wifi_band,
+      CASE
+        WHEN rssi >= -50                               THEN 'excellent'
+        WHEN rssi >= -65                               THEN 'good'
+        WHEN rssi >= -75                               THEN 'fair'
+        WHEN rssi >= -85                               THEN 'poor'
+        ELSE 'unusable'
+      END                                               AS signal_quality,
+      CASE
+        WHEN (rssi - noise) >= 25                      THEN 'good'
+        WHEN (rssi - noise) >= 15                      THEN 'marginal'
+        ELSE 'degraded'
+      END                                               AS snr_quality,
+      CASE WHEN channel_band = 1 THEN 1 ELSE 0
+      END                                               AS stuck_on_2_4ghz,
+      CASE
+        WHEN channel_band IN (5, 6)
+             AND rssi >= -65
+             AND (rssi - noise) >= 20
+             AND channel_width >= 40
+        THEN 'good'
+        WHEN channel_band = 1
+             OR rssi < -75
+             OR (rssi - noise) < 15
+        THEN 'degraded'
+        ELSE 'acceptable'
+      END                                               AS dex_wifi_score
+    FROM wifi_status
+    WHERE interface IS NOT NULL
+      AND interface != '';
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 600
+- name: DEX - Hardware experience - device health
+  description: CPU class, RAM tier, swap/compression pressure, and battery condition in a single row. This is the physical-layer health signal — answers whether the hardware can keep up with what the user is asking it to do.
+  query: |
+    SELECT
+      si.hardware_model,
+      si.hardware_serial,
+      si.cpu_brand,
+
+      CASE
+        WHEN ci.model LIKE '%Apple M5%'               THEN 'apple_m5'
+        WHEN ci.model LIKE '%Apple M4%'               THEN 'apple_m4'
+        WHEN ci.model LIKE '%Apple M3%'               THEN 'apple_m3'
+        WHEN ci.model LIKE '%Apple M2%'               THEN 'apple_m2'
+        WHEN ci.model LIKE '%Apple M1%'               THEN 'apple_m1'
+        WHEN ci.model LIKE '%Intel%Core i9%'          THEN 'intel_i9'
+        WHEN ci.model LIKE '%Intel%Core i7%'          THEN 'intel_i7'
+        WHEN ci.model LIKE '%Intel%Core i5%'          THEN 'intel_i5'
+        WHEN ci.model LIKE '%Intel%'                  THEN 'intel_other'
+        ELSE 'unknown'
+      END                                               AS cpu_class,
+
+      ci.number_of_cores                                AS cpu_cores,
+      ci.logical_processors,
+
+      ROUND(CAST(si.physical_memory AS REAL) / 1073741824, 0)
+                                                        AS ram_gb,
+      CASE
+        WHEN si.physical_memory >= 34359738368        THEN '32gb_plus'
+        WHEN si.physical_memory >= 17179869184        THEN '16gb'
+        WHEN si.physical_memory >= 8589934592         THEN '8gb'
+        ELSE 'under_8gb'
+      END                                               AS ram_tier,
+
+      -- Swap/compression from virtual_memory_info (macOS only)
+      (SELECT CASE
+        WHEN swap_ins > 100000                         THEN 'severe'
+        WHEN swap_ins > 10000                          THEN 'elevated'
+        WHEN swap_ins > 0                              THEN 'light'
+        ELSE 'none'
+       END FROM virtual_memory_info
+      )                                                 AS swap_pressure,
+
+      (SELECT CASE
+        WHEN compressed > (free + active) * 0.5       THEN 'high'
+        WHEN compressed > free * 0.25                 THEN 'moderate'
+        ELSE 'low'
+       END FROM virtual_memory_info
+      )                                                 AS compression_pressure,
+
+      -- Battery
+      (SELECT percent_remaining FROM battery)           AS battery_percent,
+      (SELECT cycle_count FROM battery)                 AS battery_cycles,
+      (SELECT state FROM battery)                       AS battery_state,
+      (SELECT charging FROM battery)                    AS battery_charging,
+      (SELECT CASE
+        WHEN minutes_until_empty > 0                  THEN minutes_until_empty
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_minutes_remaining,
+      (SELECT CASE
+        WHEN max_capacity > 0 AND designed_capacity > 0
+        THEN ROUND(CAST(max_capacity AS REAL) / designed_capacity * 100, 0)
+        ELSE NULL
+       END FROM battery
+      )                                                 AS battery_health_pct,
+      (SELECT CASE
+        WHEN max_capacity <= 0 OR designed_capacity <= 0  THEN NULL
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.80 THEN 'good'
+        WHEN CAST(max_capacity AS REAL) / designed_capacity >= 0.60 THEN 'degraded'
+        ELSE 'replace'
+       END FROM battery
+      )                                                 AS battery_health_score
+
+    FROM system_info si
+    CROSS JOIN cpu_info ci;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 3600
+- name: DEX - System experience - OS health
+  description: OS version currency (macOS 26 = current), uptime risk, and recent kernel panic / crash count. A device on a current OS with fresh uptime and zero crashes is healthy; stale uptime + legacy OS + panics is actionable.
+  query: |
+    SELECT
+      ov.name                                           AS os_name,
+      ov.version                                        AS os_version,
+      ov.build                                          AS os_build,
+
+      -- macOS 26 = Tahoe, 15 = Sequoia, 14 = Sonoma
+      CASE
+        WHEN ov.major >= 26                             THEN 'current'
+        WHEN ov.major = 15                              THEN 'n_minus_1'
+        WHEN ov.major = 14                              THEN 'n_minus_2'
+        ELSE 'legacy'
+      END                                               AS os_currency,
+
+      u.total_seconds                                   AS uptime_seconds,
+      ROUND(CAST(u.total_seconds AS REAL) / 86400, 1)  AS uptime_days,
+
+      CASE
+        WHEN u.total_seconds < 300                      THEN 'just_rebooted'
+        WHEN u.total_seconds <= 172800                  THEN 'fresh'
+        WHEN u.total_seconds <= 604800                  THEN 'normal'
+        WHEN u.total_seconds <= 1209600                 THEN 'stale_7d'
+        ELSE                                                 'stale_14d'
+      END                                               AS uptime_risk,
+
+      -- Crash frequency: kernel panics in diagnostic reports (last 30 days)
+      (SELECT COUNT(*) FROM file
+       WHERE (path LIKE '/Library/Logs/DiagnosticReports/%.panic'
+              OR path LIKE '/Library/Logs/DiagnosticReports/%.crash')
+         AND ctime > (strftime('%s', 'now') - 2592000)
+      )                                                 AS crashes_30d,
+
+      -- Composite
+      CASE
+        WHEN ov.major >= 26
+             AND u.total_seconds < 604800               THEN 'healthy'
+        WHEN ov.major >= 15
+             AND u.total_seconds < 1209600              THEN 'acceptable'
+        ELSE                                                 'degraded'
+      END                                               AS dex_os_health
+
+    FROM os_version ov
+    CROSS JOIN uptime u;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 14400
+- name: DEX - Application experience - process health
+  description: Top 25 processes by resident memory with classification into user_app, mgmt_agent, or system. Flags memory hogs and identifies whether pressure comes from productivity apps, security agents, or OS internals. Management agent stability matters — a crashing osqueryd or falcon-sensor means the fleet is flying blind.
+  query: |
+    SELECT
+      p.name                                            AS process_name,
+      p.path,
+      p.pid,
+      p.state,
+      p.threads,
+
+      ROUND(CAST(p.resident_size AS REAL) / 1048576, 1) AS rss_mb,
+      ROUND(CAST(p.total_size AS REAL) / 1073741824, 2) AS vmem_gb,
+      p.user_time                                       AS cpu_user_ms,
+      p.system_time                                     AS cpu_sys_ms,
+      p.disk_bytes_read,
+      p.disk_bytes_written,
+
+      CASE
+        WHEN p.name IN (
+          'Slack', 'zoom.us', 'Microsoft Teams', 'Google Chrome',
+          'Safari', 'Firefox', 'Outlook', 'figma_agent', 'Code',
+          'Notion', 'Linear', 'Loom', 'WebEx', 'Arc'
+        )                                               THEN 'user_app'
+        WHEN p.name IN (
+          'osqueryd', 'orbit', 'santa', 'SentinelAgent',
+          'falcon-sensor', 'CrowdStrike', 'fleetd'
+        )                                               THEN 'mgmt_agent'
+        WHEN p.name LIKE 'com.apple%'
+          OR p.path LIKE '/System/%'
+          OR p.path LIKE '/usr/%'                       THEN 'system'
+        ELSE 'other'
+      END                                               AS process_class,
+
+      CASE
+        WHEN p.resident_size > 2147483648              THEN 'critical_2gb'
+        WHEN p.resident_size > 1073741824              THEN 'high_1gb'
+        WHEN p.resident_size > 524288000               THEN 'elevated_500mb'
+        ELSE 'normal'
+      END                                               AS mem_pressure
+
+    FROM processes p
+    WHERE p.resident_size > 52428800
+      AND p.state != 'Z'
+    ORDER BY p.resident_size DESC
+    LIMIT 25;
+  platform: darwin,linux
+  automations_enabled: true
+  logging: snapshot
+  interval: 1800
+- name: DEX - Network experience - VPN gate
+  description: Network context as a confidence gate — not a score. Detects VPN tunnel presence and activity to determine whether the device is on a managed network path. When no VPN is active, other DEX signals (especially app latency, update status) lose confidence. This query provides the boolean gate, not a quality number.
+  query: |
+    SELECT
+      -- Count active VPN tunnels (utun/tun/ipsec/ppp with traffic)
+      (SELECT COUNT(*) FROM interface_details
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%')
+         AND ipackets > 0
+      )                                                 AS vpn_tunnels_active,
+      -- Is any VPN tunnel present (even without traffic)?
+      (SELECT COUNT(*) FROM interface_details
+       WHERE interface LIKE 'utun%' OR interface LIKE 'tun%'
+          OR interface LIKE 'ipsec%' OR interface LIKE 'ppp%'
+      )                                                 AS vpn_tunnels_total,
+      -- Is default route going through a tunnel (strongest VPN signal)
+      (SELECT COUNT(*) FROM routes
+       WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+              OR interface LIKE 'ipsec%')
+         AND destination = '0.0.0.0'
+      )                                                 AS vpn_default_route,
+      -- Primary interface (en0 = wifi typically)
+      (SELECT interface FROM interface_details
+       WHERE interface = 'en0' AND (flags & 1) = 1
+       LIMIT 1
+      )                                                 AS primary_interface,
+      -- Is primary interface up and carrying traffic?
+      (SELECT CASE
+        WHEN ipackets > 0 AND opackets > 0 THEN 1 ELSE 0
+       END FROM interface_details
+       WHERE interface = 'en0'
+       LIMIT 1
+      )                                                 AS primary_active,
+      -- Network path decision
+      CASE
+        WHEN (SELECT COUNT(*) FROM routes
+              WHERE (interface LIKE 'utun%' OR interface LIKE 'tun%'
+                     OR interface LIKE 'ipsec%')
+                AND destination = '0.0.0.0') > 0
+        THEN 'tunnel_active'
+        WHEN (SELECT COUNT(*) FROM interface_details
+              WHERE interface = 'en0' AND (flags & 1) = 1
+                AND ipackets > 0) > 0
+        THEN 'direct_connected'
+        ELSE 'disconnected'
+      END                                               AS network_confidence,
+      strftime('%s', 'now')                             AS checked_at_epoch,
+      datetime('now')                                   AS checked_at_display
+    FROM interface_details
+    LIMIT 1;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 600
+- name: DEX - Application experience - crash summary
+  description: Top 25 crashing apps in the last 7 days, grouped by identifier (SW-01). Prevents a single noisy crasher from blurring the picture — one row per app with total count, severity tier, and last crash time. Feeds software_score (50% weight) and crash baseline (CB-01/CB-02).
+  query: |
+    SELECT
+      c.identifier                                      AS crashed_identifier,
+      a.name                                            AS app_name,
+      a.bundle_identifier,
+      a.bundle_short_version                            AS app_version,
+      COUNT(*)                                          AS crash_count_7d,
+      MAX(c.datetime)                                   AS last_crash_at,
+      CASE
+        WHEN COUNT(*) >= 10                            THEN 'critical'
+        WHEN COUNT(*) >= 5                             THEN 'elevated'
+        WHEN COUNT(*) >= 2                             THEN 'recurring'
+        ELSE 'single'
+      END                                               AS crash_severity,
+      CASE
+        WHEN a.bundle_identifier IS NOT NULL           THEN 'matched'
+        ELSE 'unmatched'
+      END                                               AS app_match_status
+    FROM crashes c
+    LEFT JOIN apps a ON a.bundle_executable = c.identifier
+    WHERE
+      c.datetime >= datetime('now', '-7 days')
+      AND c.path NOT LIKE '/System/%'
+      AND c.path NOT LIKE '/usr/%'
+    GROUP BY c.identifier
+    ORDER BY crash_count_7d DESC
+    LIMIT 25;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 14400
+- name: DEX - Application experience - crash detail
+  description: Last 5 crash events per app for the top 25 crashing apps (7-day window). Provides diagnostic detail (exception_type, responsible process) without letting a single noisy crasher dominate the results. Capped at 125 rows (25 apps × 5 each).
+  query: |
+    SELECT
+      sub.crashed_identifier,
+      sub.app_name,
+      sub.crash_datetime,
+      sub.exception_type,
+      sub.exception_codes,
+      sub.responsible,
+      sub.crashed_process_path,
+      sub.app_version,
+      sub.crash_rank
+    FROM (
+      SELECT
+        c.identifier                                    AS crashed_identifier,
+        a.name                                          AS app_name,
+        c.datetime                                      AS crash_datetime,
+        c.exception_type,
+        c.exception_codes,
+        c.responsible,
+        c.path                                          AS crashed_process_path,
+        a.bundle_short_version                          AS app_version,
+        (SELECT COUNT(*) FROM crashes c2
+         WHERE c2.identifier = c.identifier
+           AND c2.datetime >= c.datetime
+           AND c2.datetime >= datetime('now', '-7 days')
+        )                                               AS crash_rank
+      FROM crashes c
+      LEFT JOIN apps a ON a.bundle_executable = c.identifier
+      WHERE
+        c.datetime >= datetime('now', '-7 days')
+        AND c.path NOT LIKE '/System/%'
+        AND c.path NOT LIKE '/usr/%'
+        AND c.identifier IN (
+          SELECT c3.identifier
+          FROM crashes c3
+          WHERE c3.datetime >= datetime('now', '-7 days')
+            AND c3.path NOT LIKE '/System/%'
+            AND c3.path NOT LIKE '/usr/%'
+          GROUP BY c3.identifier
+          ORDER BY COUNT(*) DESC
+          LIMIT 25
+        )
+    ) sub
+    WHERE sub.crash_rank <= 5
+    ORDER BY sub.crashed_identifier, sub.crash_datetime DESC;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 14400
+- name: DEX - Application experience - adoption gap
+  description: Managed app recency check (SW-02). Reports days_since_opened and usage_tier for all user-facing installed apps. The server-side scoring layer filters this against the dex_managed_apps registry to compute adoption_gap_count and the software_score penalty (35% weight).
+  query: |
+    SELECT
+      name                                              AS app_name,
+      bundle_identifier,
+      bundle_short_version                              AS version,
+      category,
+      path,
+
+      CASE
+        WHEN last_opened_time > 0
+        THEN ROUND((strftime('%s', 'now') - last_opened_time) / 86400.0, 0)
+        ELSE NULL
+      END                                               AS days_since_opened,
+
+      CASE
+        WHEN last_opened_time = 0
+          OR last_opened_time IS NULL                  THEN 'never_opened'
+        WHEN (strftime('%s', 'now') - last_opened_time)
+             < 86400                                   THEN 'active_today'
+        WHEN (strftime('%s', 'now') - last_opened_time)
+             < 604800                                  THEN 'active_week'
+        WHEN (strftime('%s', 'now') - last_opened_time)
+             < 2592000                                 THEN 'stale_30d'
+        WHEN (strftime('%s', 'now') - last_opened_time)
+             < 7776000                                 THEN 'stale_90d'
+        ELSE 'stale_90d_plus'
+      END                                               AS usage_tier
+
+    FROM apps
+    WHERE
+      bundle_package_type = 'APPL'
+      AND (
+        path LIKE '/Applications/%'
+        OR path IN (
+          '/System/Applications/Terminal.app',
+          '/System/Applications/Safari.app',
+          '/System/Applications/System Preferences.app',
+          '/System/Applications/System Settings.app',
+          '/System/Applications/Utilities/Activity Monitor.app',
+          '/System/Applications/Utilities/Console.app',
+          '/System/Applications/Migration Assistant.app'
+        )
+      )
+      AND path NOT LIKE '/Applications/Xcode.app/%'
+      AND element != '1'
+    ORDER BY days_since_opened DESC NULLS LAST;
+  platform: darwin
+  automations_enabled: true
+  logging: snapshot
+  interval: 14400

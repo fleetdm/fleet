@@ -66,9 +66,30 @@ export interface ISoftwareTitleVersion {
   hosts_count?: number;
 }
 
+export interface ISoftwarePatchPolicy {
+  id: number;
+  name: string;
+}
+
+export type SoftwareInstallPolicyType = "dynamic" | "patch";
+export type SoftwareInstallPolicyTypeSet = Set<SoftwareInstallPolicyType>;
+
+// A policy type returned from the API is set to:
+// 1. dynamic if only auto install, and
+// 2.patch if it's both auto install and patch policy
+// This doesn't include patch alone, as policies set to patch only are under ISoftwarePackage.patch_policy
 export interface ISoftwareInstallPolicy {
   id: number;
   name: string;
+  type: SoftwareInstallPolicyType;
+}
+
+// A policy type in the UI uses a Set because a policy in
+// Software Details > Policy can be both dynamic AND/OR patch
+export interface ISoftwareInstallPolicyUI {
+  id: number;
+  name: string;
+  type: SoftwareInstallPolicyTypeSet;
 }
 
 // Match allowedCategories in cmd/maintained-apps/main.go
@@ -117,9 +138,11 @@ export interface ISoftwarePackage {
   self_service: boolean;
   icon_url: string | null;
   status: ISoftwarePackageStatus;
+  patch_policy?: ISoftwarePatchPolicy | null;
   automatic_install_policies?: ISoftwareInstallPolicy[] | null;
   install_during_setup?: boolean;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   fleet_maintained_app_id?: number | null;
@@ -150,6 +173,7 @@ export interface IAppStoreApp {
   } | null;
   version?: string;
   labels_include_any: ILabelSoftwareTitle[] | null;
+  labels_include_all: ILabelSoftwareTitle[] | null;
   labels_exclude_any: ILabelSoftwareTitle[] | null;
   categories?: SoftwareCategory[] | null;
   configuration?: string;
@@ -255,7 +279,7 @@ export const SOURCE_TYPE_CONVERSION = {
   ipados_apps: "Application (iPadOS)",
   android_apps: "Application (Android)",
   chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
-  firefox_addons: "Browser plugin (Firefox)",
+  firefox_addons: "Browser plugin", // we rely on `extension_for` when computing which browser to show in firefox_addons display names.
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
   programs: "Program (Windows)",
@@ -266,6 +290,7 @@ export const SOURCE_TYPE_CONVERSION = {
   sh_packages: "Script-only package (macOS & Linux)",
   ps1_packages: "Script-only package (Windows)",
   jetbrains_plugins: "IDE extension", // jetbrains_plugins can include any JetBrains IDE (e.g., IntelliJ, PyCharm, WebStorm), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
+  go_binaries: "Binary (Go)",
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -298,6 +323,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   sh_packages: "linux", // 4.76 Added support for Linux hosts only
   ps1_packages: "windows",
   jetbrains_plugins: null,
+  go_binaries: null,
 } as const;
 
 export const SCRIPT_PACKAGE_SOURCES = ["sh_packages", "ps1_packages"];
@@ -325,6 +351,7 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   brave: "Brave",
   edge: "Edge",
   edge_beta: "Edge Beta",
+  firefox: "Firefox",
 
   // vscode versions
   vscode: "VSCode",

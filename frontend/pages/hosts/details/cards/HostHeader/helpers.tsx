@@ -103,10 +103,8 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   wiped: {
     title: "Wiped",
     tagType: "error",
-    generateTooltip: (platform) =>
-      isMacOS(platform)
-        ? "Host is wiped. To prevent the host from automatically reenrolling to Fleet, first release the host from Apple Business Manager and then delete the host in Fleet."
-        : "Host is wiped.",
+    generateTooltip: () =>
+      "Host is wiped. If you re-enrolled the host, delete it to clear the wiped badge. The host will automatically re-appear in Fleet.",
   },
   wiping: {
     title: "Wipe pending",

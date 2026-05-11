@@ -1,9 +1,22 @@
 package fleet
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // SCIMMaxFieldLength is the default maximum length for SCIM fields
 const SCIMMaxFieldLength = 255
+
+// SCIMValidationError is returned when a SCIM field fails validation (e.g., exceeds max length).
+type SCIMValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *SCIMValidationError) Error() string {
+	return fmt.Sprintf("%s %s", e.Field, e.Message)
+}
 
 // ScimUser represents a SCIM user in the database
 type ScimUser struct {

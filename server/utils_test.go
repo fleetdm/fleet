@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -148,5 +149,42 @@ func TestRemoveDuplicatesFromSlice(t *testing.T) {
 				require.Equal(t, test.output, RemoveDuplicatesFromSlice(test.input))
 			},
 		)
+	}
+}
+
+func TestGenerateRandomEmail(t *testing.T) {
+	cases := []struct {
+		name      string
+		base      string
+		wantParts func(t *testing.T, result string)
+	}{
+		{
+			name: "standard email",
+			base: "user@example.com",
+			wantParts: func(t *testing.T, result string) {
+				require.Contains(t, result, "@example.com")
+				require.Contains(t, result, "user+")
+			},
+		},
+		{
+			name: "no @ in base",
+			base: "useronly",
+			wantParts: func(t *testing.T, result string) {
+				require.True(t, strings.HasPrefix(result, "useronly+"))
+			},
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result, err := GenerateRandomEmail(c.base)
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+			c.wantParts(t, result)
+
+			// Each call must produce a different value.
+			result2, err := GenerateRandomEmail(c.base)
+			require.NoError(t, err)
+			require.NotEqual(t, result, result2)
+		})
 	}
 }

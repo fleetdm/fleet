@@ -32,6 +32,10 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn("device_id"),
 		// User principal name of the user that logged in via Platform SSO.
 		table.TextColumn("user_principal_name"),
+		// Whether Platform SSO registration is completed. Extracted from "Device Configuration" -> "registrationCompleted" (0 = false, 1 = true).
+		table.IntegerColumn("registration_completed"),
+		// Login type extracted from "Device Configuration" -> "loginType" (e.g. "POLoginTypeUserSecureEnclaveKey (2)").
+		table.TextColumn("login_type"),
 	}
 }
 
@@ -104,11 +108,18 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 		return nil, nil
 	}
 
+	registrationCompleted := "0"
+	if appSSOPlatform.registrationCompleted {
+		registrationCompleted = "1"
+	}
+
 	return []map[string]string{{
-		"extension_identifier": appSSOPlatform.extensionIdentifier,
-		"realm":                appSSOPlatform.realm,
-		"device_id":            appSSOPlatform.deviceID,
-		"user_principal_name":  appSSOPlatform.userPrincipalName,
+		"extension_identifier":   appSSOPlatform.extensionIdentifier,
+		"realm":                  appSSOPlatform.realm,
+		"registration_completed": registrationCompleted,
+		"device_id":              appSSOPlatform.deviceID,
+		"user_principal_name":    appSSOPlatform.userPrincipalName,
+		"login_type":             appSSOPlatform.loginType,
 	}}, nil
 }
 
@@ -150,10 +161,12 @@ func extractJSONSections(s []byte) (deviceConfig string, userConfig string, err 
 }
 
 type appSSOPlatformData struct {
-	extensionIdentifier string
-	deviceID            string
-	realm               string
-	userPrincipalName   string
+	extensionIdentifier   string
+	deviceID              string
+	registrationCompleted bool
+	loginType             string
+	realm                 string
+	userPrincipalName     string
 }
 
 func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier string, expectedRealm string) (*appSSOPlatformData, error) {
@@ -168,6 +181,8 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 	deviceConfig := struct {
 		DeviceSigningCertificate string `json:"deviceSigningCertificate"`
 		ExtensionIdentifier      string `json:"extensionIdentifier"`
+		RegistrationCompleted    bool   `json:"registrationCompleted"`
+		LoginType                string `json:"loginType"`
 	}{}
 	if err := json.Unmarshal([]byte(deviceConfigJSON), &deviceConfig); err != nil {
 		return nil, fmt.Errorf("could not unmarshal \"Device Configuration\" JSON: %w", err)
@@ -176,19 +191,20 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 		log.Debug().Str("extensionIdentifier", deviceConfig.ExtensionIdentifier).Msg("device registered, but found unmatched extension")
 		return nil, nil
 	}
-	dsc, err := base64.RawURLEncoding.DecodeString(deviceConfig.DeviceSigningCertificate)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode \"deviceSigningCertificate\": %w", err)
-	}
-	deviceSigningCertificate, err := x509.ParseCertificate(dsc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse \"deviceSigningCertificate\": %w", err)
-	}
-	if deviceSigningCertificate.Subject.CommonName == "" {
-		return nil, errors.New("empty subject common name in \"deviceSigningCertificate\"")
+	var deviceID string
+	if deviceConfig.DeviceSigningCertificate != "" {
+		dsc, err := base64.RawURLEncoding.DecodeString(deviceConfig.DeviceSigningCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode \"deviceSigningCertificate\": %w", err)
+		}
+		deviceSigningCertificate, err := x509.ParseCertificate(dsc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse \"deviceSigningCertificate\": %w", err)
+		}
+		deviceID = deviceSigningCertificate.Subject.CommonName
 	}
 	log.Debug().Str(
-		"\"Device Configuration\"", deviceSigningCertificate.Subject.CommonName,
+		"\"Device Configuration\"", deviceID,
 	).Msg("found device ID")
 	userConfig := struct {
 		KerberosStatus []map[string]any `json:"kerberosStatus"`
@@ -196,10 +212,12 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 	if userConfigJSON == "(null)" {
 		log.Debug().Msg("user not registered")
 		return &appSSOPlatformData{
-			extensionIdentifier: deviceConfig.ExtensionIdentifier,
-			deviceID:            deviceSigningCertificate.Subject.CommonName,
-			realm:               expectedRealm,
-			userPrincipalName:   "",
+			extensionIdentifier:   deviceConfig.ExtensionIdentifier,
+			deviceID:              deviceID,
+			registrationCompleted: deviceConfig.RegistrationCompleted,
+			loginType:             deviceConfig.LoginType,
+			realm:                 expectedRealm,
+			userPrincipalName:     "",
 		}, nil
 	}
 	if err := json.Unmarshal([]byte(userConfigJSON), &userConfig); err != nil {
@@ -230,10 +248,12 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 	if expectedRealm != realm {
 		log.Debug().Str("realm", realm).Msg("user registered, but found unmatched realm")
 		return &appSSOPlatformData{
-			extensionIdentifier: deviceConfig.ExtensionIdentifier,
-			deviceID:            deviceSigningCertificate.Subject.CommonName,
-			realm:               expectedRealm,
-			userPrincipalName:   "",
+			extensionIdentifier:   deviceConfig.ExtensionIdentifier,
+			deviceID:              deviceID,
+			registrationCompleted: deviceConfig.RegistrationCompleted,
+			loginType:             deviceConfig.LoginType,
+			realm:                 expectedRealm,
+			userPrincipalName:     "",
 		}, nil
 	}
 	suffix := fmt.Sprintf("@%s", realm)
@@ -242,16 +262,18 @@ func parseAppSSOPlatformCommandOutput(output []byte, expectedExtensionIdentifier
 	log.Debug().Str(
 		"extension_identifier", deviceConfig.ExtensionIdentifier,
 	).Str(
-		"device_id", deviceSigningCertificate.Subject.CommonName,
+		"device_id", deviceID,
 	).Str(
 		"realm", realm,
 	).Str(
 		"user_principal_name", upn,
 	).Msg("device and user found")
 	return &appSSOPlatformData{
-		extensionIdentifier: deviceConfig.ExtensionIdentifier,
-		deviceID:            deviceSigningCertificate.Subject.CommonName,
-		realm:               realm,
-		userPrincipalName:   upn,
+		extensionIdentifier:   deviceConfig.ExtensionIdentifier,
+		deviceID:              deviceID,
+		registrationCompleted: deviceConfig.RegistrationCompleted,
+		loginType:             deviceConfig.LoginType,
+		realm:                 realm,
+		userPrincipalName:     upn,
 	}, nil
 }

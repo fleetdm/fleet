@@ -45,17 +45,6 @@ $max-width: 2560px;
   padding: $pad-xxlarge 0 54px 0;
 }
 
-@mixin grey-badge {
-  background-color: $ui-fleet-black-25;
-  color: $core-fleet-white;
-  font-size: $xx-small;
-  font-weight: $bold;
-  padding: 0 $pad-xsmall;
-  border-radius: $border-radius;
-  position: relative;
-  margin-left: $pad-xsmall;
-}
-
 // Used to create a list item with the item data (name, created at, etc...) on
 // the left and the item actions (download, delete, etc...) on the right.
 @mixin list-item {
@@ -166,6 +155,7 @@ $max-width: 2560px;
 
   &:hover {
     color: $ui-fleet-black-75-over;
+    cursor: pointer;
   }
 
   &:focus-visible {
@@ -204,6 +194,30 @@ $max-width: 2560px;
   max-width: $max-width;
 }
 
+@mixin bordered-icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $border-radius;
+  background-color: $core-fleet-white;
+  cursor: pointer;
+  padding: 0;
+  color: $core-fleet-black;
+  transition: border-color 100ms;
+
+  &:hover:not(:disabled) {
+    border-color: $ui-fleet-black-75-over;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $ui-fleet-black-75-down;
+    outline-offset: 1px;
+  }
+}
+
 @mixin copy-message {
   font-weight: $regular;
   font-size: $x-small;
@@ -231,7 +245,7 @@ $max-width: 2560px;
   width: max-content;
   max-width: 360px;
   padding: 6px;
-  color: $core-fleet-white;
+  color: $static-white;
   background-color: $tooltip-bg;
   font-weight: $regular;
   font-size: $xx-small;
@@ -502,7 +516,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $inactive-color;
@@ -519,7 +533,7 @@ $max-width: 2560px;
     display: block;
     position: absolute;
     left: 0;
-    bottom: -1px;
+    bottom: 0;
     height: 1px;
     width: 100%;
     background: $active-color;
@@ -536,11 +550,6 @@ $max-width: 2560px;
   $inactive-color: $ui-fleet-black-25
 ) {
   position: relative;
-  margin-bottom: -1px;
-
-  &:hover {
-    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
-  }
 
   @include bottom-border($active-color, $inactive-color);
 
@@ -551,23 +560,8 @@ $max-width: 2560px;
 }
 
 @mixin gradient-background {
-  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-image: linear-gradient(180deg, $gradient-background 0%, $core-fleet-white 100%);
   background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
   background-repeat: no-repeat;
-  background-color: #fff; // area below gradient will just be white
-}
-
-@mixin content-wrapper {
-  .outer {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-large;
-  }
-  .inner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $pad-small;
-  }
+  background-color: $core-fleet-white; // area below gradient — transitionable
 }

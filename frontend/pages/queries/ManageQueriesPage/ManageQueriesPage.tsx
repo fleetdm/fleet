@@ -194,7 +194,7 @@ const ManageQueriesPage = ({
   const onCreateQueryClick = useCallback(() => {
     setLastEditedQueryBody(DEFAULT_QUERY.query);
     router.push(
-      getPathWithQueryParams(PATHS.NEW_QUERY, { fleet_id: currentTeamId })
+      getPathWithQueryParams(PATHS.NEW_REPORT, { fleet_id: currentTeamId })
     );
   }, [currentTeamId, router, setLastEditedQueryBody]);
 
@@ -233,18 +233,13 @@ const ManageQueriesPage = ({
       } else {
         await queriesAPI.destroy(selectedQueryIds[0]);
       }
-      renderFlash(
-        "success",
-        `Successfully deleted ${bulk ? "reports" : "report"}.`
-      );
+      renderFlash("success", "Successfully deleted reports.");
       setResetSelectedRows(true);
       refetchQueries();
     } catch (errorResponse) {
       renderFlash(
         "error",
-        `There was an error deleting your ${
-          bulk ? "reports" : "report"
-        }. Please try again later.`
+        "There was an error deleting your reports. Please try again later."
       );
     } finally {
       toggleDeleteQueryModal();

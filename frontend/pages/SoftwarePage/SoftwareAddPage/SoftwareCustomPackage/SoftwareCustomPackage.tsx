@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import PATHS from "router/paths";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
@@ -11,6 +11,7 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { ILabelSummary } from "interfaces/label";
 
 import FileProgressModal from "components/FileProgressModal";
@@ -41,8 +42,9 @@ const SoftwareCustomPackage = ({
   setSidePanelOpen,
 }: ISoftwarePackageProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier, config } = useContext(AppContext);
-  const gitOpsModeEnabled = config?.gitops.gitops_mode_enabled;
+  const { isPremiumTier } = useContext(AppContext);
+  const queryClient = useQueryClient();
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDetails, setUploadDetails] = useState<IFileDetails | null>(null);
@@ -99,7 +101,7 @@ const SoftwareCustomPackage = ({
 
   const onCancel = () => {
     router.push(
-      getPathWithQueryParams(PATHS.SOFTWARE_TITLES, {
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
         fleet_id: currentTeamId,
       })
     );
@@ -144,6 +146,13 @@ const SoftwareCustomPackage = ({
         );
       }
 
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
+      });
+
       const newQueryParams: QueryParams = {
         fleet_id: currentTeamId,
         gitops_yaml: gitOpsModeEnabled ? "true" : undefined,
@@ -172,7 +181,7 @@ const SoftwareCustomPackage = ({
     return (
       <>
         {gitOpsModeEnabled && (
-          <InfoBanner color="grey" borderRadius="medium">
+          <InfoBanner borderRadius="medium">
             Add custom packages in GitOps mode so Fleet can host your software.
             After adding, copy its SHA-256 hash into your YAML so the next
             GitOps workflow doesn&apos;t delete it.

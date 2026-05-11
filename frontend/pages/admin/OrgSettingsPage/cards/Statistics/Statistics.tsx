@@ -41,8 +41,7 @@ const Statistics = ({
       server_settings: {
         enable_analytics: enableUsageStatistics,
         deferred_save_host: appConfig.server_settings.deferred_save_host,
-        query_reports_disabled:
-          appConfig.server_settings.query_reports_disabled,
+        discard_reports_data: appConfig.server_settings.query_reports_disabled,
         scripts_disabled: appConfig.server_settings.scripts_disabled,
       },
     };
@@ -85,7 +84,6 @@ const Statistics = ({
           Enable usage statistics
         </Checkbox>
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"

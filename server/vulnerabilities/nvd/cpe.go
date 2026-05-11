@@ -120,7 +120,10 @@ type cpeSearchQuery struct {
 	args []any
 }
 
-const cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.deprecated FROM cpe_2 c`
+const (
+	cpeSelectColumns = `SELECT c.rowid, c.product, c.vendor, c.target_sw, c.deprecated FROM cpe_2 c`
+	cpeOrderBy       = ` ORDER BY c.vendor, c.product`
+)
 
 // cpeSearchQueries returns individual search queries in priority order for finding CPE matches.
 // Query 1 (vendor+product) and 2 (product-only) are cheap index lookups. Query 3 (full-text search)
@@ -138,12 +141,12 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 		productPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(products)), ",")
 		if len(vendors) > 0 {
 			vendorPlaceholders := strings.TrimSuffix(strings.Repeat("?,", len(vendors)), ",")
-			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")"
+			stm = cpeSelectColumns + " WHERE vendor IN (" + vendorPlaceholders + ") AND product IN (" + productPlaceholders + ")" + cpeOrderBy
 			for _, v := range vendors {
 				args = append(args, v)
 			}
 		} else {
-			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")"
+			stm = cpeSelectColumns + " WHERE product IN (" + productPlaceholders + ")" + cpeOrderBy
 		}
 		for _, p := range products {
 			args = append(args, p)
@@ -153,7 +156,7 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 
 	// 2 - Try to match product by sanitized name
 	queries = append(queries, cpeSearchQuery{
-		stm:  cpeSelectColumns + " WHERE product = ?",
+		stm:  cpeSelectColumns + " WHERE product = ?" + cpeOrderBy,
 		args: []any{sanitizeSoftwareName(software)},
 	})
 
@@ -161,7 +164,7 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 	sanitizedName := sanitizeMatch(software.Name)
 	if strings.TrimSpace(sanitizedName) != "" {
 		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?",
+			stm:  cpeSelectColumns + " JOIN cpe_search cs ON cs.rowid = c.rowid WHERE cs.title MATCH ?" + cpeOrderBy,
 			args: []any{sanitizedName},
 		})
 	}
@@ -170,12 +173,91 @@ func cpeSearchQueries(software *fleet.Software) []cpeSearchQuery {
 	bundleParts := strings.Split(software.BundleIdentifier, ".")
 	if len(bundleParts) == 3 {
 		queries = append(queries, cpeSearchQuery{
-			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?",
+			stm:  cpeSelectColumns + " WHERE vendor = ? AND product = ?" + cpeOrderBy,
 			args: []any{strings.ToLower(bundleParts[1]), strings.ToLower(bundleParts[2])},
 		})
 	}
 
 	return queries
+}
+
+// cpeVendorMatchesSoftware returns true when the CPE item's vendor appears in
+// the software's vendor field. Used as a tiebreaker when multiple CPE candidates
+// pass cpeItemMatchesSoftware.
+func cpeVendorMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) bool {
+	sVendor := strings.ToLower(software.Vendor)
+	if sVendor == "" {
+		return false
+	}
+	pattern := `\b` + regexp.QuoteMeta(item.Vendor) + `\b`
+	matched, _ := regexp.MatchString(pattern, sVendor)
+	return matched
+}
+
+// cpeTargetSWMatchesSoftware returns a score (0-3) indicating how well the CPE's vendor
+// and target_sw fields match the expected ecosystem for the software's source.
+func cpeTargetSWMatchesSoftware(item *IndexedCPEItem, software *fleet.Software) int {
+	expectedTargetSW := targetSW(software)
+
+	if expectedTargetSW != "*" {
+		// Best match: CPE's target_sw matches what we expect for this software source
+		// Example:
+		// software.source="npm_packages" (expectedTargetSW="node.js")
+		// item.TargetSW="node.js"
+		if item.TargetSW != "" && strings.EqualFold(item.TargetSW, expectedTargetSW) {
+			return 3
+		}
+
+		// Good match: CPE vendor contains the ecosystem name
+		// Example:
+		// software.source="python_packages" (expectedTargetSW="python")
+		// item.Vendor="python"
+		expectedLower := strings.ToLower(expectedTargetSW)
+		vendorLower := strings.ToLower(item.Vendor)
+
+		// "node.js" -> "node"
+		ecosystemName := expectedLower
+		if strings.Contains(ecosystemName, ".") {
+			ecosystemName = strings.Split(ecosystemName, ".")[0]
+		}
+
+		if strings.Contains(vendorLower, ecosystemName) {
+			return 2
+		}
+	}
+
+	if expectedTargetSW == "*" {
+		// Good match: CPE vendor contains the ecosystem name
+		vendorLower := strings.ToLower(item.Vendor)
+		switch software.Source {
+		case "deb_packages":
+			// Example:
+			// software.source="deb_packages" (expectedTargetSW="*")
+			// item.Vendor="debian"
+			if strings.Contains(vendorLower, "debian") {
+				return 2
+			}
+		case "rpm_packages":
+			// Example:
+			// software.source="rpm_packages" (expectedTargetSW="*")
+			// item.Vendor="redhat"
+			if strings.Contains(vendorLower, "redhat") || strings.Contains(vendorLower, "fedora") {
+				return 2
+			}
+		}
+	}
+
+	// Partial match: CPE vendor matches software name with common _project suffix
+	// Example:
+	// software.name="duplicity", source="python_packages"
+	// item.Vendor="duplicity_project", item.Product="duplicity"
+	productLower := strings.ToLower(item.Product)
+	vendorLower := strings.ToLower(item.Vendor)
+	if vendorLower == productLower+"_project" {
+		return 1
+	}
+
+	return 0
 }
 
 // cpeItemMatchesSoftware checks whether a CPE result's vendor/product terms all appear in the
@@ -626,22 +708,48 @@ func CPEFromSoftware(ctx context.Context, logger *slog.Logger, db *sqlx.DB, soft
 				return "", fmt.Errorf("getting cpes for: %s: %w", software.Name, err)
 			}
 
+			// Collect all matching candidates for this query, then pick the best one.
+			// This avoids nondeterministic results when multiple CPE entries match
+			// (e.g. "ge:line" vs "linecorp:line" for the "Line" app).
+			var bestMatch *IndexedCPEItem
+			var bestTargetSWScore int
+			var bestVendorMatch bool
+			var deprecatedMatches []IndexedCPEItem
 			for i := range results {
 				if !cpeItemMatchesSoftware(&results[i], software) {
 					continue
 				}
-				if !results[i].Deprecated {
-					return results[i].FmtStr(software), nil
+				if results[i].Deprecated {
+					deprecatedMatches = append(deprecatedMatches, results[i])
+					continue
 				}
-				// Match is deprecated; try to resolve via deprecation chain
-				cpe, err := resolveDeprecatedCPE(db, results, software)
+
+				targetSWScore := cpeTargetSWMatchesSoftware(&results[i], software)
+				vendorMatch := cpeVendorMatchesSoftware(&results[i], software)
+
+				// first valid match, OR
+				// better target_sw score (ecosystem match), OR
+				// Same target_sw score but better vendor match
+				if bestMatch == nil ||
+					targetSWScore > bestTargetSWScore ||
+					(targetSWScore == bestTargetSWScore && !bestVendorMatch && vendorMatch) {
+					bestMatch = &results[i]
+					bestTargetSWScore = targetSWScore
+					bestVendorMatch = vendorMatch
+				}
+			}
+			if bestMatch != nil {
+				return bestMatch.FmtStr(software), nil
+			}
+			// All matches are deprecated; try to resolve via deprecation chain
+			if len(deprecatedMatches) > 0 {
+				cpe, err := resolveDeprecatedCPE(db, deprecatedMatches, software)
 				if err != nil {
 					return "", err
 				}
 				if cpe != "" {
 					return cpe, nil
 				}
-				continue // deprecation unresolved for this result, try next result
 			}
 		}
 	}

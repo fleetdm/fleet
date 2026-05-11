@@ -30,14 +30,18 @@ type VPPAppTeam struct {
 	// to false), while if not nil, it will update the flag's value in the DB.
 	InstallDuringSetup *bool `db:"install_during_setup" json:"-"`
 	// LabelsIncludeAny are the names of labels associated with this app. If a host has any of
-	// these labels, the app is in scope for that host. If this field is set, LabelsExcludeAny
+	// these labels, the app is in scope for that host. If this field is set, other label fields
 	// cannot be set.
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	// LabelsExcludeAny are the names of labels associated with this app. If a host has any of
-	// these labels, the app is out of scope for that host. If this field is set, LabelsIncludeAny
+	// these labels, the app is out of scope for that host. If this field is set, other label fields
 	// cannot be set.
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	// ValidatedLabels are the labels (either include or exclude any) that have been validated by
+	// LabelsIncludeAll are the names of labels associated with this app. If a host has all of
+	// these labels, the app is in scope for that host. If this field is set, other label fields
+	// cannot be set.
+	LabelsIncludeAll []string `json:"labels_include_all"`
+	// ValidatedLabels are the labels (either include any/all or exclude any) that have been validated by
 	// Fleet as being valid labels. This field is only used internally.
 	ValidatedLabels *LabelIdentsWithScope `json:"-"`
 	// AddAutoInstallPolicy indicates whether or not we should create an auto-install policy for
@@ -82,6 +86,12 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
+	// CountryCode is the App Store storefront country (lowercase ISO 3166-1
+	// alpha-2 such as "us", "de") that this app is "anchored" to. It is set
+	// on the first add of the (adam_id, platform) and re-used for all future
+	// metadata fetches so the displayed name/icon/version stay consistent
+	// regardless of which team's token triggers the fetch.
+	CountryCode string `db:"country_code" json:"-"`
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
@@ -115,6 +125,8 @@ type VPPAppStoreApp struct {
 	LabelsIncludeAny []SoftwareScopeLabel `json:"labels_include_any" db:"labels_include_any"`
 	// LabelsExcludeAny is the list of "exclude any" labels for this app store app (if not nil).
 	LabelsExcludeAny []SoftwareScopeLabel `json:"labels_exclude_any" db:"labels_exclude_any"`
+	// LabelsIncludeAll is the list of "include all" labels for this app store app (if not nil).
+	LabelsIncludeAll []SoftwareScopeLabel `json:"labels_include_all" db:"labels_include_all"`
 	// BundleIdentifier is the bundle identifier for this app.
 	BundleIdentifier string `json:"-" db:"bundle_identifier"`
 	// AddedAt is when the VPP app was added to the team
@@ -188,6 +200,7 @@ type AppStoreAppUpdatePayload struct {
 	SelfService      *bool
 	LabelsIncludeAny []string
 	LabelsExcludeAny []string
+	LabelsIncludeAll []string
 	Categories       []string
 	DisplayName      *string
 	Configuration    json.RawMessage

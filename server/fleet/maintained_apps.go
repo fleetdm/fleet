@@ -18,6 +18,7 @@ type MaintainedApp struct {
 	AutomaticInstallQuery string   `json:"-" db:"pre_install_query"`
 	Categories            []string `json:"categories"`
 	UpgradeCode           string   `json:"upgrade_code,omitempty" db:"upgrade_code"`
+	PatchQuery            string   `json:"-" db:"patch_query"`
 }
 
 func (s *MaintainedApp) Source() string {

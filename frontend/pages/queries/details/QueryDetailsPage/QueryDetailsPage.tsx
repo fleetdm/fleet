@@ -2,8 +2,6 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import ReactTooltip from "react-tooltip";
-import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -70,7 +68,7 @@ const QueryDetailsPage = ({
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
   if (isNaN(queryId)) {
-    router.push(PATHS.MANAGE_QUERIES);
+    router.push(PATHS.MANAGE_REPORTS);
   }
   const queryParams = location.query;
 
@@ -216,7 +214,7 @@ const QueryDetailsPage = ({
       );
       setCurrentTeam(querysTeam);
     }
-  }, [storedQuery]);
+  }, [storedQuery, availableTeams, setCurrentTeam]);
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
@@ -262,7 +260,7 @@ const QueryDetailsPage = ({
           PATHS.HOST_DETAILS(hostId, currentTeamId)
         );
 
-      return getPathWithQueryParams(PATHS.MANAGE_QUERIES, {
+      return getPathWithQueryParams(PATHS.MANAGE_REPORTS, {
         fleet_id: currentTeamId,
       });
     };
@@ -295,42 +293,35 @@ const QueryDetailsPage = ({
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <div
-                      data-tip
-                      data-for="live-query-button"
-                      // Tooltip shows when live queries are globally disabled
-                      data-tip-disable={!isLiveQueryDisabled}
+                    <TooltipWrapper
+                      tipContent="Live reports are disabled in organization settings."
+                      position="top"
+                      disableTooltip={!isLiveQueryDisabled}
+                      underline={false}
+                      showArrow
                     >
-                      <Button
-                        className={`${baseClass}__run`}
-                        variant="inverse"
-                        onClick={() => {
-                          queryId &&
-                            router.push(
-                              getPathWithQueryParams(
-                                PATHS.LIVE_QUERY(queryId),
-                                {
-                                  host_id: hostId,
-                                  fleet_id: currentTeamId,
-                                }
-                              )
-                            );
-                        }}
-                        disabled={isLiveQueryDisabled}
-                      >
-                        Live report <Icon name="run" />
-                      </Button>
-                    </div>
-                    <ReactTooltip
-                      className="live-query-button-tooltip"
-                      place="top"
-                      effect="solid"
-                      backgroundColor={COLORS["tooltip-bg"]}
-                      id="live-query-button"
-                      data-html
-                    >
-                      Live reports are disabled in organization settings
-                    </ReactTooltip>
+                      <div>
+                        <Button
+                          className={`${baseClass}__run`}
+                          variant="inverse"
+                          onClick={() => {
+                            queryId &&
+                              router.push(
+                                getPathWithQueryParams(
+                                  PATHS.LIVE_REPORT(queryId),
+                                  {
+                                    host_id: hostId,
+                                    fleet_id: currentTeamId,
+                                  }
+                                )
+                              );
+                          }}
+                          disabled={isLiveQueryDisabled}
+                        >
+                          Live report <Icon name="run" />
+                        </Button>
+                      </div>
+                    </TooltipWrapper>
                   </div>
                 )}
                 {canEditQuery && (
@@ -338,7 +329,7 @@ const QueryDetailsPage = ({
                     onClick={() => {
                       queryId &&
                         router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                          getPathWithQueryParams(PATHS.EDIT_REPORT(queryId), {
                             fleet_id: currentTeamId,
                             host_id: hostId,
                           })
@@ -406,7 +397,7 @@ const QueryDetailsPage = ({
             (currentUser && isGlobalObserver(currentUser)) ||
             isTeamObserver(currentUser, currentTeamId ?? null)
           ) &&
-            " You can still use query automations to complete this report in your log destination."
+            " You can still use automations to complete this report in your log destination."
         }
       </div>
     </InfoBanner>

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -19,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/google/uuid"
@@ -61,7 +61,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 
 	opts := &TestServerOpts{Lq: lq, Rs: rs, DBConns: s.dbConns}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = logging.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
@@ -276,7 +276,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 					s.ds, func(q sqlx.ExtContext) error {
 						return sqlx.GetContext(
 							context.Background(), q, &details,
-							`SELECT details FROM activities WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
+							`SELECT details FROM activity_past WHERE activity_type = 'live_query' ORDER BY id DESC LIMIT 1`,
 						)
 					},
 				)

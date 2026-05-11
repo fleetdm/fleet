@@ -1,6 +1,6 @@
 module qacheck
 
-go 1.25.7
+go 1.26.2
 
 require (
 	github.com/shurcooL/githubv4 v0.0.0-20260209031235-2402fdf4a9ed

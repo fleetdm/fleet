@@ -57,7 +57,7 @@ module.exports = {
         emailAddress: emailAddress,
         contactSource: 'Website - Newsletter',
         description: `Subscribed to the Fleet newsletter`,
-        psychologicalStage: '3 - Intrigued',
+        psychologicalStage: '2 - Aware',
         psychologicalStageChangeReason,
         marketingAttributionCookie: attributionCookieOrUndefined,
       });

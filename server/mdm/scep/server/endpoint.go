@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os"
 	"strings"
@@ -14,7 +15,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/go-kit/kit/endpoint"
 	httptransport "github.com/go-kit/kit/transport/http"
 )
@@ -275,18 +275,18 @@ func (r SCEPResponse) scepOperation() string { return r.operation }
 
 // EndpointLoggingMiddleware returns an endpoint middleware that logs the
 // duration of each invocation, and the resulting error, if any.
-func EndpointLoggingMiddleware(logger *logging.Logger) endpoint.Middleware {
+func EndpointLoggingMiddleware(logger *slog.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			var keyvals []interface{}
-			// check if this is a scep endpoint, if it is, append the method to the log.
+		return func(ctx context.Context, request any) (response any, err error) {
+			var attrs []slog.Attr
 			if oper, ok := request.(interface {
 				scepOperation() string
 			}); ok {
-				keyvals = append(keyvals, "op", oper.scepOperation())
+				attrs = append(attrs, slog.String("op", oper.scepOperation()))
 			}
 			defer func(begin time.Time) {
-				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
+				attrs = append(attrs, slog.Any("error", err), slog.Duration("took", time.Since(begin)))
+				logger.LogAttrs(ctx, slog.LevelInfo, "scep endpoint", attrs...)
 			}(time.Now())
 			return next(ctx, request)
 		}

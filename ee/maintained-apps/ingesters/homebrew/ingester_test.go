@@ -3,6 +3,7 @@ package homebrew
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -86,7 +87,7 @@ func TestIngestValidations(t *testing.T) {
 				Version: "1.0",
 			}
 
-		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post":
+		case "ok", "install_script_path", "uninstall_script_path", "uninstall_script_path_with_pre", "uninstall_script_path_with_post", "patch_policy_path":
 			cask = brewCask{
 				Token:   appToken,
 				Name:    []string{appToken},
@@ -148,6 +149,114 @@ func TestIngestValidations(t *testing.T) {
 				require.Equal(t, testUninstallScriptContents, out.UninstallScript)
 			}
 
+			require.Equal(t,
+				fmt.Sprintf("SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = '%s' AND version_compare(bundle_short_version, '%s') < 0);", c.inputApp.UniqueIdentifier, out.Version),
+				out.Queries.Patched,
+			)
+
 		})
 	}
+}
+
+// TestIngestCaskPath verifies that when an input app sets cask_path, the
+// ingester reads cask JSON from that local file and makes no HTTP call.
+// This is the path used for casks committed into inputs/homebrew/custom-tap/.
+func TestIngestCaskPath(t *testing.T) {
+	tempDir := t.TempDir()
+
+	caskJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{"Local Cask"},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+
+	caskPath := path.Join(tempDir, "local-cask.json")
+	require.NoError(t, os.WriteFile(caskPath, caskJSON, 0o644))
+
+	// Server that should never be called when cask_path is set; any hit is a
+	// bug because it means the ingester fell back to HTTP.
+	var httpHits int
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		httpHits++
+	}))
+	t.Cleanup(srv.Close)
+
+	ctx := context.Background()
+	i := &brewIngester{
+		logger:  slog.New(slog.DiscardHandler),
+		client:  fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second)),
+		baseURL: srv.URL + "/",
+	}
+
+	out, err := i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         caskPath,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/local/installer.pkg", out.InstallerURL)
+	require.Equal(t, "9.9.9", out.Version)
+	require.Equal(t, "deadbeef", out.SHA256)
+	require.Equal(t, 0, httpHits, "cask_path path must not make an HTTP call")
+
+	// Missing file yields an actionable error.
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "missing",
+		UniqueIdentifier: "com.example.missing",
+		InstallerFormat:  "pkg",
+		Name:             "Missing",
+		CaskPath:         path.Join(tempDir, "does-not-exist.json"),
+	})
+	require.ErrorContains(t, err, "reading local cask JSON file")
+	require.Equal(t, 0, httpHits)
+
+	// Token mismatch between input and cask file is rejected so a misconfigured
+	// cask_path can't silently ingest the wrong app.
+	mismatchPath := path.Join(tempDir, "mismatch.json")
+	mismatchJSON, err := json.Marshal(brewCask{
+		Token:   "some-other-cask",
+		Name:    []string{"Some Other Cask"},
+		URL:     "https://example.com/other/installer.pkg",
+		Version: "1.0.0",
+		SHA256:  "cafebabe",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(mismatchPath, mismatchJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         mismatchPath,
+	})
+	require.ErrorContains(t, err, "does not match input token")
+	require.Equal(t, 0, httpHits)
+
+	// Cask file with an empty name is rejected.
+	emptyNamePath := path.Join(tempDir, "empty-name.json")
+	emptyNameJSON, err := json.Marshal(brewCask{
+		Token:   "local-cask",
+		Name:    []string{},
+		URL:     "https://example.com/local/installer.pkg",
+		Version: "9.9.9",
+		SHA256:  "deadbeef",
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(emptyNamePath, emptyNameJSON, 0o644))
+
+	_, err = i.ingestOne(ctx, inputApp{
+		Token:            "local-cask",
+		UniqueIdentifier: "com.example.localcask",
+		InstallerFormat:  "pkg",
+		Name:             "Local Cask",
+		CaskPath:         emptyNamePath,
+	})
+	require.ErrorContains(t, err, "empty name")
+	require.Equal(t, 0, httpHits)
 }

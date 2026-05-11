@@ -14,7 +14,7 @@ Current supported software deployment formats:
 > If you check the "Automatic install" box when adding software, you do not have to create your own policy, so you can skip the remaining steps of this process.
 
 > Script packages (`.sh` and `.ps1` files) do not support automatic install.
-2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a team, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
+2. **Add a policy**: In Fleet, add a policy that failure to pass will trigger the required installation. Go the **Policies** tab, select a fleet, then press the **Add policy** button. Next, click **Create your own policy**, enter your policy SQL, click **Save**, fill in remaining details in the Save modal, then and click **Save** again.
 
 ```sql
 SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_compare(bundle_short_version, '23.001.20687') >= 0;
@@ -35,7 +35,9 @@ When a host fails the selected policy, this will trigger the software to be inst
 
 Once the software is installed, Fleet will automatically refetch the host's vitals and update the software inventory.
 
-If the software install fails, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
+Policy automation software installs are automatically attempted up to 3 total times. Each time the policy runs and fails, Fleet triggers the software install again, up to a total of 3 attempts. If the host passes the policy, the retry count resets.
+
+If the software install still fails after all attempts, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
 ## How does it work?
 
@@ -46,7 +48,7 @@ If the software install fails, you can reset a software automation and trigger t
 ![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*
 
-App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
+App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
 
 Uninstalling VPP apps is [coming soon](https://github.com/fleetdm/fleet/issues/25497).
 
@@ -76,11 +78,10 @@ SELECT 1 FROM programs WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(
 SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+If your fleet has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
    -- This will mark the policies as successful on non-Debian-based hosts.
-   -- This is only required if Debian-based and RPM-based hosts share a team.
    SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM deb_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0
@@ -93,11 +94,10 @@ SELECT 1 WHERE EXISTS (
 SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, '<SOFTWARE_PACKAGE_VERSION>') >= 0;
 ```
 
-If your team has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
+If your fleet has both Ubuntu and RHEL-based hosts then you should use the following template for the policy queries:
 ```sql
 SELECT 1 WHERE EXISTS (
    -- This will mark the policies as successful on non-RPM-based hosts.
-   -- This is only required if Debian-based and RPM-based hosts share a team.
    SELECT 1 WHERE (SELECT COUNT(*) FROM rpm_packages) = 0
 ) OR EXISTS (
    SELECT 1 FROM rpm_packages WHERE name = '<SOFTWARE_TITLE_NAME>' AND version_compare(version, 'SOFTWARE_PACKAGE_VERSION') >= 0

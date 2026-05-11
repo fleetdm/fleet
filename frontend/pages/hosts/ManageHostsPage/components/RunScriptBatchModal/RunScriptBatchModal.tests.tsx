@@ -149,6 +149,19 @@ describe("RunScriptBatchModal", () => {
     });
   });
 
+  it("renders empty state with Add a script link when no scripts exist", async () => {
+    mockServer.use(
+      http.get(baseUrl("/scripts"), () => {
+        return HttpResponse.json({ scripts: [] });
+      })
+    );
+    render(<RunScriptBatchModal {...defaultProps} />);
+
+    expect(await screen.findByText("No scripts available")).toBeInTheDocument();
+    expect(screen.getByText("Add a script")).toBeInTheDocument();
+    expect(screen.getByText(/to this fleet/)).toBeInTheDocument();
+  });
+
   describe("after clicking run script", () => {
     it("shows the correct heading for linux/macos scripts", async () => {
       const { user } = render(<RunScriptBatchModal {...defaultProps} />);
@@ -220,7 +233,7 @@ describe("RunScriptBatchModal", () => {
           filters: {
             query: "hi",
             label_id: 16,
-            team_id: 1,
+            fleet_id: 1,
             status: "",
           },
         });
@@ -364,7 +377,7 @@ describe("RunScriptBatchModal", () => {
         expect(body).toEqual({
           script_id: windowsScript.id,
           not_before: "2099-12-31T23:59:00.000Z",
-          filters: { query: "hi", label_id: 16, status: "", team_id: 1 },
+          filters: { query: "hi", label_id: 16, status: "", fleet_id: 1 },
         });
       });
     });

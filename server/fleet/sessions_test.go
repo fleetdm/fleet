@@ -314,6 +314,192 @@ func TestRolesFromSSOAttributes(t *testing.T) {
 			},
 			shouldFail: true,
 		},
+		{
+			name: "global-technician",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "technician"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: ptr.String("technician"),
+			},
+		},
+		{
+			name: "team-technician",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "3",
+					Values: []SAMLAttributeValue{
+						{Value: "technician"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Teams: []TeamRole{
+					{
+						ID:   3,
+						Role: "technician",
+					},
+				},
+			},
+		},
+		{
+			name: "v2-prefix-all-teams",
+			attributes: []SAMLAttribute{
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
+					Values: []SAMLAttributeValue{
+						{Value: "observer"},
+					},
+				},
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
+					Values: []SAMLAttributeValue{
+						{Value: "admin"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: nil,
+				Teams: []TeamRole{
+					{
+						ID:   1,
+						Role: "observer",
+					},
+					{
+						ID:   2,
+						Role: "admin",
+					},
+				},
+			},
+		},
+		{
+			name: "v2-prefix-global-and-team",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "admin"},
+					},
+				},
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_5",
+					Values: []SAMLAttributeValue{
+						{Value: "observer"},
+					},
+				},
+			},
+			shouldFail:           true,
+			expectedSSORolesInfo: SSORolesInfo{},
+		},
+		{
+			name: "v2-prefix-invalid-team-id",
+			attributes: []SAMLAttribute{
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_foo",
+					Values: []SAMLAttributeValue{
+						{Value: "observer"},
+					},
+				},
+			},
+			shouldFail:           true,
+			expectedSSORolesInfo: SSORolesInfo{},
+		},
+		{
+			name: "v2-prefix-null-value-ignored",
+			attributes: []SAMLAttribute{
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_1",
+					Values: []SAMLAttributeValue{
+						{Value: "null"},
+					},
+				},
+			},
+			shouldFail:           false,
+			expectedSSORolesInfo: SSORolesInfo{},
+		},
+		{
+			name: "v2-prefix-team-technician",
+			attributes: []SAMLAttribute{
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_3",
+					Values: []SAMLAttributeValue{
+						{Value: "technician"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Teams: []TeamRole{
+					{
+						ID:   3,
+						Role: "technician",
+					},
+				},
+			},
+		},
+		{
+			name: "mixed-v1-and-v2-prefixes",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Values: []SAMLAttributeValue{
+						{Value: "observer"},
+					},
+				},
+				{
+					Name: "FLEET_JIT_USER_ROLE_FLEET_2",
+					Values: []SAMLAttributeValue{
+						{Value: "admin"},
+					},
+				},
+			},
+			shouldFail: false,
+			expectedSSORolesInfo: SSORolesInfo{
+				Global: nil,
+				Teams: []TeamRole{
+					{
+						ID:   1,
+						Role: "observer",
+					},
+					{
+						ID:   2,
+						Role: "admin",
+					},
+				},
+			},
+		},
+		{
+			name: "global-gitops-not-supported-for-jit",
+			attributes: []SAMLAttribute{
+				{
+					Name: globalUserRoleSSOAttrName,
+					Values: []SAMLAttributeValue{
+						{Value: "gitops"},
+					},
+				},
+			},
+			shouldFail: true,
+		},
+		{
+			name: "team-gitops-not-supported-for-jit",
+			attributes: []SAMLAttribute{
+				{
+					Name: teamUserRoleSSOAttrNamePrefix + "1",
+					Values: []SAMLAttributeValue{
+						{Value: "gitops"},
+					},
+				},
+			},
+			shouldFail: true,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ssoRolesInfo, err := RolesFromSSOAttributes(tc.attributes)

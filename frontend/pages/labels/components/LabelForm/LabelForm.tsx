@@ -1,8 +1,8 @@
 import React, { ReactNode, useState } from "react";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TeamNameField from "../TeamNameField/TeamNameField";
 import { validateLabelFormData, ILabelFormValidation } from "./helpers";
 
@@ -66,9 +66,9 @@ const LabelForm = ({
 
   const currentData = { name, description };
 
-  const onFormChange = (update: { name: string; value: string }) => {
-    const { name: fieldName, value } = update;
+  type ParsedTarget = { name: string; value: string };
 
+  const onFormChange = ({ name: fieldName, value }: ParsedTarget) => {
     const nextData =
       fieldName === "name"
         ? { name: value, description }
@@ -110,10 +110,22 @@ const LabelForm = ({
     });
   };
 
-  const onInputBlur = () => {
-    // on blur, show all current errors (set all)
-    const fullValidation = validateLabelFormData(currentData);
+  const onInputBlur = ({ name: fieldName, value }: ParsedTarget) => {
+    const nextData =
+      fieldName === "name"
+        ? { name: value, description }
+        : { name, description: value };
+
+    // full validation for new data
+    const fullValidation = validateLabelFormData(nextData);
     setFormValidation(fullValidation);
+  };
+
+  const handleBlur = (
+    evt: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const target = evt.currentTarget as HTMLInputElement;
+    onInputBlur({ name: target.name, value: target.value });
   };
 
   const onSubmitForm = (evt: React.FormEvent) => {
@@ -133,7 +145,7 @@ const LabelForm = ({
         parseTarget
         name="name"
         onChange={onFormChange}
-        onBlur={onInputBlur}
+        onBlur={handleBlur}
         value={name}
         inputClassName={`${baseClass}__label-title`}
         label="Name"
@@ -144,7 +156,7 @@ const LabelForm = ({
         parseTarget
         name="description"
         onChange={onFormChange}
-        onBlur={onInputBlur}
+        onBlur={handleBlur}
         value={description}
         inputClassName={`${baseClass}__label-description`}
         label="Description"
@@ -162,13 +174,18 @@ const LabelForm = ({
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>
-        <Button
-          type="submit"
-          isLoading={isUpdatingLabel}
-          disabled={!formValidation.isValid}
-        >
-          Save
-        </Button>
+        <GitOpsModeTooltipWrapper
+          entityType="labels"
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              isLoading={isUpdatingLabel}
+              disabled={disableChildren || !formValidation.isValid}
+            >
+              Save
+            </Button>
+          )}
+        />
       </div>
     </form>
   );

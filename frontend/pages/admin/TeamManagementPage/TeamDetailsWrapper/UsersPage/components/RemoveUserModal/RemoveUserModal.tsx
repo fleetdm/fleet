@@ -27,31 +27,28 @@ const RemoveUserModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <>
-        <p>
-          You are about to remove{" "}
-          <span className={`${baseClass}__name`}>{userName}</span> from{" "}
-          <span className={`${baseClass}__team-name`}>{teamName}</span>.
-        </p>
-        <p>
-          If {userName} is not assigned to any other fleet, they will lose
-          access.
-        </p>
-        <div className="modal-cta-wrap">
-          <Button
-            type="button"
-            variant="alert"
-            onClick={onSubmit}
-            className="remove-loading"
-            isLoading={isUpdatingUsers}
-          >
-            Remove
-          </Button>
-          <Button onClick={onCancel} variant="inverse-alert">
-            Cancel
-          </Button>
-        </div>
-      </>
+      <p>
+        You are about to remove{" "}
+        <span className={`${baseClass}__name`}>{userName}</span> from{" "}
+        <span className={`${baseClass}__team-name`}>{teamName}</span>.
+      </p>
+      <p>
+        If {userName} is not assigned to any other fleet, they will lose access.
+      </p>
+      <div className="modal-cta-wrap">
+        <Button
+          type="button"
+          variant="alert"
+          onClick={onSubmit}
+          className="remove-loading"
+          isLoading={isUpdatingUsers}
+        >
+          Remove
+        </Button>
+        <Button onClick={onCancel} variant="inverse-alert">
+          Cancel
+        </Button>
+      </div>
     </Modal>
   );
 };

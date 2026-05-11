@@ -3,8 +3,8 @@
     <div purpose="page-content" class="mx-auto">
     <div purpose="hero">
       <div purpose="page-headline">
-        <h4>Open orchestration</h4>
-        <h1><%= pagePersonalization==='eo-security'? 'Deeper, faster visibility for every OS' : 'Talk to your computers'%></h1>
+        <h4>Real-time reporting</h4>
+        <h1><%= pagePersonalization==='eo-security'? 'Deeper, faster visibility for every OS' : 'Find things out in seconds'%></h1>
       </div>
       <div purpose="hero-content" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
         <div purpose="hero-image">
@@ -75,67 +75,74 @@
       <p>Use a live connection to every endpoint to simplify audit, compliance, and reporting from workstations to data centers.</p>
     </div>
 
-    <div purpose="three-column-features" class="mx-auto">
-      <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center align-items-center align-items-sm-start">
-        <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
-          <img alt="Software and asset inventory" src="/images/icon-live-connection-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Live connection</h5>
-          <p>Talk to online devices in real time with Fleet’s live query API. Implement custom workflows like conditional access based on device posture, Identity, and more.</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
-          <img alt="Software and asset inventory" src="/images/icon-software-and-asset-inventory-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Software and asset inventory</h5>
-          <p>Get visibility into all endpoints across any operating system*, including support for servers and containers in every cloud infrastructure.</p>
-          <p><a href="/software-management">More about software management</a></p>
-        </div>
-
-        <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
-          <img alt="See logins for every endpoint" src="/images/icon-see-logins-for-every-endpoint-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>See logins for every endpoint</h5>
-          <p>Identify who logs in to any system, including login history and current sessions. Look up any computer by the email address of the person using it.</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 pl-lg-0 col-12 col-sm-6 col-lg-4 mb-lg-0">
-          <img alt="CIS benchmarks" src="/images/icon-cis-benchmarks-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>CIS benchmarks</h5>
-          <p>Keep all your endpoints* compliant with customizable baselines, or use common benchmarks like CIS.</p>
-        </div>
-
-        <div purpose="feature-item" class="pl-0 pl-lg-4 col-12 col-sm-6 col-lg-4 mb-sm-0">
-          <img alt="Verify updates and settings" src="/images/icon-edr-health-check-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>EDR health checks</h5>
-          <p>Verify that your EDR tools are installed and working so you can identify and address configuration issues quickly.</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4 mb-0">
-          <img alt="Verify updates and settings" src="/images/icon-verify-updates-and-settings-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Verify updates and settings</h5>
-          <p>Track progress towards deadlines for security posture remediation projects, and enforce due dates through automations.</p>
-        </div>
+    <div purpose="three-column-features">
+      <div purpose="feature">
+        <img alt="Software and asset inventory" src="/images/icon-live-connection-48x48@2x.png">
+        <h5>Live connection</h5>
+        <p>Talk to online devices in real time with Fleet’s live query API. Implement custom workflows like conditional access based on device posture, Identity, and more.</p>
       </div>
-      <p purpose="feature-footnote">*Currently limited to: Apple, Linux, Windows, Chromebooks, OT, data centers, Amazon Web Services (AWS), Google Cloud (GCP), and the Microsoft Cloud (Azure).</p>
+
+      <div purpose="feature">
+        <img alt="Software and asset inventory" src="/images/icon-software-and-asset-inventory-48x48@2x.png">
+        <h5>Software and asset inventory</h5>
+        <p>Get visibility into all endpoints across any operating system*, including support for servers and containers in every cloud infrastructure.</p>
+        <p><a href="/software-management">More about software management</a></p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="See logins for every endpoint" src="/images/icon-see-logins-for-every-endpoint-48x48@2x.png">
+        <h5>See logins for every endpoint</h5>
+        <p>Identify who logs in to any system, including login history and current sessions. Look up any computer by the email address of the person using it.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="CIS benchmarks" src="/images/icon-cis-benchmarks-48x48@2x.png">
+        <h5>CIS benchmarks</h5>
+        <p>Keep all your endpoints* compliant with customizable baselines, or use common benchmarks like CIS.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="Verify updates and settings" src="/images/icon-edr-health-check-48x48@2x.png">
+        <h5>EDR health checks</h5>
+        <p>Verify that your EDR tools are installed and working so you can identify and address configuration issues quickly.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="Verify updates and settings" src="/images/icon-verify-updates-and-settings-48x48@2x.png">
+        <h5>Verify updates and settings</h5>
+        <p>Track progress towards deadlines for security posture remediation projects, and enforce due dates through automations.</p>
+      </div>
+      <div purpose="feature-footnote">
+        <p>*Currently limited to: Apple, Linux, Windows, Chromebooks, OT, data centers, Amazon Web Services (AWS), Google Cloud (GCP), and the Microsoft Cloud (Azure).</p>
+      </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+    <div purpose="feature-with-image">
       <div purpose="feature-image">
         <img alt="Orchestrate anything" src="/images/feature-image-orchestrate-anything-528x377@2x.png">
       </div>
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Orchestrate anything</h3>
-        <p>Remote-control IT tasks on every kind of computer – even you, Linux.</p>
-        <div purpose="checklist" class="flex-column d-flex">
+      <div purpose="feature-text">
+        <div>
+          <h3>Orchestrate anything</h3>
+          <p class="mb-0">Remote-control IT tasks on every kind of computer – even you, Linux.</p>
+        </div>
+        <div purpose="checklist">
           <p>Write and run scripts remotely, report progress, and replay queued up tasks on computers that went offline.</p>
           <p>Optionally integrate Google Calendar to make changes when certain users’ devices are actually free.</p>
         </div>
       </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Deep context from your environment</h3>
-        <p>Get device context down to the chip level on every endpoint to help you make the right decisions.</p>
-        <div purpose="checklist" class="flex-column d-flex">
+    <div purpose="feature-with-image" class="reverse">
+      <div purpose="feature-image">
+        <img alt="On-demand data" src="/images/feature-image-on-demand-data-528x377@2x.png">
+      </div>
+      <div purpose="feature-text">
+        <div>
+          <h3>Deep context from your environment</h3>
+          <p class="mb-0">Get device context down to the chip level on every endpoint to help you make the right decisions.</p>
+        </div>
+        <div purpose="checklist">
           <p>Gather real-time data by executing lightweight queries across all devices.</p>
           <p>Access over 300 tables of system state data. Use presets or create your own queries.</p>
         </div>
@@ -143,19 +150,18 @@
             <animated-arrow-button href="/tables">Explore data</animated-arrow-button>
         </div>
       </div>
-      <div purpose="feature-image">
-        <img alt="On-demand data" src="/images/feature-image-on-demand-data-528x377@2x.png">
-      </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+    <div purpose="feature-with-image">
       <div purpose="feature-image">
         <img alt="Data portability" src="/images/feature-image-data-portability-528x377@2x.png">
       </div>
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Data portability</h3>
-        <p>Ship data to any platform like Splunk, Snowflake, or any streaming infrastructure like AWS Kinesis and Apache Kafka.</p>
-        <div purpose="checklist" class="flex-column d-flex">
+      <div purpose="feature-text">
+        <div>
+          <h3>Data portability</h3>
+          <p class="mb-0">Ship data to any platform like Splunk, Snowflake, or any streaming infrastructure like AWS Kinesis and Apache Kafka.</p>
+        </div>
+        <div purpose="checklist">
           <p>Extract data and correlate it with your log aggregator, SIEM, or data lake.</p>
           <p>Ease your logging burden, pull the data you need.</p>
         </div>
@@ -169,37 +175,37 @@
         <h3>“Zero” trust, fewer tickets</h3>
         <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
       </div>
-      <div purpose="three-column-features" class="mx-auto">
-        <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-sm-start justify-content-center align-items-center align-items-sm-start">
-          <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
-            <img alt="Get in front of the IdP" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
-            <h5>Get in front of the IdP</h5>
-            <p>Gate access with <a href="https://fleetdm.com/queries">common device trust policies</a> from industry peers, or roll out your own device health checks using system data and events.</p>
-          </div>
+      <div purpose="three-column-features">
+        <div purpose="feature">
+          <img alt="Get in front of the IdP" src="/images/device-management-icon-control-login-experience-48x48@2x.png">
+          <h5>Get in front of the IdP</h5>
+          <p>Gate access with <a href="https://fleetdm.com/queries">common device trust policies</a> from industry peers, or roll out your own device health checks using system data and events.</p>
+        </div>
 
-          <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
-            <img alt="Step-by-step instructions" src="/images/device-management-icon-step-by-step-48x48@2x.png" class="mx-auto mx-sm-0">
-            <h5>Step-by-step instructions</h5>
-            <p>Show resolution steps or use <a href="https://medium.com/pinterest-engineering/enforcing-device-authn-compliance-at-pinterest-a74938cb089b" target="_blank">custom HTML</a> to show employees what they need to do to restore their access without waiting on a ticket. Then give it back automatically, as soon as the problems are fixed.</p>
-          </div>
+        <div purpose="feature">
+          <img alt="Step-by-step instructions" src="/images/device-management-icon-step-by-step-48x48@2x.png">
+          <h5>Step-by-step instructions</h5>
+          <p>Show resolution steps or use <a href="https://medium.com/pinterest-engineering/enforcing-device-authn-compliance-at-pinterest-a74938cb089b" target="_blank">custom HTML</a> to show employees what they need to do to restore their access without waiting on a ticket. Then give it back automatically, as soon as the problems are fixed.</p>
+        </div>
 
-          <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4 mb-0">
-            <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png" class="mx-auto mx-sm-0">
-            <h5>Live retry</h5>
-            <p>Give people a way to get back to work quickly and minimize downtime. Fleet’s live query API instantly re-checks the OS version and other device state so users don’t get locked out.</p>
-          </div>
+        <div purpose="feature">
+          <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
+          <h5>Live retry</h5>
+          <p>Give people a way to get back to work quickly and minimize downtime. Fleet’s live query API instantly re-checks the OS version and other device state so users don’t get locked out.</p>
         </div>
       </div>
     </div>
 
-    <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
+    <div purpose="feature-with-image">
       <div purpose="feature-image">
         <img alt="Osquery on easy mode" src="/images/endpoint-ops-feature-image-2-380x380@2x.png">
       </div>
-      <div purpose="feature-text" class="d-flex flex-column">
-        <h3>Osquery on easy mode</h3>
-        <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your endpoints.</p>
-        <div purpose="checklist" class="flex-column d-flex">
+      <div purpose="feature-text">
+        <div>
+          <h3>Osquery on easy mode</h3>
+          <p class="mb-0">Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your endpoints.</p>
+        </div>
+        <div purpose="checklist">
           <p>Remotely disable/enable agent features, choose plugins, and keep osquery up to date.</p>
           <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
           <p>Implement the Center for Internet Security (CIS) benchmarks (one click, 400+ queries, supported by Fleet). Or customize exactly the queries you need.</p>
@@ -213,45 +219,45 @@
       <p>Consolidate your security tooling on top of open data standards like YAML, SQL, and JSON.</p>
     </div>
 
-    <div purpose="three-column-features" class="mx-auto">
-      <div purpose="responsive-feature-row" class="row d-flex flex-sm-row flex-column justify-content-lg-between justify-content-center align-items-center align-items-sm-start">
-        <div purpose="feature-item" class="pl-0 col-12 col-sm-6 col-lg-4">
-          <img alt="Incident response (IR)" src="/images/icon-incident-response-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Incident response (IR)</h5>
-          <p>Contain and recover from breaches using live data, remote commands, and automated workflows.</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4" >
-          <img alt="Detection and response" src="/images/icon-detection-and-response-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Detection and response</h5>
-          <p>Ship logs and alerts when unusual behavior is detected. Run scripts on demand or when alerts trigger.</p>
-        </div>
-
-        <div purpose="feature-item" class="pl-0 pl-lg-4 pr-lg-0 col-12 col-sm-6 col-lg-4">
-          <img alt="File access monitoring (FIM)" src="/images/icon-fim-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>File access monitoring (FIM)</h5>
-          <p>Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake.</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 pl-lg-0 col-12 col-sm-6 col-lg-4 mb-lg-0">
-          <img alt="Attack surface management" src="/images/icon-attack-surface-management-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Security posture</h5>
-          <p>Identify security misconfigurations and vulnerabilities and prioritize risks that matter to your organization.</p>
-        </div>
-
-        <div purpose="feature-item" class="pl-0 pl-lg-4 col-12 col-sm-6 col-lg-4 mb-sm-0">
-          <img alt="Malware detection" src="/images/icon-malware-detection-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Threat management</h5>
-          <p>Use attack signatures from threat intelligence sources to scan and resolve indicators of compromise (IOC).</p>
-        </div>
-
-        <div purpose="feature-item" class="pr-0 pr-lg-4 col-12 col-sm-6 col-lg-4 mb-0">
-          <img alt="Osquery made easy" src="/images/icon-osquery-made-easy-48x48@2x.png" class="mx-auto mx-sm-0">
-          <h5>Osquery made easy</h5>
-          <p>Collect exactly the data you need from your production infrastructure across every cloud and data center*.</p>
-        </div>
+    <div purpose="three-column-features">
+      <div purpose="feature">
+        <img alt="Incident response (IR)" src="/images/icon-incident-response-48x48@2x.png">
+        <h5>Incident response (IR)</h5>
+        <p>Contain and recover from breaches using live data, remote commands, and automated workflows.</p>
       </div>
-      <p purpose="feature-footnote">*Companies like Fastly and Gusto use Fleet in production with hundreds of thousands of endpoints, including containers, OT, and laptops.</p>
+
+      <div purpose="feature">
+        <img alt="Detection and response" src="/images/icon-detection-and-response-48x48@2x.png">
+        <h5>Detection and response</h5>
+        <p>Ship logs and alerts when unusual behavior is detected. Run scripts on demand or when alerts trigger.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="File access monitoring (FIM)" src="/images/icon-fim-48x48@2x.png">
+        <h5>File access monitoring (FIM)</h5>
+        <p>Specify files to monitor for changes or deletions, then log those events to your SIEM or data lake.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="Attack surface management" src="/images/icon-attack-surface-management-48x48@2x.png">
+        <h5>Security posture</h5>
+        <p>Identify security misconfigurations and vulnerabilities and prioritize risks that matter to your organization.</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="Malware detection" src="/images/icon-malware-detection-48x48@2x.png">
+        <h5>Threat management</h5>
+        <p>Use attack signatures from threat intelligence sources to scan and resolve indicators of compromise (IOC).</p>
+      </div>
+
+      <div purpose="feature">
+        <img alt="Osquery made easy" src="/images/icon-osquery-made-easy-48x48@2x.png">
+        <h5>Osquery made easy</h5>
+        <p>Collect exactly the data you need from your production infrastructure across every cloud and data center*.</p>
+      </div>
+      <div purpose="feature-footnote">
+        <p>*Companies like Fastly and Gusto use Fleet in production with hundreds of thousands of endpoints, including containers, OT, and laptops.</p>
+      </div>
     </div>
     <% }%>
   </div>
@@ -268,8 +274,8 @@
     <div purpose="page-container" class="pb-0">
 
       <div purpose="bottom-cta" class="text-center">
-        <h4>Open orchestration</h4>
-        <h2><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Talk to your computers'%></h2>
+        <h4>Real-time reporting</h4>
+        <h2><%= pagePersonalization==='eo-security'? 'Instrument your endpoints' : 'Find things out in seconds'%></h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="mr-0" href="/contact">Get a demo</a>
           <!-- <animated-arrow-button href="/try">Try it yourself</animated-arrow-button> -->

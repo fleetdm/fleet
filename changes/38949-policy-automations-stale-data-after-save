@@ -1,1 +1,0 @@
-- Fixed an issue where policy automation settings in the Other Workflows modal reverted to stale values after saving when using a MySQL read replica.

@@ -78,13 +78,17 @@ At Fleet, like [GitLab](https://about.gitlab.com/handbook/product-development-fl
 
 Additionally:
 
-- To make changes to the design system or a component (e.g. button border-radius or modal width), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request).
+- To make changes to [Fleet's design system](https://fleetdm.com/handbook/company/product-groups#design-system) (e.g. button border-radius, modal width, or a new UI component), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request). Changes to the design system are up to the [Head of Design](#team). Once approved, it's up to the Head of Design to post in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5) and @ mention all [Product Designers](#team) so they're aware.
 
 - If the story has a requester and the title and/or description change during drafting (scope change), notify the requester. The customer DRI should confirm that the updated scope still meets the requester's needs.
  
 - Sometimes user stories don't require changes to the Fleet product. When this happens, it's up to the Product Designer to prepare a story for the Customer Success team. After the story is approved at design review, the Product Designer adds the `:help-customers` label, assigns the issue to the [Manager of Customer Support and Solutions Architecture](https://fleetdm.com/handbook/customer-success), and @ mentions the Manager of Customer Support with context:
   - How the story addresses the original request.
   - If the original request is a customer promise, specify what the due date is and who it's for.
+
+- Sometimes a Product Designer in one product group drafts a user story or bug that will be specified, estimated, or implemented by another product group. This happens when the original group is constrained by design or engineering capacity. You'll know this is happening when they're a `assisting-g-*` label on the story or bug.
+  - For example, if a #g-mdm Product Designer drafts a story that #g-security-compliance will implement, the #g-mdm Product Designer invites the #g-security-compliance Tech Lead to #g-mdm design reviews. Once the story is approved, it’s brought to #g-security-compliance user story review.
+  - At that point, the #g-security-compliance Product Designer becomes the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). They bring the story to their group’s estimation and handle questions from their team, coordinating with others as needed.
 
 >**Questions and missing information:** Take a screenshot of the area in Figma and add a comment in the story's GitHub issue. Figma does have a commenting system, but we use GitHub issues so that all questions/conversation live in one place.
 >
@@ -108,8 +112,6 @@ The EM is responsible for moving the user story to the "Specified" and "Estimate
 Before assigning an EM, double-check that the "Product" section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete (no TODOs). 
 
 If the story is tied to a customer feature request, the Head of Product Design (HPD) is responsible for adding the feature request issue to the [🏹 #g-customer-success board](https://github.com/fleetdm/fleet/issues#workspaces/g-customer-success-642c83a53e96760014c978bd/board). This way the Customer Success Manager (CSM) can review the wireframes and provide feedback on whether the proposed changes solve the customer's problem. If the changes don't, it's up to the HPD to decide whether to bring the user story back for more drafting or file a follow up user story (iteration).
-
-Sometimes, a Product Designer from one product group will draft a user story or bug that is implemented by a different product group. This happens when the original product group is constrained by design or engineering capacity. If this happens, the Product Designer from the product group that implements the story/bug is the [DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) for that story/bug. This means, the product group members always reach out to their product group's Product Designer with any questions. It's up to this Product Designer to answer questions or reach out to other team members if necessary.
 
 ### Revise a draft currently in development
 
@@ -167,17 +169,18 @@ Ensure the interview process follows these steps in order. This process must fol
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
 3. **HOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Head of People (HOP) to set up the HOP interview.
 4. **Deliver design challenge and schedule interview**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and send a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
-5. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
-6. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
+5. **Schedule CTO interview**: Send the candidate a Calendly link for 30m talk with our CTO @lukeheath.
+6. **Conduct reference checks**: See the [ 🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for instructions.
+7. **Schedule CEO interview**: Connect with the CEO's Executive Assistant to schedule a 30m talk with Fleet's CEO.
 
 If the candidate passes all of these steps then continue with [hiring a new team member](https://fleetdm.com/handbook/company/leadership#hiring-a-new-team-member).
 
 
 ### Confirm and celebrate
 
-The Head of Product Design (HPD) and Product Designers (PD) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
+The Head of Product Design (HPD), Product Designers (PD), and the relevant Customer Solutions Architects (CSAs) review the checkboxes in user stories we shipped but haven't closed. Are they done? If not notify relevant contributor to help get them done. If they're done, PD closes the story and notifies the requester in the original request with context on whether they think the request is fulfilled or still has some work left (more user stories to be drafted and shipped). [Up the requester](https://fleetdm.com/handbook/customer-success#communicate-feedback-on-prioritized-customer-requests) to close the original request and/or leave feedback.
 
-If the original request is a customer request, the PD also assigns the relevant Customer Success Manager (CSM) and adds the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
+If the original request is a customer request, it's up to the relevant CSA to decide if the request is fulfilled.  If it is, we assign the relevant Customer Success Manager (CSM) and add the `:help-customers` label to add the customer request to the [🌦️ :help-customers board](https://github.com/orgs/fleetdm/projects/79).
 
 ### Notify stakeholders when a user story is pushed to the next sprint
 
@@ -201,7 +204,7 @@ Apple releases new major macOS versions every year (ex. [macOS Tahoe](https://fl
 
 In the lead up to release, Apple will announce new MDM features that Fleet's customers may expect Fleet, their MDM solution, to support. 
 
-When a new major macOS version is annouced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
+When a new major macOS version is announced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
 
 
 ## Rituals

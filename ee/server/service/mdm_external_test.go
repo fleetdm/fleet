@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -39,7 +39,7 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 	lic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	ctx := license.NewContext(context.Background(), lic)
 
-	logger := logging.NewNopLogger()
+	logger := slog.New(slog.DiscardHandler)
 	fleetConfig := config.FleetConfig{
 		MDM: config.MDMConfig{
 			AppleSCEPCertBytes: eeservice.TestCert,
@@ -99,12 +99,13 @@ func setupMockDatastorePremiumService(t testing.TB) (*mock.Store, *eeservice.Ser
 		nil,
 		nil,
 		nil,
+		nil,
 	)
 	if err != nil {
 		panic(err)
 	}
 	// Using a noop activity service since this test does not currently verify activity creation.
-	freeSvc.SetActivityService(&mock.MockNewActivityService{
+	freeSvc.SetActivityService(&mock.MockActivityService{
 		NewActivityFunc: mock.NoopNewActivityFunc,
 	})
 	svc, err := eeservice.NewService(
@@ -198,6 +199,17 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			return nil, ctxerr.Wrap(ctx, &eeservice.NotFoundError{})
 		}
+		ds.TeamConflictsWithNameFunc = func(ctx context.Context, name string, excludeID uint) (*fleet.Team, error) {
+			for _, team := range teamStore {
+				if team.ID == excludeID {
+					continue
+				}
+				if strings.EqualFold(team.Name, name) {
+					return team, nil
+				}
+			}
+			return nil, nil
+		}
 		ds.TeamWithExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
 			tm, ok := teamStore[id]
 			if !ok {
@@ -235,7 +247,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			require.ElementsMatch(t, names, []string{fleet.BuiltinLabelMacOS14Plus})
 			return map[string]uint{names[0]: 1}, nil
 		}
-		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+		ds.SetOrUpdateMDMAppleDeclarationFunc = func(ctx context.Context, declaration *fleet.MDMAppleDeclaration, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleDeclaration, error) {
 			declaration.DeclarationUUID = uuid.NewString()
 			return declaration, nil
 		}
@@ -390,7 +402,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			}
 			asst := setupAsstByTeam[tmID]
 			if asst == nil {
-				return nil, eeservice.NotFoundError{}
+				return nil, &eeservice.NotFoundError{}
 			}
 			return asst, nil
 		}

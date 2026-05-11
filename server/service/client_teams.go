@@ -7,11 +7,12 @@ import (
 	"strconv"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 )
 
 // ListTeams retrieves the list of teams.
 func (c *Client) ListTeams(query string) ([]fleet.Team, error) {
-	verb, path := "GET", "/api/latest/fleet/teams"
+	verb, path := "GET", "/api/latest/fleet/fleets"
 	var responseBody listTeamsResponse
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
@@ -25,7 +26,7 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 	req := createTeamRequest{
 		TeamPayload: teamPayload,
 	}
-	verb, path := "POST", "/api/latest/fleet/teams"
+	verb, path := "POST", "/api/latest/fleet/fleets"
 	var responseBody teamResponse
 	err := c.authenticatedRequest(req, verb, path, &responseBody)
 	if err != nil {
@@ -35,7 +36,7 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 }
 
 func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID)
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/fleets/%d", teamID)
 	var responseBody getTeamResponse
 	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
 		return nil, err
@@ -45,7 +46,7 @@ func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
 
 // DeleteTeam deletes a team.
 func (c *Client) DeleteTeam(teamID uint) error {
-	verb, path := "DELETE", "/api/latest/fleet/teams/"+strconv.FormatUint(uint64(teamID), 10)
+	verb, path := "DELETE", "/api/latest/fleet/fleets/"+strconv.FormatUint(uint64(teamID), 10)
 	var responseBody deleteTeamResponse
 	return c.authenticatedRequest(nil, verb, path, &responseBody)
 }
@@ -53,9 +54,19 @@ func (c *Client) DeleteTeam(teamID uint) error {
 // ApplyTeams sends the list of Teams to be applied to the
 // Fleet instance.
 func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
-	verb, path := "POST", "/api/latest/fleet/spec/teams"
+	verb, path := "POST", "/api/latest/fleet/spec/fleets"
 	var responseBody applyTeamSpecsResponse
-	params := map[string]interface{}{"specs": specs}
+	// Rewrite deprecated key names in each team spec to use the new names.
+	rules := endpointer.ExtractAliasRules(fleet.TeamSpec{})
+	rewritten := make([]json.RawMessage, len(specs))
+	for i, spec := range specs {
+		updated, err := endpointer.RewriteOldToNewKeys(spec, rules)
+		if err != nil {
+			return nil, err
+		}
+		rewritten[i] = updated
+	}
+	params := map[string]any{"specs": rewritten}
 	if opts.DryRun && opts.DryRunAssumptions != nil {
 		params["dry_run_assumptions"] = opts.DryRunAssumptions
 	}
@@ -66,6 +77,13 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOpt
 	return responseBody.TeamIDsByName, nil
 }
 
+// PatchFleet sends a partial update to the specified team.
+func (c *Client) PatchFleet(teamID uint, payload fleet.TeamPayload) error {
+	verb, path := "PATCH", "/api/latest/fleet/fleets/"+strconv.FormatUint(uint64(teamID), 10)
+	var resp teamResponse
+	return c.authenticatedRequest(payload, verb, path, &resp)
+}
+
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
 func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplyTeamSpecOptions) error {
@@ -74,7 +92,7 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	if err != nil {
 		return err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
 	}
@@ -89,9 +107,9 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 
-	var resp batchSetScriptsResponse
+	var resp fleet.BatchSetScriptsResponse
 	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
 	return resp.Scripts, err
 }
@@ -101,7 +119,7 @@ func (c *Client) ApplyTeamSoftwareInstallers(tmName string, softwareInstallers [
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	return c.applySoftwareInstallers(softwareInstallers, query, opts.DryRun)
 }
 
@@ -110,7 +128,7 @@ func (c *Client) ApplyTeamAppStoreAppsAssociation(tmName string, vppBatchPayload
 	if err != nil {
 		return nil, err
 	}
-	query.Add("team_name", tmName)
+	query.Add("fleet_name", tmName)
 	return c.applyAppStoreAppsAssociation(vppBatchPayload, query)
 }
 

@@ -79,15 +79,7 @@ Here's a snippet from our [Santa rules configuration profile](https://github.com
 </array>
 ```
 
-**Step 3. Deploy Santa Extensions**
-
-Policy to check if extensions exist: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/policies/install-santa-extension.yml 
-
-Script to install the extensions: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/scripts/install-santa-extension.sh
-
-We chose to deploy these via policy automation since the Santa extensions don't exist natively in Fleet. We have a policy that checks for the existence of the Santa extension. If it is not found, Fleet will immediately run a remediation script that handles the download and configuration of fleetd to start using the extension.
-
-**Step 4. Collect Santa Events**
+**Step 3. Collect Santa Events**
 
 Collect Santa denied logs: https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/macos/queries/collect-santa-denied-logs.yml
 
@@ -114,7 +106,7 @@ By leveraging GitOps principles through Fleet, Santa management becomes:
 - **Automatically Deployed:** CI/CD pipelines handle rule distribution without manual intervention
 - **Easily Rollbacked:** Git reverts enable instant rollback of problematic rule changes
 
-About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) is a Solutions Consultant / individual contributor and head of IT at Fleet Device Management.
+About the author: [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) is Head of IT & Solutions Consulting at Fleet Device Management.
 
 <meta name="articleTitle" value="How we deployed Santa at Fleet">
 <meta name="authorFullName" value="Allen Houchins">

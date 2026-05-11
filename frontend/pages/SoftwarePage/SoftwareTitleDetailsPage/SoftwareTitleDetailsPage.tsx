@@ -1,13 +1,14 @@
 /** software/titles/:id */
 
 import React, { useCallback, useContext, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
 import { ISoftwareTitleDetails } from "interfaces/software";
@@ -56,11 +57,13 @@ const SoftwareTitleDetailsPage = ({
     config,
   } = useContext(AppContext);
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
   const autoOpenGitOpsYamlModal =
-    location.query.gitops_yaml === "true" && config?.gitops.gitops_mode_enabled;
+    location.query.gitops_yaml === "true" && gitOpsModeEnabled;
 
   const {
     currentTeamId,
@@ -113,18 +116,23 @@ const SoftwareTitleDetailsPage = ({
   };
 
   const onDeleteInstaller = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [{ scope: "software-titles" }] });
+    queryClient.invalidateQueries({
+      queryKey: [{ scope: "software-library" }],
+    });
+
     if (softwareTitle?.versions?.length) {
       refetchSoftwareTitle();
       return;
     }
 
-    // redirect to software titles page if no versions are available
+    // redirect to software library page if no versions are available
     router.push(
-      getPathWithQueryParams(paths.SOFTWARE_TITLES, {
+      getPathWithQueryParams(paths.SOFTWARE_LIBRARY, {
         fleet_id: teamIdForApi,
       })
     );
-  }, [refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
+  }, [queryClient, refetchSoftwareTitle, router, softwareTitle, teamIdForApi]);
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -156,7 +164,6 @@ const SoftwareTitleDetailsPage = ({
         softwareTitle={title}
         softwareId={softwareId}
         teamId={currentTeamId ?? APP_CONTEXT_NO_TEAM_ID}
-        teamIdForApi={teamIdForApi}
         onDelete={onDeleteInstaller}
         isLoading={isSoftwareTitleLoading}
         onToggleViewYaml={onToggleViewYaml}

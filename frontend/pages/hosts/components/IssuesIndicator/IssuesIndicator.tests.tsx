@@ -1,6 +1,6 @@
 import React from "react";
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
 import IssuesIndicator from "./IssuesIndicator";
@@ -16,12 +16,14 @@ describe("Issues indicator", () => {
     );
     await user.hover(screen.getByText("5"));
 
-    const vulnerabilitiesTooltip = screen.getByText(
-      /Critical vulnerabilities/i
-    );
-    const policiesTooltip = screen.getByText(/Failing policies/i);
+    await waitFor(() => {
+      const vulnerabilitiesTooltip = screen.getByText(
+        /Critical vulnerabilities/i
+      );
+      const policiesTooltip = screen.getByText(/Failing policies/i);
 
-    expect(vulnerabilitiesTooltip).toBeInTheDocument();
-    expect(policiesTooltip).toBeInTheDocument();
+      expect(vulnerabilitiesTooltip).toBeInTheDocument();
+      expect(policiesTooltip).toBeInTheDocument();
+    });
   });
 });

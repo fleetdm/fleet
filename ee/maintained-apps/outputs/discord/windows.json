@@ -1,14 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.0.9226",
+      "version": "1.0.9236",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Discord' AND publisher = 'Discord Inc.' AND version_compare(version, '1.0.9236') < 0);"
       },
-      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9226/DiscordSetup.exe",
+      "installer_url": "https://stable.dl2.discordapp.net/distro/app/stable/win/x64/1.0.9236/DiscordSetup.exe",
       "install_script_ref": "fd04e860",
       "uninstall_script_ref": "73fc6eff",
-      "sha256": "10ad3d8ab1c5fcd09ea280821bda3f0c7ae52faf027a7276a9d35db323151b17",
+      "sha256": "242b40a7302d475e12b5be61deb3a88d9392eae84a241790542d73f59b79e85a",
       "default_categories": [
         "Communication"
       ]

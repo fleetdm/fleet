@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "version": "7.162.6",
+      "queries": {
+        "exists": "SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola';",
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.162.6') < 0);"
+      },
+      "installer_url": "https://api.granola.ai/v1/check-for-update/Granola-7.162.6-win-x64.exe",
+      "install_script_ref": "3f66ac53",
+      "uninstall_script_ref": "a4fab3f5",
+      "sha256": "4278beed60334fbf7af830bea32eebbf5683c1888e2bcdcea9be4ee2a94cf3fe",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "3f66ac53": "# Learn more about .exe install scripts:\n# http://fleetdm.com/learn-more-about/exe-install-scripts\n\n$exeFilePath = \"${env:INSTALLER_PATH}\"\n\ntry {\n    # Granola uses a Nullsoft installer:\n    # - /S for silent installation\n    # - /currentuser for per-user installs\n    $processOptions = @{\n        FilePath     = \"$exeFilePath\"\n        ArgumentList = \"/S /currentuser\"\n        PassThru     = $true\n        Wait         = $true\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Install exit code: $exitCode\"\n    Exit $exitCode\n}\ncatch {\n    Write-Host \"Error: $_\"\n    Exit 1\n}\n",
+    "a4fab3f5": "# Attempts to locate Granola's uninstaller from registry and execute it silently\n\n$displayName = \"Granola\"\n$productCode = \"cdc80bd8-3b8c-5d86-a628-c46cf9da018d\"\n\n$paths = @(\n    'HKLM:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKLM:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKCU:\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall',\n    'HKCU:\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'\n)\n\n$uninstall = $null\n\nforeach ($p in $paths) {\n    $codeCandidates = @(\n        \"$p\\$productCode\",\n        \"$p\\{$productCode}\"\n    )\n\n    foreach ($candidate in $codeCandidates) {\n        if (Test-Path $candidate) {\n            $uninstall = Get-ItemProperty -Path $candidate -ErrorAction SilentlyContinue\n            if ($uninstall) {\n                break\n            }\n        }\n    }\n\n    if ($uninstall) {\n        break\n    }\n\n    $items = Get-ItemProperty \"$p\\*\" -ErrorAction SilentlyContinue | Where-Object {\n        $_.DisplayName -and ($_.DisplayName -eq $displayName -or $_.DisplayName -like \"$displayName*\")\n    }\n\n    if ($items) {\n        $uninstall = $items | Select-Object -First 1\n        break\n    }\n}\n\nif (-not $uninstall) {\n    Write-Host \"Uninstall entry not found\"\n    Exit 0\n}\n\n$uninstallString = if ($uninstall.QuietUninstallString) {\n    $uninstall.QuietUninstallString\n}\nelse {\n    $uninstall.UninstallString\n}\n\nif (-not $uninstallString) {\n    Write-Host \"Uninstall command not found\"\n    Exit 0\n}\n\nStop-Process -Name \"Granola\" -Force -ErrorAction SilentlyContinue\n\n$exePath = \"\"\n$arguments = \"\"\n\nif ($uninstallString -match '^\"([^\"]+)\"(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n}\nelseif ($uninstallString -match '^([^\\s]+)(.*)') {\n    $exePath = $matches[1]\n    $arguments = $matches[2].Trim()\n}\nelse {\n    Write-Host \"Error: Could not parse uninstall string: $uninstallString\"\n    Exit 1\n}\n\n$argumentList = @()\nif ($arguments -ne '') {\n    $argumentList += $arguments -split '\\s+'\n}\n\n# NSIS uninstallers require /S for silent mode.\nif ($argumentList -notcontains \"/S\" -and $arguments -notmatch '\\b/S\\b') {\n    $argumentList += \"/S\"\n}\n\nWrite-Host \"Uninstall executable: $exePath\"\nWrite-Host \"Uninstall arguments: $($argumentList -join ' ')\"\n\ntry {\n    $processOptions = @{\n        FilePath    = $exePath\n        NoNewWindow = $true\n        PassThru    = $true\n        Wait        = $true\n    }\n\n    if ($argumentList.Count -gt 0) {\n        $processOptions.ArgumentList = $argumentList\n    }\n\n    $process = Start-Process @processOptions\n    $exitCode = $process.ExitCode\n\n    Write-Host \"Uninstall exit code: $exitCode\"\n    Exit $exitCode\n}\ncatch {\n    Write-Host \"Error running uninstaller: $_\"\n    Exit 1\n}\n"
+  }
+}

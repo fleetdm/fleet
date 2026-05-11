@@ -11,6 +11,8 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { useCheckTruncatedElement } from "hooks/useCheckTruncatedElement";
 import { InstallerType } from "interfaces/software";
 
+import { isAndroidWebApp } from "pages/SoftwarePage/helpers";
+
 import Graphic from "components/Graphic";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -53,6 +55,10 @@ const renderInstallerDisplayText = (
     return isFma ? "Fleet-maintained" : "Custom package";
   }
   if (androidPlayStoreId) {
+    if (isAndroidWebApp(androidPlayStoreId)) {
+      return "Web app";
+    }
+
     return "Google Play Store";
   }
   return "App Store (VPP)";
@@ -118,7 +124,8 @@ const InstallerDetailsWidget = ({
     }
 
     const renderVersionInfo = () => {
-      if (isScriptPackage) {
+      // Hide version info from script package and Android Play Store web apps
+      if (isScriptPackage || isAndroidWebApp(androidPlayStoreId)) {
         return null;
       }
 

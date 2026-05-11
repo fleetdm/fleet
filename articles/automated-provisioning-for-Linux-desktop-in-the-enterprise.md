@@ -1,5 +1,16 @@
 # Automated provisioning for Linux desktop in the enterprise
 
+### Links to article series:
+
+- Part 1: [Why enterprise Linux is important in 2026](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026)
+- Part 2: Automated provisioning for Linux desktop in the enterprise
+- Part 3: [Security baselines for Linux: closing the gap on exemptions](https://fleetdm.com/articles/security-baselines-for-linux)
+- Part 4: [Unlocking Linux productivity: securing apps and updating certificates](https://fleetdm.com/articles/unlocking-linux-productivity-securing-apps-and-updating-certificates)
+- Part 5: [Protecting the Linux device: remote wipe, USB and sudo](https://fleetdm.com/articles/protecting-the-linux-device-remote-wipe-usb-sudo)
+- Part 6: [Software and data sovereignty for Linux management](https://fleetdm.com/articles/data-and-endpoint-sovereignty-owning-your-destiny)
+
+-----
+
 Linux users love the power and flexibility of their systems that include features like: 
 
 * Built-in package managers (e.g., `apt` and `yum`) for installing software  
@@ -46,7 +57,7 @@ Third, automated device provisioning establishes the connection between **end us
 
 ## Best practices for automated provisioning on Linux deployments
 
-If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like [Apple Business Manager (ABM)](https://support.apple.com/guide/apple-business-manager/sign-up-axm402206497/web) or [Microsoft Entra](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra).
+If your organization is purchasing computers directly from a large manufacturer like Dell or Lenovo, or from a 3rd party reseller like CDW or SHI, they all offer computers preinstalled with Linux. This is often the simplest and best way to start with enterprise Linux deployments. There is no MDM specification / protocol for Linux and there is no central registry for Linux computers like [Apple Business (AB)](https://support.apple.com/guide/apple-business-manager/sign-up-axm402206497/web) or [Microsoft Entra](https://learn.microsoft.com/en-us/entra/fundamentals/what-is-entra).
 
 Typically, orchestration approaches are used for managing Linux devices at scale.
 
@@ -67,11 +78,12 @@ When looking for a management solution to overcome these challenges around Linux
 
 Not only can your Linux devices be enrolled and managed, Fleet offers an automated [Setup Experience](https://fleetdm.com/guides/windows-linux-setup-experience) for Linux, meaning you can realize zero-touch, automated provisioning for your Linux end users and link your Linux endpoints to your user’s identity in your IdP just like you do on your other platforms.  
 
-The next article in this series will cover more on the topic of enforcing security baselines for Linux: how detecting device state, monitoring compliance and automatically bringing devices back into compliance by triggering automations will finally allow your Linux devices to be as secure as the other OS platforms in your fleet.
+The [next article](https://fleetdm.com/articles/security-baselines-for-linux) in this series will cover more on the topic of enforcing security baselines for Linux: how detecting device state, monitoring compliance and automatically bringing devices back into compliance by triggering automations will finally allow your Linux devices to be as secure as the other OS platforms in your fleet.
 
 <meta name="articleTitle" value="Automated provisioning for Linux desktop in the enterprise">
 <meta name="authorFullName" value="Ashish Kuthiala">
 <meta name="authorGitHubUsername" value="akuthiala">
 <meta name="category" value="articles">
 <meta name="publishedOn" value="2026-02-16">
-<meta name="description" value="Chapter 2 of Protecting Linux endpoints series">
+<meta name="description" value="Part 2 of 6 in the 'Protecting Linux endpoints with modern device management' article series.">
+

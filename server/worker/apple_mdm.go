@@ -46,6 +46,7 @@ type AppleMDM struct {
 	Commander             *apple_mdm.MDMAppleCommander
 	BootstrapPackageStore fleet.MDMBootstrapPackageStore
 	VPPInstaller          fleet.AppleMDMVPPInstaller
+	NewActivityFn         fleet.NewActivityFunc
 }
 
 // Name returns the name of the job.
@@ -57,7 +58,7 @@ func (a *AppleMDM) Name() string {
 type appleMDMArgs struct {
 	Task     AppleMDMTask `json:"task"`
 	HostUUID string       `json:"host_uuid"`
-	TeamID   *uint        `json:"team_id,omitempty"`
+	TeamID   *uint        `json:"team_id,omitempty"` //nolint:apiparamcheck
 	// EnrollReference is the UUID of the MDM IdP account used to enroll the
 	// device. It is used to set the username and full name of the user
 	// associated with the device.
@@ -112,6 +113,13 @@ func isMacOS(platform string) bool {
 }
 
 func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	_, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
+	if err != nil {
+		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
+		// We do not return here, as we want to continue with the rest of the logic, and then the reconciler will just pick up the remaining work.
+		// We do this since this is a speed optimization and not critical to complete enrollment itself.
+	}
+
 	if isMacOS(args.Platform) {
 		if _, err := a.installFleetd(ctx, args.HostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
@@ -120,7 +128,7 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 		// We shouldn't have any setup experience steps if we're not on a premium license,
 		// but best to check anyway plus it saves some db queries.
 		if license.IsPremium(ctx) {
-			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+			_, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
@@ -182,12 +190,26 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 	} else {
-		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID)
+		commandUUIDs, err := a.installSetupExperienceVPPAppsOnIosIpadOS(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 		}
 		awaitCmdUUIDs = append(awaitCmdUUIDs, commandUUIDs...)
 	}
+
+	cmdUUIDs, err := a.installProfilesForEnrollingHost(ctx, args.HostUUID)
+	if err != nil {
+		a.Log.ErrorContext(ctx, "error installing profiles for enrolling host", "host_uuid", args.HostUUID, "err", err)
+		// We do not return here, as we want to continue with the rest of the logic, and then the reconciler will just pick up the remaining work.
+		// We do this since this is a speed optimization and not critical to complete enrollment itself, as we have other backing logic.
+		cmdUUIDs = []string{}
+	}
+
+	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
+
+	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
+	var ssoAccount *fleet.MDMIdPAccount
+	var adminAccount *apple_mdm.AdminAccountConfig
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
@@ -195,37 +217,71 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			return err
 		}
 
-		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
+		ssoAccount, err = a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
 		}
 
-		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		ssoEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		lockPrimaryAccountInfo = appCfg.MDM.MacOSSetup.LockEndUserInfo.Value
 		if args.TeamID != nil {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
 			}
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+			lockPrimaryAccountInfo = team.Config.MDM.MacOSSetup.LockEndUserInfo.Value
+		}
+	}
+
+	if isMacOS(args.Platform) && license.IsPremium(ctx) {
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
+			}
+			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
+			}
+			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+		}
+	}
+
+	const fleetAdminFullName = "Fleet Admin"
+
+	// Only send AccountConfiguration for macOS devices.
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
+		var password string
+		cmdUUID := uuid.New().String()
+		if managedAdminAccountEnabled {
+			password = apple_mdm.GenerateManagedAccountPassword()
+			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
+			if err != nil {
+				return err
+			}
+			adminAccount = &apple_mdm.AdminAccountConfig{
+				ShortName:    fleet.ManagedLocalAccountUsername,
+				FullName:     fleetAdminFullName,
+				PasswordHash: passwordHash,
+				Hidden:       true,
+			}
+			// Save the password before sending the command so the plaintext is
+			// escrowed even if the command enqueue succeeds but a later step fails.
+			if err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID); err != nil {
+				return err
+			}
 		}
 
+		// Only include the SSO account in the payload if SSO is actually enabled.
+		// ssoAccount may be non-nil (fetched from enroll reference) even when SSO is disabled.
+		var ssoAccountForPayload *fleet.MDMIdPAccount
 		if ssoEnabled {
-			fullName, err := a.getIdPDisplayName(ctx, acct, args)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting idp account display name")
-			}
-			a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
-			cmdUUID := uuid.New().String()
-			if err := a.Commander.AccountConfiguration(
-				ctx,
-				[]string{args.HostUUID},
-				cmdUUID,
-				fullName,
-				acct.Username,
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
-			}
-			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+			ssoAccountForPayload = ssoAccount
 		}
+		if err := a.sendManagedAccounts(ctx, &args, ssoAccountForPayload, adminAccount, lockPrimaryAccountInfo, cmdUUID); err != nil {
+			return err
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
 	}
 
 	// proceed to release the device if it is not a macos, as those are released
@@ -462,7 +518,7 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	if !isMacOS(args.Platform) {
-		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID)
+		setupExperienceStatuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, args.HostUUID, ptr.ValOrZero(args.TeamID))
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving setup experience status results for host pending DEP release")
 		}
@@ -503,8 +559,8 @@ func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) (string, 
 	return cmdUUID, nil
 }
 
-func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string) ([]string, error) {
-	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context, hostUUID string, teamID uint) ([]string, error) {
+	statuses, err := a.Datastore.ListSetupExperienceResultsByHostUUID(ctx, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
 	}
@@ -563,9 +619,7 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 
 			cmdUUID, err := a.installSoftwareFromVPP(ctx, host, vppApp, true, opts)
 
-			app.NanoCommandUUID = &cmdUUID
-			app.Status = fleet.SetupExperienceStatusRunning
-
+			failedBeforeCommandSend := err != nil
 			if err != nil {
 				// if we get an error (e.g. no available licenses) while attempting to enqueue the
 				// install, then we should immediately go to an error state so setup experience
@@ -574,10 +628,27 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 				app.Status = fleet.SetupExperienceStatusFailure
 				app.Error = ptr.String(err.Error())
 			} else {
+				app.NanoCommandUUID = &cmdUUID
+				app.Status = fleet.SetupExperienceStatusRunning
 				commandUUIDs = append(commandUUIDs, cmdUUID)
 			}
 			if err := a.Datastore.UpdateSetupExperienceStatusResult(ctx, app); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "updating setup experience with vpp install command uuid")
+			}
+			// Emit activity for the VPP app install failure, if one occurred
+			if failedBeforeCommandSend && a.NewActivityFn != nil {
+				failActivity := fleet.ActivityInstalledAppStoreApp{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					SoftwareTitle:       app.Name,
+					AppStoreID:          ptr.ValOrZero(app.VPPAppAdamID),
+					Status:              string(fleet.SoftwareInstallFailed),
+					HostPlatform:        host.Platform,
+					FromSetupExperience: true,
+				}
+				if actErr := a.NewActivityFn(ctx, nil, failActivity); actErr != nil {
+					a.Log.WarnContext(ctx, "failed to create activity for VPP app install failure during setup experience", "err", actErr)
+				}
 			}
 		}
 	}
@@ -673,6 +744,117 @@ func (a *AppleMDM) getSignedURL(ctx context.Context, meta *fleet.MDMAppleBootstr
 	return url
 }
 
+// installProfilesForEnrollingHost installs all configuration profiles for the host immediately after enrollment
+// to speed up the setup experience process. This runs before the reconciler cycle.
+func (a *AppleMDM) installProfilesForEnrollingHost(ctx context.Context, hostUUID string) ([]string, error) {
+	// Get all profiles that need to be installed for this host
+	profilesToInstall, err := a.Datastore.ListMDMAppleProfilesToInstall(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing profiles to install for host")
+	}
+
+	profilesToInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(profilesToInstall)
+
+	// Filter out user-scoped profiles as they require special handling
+	profilesToInstall = fleet.FilterOutUserScopedProfiles(profilesToInstall)
+
+	if len(profilesToInstall) == 0 {
+		a.Log.InfoContext(ctx, "no profiles to install", "host_uuid", hostUUID)
+		return nil, nil
+	}
+
+	a.Log.InfoContext(ctx, "installing profiles post-enrollment", "host_uuid", hostUUID, "profile_count", len(profilesToInstall))
+
+	appConfig, err := a.Datastore.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "reading app config")
+	}
+
+	hostProfiles := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, 0, len(profilesToInstall))
+	hostProfilesToInstallMap := make(map[fleet.HostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(profilesToInstall))
+	installTargets := make(map[string]*fleet.CmdTarget, len(profilesToInstall))
+	for _, profile := range profilesToInstall {
+		target := &fleet.CmdTarget{
+			CmdUUID:           uuid.NewString(),
+			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
+			EnrollmentIDs:     []string{hostUUID},
+		}
+		installTargets[profile.ProfileUUID] = target
+		hostProfile := &fleet.MDMAppleBulkUpsertHostProfilePayload{
+			ProfileUUID:       profile.ProfileUUID,
+			ProfileIdentifier: profile.ProfileIdentifier,
+			ProfileName:       profile.ProfileName,
+			HostUUID:          hostUUID,
+			CommandUUID:       target.CmdUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            nil, // intentionally nil here, to avoid stuck pending, but we need to upsert before processing so inner code can match rows for failures
+			Checksum:          profile.Checksum,
+			SecretsUpdatedAt:  profile.SecretsUpdatedAt,
+			Scope:             profile.Scope,
+		}
+		hostProfilesToInstallMap[fleet.HostProfileUUID{HostUUID: hostUUID, ProfileUUID: profile.ProfileUUID}] = hostProfile
+		hostProfiles = append(hostProfiles, hostProfile)
+	}
+
+	if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, hostProfiles); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk upsert host profiles before installation")
+	}
+
+	enqueueResult, err := apple_mdm.ProcessAndEnqueueProfiles(ctx, a.Datastore, a.Log, appConfig, a.Commander, installTargets, nil, hostProfilesToInstallMap, map[string]string{}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build cmdUUID→profile index AFTER preprocessing has rewritten CommandUUIDs.
+	profileByCmdUUID := make(map[string]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(hostProfilesToInstallMap))
+	for _, hp := range hostProfilesToInstallMap {
+		if hp.CommandUUID != "" {
+			profileByCmdUUID[hp.CommandUUID] = hp
+		}
+	}
+
+	// Log failures
+	for cmdUUID, enqErr := range enqueueResult.FailedCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			a.Log.ErrorContext(ctx, "failed to install profile", "host_uuid", hostUUID, "profile_uuid", profile.ProfileUUID, "error", enqErr)
+		}
+	}
+
+	// Collect successes for bulk upsert
+	var cmdUUIDs []string
+	var bulkPayloads []*fleet.MDMAppleBulkUpsertHostProfilePayload
+	for _, cmdUUID := range enqueueResult.SucceededCmdUUIDs {
+		if profile := profileByCmdUUID[cmdUUID]; profile != nil {
+			profile.Status = &fleet.MDMDeliveryPending
+			cmdUUIDs = append(cmdUUIDs, cmdUUID)
+			bulkPayloads = append(bulkPayloads, profile)
+		}
+	}
+
+	// Bulk update database to track all profile installations
+	if len(bulkPayloads) > 0 {
+		if err := a.Datastore.BulkUpsertMDMAppleHostProfiles(ctx, bulkPayloads); err != nil {
+			a.Log.ErrorContext(ctx, "failed to bulk update profile statuses", "host_uuid", hostUUID, "error", err)
+			// Continue even if database update fails - the commands were sent
+		}
+	}
+
+	a.Log.InfoContext(ctx, "successfully queued profiles from apple mdm worker", "host_uuid", hostUUID, "profiles_sent", len(cmdUUIDs))
+
+	// send a DeclarativeManagement command to start a sync, we don't block on DDM missing, and the declarations might not have been reconciled
+	// We can come back to this if we want to include DDM declarations here in the future.
+	declarativeManagementCmdUUID := uuid.NewString()
+	if err := a.Commander.DeclarativeManagement(ctx, []string{hostUUID}, declarativeManagementCmdUUID); err != nil {
+		a.Log.ErrorContext(ctx, "failed to send DeclarativeManagement command after installing profiles for enrolling host", "host_uuid", hostUUID, "error", err)
+		// Make sure we return the profile commands even if DDM fails
+		return cmdUUIDs, nil
+	}
+	cmdUUIDs = append(cmdUUIDs, declarativeManagementCmdUUID)
+
+	return cmdUUIDs, nil
+}
+
 // QueueAppleMDMJob queues a apple_mdm job for one of the supported tasks, to
 // be processed asynchronously via the worker.
 func QueueAppleMDMJob(
@@ -725,5 +907,36 @@ func QueueAppleMDMJob(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 	logger.DebugContext(ctx, "queued Apple MDM job", "job_id", job.ID)
+	return nil
+}
+
+// sendManagedAccounts enqueues an AccountConfiguration command for an sso and/or
+// a breakglass admin account.
+func (a *AppleMDM) sendManagedAccounts(
+	ctx context.Context,
+	args *appleMDMArgs,
+	ssoAccount *fleet.MDMIdPAccount,
+	adminAccount *apple_mdm.AdminAccountConfig,
+	lockPrimaryAccountInfo bool,
+	cmdUUID string,
+) error {
+	var ssoConfig *apple_mdm.SSOAccountConfig
+	if ssoAccount != nil {
+		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting idp account display name")
+		}
+		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
+		ssoConfig = &apple_mdm.SSOAccountConfig{
+			FullName:               fullName,
+			UserName:               ssoAccount.Username,
+			LockPrimaryAccountInfo: lockPrimaryAccountInfo,
+		}
+	}
+
+	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, cmdUUID, ssoConfig, adminAccount); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+	}
+
 	return nil
 }

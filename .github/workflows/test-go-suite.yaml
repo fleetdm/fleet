@@ -10,10 +10,20 @@ on:
         required: true
         type: string
       mysql:
-        description: 'MySQL Docker image (e.g., "mysql:8.0.36"). Leave empty for suites that do not need MySQL.'
+        description: 'MySQL Docker image (e.g., "mysql:8.0.44"). Leave empty for suites that do not need MySQL.'
         required: false
         type: string
         default: ''
+      cover_pkg:
+        description: 'Go coverage package pattern (e.g., "github.com/fleetdm/fleet/v4/server/activity/..."). Defaults to all fleet packages.'
+        required: false
+        type: string
+        default: ''
+      generate_go:
+        description: 'Whether to run make generate-go before tests. Disable for suites that do not need generated static files.'
+        required: false
+        type: boolean
+        default: true
       is_cron:
         description: 'Whether this is a scheduled (cron) run. Enables race detector and longer timeouts.'
         required: false
@@ -101,9 +111,12 @@ jobs:
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
     - name: Install Go
-      uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+      uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
       with:
         go-version-file: 'go.mod'
+
+    - name: Install gotestsum
+      run: go install gotest.tools/gotestsum@latest
 
     # Pre-starting dependencies here means they are ready to go when we need them.
     - name: Start Infra Dependencies
@@ -122,6 +135,7 @@ jobs:
       run: sudo apt update && sudo apt install -y zsh
 
     - name: Generate static files
+      if: ${{ inputs.generate_go }}
       run: |
         export PATH=$PATH:~/go/bin
         make generate-go
@@ -213,13 +227,37 @@ jobs:
           attempt=$((attempt + 1))
         done
 
+    - name: Wait for LocalStack
+      if: ${{ env.NEED_DOCKER && contains(env.DOCKER_COMMAND, 'localstack') }}
+      run: |
+        echo "Waiting for LocalStack..."
+        timeout 60 bash -c 'until curl -sf http://localhost:4566/_localstack/health; do sleep 2; done'
+        echo "LocalStack is ready"
+        
     - name: Generate test schema
       if: ${{ env.GENERATE_TEST_SCHEMA }}
       run: make test-schema
 
-    - name: Run Go Tests
+    - name: Build Fleet server Docker image (for fleetctl preview test)
+      if: ${{ inputs.suite == 'fleetctl' }}
       run: |
-        GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TESTS_ARG }}" \
+        make fleet-static
+        cp ./build/fleet fleet
+        docker build -t fleetdm/fleet:dev -f tools/fleet-docker/Dockerfile .
+        rm fleet
+
+        # Update in-a-box docker-compose to add pull_policy: never for locally built image
+        # This prevents Docker from trying to pull the image from Docker Hub
+        sed -i '/^  fleet01:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
+        sed -i '/^  fleet02:/,/^  [^ ]/{s/^\(    image: fleetdm\/fleet.*\)/\1\n    pull_policy: never/}' tools/osquery/in-a-box/docker-compose.yml
+
+    - name: Run Go Tests
+      env:
+        FLEET_PREVIEW_TAG: ${{ inputs.suite == 'fleetctl' && 'dev' || 'main' }}
+      run: |
+        USE_GOTESTSUM=1 \
+          GOTESTSUM_FORMAT=testdox \
+          GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TESTS_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \
           NETWORK_TEST=1 \
@@ -229,10 +267,12 @@ jobs:
           S3_STORAGE_TEST=1 \
           SAML_IDP_TEST=1 \
           MAIL_TEST=1 \
-          AWS_ENDPOINT_URL="http://localhost:4566" \
+          AWS_ENDPOINT_URL="http://127.0.0.1:4566" \
           AWS_REGION=us-east-1 \
           NETWORK_TEST_GITHUB_TOKEN=${{ secrets.FLEET_RELEASE_GITHUB_PAT }} \
           CI_TEST_PKG="${{ env.CI_TEST_PKG }}" \
+          COVER_PKG="${{ inputs.cover_pkg || 'github.com/fleetdm/fleet/v4/...' }}" \
+          FLEET_PREVIEW_TAG="${{ env.FLEET_PREVIEW_TAG }}" \
           make test-go 2>&1 | tee /tmp/gotest.log
 
     - name: Save coverage
@@ -285,6 +325,14 @@ jobs:
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-summary-test-log
         path: /tmp/summary.txt
+
+    - name: Upload JSON test output
+      if: always()
+      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      with:
+        name: ${{ env.ARTIFACT_PREFIX }}-test-json
+        path: /tmp/test-output.json
+        if-no-files-found: warn
 
     - name: Set test status
       if: always()

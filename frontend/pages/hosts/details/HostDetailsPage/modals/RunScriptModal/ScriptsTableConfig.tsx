@@ -109,10 +109,11 @@ export const generateTableColumnConfigs = (
             className="script-info"
             onClick={onClickScriptName}
             variant="inverse"
+            size="small"
           >
             <TooltipTruncatedTextCell
               value={cellProps.row.original.name}
-              classes="w400"
+              className="w400" // Funky workaround for a truncation text cell WITHIN a button
             />
           </Button>
         );

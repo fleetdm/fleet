@@ -9,6 +9,8 @@ import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+import TooltipWrapper from "components/TooltipWrapper";
+import EmptyState from "components/EmptyState";
 
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -58,10 +60,11 @@ export const EMPTY_STATE_DETAILS: Record<ScriptBatchHostStatus, string> = {
 
 const getEmptyState = (status: ScriptBatchHostStatus) => {
   return (
-    <div className={`${baseClass}__empty`}>
-      <b>No hosts with this status</b>
-      <p>{EMPTY_STATE_DETAILS[status]}</p>
-    </div>
+    <EmptyState
+      variant="list"
+      header="No hosts with this status"
+      info={EMPTY_STATE_DETAILS[status]}
+    />
   );
 };
 
@@ -103,6 +106,9 @@ const ScriptBatchDetailsPage = ({
     setHostScriptExecutionIdForModal,
   ] = useState<string | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
+  const [actualRecordCount, setActualRecordCount] = useState<number | null>(
+    null
+  );
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -179,12 +185,26 @@ const ScriptBatchDetailsPage = ({
     if (hostStatusCount === 0) {
       return getEmptyState(hostStatus);
     }
+
+    const showTooltip =
+      actualRecordCount !== null && actualRecordCount !== hostStatusCount;
+
+    const hostCountText = (
+      <b>
+        {hostStatusCount} host{hostStatusCount > 1 && "s"}
+      </b>
+    );
+
     return (
       <div className={`${baseClass}__tab-content`}>
         <span className={`${baseClass}__tab-content__header`}>
-          <b>
-            {hostStatusCount} host{hostStatusCount > 1 && "s"}
-          </b>
+          {showTooltip ? (
+            <TooltipWrapper tipContent="Some hosts may have been removed.">
+              {hostCountText}
+            </TooltipWrapper>
+          ) : (
+            hostCountText
+          )}
           <ViewAllHostsLink
             queryParams={{
               script_batch_execution_status: selectedHostStatus, // refers to script batch host status, may update pending conv w Rachael
@@ -201,6 +221,7 @@ const ScriptBatchDetailsPage = ({
           orderKey={orderKeyParam}
           setHostScriptExecutionIdForModal={setHostScriptExecutionIdForModal}
           router={router}
+          onDataLoaded={setActualRecordCount}
         />
       </div>
     );

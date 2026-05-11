@@ -116,9 +116,14 @@ class ScepClientImpl : ScepClient {
                         "Enrollment is pending - requires CA administrator approval",
                     )
                 }
+                response.isFailure -> {
+                    throw ScepEnrollmentException(
+                        "Enrollment failed with SCEP failInfo: ${response.failInfo}",
+                    )
+                }
                 else -> {
                     throw ScepEnrollmentException(
-                        "Enrollment failed - certificate not issued by SCEP server",
+                        "Enrollment failed - unexpected SCEP response",
                     )
                 }
             }

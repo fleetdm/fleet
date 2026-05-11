@@ -89,3 +89,5 @@ Migration paths will be provided:
 - 📈 Fleet's Prometheus configuration: https://fleetdm.com/docs/configuration/fleet-server-configuration#prometheus
 - 🔔 Fleet's Sentry configuration: https://fleetdm.com/docs/configuration/fleet-server-configuration#sentry
 - 🔧 Related engineering initiated issue that will identify implementation steps: https://github.com/fleetdm/fleet/issues/30253
+- 📐 [Telemetry attribute naming guide](../guides/telemetry-attribute-naming.md) - conventions for naming log, trace, and metric attributes
+- 📐 [ADR-0009: Attribute naming conventions](0009-attribute-naming-conventions.md) - decision record for attribute naming

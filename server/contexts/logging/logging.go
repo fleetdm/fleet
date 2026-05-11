@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	platform_errors "github.com/fleetdm/fleet/v4/server/platform/errors"
 	platform_http "github.com/fleetdm/fleet/v4/server/platform/http"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
@@ -233,7 +234,7 @@ func (l *LoggingContext) setLevelError() bool {
 	}
 
 	if len(l.Errs) == 1 {
-		var ew platform_http.ErrWithIsClientError
+		var ew platform_errors.ErrWithIsClientError
 		if errors.As(l.Errs[0], &ew) && ew.IsClientError() {
 			return false
 		}

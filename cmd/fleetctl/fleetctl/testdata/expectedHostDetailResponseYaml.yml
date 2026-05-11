@@ -49,6 +49,8 @@ spec:
     name: ""
     pending_action: ""
     server_url: null
+
+  mdm_enrollment_hardware_attested: false
   memory: 0
   orbit_version: null
   os_version: ""
@@ -63,7 +65,6 @@ spec:
     author_id: 1
     author_name: Alice
     calendar_events_enabled: true
-    conditional_access_bypass_enabled: true
     conditional_access_enabled: false
     created_at: "0001-01-01T00:00:00Z"
     critical: false
@@ -77,11 +78,11 @@ spec:
     response: passes
     team_id: 1
     updated_at: "0001-01-01T00:00:00Z"
+    type: "dynamic"
   - author_email: alice@example.com
     author_id: 1
     author_name: Alice
     calendar_events_enabled: false
-    conditional_access_bypass_enabled: false
     conditional_access_enabled: false
     created_at: "0001-01-01T00:00:00Z"
     critical: false
@@ -94,6 +95,7 @@ spec:
     response: fails
     team_id: null
     updated_at: "0001-01-01T00:00:00Z"
+    type: "dynamic"
   policy_updated_at: "0001-01-01T00:00:00Z"
   primary_ip: ""
   primary_mac: ""

@@ -1,5 +1,7 @@
 import React from "react";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 import { IInstallSoftwareFormData } from "./components/InstallSoftwareModal/InstallSoftwareModal";
 import { IPolicyRunScriptFormData } from "./components/PolicyRunScriptModal/PolicyRunScriptModal";
 
@@ -65,4 +67,36 @@ export const getRunScriptErrorMessage = (
   });
 
   return <>Could not update policy. {jsxElement}</>;
+};
+
+/** Derives a comma-separated string of automation types enabled for a policy.
+ *  Returns "---" if no automations are enabled. */
+export const getAutomationTypesString = (policy: {
+  install_software?: { software_title_id: number };
+  run_script?: { id: number };
+  calendar_events_enabled: boolean;
+  conditional_access_enabled: boolean;
+  webhook?: string;
+}): string => {
+  const types: string[] = [];
+
+  if (policy.install_software) {
+    types.push("Software");
+  }
+  if (policy.run_script) {
+    types.push("Script");
+  }
+  if (policy.calendar_events_enabled) {
+    types.push("Calendar");
+  }
+  if (policy.conditional_access_enabled) {
+    types.push("Conditional access");
+  }
+  if (policy.webhook === "On") {
+    types.push("Other");
+  }
+
+  if (types.length === 0) return DEFAULT_EMPTY_CELL_VALUE;
+  // Lowercase all types after the first to match sentence-case display
+  return types.map((t, i) => (i === 0 ? t : t.toLowerCase())).join(", ");
 };

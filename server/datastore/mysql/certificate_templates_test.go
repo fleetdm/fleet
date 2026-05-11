@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +31,7 @@ func TestCertificates(t *testing.T) {
 		{"GetHostCertificateTemplates", testGetHostCertificateTemplates},
 		{"GetCertificateTemplateForHost", testGetCertificateTemplateForHost},
 		{"GetHostCertificateTemplateRecord", testGetHostCertificateTemplateRecord},
+		{"ResendHostCertificateTemplate", testResendHostCertificateTemplate},
 	}
 
 	for _, c := range cases {
@@ -992,9 +994,8 @@ func testGetHostCertificateTemplates(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
 	require.NoError(t, err)
 
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{h2.ID})))
 	h2.TeamID = &team.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
 
 	// Create a test certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1098,14 +1099,12 @@ func testGetCertificateTemplateForHost(t *testing.T, ds *Datastore) {
 
 	// Create hosts
 	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h1)
-	require.NoError(t, err)
 
 	h2 := test.NewHost(t, ds, "host_2", "127.0.0.2", "2", "2", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team2.ID, []uint{h2.ID})))
 	h2.TeamID = &team2.ID
-	err = ds.UpdateHost(ctx, h2)
-	require.NoError(t, err)
 
 	// Create certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1224,9 +1223,8 @@ func testGetHostCertificateTemplateRecord(t *testing.T, ds *Datastore) {
 
 	// Create host
 	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
 	h1.TeamID = &team1.ID
-	err = ds.UpdateHost(ctx, h1)
-	require.NoError(t, err)
 
 	// Create certificate authority
 	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
@@ -1323,5 +1321,175 @@ func testGetHostCertificateTemplateRecord(t *testing.T, ds *Datastore) {
 		require.Equal(t, ct2.ID, result.CertificateTemplateID)
 		require.Equal(t, "challenge-456", *result.FleetChallenge)
 		require.Equal(t, fleet.CertificateTemplateDelivered, result.Status)
+	})
+}
+
+func testResendHostCertificateTemplate(t *testing.T, ds *Datastore) {
+	defer TruncateTables(t, ds)
+
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	h1 := test.NewHost(t, ds, "host_1", "127.0.0.1", "1", "1", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h1.ID})))
+	h1.TeamID = &team1.ID
+
+	ca, err := ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	ct1, err := ds.CreateCertificateTemplate(ctx, &fleet.CertificateTemplate{
+		Name:                   "Template1",
+		TeamID:                 team1.ID,
+		CertificateAuthorityID: ca.ID,
+		SubjectName:            "CN=Test Subject 1",
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name          string
+		initialStatus fleet.CertificateTemplateStatus
+	}{
+		{"from verified", fleet.CertificateTemplateVerified},
+		{"from delivered", fleet.CertificateTemplateDelivered},
+		{"from failed", fleet.CertificateTemplateFailed},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+				{
+					HostUUID:              h1.UUID,
+					CertificateTemplateID: ct1.ID,
+					Status:                tc.initialStatus,
+					OperationType:         fleet.MDMOperationTypeInstall,
+					Name:                  "Template1",
+				},
+			})
+			require.NoError(t, err)
+
+			originalRecord, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+			require.NoError(t, err)
+			originalUUID := originalRecord.UUID
+
+			err = ds.ResendHostCertificateTemplate(ctx, h1.ID, ct1.ID)
+			require.NoError(t, err)
+
+			updated, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+			require.NoError(t, err)
+			require.Equal(t, fleet.CertificateTemplatePending, updated.Status)
+			require.NotEqual(t, originalUUID, updated.UUID, "UUID should change after resend")
+			require.NotEmpty(t, updated.UUID)
+
+			// Clean up for next subtest
+			err = ds.DeleteHostCertificateTemplate(ctx, h1.UUID, ct1.ID)
+			require.NoError(t, err)
+		})
+	}
+
+	t.Run("clears validity fields and deletes challenge", func(t *testing.T) {
+		// Insert a delivered record
+		err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              h1.UUID,
+				CertificateTemplateID: ct1.ID,
+				Status:                fleet.CertificateTemplateDelivered,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "Template1",
+			},
+		})
+		require.NoError(t, err)
+
+		// Create a fleet challenge via the on-demand mechanism
+		challenge, err := ds.GetOrCreateFleetChallengeForCertificateTemplate(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+		require.NotEmpty(t, challenge)
+
+		// Populate validity fields via UpsertCertificateStatus
+		certNotBefore := time.Now().UTC().Truncate(time.Second)
+		certNotAfter := certNotBefore.Add(365 * 24 * time.Hour)
+		certSerial := "AA:BB:CC:DD:EE"
+		certDetail := "enrollment succeeded"
+		err = ds.UpsertCertificateStatus(ctx, &fleet.CertificateStatusUpdate{
+			HostUUID:              h1.UUID,
+			CertificateTemplateID: ct1.ID,
+			Status:                fleet.MDMDeliveryVerified,
+			NotValidBefore:        &certNotBefore,
+			NotValidAfter:         &certNotAfter,
+			Serial:                &certSerial,
+			Detail:                &certDetail,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		})
+		require.NoError(t, err)
+
+		// Verify fields are populated before resend
+		record, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+		require.NotNil(t, record.FleetChallenge)
+		require.NotNil(t, record.NotValidBefore)
+		require.NotNil(t, record.NotValidAfter)
+		require.NotNil(t, record.Serial)
+		require.NotNil(t, record.Detail)
+		originalUUID := record.UUID
+
+		// Verify challenge exists in challenges table
+		var challengeCount int
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &challengeCount,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.Equal(t, 1, challengeCount)
+
+		// Resend
+		err = ds.ResendHostCertificateTemplate(ctx, h1.ID, ct1.ID)
+		require.NoError(t, err)
+
+		// Verify all fields are cleared
+		updated, err := ds.GetHostCertificateTemplateRecord(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.CertificateTemplatePending, updated.Status)
+		require.NotEqual(t, originalUUID, updated.UUID, "UUID should change after resend")
+		require.Nil(t, updated.FleetChallenge, "fleet_challenge should be cleared")
+		require.Nil(t, updated.NotValidBefore, "not_valid_before should be cleared")
+		require.Nil(t, updated.NotValidAfter, "not_valid_after should be cleared")
+		require.Nil(t, updated.Serial, "serial should be cleared")
+		require.Nil(t, updated.Detail, "detail should be cleared")
+
+		// Verify the challenge row was deleted from the challenges table
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &challengeCount,
+			`SELECT COUNT(*) FROM challenges WHERE challenge = ?`, challenge)
+		require.NoError(t, err)
+		require.Equal(t, 0, challengeCount, "challenge should be deleted from challenges table")
+
+		// Clean up
+		err = ds.DeleteHostCertificateTemplate(ctx, h1.UUID, ct1.ID)
+		require.NoError(t, err)
+	})
+
+	t.Run("returns error for non-existent host", func(t *testing.T) {
+		err := ds.ResendHostCertificateTemplate(ctx, 99999, ct1.ID)
+		require.Error(t, err)
+	})
+
+	t.Run("returns error for non-existent template", func(t *testing.T) {
+		// Insert a record first so the host exists with some template
+		err = ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+			{
+				HostUUID:              h1.UUID,
+				CertificateTemplateID: ct1.ID,
+				Status:                fleet.CertificateTemplateVerified,
+				OperationType:         fleet.MDMOperationTypeInstall,
+				Name:                  "Template1",
+			},
+		})
+		require.NoError(t, err)
+
+		err := ds.ResendHostCertificateTemplate(ctx, h1.ID, 99999)
+		require.Error(t, err)
 	})
 }

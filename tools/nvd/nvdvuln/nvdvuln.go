@@ -16,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd"
 	"github.com/google/go-cmp/cmp"
-	"github.com/shirou/gopsutil/v3/process"
+	"github.com/shirou/gopsutil/v4/process"
 )
 
 func main() {

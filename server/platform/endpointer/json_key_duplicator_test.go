@@ -154,6 +154,8 @@ func TestDuplicateJSONKeys(t *testing.T) {
 			// This simulates the ABM tokens response pattern where a duplicated
 			// outer key (e.g., ios_team→ios_fleet) has an object value that itself
 			// contains keys needing duplication (e.g., team_id→fleet_id).
+			// The old-name container keeps both old+new child keys;
+			// the new-name container has children renamed to new keys only.
 			name:  "DuplicatedKeyWithNestedDuplicatableKeys",
 			input: `{"ios_team": {"name": "Default", "team_id": 5}}`,
 			rules: []AliasRule{
@@ -167,13 +169,16 @@ func TestDuplicateJSONKeys(t *testing.T) {
 				// Both ios_team and ios_fleet should exist.
 				iosTeam := m["ios_team"].(map[string]any)
 				iosFleet := m["ios_fleet"].(map[string]any)
-				// Both should have team_id AND fleet_id.
+				// Old-name container keeps only old child keys.
 				assert.Equal(t, "Default", iosTeam["name"])
 				assert.Equal(t, float64(5), iosTeam["team_id"])
-				assert.Equal(t, float64(5), iosTeam["fleet_id"])
+				_, hasNewKey := iosTeam["fleet_id"]
+				assert.False(t, hasNewKey, "old-name container should not have new child key")
+				// New-name container has children renamed to new keys only.
 				assert.Equal(t, "Default", iosFleet["name"])
-				assert.Equal(t, float64(5), iosFleet["team_id"])
 				assert.Equal(t, float64(5), iosFleet["fleet_id"])
+				_, hasOldKey := iosFleet["team_id"]
+				assert.False(t, hasOldKey, "new-name container should not have old child key")
 			},
 		},
 		{
@@ -402,7 +407,7 @@ func TestDuplicateJSONKeysWithEncoder(t *testing.T) {
 	}
 
 	type response struct {
-		TeamID int    `json:"team_id"`
+		TeamID int    `json:"team_id"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 		Name   string `json:"name"`
 	}
 
@@ -460,13 +465,17 @@ func TestDuplicateJSONKeysCompact(t *testing.T) {
 		var m map[string]any
 		require.NoError(t, json.Unmarshal(result, &m))
 
+		// Old-name container keeps only old child keys.
 		iosTeam := m["ios_team"].(map[string]any)
 		assert.Equal(t, float64(5), iosTeam["team_id"])
-		assert.Equal(t, float64(5), iosTeam["fleet_id"])
+		_, hasNewKey := iosTeam["fleet_id"]
+		assert.False(t, hasNewKey)
 
+		// New-name container has children renamed to new keys only.
 		iosFleet := m["ios_fleet"].(map[string]any)
-		assert.Equal(t, float64(5), iosFleet["team_id"])
 		assert.Equal(t, float64(5), iosFleet["fleet_id"])
+		_, hasOldKey := iosFleet["team_id"]
+		assert.False(t, hasOldKey)
 	})
 
 	t.Run("default (no opts) is indented", func(t *testing.T) {

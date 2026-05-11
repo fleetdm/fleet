@@ -1,0 +1,2 @@
+- Added conditional HTTP downloads using ETag headers for software in GitOps, skipping re-download when content hasn't changed.
+- Added `always_download` option for software in GitOps to bypass the new conditional download feature.

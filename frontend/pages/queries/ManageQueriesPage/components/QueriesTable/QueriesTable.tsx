@@ -1,12 +1,12 @@
 /* eslint-disable react/prop-types */
-import React, { useContext, useCallback, useMemo } from "react";
+import React, { useContext, useCallback, useMemo, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
 import { SingleValue } from "react-select-5";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
-import { IEmptyTableProps } from "interfaces/empty_table";
+import { IEmptyStateProps } from "interfaces/empty_state";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { isQueryablePlatform, SelectedPlatform } from "interfaces/platform";
 import { IEnhancedQuery } from "interfaces/schedulable_query";
@@ -19,7 +19,7 @@ import { CustomOptionType } from "components/forms/fields/DropdownWrapper/Dropdo
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
 import CustomLink from "components/CustomLink";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 
 import generateColumnConfigs from "./QueriesTableConfig";
 
@@ -97,6 +97,7 @@ const QueriesTable = ({
   isPremiumTier,
 }: IQueriesTableProps): JSX.Element | null => {
   const { currentUser, config } = useContext(AppContext);
+  const isFirstNavigation = useRef(true);
 
   // Functions to avoid race conditions
   // TODO - confirm these are still necessary
@@ -155,11 +156,16 @@ const QueriesTable = ({
       newQueryParams.fleet_id = queryParams?.fleet_id;
 
       const locationPath = getNextLocationPath({
-        pathPrefix: PATHS.MANAGE_QUERIES,
+        pathPrefix: PATHS.MANAGE_REPORTS,
         queryParams: { ...queryParams, ...newQueryParams },
       });
 
-      router?.push(locationPath);
+      if (isFirstNavigation.current) {
+        isFirstNavigation.current = false;
+        router?.replace(locationPath);
+      } else {
+        router?.push(locationPath);
+      }
     },
     [
       curTargetedPlatformFilter,
@@ -171,8 +177,7 @@ const QueriesTable = ({
     ]
   );
 
-  const emptyParams: IEmptyTableProps = {
-    graphicName: "empty-queries",
+  const emptyParams: IEmptyStateProps = {
     header: "You don't have any reports",
   };
 
@@ -189,7 +194,6 @@ const QueriesTable = ({
   }
 
   if (searchQuery || curTargetedPlatformFilter !== "all") {
-    delete emptyParams.graphicName;
     emptyParams.header = "No matching reports";
     emptyParams.info = "No reports match the current filters.";
   } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
@@ -209,7 +213,7 @@ const QueriesTable = ({
     (selectedTargetedPlatform: SingleValue<CustomOptionType>) => {
       router?.push(
         getNextLocationPath({
-          pathPrefix: PATHS.MANAGE_QUERIES,
+          pathPrefix: PATHS.MANAGE_REPORTS,
           queryParams: {
             ...queryParams,
             page: 0,
@@ -229,7 +233,7 @@ const QueriesTable = ({
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       router?.push(
-        getPathWithQueryParams(PATHS.QUERY_DETAILS(row.original.id), {
+        getPathWithQueryParams(PATHS.REPORT_DETAILS(row.original.id), {
           fleet_id: currentTeamId,
         })
       );
@@ -247,7 +251,7 @@ const QueriesTable = ({
         variant="table-filter"
       />
     );
-  }, [curTargetedPlatformFilter, queryParams, router]);
+  }, [curTargetedPlatformFilter, handlePlatformFilterDropdownChange]);
 
   const columnConfigs = useMemo(
     () =>
@@ -282,13 +286,13 @@ const QueriesTable = ({
           showMarkAllPages={false}
           isAllPagesSelected={false}
           primarySelectAction={{
-            name: "delete report",
+            name: "delete reports",
             buttonText: "Delete",
             iconSvg: "trash",
             variant: "inverse",
             onClick: onDeleteQueryClick,
           }}
-          emptyComponent={() => EmptyTable(emptyParams)}
+          emptyComponent={() => <EmptyState {...emptyParams} />}
           renderCount={() =>
             ((totalQueriesCount || searchQuery) && (
               <TableCount name="reports" count={totalQueriesCount} />

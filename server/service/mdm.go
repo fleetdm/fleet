@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -181,21 +182,13 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
 		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
 			status := http.StatusBadGateway
-			if ferr.Status >= 400 && ferr.Status <= 499 {
-				// TODO: fleetdm.com returns a genereric "Bad
-				// Request" message, we should coordinate and
-				// stablish a response schema from which we can get
-				// the invalid field and use
-				// fleet.NewInvalidArgumentError instead
-				//
-				// For now, since we have already validated
-				// everything else, we assume that a 4xx
-				// response is an email with an invalid domain
+			if ferr.ExitType == "invalidEmailDomain" {
+				domain := "@" + strings.SplitN(email, "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}
@@ -268,7 +261,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
-			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
+			Message: fmt.Sprintf("Uploaded EULA exceeds maximum allowed size of %d MiB", fleet.MaxEULASize/1024/1024),
 		}
 	}
 
@@ -579,6 +572,12 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
+	if commandPlatform == "darwin" {
+		if err := svc.validateAppleMDMCommand(ctx, rawXMLCmd, hosts); err != nil {
+			return nil, err
+		}
+	}
+
 	// the rest is platform-specific (validation of command payload, enqueueing, etc.)
 	switch commandPlatform {
 	case "windows":
@@ -588,9 +587,58 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	}
 }
 
+// validateAppleMDMCommand validates an Apple MDM command before it is enqueued.
+// It checks for restrictions based on the command type and host/team configuration.
+func (svc *Service) validateAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, hosts []*fleet.Host) error {
+	cmd, err := nanomdm.DecodeCommand(rawXMLCmd)
+	if err != nil {
+		// Don't return an error here - let enqueueAppleMDMCommand handle the decode error
+		// with proper error formatting
+		return nil
+	}
+
+	// Check if this is a SetRecoveryLock command and if any host's team (or the
+	// global config for hosts with no team) has recovery lock password enabled
+	// (which means Fleet manages the password).
+	if strings.TrimSpace(cmd.Command.RequestType) == "SetRecoveryLock" {
+		// Get app config once for hosts with no team
+		var appConfig *fleet.AppConfig
+		for _, h := range hosts {
+			var recoveryLockEnabled bool
+			if h.TeamID != nil {
+				teamMDMConfig, err := svc.ds.TeamMDMConfig(ctx, *h.TeamID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get team MDM config")
+				}
+				recoveryLockEnabled = teamMDMConfig != nil && teamMDMConfig.EnableRecoveryLockPassword
+			} else {
+				// Host has no team, check global config
+				if appConfig == nil {
+					appConfig, err = svc.ds.AppConfig(ctx)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "get app config")
+					}
+				}
+				recoveryLockEnabled = appConfig.MDM.EnableRecoveryLockPassword.Value
+			}
+
+			if recoveryLockEnabled {
+				err := fleet.NewInvalidArgumentError(
+					"command",
+					"Could not run command. Recovery Lock password is already set for one or more hosts. To set a custom password, disable Recovery Lock passwords for those hosts' teams. To rotate the password, learn how: https://fleetdm.com/learn-more-about/recovery-lock-passwords",
+				).WithStatus(http.StatusConflict)
+				return ctxerr.Wrap(ctx, err, "SetRecoveryLock blocked by team config")
+			}
+		}
+	}
+
+	return nil
+}
+
 var appleMDMPremiumCommands = map[string]bool{
-	"EraseDevice": true,
-	"DeviceLock":  true,
+	"EraseDevice":   true,
+	"DeviceLock":    true,
+	"ClearPasscode": true,
 }
 
 func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
@@ -818,6 +866,7 @@ func (svc *Service) GetMDMCommandResults(ctx context.Context, commandUUID string
 						res.ResultsMetadata = make(map[string]any)
 					}
 					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
 				}
 			}
 		}
@@ -870,6 +919,25 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 
 	for _, res := range results {
 		res.Hostname = host.Hostname
+	}
+
+	// Enrich VPP command results with install status and verify timeout metadata,
+	// matching what the admin path does in GetMDMCommandResults.
+	if len(results) > 0 {
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
+				}
+			}
+		}
 	}
 
 	return results, nil
@@ -979,6 +1047,18 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 		}
 	}
 
+	if req.ListOptions.PerPage > fleet.MaxMDMCommandsPerPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", fleet.MaxMDMCommandsPerPage),
+		}
+	}
+
+	if req.ListOptions.Page > fleet.MaxMDMCommandsPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set page to %d or less, or use cursor pagination via the after parameter for deep traversal.", fleet.MaxMDMCommandsPage),
+		}
+	}
+
 	return nil
 }
 
@@ -993,6 +1073,9 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
+	if req.ListOptions.PerPage == 0 {
+		req.ListOptions.PerPage = fleet.DefaultMDMCommandsPerPage
+	}
 	req.ListOptions.IncludeMetadata = true
 
 	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
@@ -1281,10 +1364,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     cp.Mobileconfig,
-				contentType: "application/x-apple-aspen-config",
-				filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     cp.Mobileconfig,
+				ContentType: "application/x-apple-aspen-config",
+				Filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1300,10 +1383,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     decl.RawJSON,
-				contentType: "application/json",
-				filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(decl.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     decl.RawJSON,
+				ContentType: "application/json",
+				Filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(decl.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1319,10 +1402,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     prof.RawJSON,
-				contentType: "application/json",
-				filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(prof.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     prof.RawJSON,
+				ContentType: "application/json",
+				Filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(prof.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1337,10 +1420,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:     cp.SyncML,
-			contentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
-			filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+		return fleet.DownloadFileResponse{
+			Content:     cp.SyncML,
+			ContentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
+			Filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
 		}, nil
 	}
 	return &getMDMConfigProfileResponse{
@@ -1768,6 +1851,10 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 
 	var teamName string
 	if teamID > 0 {
+		lic, _ := license.FromContext(ctx)
+		if lic == nil || !lic.IsPremium() {
+			return nil, ctxerr.Wrap(ctx, fleet.ErrMissingLicense)
+		}
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err)
@@ -2066,7 +2153,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM.EnableCustomOSUpdatesAndFileVault)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap, svc.config.MDM)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
@@ -2232,22 +2319,29 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
-		profileVarsByProfIdentifier[p.Identifier] = profileVars
+		profileVarsByProfIdentifier[fleet.MDMAppleProfileUUIDPrefix+p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
 		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
 		}
-		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
 		if len(windowsVars) > 0 {
-			profileVarsByProfIdentifier[p.Name] = windowsVars
+			profileVarsByProfIdentifier[fleet.MDMWindowsProfileUUIDPrefix+p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
-		err = validateDeclarationFleetVariables(string(p.RawJSON))
+		declVars, err := validateDeclarationFleetVariables(string(p.RawJSON), lic)
 		if err != nil {
+			var badReqErr *fleet.BadRequestError
+			if errors.As(err, &badReqErr) {
+				badReqErr.Message = "Couldn't set profile. " + badReqErr.Message
+				err = badReqErr
+			}
 			return nil, ctxerr.Wrap(ctx, err, "validating declaration Fleet variables")
+		}
+		if len(declVars) > 0 {
+			profileVarsByProfIdentifier[fleet.MDMAppleDeclarationUUIDPrefix+p.Identifier] = declVars
 		}
 	}
 	return profileVarsByProfIdentifier, nil
@@ -2292,7 +2386,7 @@ func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, apple
 }
 
 func fmtDuplicateNameErrMsg(name string) string {
-	const SameProfileNameErrorMsg = "Couldn't edit custom_settings. More than one configuration profile have the same name '%s' (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
+	const SameProfileNameErrorMsg = "Couldn't edit configuration_profiles. More than one configuration profile have the same name '%s' (PayloadDisplayName for .mobileconfig and file name for .json and .xml)."
 	return fmt.Sprintf(SameProfileNameErrorMsg, name)
 }
 
@@ -2341,7 +2435,7 @@ func getAppleProfiles(
 	appCfg *fleet.AppConfig,
 	profiles map[int]fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-	allowCustomOSUpdatesAndFileVault bool,
+	mdmConfig config.MDMConfig,
 ) (map[int]*fleet.MDMAppleConfigProfile, map[int]*fleet.MDMAppleDeclaration, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make(map[int]*fleet.MDMAppleConfigProfile, len(profiles))
@@ -2362,8 +2456,10 @@ func getAppleProfiles(
 				return nil, nil, err
 			}
 
-			if err := rawDecl.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
-				return nil, nil, err
+			if !mdmConfig.AllowAllDeclarations {
+				if err := rawDecl.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
+					return nil, nil, err
+				}
 			}
 
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
@@ -2460,7 +2556,7 @@ func getAppleProfiles(
 			}
 		}
 
-		if err := mdmProf.ValidateUserProvided(allowCustomOSUpdatesAndFileVault); err != nil {
+		if err := mdmProf.ValidateUserProvided(mdmConfig.EnableCustomOSUpdatesAndFileVault); err != nil {
 			var iae *fleet.InvalidArgumentError
 			if strings.Contains(err.Error(), mobileconfig.DiskEncryptionProfileRestrictionErrMsg) {
 				iae = fleet.NewInvalidArgumentError(prof.Name,
@@ -2475,7 +2571,7 @@ func getAppleProfiles(
 
 		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = "mobileconfig"
@@ -2483,7 +2579,7 @@ func getAppleProfiles(
 		// TODO: confirm error messages
 		if _, ok := byIdent[mdmProf.Identifier]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn't edit configuration_profiles. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = "mobileconfig"
@@ -2671,7 +2767,7 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 			}
 		}
 		if count > 1 {
-			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit custom_settings. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
+			return fleet.NewInvalidArgumentError("mdm", `Couldn't edit configuration_profiles. For each profile, only one of "labels_exclude_any", "labels_include_all", "labels_include_any" or "labels" can be included.`)
 		}
 
 		if len(profile.Contents) > 1024*1024 {
@@ -3072,12 +3168,13 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
 			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
-			if fwe.Status >= 400 && fwe.Status <= 499 {
+			if fwe.ExitType == "invalidEmailDomain" {
+				domain := "@" + strings.SplitN(vc.Email(), "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}
@@ -3114,7 +3211,7 @@ func (uploadMDMAppleAPNSCertRequest) DecodeRequest(ctx context.Context, r *http.
 		}
 	}
 
-	if r.MultipartForm.File["certificate"] == nil || len(r.MultipartForm.File["certificate"]) == 0 {
+	if len(r.MultipartForm.File["certificate"]) == 0 {
 		return nil, &fleet.BadRequestError{
 			Message:     "certificate multipart field is required",
 			InternalErr: err,
@@ -3323,6 +3420,11 @@ func (svc *Service) DeleteMDMAppleAPNSCert(ctx context.Context) error {
 
 	if err := svc.ds.SaveAppConfig(ctx, appCfg); err != nil {
 		return ctxerr.Wrap(ctx, err, "saving app config")
+	}
+
+	// Clean up all pending Apple MDM profile rows since hosts can no longer receive MDM commands.
+	if err := svc.ds.CleanupAllHostMDMProfilesForPlatform(ctx, "darwin"); err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up Apple host MDM profiles")
 	}
 
 	// If an install doesn't have a verification_at or verification_failed_at, then
@@ -3648,4 +3750,32 @@ func (svc *Service) UnenrollMDM(ctx context.Context, hostID uint) error {
 		return ctxerr.Wrap(ctx, err, "logging activity for mdm apple remove profile command")
 	}
 	return nil
+}
+
+type clearPasscodeRequest struct {
+	HostID uint `url:"id"`
+}
+
+type clearPasscodeResponse struct {
+	*fleet.CommandEnqueueResult
+	Err error `json:"error,omitempty"`
+}
+
+func (r clearPasscodeResponse) Error() error { return r.Err }
+
+func clearPasscodeEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*clearPasscodeRequest)
+	res, err := svc.ClearPasscode(ctx, req.HostID)
+	if err != nil {
+		return clearPasscodeResponse{Err: err}, nil
+	}
+	return clearPasscodeResponse{CommandEnqueueResult: res}, nil
+}
+
+func (svc *Service) ClearPasscode(ctx context.Context, hostID uint) (*fleet.CommandEnqueueResult, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

@@ -94,6 +94,20 @@ export const generateTableConfig = (
       ),
     },
     {
+      accessor: "country_code",
+      Header: "Country",
+      disableSortBy: true,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell
+          value={
+            cellProps.cell.value
+              ? cellProps.cell.value.toUpperCase()
+              : undefined
+          }
+        />
+      ),
+    },
+    {
       accessor: "renew_date",
       Header: "Renew date",
       disableSortBy: true,
@@ -111,7 +125,7 @@ export const generateTableConfig = (
       Header: "Fleets",
       disableSortBy: true,
       Cell: (cellProps: ITeamsCellProps) => (
-        <TeamsCell teams={cellProps.cell.value} className="vpp-teams-cell" />
+        <TeamsCell teams={cellProps.cell.value} />
       ),
     },
     {

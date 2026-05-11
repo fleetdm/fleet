@@ -1,27 +1,27 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import classnames from "classnames";
 
-import { AppContext } from "context/app";
+import useGitOpsMode from "hooks/useGitOpsMode";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { IAppStoreApp } from "interfaces/software";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import Card from "components/Card";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
-import SoftwareOptionsSelector from "pages/SoftwarePage/components/forms/SoftwareOptionsSelector";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import {
   generateSelectedLabels,
   getCustomTarget,
   getTargetType,
+  isAndroidWebApp,
 } from "pages/SoftwarePage/helpers";
+import InfoBanner from "components/InfoBanner/InfoBanner";
 
 import generateFormValidation from "./helpers";
+import { AndroidOptionsDescription } from "../SoftwareOptionsSelector/SoftwareOptionsSelector";
 
 const baseClass = "software-android-form";
 
@@ -45,7 +45,6 @@ interface ISoftwareAndroidFormProps {
   onSubmit: (formData: ISoftwareAndroidFormData) => void;
   isLoading?: boolean;
   onCancel: () => void;
-  onClickPreviewEndUserExperience: () => void;
 }
 
 const SoftwareAndroidForm = ({
@@ -53,10 +52,8 @@ const SoftwareAndroidForm = ({
   onSubmit,
   isLoading = false,
   onCancel,
-  onClickPreviewEndUserExperience,
 }: ISoftwareAndroidFormProps) => {
-  const gitOpsModeEnabled = useContext(AppContext).config?.gitops
-    .gitops_mode_enabled;
+  const { gitOpsModeEnabled } = useGitOpsMode("software");
 
   const [formData, setFormData] = useState<ISoftwareAndroidFormData>(
     softwareAndroidForEdit
@@ -97,47 +94,6 @@ const SoftwareAndroidForm = ({
     setFormValidation(generateFormValidation(newFormData));
   };
 
-  const onToggleSelfService = () => {
-    const newData = { ...formData, selfService: !formData.selfService };
-    setFormData(newData);
-  };
-
-  const onSelectCategory = ({
-    name,
-    value,
-  }: {
-    name: string;
-    value: boolean;
-  }) => {
-    let newCategories: string[];
-
-    if (value) {
-      // Add the name if not already present
-      newCategories = formData.categories.includes(name)
-        ? formData.categories
-        : [...formData.categories, name];
-    } else {
-      // Remove the name if present
-      newCategories = formData.categories.filter((cat) => cat !== name);
-    }
-
-    const newData = {
-      ...formData,
-      categories: newCategories,
-    };
-
-    setFormData(newData);
-    setFormValidation(generateFormValidation(newData));
-  };
-
-  const onToggleAutomaticInstall = () => {
-    const newData = {
-      ...formData,
-      automaticInstall: !formData.automaticInstall,
-    };
-    setFormData(newData);
-  };
-
   const isSubmitDisabled = !formValidation.isValid;
 
   const renderContent = () => {
@@ -148,43 +104,50 @@ const SoftwareAndroidForm = ({
 
     // Add Android form
     return (
-      <div className={`${baseClass}__form-fields`}>
-        <InputField
-          autoFocus
-          label="Application ID"
-          placeholder="com.android.chrome"
-          helpText={
-            <>
-              The ID at the end of the app&apos;s{" "}
-              <CustomLink
-                text="Google Play URL"
-                url={`${LEARN_MORE_ABOUT_BASE_LINK}/google-play-store`}
-                newTab
-              />{" "}
-              E.g. &quot;com.android.chrome&quot; from
-              &quot;https://play.google.com/store/apps/details?id=com.android.chrome&quot;
-            </>
-          }
-          onChange={onInputChange}
-          name="applicationID"
-          value={formData.applicationID}
-          parseTarget
-          disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
-        />
-        <div className={`${baseClass}__form-frame`}>
-          <Card paddingSize="medium" borderRadiusSize="large">
-            <SoftwareOptionsSelector
-              platform="android"
-              formData={formData}
-              onToggleAutomaticInstall={onToggleAutomaticInstall}
-              onToggleSelfService={onToggleSelfService}
-              onSelectCategory={onSelectCategory}
-              onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
-              disableOptions
-            />
-          </Card>
+      <>
+        <div className={`${baseClass}__form-fields`}>
+          <InputField
+            autofocus
+            label="Application ID"
+            placeholder="com.android.chrome"
+            helpText={
+              <>
+                The ID at the end of the app&apos;s{" "}
+                <CustomLink
+                  text="Google Play URL"
+                  url={`${LEARN_MORE_ABOUT_BASE_LINK}/google-play-store`}
+                  newTab
+                />{" "}
+                E.g. &quot;com.android.chrome&quot; from
+                &quot;https://play.google.com/store/apps/details?id=com.android.chrome&quot;
+              </>
+            }
+            onChange={onInputChange}
+            name="applicationID"
+            value={formData.applicationID}
+            parseTarget
+            disabled={gitOpsModeEnabled} // TODO: Confirm GitOps behavior
+          />
         </div>
-      </div>
+        {isAndroidWebApp(formData.applicationID) && (
+          <InfoBanner
+            color="yellow"
+            cta={
+              <CustomLink
+                url={`${LEARN_MORE_ABOUT_BASE_LINK}/android-web-apps-chrome-required`}
+                text="Learn more"
+                newTab
+              />
+            }
+          >
+            This is an Android web app and it requires Google Chrome to work.
+            Please make sure you add Google Chrome to this fleet.
+          </InfoBanner>
+        )}
+        <div>
+          <AndroidOptionsDescription />
+        </div>
+      </>
     );
   };
 
@@ -205,6 +168,7 @@ const SoftwareAndroidForm = ({
         </div>
         <div className={`${baseClass}__action-buttons`}>
           <GitOpsModeTooltipWrapper
+            entityType="software"
             position="bottom"
             tipOffset={8}
             renderChildren={(disableChildren) => (

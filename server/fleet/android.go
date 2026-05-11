@@ -14,6 +14,8 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+const AndroidWebAppPrefix = "com.google.enterprise.webapp"
+
 // MDMAndroidConfigProfile represents an Android MDM profile in Fleet. This does not map
 // directly to a specific policy in the Android API, rather the policy applied is the
 // result of combining all applicable profiles.

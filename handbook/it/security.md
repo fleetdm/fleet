@@ -11,14 +11,13 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 | Participant | Role                                                                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Requester   | Requests recovery for their own account                                                                |
-| Recoverer   | Person with access to perform the recovery who monitors `help-it` |
+| Recoverer   | Person with access to perform the recovery who monitors [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) |
 | Identifier  | Person that visually identifies the requester in a video call. The identifier can be the recoverer or a person the recoverer can recognize visually |
 
 
 ### Preparing for recovery
 
-1. If the requester still has access to GitHub and/or Slack, they [ask for
-   help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
+1. If the requester still has access to GitHub and/or Slack, they [ask for help](https://fleetdm.com/handbook/it#contact-us). For non-urgent requests, please
    prefer filing an issue with the IT & Enablement team. If they do not have access,
    they can contact their manager or a teammate over the phone via voice or texting, and they will
    [ask for help](https://fleetdm.com/handbook/it#contact-us) on behalf of the
@@ -31,14 +30,14 @@ As an all-remote company, we do not have the luxury of seeing each other or bein
 3. If the recoverer recognizes the requester or has the identity confirmed by the person acting as
    the identifier, they can perform the recovery and update the login recovery issue.
 * If the recoverer is not 100% satisfied with identification, they do **NOT** proceed and post to
-  `#_security` to engage the security team immediately.
+  [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to engage the security team immediately.
 
 After the identity confirmation, the recovery can be performed while still on the video call, or asynchronously.
 
 
 ### Performing recovery
 
-Before any account recovery, the recoverer must send a message to `#_security` announcing that the
+Before any account recovery, the recoverer must send a message to [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) announcing that the
 recovery will take place. Then, perform the necessary recovery steps.
 
 
@@ -235,9 +234,25 @@ Since we can't eliminate the risk of passwords being cracked remotely, we requir
 
 **User experience impacts**
 
-* Laptops lock after 20 minutes of inactivity. To voluntarily pause this, a [hot corner](https://support.apple.com/en-mo/guide/mac-help/mchlp3000/mac) can be configured to disable the screen saver. This is useful if you are, for example, watching an online meeting without moving the mouse and want to be sure the laptop will not lock.
+* Laptops lock after 15 minutes of inactivity. On macOS, once the screen saver has started or the display has slept, there is a one-minute grace period before a password is required to unlock; after that minute, a password is required.
+* On macOS, for a **temporary** stretch when you need the display to stay awake (for example watching a meeting without moving the mouse), you can set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners**. While the pointer rests in that corner, the screen saver will not start; normal timeout applies again when you move the pointer away. This is a self-service workaround for short-term needs only — always lock the machine when you step away.
 * Forgotten passwords can be fixed via MDM instead of relying on potentially dangerous hints.
 * Guest accounts are not available.
+
+**Windows hosts**
+
+The same 15-minute inactivity lock is enforced on Fleet-managed Windows hosts via the `LocalPoliciesSecurityOptions/InteractiveLogon_MachineInactivityLimit` CSP (the MDM equivalent of the GPO "Interactive logon: Machine inactivity limit"). Compliance is verified by the `Windows - Interactive logon screen lock timeout configured` Fleet policy, which requires the timeout to be 15 minutes or less.
+
+**Requesting an exception**
+
+Before requesting a host-wide screen lock **exception** on macOS, use a hot corner set to **Disable Screen Saver** (see above) when you only need a brief break from automatic lock. Label exceptions remove MDM enforcement from the device and require security approval with a business justification and expiration date; prefer hot corners for ordinary short-term situations (presentations, demos, long-running local jobs).
+
+In rare cases (e.g., a kiosk, a host driving a conference room display, or temporary troubleshooting) a host may need to be excluded from the screen lock profile and policy. We use static manual labels for this:
+
+* macOS hosts: [`macOS screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml)
+* Windows hosts: [`Windows screen lock exclusions`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml)
+
+Each label is referenced by `labels_exclude_any` on both the policy and the configuration profile, so adding a host's Fleet ID to the label removes the profile and excuses the host from the policy in a single change. See the [Exclude a host from a screen lock policy](https://fleetdm.com/handbook/it#exclude-a-host-from-a-screen-lock-policy) procedure in the IT handbook for the approval and rollout steps.
 
 
 #### iCloud
@@ -318,7 +333,6 @@ We configure Chrome on company-owned devices with a basic policy.
 | --------------------------------------------------------- |
 | Enforce Chrome updates and Chrome restart within 48 hours |
 | Block intrusive ads                                       |
-| uBlock Origin adblocker extension deployed               |
 | Password manager extension deployed                       |
 | Chrome Endpoint Verification extension deployed           |
 
@@ -338,128 +352,6 @@ We configure Chrome on company-owned devices with a basic policy.
 
 The use of personal devices is allowed for some applications, so long as the iOS or Android device's OS
 is kept up to date.
-
-
-### Hardware security keys
-
-We strongly recommend using hardware security keys. Fleet configures privileged user accounts with a policy that enforces the use of hardware security keys. This prevents credential theft better than other methods of 2FA/2-SV. If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
-keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
-for help in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) to get one if you do not have a company card.
-
-
-#### Are they YubiKeys or security keys?
-
-We use YubiKeys, a hardware security key brand that supports the FIDO U2F protocol. You can use
-both terms interchangeably at Fleet. We use YubiKeys because they support more authentication protocols than regular
-security keys.
-
-
-#### Who has to use security keys and why?
-
-Security keys are **strongly recommended** for everyone and **required** for team members with elevated privilege access. 
-
-Because they are the only type of Two-Factor Authentication (2FA) that protects credentials from
-phishing, we will make them **mandatory for everyone** soon. 
-
-See the [Google Workspace security
-section](https://fleetdm.com/handbook/it/security#2-step-verification) for more
-information on the security of different types of 2FA.
-
-
-#### Goals
-
-Our goals with security keys are to
-
-1. eliminate the risk of credential phishing.
-2. maintain the best user experience possible.
-3. make sure team members can access systems as needed, and that recovery procedures exist in case of a lost key.
-4. make sure recovery mechanisms are safe to prevent attackers from bypassing 2FA completely.
-
-
-#### Setting up security keys on Google
-
-We recommend setting up **three** security keys on your Google account for redundancy purposes: two
-YubiKeys and your phone as the third key.
-
-If you get a warning during this process about your keyboard not being identified, this is due to
-YubiKeys having a feature that can simulate a keyboard. Ignore the "Your keyboard cannot be
-identified" warning.
-
-1. Set up your first YubiKey by following [Google's
-   instructions](https://support.google.com/accounts/answer/6103523?hl=En). The instructions make
-   you enroll the key by following [this
-   link](https://myaccount.google.com/signinoptions/two-step-verification?flow=sk&opendialog=addsk).
-   When it comes to naming your keys, that is a name only used so you can identify which key was
-   registered. You can name them Key1 and Key2.
-2. Repeat the process with your 2nd YubiKey. 
-3. Configure your phone as [a security key](https://support.google.com/accounts/answer/9289445)  
-
-
-#### Optional: getting rid of keyboard warnings
-
-1. Install YubiKey manager. You can do this from the **Managed Software Center** on managed Macs.
-   On other platforms, download it [from the official
-   website](https://www.yubico.com/support/download/yubikey-manager/#h-downloads).
-2. Open the YubiKey manager with one of your keys connected.
-3. Go to the **Interfaces** tab.
-4. Uncheck the **OTP** checkboxes under **USB** and click *Save Interfaces*.
-5. Unplug your key and connect your 2nd one to repeat the process.
-
-
-#### Optional: setting up security keys on GitHub
-
-1. Configure your two security keys to [access
-   GitHub](https://github.com/settings/two_factor_authentication/configure).
-2. If you use a Mac, feel free to add it as a security key on GitHub. This brings most of the
-   advantages of the hardware security key but allows you to log in by simply touching Touch ID as
-   your second factor.
-
-
-## FAQ
-
-1. Can I use my Fleet YubiKeys with personal accounts?
-
-**Answer**: We highly recommend that you do so. Facebook accounts, personal email, Twitter accounts,
-cryptocurrency trading sites, and many more support FIDO U2F authentication, the standard used by
-security keys. Fleet will **never ask for your keys back**. They are yours to use everywhere you
-can.
-
-2. Can I use my phone as a security key?
-
-**Answer**: Yes. Google [provides
-instructions](https://support.google.com/accounts/answer/6103523?hl=En&co=GENIE.Platform%3DiOS&oco=1),
-and it works on Android devices as well as iPhones. When doing this, you will still need the YubiKey
-to access Google applications from your phone. 
-Since it requires Bluetooth, this option is also less reliable than the USB-C security key.
-
-3. Can I leave my YubiKey connected to my laptop?
-
-**Answer**: Yes, unless you are traveling. We use security keys to eliminate the ability of
-attackers to phish our credentials remotely, not as any type of local security improvement. That
-being said, keeping it separate from the laptop when traveling means they are unlikely to be
-lost or stolen simultaneously.
-
-4. I've lost one of my keys, what do I do?
-
-**Answer**: Post in the `#g-security` channel ASAP so we can disable the key. IF you find it later, no
-worries, just enroll it again!
-
-5. I lost all of my keys, and I'm locked out! What do I do?
-
-**Answer**: Post in the `#help-login` channel, or contact your manager if you find yourself locked out of Slack. You will be provided a way to log back in and make your phone your security key until you
-receive new ones.
-
-6. Can I use security keys to log in from any device?
-
-**Answer**: The keys we use, YubiKeys 5C NFC, work over USB-C as well as NFC. They can be used on
-Mac/PC, Android, iPhone, and iPad Pro with USB-C port. If some application or device does
-not support it, you can always browse to [g.co/sc](https://g.co/sc) from a device that supports
-security keys to generate a temporary code for the device that does not.
-
-7. Will I need my YubiKey every time I want to check my email?
-
-**Answer**: No. Using them does not make sessions shorter. For example, if using the GMail app on
-mobile, you'd need the keys to set up the app only.
 
 
 ## GitHub security
@@ -588,6 +480,22 @@ provider](https://github.com/integrations/terraform-provider-github) for GitHub.
 this will be similar to what [this blog post](https://oops.computer/posts/github_automation/) describes.
 
 
+### Requesting pull request deletion
+
+Only GitHub Support can permanently delete a pull request — this cannot be done through the GitHub UI or API. Follow these steps to request deletion:
+
+1. **Confirm the PR is closed.** The pull request must be closed (not merged) before GitHub Support can delete it.
+2. **Go to GitHub Support.** Visit https://support.github.com/ and sign in with an account that has admin access to the repository.
+3. **Open a support ticket.** Select "Contact Support" and choose the category most relevant to repository management or pull requests.
+4. **Provide the required details.** In the ticket, include:
+   - The full URL of the pull request to be deleted (e.g., `https://github.com/fleetdm/fleet/pull/12345`).
+   - A clear request asking GitHub Support to permanently delete the pull request.
+   - The reason for deletion (e.g., sensitive data was accidentally included, or the PR was created in error).
+5. **Wait for confirmation.** GitHub Support will review the request and confirm once the pull request has been permanently deleted. This may take a few business days.
+
+> **Important:** The requester must have admin access to the repository. Deletion is permanent and cannot be undone. Merged pull requests generally cannot be deleted.
+
+
 ## Google Workspace security
 
 Google Workspace is our collaboration tool and the source of truth for our user identities.
@@ -614,7 +522,7 @@ Google's name for Two-Factor Authentication (2FA) or Multi-Factor Authentication
 | SMS/Phone-based 2FA                                                           | Puts trust in the phone number itself, which attackers can hijack by [social engineering phone companies](https://www.vice.com/en/topic/sim-hijacking).      |
 | Time-based one-time password (TOTP - Google Authenticator type six digit codes) | Phishable as long as the attacker uses it within its short lifetime by intercepting the login form. |
 | App-based push notifications                                                  | These are harder to phish than TOTP, but by sending a lot of prompts to a phone, a user might accidentally accept a nefarious notification.       |
-| Hardware security keys                                                        | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) but requires extra hardware or a recent smartphone. Configure this as soon as you receive your Fleet YubiKeys                                                                |
+| Okta Verify with FastPass                                                     | [Most secure](https://krebsonsecurity.com/2018/07/google-security-keys-neutralized-employee-phishing/) phishing-resistant authentication tied to your enrolled device. Configure Okta Verify with FastPass as soon as you've enrolled your device.                                                                |
 
 
 ##### 2-Step verification in Google Workspace
@@ -930,7 +838,7 @@ Users must not use the company's cloud resources to:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14   |
+| @allenhouchins | 2024-03-14   |
 
 Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
@@ -956,9 +864,9 @@ Fleet requires all team members to comply with the following acceptable use requ
 
 - The use of Fleet company accounts on "shared" computers, such as hotel kiosk systems, is strictly prohibited.
 
-- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
+- Lost or stolen devices (laptops, or any other company-owned or personal devices used for work purposes) must be reported as soon as possible. Minutes count when responding to security incidents triggered by missing devices. Report a lost, stolen, or missing device by posting in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2), or use the security@ (fleetdm.com) email alias if you no longer have access to Slack. Include your name, the type of device, timeline (when were you last in control of the device?), whether the device was locked, whether any sensitive information is on the device, and any other relevant information in the report.
 
-When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C037Q8UJ0CC))
+When in doubt, **ASK!** (in [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2))
 
 
 ### Access control policy
@@ -967,7 +875,7 @@ When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C03
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14      |
+| @allenhouchins | 2024-03-14      |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
@@ -1045,7 +953,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
 
@@ -1086,7 +994,7 @@ For new employees who have not received a company laptop or in cases where a com
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @sampfluger88 | 2024-03-14       |
+| @allenhouchins | 2024-03-14       |
 
 The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
 
@@ -1454,14 +1362,10 @@ Incidents of a severity/impact rating higher than **MINOR** shall trigger the re
 
 #### I - Identification and Triage
 
-1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents in one of the following ways:
-  - Direct report to management, CTO, CEO, or other
-  - Email
-  - Phone call
-  - Slack
-2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the CTO (if not already done).
-3. The CTO determines if the issue is an Event, Precursor, Indication, or Incident.
-  - If the issue is an event, indication, or precursor, the CTO forwards it to the appropriate resource for resolution.
+1. Immediately upon observation, Fleet members report suspected and known Events, Precursors, Indications, and Incidents by sending a message to the [#help-it](https://fleetdm.slack.com/archives/C09861YJUJ2) Slack channel, making sure to `@mention` **@allenhouchins** and **@pepper**. For anything serious or if there isn't a timely response, also follow up with a direct message (DM) to Allen Houchins and Pepper (Andrea Pepper).
+2. The individual receiving the report facilitates the collection of additional information about the incident, as needed, and notifies the Head of IT (if not already done).
+3. The Head of IT determines if the issue is an Event, Precursor, Indication, or Incident.
+  - If the issue is an event, indication, or precursor, the Head of IT forwards it to the appropriate resource for resolution.
     - Non-Technical Event (minor infringement): the CTO of the designee creates an appropriate issue in GitHub and further investigates the incident as needed.
     - Technical Event: Assign the issue to a technical resource for resolution. This resource may also be a contractor or outsourced technical resource in the event of a lack of resource or expertise in the area.
   - If the issue is a security incident, the CTO activates the Security Incident Response Team (SIRT) and notifies senior leadership by email.
@@ -1934,13 +1838,13 @@ We ask for vulnerabilities reported by researchers and prefer to perform coordin
 For other vulnerabilities affecting Fleet or code used in Fleet, the Head of Security, CTO and CEO can accept the risk of patching them according to custom timelines, depending on the risk and possible temporary mitigations.
 
 
-### Mapping of CVSSv3 scores to Fleet severity
+### Mapping of CVSSv4 scores to Fleet severity
 
 Fleet adapts the severity assigned to vulnerabilities when needed.
 
 The features we use in a library, for example, can mean that some vulnerabilities in the library are unexploitable. In other cases, it might make the vulnerability easier to exploit. In those cases, Fleet would first categorize the vulnerability using publicly available information, then lower or increase the severity based on additional context.
 
-When using externally provided CVSSv3 scores, Fleet maps them like this:
+When using externally provided CVSSv4 scores, Fleet maps them like this:
 
 | CVSSv3 score                       | Fleet severity                      |
 | ---------------------------------- | ----------------------------------- |
@@ -2069,7 +1973,7 @@ You can find the full report here: [2024-06-14-fleet-penetration-test.pdf](https
 | ------------------- | ----------------- |
 | Access controls     | Medium risk       |
 
-Software uploaded to a team's software library is accessible to any host via URL download. 
+Software uploaded to a fleet's software library is accessible to any host via URL download. 
 
 This was resolved in version release [4.57.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.57.0) with [validation of agent access to installer package before returning it](https://github.com/fleetdm/fleet/pull/21337).
 
@@ -2083,15 +1987,15 @@ The GitHub Deployment page contains a link pointing to a vacant Vercel domain. A
 
 This was resolved during the penetration test period as identified in the penetration test report.
 
-#### 3 - Observers can access ABM keys
+#### 3 - Observers can access AB keys
 
 | Type                | Latacora Severity |
 | ------------------- | ----------------- |
 | Access Controls     | Medium risk       |
 
-According to the User Permissions table, an Observer should not be able to “View Apple business manager (BM) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
+According to the User Permissions table, an Observer should not be able to “View Apple Business (AB) information”. The permissions are not enforced as an Observer can download the pair of public and private keys.
 
-This endpoint always returns a new key pair used during ABM/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an ABM instance.
+This endpoint always returns a new key pair used during AB/Fleet configuration. It never returns an existing key pair, and cannot be used to gain access to an AB instance.
 
 #### 4 - Observers can Access Any Software 
 
@@ -2141,7 +2045,7 @@ This was resolved in version release [4.33.0](https://github.com/fleetdm/fleet/r
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all teams, and these are the information required to add a host. 
+Observers are not supposed to be able to add hosts to Fleet. Via specific endpoints, it becomes possible to retrieve the certificate chains and the secrets for all fleets, and these are the information required to add a host. 
 
 This was resolvedin version release [4.33.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.33.0) with [updating the observer permissions](https://github.com/fleetdm/fleet/pull/12216).
 
@@ -2164,7 +2068,7 @@ You can find the full report here: [2022-04-29-fleet-penetration-test.pdf](https
 | ------------------- | -------------- |
 | Authorization issue | High risk      |
 
-This section contains a few different authorization issues, allowing team members to access APIs out of the scope of their teams. The most significant problem was that a team administrator was able to add themselves to other teams. 
+This section contains a few different authorization issues, allowing fleet-level users to access APIs out of the scope of their fleets. The most significant problem was that a fleet administrator was able to add themselves to other fleets. 
 
 This is resolved in 4.13, and an [advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-pr2g-j78h-84cr) has been published before this report was made public.
 We are also planning to add [more testing](https://github.com/fleetdm/fleet/issues/5457) to catch potential future mistakes related to authorization.
@@ -2175,7 +2079,7 @@ We are also planning to add [more testing](https://github.com/fleetdm/fleet/issu
 | --------- | -------------- |
 | Injection | Medium risk    |
 
-It is possible to create or rename an existing team with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
+It is possible to create or rename an existing fleet with a malicious name, which, once exported to CSV, could trigger code execution in Microsoft Excel. We assume there are other ways that inserting this type of data could have similar effects, including via osquery data. For this reason, we will evaluate the feasibility of [escaping CSV output](https://github.com/fleetdm/fleet/issues/5460).
 
 Our current recommendation is to review CSV contents before opening in Excel or other programs that may execute commands.
 
@@ -2219,7 +2123,7 @@ The default password policy in Fleet requires passwords that are seven character
 | ----------- | -------------- |
 | Enumeration | Low risk       |
 
-User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a team observer), it is a leak of information, and might be a problem depending on how you use teams. For this reason, only team administrators are able to enumerate users as of Fleet 4.31.0.
+User enumeration by a logged-in user is not a critical issue. Still, when done by a user with minimal privileges (such as a fleet observer), it is a leak of information, and might be a problem depending on how you use fleets. For this reason, only fleet administrators are able to enumerate users as of Fleet 4.31.0.
 
 #### 9 - Information disclosure via default content
 
@@ -2249,7 +2153,7 @@ If this endpoint is a concern in your Fleet environment, consider that the infor
 
 [Add basic auth to /metrics endpoint #2322](https://github.com/fleetdm/fleet/issues/2322)
 
-[Ensure only team admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
+[Ensure only fleet admins can list other users #5657](https://github.com/fleetdm/fleet/issues/5657)
 
 
 ### August 2021 security of Orbit auto-updater

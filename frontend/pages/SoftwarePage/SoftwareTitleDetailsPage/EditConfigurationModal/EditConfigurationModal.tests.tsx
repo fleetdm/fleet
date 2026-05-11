@@ -2,7 +2,6 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { createMockAppStoreAppAndroid } from "__mocks__/softwareMock";
-import softwareAPI from "services/entities/software";
 import EditConfigurationModal from "./EditConfigurationModal";
 
 const softwareInstaller = createMockAppStoreAppAndroid();
@@ -69,7 +68,7 @@ describe("EditConfigurationModal", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(MOCK_PROPS.onExit).toHaveBeenCalled();
+    await waitFor(() => expect(MOCK_PROPS.onExit).toHaveBeenCalledTimes(1));
   });
 
   it("disables Save button when configuration JSON is invalid and shows the error", async () => {

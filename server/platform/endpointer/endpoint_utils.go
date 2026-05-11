@@ -5,6 +5,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -29,17 +31,6 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 )
-
-// We use our own wrapper here, to preserve the Close method of the original io.ReadCloser
-// But also allows us to modify the limit at a laterp oint.
-type LimitedReadCloser struct {
-	*io.LimitedReader
-	Closer io.Closer
-}
-
-func (lrc *LimitedReadCloser) Close() error {
-	return lrc.Closer.Close()
-}
 
 type HandlerRoutesFunc func(r *mux.Router, opts []kithttp.ServerOption)
 
@@ -499,7 +490,8 @@ type requestValidator interface {
 // The customQueryDecoder parameter allows services to inject domain-specific
 // query parameter decoding logic.
 //
-// If adding a new way to parse/decode the requset, make sure to wrap the body in a limited reader with the maxRequestBodySize
+// If adding a new way to parse/decode the request, make sure to wrap the body with http.MaxBytesReader using the maxRequestBodySize
+
 func MakeDecoder(
 	iface interface{},
 	jsonUnmarshal func(body io.Reader, req any) error,
@@ -519,16 +511,49 @@ func MakeDecoder(
 	if rd, ok := iface.(RequestDecoder); ok {
 		return func(ctx context.Context, r *http.Request) (interface{}, error) {
 			if maxRequestBodySize != -1 {
-				limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-				r.Body = &LimitedReadCloser{
-					LimitedReader: limitedReader,
-					Closer:        r.Body,
+				r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
+			}
+			//
+			// We take care of gzip encoding here to prevent any future DecodeRequest
+			// implementations from missing gzip bomb checks.
+			//
+			gzipped := false
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
+				gzr, err := gzip.NewReader(r.Body)
+				if err != nil {
+					return nil, BadRequestErr("gzip decoder error", err)
 				}
+				defer gzr.Close()
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					r.Body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					r.Body = io.NopCloser(gzr)
+				}
+				// Clear so implementations don't try to decompress again.
+				r.Header.Del("Content-Encoding")
 			}
 			ret, err := rd.DecodeRequest(ctx, r)
-			if err != nil && errors.Is(err, io.ErrUnexpectedEOF) {
-				return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+
+			// Some DecodeRequest implementations (like getHostSoftwareRequest)
+			// themselves return platform_http.PayloadTooLargeError.
+			if inner, isPayloadTooLargeError := errors.AsType[platform_http.PayloadTooLargeError](err); isPayloadTooLargeError {
+				// Preserve the inner error's MaxRequestSize and ContentLength
+				// (it knows the actual limit that was hit), only add Gzipped.
+				inner.Gzipped = gzipped
+				return nil, inner
+			}
+
+			// This is the DecodeRequest implementation returning http.MaxBytesError
+			// (e.g. there's a size limit when uploading installers.)
+			if _, isMaxBytesError := errors.AsType[*http.MaxBytesError](err); isMaxBytesError {
+				return nil, platform_http.PayloadTooLargeError{
+					ContentLength:  r.Header.Get("Content-Length"),
+					MaxRequestSize: maxRequestBodySize,
+					Gzipped:        gzipped,
+				}
 			}
 			return ret, err
 		}
@@ -545,26 +570,29 @@ func MakeDecoder(
 		var rewriter *JSONKeyRewriteReader
 
 		if maxRequestBodySize != -1 {
-			limitedReader := io.LimitReader(r.Body, maxRequestBodySize).(*io.LimitedReader)
-
-			r.Body = &LimitedReadCloser{
-				LimitedReader: limitedReader,
-				Closer:        r.Body,
-			}
+			r.Body = http.MaxBytesReader(nil, r.Body, maxRequestBodySize)
 		}
 
 		buf := bufio.NewReader(r.Body)
 		var body io.Reader = buf
+		gzipped := false
 		if _, err := buf.Peek(1); err == io.EOF {
 			nilBody = true
 		} else {
-			if r.Header.Get("content-encoding") == "gzip" {
+			if strings.EqualFold(r.Header.Get("content-encoding"), "gzip") {
+				gzipped = true
 				gzr, err := gzip.NewReader(buf)
 				if err != nil {
 					return nil, BadRequestErr("gzip decoder error", err)
 				}
 				defer gzr.Close()
-				body = gzr
+				if maxRequestBodySize != -1 {
+					// Limit decompressed bytes to prevent gzip bombs from bypassing
+					// the raw body size limit applied above.
+					body = http.MaxBytesReader(nil, gzr, maxRequestBodySize)
+				} else {
+					body = gzr
+				}
 			}
 
 			// Insert the JSON key rewriter into the reader pipeline
@@ -589,35 +617,18 @@ func MakeDecoder(
 							InternalErr: ace,
 						}
 					}
-
-					if errors.Is(err, io.ErrUnexpectedEOF) {
-						return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+						return nil, platform_http.PayloadTooLargeError{
+							ContentLength:  r.Header.Get("Content-Length"),
+							MaxRequestSize: maxRequestBodySize,
+							Gzipped:        gzipped,
+						}
 					}
-
 					return nil, BadRequestErr("json decoder error", err)
 				}
 				v = reflect.ValueOf(req)
 			}
 
-			// Log deprecation warnings when deprecated field names are used.
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					newNames := make([]string, len(deprecated))
-					for i, old := range deprecated {
-						for _, rule := range aliasRules {
-							if rule.OldKey == old {
-								newNames[i] = rule.NewKey
-								break
-							}
-						}
-					}
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
-					)
-				}
-			}
 		}
 
 		fields := allFields(v)
@@ -680,22 +691,38 @@ func MakeDecoder(
 					}
 				}
 
+				if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
+					return nil, platform_http.PayloadTooLargeError{
+						ContentLength:  r.Header.Get("Content-Length"),
+						MaxRequestSize: maxRequestBodySize,
+						Gzipped:        gzipped,
+					}
+				}
 				if errors.Is(err, io.ErrUnexpectedEOF) {
-					return nil, platform_http.PayloadTooLargeError{ContentLength: r.Header.Get("Content-Length"), MaxRequestSize: maxRequestBodySize}
+					return nil, BadRequestErr("json decoder error", err)
 				}
 				return nil, err
 			}
 
-			// Log deprecation warnings when deprecated field names are used
-			// (bodyDecoder path).
-			if rewriter != nil {
-				if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
-					logging.WithLevel(ctx, slog.LevelWarn)
-					logging.WithExtras(ctx,
-						"deprecated_fields", fmt.Sprintf("%v", deprecated),
-						"deprecation_warning", "use the updated field names instead",
-					)
+		}
+
+		// Log deprecation warnings when deprecated field names are used.
+		if rewriter != nil && platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+			if deprecated := rewriter.UsedDeprecatedKeys(); len(deprecated) > 0 {
+				newNames := make([]string, len(deprecated))
+				for i, old := range deprecated {
+					for _, rule := range aliasRules {
+						if rule.OldKey == old {
+							newNames[i] = rule.NewKey
+							break
+						}
+					}
 				}
+				logging.WithLevel(ctx, slog.LevelWarn)
+				logging.WithExtras(ctx,
+					"deprecated_fields", fmt.Sprintf("%v", deprecated),
+					"deprecation_warning", fmt.Sprintf("use the updated field names (%s) instead", newNames),
+				)
 			}
 		}
 
@@ -726,7 +753,29 @@ func MakeDecoder(
 	}
 }
 
-func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
+func newNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func WriteBrowserSecurityHeaders(w http.ResponseWriter, serveCSP, includeNonce bool) (string, error) {
+	// This endpoint can optionally return a nonce if needed for the Content-Security-Policy header. In general only
+	// our HTML responses need the nonce, API and other static assets should not include it. We return an empty but
+	// syntactically valid nonce in the unused case since this will still get substituted into HTML templates when unused
+	nonce := "disabled"
+	nonceExtraParam := ""
+	// generate a unique nonce for this response
+	if includeNonce {
+		var err error
+		nonce, err = newNonce()
+		if err != nil {
+			return "", err
+		}
+		nonceExtraParam = fmt.Sprintf(" 'nonce-%s'", nonce)
+	}
 	// Strict-Transport-Security informs browsers that the site should only be
 	// accessed using HTTPS, and that any future attempts to access it using
 	// HTTP should automatically be converted to HTTPS.
@@ -742,6 +791,106 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	// Referrer-Policy prevents leaking the origin of the referrer in the
 	// Referer.
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+	if serveCSP {
+		// TODO Is https OK for img-src? We allow customers to upload their own images and we have to reach out to gravatar for others.
+		// NB: If default-src ever changes from 'none' make sure to add object-src 'none'
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; base-uri 'self'; connect-src 'self' www.gravatar.com ws: wss:; img-src 'self' www.gravatar.com data: https:; style-src 'self'"+nonceExtraParam+"; font-src 'self'; script-src 'self'"+nonceExtraParam)
+	}
+	return nonce, nil
+}
+
+func BrowserSecurityHeadersHandler(serveCSP bool, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// We don't implement the nonce here in the generic case, however the few endpoints that need it should implement
+		// their own handling
+		_, err := WriteBrowserSecurityHeaders(w, serveCSP, false)
+		if err != nil {
+			http.Error(w, "failed to write browser security headers", http.StatusInternalServerError)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+// handlerKey identifies a registered handler by HTTP method and unversioned path template.
+type handlerKey struct {
+	method string
+	path   string // unversioned path template, e.g. "/api/_version_/fleet/fleets"
+}
+
+// HandlerRegistry stores HTTP handlers by method+path during endpoint registration,
+// enabling lookup for deprecated path alias registration.
+type HandlerRegistry struct {
+	handlers map[handlerKey]http.Handler
+}
+
+// NewHandlerRegistry creates an empty HandlerRegistry.
+func NewHandlerRegistry() *HandlerRegistry {
+	return &HandlerRegistry{handlers: make(map[handlerKey]http.Handler)}
+}
+
+// DeprecatedPathAlias maps a primary (canonical) path to one or more deprecated
+// paths that should serve the same handler.
+type DeprecatedPathAlias struct {
+	Method          string
+	PrimaryPath     string   // canonical path (must already be registered)
+	DeprecatedPaths []string // old paths to alias
+}
+
+// deprecatedPathInfoKey is the context key for deprecated URL path info.
+type deprecatedPathInfoKey struct{}
+
+// deprecatedPathInfo holds the deprecated and canonical paths for logging.
+type deprecatedPathInfo struct {
+	deprecatedPath string
+	primaryPath    string
+}
+
+// LogDeprecatedPathAlias is a kithttp.RequestFunc (ServerBefore function)
+// that checks if the request is using a deprecated URL path alias and, if so,
+// elevates the log level to Warn and adds deprecation info to the request log.
+// It must run after the LoggingContext is created (i.e. after SetRequestsContexts).
+func LogDeprecatedPathAlias(ctx context.Context, _ *http.Request) context.Context {
+	if !platform_logging.TopicEnabled(platform_logging.DeprecatedFieldTopic) {
+		return ctx
+	}
+	info, ok := ctx.Value(deprecatedPathInfoKey{}).(deprecatedPathInfo)
+	if !ok {
+		return ctx
+	}
+	logging.WithLevel(ctx, slog.LevelWarn)
+	logging.WithExtras(ctx,
+		"deprecated_path", info.deprecatedPath,
+		"deprecation_warning", fmt.Sprintf("API `%s` is deprecated, use `%s` instead", info.deprecatedPath, info.primaryPath),
+	)
+	return ctx
+}
+
+// RegisterDeprecatedPathAliases registers deprecated URL path aliases that point
+// to the same handler as the canonical path, and wraps them in a handler that
+// can log deprecation warnings.
+func RegisterDeprecatedPathAliases(r *mux.Router, versions []string, registry *HandlerRegistry, aliases []DeprecatedPathAlias) {
+	allVersions := append(append([]string{}, versions...), "latest")
+	versionRegex := strings.Join(allVersions, "|")
+	for _, alias := range aliases {
+		handler := registry.handlers[handlerKey{alias.Method, alias.PrimaryPath}]
+		if handler == nil {
+			panic(fmt.Sprintf("deprecated alias: no handler registered for %s %s", alias.Method, alias.PrimaryPath))
+		}
+		for _, path := range alias.DeprecatedPaths {
+			// Replace the version placeholder in the deprecated path with a regex that matches all versions,
+			// so that the same handler can be used for all versions of the deprecated path.
+			pathForHandler := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", versionRegex), 1)
+			info := deprecatedPathInfo{deprecatedPath: path, primaryPath: alias.PrimaryPath}
+			// Wrap the handler to inject deprecation info into the context for logging.
+			wrappedHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := context.WithValue(r.Context(), deprecatedPathInfoKey{}, info)
+				handler.ServeHTTP(w, r.WithContext(ctx))
+			})
+			nameAndVerb := getNameFromPathAndVerb(alias.Method, path, "")
+			r.Handle(pathForHandler, wrappedHandler).Name(nameAndVerb).Methods(alias.Method)
+		}
+	}
 }
 
 type CommonEndpointer[H any] struct {
@@ -759,6 +908,16 @@ type CommonEndpointer[H any] struct {
 	CustomMiddleware []endpoint.Middleware
 	// CustomMiddlewareAfterAuth are middlewares that run after authentication.
 	CustomMiddlewareAfterAuth []endpoint.Middleware
+
+	// HTTPPreAuthMiddleware wraps the final http.Handler, running BEFORE the
+	// kithttp decode-body step.
+	HTTPPreAuthMiddleware func(http.Handler) http.Handler
+
+	// HandlerRegistry, if set, records handlers by method+path for deprecated
+	// path alias lookup. The pointer is shared across shallow copies (created
+	// by builder methods like WithAltPaths) so all registrations land in the
+	// same map.
+	HandlerRegistry *HandlerRegistry
 
 	startingAtVersion string
 	endingAtVersion   string
@@ -836,7 +995,13 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 		// If no value is configured set default, or if the set endpoint value is less than global default use default.
 		e.requestBodySizeLimit = platform_http.MaxRequestBodySize
 	}
-	return newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	h := newServer(endp, e.MakeDecoderFn(v, e.requestBodySizeLimit), e.EncodeFn, e.Opts)
+	// The HTTP pre-auth middleware runs outside the kithttp.Server so it can
+	// short-circuit requests before the decode-body step reads any bytes.
+	if e.HTTPPreAuthMiddleware != nil {
+		h = e.HTTPPreAuthMiddleware(h)
+	}
+	return h
 }
 
 func newServer(e endpoint.Endpoint, decodeFn kithttp.DecodeRequestFunc, encodeFn kithttp.EncodeResponseFunc,
@@ -907,6 +1072,14 @@ func (e *CommonEndpointer[H]) SkipRequestBodySizeLimit() *CommonEndpointer[H] {
 	return &ae
 }
 
+// WithHTTPPreAuth installs a raw http.Handler middleware that runs outside the
+// kithttp server, before the decoder reads the body.
+func (e *CommonEndpointer[H]) WithHTTPPreAuth(mw func(http.Handler) http.Handler) *CommonEndpointer[H] {
+	ae := *e
+	ae.HTTPPreAuthMiddleware = mw
+	return &ae
+}
+
 // PathHandler registers a handler for the verb and path. The pathHandler is
 // a function that receives the actual path to which it will be mounted, and
 // returns the actual http.Handler that will handle this endpoint. This is for
@@ -971,10 +1144,14 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 
 	versionedPath := strings.Replace(path, "/_version_/", fmt.Sprintf("/{fleetversion:(?:%s)}/", strings.Join(versions, "|")), 1)
 	nameAndVerb := getNameFromPathAndVerb(verb, path, e.startingAtVersion)
+	handler := pathHandler(versionedPath)
 	if e.usePathPrefix {
-		e.Router.PathPrefix(versionedPath).Handler(pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.PathPrefix(versionedPath).Handler(handler).Name(nameAndVerb).Methods(verb)
 	} else {
-		e.Router.Handle(versionedPath, pathHandler(versionedPath)).Name(nameAndVerb).Methods(verb)
+		e.Router.Handle(versionedPath, handler).Name(nameAndVerb).Methods(verb)
+	}
+	if e.HandlerRegistry != nil {
+		e.HandlerRegistry.handlers[handlerKey{verb, path}] = handler
 	}
 	for _, alias := range e.alternativePaths {
 		nameAndVerb := getNameFromPathAndVerb(verb, alias, e.startingAtVersion)
@@ -996,6 +1173,9 @@ func EncodeCommonResponse(
 ) error {
 	// Infer alias rules from `renameto` struct tags on the response type.
 	aliasRules := ExtractAliasRules(response)
+	if br, ok := response.(beforeRenderer); ok {
+		br.BeforeRender(ctx, w)
+	}
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)
 	}
@@ -1004,7 +1184,8 @@ func EncodeCommonResponse(
 	// page and the error will be logged
 	if page, ok := response.(htmlPage); ok {
 		w.Header().Set("Content-Type", "text/html; charset=UTF-8")
-		WriteBrowserSecurityHeaders(w)
+		// This will not return an error if disabled
+		_, _ = WriteBrowserSecurityHeaders(w, false, false)
 		if coder, ok := page.Error().(kithttp.StatusCoder); ok {
 			w.WriteHeader(coder.StatusCode())
 		}
@@ -1067,6 +1248,21 @@ type renderHijacker interface {
 // cookieSetter can be implemented by response values to set cookies on the response.
 type cookieSetter interface {
 	SetCookies(ctx context.Context, w http.ResponseWriter)
+}
+
+// beforeRenderer can be implemented by response values that need to hook into the
+// raw rendering process, with access to the ResponseWriter before any response is
+// written, while continuing with the normal rendering process after the call.
+// It can be used to set headers, for example, and since the processing happens before
+// any Errorer check, it can also be used to fail the request by storing an error on
+// the Errorer. It should not set the status code of the response, as the standard
+// approach of implementing the statuser interface should be used for that.
+//
+// Unlike renderHijacker and the htmlPage interfaces, this interface does not stop
+// processing, and while it behaves similarly to cookieSetter, it is more generally-named
+// and does not have the specific connotation of setting cookies.
+type beforeRenderer interface {
+	BeforeRender(ctx context.Context, w http.ResponseWriter)
 }
 
 // bufferedResponseWriter wraps an http.ResponseWriter but redirects Write

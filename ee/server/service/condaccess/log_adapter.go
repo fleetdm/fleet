@@ -1,55 +1,55 @@
 package condaccess
 
 import (
+	"context"
 	"fmt"
-
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
-	"github.com/go-kit/log/level"
+	"log/slog"
 )
 
-// kitlogAdapter adapts to saml logger.Interface
-type kitlogAdapter struct {
-	logger *logging.Logger
+// slogAdapter adapts *slog.Logger to saml logger.Interface
+type slogAdapter struct {
+	ctx    context.Context
+	logger *slog.Logger
 }
 
-func (k *kitlogAdapter) Printf(format string, v ...interface{}) {
-	level.Info(k.logger).Log("msg", fmt.Sprintf(format, v...))
+func (k *slogAdapter) Printf(format string, v ...any) {
+	k.logger.InfoContext(k.ctx, fmt.Sprintf(format, v...))
 }
 
-func (k *kitlogAdapter) Print(v ...interface{}) {
-	level.Info(k.logger).Log("msg", fmt.Sprint(v...))
+func (k *slogAdapter) Print(v ...any) {
+	k.logger.InfoContext(k.ctx, fmt.Sprint(v...))
 }
 
-func (k *kitlogAdapter) Println(v ...interface{}) {
-	level.Info(k.logger).Log("msg", fmt.Sprint(v...))
+func (k *slogAdapter) Println(v ...any) {
+	k.logger.InfoContext(k.ctx, fmt.Sprint(v...))
 }
 
-func (k *kitlogAdapter) Fatal(v ...interface{}) {
-	level.Error(k.logger).Log("msg", fmt.Sprint(v...))
+func (k *slogAdapter) Fatal(v ...any) {
+	k.logger.ErrorContext(k.ctx, fmt.Sprint(v...))
 }
 
-func (k *kitlogAdapter) Fatalf(format string, v ...interface{}) {
-	level.Error(k.logger).Log("msg", fmt.Sprintf(format, v...))
+func (k *slogAdapter) Fatalf(format string, v ...any) {
+	k.logger.ErrorContext(k.ctx, fmt.Sprintf(format, v...))
 }
 
-func (k *kitlogAdapter) Fatalln(v ...interface{}) {
-	level.Error(k.logger).Log("msg", fmt.Sprint(v...))
+func (k *slogAdapter) Fatalln(v ...any) {
+	k.logger.ErrorContext(k.ctx, fmt.Sprint(v...))
 }
 
-func (k *kitlogAdapter) Panic(v ...interface{}) {
+func (k *slogAdapter) Panic(v ...any) {
 	msg := fmt.Sprint(v...)
-	level.Error(k.logger).Log("msg", msg)
+	k.logger.ErrorContext(k.ctx, msg)
 	panic(msg)
 }
 
-func (k *kitlogAdapter) Panicf(format string, v ...interface{}) {
+func (k *slogAdapter) Panicf(format string, v ...any) {
 	msg := fmt.Sprintf(format, v...)
-	level.Error(k.logger).Log("msg", msg)
+	k.logger.ErrorContext(k.ctx, msg)
 	panic(msg)
 }
 
-func (k *kitlogAdapter) Panicln(v ...interface{}) {
+func (k *slogAdapter) Panicln(v ...any) {
 	msg := fmt.Sprint(v...)
-	level.Error(k.logger).Log("msg", msg)
+	k.logger.ErrorContext(k.ctx, msg)
 	panic(msg)
 }

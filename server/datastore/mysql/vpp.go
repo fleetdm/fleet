@@ -62,21 +62,32 @@ WHERE
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get vpp app labels")
 	}
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range labels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported label scope", "vpp_apps_teams_id", app.VPPAppsTeamsID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
-		// there's a bug somewhere
-		ds.logger.WarnContext(ctx, "vpp app has both include and exclude labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include", fmt.Sprintf("%v", inclAny), "exclude", fmt.Sprintf("%v", exclAny))
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
+		ds.logger.WarnContext(ctx, "vpp app has more than one scope of labels", "vpp_apps_teams_id", app.VPPAppsTeamsID, "include_any", fmt.Sprintf("%v", inclAny), "exclude_any", fmt.Sprintf("%v", exclAny), "include_all", fmt.Sprintf("%v", inclAll))
 	}
 	app.LabelsExcludeAny = exclAny
 	app.LabelsIncludeAny = inclAny
+	app.LabelsIncludeAll = inclAll
 
 	categories, err := ds.getCategoriesForVPPApp(ctx, app.VPPAppsTeamsID)
 	if err != nil {
@@ -146,7 +157,8 @@ SELECT
 	label_id,
 	exclude,
 	l.name AS label_name,
-	va.title_id AS title_id
+	va.title_id AS title_id,
+	require_all
 FROM
 	vpp_app_team_labels vatl
 	JOIN vpp_apps_teams vat ON vat.id = vatl.vpp_app_team_id
@@ -344,18 +356,29 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 	}
 
 	var labels fleet.LabelIdentsWithScope
-	var exclAny, inclAny []fleet.SoftwareScopeLabel
+	var exclAny, inclAny, inclAll []fleet.SoftwareScopeLabel
 	for _, l := range existingLabels {
-		if l.Exclude {
+		switch {
+		case l.Exclude && !l.RequireAll:
 			exclAny = append(exclAny, l)
-		} else {
+		case !l.Exclude && l.RequireAll:
+			inclAll = append(inclAll, l)
+		case !l.Exclude && !l.RequireAll:
 			inclAny = append(inclAny, l)
+		default:
+			ds.logger.WarnContext(ctx, "vpp app has an unsupported existing label scope", "vpp_apps_teams_id", vppAppTeamID, "invalid_label", fmt.Sprintf("%#v", l))
 		}
 	}
 
-	if len(inclAny) > 0 && len(exclAny) > 0 {
+	var count int
+	for _, set := range [][]fleet.SoftwareScopeLabel{exclAny, inclAny, inclAll} {
+		if len(set) > 0 {
+			count++
+		}
+	}
+	if count > 1 {
 		// there's a bug somewhere
-		return nil, ctxerr.New(ctx, "found both include and exclude labels on a vpp app")
+		return nil, ctxerr.New(ctx, "found labels for more than one scope on a vpp app")
 	}
 
 	switch {
@@ -374,6 +397,15 @@ func (ds *Datastore) getExistingLabels(ctx context.Context, vppAppTeamID uint) (
 			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
 		}
 		return &labels, nil
+
+	case len(inclAll) > 0:
+		labels.LabelScope = fleet.LabelScopeIncludeAll
+		labels.ByName = make(map[string]fleet.LabelIdent, len(inclAll))
+		for _, l := range inclAll {
+			labels.ByName[l.LabelName] = fleet.LabelIdent{LabelName: l.LabelName, LabelID: l.LabelID}
+		}
+		return &labels, nil
+
 	default:
 		return nil, nil
 	}
@@ -725,9 +757,13 @@ func (ds *Datastore) InsertVPPApps(ctx context.Context, apps []*fleet.VPPApp) er
 }
 
 func insertVPPApps(ctx context.Context, tx sqlx.ExtContext, apps []*fleet.VPPApp) error {
+	// country_code is intentionally only set on INSERT and not updated on
+	// duplicate key. The first add of a (adam_id, platform) row "anchors"
+	// the app to that storefront; subsequent inserts (from other teams) must
+	// not overwrite it. Re-anchoring happens via UpdateVPPAppCountryCode.
 	stmt := `
 INSERT INTO vpp_apps
-	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform)
+	(adam_id, bundle_identifier, icon_url, name, latest_version, title_id, platform, country_code)
 VALUES
 %s
 ON DUPLICATE KEY UPDATE
@@ -741,8 +777,12 @@ ON DUPLICATE KEY UPDATE
 	var insertVals strings.Builder
 
 	for _, a := range apps {
-		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?),`)
-		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform)
+		insertVals.WriteString(`(?, ?, ?, ?, ?, ?, ?, ?),`)
+		var countryCode any
+		if a.CountryCode != "" {
+			countryCode = a.CountryCode
+		}
+		args = append(args, a.AdamID, a.BundleIdentifier, a.IconURL, a.Name, a.LatestVersion, a.TitleID, a.Platform, countryCode)
 	}
 
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(insertVals.String(), ","))
@@ -909,7 +949,7 @@ func (ds *Datastore) DeleteVPPAppFromTeam(ctx context.Context, teamID *uint, app
 				return ctxerr.Wrapf(ctx, err, "getting reference from policies")
 			}
 			if count > 0 {
-				return errDeleteInstallerWithAssociatedPolicy
+				return errDeleteInstallerWithAssociatedInstallPolicy
 			}
 
 		}
@@ -1340,9 +1380,10 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 			organization_name,
 			location,
 			renew_at,
-			token
+			token,
+			country_code
 		)
-	VALUES (?, ?, ?, ?)
+	VALUES (?, ?, ?, ?, ?)
 `
 
 	vppTokenDB, err := vppTokenDataToVppTokenDB(ctx, tok)
@@ -1355,6 +1396,12 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
+	var countryCode any
+	if tok.CountryCode != "" {
+		countryCode = tok.CountryCode
+		vppTokenDB.CountryCode = tok.CountryCode
+	}
+
 	res, err := ds.writer(ctx).ExecContext(
 		ctx,
 		insertStmt,
@@ -1362,6 +1409,7 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 		vppTokenDB.Location,
 		vppTokenDB.RenewDate,
 		tokEnc,
+		countryCode,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting vpp token")
@@ -1375,13 +1423,16 @@ func (ds *Datastore) InsertVPPToken(ctx context.Context, tok *fleet.VPPTokenData
 }
 
 func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
+	// country_code uses COALESCE so an empty CountryCode never wipes a
+	// previously-anchored value. Re-anchoring needs an explicit value.
 	stmt := `
 	UPDATE vpp_tokens
 	SET
 		organization_name = ?,
 		location = ?,
 		renew_at = ?,
-		token = ?
+		token = ?,
+		country_code = COALESCE(?, country_code)
 	WHERE
 		id = ?
 `
@@ -1396,6 +1447,11 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		return nil, ctxerr.Wrap(ctx, err, "encrypt token with datastore.serverPrivateKey")
 	}
 
+	var countryCode any
+	if tok.CountryCode != "" {
+		countryCode = tok.CountryCode
+	}
+
 	_, err = ds.writer(ctx).ExecContext(
 		ctx,
 		stmt,
@@ -1403,6 +1459,7 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 		vppTokenDB.Location,
 		vppTokenDB.RenewDate,
 		tokEnc,
+		countryCode,
 		tokenID,
 	)
 	if err != nil {
@@ -1410,6 +1467,85 @@ func (ds *Datastore) UpdateVPPToken(ctx context.Context, tokenID uint, tok *flee
 	}
 
 	return ds.GetVPPToken(ctx, tokenID)
+}
+
+// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a VPP
+// token. Used to lazy-backfill the column for tokens uploaded before the
+// country_code column existed.
+func (ds *Datastore) UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error {
+	if countryCode == "" {
+		return ctxerr.New(ctx, "country code cannot be empty")
+	}
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`UPDATE vpp_tokens SET country_code = ? WHERE id = ?`,
+		countryCode,
+		tokenID,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp token country code")
+	}
+	return nil
+}
+
+// UpdateVPPAppCountryCode persists the anchored storefront country for a
+// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal path
+// when the original anchored country has no Fleet-known token left.
+func (ds *Datastore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error {
+	if countryCode == "" {
+		return ctxerr.New(ctx, "country code cannot be empty")
+	}
+	_, err := ds.writer(ctx).ExecContext(
+		ctx,
+		`UPDATE vpp_apps SET country_code = ? WHERE adam_id = ? AND platform = ?`,
+		countryCode,
+		adamID,
+		platform,
+	)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating vpp app country code")
+	}
+	return nil
+}
+
+// BackfillVPPAppCountriesFromTokens fills in `vpp_apps.country_code` for any
+// rows that are still NULL, deriving the value from any vpp_tokens row that
+// owns the app via `vpp_apps_teams`. When multiple tokens own the same app
+// with different countries, the lowest-id token wins (deterministic). Used by
+// the one-shot legacy backfill at server startup; becomes a no-op once every
+// row has been populated.
+func (ds *Datastore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
+	const stmt = `
+UPDATE vpp_apps va
+SET va.country_code = (
+    SELECT vt.country_code
+    FROM vpp_apps_teams vat
+    JOIN vpp_tokens vt ON vt.id = vat.vpp_token_id
+    WHERE vat.adam_id = va.adam_id
+      AND vat.platform = va.platform
+      AND vt.country_code IS NOT NULL
+    ORDER BY vt.id ASC
+    LIMIT 1
+)
+WHERE va.country_code IS NULL
+  AND EXISTS (
+    SELECT 1
+    FROM vpp_apps_teams vat
+    JOIN vpp_tokens vt ON vt.id = vat.vpp_token_id
+    WHERE vat.adam_id = va.adam_id
+      AND vat.platform = va.platform
+      AND vt.country_code IS NOT NULL
+  )
+`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "backfilling vpp app countries from tokens")
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "reading rows affected from vpp app country backfill")
+	}
+	return rows, nil
 }
 
 func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error) {
@@ -1430,10 +1566,11 @@ func vppTokenDataToVppTokenDB(ctx context.Context, tok *fleet.VPPTokenData) (*fl
 	exp = exp.UTC()
 
 	vppTokenDB := &fleet.VPPTokenDB{
-		OrgName:   tokRaw.OrgName,
-		Location:  tok.Location,
-		RenewDate: exp,
-		Token:     tok.Token,
+		OrgName:     tokRaw.OrgName,
+		Location:    tok.Location,
+		RenewDate:   exp,
+		Token:       tok.Token,
+		CountryCode: tok.CountryCode,
 	}
 
 	return vppTokenDB, nil
@@ -1446,7 +1583,8 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 		organization_name,
 		location,
 		renew_at,
-		token
+		token,
+		COALESCE(country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 	WHERE
@@ -1491,11 +1629,12 @@ func (ds *Datastore) GetVPPToken(ctx context.Context, tokenID uint) (*fleet.VPPT
 	}
 
 	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
 	}
 
 	if tokTeams == nil {
@@ -1683,7 +1822,8 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		organization_name,
 		location,
 		renew_at,
-		token
+		token,
+		COALESCE(country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 `
@@ -1728,11 +1868,12 @@ func (ds *Datastore) ListVPPTokens(ctx context.Context) ([]*fleet.VPPTokenDB, er
 		}
 
 		tokens[tokEnc.ID] = &fleet.VPPTokenDB{
-			ID:        tokEnc.ID,
-			OrgName:   tokEnc.OrgName,
-			Location:  tokEnc.Location,
-			RenewDate: tokEnc.RenewDate,
-			Token:     string(tokDec),
+			ID:          tokEnc.ID,
+			OrgName:     tokEnc.OrgName,
+			Location:    tokEnc.Location,
+			RenewDate:   tokEnc.RenewDate,
+			Token:       string(tokDec),
+			CountryCode: tokEnc.CountryCode,
 		}
 	}
 
@@ -1780,7 +1921,8 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token
+		v.token,
+		COALESCE(v.country_code, '') AS country_code
 	FROM
 		vpp_token_teams vt
 	INNER JOIN
@@ -1808,7 +1950,8 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 		v.organization_name,
 		v.location,
 		v.renew_at,
-		v.token
+		v.token,
+		COALESCE(v.country_code, '') AS country_code
 	FROM
 		vpp_tokens v
 	INNER JOIN
@@ -1857,11 +2000,12 @@ func (ds *Datastore) GetVPPTokenByTeamID(ctx context.Context, teamID *uint) (*fl
 	}
 
 	tok := &fleet.VPPTokenDB{
-		ID:        tokEnc.ID,
-		OrgName:   tokEnc.OrgName,
-		Location:  tokEnc.Location,
-		RenewDate: tokEnc.RenewDate,
-		Token:     string(tokDec),
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
 	}
 
 	if tokTeams == nil {
@@ -1965,7 +2109,8 @@ SELECT
 	icon_url,
 	name,
 	latest_version,
-	platform
+	platform,
+	COALESCE(country_code, '') AS country_code
 FROM vpp_apps WHERE platform IN (?)`
 
 	query, args, err := sqlx.In(query, fleet.ApplePlatforms)
@@ -1979,6 +2124,80 @@ FROM vpp_apps WHERE platform IN (?)`
 	}
 
 	return apps, nil
+}
+
+// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+// (adam_id, platform), or a NotFound error if no row exists. Used by the
+// anchoring logic to decide whether to use the row's anchored country or to
+// treat the operation as a first-add.
+func (ds *Datastore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+	const stmt = `
+SELECT
+	adam_id,
+	title_id,
+	bundle_identifier,
+	icon_url,
+	name,
+	latest_version,
+	platform,
+	COALESCE(country_code, '') AS country_code
+FROM vpp_apps
+WHERE adam_id = ? AND platform = ?`
+
+	var app fleet.VPPApp
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &app, stmt, adamID, platform); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPApp"), "getting vpp app by adam id")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting vpp app by adam id")
+	}
+	return &app, nil
+}
+
+// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code matches
+// the given country and which owns the (adam_id, platform) app via a row in
+// vpp_apps_teams. When multiple tokens are eligible, the one with the lowest
+// id is returned (deterministic). Returns NotFound if no eligible token
+// exists — callers may treat this as a re-anchor signal.
+func (ds *Datastore) GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+	const stmt = `
+SELECT
+	v.id,
+	v.organization_name,
+	v.location,
+	v.renew_at,
+	v.token,
+	COALESCE(v.country_code, '') AS country_code
+FROM vpp_tokens v
+INNER JOIN vpp_apps_teams vat ON vat.vpp_token_id = v.id
+WHERE vat.adam_id = ?
+  AND vat.platform = ?
+  AND v.country_code = ?
+  AND v.renew_at > NOW()
+ORDER BY v.id ASC
+LIMIT 1`
+
+	var tokEnc fleet.VPPTokenDB
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &tokEnc, stmt, adamID, platform, country); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("VPPToken"), "no vpp token owns app in country")
+		}
+		return nil, ctxerr.Wrap(ctx, err, "selecting vpp token owning app in country")
+	}
+
+	tokDec, err := decrypt([]byte(tokEnc.Token), ds.serverPrivateKey)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "decrypting vpp token with serverPrivateKey")
+	}
+
+	return &fleet.VPPTokenDB{
+		ID:          tokEnc.ID,
+		OrgName:     tokEnc.OrgName,
+		Location:    tokEnc.Location,
+		RenewDate:   tokEnc.RenewDate,
+		Token:       string(tokDec),
+		CountryCode: tokEnc.CountryCode,
+	}, nil
 }
 
 func (ds *Datastore) GetUnverifiedVPPInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
@@ -2329,9 +2548,8 @@ FROM (
 			vpp_app_team_labels vatl
 			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
 			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-		AND lm.host_id = ?
-		WHERE vatl.exclude = 0 AND vpp_apps_teams.platform = 'android'
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
@@ -2364,20 +2582,39 @@ FROM (
 			vpp_apps_teams.adam_id AS installable_id
 		FROM
 			vpp_app_team_labels vatl
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
-		JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
-		LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
-		LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
-			AND lm.host_id = ?
-		WHERE vatl.exclude = 1 AND vpp_apps_teams.platform = 'android'
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN labels lbl ON lbl.id = vatl.label_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 1 AND vatl.require_all = 0 AND vpp_apps_teams.platform = 'android'
 		GROUP BY installable_id
 		HAVING
 			count_installer_labels > 0
 			AND count_installer_labels = count_host_updated_after_labels
-			AND count_host_labels = 0) t;
+			AND count_host_labels = 0
+
+		UNION
+
+		-- include all
+		SELECT
+			COUNT(*) AS count_installer_labels,
+			COUNT(lm.label_id) AS count_host_labels,
+			0 AS count_host_updated_after_labels,
+			vpp_apps_teams.adam_id AS installable_id
+		FROM
+			vpp_app_team_labels vatl
+			LEFT JOIN vpp_apps_teams ON vpp_apps_teams.id = vatl.vpp_app_team_id
+			JOIN hosts ON hosts.id = ? AND hosts.team_id <=> vpp_apps_teams.team_id
+			LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id AND lm.host_id = ?
+		WHERE vatl.exclude = 0 AND vatl.require_all = 1 AND vpp_apps_teams.platform = 'android'
+		GROUP BY installable_id
+		HAVING
+			count_installer_labels > 0
+			AND count_host_labels = count_installer_labels
+		) t
 	`
 
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &applicationIDs, stmt, hostID, hostID, hostID, hostID, hostID, hostID, hostID, hostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get in android apps in scope for host")
 	}
@@ -2692,4 +2929,23 @@ ORDER BY
 		}
 	}
 	return nil
+}
+
+func (ds *Datastore) CheckAndroidWebAppNameExistsOnTeam(ctx context.Context, teamID *uint, name string, excludeAdamID string) (bool, error) {
+	globalOrTeamID := ptr.ValOrZero(teamID)
+	var exists bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, `
+SELECT EXISTS(
+    SELECT 1 FROM vpp_apps va
+    JOIN vpp_apps_teams vat ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+    WHERE va.name = ?
+      AND va.adam_id LIKE ?
+      AND va.adam_id != ?
+      AND va.platform = 'android'
+      AND vat.global_or_team_id = ?
+)`, name, fleet.AndroidWebAppPrefix+"%", excludeAdamID, globalOrTeamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking android web app name exists on team")
+	}
+	return exists, nil
 }

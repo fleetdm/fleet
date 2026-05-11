@@ -2,11 +2,11 @@ package mdmlifecycle
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +16,7 @@ func nopNewActivity(ctx context.Context, user *fleet.User, details fleet.Activit
 
 func TestDoUnsupportedParams(t *testing.T) {
 	ds := new(mock.Store)
-	lc := New(ds, logging.NewNopLogger(), nopNewActivity)
+	lc := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
 
 	err := lc.Do(context.Background(), HostOptions{})
 	require.ErrorContains(t, err, "unsupported platform")
@@ -33,7 +33,7 @@ func TestDoUnsupportedParams(t *testing.T) {
 
 func TestDoParamValidation(t *testing.T) {
 	ds := new(mock.Store)
-	lf := New(ds, logging.NewNopLogger(), nopNewActivity)
+	lf := New(ds, slog.New(slog.DiscardHandler), nopNewActivity)
 	ctx := context.Background()
 
 	cases := []struct {

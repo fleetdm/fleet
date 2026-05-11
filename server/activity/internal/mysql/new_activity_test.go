@@ -186,7 +186,7 @@ func testNewActivityHostAssociation(t *testing.T, env *testEnv) {
 
 	require.NoError(t, env.ds.NewActivity(ctx, user, activity, detailsJSON, time.Now()))
 
-	// Verify the activity is linked to the host via host_activities
+	// Verify the activity is linked to the host via activity_host_past
 	acts, _, err := env.ds.ListHostPastActivities(t.Context(), hostID, listOpts())
 	require.NoError(t, err)
 	require.Len(t, acts, 1)

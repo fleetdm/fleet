@@ -27,14 +27,13 @@ import (
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
+	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -187,12 +186,14 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	})
 	require.NoError(t, err)
 
+	// calls ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule() // run the worker to process the enrollment and queue profiles
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
@@ -210,6 +211,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	expectedTeamSummary := fleet.MDMProfilesSummary{}
 	s.checkMDMProfilesSummaries(t, nil, expectedNoTeamSummary, &expectedNoTeamSummary)
 	s.checkMDMProfilesSummaries(t, &tm.ID, expectedTeamSummary, &expectedTeamSummary) // empty because no hosts in team
+
+	// remove the key, to simulate key expiration.
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
@@ -580,7 +585,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		"mdm": {
 			"macos_updates": {
 				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"minimum_version": "14.6.1"
 			}
 		}
 	}`), http.StatusOK)
@@ -588,7 +593,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		MDM: &fleet.TeamPayloadMDM{
 			MacOSUpdates: &fleet.AppleOSUpdateSettings{
 				Deadline:       optjson.SetString("1992-01-01"),
-				MinimumVersion: optjson.SetString("13.1.1"),
+				MinimumVersion: optjson.SetString("14.6.1"),
 			},
 		},
 	}, http.StatusOK)
@@ -624,6 +629,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 
 	h, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
+
+	// we remove the reds key and don't run the apple worker to keep the nature of the test
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h.UUID)
+	require.NoError(t, err)
 
 	expectedProfileStatuses := map[string]fleet.MDMDeliveryStatus{
 		"I1": fleet.MDMDeliveryVerifying,
@@ -737,28 +746,32 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	})
 
 	t.Run("retry after verification", func(t *testing.T) {
-		// report osquery results with I1 missing and confirm that the I1 marked as pending (initial retry)
-		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
-		expectedProfileStatuses["I1"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["I1"] = 1
-		checkRetryCounts(t)
+		// I1 already has retries=1 from the previous subtest, continue retrying until max retries exceeded
+		startRetries := expectedRetryCounts["I1"]
+		for retryNum := startRetries + 1; retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+			reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+			expectedRetryCounts["I1"] = retryNum
+			// not yet at max retries, profile should be pending for retry
+			expectedProfileStatuses["I1"] = fleet.MDMDeliveryPending
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
 
-		// trigger a profile sync and confirm that the install profile command for I1 was resent
-		s.awaitTriggerProfileSchedule(t)
-		installs, removes := checkNextPayloads(t, mdmDevice, false)
-		s.signedProfilesMatch([][]byte{initialExpectedProfiles[0]}, installs)
-		require.Empty(t, removes)
+			// trigger a profile sync and confirm that the install profile command for I1 was resent
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes := checkNextPayloads(t, mdmDevice, false)
+			s.signedProfilesMatch([][]byte{initialExpectedProfiles[0]}, installs)
+			require.Empty(t, removes)
+		}
 
-		// report osquery results with I1 missing again and confirm that the I1 marked as failed (max retries exceeded)
+		// report osquery results with I1 missing again, now max retries exceeded
 		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I1"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
+		checkRetryCounts(t) // unchanged, still at max
 
 		// trigger a profile sync and confirm that the install profile command for I1 was not resent
 		s.awaitTriggerProfileSchedule(t)
-		installs, removes = checkNextPayloads(t, mdmDevice, false)
+		installs, removes := checkNextPayloads(t, mdmDevice, false)
 		require.Empty(t, installs)
 		require.Empty(t, removes)
 	})
@@ -781,8 +794,19 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		expectedRetryCounts["I3"] = 1
 		checkRetryCounts(t)
 
-		// trigger a profile sync and confirm that the install profile command for I3 was sent and
-		// simulate a device ack
+		// continue retrying via device errors until max retries exceeded
+		for retryNum := uint(2); retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes = checkNextPayloads(t, mdmDevice, true) // simulate device error
+			s.signedProfilesMatch([][]byte{newProfile}, installs)
+			require.Empty(t, removes)
+			expectedProfileStatuses["I3"] = fleet.MDMDeliveryPending
+			expectedRetryCounts["I3"] = retryNum
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
+		}
+
+		// trigger a profile sync and simulate a device ack (retries already at max)
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
 		s.signedProfilesMatch([][]byte{newProfile}, installs)
@@ -791,8 +815,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
 
-		// report osquery results with I3 missing and confirm that the I3 marked as failed (max
-		// retries exceeded)
+		// report osquery results with I3 missing and confirm that I3 is marked as failed (max retries exceeded)
 		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I3"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
@@ -812,28 +835,28 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4")
 
-		// trigger a profile sync and confirm that the install profile command for I3 was sent and
-		// simulate a device error
+		// repeatedly simulate device errors until max retries exceeded
+		for retryNum := uint(1); retryNum <= servermdm.MaxAppleProfileRetries; retryNum++ {
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes := checkNextPayloads(t, mdmDevice, true)
+			s.signedProfilesMatch([][]byte{newProfile}, installs)
+			require.Empty(t, removes)
+			expectedProfileStatuses["I4"] = fleet.MDMDeliveryPending
+			expectedRetryCounts["I4"] = retryNum
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
+		}
+
+		// one more device error should mark as failed
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes := checkNextPayloads(t, mdmDevice, true)
-		s.signedProfilesMatch([][]byte{newProfile}, installs)
-		require.Empty(t, removes)
-		expectedProfileStatuses["I4"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["I4"] = 1
-		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile command for I4 was sent and
-		// simulate a second device error
-		s.awaitTriggerProfileSchedule(t)
-		installs, removes = checkNextPayloads(t, mdmDevice, true)
 		s.signedProfilesMatch([][]byte{newProfile}, installs)
 		require.Empty(t, removes)
 		expectedProfileStatuses["I4"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
 		checkRetryCounts(t) // unchanged
 
-		// trigger a profile sync and confirm that the install profile command for I3 was not resent
+		// trigger a profile sync and confirm that the install profile command for I4 was not resent
 		s.awaitTriggerProfileSchedule(t)
 		installs, removes = checkNextPayloads(t, mdmDevice, false)
 		require.Empty(t, installs)
@@ -881,8 +904,23 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.Empty(t, installs)
 		require.Empty(t, removes)
 
-		// report osquery results again, this time I5 is missing and confirm that the I5 marked as
-		// failed (max retries exceeded)
+		// report osquery results again with I5 missing, retry until max retries exceeded.
+		// Each iteration: report missing (increments retries, sets status=NULL) -> cron re-enqueues -> ack (verifying).
+		// When retries reaches MaxAppleProfileRetries, the next missing report marks it as failed.
+		for expectedRetryCounts["I5"] < servermdm.MaxAppleProfileRetries {
+			reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+			expectedRetryCounts["I5"]++
+			expectedProfileStatuses["I5"] = fleet.MDMDeliveryPending
+			checkProfilesStatus(t)
+			checkRetryCounts(t)
+
+			s.awaitTriggerProfileSchedule(t)
+			installs, removes = checkNextPayloads(t, mdmDevice, false)
+			s.signedProfilesMatch([][]byte{newProfile}, installs)
+			require.Empty(t, removes)
+		}
+
+		// one final missing report: retries == MaxAppleProfileRetries, should be failed
 		reportHostProfs(t, "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 		expectedProfileStatuses["I5"] = fleet.MDMDeliveryFailed
 		checkProfilesStatus(t)
@@ -894,47 +932,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.Empty(t, installs)
 		require.Empty(t, removes)
 	})
-}
-
-type profileData struct {
-	Status string
-	LocURI string
-	Data   string
-}
-
-// reportWindowsOSQueryProfiles simulates a Windows host reporting the status of MDM profiles from OSQuery results.
-func (s *integrationMDMTestSuite) reportWindowsOSQueryProfiles(ctx context.Context, t *testing.T, host *fleet.Host, hostProfileReports map[string][]profileData) {
-	var responseOps []*fleet.SyncMLCmd
-	for profileName, report := range hostProfileReports {
-		for _, p := range report {
-			ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
-			responseOps = append(responseOps, &fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: fleet.CmdStatus},
-				CmdID:   fleet.CmdID{Value: uuid.NewString()},
-				CmdRef:  &ref,
-				Data:    ptr.String(p.Status),
-			})
-
-			// the protocol can respond with only a `Status`
-			// command if the status failed
-			if p.Status != "200" || p.Data != "" {
-				responseOps = append(responseOps, &fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: fleet.CmdResults},
-					CmdID:   fleet.CmdID{Value: uuid.NewString()},
-					CmdRef:  &ref,
-					Items: []fleet.CmdItem{
-						{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
-					},
-				})
-			}
-		}
-	}
-
-	msg, err := createSyncMLMessage("2", "2", "foo", "bar", responseOps)
-	require.NoError(t, err)
-	out, err := xml.Marshal(msg)
-	require.NoError(t, err)
-	require.NoError(t, microsoft_mdm.VerifyHostMDMProfiles(ctx, s.logger.SlogLogger(), s.ds, host, out))
 }
 
 func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
@@ -949,8 +946,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 	h, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	expectedProfileStatuses := map[string]fleet.MDMDeliveryStatus{
-		"N1": fleet.MDMDeliveryVerifying,
-		"N2": fleet.MDMDeliveryVerifying,
+		"N1": fleet.MDMDeliveryVerified,
+		"N2": fleet.MDMDeliveryVerified,
 	}
 	checkProfilesStatus := func(t *testing.T) {
 		storedProfs, err := s.ds.GetHostMDMWindowsProfiles(ctx, h.UUID)
@@ -978,20 +975,6 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		}
 	}
 
-	hostProfileReports := map[string][]profileData{
-		"N1": {{"200", "L1", "D1"}},
-		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
-	}
-	reportHostProfs := func(profileNames ...string) {
-		selectedReports := make(map[string][]profileData)
-		for _, name := range profileNames {
-			if reports, exists := hostProfileReports[name]; exists {
-				selectedReports[name] = reports
-			}
-		}
-		s.reportWindowsOSQueryProfiles(ctx, t, h, selectedReports)
-	}
-
 	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
@@ -1005,6 +988,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			if c.Verb == "Atomic" {
 				atomicCmds++
 			}
+
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
@@ -1022,160 +1006,156 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		require.Len(t, cmds, 1)
 	}
 
-	t.Run("retry after verifying", func(t *testing.T) {
-		// upload test profiles then simulate expired grace period by setting updated_at timestamp of profiles back by 48 hours
+	t.Run("does not retry after successful delivery", func(t *testing.T) {
+		t.Cleanup(func() {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				stmt := `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`
+				_, err := q.ExecContext(ctx, stmt, h.UUID)
+				return err
+			})
+		})
+
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		// profiles to install + 2 boilerplate <Status>
+
 		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
-		checkProfilesStatus(t) // all profiles verifying
-		checkRetryCounts(t)    // no retries yet
-
-		// report osquery results with N2 missing and confirm N2 marked
-		// as verifying and other profiles are marked as verified
-
-		reportHostProfs("N1")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
-		expectedProfileStatuses["N2"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["N2"] = 1
-		checkRetryCounts(t)
+		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+		checkProfilesStatus(t) // all profiles verified
+		checkRetryCounts(t)    // no retries
+	})
 
-		// report osquery results with N2 present and confirm that all profiles are verified
-		verifyCommands(1, syncml.CmdStatusOK)
+	retriesBeforeFailure := servermdm.MaxWindowsProfileRetries
+	t.Run(fmt.Sprintf("retries %d time before marking as failed", retriesBeforeFailure), func(t *testing.T) {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysql.DumpTable(t, q, "host_mdm_windows_profiles")
+			return nil
+		})
 
-		reportHostProfs("N1", "N2")
+		for i := range retriesBeforeFailure {
+			s.awaitTriggerProfileSchedule(t)
+
+			cmds, err := mdmDevice.StartManagementSession()
+			require.NoError(t, err)
+			msgID, err := mdmDevice.GetCurrentMsgID()
+			require.NoError(t, err)
+
+			// Reply to initial status commands
+			for _, c := range cmds {
+				if c.Verb == "Status" {
+					mdmDevice.AppendResponse(fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+						Cmd:     ptr.String(c.Verb),
+						Data:    ptr.String(syncml.CmdStatusOK),
+						Items:   nil,
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					})
+				}
+			}
+			cmds, err = mdmDevice.SendResponse()
+			require.NoError(t, err)
+
+			atomicCmds := 0
+			for _, c := range cmds {
+				if c.Verb == "Atomic" {
+					atomicCmds++
+				}
+
+				if c.Verb == "Status" {
+					mdmDevice.AppendResponse(fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdStatus},
+						MsgRef:  &msgID,
+						CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+						Cmd:     ptr.String(c.Verb),
+						Data:    ptr.String(syncml.CmdStatusOK),
+						Items:   nil,
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
+					})
+					continue
+				}
+
+				status := syncml.CmdStatusOK
+				if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "L1" {
+					status = syncml.CmdStatusAtomicFailed
+				}
+
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+					Cmd:     ptr.String(c.Verb),
+					Data:    ptr.String(status),
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+			}
+			require.Equal(t, 2, atomicCmds)
+			cmds, err = mdmDevice.SendResponse()
+			require.NoError(t, err)
+			// the ack of the message should be the only returned command
+			require.Len(t, cmds, 1)
+
+			expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
+			expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
+			checkProfilesStatus(t)
+			expectedRetryCounts["N1"] = uint(i + 1) //nolint:gosec // dismiss G115
+			checkRetryCounts(t)
+		}
+
+		// Final run to mark it as failed
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+
+		atomicCmds := 0
+		for _, c := range cmds {
+			if c.Verb == "Atomic" {
+				atomicCmds++
+			}
+
+			if c.Verb == "Status" {
+				mdmDevice.AppendResponse(fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
+					MsgRef:  &msgID,
+					CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+					Cmd:     ptr.String(c.Verb),
+					Data:    ptr.String(syncml.CmdStatusOK),
+					Items:   nil,
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
+				})
+				continue
+			}
+
+			status := syncml.CmdStatusOK
+			if len(c.Cmd.ReplaceCommands) > 0 && c.Cmd.ReplaceCommands[0].GetTargetURI() == "L1" {
+				status = syncml.CmdStatusAtomicFailed
+			}
+
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
+				Cmd:     ptr.String(c.Verb),
+				Data:    ptr.String(status),
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		require.Equal(t, 1, atomicCmds)
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		// the ack of the message should be the only returned command
+		require.Len(t, cmds, 1)
+
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryFailed
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
 		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that no profiles were sent
-		verifyCommands(0, syncml.CmdStatusOK)
-	})
-
-	t.Run("retry after verification", func(t *testing.T) {
-		// report osquery results with N1 missing and confirm that the N1 marked as pending (initial retry)
-		reportHostProfs("N2")
-		expectedProfileStatuses["N1"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["N1"] = 1
+		expectedRetryCounts["N1"] = servermdm.MaxWindowsProfileRetries
 		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile command for N1 was resent
-		verifyCommands(1, syncml.CmdStatusOK)
-
-		// report osquery results with N1 missing again and confirm that the N1 marked as failed (max retries exceeded)
-		reportHostProfs("N2")
-		expectedProfileStatuses["N1"] = fleet.MDMDeliveryFailed
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that the install profile command for N1 was not resent
-		verifyCommands(0, syncml.CmdStatusOK)
-	})
-
-	t.Run("retry after device error", func(t *testing.T) {
-		// add another profile
-		newProfile := syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L3", Data: "D3"}})
-		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
-			Name:     "N3",
-			Contents: newProfile,
-		})
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		// trigger a profile sync and confirm that the install profile command for N3 was sent and
-		// simulate a device error
-		verifyCommands(1, syncml.CmdStatusAtomicFailed)
-		expectedProfileStatuses["N3"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["N3"] = 1
-		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile command for N3 was sent and
-		// simulate a device ack
-		verifyCommands(1, syncml.CmdStatusOK)
-		expectedProfileStatuses["N3"] = fleet.MDMDeliveryVerifying
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// report osquery results with N3 missing and confirm that the N3 marked as failed (max
-		// retries exceeded)
-		reportHostProfs("N2")
-		expectedProfileStatuses["N3"] = fleet.MDMDeliveryFailed
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that the install profile command for N3 was not resent
-		verifyCommands(0, syncml.CmdStatusOK)
-	})
-
-	t.Run("repeated device error", func(t *testing.T) {
-		// add another profile
-		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
-			Name:     "N4",
-			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L4", Data: "D4"}}),
-		})
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		// trigger a profile sync and confirm that the install profile command for N4 was sent and
-		// simulate a device error
-		verifyCommands(1, syncml.CmdStatusAtomicFailed)
-		expectedProfileStatuses["N4"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["N4"] = 1
-		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile
-		// command for N4 was sent and simulate a second device error
-		verifyCommands(1, syncml.CmdStatusAtomicFailed)
-		expectedProfileStatuses["N4"] = fleet.MDMDeliveryFailed
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that the install profile
-		// command for N4 was not resent
-		verifyCommands(0, syncml.CmdStatusOK)
-	})
-
-	t.Run("retry count does not reset", func(t *testing.T) {
-		// add another profile
-		testProfiles = append(testProfiles, fleet.MDMProfileBatchPayload{
-			Name:     "N5",
-			Contents: syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L5", Data: "D5"}}),
-		})
-		// hostProfsByIdent["N5"] = &fleet.HostMacOSProfile{Identifier: "N5", DisplayName: "N5", InstallDate: time.Now()}
-		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		// trigger a profile sync and confirm that the install profile
-		// command for N5 was sent and simulate a device error
-		verifyCommands(1, syncml.CmdStatusAtomicFailed)
-		expectedProfileStatuses["N5"] = fleet.MDMDeliveryPending
-		checkProfilesStatus(t)
-		expectedRetryCounts["N5"] = 1
-		checkRetryCounts(t)
-
-		// trigger a profile sync and confirm that the install profile
-		// command for N5 was sent and simulate a device ack
-		verifyCommands(1, syncml.CmdStatusOK)
-		expectedProfileStatuses["N5"] = fleet.MDMDeliveryVerifying
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// report osquery results with N5 found and confirm that the N5 marked as verified
-		hostProfileReports["N5"] = []profileData{{"200", "L5", "D5"}}
-		reportHostProfs("N2", "N5")
-		expectedProfileStatuses["N5"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that the install profile command for N5 was not resent
-		verifyCommands(0, syncml.CmdStatusOK)
-
-		// report osquery results again, this time N5 is missing and confirm that the N5 marked as
-		// failed (max retries exceeded)
-		reportHostProfs("N2")
-		expectedProfileStatuses["N5"] = fleet.MDMDeliveryFailed
-		checkProfilesStatus(t)
-		checkRetryCounts(t) // unchanged
-
-		// trigger a profile sync and confirm that the install profile command for N5 was not resent
-		verifyCommands(0, syncml.CmdStatusOK)
 	})
 }
 
@@ -1206,27 +1186,19 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		}
 	}
 
-	hostProfileReports := map[string][]profileData{
-		"N1": {{"200", "L1", "D1"}},
-		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
-	}
-
-	reportHostProfs := func(profileNames ...string) {
-		selectedReports := make(map[string][]profileData)
-		for _, name := range profileNames {
-			if reports, exists := hostProfileReports[name]; exists {
-				selectedReports[name] = reports
-			}
+	// verifyCommands checks the number of commands sent to the device.
+	// nRemovals is optional. When a profile is replaced, <Delete> commands
+	// are generated for the old version in addition to install commands.
+	verifyCommands := func(wantProfileInstalls int, status string, nRemovals ...int) {
+		nRemove := 0
+		if len(nRemovals) > 0 {
+			nRemove = nRemovals[0]
 		}
-		s.reportWindowsOSQueryProfiles(ctx, t, h, selectedReports)
-	}
-
-	verifyCommands := func(wantProfileInstalls int, status string) {
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := mdmDevice.StartManagementSession()
 		require.NoError(t, err)
-		// profile installs + 2 protocol commands acks
-		require.Len(t, cmds, wantProfileInstalls+2)
+		// profile installs + delete commands + 2 protocol commands acks
+		require.Len(t, cmds, wantProfileInstalls+nRemove+2)
 		msgID, err := mdmDevice.GetCurrentMsgID()
 		require.NoError(t, err)
 		atomicCmds := 0
@@ -1244,32 +1216,39 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
-		require.Equal(t, wantProfileInstalls, atomicCmds)
+		require.Equal(t, wantProfileInstalls+nRemove, atomicCmds)
 		cmds, err = mdmDevice.SendResponse()
 		require.NoError(t, err)
 		// the ack of the message should be the only returned command
 		require.Len(t, cmds, 1)
 	}
 
-	t.Run("do not resend if nothing changed", func(t *testing.T) {
-		t.Cleanup(func() {
-			// Clear the profiles
-			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
-				http.StatusNoContent)
+	// cleanupWindowsHostState removes host-profile rows and queued commands
+	// left behind by two-phase removal, so subsequent subtests start clean.
+	cleanupWindowsHostState := func() {
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
+			http.StatusNoContent)
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			if _, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE host_uuid = ?`, h.UUID); err != nil {
+				return err
+			}
+			_, err := q.ExecContext(context.Background(), `
+				DELETE wmcq FROM windows_mdm_command_queue wmcq
+				JOIN mdm_windows_enrollments mwe ON mwe.id = wmcq.enrollment_id
+				WHERE mwe.host_uuid = ?`, h.UUID)
+			return err
 		})
+	}
+
+	t.Run("do not resend if nothing changed", func(t *testing.T) {
+		t.Cleanup(cleanupWindowsHostState)
 
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
 		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
-		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
-		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
-		checkProfilesStatus(t) // all profiles verifying
-
-		// report osquery results and confirm that all profiles are verified
-		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t)
+		checkProfilesStatus(t) // all profiles verified
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1281,24 +1260,14 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 	})
 
 	t.Run("resend if contents changed", func(t *testing.T) {
-		t.Cleanup(func() {
-			// Clear the profiles
-			s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{}},
-				http.StatusNoContent)
-		})
+		t.Cleanup(cleanupWindowsHostState)
 
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 		// profiles to install + 2 boilerplate <Status>
 		verifyCommands(len(testProfiles), syncml.CmdStatusOK)
-		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
-		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerifying
-		checkProfilesStatus(t) // all profiles verifying
-
-		// report osquery results and confirm that all profiles are verified
-		reportHostProfs("N1", "N2")
 		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t)
+		checkProfilesStatus(t) // all profiles verified
 
 		// trigger a profile sync and confirm that no profiles were sent
 		verifyCommands(0, syncml.CmdStatusOK)
@@ -1308,11 +1277,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileResend() {
 		copy(copiedTestProfiles, testProfiles)
 		copiedTestProfiles[0].Contents = syncml.ForTestWithData([]syncml.TestCommand{{Verb: "Replace", LocURI: "L1", Data: "D1-Modified"}})
 		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: copiedTestProfiles}, http.StatusNoContent)
-		// Confirm that one profile was sent and its status
+
+		// Confirm that one install profile was re-sent with updated content.
+		// When a profile's content changes (same name, different checksum), the
+		// profile is updated in place (not deleted+re-created), so only the
+		// new install command is sent -- no <Delete> needed.
 		verifyCommands(1, syncml.CmdStatusOK)
-		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerifying
+		expectedProfileStatuses["N1"] = fleet.MDMDeliveryVerified
 		expectedProfileStatuses["N2"] = fleet.MDMDeliveryVerified
-		checkProfilesStatus(t) // all profiles verifying
+		checkProfilesStatus(t) // all profiles verified
 	})
 }
 
@@ -1375,7 +1348,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		json.RawMessage(jsonMustMarshal(t, map[string]any{"enable_release_device_manually": true})),
 		http.StatusNoContent)
 
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// preassign an empty profile, fails
 	s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/preassign", preassignMDMAppleProfileRequest{MDMApplePreassignProfilePayload: fleet.MDMApplePreassignProfilePayload{ExternalHostIdentifier: "empty", HostUUID: nonMDMHost.UUID, Profile: nil}}, http.StatusUnprocessableEntity)
@@ -1452,7 +1425,7 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 
 	// trigger the schedule so profiles are set in their state
 	s.awaitTriggerProfileSchedule(t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// the mdm host has the same profiles (i1, i2, plus fleetd config and disk encryption)
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
@@ -1609,7 +1582,9 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	// ensure fleet profiles
+	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// Set up a mock Apple DEP API
 	s.enableABM(t.Name())
@@ -1989,8 +1964,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
+	// ensure fleet profile
+	s.awaitTriggerProfileSchedule(t)
+
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	s.runWorker()
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	t.Run("no profiles", func(t *testing.T) {
 		var listResp listMDMAppleConfigProfilesResponse
@@ -2420,8 +2398,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		}, "MacBookPro16,1")
 
 		// enroll the device with orbit
-		var resp EnrollOrbitResponse
-		s.DoJSON("POST", "/api/fleet/orbit/enroll", contract.EnrollOrbitRequest{
+		var resp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
 			EnrollSecret:   secret,
 			HardwareUUID:   mdmDevice.UUID, // will not match any existing host
 			HardwareSerial: mdmDevice.SerialNumber,
@@ -2535,6 +2513,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	t.Logf("[TestHostMDMAppleProfilesStatus] Starting FIRST cron run (after h1, h2 enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
 	t.Logf("[TestHostMDMAppleProfilesStatus] FIRST cron run completed at %s", time.Now().Format(time.RFC3339))
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// G3 is user-scoped and the h2 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and fail the profile
@@ -2563,6 +2542,11 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	assert.Contains(t, enrollmentIds, h1.UUID)
 	assert.Contains(t, enrollmentIds, h2.UUID)
 
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h1.UUID)
+	require.NoError(t, err)
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h2.UUID)
+	require.NoError(t, err)
+
 	// enroll a couple hosts in team 1
 	h3, h3UserEnrollment, _ := createManualMDMEnrollWithOrbit(tm1EnrollSec, true)
 	require.NotNil(t, h3.TeamID)
@@ -2575,6 +2559,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	t.Logf("[TestHostMDMAppleProfilesStatus] Starting SECOND cron run (after h3, h4 enrolled in team1) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
 	t.Logf("[TestHostMDMAppleProfilesStatus] SECOND cron run completed at %s", time.Now().Format(time.RFC3339))
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	// T1.3 is user-scoped and the h4 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and send the
@@ -2595,6 +2580,10 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h3.UUID)
+	require.NoError(t, err)
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+h4.UUID)
+	require.NoError(t, err)
 
 	// apply the pending profiles
 	triggerReconcileProfilesMarkVerifying()
@@ -2642,6 +2631,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	t.Logf("[TestHostMDMAppleProfilesStatus] Starting THIRD cron run (after h3->tm2, h4 user enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
 	t.Logf("[TestHostMDMAppleProfilesStatus] THIRD cron run completed at %s", time.Now().Format(time.RFC3339))
+	s.awaitRunAppleMDMWorkerSchedule()
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -4069,7 +4059,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			})
 
 			wantDeliveryStatus := fleet.WindowsResponseToDeliveryStatus(wantStatus)
-			if gotProfile.Retries <= servermdm.MaxProfileRetries && wantDeliveryStatus == fleet.MDMDeliveryFailed {
+			if gotProfile.Retries <= servermdm.MaxWindowsProfileRetries && wantDeliveryStatus == fleet.MDMDeliveryFailed {
 				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			} else {
 				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
@@ -4077,29 +4067,38 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		}
 	}
 
-	verifyProfiles := func(device *mdmtest.TestWindowsMDMClient, n int, fail bool) {
+	verifyProfiles := func(device *mdmtest.TestWindowsMDMClient, n int, fail bool, nRemovals ...int) {
 		mdmResponseStatus := syncml.CmdStatusOK
 		if fail {
 			mdmResponseStatus = syncml.CmdStatusAtomicFailed
 		}
+		nRemove := 0
+		if len(nRemovals) > 0 {
+			nRemove = nRemovals[0]
+		}
 		s.awaitTriggerProfileSchedule(t)
 		cmds, err := device.StartManagementSession()
 		require.NoError(t, err)
-		// 2 Status + n profiles
-		require.Len(t, cmds, n+2)
+		// 2 Status + n install profiles + nRemove delete commands
+		require.Len(t, cmds, n+nRemove+2)
 
-		var atomicCmds []fleet.ProtoCmdOperation
+		var atomicInstallCmds []fleet.ProtoCmdOperation
 		msgID, err := device.GetCurrentMsgID()
 		require.NoError(t, err)
 		for _, c := range cmds {
 			cmdID := c.Cmd.CmdID
 			status := syncml.CmdStatusOK
 			if c.Verb == "Atomic" {
-				atomicCmds = append(atomicCmds, c)
-				status = mdmResponseStatus
-				require.NotEmpty(t, c.Cmd.ReplaceCommands)
-				for _, rc := range c.Cmd.ReplaceCommands {
-					require.NotEmpty(t, rc.CmdID)
+				if len(c.Cmd.ReplaceCommands) > 0 {
+					// Install command (Atomic with Replace sub-commands)
+					atomicInstallCmds = append(atomicInstallCmds, c)
+					status = mdmResponseStatus
+					for _, rc := range c.Cmd.ReplaceCommands {
+						require.NotEmpty(t, rc.CmdID)
+					}
+				} else {
+					// Delete command (Atomic with Delete sub-commands)
+					status = syncml.CmdStatusOK
 				}
 			}
 			device.AppendResponse(fleet.SyncMLCmd{
@@ -4113,10 +4112,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			})
 		}
 		// TODO: verify profile contents as well
-		require.Len(t, atomicCmds, n)
+		require.Len(t, atomicInstallCmds, n)
 
 		// before we send the response, commands should be "pending"
-		verifyHostProfileStatus(atomicCmds, "")
+		verifyHostProfileStatus(atomicInstallCmds, "")
 
 		cmds, err = device.SendResponse()
 		require.NoError(t, err)
@@ -4124,14 +4123,14 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		require.Len(t, cmds, 1)
 
 		// verify that we updated status in the db
-		verifyHostProfileStatus(atomicCmds, mdmResponseStatus)
+		verifyHostProfileStatus(atomicInstallCmds, mdmResponseStatus)
 	}
 
 	checkHostsProfilesMatch := func(host *fleet.Host, wantUUIDs []string) {
 		var gotUUIDs []string
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			stmt := `SELECT profile_uuid FROM host_mdm_windows_profiles WHERE host_uuid = ?`
-			return sqlx.SelectContext(context.Background(), q, &gotUUIDs, stmt, host.UUID)
+			stmt := `SELECT profile_uuid FROM host_mdm_windows_profiles WHERE host_uuid = ? AND operation_type = ?`
+			return sqlx.SelectContext(context.Background(), q, &gotUUIDs, stmt, host.UUID, fleet.MDMOperationTypeInstall)
 		})
 		require.ElementsMatch(t, wantUUIDs, gotUUIDs)
 	}
@@ -4211,12 +4210,10 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-	// trigger a profile sync
-	verifyProfiles(mdmDevice, 3, false)
-	checkHostsProfilesMatch(host, globalProfiles)
-	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
+	// Trigger a profile sync (PENDING)
+	s.awaitTriggerProfileSchedule(t)
 
-	// can't resend windows configuration profiles as admin or from device endpoint while verifying
+	// can't resend windows configuration profiles as admin or from device endpoint while pending
 	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
@@ -4225,6 +4222,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusConflict)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Configuration profiles with “pending” or “verifying” status can’t be resent")
+
+	// trigger a profile sync
+	verifyProfiles(mdmDevice, 3, false)
+	checkHostsProfilesMatch(host, globalProfiles)
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerified)
 
 	// create new label that includes host
 	label := &fleet.Label{
@@ -4238,9 +4240,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	// simulate osquery reporting host mdm details (host_mdm.enrolled = 1 is condition for
 	// hosts filtering by os settings status and generating mdm profiles summaries)
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false))
-	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
-		Verifying: 1,
+		Verified: 1,
 	}, nil)
 
 	// another sync shouldn't return profiles
@@ -4255,13 +4257,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	verifyProfiles(mdmDevice, 1, false)
 	checkHostsProfilesMatch(host, append(globalProfiles, osUpdatesProf))
 	// but is hidden from host details response
-	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerifying)
+	checkHostDetails(t, host, globalProfiles, fleet.MDMDeliveryVerified)
 
 	// os updates profile status doesn't matter for filtered hosts results or summaries
-	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
-	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerified)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
-		Verifying: 1,
+		Verified: 1,
 	}, nil)
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4270,9 +4272,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		return err
 	})
 	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
-	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, nil, label)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, nil, label)
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
-		Verifying: 1,
+		Verified: 1,
 	}, nil)
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4281,26 +4283,34 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		return err
 	})
 	checkHostProfileStatus(t, host.UUID, globalProfiles[0], fleet.MDMDeliveryFailed)
-	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, nil, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerified, nil, label)            // expect no hosts
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, nil, label) // expect host
 	s.checkMDMProfilesSummaries(t, nil, fleet.MDMProfilesSummary{
-		Failed:    1,
-		Verifying: 0,
+		Failed:   1,
+		Verified: 0,
 	}, nil)
 
 	// add the host to a team
 	err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
-	// trigger a profile sync, device gets the team profile
-	verifyProfiles(mdmDevice, 2, false)
+	// trigger a profile sync, device gets the team profile (+ delete commands for old global + OS updates profiles).
+	// Delete commands are individual <Delete> per LocURI: 3 global profiles × 1 LocURI + 1 OS updates × 6 LocURIs = 9.
+	verifyProfiles(mdmDevice, 2, false, 9)
 	checkHostsProfilesMatch(host, teamProfiles)
-	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerified)
 
 	// set new team profiles (delete + addition)
+	oldTeamProfile := teamProfiles[1]
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`
-		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[1])
+		_, err := q.ExecContext(context.Background(), stmt, oldTeamProfile)
+		return err
+	})
+	// Also clean up the host-profile row for the deleted config profile
+	// since the direct SQL deletion bypasses cancelWindowsHostInstallsForDeletedMDMProfiles.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ?`, oldTeamProfile)
 		return err
 	})
 	teamProfiles = []string{
@@ -4313,15 +4323,20 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 
 	// check that we deleted the old profile in the DB
 	checkHostsProfilesMatch(host, teamProfiles)
-	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerified)
 
 	// another sync shouldn't return profiles
 	verifyProfiles(mdmDevice, 0, false)
 
 	// set new team profiles (delete + addition)
+	oldTeamProfile = teamProfiles[1]
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_windows_configuration_profiles WHERE profile_uuid = ?`
-		_, err := q.ExecContext(context.Background(), stmt, teamProfiles[1])
+		_, err := q.ExecContext(context.Background(), stmt, oldTeamProfile)
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM host_mdm_windows_profiles WHERE profile_uuid = ?`, oldTeamProfile)
 		return err
 	})
 	teamProfiles = []string{
@@ -4350,13 +4365,13 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	verifyProfiles(mdmDevice, 1, false)
 	checkHostsProfilesMatch(host, append(teamProfiles, osUpdatesProf))
 	// but is hidden from host details response
-	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerifying)
+	checkHostDetails(t, host, teamProfiles, fleet.MDMDeliveryVerified)
 
 	// os updates profile status doesn't matter for filtered hosts results or summaries
-	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerifying)
-	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryVerified)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
-		Verifying: 1,
+		Verified: 1,
 	}, nil)
 	// force os updates profile to failed, doesn't impact filtered hosts results or summaries
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4365,9 +4380,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		return err
 	})
 	checkHostProfileStatus(t, host.UUID, osUpdatesProf, fleet.MDMDeliveryFailed)
-	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerifying, &tm.ID, label)
+	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryVerified, &tm.ID, label)
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
-		Verifying: 1,
+		Verified: 1,
 	}, nil)
 	// force another profile to failed, does impact filtered hosts results and summaries
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -4376,11 +4391,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 		return err
 	})
 	checkHostProfileStatus(t, host.UUID, teamProfiles[0], fleet.MDMDeliveryFailed)
-	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerifying, &tm.ID, label)           // expect no hosts
+	checkHostsFilteredByOSSettingsStatus(t, []string{}, fleet.MDMDeliveryVerified, &tm.ID, label)            // expect no hosts
 	checkHostsFilteredByOSSettingsStatus(t, []string{host.Hostname}, fleet.MDMDeliveryFailed, &tm.ID, label) // expect host
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{
-		Failed:    1,
-		Verifying: 0,
+		Failed:   1,
+		Verified: 0,
 	}, nil)
 
 	// Resend the failed profile. Should succeed
@@ -4436,6 +4451,176 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, mcUUID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
+
+	t.Run("edit_profile_removes_locuri_sends_delete", func(t *testing.T) {
+		// Editing a profile to remove a LocURI should send a <Delete> for the removed LocURI.
+		// Create a profile with two LocURIs via batch-set, then edit it to have only one.
+		// The device should receive a <Delete> for the removed LocURI plus an install for the updated profile.
+
+		// First, clean up: use batch-set with only our new test profile to remove all
+		// existing team profiles cleanly (this goes through the proper deletion path).
+		twoLocURIProfile := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		// Also disable OS updates to simplify
+		tmResp := teamResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "edit-locuri-test", Contents: []byte(twoLocURIProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger profile sync: device gets the new profile + delete commands for old profiles.
+		// Drain all commands from the device without asserting exact counts (cleanup varies).
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+
+		// Drain any remaining commands until the device is clean.
+		verifyProfiles(mdmDevice, 0, false)
+
+		// Now edit the profile to remove AllowCortana, keeping only AllowCamera.
+		oneLocURIProfile := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "edit-locuri-test", Contents: []byte(oneLocURIProfile)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger profile sync: device should get:
+		// - 1 <Delete> for the removed AllowCortana LocURI (from batchSet edit diff)
+		// - 1 Atomic install for the updated profile (from reconciler checksum mismatch)
+		// Total: 2 Status + 1 Delete + 1 Atomic = 4 commands
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		require.Len(t, cmds, 4, "expected 2 status + 1 delete + 1 install")
+
+		var gotDelete, gotInstall bool
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			switch c.Verb {
+			case "Delete":
+				gotDelete = true
+				require.Contains(t, c.Cmd.GetTargetURI(), "AllowCortana",
+					"Delete should target the removed LocURI")
+			case "Atomic":
+				if len(c.Cmd.ReplaceCommands) > 0 {
+					gotInstall = true
+					// Verify the install only has AllowCamera, not AllowCortana
+					var installURIs []string
+					for _, rc := range c.Cmd.ReplaceCommands {
+						installURIs = append(installURIs, rc.GetTargetURI())
+					}
+					require.Len(t, installURIs, 1)
+					require.Contains(t, installURIs[0], "AllowCamera")
+				}
+			}
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		require.True(t, gotDelete, "expected a Delete command for the removed LocURI")
+		require.True(t, gotInstall, "expected an install command for the updated profile")
+
+		cmds, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		require.Len(t, cmds, 1) // just the ack
+	})
+
+	t.Run("edit_profile_does_not_delete_locuri_used_by_another_profile", func(t *testing.T) {
+		// If profile A has LocURIs X, Y and profile B has LocURI Y,
+		// editing A to remove Y should NOT send a <Delete> for Y
+		// because profile B still enforces it.
+
+		// Set up two profiles that share a LocURI (AllowCamera).
+		profileA := `<Atomic><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace><Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace></Atomic>`
+		profileB := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Camera/AllowCamera</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>1</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "shared-locuri-A", Contents: []byte(profileA)},
+				{Name: "shared-locuri-B", Contents: []byte(profileB)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Drain install commands.
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		verifyProfiles(mdmDevice, 0, false)
+
+		// Edit profile A to remove AllowCamera (shared with B), keep only AllowCortana.
+		profileAEdited := `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana</LocURI></Target><Meta><Format xmlns="syncml:metinf">int</Format></Meta><Data>0</Data></Item></Replace>`
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+			batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "shared-locuri-A", Contents: []byte(profileAEdited)},
+				{Name: "shared-locuri-B", Contents: []byte(profileB)},
+			}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+		// Trigger sync: should get an install for the updated A, but NO delete
+		// for AllowCamera since profile B still uses it.
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err = mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+
+		msgID, err = mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			if c.Verb == "Delete" {
+				require.NotContains(t, c.Cmd.GetTargetURI(), "AllowCamera",
+					"should NOT delete AllowCamera because profile B still uses it")
+			}
+			cmdID := c.Cmd.CmdID
+			status := syncml.CmdStatusOK
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+	})
 }
 
 func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
@@ -5304,6 +5489,7 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
 func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	t := s.T()
 	ctx := context.Background()
+	kv := redis_key_value.New(s.redisPool)
 
 	checkMacProfs := func(teamID *uint, names ...string) {
 		var count int
@@ -5345,7 +5531,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	if len(secrets) == 0 {
 		require.NoError(t, s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}}))
 	}
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
 
 	// turn on disk encryption and os updates
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -5357,7 +5543,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 			},
 			"macos_updates": {
 				"deadline": "2023-12-31",
-				"minimum_version": "13.3.7"
+				"minimum_version": "14.6.1"
 			}
 		}
 	}`), http.StatusOK, &acResp)
@@ -5410,7 +5596,7 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 				},
 				MacOSUpdates: &fleet.AppleOSUpdateSettings{
 					Deadline:       optjson.SetString("2023-12-31"),
-					MinimumVersion: optjson.SetString("13.3.8"),
+					MinimumVersion: optjson.SetString("14.6.1"),
 					UpdateNewHosts: optjson.SetBool(true),
 				},
 			},
@@ -5422,10 +5608,10 @@ func (s *integrationMDMTestSuite) TestMDMBatchSetProfilesKeepsReservedNames() {
 	require.Equal(t, 4, tmResp.Team.Config.MDM.WindowsUpdates.DeadlineDays.Value)
 	require.Equal(t, 1, tmResp.Team.Config.MDM.WindowsUpdates.GracePeriodDays.Value)
 	require.Equal(t, "2023-12-31", tmResp.Team.Config.MDM.MacOSUpdates.Deadline.Value)
-	require.Equal(t, "13.3.8", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	require.Equal(t, "14.6.1", tmResp.Team.Config.MDM.MacOSUpdates.MinimumVersion.Value)
 	require.Equal(t, true, tmResp.Team.Config.MDM.MacOSUpdates.UpdateNewHosts.Value)
 
-	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, s.logger))
+	require.NoError(t, ReconcileAppleProfiles(ctx, s.ds, s.mdmCommander, kv, s.logger, 0))
 
 	checkMacProfs(&tmResp.Team.ID, servermdm.ListFleetReservedMacOSProfileNames()...)
 	checkWinProfs(&tmResp.Team.ID, servermdm.ListFleetReservedWindowsProfileNames()...)
@@ -5803,6 +5989,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// hosts are not members of any label yet, so running the cron applies the labels
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		appleHost: {
 			{Identifier: "A1", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -5816,6 +6004,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
+
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost.UUID)
+	require.NoError(t, err)
 
 	// simulate the reconcile profiles deployment
 	triggerReconcileProfiles()
@@ -5879,9 +6070,11 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
-	// windows profiles go straight to removed without getting deleted on the host
+	// windows profiles now get marked for removal with a pending delete command
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// remove membership of labels [2] for Windows, and [4] for Apple, meaning
@@ -5903,7 +6096,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 		},
 	})
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		windowsHost: {},
+		windowsHost: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// remove label [3] as an excluded label for the Windows profile, meaning
@@ -5923,6 +6118,10 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// The batch set above removed label [3] as an exclude label for W2, so the
+	// host now meets the requirement and W2 is re-installed (the install query
+	// detects profiles in desired state with operation_type='remove' and flips
+	// them back to install).
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		windowsHost: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
@@ -5943,6 +6142,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// W2 was re-installed (flipped from remove to install) and is now
+	// install+pending after the reconciler sent the command.
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		windowsHost: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
@@ -5962,6 +6163,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// W2 is still install+pending from the re-install triggered earlier.
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		windowsHost: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
@@ -5970,6 +6172,9 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// it also doesn't get installed to a new host not a member of any labels
 	appleHost2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost2.UUID)
+	require.NoError(t, err)
 	triggerReconcileProfiles()
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		appleHost: {
@@ -6009,6 +6214,8 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerifying},
 		},
 	})
+	// W2 references a deleted label, so the reconciler skips it entirely
+	// (it appears in neither the install nor the remove list).
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		windowsHost: {
 			{Name: "W2", OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryVerified},
@@ -6054,6 +6261,9 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	// create an Apple and a Windows host
 	appleHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	windowsHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.awaitRunAppleMDMWorkerSchedule()
+	err := s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+appleHost.UUID)
+	require.NoError(t, err)
 
 	// create a few labels, we'll use the first five for "exclude any" profiles and the remaining for "include any"
 	labels := make([]*fleet.Label, 10)
@@ -6065,7 +6275,7 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 	// simulate reporting label results for those hosts
 	appleHost.LabelUpdatedAt = time.Now()
 	windowsHost.LabelUpdatedAt = time.Now()
-	err := s.ds.UpdateHost(ctx, appleHost)
+	err = s.ds.UpdateHost(ctx, appleHost)
 	require.NoError(t, err)
 	err = s.ds.UpdateHost(ctx, windowsHost)
 	require.NoError(t, err)
@@ -6199,6 +6409,19 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
 		require.NotContains(t, string(b), "idp_uuid=")
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
+
+	t.Run("returns 403 if no idp_uuid is set when required by config", func(t *testing.T) {
+		// update config to require idp_uuid
+		cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		err := s.ds.SaveAppConfig(ctx, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			cfg.MDM.MacOSSetup.EnableEndUserAuthentication = false
+			err := s.ds.SaveAppConfig(ctx, cfg)
+			require.NoError(t, err)
+		})
+		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
 	})
 }
 
@@ -6410,6 +6633,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 
+	// make sure ensureFleetProfiles has been called
+	s.awaitTriggerProfileSchedule(t)
+
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	// Add IdP email to host
@@ -6419,8 +6645,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		return err
 	})
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 	installs, removes := checkNextPayloads(t, mdmDevice, false)
 	// verify that we received all profiles
 	s.signedProfilesMatch(
@@ -6428,6 +6653,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		installs,
 	)
 	require.Empty(t, removes)
+
+	// Simulate 1 minute expiration for redis key
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	// Add a profile with a Fleet variable. We are also testing that removal of a profile with a Fleet variable works.
 	// A unique command is created for each host when this Fleet variable is used.
@@ -6529,11 +6758,15 @@ func (s *integrationMDMTestSuite) TestAppleProfileDeletion() {
 		return err
 	})
 
-	// trigger a profile sync
-	s.awaitTriggerProfileSchedule(t)
+	// Run the worker to process post-enrollment for host2 and install initial profiles
+	s.awaitRunAppleMDMWorkerSchedule()
 	installs, removes = checkNextPayloads(t, mdmDevice2, false)
 	assert.Len(t, installs, 3)
 	assert.Empty(t, removes)
+
+	// Simulate redis key expiration for host2
+	err = s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host2.UUID)
+	require.NoError(t, err)
 
 	// Add a profile again
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -6827,12 +7060,13 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	// create some Apple and Windows hosts
 	host1, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	host3, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
-	host4, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host3, mdmDevice3 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	host4, mdmDevice4 := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 	for i, h := range []*fleet.Host{host1, host2, host3, host4} {
 		t.Logf("host %d: %s", i+1, h.UUID)
 	}
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
 
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		host1: {
@@ -6881,13 +7115,17 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 	// for the Windows profile, set host4 as failed
 	forceSetWindowsHostProfileStatus(t, s.ds, host4.UUID, test.ToMDMWindowsConfigProfile(profNameToPayload["W2"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryFailed)
 
-	// delete the Windows profile, will have removed it for both (because there
-	// is no "Remove profile" for now with Windows)
+	// delete the Windows profile. Both hosts had non-NULL status (pending/failed)
+	// so both are marked for removal with a <Delete> command enqueued.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profNameToPayload["W2"].ProfileUUID), nil, http.StatusOK, &deleteResp)
 
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
-		host3: {},
-		host4: {},
+		host3: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
+		host4: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
 	})
 
 	// for the Apple profile, set host1 as NULL (pending not queued yet), and leave host2 as actually pending (queued)
@@ -6948,6 +7186,42 @@ func (s *integrationMDMTestSuite) TestDeleteMDMProfileCancelsInstalls() {
 			{Identifier: mobileconfig.FleetCARootConfigPayloadIdentifier, OperationType: fleet.MDMOperationTypeInstall, Status: &fleet.MDMDeliveryPending},
 		},
 	})
+	// Both Windows hosts still have the W2 remove+pending row from the
+	// earlier deletion -- no simulated device check-in has processed the
+	// <Delete> command yet.
+	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
+		host3: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
+		host4: {
+			{Name: "W2", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
+		},
+	})
+
+	// Simulate device check-ins to process the <Delete> commands. After
+	// the device responds with OK, the remove+verified rows are cleaned up.
+	for _, device := range []*mdmtest.TestWindowsMDMClient{mdmDevice3, mdmDevice4} {
+		cmds, err := device.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := device.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			status := syncml.CmdStatusOK
+			device.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &c.Cmd.CmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = device.SendResponse()
+		require.NoError(t, err)
+	}
+
+	// After the devices confirmed the <Delete>, the remove rows should be
+	// cleaned up (verified removes are deleted from host_mdm_windows_profiles).
 	s.assertHostWindowsConfigProfiles(map[*fleet.Host][]fleet.HostMDMWindowsProfile{
 		host3: {},
 		host4: {},
@@ -7174,8 +7448,11 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 	// cron job hasn't run yet, so no profile exist for the host
 	assertHostProfiles([]hostProfile{})
 
-	// trigger a profile sync
+	// ensure fleet profiles
 	s.awaitTriggerProfileSchedule(t)
+	s.awaitRunAppleMDMWorkerSchedule()
+
+	require.NoError(t, s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID))
 
 	// user-scoped profiles show up as status nil (no user-enrollment yet)
 	assertHostProfiles([]hostProfile{
@@ -7388,10 +7665,15 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 
 	s.awaitTriggerProfileSchedule(t)
 
-	// force-set it to Verifying so that by being missing again it goes to failed
+	// force-set it to Verifying and set retries to max-1 so that by being missing again it goes to failed
 	// (it doesn't go to failed if it is pending)
 	forceSetAppleHostProfileStatus(t, s.ds, host.UUID,
 		test.ToMDMAppleConfigProfile(profNameToPayload["A3"]), fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerifying)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET retries = ? WHERE host_uuid = ? AND profile_identifier = ?`,
+			servermdm.MaxAppleProfileRetries, host.UUID, profNameToPayload["A3"].Identifier)
+		return err
+	})
 
 	err = apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, host, map[string]*fleet.HostMacOSProfile{
 		profNameToPayload["A1"].Identifier: {
@@ -7432,7 +7714,7 @@ func (s *integrationMDMTestSuite) TestVerifyUserScopedProfiles() {
 			ProfileName:       profNameToPayload["A3"].Name,
 			Status:            ptr.String(string(fleet.MDMDeliveryFailed)),
 			OperationType:     ptr.String(string(fleet.MDMOperationTypeInstall)),
-			Retries:           1,
+			Retries:           servermdm.MaxAppleProfileRetries,
 			Scope:             string(fleet.PayloadScopeUser),
 		},
 	})
@@ -7855,9 +8137,9 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 		assert.Equal(t, expectedStatus, *foundProfile.Status, "Profile %s has unexpected status for host %s", profileName, hostUUID)
 	}
 
-	checkHostProfileStatus(hostGlobal1.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
-	checkHostProfileStatus(hostGlobal2.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerifying)
-	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostGlobal1.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerified)
+	checkHostProfileStatus(hostGlobal2.UUID, "GlobalProfileWithVar", fleet.MDMDeliveryVerified)
+	checkHostProfileStatus(hostTeam.UUID, "TeamProfileWithVar", fleet.MDMDeliveryVerified)
 
 	// Now let's check profile verification
 	// Also create and test a host without Fleet variables to ensure normal verification still works
@@ -7895,7 +8177,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.NoError(t, err)
 	require.Len(t, cmds, 1) // ack
 
-	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerifying)
+	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
 
 	// To ensure any verification failures result in retry (pending) status instead of staying as verifying,
 	// we need to be outside the grace period. The grace period check is:
@@ -7930,80 +8212,8 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 		return err
 	})
 
-	// Helper to simulate osquery reporting back profile data
-	simulateOsqueryProfileReport := func(nodeKey string, profileName string, locURI string, reportedData string) {
-		// Build a SyncML response that osquery would send back after reading the profile from Windows
-		cmdRef := microsoft_mdm.HashLocURI(profileName, locURI)
-
-		var msg fleet.SyncML
-		msg.Xmlns = syncml.SyncCmdNamespace
-		msg.SyncHdr = fleet.SyncHdr{
-			VerDTD:    syncml.SyncMLSupportedVersion,
-			VerProto:  syncml.SyncMLVerProto,
-			SessionID: "2",
-			MsgID:     "2",
-		}
-
-		// Add status response (profile was successfully applied)
-		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdStatus},
-			CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			CmdRef:  &cmdRef,
-			Data:    ptr.String("200"),
-		})
-
-		// Add results with the data that osquery read from Windows
-		msg.AppendCommand(fleet.MDMRaw, fleet.SyncMLCmd{
-			XMLName: xml.Name{Local: fleet.CmdResults},
-			CmdID:   fleet.CmdID{Value: uuid.NewString()},
-			CmdRef:  &cmdRef,
-			Items: []fleet.CmdItem{
-				{
-					Target: ptr.String(locURI),
-					Data: &fleet.RawXmlData{
-						Content: reportedData,
-					},
-				},
-			},
-		})
-
-		rawResponse, err := xml.Marshal(msg)
-		require.NoError(t, err)
-
-		// Submit the results via osquery distributed write endpoint
-		distributedReq := SubmitDistributedQueryResultsRequest{
-			NodeKey: nodeKey,
-			Results: map[string][]map[string]string{
-				"fleet_detail_query_mdm_config_profiles_windows": {
-					{"raw_mdm_command_output": string(rawResponse)},
-				},
-			},
-			Statuses: map[string]fleet.OsqueryStatus{
-				"fleet_detail_query_mdm_config_profiles_windows": 0,
-			},
-		}
-		distributedResp := submitDistributedQueryResultsResponse{}
-		s.DoJSON("POST", "/api/osquery/distributed/write", distributedReq, http.StatusOK, &distributedResp)
-	}
-
-	// First verify that normal profile (without variables) verifies correctly
-	simulateOsqueryProfileReport(
-		*hostNoVars.NodeKey,
-		"ProfileNoVars",
-		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/Static/Value",
-		"Static Value: NoSubstitution", // osquery reports exactly what was sent
-	)
-
 	// Normal profile should be verified successfully
 	checkHostProfileStatus(hostNoVars.UUID, "ProfileNoVars", fleet.MDMDeliveryVerified)
-
-	// Simulate osquery reporting back for team host
-	simulateOsqueryProfileReport(
-		*hostTeam.NodeKey,
-		"TeamProfileWithVar",
-		"./Device/Vendor/MSFT/DMClient/Provider/ProviderID/TeamDevice/ID",
-		"Team Device: "+hostTeam.UUID, // osquery reports the substituted value
-	)
 
 	// Team host has TeamProfileWithVar which now correctly verifies with Fleet variables
 	// The fix has been implemented and the profile should be verified successfully
@@ -8138,31 +8348,13 @@ func testWindowsSCEPProfile(s *integrationMDMTestSuite, windowsScepProfile []byt
 	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
 	require.NoError(t, err)
 	foundProfile = false
-	for _, p := range profiles {
-		if p.Name == "WindowsSCEPProfile" {
-			foundProfile = true
-			require.NotNil(t, p.Status)
-			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
-		}
-	}
-	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
-
-	// Report Osquery results indicating SCEP profile was applied successfully
-	s.reportWindowsOSQueryProfiles(ctx, t, host, map[string][]profileData{
-		"WindowsSCEPProfile": {{"200", "L1", "Bogus"}}, // Report back with SCEP LocURI, but data that does not relate SCEP to support the case that we don't verify the success.
-	})
-
-	// Verify profile status is still Verified, and OSQuery does not change it's status.
-	profiles, err = s.ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
-	require.NoError(t, err)
-	foundProfile = false
 	profileUUID := ""
 	for _, p := range profiles {
 		if p.Name == "WindowsSCEPProfile" {
 			foundProfile = true
 			profileUUID = p.ProfileUUID
 			require.NotNil(t, p.Status)
-			require.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
+			assert.EqualValues(t, fleet.MDMDeliveryVerified, *p.Status)
 		}
 	}
 	require.True(t, foundProfile, "WindowsSCEPProfile not found for host")
@@ -8183,6 +8375,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileResendRaceCondition() {
 	// Create a host and enroll it in MDM
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	setupPusher(s, t, mdmDevice)
+
+	// Delete the key to let the reconciler pick up the profiles
+	err := s.keyValueStore.Delete(ctx, fleet.MDMProfileProcessingKeyPrefix+":"+host.UUID)
+	require.NoError(t, err)
 
 	scimUserID, err := s.ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user@example.com"})
 	require.NoError(t, err)
@@ -8598,12 +8794,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 			}
 			mdmDevice.AppendResponse(syncCmd)
 			for _, repCmd := range cmd.Cmd.ReplaceCommands {
-				for _, item := range repCmd.Items {
-					itemCmdRef := microsoft_mdm.HashLocURI(profileName, *item.Target)
+				for range repCmd.Items {
 					mdmDevice.AppendResponse(fleet.SyncMLCmd{
 						XMLName: xml.Name{Local: fleet.CmdStatus},
 						MsgRef:  &msgID,
-						CmdRef:  &itemCmdRef,
+						CmdRef:  &cmd.Cmd.CmdID.Value,
 						Cmd:     ptr.String(fleet.CmdStatus),
 						Data:    ptr.String(syncml.CmdStatusOK), // 200
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
@@ -8623,7 +8818,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetry() {
 			}
 		}
 		require.NotNil(t, updatedProfile)
-		require.Equal(t, fleet.MDMDeliveryVerifying, *updatedProfile.Status)
+		require.Equal(t, fleet.MDMDeliveryVerified, *updatedProfile.Status)
 		require.Empty(t, updatedProfile.Detail)
 		expectRetry(profileName, 1)
 	})
@@ -8836,6 +9031,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAndroidProfilesStatus() {
 // hosts when OS update settings are initially set or when deadline/minimum version changes.
 func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 	t := s.T()
+	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
 	// Create a team via the API so agent ops are initialized.
@@ -8986,15 +9182,15 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
 			MacOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("14.1.0"),
+				MinimumVersion: optjson.SetString("14.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.1.0"),
+				MinimumVersion: optjson.SetString("17.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.1.0"),
+				MinimumVersion: optjson.SetString("17.6.1"),
 				Deadline:       optjson.SetString("2024-03-01"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{
@@ -9050,11 +9246,11 @@ func (s *integrationMDMTestSuite) TestSpecTeamsOSUpdatesDeployToHosts() {
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			IOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.3.0"),
+				MinimumVersion: optjson.SetString("16.7.2"),
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			IPadOSUpdates: fleet.AppleOSUpdateSettings{
-				MinimumVersion: optjson.SetString("17.3.0"),
+				MinimumVersion: optjson.SetString("16.7.2"),
 				Deadline:       optjson.SetString("2025-06-01"),
 			},
 			WindowsUpdates: fleet.WindowsUpdates{

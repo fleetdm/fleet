@@ -1,1 +1,0 @@
-Internal refactoring: moved `/api/_version_/fleet/hosts/{id:[0-9]+}/activities` endpoint and `MarkActivitiesAsStreamed` to new server/activity bounded context.

@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar/load_test"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -62,7 +62,7 @@ func (s *googleCalendarIntegrationTestSuite) TestCreateGetDeleteEvent() {
 				"private_key":  s.server.URL,
 			}},
 		},
-		Logger: logging.NewLogfmtLogger(os.Stdout),
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)
@@ -129,7 +129,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 				"private_key":  s.server.URL,
 			}},
 		},
-		Logger: logging.NewLogfmtLogger(os.Stdout),
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
 	}
 	gCal := NewGoogleCalendar(config)
 	err := gCal.Configure(userEmail)

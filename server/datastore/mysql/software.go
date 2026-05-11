@@ -63,6 +63,15 @@ var softwareInsertBatchSize = 1000
 // outside the main software ingestion transaction. Smaller batches reduce lock contention.
 var softwareInventoryInsertBatchSize = 100
 
+// cleanupBatchSize controls how many orphaned software rows are deleted per batch during SyncHostsSoftware cleanup.
+// Smaller batches hold locks for shorter durations, reducing contention with concurrent software ingestion.
+var cleanupBatchSize = 1000
+
+// cleanupMaxIterations caps the number of batches per cleanup invocation to prevent the loop from running indefinitely.
+// With cleanupBatchSize=1000, this allows up to 100K orphaned software rows to be cleaned up per cron run.
+// Any remaining orphans will be processed on the next hourly cron cycle.
+var cleanupMaxIterations = 100
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -916,6 +925,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 		}
 	}
 
+	// Fetch FMA canonical names to override osquery-reported names for macOS apps.
+	// This ensures software titles use consistent names (e.g., "Microsoft Visual Studio Code"
+	// instead of "Code" which is what osquery reports for VS Code).
+	// Note: This call is made from the base datastore so it bypasses the cached_mysql layer.
+	// The query is simple (SELECT from the small fleet_maintained_apps table) so this is acceptable.
+	// The cached_mysql layer still caches this method for other callers (e.g., API endpoints).
+	fmaNames, fmaErr := ds.GetFMANamesByIdentifier(ctx)
+	if fmaErr != nil {
+		// Log but don't fail - we can still use osquery-reported names.
+		// A nil map is safe here since Go's map access on nil returns the zero value.
+		if ds.logger != nil {
+			ds.logger.WarnContext(ctx, "failed to get FMA names by identifier", "err", fmaErr)
+		}
+		fmaNames = nil
+	}
+
 	// Process in smaller batches to reduce lock time
 	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
 		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
@@ -932,13 +957,19 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					// there is not an existing software title corresponding to this incoming software version
 					newTitleName := sw.Name
 					if sw.BundleIdentifier != "" {
-						key := titleKey{
-							bundleID:     sw.BundleIdentifier,
-							source:       sw.Source,
-							extensionFor: sw.ExtensionFor,
-						}
-						if computedName, exists := bestTitleNames[key]; exists {
-							newTitleName = computedName
+						// First check if there's an FMA with this bundle identifier - use its canonical name
+						if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
+							newTitleName = fmaName
+						} else {
+							// Fall back to computed best name from osquery reports
+							key := titleKey{
+								bundleID:     sw.BundleIdentifier,
+								source:       sw.Source,
+								extensionFor: sw.ExtensionFor,
+							}
+							if computedName, exists := bestTitleNames[key]; exists {
+								newTitleName = computedName
+							}
 						}
 					}
 
@@ -1177,8 +1208,34 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					missingSoftwareTitles = append(missingSoftwareTitles,
 						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
+
+				// Use FMA canonical name if available, otherwise use osquery-reported name.
+				// This ensures software.name matches software_titles.name for consistency.
+				//
+				// IMPORTANT: The checksum is intentionally computed from osquery data
+				// (including the osquery-reported name, NOT the FMA name) for these reasons:
+				//
+				// 1. The checksum is used for deduplication via unique index. It serves as
+				//    an internal identifier, not a content integrity hash. The stored name
+				//    can differ from the name used in checksum computation.
+				//
+				// 2. Checksums are computed before FMA lookup, using raw osquery data.
+				//    If we regenerated checksums with FMA names:
+				//    - A cache miss or FMA sync delay could cause the same software to
+				//      generate different checksums, creating duplicate entries.
+				//    - Migration would require recomputing checksums for millions of rows.
+				//
+				// 3. The checksum is never recomputed from stored data - it's only computed
+				//    from incoming osquery data during ingestion and used for lookup.
+				softwareName := sw.Name
+				if sw.BundleIdentifier != "" {
+					if fmaName, ok := fmaNames[sw.BundleIdentifier]; ok {
+						softwareName = fmaName
+					}
+				}
+
 				args = append(
-					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
+					args, softwareName, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
 					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum, sw.ApplicationID, sw.UpgradeCode,
 				)
 			}
@@ -2464,6 +2521,17 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	return nil
 }
 
+func (ds *Datastore) DeleteOrphanedSoftwareVulnerabilities(ctx context.Context) error {
+	if _, err := ds.writer(ctx).ExecContext(ctx, `
+		DELETE sc FROM software_cve sc
+		LEFT JOIN host_software hs ON hs.software_id = sc.software_id
+		WHERE hs.host_id IS NULL
+	`); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting orphaned software vulnerabilities")
+	}
+	return nil
+}
+
 func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(
@@ -2495,7 +2563,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		)
 
 	// join only on software_id as we'll need counts for all teams
-	// to filter down to the team's the user has access to
+	// to filter down to the teams the user has access to
 	if tmFilter != nil {
 		q = q.LeftJoin(
 			goqu.I("software_host_counts").As("shc"),
@@ -2595,6 +2663,26 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 	return &software, nil
 }
 
+func (ds *Datastore) SoftwareLiteByID(
+	ctx context.Context,
+	id uint,
+) (fleet.SoftwareLite, error) {
+	const stmt = `
+    SELECT id, name, version
+    FROM software
+    WHERE id = ?
+  `
+	var results fleet.SoftwareLite
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &results, stmt, id); err != nil {
+		if err == sql.ErrNoRows {
+			return fleet.SoftwareLite{}, notFound("Software").WithID(id)
+		}
+		return fleet.SoftwareLite{}, ctxerr.Wrap(ctx, err, "get software version name for host filter")
+	}
+
+	return results, nil
+}
+
 // SyncHostsSoftware calculates the number of hosts having each
 // software installed and stores that information in the software_host_counts
 // table.
@@ -2640,19 +2728,6 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
         updated_at = VALUES(updated_at)`
 
 		valuesPart = `(?, ?, ?, ?, ?),`
-
-		// We must ensure that software is not in host_software table before deleting it.
-		// This prevents a race condition where a host just added the software, but it is not part of software_host_counts yet.
-		// When a host adds software, software table and host_software table are updated in the same transaction.
-		cleanupSoftwareStmt = `
-      DELETE s
-      FROM software s
-      LEFT JOIN software_host_counts shc
-      ON s.id = shc.software_id
-      WHERE
-        shc.software_id IS NULL AND
-        NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
-	  `
 	)
 
 	// Create a fresh swap table to populate with new counts. If a previous run left a partial swap table, drop it first.
@@ -2763,9 +2838,50 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 		return err
 	}
 
-	// Remove any unused software (those not in host_software).
-	if _, err := ds.writer(ctx).ExecContext(ctx, cleanupSoftwareStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete unused software")
+	// Remove any unused software (those not in host_software) in batches to reduce lock contention.
+	if err := ds.cleanupUnusedSoftware(ctx); err != nil {
+		return err
+	}
+	return nil
+}
+
+// cleanupUnusedSoftware deletes orphaned software rows (not referenced by any host) in batches.
+// It processes at most cleanupMaxIterations batches per invocation to avoid monopolizing the database.
+// Any remaining orphans will be cleaned up on the next cron run.
+func (ds *Datastore) cleanupUnusedSoftware(ctx context.Context) error {
+	// findUnusedSoftwareStmt finds software rows not referenced by any host and absent from software_host_counts.
+	// The NOT EXISTS check on host_software reduces (but does not fully prevent) the chance of deleting software that
+	// is mid-ingestion (inserted into software but not yet linked in host_software). In the unlikely event this happens,
+	// the next hourly ingestion cycle will re-create and re-link the software entry.
+	const findUnusedSoftwareStmt = `
+		SELECT s.id
+		FROM software s
+		LEFT JOIN software_host_counts shc ON s.id = shc.software_id
+		WHERE shc.software_id IS NULL
+		AND NOT EXISTS (SELECT 1 FROM host_software hsw WHERE hsw.software_id = s.id)
+		LIMIT ?
+	`
+
+	// Use the reader for the first SELECT to reduce writer load. Subsequent iterations use the writer
+	// so that we see our own deletes and don't re-select the same rows due to replica lag.
+	db := ds.reader(ctx)
+	for range cleanupMaxIterations {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, db, &ids, findUnusedSoftwareStmt, cleanupBatchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "find unused software for cleanup")
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+
+		stmt, args, err := sqlx.In(`DELETE FROM software WHERE id IN (?)`, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete unused software query")
+		}
+		if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete unused software batch")
+		}
+		db = ds.writer(ctx)
 	}
 	return nil
 }
@@ -2779,21 +2895,51 @@ func (ds *Datastore) CleanupSoftwareTitles(ctx context.Context) error {
 		)
 	}(time.Now())
 
-	const deleteOrphanedSoftwareTitlesStmt = `
-	DELETE st FROM software_titles st
-	LEFT JOIN software s ON st.id = s.title_id
-	LEFT JOIN software_installers si ON st.id = si.title_id
-	LEFT JOIN in_house_apps iha ON st.id = iha.title_id
-	LEFT JOIN vpp_apps vap ON st.id = vap.title_id
-	WHERE s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL`
+	const (
+		findOrphanedSoftwareTitlesStmt = `
+		SELECT st.id
+		FROM software_titles st
+		LEFT JOIN software s ON st.id = s.title_id
+		LEFT JOIN software_installers si ON st.id = si.title_id
+		LEFT JOIN in_house_apps iha ON st.id = iha.title_id
+		LEFT JOIN vpp_apps vap ON st.id = vap.title_id
+		WHERE st.id > ? AND s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL
+		ORDER BY st.id
+		LIMIT ?`
 
-	res, err := ds.writer(ctx).ExecContext(ctx, deleteOrphanedSoftwareTitlesStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "executing delete of software titles")
+		// Re-check orphan status on the writer to avoid deleting a title that an IT admin just linked
+		// (e.g., added a software installer) between the reader SELECT and this DELETE.
+		deleteOrphanedSoftwareTitlesStmt = `
+		DELETE st FROM software_titles st
+		LEFT JOIN software s ON st.id = s.title_id
+		LEFT JOIN software_installers si ON st.id = si.title_id
+		LEFT JOIN in_house_apps iha ON st.id = iha.title_id
+		LEFT JOIN vpp_apps vap ON st.id = vap.title_id
+		WHERE st.id IN (?) AND s.title_id IS NULL AND si.title_id IS NULL AND iha.title_id IS NULL AND vap.title_id IS NULL`
+	)
+
+	var lastID uint
+	for range cleanupMaxIterations {
+		var ids []uint
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, findOrphanedSoftwareTitlesStmt, lastID, cleanupBatchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "find orphaned software titles for cleanup")
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		lastID = ids[len(ids)-1]
+
+		stmt, args, err := sqlx.In(deleteOrphanedSoftwareTitlesStmt, ids)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build delete orphaned software titles query")
+		}
+		res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete orphaned software titles batch")
+		}
+		ra, _ := res.RowsAffected()
+		n += ra
 	}
-	ra, _ := res.RowsAffected()
-	n += ra
-
 	return nil
 }
 
@@ -3163,6 +3309,88 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	return result, nil
 }
 
+const softwareVulnDetectionBatchSize = 10000
+
+func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
+	ctx context.Context,
+	osVer fleet.OSVersion,
+) ([]fleet.Software, error) {
+	var softwareIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
+		SELECT DISTINCT hs.software_id
+		FROM host_software hs
+		JOIN hosts h ON hs.host_id = h.id
+		WHERE h.platform = ? AND h.os_version = ?
+	`, osVer.Platform, osVer.Name)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing distinct software IDs for OS version")
+	}
+
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.Software
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
+			FROM software s
+			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
+			WHERE s.id IN (%s)
+		`, placeholders)
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			args[i] = id
+		}
+		var batchResult []fleet.Software
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software details for vulnerability detection")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilitiesBySoftwareIDs(
+	ctx context.Context,
+	softwareIDs []uint,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.SoftwareVulnerability
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT software_id, cve, resolved_in_version
+			FROM software_cve
+			WHERE source = ? AND software_id IN (%s)
+		`, placeholders)
+		args := make([]any, 0, len(batch)+1)
+		args = append(args, source)
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		var batchResult []fleet.SoftwareVulnerability
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software vulnerabilities by software IDs")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ListCVEs returns all cve_meta rows published after 'maxAge'
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	var result []fleet.CVEMeta
@@ -3479,14 +3707,16 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 0
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = software_installer_labels.label_id
 					AND label_membership.host_id = :host_id
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0 AND COUNT(label_membership.label_id) > 0
+					count_installer_labels > 0 AND count_host_labels > 0
 			),
 			exclude_any AS (
 				SELECT
@@ -3505,7 +3735,9 @@ func filterSoftwareInstallersByLabel(
 				FROM
 					software_installers
 				INNER JOIN software_installer_labels
-					ON software_installer_labels.software_installer_id = software_installers.id AND software_installer_labels.exclude = 1
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 1
+						AND software_installer_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = software_installer_labels.label_id
 				LEFT JOIN label_membership
@@ -3514,17 +3746,30 @@ func filterSoftwareInstallersByLabel(
 				GROUP BY
 					software_installers.id
 				HAVING
-					COUNT(*) > 0
-					AND COUNT(*) = SUM(
-						CASE
-							WHEN labels.created_at IS NOT NULL AND (
-								labels.label_membership_type = 1 OR
-								(labels.label_membership_type = 0 AND :host_label_updated_at >= labels.created_at)
-							) THEN 1
-							ELSE 0
-						END
-					)
-					AND COUNT(label_membership.label_id) = 0
+					count_installer_labels > 0
+					AND count_installer_labels = count_host_updated_after_labels
+					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					software_installers.id AS installer_id,
+					COUNT(*) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 AS count_host_updated_after_labels
+				FROM
+					software_installers
+				INNER JOIN software_installer_labels
+					ON software_installer_labels.software_installer_id = software_installers.id
+						AND software_installer_labels.exclude = 0
+						AND software_installer_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = software_installer_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					software_installers.id
+				HAVING
+					count_installer_labels > 0
+					AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				software_installers.id AS id,
@@ -3537,6 +3782,8 @@ func filterSoftwareInstallersByLabel(
 				ON include_any.installer_id = software_installers.id
 			LEFT JOIN exclude_any
 				ON exclude_any.installer_id = software_installers.id
+			LEFT JOIN include_all
+				ON include_all.installer_id = software_installers.id
 			WHERE
 				software_installers.global_or_team_id = :global_or_team_id
 				AND software_installers.id IN (:software_installer_ids)
@@ -3544,6 +3791,7 @@ func filterSoftwareInstallersByLabel(
 					no_labels.installer_id IS NOT NULL
 					OR include_any.installer_id IS NOT NULL
 					OR exclude_any.installer_id IS NOT NULL
+					OR include_all.installer_id IS NOT NULL
 				)
 		`
 		labelSqlFilter, args, err := sqlx.Named(labelSqlFilter, map[string]any{
@@ -3633,7 +3881,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 0
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 0
 				LEFT JOIN label_membership
 					ON label_membership.label_id = vpp_app_team_labels.label_id
 					AND label_membership.host_id = :host_id
@@ -3657,7 +3907,9 @@ func filterVPPAppsByLabel(
 				FROM
 					vpp_apps_teams
 				INNER JOIN vpp_app_team_labels
-					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id AND vpp_app_team_labels.exclude = 1
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 1
+						AND vpp_app_team_labels.require_all = 0
 				INNER JOIN labels
 					ON labels.id = vpp_app_team_labels.label_id
 				LEFT OUTER JOIN label_membership
@@ -3668,6 +3920,26 @@ func filterVPPAppsByLabel(
 					count_installer_labels > 0
 					AND count_installer_labels = count_host_updated_after_labels
 					AND count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					vpp_apps_teams.id AS team_id,
+					COUNT(vpp_app_team_labels.label_id) AS count_installer_labels,
+					COUNT(label_membership.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					vpp_apps_teams
+				INNER JOIN vpp_app_team_labels
+					ON vpp_app_team_labels.vpp_app_team_id = vpp_apps_teams.id
+						AND vpp_app_team_labels.exclude = 0
+						AND vpp_app_team_labels.require_all = 1
+				LEFT JOIN label_membership
+					ON label_membership.label_id = vpp_app_team_labels.label_id
+					AND label_membership.host_id = :host_id
+				GROUP BY
+					vpp_apps_teams.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				vpp_apps.adam_id AS adam_id,
@@ -3675,19 +3947,24 @@ func filterVPPAppsByLabel(
 			FROM
 				vpp_apps
 			INNER JOIN
-				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id AND vpp_apps.platform = vpp_apps_teams.platform AND vpp_apps_teams.global_or_team_id = :global_or_team_id
+				vpp_apps_teams ON vpp_apps.adam_id = vpp_apps_teams.adam_id
+					AND vpp_apps.platform = vpp_apps_teams.platform
+					AND vpp_apps_teams.global_or_team_id = :global_or_team_id
 			LEFT JOIN no_labels
 				ON no_labels.team_id = vpp_apps_teams.id
 			LEFT JOIN include_any
 				ON include_any.team_id = vpp_apps_teams.id
 			LEFT JOIN exclude_any
 				ON exclude_any.team_id = vpp_apps_teams.id
+			LEFT JOIN include_all
+				ON include_all.team_id = vpp_apps_teams.id
 			WHERE
 				vpp_apps.adam_id IN (:vpp_app_adam_ids)
 				AND (
 					no_labels.team_id IS NOT NULL
 					OR include_any.team_id IS NOT NULL
 					OR exclude_any.team_id IS NOT NULL
+					OR include_all.team_id IS NOT NULL
 				)
 		`
 
@@ -3786,8 +4063,10 @@ func filterInHouseAppsByLabel(
 					0 as count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 0
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 0
 				LEFT JOIN label_membership lm ON
 					lm.label_id = ihl.label_id AND lm.host_id = :host_id
 				GROUP BY
@@ -3809,8 +4088,10 @@ func filterInHouseAppsByLabel(
 					) AS count_host_updated_after_labels
 				FROM
 					in_house_apps iha
-				INNER JOIN in_house_app_labels ihl ON
-					ihl.in_house_app_id = iha.id AND ihl.exclude = 1
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 1
+						AND ihl.require_all = 0
 				INNER JOIN labels lbl ON
 					lbl.id = ihl.label_id
 				LEFT OUTER JOIN label_membership lm ON
@@ -3821,6 +4102,25 @@ func filterInHouseAppsByLabel(
 					count_installer_labels > 0 AND
 					count_installer_labels = count_host_updated_after_labels AND
 					count_host_labels = 0
+			),
+			include_all AS (
+				SELECT
+					iha.id AS in_house_app_id,
+					COUNT(ihl.label_id) AS count_installer_labels,
+					COUNT(lm.label_id) AS count_host_labels,
+					0 as count_host_updated_after_labels
+				FROM
+					in_house_apps iha
+				INNER JOIN in_house_app_labels ihl
+					ON ihl.in_house_app_id = iha.id
+						AND ihl.exclude = 0
+						AND ihl.require_all = 1
+				LEFT JOIN label_membership lm ON
+					lm.label_id = ihl.label_id AND lm.host_id = :host_id
+				GROUP BY
+					iha.id
+				HAVING
+					count_installer_labels > 0 AND count_host_labels = count_installer_labels
 			)
 			SELECT
 				iha.id AS in_house_id,
@@ -3833,12 +4133,15 @@ func filterInHouseAppsByLabel(
 				ON include_any.in_house_app_id = iha.id
 			LEFT JOIN exclude_any
 				ON exclude_any.in_house_app_id = iha.id
+			LEFT JOIN include_all
+				ON include_all.in_house_app_id = iha.id
 			WHERE
 				iha.global_or_team_id = :global_or_team_id AND
 				iha.id IN (:in_house_ids) AND (
 					no_labels.in_house_app_id IS NOT NULL OR
 					include_any.in_house_app_id IS NOT NULL OR
-					exclude_any.in_house_app_id IS NOT NULL
+					exclude_any.in_house_app_id IS NOT NULL OR
+					include_all.in_house_app_id IS NOT NULL
 				)
 		`
 
@@ -3952,7 +4255,12 @@ func hostVPPInstalls(ds *Datastore, ctx context.Context, hostID uint, globalOrTe
 				hvsi.host_id = :host_id AND
 				hvsi.removed = 0 AND
 				hvsi.canceled = 0 AND
-				(hvsi.platform != 'android' OR ncr.id IS NULL) AND
+				-- Android installs never produce nano_command_results (they use Google's
+				-- Android Management API instead of nanoMDM), so ncr is always NULL for
+				-- Android rows. No NCR filter is applied here — all statuses (pending,
+				-- failed, installed) are shown, which is intentional for the host software
+				-- list. Compare with vpp.go / software_installers.go which filter by NCR
+				-- for per-app aggregate counts, different semantics.
 				hvsi2.id IS NULL AND
 				NOT EXISTS (
 					SELECT 1
@@ -4285,6 +4593,13 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
 		}
 	}
+}
+
+// hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
+// "source" is included for test determinism (used as the secondary order key in tests).
+var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":   "name",
+	"source": "source",
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -4720,7 +5035,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 						SELECT 1 FROM (
 
-							-- no labels
+							-- no labels for any type of installer
 							SELECT 0 AS count_installer_labels, 0 AS count_host_labels, 0 as count_host_updated_after_labels
 							WHERE
 								NOT EXISTS (SELECT 1 FROM software_installer_labels sil WHERE sil.software_installer_id = si.id) AND
@@ -4741,6 +5056,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								sil.software_installer_id = si.id
 								AND sil.exclude = 0
+								AND sil.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4766,8 +5082,27 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								sil.software_installer_id = si.id
 								AND sil.exclude = 1
+								AND sil.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for software installers
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								software_installer_labels sil
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = sil.label_id
+								AND lm.host_id = :host_id
+							WHERE
+								sil.software_installer_id = si.id
+								AND sil.exclude = 0
+								AND sil.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 
 							UNION
 
@@ -4783,6 +5118,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								vatl.vpp_app_team_id = vat.id
 								AND vatl.exclude = 0
+								AND vatl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4805,8 +5141,27 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								vatl.vpp_app_team_id = vat.id
 								AND vatl.exclude = 1
+								AND vatl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for VPP apps
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								vpp_app_team_labels vatl
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = vatl.label_id
+								AND lm.host_id = :host_id
+							WHERE
+								vatl.vpp_app_team_id = vat.id
+								AND vatl.exclude = 0
+								AND vatl.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 
 							UNION
 
@@ -4821,6 +5176,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 							WHERE
 								ihl.in_house_app_id = iha.id
 								AND ihl.exclude = 0
+								AND ihl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_host_labels > 0
 
@@ -4839,10 +5195,28 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 								LEFT OUTER JOIN labels lbl ON lbl.id = ihl.label_id
 								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
 							WHERE
-								ihl.in_house_app_id = iha.id AND
-								ihl.exclude = 1
+								ihl.in_house_app_id = iha.id
+								AND ihl.exclude = 1
+								AND ihl.require_all = 0
 							HAVING
 								count_installer_labels > 0 AND count_installer_labels = count_host_updated_after_labels AND count_host_labels = 0
+
+							UNION
+
+							-- include all for in-house apps
+							SELECT
+								COUNT(*) AS count_installer_labels,
+								COUNT(lm.label_id) AS count_host_labels,
+								0 as count_host_updated_after_labels
+							FROM
+								in_house_app_labels ihl
+								LEFT OUTER JOIN label_membership lm ON lm.label_id = ihl.label_id AND lm.host_id = :host_id
+							WHERE
+								ihl.in_house_app_id = iha.id
+								AND ihl.exclude = 0
+								AND ihl.require_all = 1
+							HAVING
+								count_installer_labels > 0 AND count_host_labels = count_installer_labels
 							) t
 						)
 				)
@@ -5407,6 +5781,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			LEFT JOIN
 				software_installers ON software_titles.id = software_installers.title_id
 				AND software_installers.global_or_team_id = :global_or_team_id
+				AND software_installers.is_active = true
 			LEFT JOIN
 				software ON software_titles.id = software.title_id ` + installedSoftwareJoinsCondition + `
 			WHERE
@@ -5549,7 +5924,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			ctx,
 			ds.reader(ctx),
 			&titleCount,
-			fmt.Sprintf("SELECT COUNT(id) FROM (%s) AS combined_results", countStmt),
+			fmt.Sprintf("SELECT COUNT(DISTINCT id) FROM (%s) AS combined_results", countStmt),
 			args...,
 		); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get host software count")
@@ -5684,7 +6059,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
@@ -6067,10 +6445,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		metaData = &fleet.PaginationMetadata{
 			HasPreviousResults: opts.ListOptions.Page > 0,
 			TotalResults:       titleCount,
+			HasNextResults:     titleCount > (opts.ListOptions.Page+1)*perPage,
 		}
 		if len(hostSoftwareList) > int(perPage) { //nolint:gosec // dismiss G115
-			metaData.HasNextResults = true
-			hostSoftwareList = hostSoftwareList[:len(hostSoftwareList)-1]
+			hostSoftwareList = hostSoftwareList[:perPage]
 		}
 	}
 
@@ -6385,6 +6763,32 @@ func (ds *Datastore) GetSoftwareCategoryIDs(ctx context.Context, names []string)
 	}
 
 	return ids, nil
+}
+
+// GetSoftwareCategoryNameToIDMap returns a map of software category names to their IDs for the given names.
+// Only categories that exist in the database are included in the map.
+func (ds *Datastore) GetSoftwareCategoryNameToIDMap(ctx context.Context, names []string) (map[string]uint, error) {
+	if len(names) == 0 {
+		return map[string]uint{}, nil
+	}
+
+	stmt := `SELECT id, name FROM software_categories WHERE name IN (?)`
+	stmt, args, err := sqlx.In(stmt, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In for get software category name to id map")
+	}
+
+	var categories []fleet.SoftwareCategory
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &categories, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software category name to id map")
+	}
+
+	result := make(map[string]uint, len(categories))
+	for _, cat := range categories {
+		result[cat.Name] = cat.ID
+	}
+
+	return result, nil
 }
 
 func (ds *Datastore) GetCategoriesForSoftwareTitles(ctx context.Context, softwareTitleIDs []uint, teamID *uint) (map[uint][]string, error) {

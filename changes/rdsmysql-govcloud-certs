@@ -1,1 +1,0 @@
-* Added AWS GovCloud RDS CA certificates to the RDS MySQL TLS bundle, enabling IAM authentication for Fleet deployments connecting to RDS in AWS GovCloud regions (us-gov-east-1, us-gov-west-1).

@@ -86,6 +86,8 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 	appConf, err = s.DS.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.ServerSettings.ServerURL = server.URL
+	// Disable gitops exceptions so that existing tests can freely use labels, secrets, etc. in their YAML.
+	appConf.GitOpsConfig.Exceptions = fleet.GitOpsExceptions{}
 	err = s.DS.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 }
@@ -219,4 +221,44 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	winProfile, err := s.DS.GetMDMWindowsConfigProfile(ctx, windowsProfileUUID)
 	require.NoError(t, err)
 	assert.Contains(t, string(winProfile.SyncML), "${FLEET_SECRET_"+secretName2+"}")
+}
+
+func (s *integrationGitopsTestSuite) TestFleetGitopsDDMFleetVarsRequiresPremium() {
+	t := s.T()
+	fleetctlConfig := s.createFleetctlConfig()
+
+	// Create a DDM declaration with a Fleet variable
+	declDir := t.TempDir()
+	declFile := path.Join(declDir, "decl-fleetvar.json")
+	err := os.WriteFile(declFile, []byte(`{
+		"Type": "com.apple.configuration.management.test",
+		"Identifier": "com.example.fleetvar-test",
+		"Payload": {"Value": "$FLEET_VAR_HOST_HARDWARE_SERIAL"}
+	}`), 0o644)
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+queries:
+`, declFile))
+	require.NoError(t, err)
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Applying a DDM declaration with Fleet variables should fail without a premium license
+	_, err = fleetctl.RunAppNoChecks([]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+	require.ErrorContains(t, err, "missing or invalid license")
 }

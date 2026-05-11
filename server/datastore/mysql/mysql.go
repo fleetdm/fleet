@@ -35,7 +35,8 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.40.0"
 )
 
 const (
@@ -84,6 +85,16 @@ type Datastore struct {
 	testUpsertMDMDesiredProfilesBatchSize int
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
+
+	// testWindowsEagerHook, when non-nil, is called by
+	// BulkSetPendingMDMHostProfiles after the Apple/Android transaction
+	// commits. It returns whether any host_mdm_windows_profiles rows
+	// changed; that bool is surfaced as updates.WindowsConfigProfile,
+	// matching Apple's semantics (idempotent second calls return false).
+	//
+	// Production binaries never set this. Tests opt in by calling
+	// Datastore.EnableTestWindowsEagerHook.
+	testWindowsEagerHook func(ctx context.Context, hostUUIDs, profileUUIDs []string) (bool, error)
 
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
@@ -342,7 +353,10 @@ var otelTracedDriverName string
 func init() {
 	var err error
 	otelTracedDriverName, err = otelsql.Register("mysql",
-		otelsql.WithAttributes(semconv.DBSystemNameMySQL),
+		otelsql.WithAttributes(
+			attribute.String("db.system", "mysql"),
+			semconv.DBSystemNameMySQL,
+		),
 		otelsql.WithSpanOptions(otelsql.SpanOptions{
 			// DisableErrSkip ignores driver.ErrSkip errors which are frequently returned by the MySQL driver
 			// when certain optional methods or paths are not implemented/taken.
@@ -839,30 +853,12 @@ func sanitizeColumn(col string) string {
 	return common_mysql.SanitizeColumn(col)
 }
 
-// appendListOptionsToSQL is a facade that calls common_mysql.AppendListOptions.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQL
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
-	return appendListOptionsWithCursorToSQL(sql, nil, opts)
-}
-
 // appendListOptionsToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
 // The allowlist parameter maps user-facing order key names to actual SQL column expressions.
 // This prevents SQL injection and information disclosure via arbitrary column sorting.
 // See common_mysql.OrderKeyAllowlist for details.
 func appendListOptionsToSQLSecure(sql string, opts *fleet.ListOptions, allowlist common_mysql.OrderKeyAllowlist) (string, []any, error) {
 	return appendListOptionsWithCursorToSQLSecure(sql, nil, opts, allowlist)
-}
-
-// appendListOptionsWithCursorToSQL is a facade that calls common_mysql.AppendListOptionsWithParams.
-// NOTE: this method will mutate opts.PerPage if it is 0, setting it to the default value.
-//
-// Deprecated: this method will be removed in favor of appendListOptionsWithCursorToSQLSecure
-func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
-	if opts.PerPage == 0 {
-		opts.PerPage = fleet.DefaultPerPage
-	}
-	return common_mysql.AppendListOptionsWithParams(sql, params, opts)
 }
 
 // appendListOptionsWithCursorToSQLSecure is a facade that calls common_mysql.AppendListOptionsWithParamsSecure.
@@ -903,6 +899,10 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 			return defaultAllowClause
 		case fleet.RoleObserver:
 			if filter.IncludeObserver {
+				if filter.ObserverTeamID != nil {
+					// Restrict global observer to only the specified team (e.g. the live query's own team).
+					return fmt.Sprintf("%s.team_id = %d", hostKey, *filter.ObserverTeamID)
+				}
 				return defaultAllowClause
 			}
 			return "FALSE"
@@ -918,11 +918,19 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 		if team.Role == fleet.RoleAdmin ||
 			team.Role == fleet.RoleMaintainer ||
 			team.Role == fleet.RoleTechnician ||
-			team.Role == fleet.RoleObserverPlus ||
-			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			team.Role == fleet.RoleObserverPlus {
 			idStrs = append(idStrs, fmt.Sprint(team.ID))
 			if filter.TeamID != nil && *filter.TeamID == team.ID {
 				teamIDSeen = true
+			}
+		} else if team.Role == fleet.RoleObserver && filter.IncludeObserver {
+			// When ObserverTeamID is set, restrict observer access to only that team.
+			// This scopes observer_can_run to the query's own team, not all observed teams.
+			if filter.ObserverTeamID == nil || *filter.ObserverTeamID == team.ID {
+				idStrs = append(idStrs, fmt.Sprint(team.ID))
+				if filter.TeamID != nil && *filter.TeamID == team.ID {
+					teamIDSeen = true
+				}
 			}
 		}
 	}
@@ -1082,17 +1090,6 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	}
 
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
-}
-
-func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
-	if identifier == "" {
-		return stmt, params
-	}
-
-	stmt += " AND ? IN (h.hostname, h.osquery_host_id, h.node_key, h.uuid, h.hardware_serial)"
-	params = append(params, identifier)
-
-	return stmt, params
 }
 
 // registerTLS adds client certificate configuration to the mysql connection.

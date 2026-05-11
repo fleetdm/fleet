@@ -35,7 +35,7 @@
     "slug": {
       "type": "string",
       "description": "The slug identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. Format: app-name/platform (e.g., adobe-acrobat-reader/darwin)",
-      "pattern": "^[a-z0-9-+]+/darwin$",
+      "pattern": "^[a-z0-9-+@]+/darwin$",
       "minLength": 1
     },
     "pre_uninstall_scripts": {
@@ -59,7 +59,7 @@
       "description": "The default categories assigned to the installer in self-service if no categories are specified when it is added to a team's library.",
       "items": {
         "type": "string",
-        "enum": ["Browsers", "Communication", "Developer tools", "Productivity"]
+        "enum": ["Browsers", "Communication", "Developer tools", "Productivity", "Security", "Utilities"]
       },
       "minItems": 1,
       "uniqueItems": true
@@ -79,6 +79,12 @@
     "frozen": {
       "type": "boolean",
       "description": "If true, the app will not be processed during ingestion and no new output will be created."
+    },
+    "cask_path": {
+      "type": "string",
+      "description": "Path (relative to the repo root) to a local file containing the cask JSON in the same schema as https://formulae.brew.sh/api/cask/<token>.json. Used to commit cask metadata for third-party taps directly into this repo under inputs/homebrew/custom-tap/.",
+      "minLength": 1,
+      "pattern": "\\.json$"
     }
   },
   "not": {

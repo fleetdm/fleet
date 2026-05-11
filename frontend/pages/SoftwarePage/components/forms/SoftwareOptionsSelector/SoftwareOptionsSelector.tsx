@@ -3,9 +3,7 @@ import classnames from "classnames";
 
 import Checkbox from "components/forms/fields/Checkbox";
 import Slider from "components/forms/fields/Slider";
-import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import paths from "router/paths";
 import { getSelfServiceTooltip } from "pages/SoftwarePage/helpers";
@@ -19,15 +17,27 @@ import {
 } from "pages/hosts/details/cards/Software/SelfService/helpers";
 import Button from "components/buttons/Button";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
-import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "software-options-selector";
 
 interface ICategoriesSelector {
   onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
-  selectedCategories: any; // TODO
+  selectedCategories: string[];
   onClickPreviewEndUserExperience: () => void;
 }
+
+export const AndroidOptionsDescription = () => (
+  <p>
+    Currently, Android apps can only be added as self-service and the end user
+    can install them from the <strong>Play Store</strong> in their work profile.
+    Additionally, you can install it when hosts enroll on the{" "}
+    <CustomLink
+      url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
+      text="Setup experience"
+    />{" "}
+    page.
+  </p>
+);
 
 const CategoriesSelector = ({
   onSelectCategory,
@@ -71,39 +81,24 @@ interface ISoftwareOptionsSelector {
     | ISoftwareVppFormData
     | IPackageFormData
     | ISoftwareAndroidFormData;
-  /** Only used in create mode not edit mode for FMA, VPP, and custom packages */
-  onToggleAutomaticInstall: () => void;
   onToggleSelfService: () => void;
   onClickPreviewEndUserExperience: () => void;
   onSelectCategory: ({ name, value }: { name: string; value: boolean }) => void;
   platform?: string;
   className?: string;
-  isCustomPackage?: boolean;
-  /** Exe packages do not have ability to select automatic install */
-  isExePackage?: boolean;
-  /** Tarball packages do not have ability to select automatic install */
-  isTarballPackage?: boolean;
-  /** Script only packages do not have ability to select automatic install */
-  isScriptPackage?: boolean;
-  /** IPA packages do not have ability to select automatic install or self-service */
+  /** IPA packages do not have ability to select self-service */
   isIpaPackage?: boolean;
-  /** Edit mode does not have ability to change automatic install */
   isEditingSoftware?: boolean;
   disableOptions?: boolean;
 }
 
 const SoftwareOptionsSelector = ({
   formData,
-  onToggleAutomaticInstall,
   onToggleSelfService,
   onClickPreviewEndUserExperience,
   onSelectCategory,
   platform,
   className,
-  isCustomPackage,
-  isExePackage,
-  isTarballPackage,
-  isScriptPackage,
   isIpaPackage,
   isEditingSoftware,
   disableOptions = false,
@@ -114,99 +109,16 @@ const SoftwareOptionsSelector = ({
     isIPadOrIPhone(platform || "") || isIpaPackage || false;
   const isPlatformAndroid = isAndroid(platform || "");
   const isSelfServiceDisabled = disableOptions;
-  const isAutomaticInstallDisabled =
-    disableOptions ||
-    isPlatformIosOrIpados ||
-    isExePackage ||
-    isTarballPackage ||
-    isScriptPackage;
-
-  /** Tooltip only shows when enabled or for exe/tar.gz/sh/ps1 packages */
-  const showAutomaticInstallTooltip =
-    !isAutomaticInstallDisabled ||
-    isExePackage ||
-    isTarballPackage ||
-    isScriptPackage;
-  const getAutomaticInstallTooltip = (): JSX.Element => {
-    if (isExePackage || isTarballPackage) {
-      return (
-        <>
-          Fleet can&apos;t create a policy to detect existing installations for{" "}
-          {isExePackage ? ".exe packages" : ".tar.gz archives"}. To
-          automatically install{" "}
-          {isExePackage ? ".exe packages" : ".tar.gz archives"}, add a custom
-          policy and enable the install software automation on the{" "}
-          <b>Policies</b> page.
-        </>
-      );
-    }
-
-    if (isScriptPackage) {
-      return (
-        <>
-          Fleet can&apos;t create a policy to detect existing installations of
-          script-only packages. To automatically install these packages, add a
-          custom policy and enable the install software automation on the{" "}
-          <b>Policies</b> page.
-        </>
-      );
-    }
-    return <>Automatically install only on hosts missing this software.</>;
-  };
 
   // Ability to set categories when adding software is in a future ticket #28061
   const canSelectSoftwareCategories = formData.selfService && isEditingSoftware;
 
-  const renderOptionsDescription = () => {
-    if (isPlatformAndroid) {
-      return (
-        <p>
-          Currently, Android apps can only be added as self-service and the end
-          user can install them from the <strong>Play Store</strong> in their
-          work profile. Additionally, you can install it when hosts enroll on
-          the{" "}
-          <CustomLink
-            url={paths.CONTROLS_INSTALL_SOFTWARE("android")}
-            text="Setup experience"
-          />{" "}
-          page.
-        </p>
-      );
-    }
-    // Render unavailable description for iOS or iPadOS add software form only
-    return isPlatformIosOrIpados && !isEditingSoftware ? (
-      <p>
-        Automatic install for iOS and iPadOS is coming soon. Today, you can
-        manually install it from the <strong>Host details</strong> page for each
-        host.
-      </p>
-    ) : null;
-  };
+  const renderOptionsDescription = () =>
+    isPlatformAndroid ? <AndroidOptionsDescription /> : null;
 
-  const selfServiceLabel = () => {
-    return !isSelfServiceDisabled ? (
-      <TooltipWrapper
-        tipContent={getSelfServiceTooltip(
-          isPlatformIosOrIpados,
-          isPlatformAndroid
-        )}
-      >
-        <span>Self-service</span>
-      </TooltipWrapper>
-    ) : (
-      "Self-service"
-    );
-  };
-
-  const automaticInstallLabel = () => {
-    return showAutomaticInstallTooltip ? (
-      <TooltipWrapper tipContent={getAutomaticInstallTooltip()}>
-        <span>Automatic install</span>
-      </TooltipWrapper>
-    ) : (
-      "Automatic install"
-    );
-  };
+  const selfServiceLabelTooltip = !isSelfServiceDisabled
+    ? getSelfServiceTooltip(isPlatformIosOrIpados, isPlatformAndroid)
+    : undefined;
 
   return (
     <div className={`form-field ${classNames}`}>
@@ -216,8 +128,9 @@ const SoftwareOptionsSelector = ({
         <Slider
           value={formData.selfService}
           onChange={onToggleSelfService}
-          inactiveText={selfServiceLabel()}
-          activeText={selfServiceLabel()}
+          inactiveText="Self-service"
+          activeText="Self-service"
+          labelTooltip={selfServiceLabelTooltip}
           className={`${baseClass}__self-service-slider`}
           disabled={isSelfServiceDisabled}
         />
@@ -230,29 +143,6 @@ const SoftwareOptionsSelector = ({
           />
         )}
       </div>
-      {!isEditingSoftware && (
-        <Slider
-          value={formData.automaticInstall}
-          onChange={onToggleAutomaticInstall}
-          activeText={automaticInstallLabel()}
-          inactiveText={automaticInstallLabel()}
-          className={`${baseClass}__automatic-install-slider`}
-          disabled={isAutomaticInstallDisabled}
-        />
-      )}
-      {formData.automaticInstall && isCustomPackage && (
-        <InfoBanner color="yellow">
-          Installing software over existing installations might cause issues.
-          Fleet&apos;s policy may not detect these existing installations.
-          Please create a test fleet in Fleet to verify a smooth installation.{" "}
-          <CustomLink
-            url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
-            text="Learn more"
-            newTab
-            variant="banner-link"
-          />
-        </InfoBanner>
-      )}
     </div>
   );
 };

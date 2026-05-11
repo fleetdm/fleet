@@ -357,3 +357,13 @@ func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Co
 	}
 	return ret.Policy, nil
 }
+
+func (p *ProxyClient) EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	call := p.mgmt.Enterprises.WebApps.Create(enterpriseName, webApp).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "create webapp")
+	}
+	return ret, nil
+}

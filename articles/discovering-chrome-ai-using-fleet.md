@@ -24,7 +24,7 @@ Chrome AI-related preferences are stored in the `optimization_guide` section of 
 
 `jq` is a lightweight and powerful command-line tool for parsing, filtering, and manipulating JSON data. It can extract and parse information from JSON files at specific key / value fields.
 
-In this case, `jq` is used to locate and read the value of the `tab_organization_setting_state` key within the Chrome Preferences file. This knowledge allows an admin to craft a Fleet query for reporting the state of the Chrome AI settings.
+In this case, `jq` is used to locate and read the value of the `tab_organization_setting_state` key within the Chrome Preferences file. This knowledge allows an admin to craft a Fleet report to see the state of the Chrome AI settings.
 
 - If enabled, the setting will return `1`.
 
@@ -44,9 +44,9 @@ In this case, `jq` is used to locate and read the value of the `tab_organization
 2
 ```
 
-### Step 3: Query the JSON file with Fleet
+### Step 3: Find the JSON file with Fleet
 
-To detect Chrome AI features in Fleet, use a SQL query like the following:
+To detect Chrome AI features in Fleet, use a report like the following:
 
 ```
 SELECT fullkey,path FROM parse_json WHERE path LIKE '/Users/%/Library/Application Support/Google/Chrome/Default/Preferences' AND fullkey='optimization_guide/tab_organization_setting_state';
@@ -54,7 +54,7 @@ SELECT fullkey,path FROM parse_json WHERE path LIKE '/Users/%/Library/Applicatio
 
 ### Conclusion
 
-Fleet's powerful querying abilities allow you to monitor features like these across all of your devices.
+Fleet's powerful reporting abilities allow you to monitor features like these across all of your devices.
 
 <meta name="articleTitle" value="Discovering Chrome AI using Fleet">
 <meta name="authorFullName" value="Brock Walters">

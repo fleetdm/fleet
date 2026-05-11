@@ -392,3 +392,11 @@ func (g *GoogleClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.C
 	}
 	return ret.Policy, nil
 }
+
+func (g *GoogleClient) EnterprisesWebAppsCreate(ctx context.Context, enterpriseName string, webApp *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+	ret, err := g.mgmt.Enterprises.WebApps.Create(enterpriseName, webApp).Context(ctx).Do()
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "create webapp")
+	}
+	return ret, nil
+}

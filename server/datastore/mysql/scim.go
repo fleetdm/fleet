@@ -43,6 +43,9 @@ func (ds *Datastore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (
 			user.Active,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimUser", user.UserName), "insert scim user")
+			}
 			return ctxerr.Wrap(ctx, err, "insert scim user")
 		}
 
@@ -306,6 +309,9 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 			user.ID,
 		)
 		if err != nil {
+			if IsDuplicate(err) {
+				return ctxerr.Wrap(ctx, alreadyExists("ScimUser", user.UserName), "update scim user")
+			}
 			return ctxerr.Wrap(ctx, err, "update scim user")
 		}
 
@@ -605,19 +611,19 @@ func getScimUserGroups(ctx context.Context, q sqlx.QueryerContext, userID uint) 
 // validateScimUserFields checks if the user fields exceed the maximum allowed length
 func validateScimUserFields(user *fleet.ScimUser) error {
 	if user.ExternalID != nil && len(*user.ExternalID) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "external_id", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if len(user.UserName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("user_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "user_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.GivenName != nil && len(*user.GivenName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("given_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "given_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.FamilyName != nil && len(*user.FamilyName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("family_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "family_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if user.Department != nil && len(*user.Department) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("department exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "department", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	return nil
 }
@@ -625,10 +631,10 @@ func validateScimUserFields(user *fleet.ScimUser) error {
 // validateScimGroupFields checks if the group fields exceed the maximum allowed length
 func validateScimGroupFields(group *fleet.ScimGroup) error {
 	if group.ExternalID != nil && len(*group.ExternalID) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("external_id exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "external_id", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	if len(group.DisplayName) > fleet.SCIMMaxFieldLength {
-		return fmt.Errorf("display_name exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)
+		return &fleet.SCIMValidationError{Field: "display_name", Message: fmt.Sprintf("exceeds maximum length of %d characters", fleet.SCIMMaxFieldLength)}
 	}
 	return nil
 }
@@ -1311,12 +1317,33 @@ func triggerResendProfilesUsingVariables(ctx context.Context, tx sqlx.ExtContext
 		fv.name IN (:affected_vars)
 `
 
+	const declarationUpdateStatusQuery = `
+	UPDATE
+		host_mdm_apple_declarations hmad
+		JOIN hosts h
+			ON h.uuid = hmad.host_uuid
+		JOIN mdm_apple_declarations mad
+			ON (mad.team_id = h.team_id OR (COALESCE(mad.team_id, 0) = 0 AND h.team_id IS NULL)) AND
+				 mad.declaration_uuid = hmad.declaration_uuid
+		JOIN mdm_configuration_profile_variables mcpv
+			ON mcpv.apple_declaration_uuid = mad.declaration_uuid
+		JOIN fleet_variables fv
+			ON mcpv.fleet_variable_id = fv.id
+	SET
+		hmad.status = NULL
+	WHERE
+		h.id IN (:host_ids) AND
+		hmad.operation_type = :operation_type_install AND
+		hmad.status IS NOT NULL AND
+		fv.name IN (:affected_vars)
+`
+
 	vars := make([]any, len(affectedVars))
 	for i, v := range affectedVars {
 		vars[i] = "FLEET_VAR_" + string(v)
 	}
 
-	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery} {
+	for _, query := range []string{appleUpdateStatusQuery, windowsUpdateStatusQuery, declarationUpdateStatusQuery} {
 		updateStmt, args, err := sqlx.Named(query, map[string]any{
 			"host_ids":               hostIDs,
 			"operation_type_install": fleet.MDMOperationTypeInstall,

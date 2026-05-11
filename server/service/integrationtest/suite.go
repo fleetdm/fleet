@@ -2,6 +2,7 @@ package integrationtest
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -17,7 +17,7 @@ import (
 )
 
 type BaseSuite struct {
-	Logger   *logging.Logger
+	Logger   *slog.Logger
 	FleetCfg config.FleetConfig
 	Server   *httptest.Server
 	DS       *mysql.Datastore

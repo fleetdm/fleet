@@ -45,6 +45,29 @@ const setupDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
+  it("renders the page description on the empty state when MDM isn't configured", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/Upload a bootstrap package to install a configuration/)
+    ).toBeVisible();
+  });
+
   it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     setupDefaultBackendMocks();
     mockServer.use(
@@ -141,8 +164,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")
@@ -172,8 +195,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")
@@ -193,8 +216,8 @@ describe("BootstrapPackage", () => {
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
 
-    await screen.findByText("Show advanced options");
-    await user.click(screen.getByText("Show advanced options"));
+    await screen.findByText("Advanced options");
+    await user.click(screen.getByText("Advanced options"));
 
     expect(
       screen.getByLabelText("Install Fleet's agent (fleetd) manually")

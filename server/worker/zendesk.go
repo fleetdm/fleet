@@ -88,7 +88,7 @@ This ticket was created automatically by your Fleet Zendesk integration.
 * [{{ .DisplayName }}]({{ $.FleetURL }}/hosts/{{ .ID }})
 {{ end }}
 
-View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}team_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing) page in Fleet.
+View hosts that failed {{ .PolicyName }} on the [**Hosts**]({{ .FleetURL }}/hosts/manage/?order_key=hostname&order_direction=asc&{{ if .TeamID }}fleet_id={{ .TeamID }}&{{ end }}policy_id={{ .PolicyID }}&policy_response=failing) page in Fleet.
 
 ----
 

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -92,7 +94,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid.app.id"},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. com.valid.app.id isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	s.Contains(extractServerErrorText(r.Body), "Couldn't add software. \"com.valid.app.id\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Valid application ID format, but app isn't found: should fail
 	// Update mock to return a 404
@@ -106,7 +108,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.app.id.not.found", Platform: fleet.AndroidPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+	s.Assert().Contains(extractServerErrorText(r.Body), "Couldn't add software. The application ID \"com.app.id.not.found\" isn't available in Play Store. Please find ID on the Play Store and try again.")
 
 	amapiConfig := struct {
 		AppIDsToNames                     map[string]string
@@ -135,7 +137,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		&addAppStoreAppRequest{AppStoreID: "com.valid", Platform: fleet.MacOSPlatform},
 		http.StatusUnprocessableEntity,
 	)
-	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. com.valid isn't available in Apple Business Manager or Play Store. Please purchase a license in Apple Business Manager or find the app in Play Store and try again.")
+	require.Contains(t, extractServerErrorText(r.Body), "Couldn't add software. \"com.valid\" isn't available in Apple Business or Play Store. Please purchase a license in Apple Business or find the app in Play Store and try again.")
 
 	// Add Android app
 	s.DoJSON(
@@ -713,9 +715,20 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 
 		s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(*teamID))
 		s.Assert().Len(listSWTitles.SoftwareTitles, 4)
-		s.Assert().Equal("app_1", listSWTitles.SoftwareTitles[0].AppStoreApp.AppStoreID)
-		titleApp1 := listSWTitles.SoftwareTitles[0].ID
-		titleApp2 := listSWTitles.SoftwareTitles[1].ID
+		// Look up title IDs by app store ID (ordering within tied hosts_count is by ID, not name).
+		var titleApp1, titleApp2 uint
+		for _, st := range listSWTitles.SoftwareTitles {
+			if st.AppStoreApp != nil {
+				switch st.AppStoreApp.AppStoreID {
+				case "app_1":
+					titleApp1 = st.ID
+				case "app_2":
+					titleApp2 = st.ID
+				}
+			}
+		}
+		require.NotZero(t, titleApp1)
+		require.NotZero(t, titleApp2)
 
 		// Batch app store apps call won't create an activity
 
@@ -808,7 +821,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		// Get initial count of edited setup experience activities
 		var initialCount int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
 		})
@@ -871,7 +884,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 		)
 		var count int
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activities WHERE activity_type = 'edited_setup_experience_software'`)
+			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
 		})
@@ -1093,4 +1106,296 @@ func (s *integrationMDMTestSuite) TestAndroidAppsUninstallOnDelete() {
 	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	require.Equal(t, androidApps[4].AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebApps() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	// attempt to create a webapp before android MDM is enabled
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusBadRequest, headers)
+	require.Contains(t, extractServerErrorText(res.Body), "Android MDM isn't turned on.")
+
+	enterpriseID := s.enableAndroidMDM(t)
+
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		id := uuid.NewString()
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/%s", enterpriseID, id)}, nil
+	}
+	cases := []struct {
+		desc     string
+		title    string
+		url      string
+		iconFile string // filename in testdata/icons/
+
+		wantStatus int
+		wantErrMsg string
+	}{
+		{
+			desc:       "missing title",
+			title:      "",
+			url:        "http://example.com",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "title multipart field is required",
+		},
+		{
+			desc:       "missing url",
+			title:      "WebApp",
+			url:        "",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "url multipart field is required",
+		},
+		{
+			desc:       "invalid url",
+			title:      "WebApp",
+			url:        "non-absolute-url",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The start URL must be a valid absolute URL.",
+		},
+		{
+			desc:       "valid without icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+		{
+			desc:       "invalid icon not a png",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "not-a-png.txt",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon not square",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "non-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "invalid icon too small",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "200px-square.png",
+			wantStatus: http.StatusBadRequest,
+			wantErrMsg: "The icon must be a PNG file and square, with dimensions of at least 512 x 512px.",
+		},
+		{
+			desc:       "valid with icon",
+			title:      "WebApp",
+			url:        "http://example.com",
+			iconFile:   "512px-square.png",
+			wantStatus: http.StatusOK,
+			wantErrMsg: "",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			var filename string
+			var iconData []byte
+			if c.iconFile != "" {
+				filename = c.iconFile
+				b, err := os.ReadFile(filepath.Join("testdata", "icons", c.iconFile))
+				require.NoError(t, err)
+				iconData = b
+			}
+
+			body, headers := generateMultipartRequest(t, "icon", filename, iconData, s.token, map[string][]string{
+				"title": {c.title},
+				"url":   {c.url},
+			})
+			res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), c.wantStatus, headers)
+			if c.wantErrMsg != "" {
+				require.Contains(t, extractServerErrorText(res.Body), c.wantErrMsg)
+			} else {
+				var resp createAndroidWebAppResponse
+				err := json.NewDecoder(res.Body).Decode(&resp)
+				require.NoError(t, err)
+				require.NotEmpty(t, resp.AppStoreID)
+			}
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsCannotSetConfiguration() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "abc" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		ix := strings.LastIndex(packageName, ".") // title is the final segment
+		return &androidmanagement.Application{IconUrl: "https://example.com/1.jpg", Title: packageName[ix+1:]}, nil
+	}
+
+	// create a webapp
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp)
+	require.NoError(t, err)
+	webAppID := resp.AppStoreID
+
+	// add it to Fleet with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`),
+	}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// add it without configuration, will work
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID, Platform: fleet.AndroidPlatform,
+	}, http.StatusOK, &addResp)
+	webAppTitleID := addResp.TitleID
+
+	// update it with configuration, will fail
+	res = s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{Configuration: json.RawMessage(`{"key":"value"}`)},
+		http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// update it without configuration, will work
+	var updateResp updateAppStoreAppResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", webAppTitleID),
+		&updateAppStoreAppRequest{DisplayName: ptr.String("MyWebApp")},
+		http.StatusOK, &updateResp)
+	require.Equal(t, webAppID, updateResp.AppStoreApp.AdamID)
+	require.Equal(t, "MyWebApp", updateResp.AppStoreApp.DisplayName)
+	require.Equal(t, "abc1", updateResp.AppStoreApp.Name)
+	require.True(t, updateResp.AppStoreApp.SelfService)
+	require.Nil(t, updateResp.AppStoreApp.Configuration)
+
+	// batch-set with configuration, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set with multiple Android apps, with configuration on the webApp, will fail
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform, Configuration: json.RawMessage(`{"key":"value"}`)},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), "Android web apps don't support configurations.")
+
+	// batch-set without configuration, will work
+	var batchResp batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch",
+		batchAssociateAppStoreAppsRequest{
+			DryRun: false,
+			Apps: []fleet.VPPBatchPayload{
+				{AppStoreID: webAppID, SelfService: true, Platform: fleet.AndroidPlatform},
+				{AppStoreID: "com.google.chrome", SelfService: true, Platform: fleet.AndroidPlatform},
+			},
+		}, http.StatusOK, &batchResp)
+	require.Len(t, batchResp.Apps, 2)
+}
+
+func (s *integrationMDMTestSuite) TestAndroidWebAppsDuplicateName() {
+	ctx := context.Background()
+	t := s.T()
+
+	s.setSkipWorkerJobs(t)
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	appConf.MDM.AndroidEnabledAndConfigured = false
+	err = s.ds.SaveAppConfig(ctx, appConf)
+	require.NoError(t, err)
+
+	enterpriseID := s.enableAndroidMDM(t)
+	var count int
+	s.androidAPIClient.EnterprisesWebAppsCreateFunc = func(ctx context.Context, enterpriseName string, app *androidmanagement.WebApp) (*androidmanagement.WebApp, error) {
+		count++
+		id := "dup" + fmt.Sprint(count)
+		return &androidmanagement.WebApp{Name: fmt.Sprintf("enterprises/%s/webApps/com.google.enterprise.webapp.%s", enterpriseID, id)}, nil
+	}
+	s.androidAPIClient.EnterprisesApplicationsFunc = func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+		return &androidmanagement.Application{IconUrl: "https://example.com/icon.jpg", Title: "Duplicate Web App"}, nil
+	}
+
+	// create two web apps with the same title (this is fine — POST /web_apps is just a Google API wrapper)
+	body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://example.com"},
+	})
+	var resp1 createAndroidWebAppResponse
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp1)
+	require.NoError(t, err)
+	webAppID1 := resp1.AppStoreID
+
+	body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+		"title": {"Duplicate Web App"},
+		"url":   {"https://different-url.com"},
+	})
+	var resp2 createAndroidWebAppResponse
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/software/web_apps", body.Bytes(), http.StatusOK, headers)
+	err = json.NewDecoder(res.Body).Decode(&resp2)
+	require.NoError(t, err)
+	webAppID2 := resp2.AppStoreID
+
+	// create a team to add the apps to
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name()})
+	require.NoError(t, err)
+
+	// add the first web app to the team
+	var addResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID1, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusOK, &addResp)
+
+	// add the second web app (same name) to the same team
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm.ID,
+	}, http.StatusConflict)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't add.`)
+	require.Contains(t, errMsg, `"Duplicate Web App"`)
+	require.Contains(t, errMsg, "already exists in this fleet")
+
+	// add the second web app (same name, rejected from team 1) to a different team
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "2"})
+	require.NoError(t, err)
+	var addResp2 addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+		AppStoreID: webAppID2, Platform: fleet.AndroidPlatform, TeamID: &tm2.ID,
+	}, http.StatusOK, &addResp2)
 }

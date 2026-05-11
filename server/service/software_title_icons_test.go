@@ -379,6 +379,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						Platform:            nil,
 						LabelsIncludeAny:    nil,
 						LabelsExcludeAny:    nil,
+						LabelsIncludeAll:    nil,
 					}, nil
 				}
 				ds.DeleteSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) error {
@@ -401,6 +402,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					SoftwareIconURL:  ptr.String(""),
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
+					LabelsIncludeAll: nil,
 					SoftwareTitleID:  1,
 				}
 				require.Equal(t, expectedActivity, capturedActivity)
@@ -426,6 +428,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 						Platform:            &platform,
 						LabelsIncludeAny:    nil,
 						LabelsExcludeAny:    nil,
+						LabelsIncludeAll:    nil,
 					}, nil
 				}
 				ds.DeleteSoftwareTitleIconFunc = func(ctx context.Context, teamID uint, titleID uint) error {
@@ -450,6 +453,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					SoftwareIconURL:  ptr.String("fleetdm.com/icon.png"), // note this is supposed to be the vpp_apps.icon_url
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
+					LabelsIncludeAll: nil,
 				}
 				require.Equal(t, expectedActivity, capturedActivity)
 			},

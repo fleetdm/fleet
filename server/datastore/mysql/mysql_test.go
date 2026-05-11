@@ -416,55 +416,6 @@ func TestAppendListOptionsToSQLSecure(t *testing.T) {
 	require.Equal(t, "invalid_column", invalidKeyErr.Key)
 }
 
-func TestAppendListOptionsToSQL(t *testing.T) {
-	sql := "SELECT * FROM my_table"
-	opts := fleet.ListOptions{
-		OrderKey: "***name***",
-	}
-
-	actual, _ := appendListOptionsToSQL(sql, &opts)
-	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	sql = "SELECT * FROM my_table"
-	opts.OrderDirection = fleet.OrderDescending
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	opts = fleet.ListOptions{
-		PerPage: 10,
-	}
-
-	sql = "SELECT * FROM my_table"
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 10"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	sql = "SELECT * FROM my_table"
-	opts.Page = 2
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-
-	opts = fleet.ListOptions{}
-	sql = "SELECT * FROM my_table"
-	actual, _ = appendListOptionsToSQL(sql, &opts)
-	expected = "SELECT * FROM my_table LIMIT 1000000"
-
-	if actual != expected {
-		t.Error("Expected", expected, "Actual", actual)
-	}
-}
-
 func TestWhereFilterHostsByTeams(t *testing.T) {
 	t.Parallel()
 
@@ -648,6 +599,63 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 				TeamID: ptr.Uint(2),
 			},
 			expected: "hosts.team_id = 2",
+		},
+
+		// ObserverTeamID: restricts observer access to a specific team (e.g. the live query's own team)
+		{
+			// Global observer with ObserverTeamID set: only that team's hosts
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			// Observer on two teams with ObserverTeamID set: only the specified team
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			// Admin on team 3 + observer on teams 1 and 2 with ObserverTeamID=1:
+			// admin access to team 3 is unaffected; observer access limited to team 1 only
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+					},
+				},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(1),
+			},
+			expected: "hosts.team_id IN (1,3)",
+		},
+		{
+			// Observer on team 1, maintainer on team 2, running a team-2 query (ObserverTeamID=2):
+			// team-1 observer access is excluded because ObserverTeamID=2 != team 1;
+			// maintainer access on team 2 is unaffected — only team-2 hosts are returned.
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+				ObserverTeamID:  ptr.Uint(2),
+			},
+			expected: "hosts.team_id IN (2)",
 		},
 	}
 

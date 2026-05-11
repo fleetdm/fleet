@@ -145,6 +145,20 @@ func RewriteDeprecatedKeys(data []byte, rules []AliasRule) ([]byte, map[string]s
 	return buf.Bytes(), deprecatedKeysMap, nil
 }
 
+// RewriteOldToNewKeys is the reverse of RewriteDeprecatedKey; it takes
+// the rules and reverses them before translating keys.
+// Use this in situations where a payload was rewritten from new to old keys
+// for deserialization, but you want to return a response with the new keys
+// for forward compatibility.
+func RewriteOldToNewKeys(data []byte, rules []AliasRule) ([]byte, error) {
+	reversed := make([]AliasRule, len(rules))
+	for i, r := range rules {
+		reversed[i] = AliasRule{OldKey: r.NewKey, NewKey: r.OldKey}
+	}
+	result, _, err := RewriteDeprecatedKeys(data, reversed)
+	return result, err
+}
+
 // rewrite reads tokens from src, rewrites deprecated keys, checks for alias
 // conflicts, and writes the transformed JSON to w.
 func (r *JSONKeyRewriteReader) rewrite(src io.Reader, w io.Writer) error {

@@ -5,7 +5,7 @@
 - Part 1: Deploy Santa with Fleet GitOps and skip the sync server
 - Part 2: [How we deployed Santa at Fleet](https://fleetdm.com/guides/how-we-deployed-santa-at-fleet)
 
-[Santa](https://github.com/northpolesec/santa) is a binary authorization system for macOS. It has become important to organizations serious about application blocking and control. However, the traditional Santa deployment model comes with operational overhead at scale, primarily centered around the need for a dedicated Santa sync server.
+[Santa](https://github.com/northpolesec/santa) is a binary authorization system for macOS. It has become important to organizations that are serious about application blocking and control. However, the traditional Santa deployment model comes with operational overhead at scale, primarily centered around the need for a dedicated Santa sync server.
 
 In the conventional setup, Santa requires a custom sync server to:
 
@@ -13,7 +13,7 @@ In the conventional setup, Santa requires a custom sync server to:
 - Collect execution events and blocked binary reports
 - Manage configuration changes and rule updates
 
-At the time of writing, there are currently three off-the-shelf sync server solutions available:
+At the time of this writing, there are currently three off-the-shelf sync server solutions available:
 
 - [Moroz](https://github.com/groob/moroz) - A golang server that serves hardcoded rules from simple configuration files.
 - [Rudolph](https://github.com/airbnb/rudolph) - An AWS-based serverless sync service built on API GW, DynamoDB, and Lambda components.
@@ -33,31 +33,31 @@ Fleet acts as a modern, API-driven replacement for traditional Santa sync server
 
 ### Configuration as code management
 
-Fleet's GitOps workflow allows you to manage Santa configurations stored in Git repositories. Instead of hosting sync server infrastructure, you define Santa rules and configurations declaratively through familiar XML (mobileconfig) files.
+Fleet's GitOps workflow allows you to manage Santa configurations stored in `git` repositories. Instead of hosting sync server infrastructure, you define Santa rules and configurations declaratively through familiar `XML` `.mobileconfig` files on macOS.
 
 ### Automated rule distribution
 
-Fleet's agent (fleetd) and MDM automatically applies Santa configurations across your macOS devices. Changes pushed to your Git repository trigger automatic deployment through Fleet's GitOps pipeline.
+Fleet's agent (`fleetd`) and Apple MDM automatically apply Santa configurations across your macOS devices. Changes pushed to your `git` repository trigger automatic deployment through Fleet's GitOps pipeline.
 
 ### Event collection and monitoring
 
-Fleet's osquery integration captures Santa events, eliminating the need for custom event collection endpoints.
+Fleet's `osquery` integration captures Santa events, eliminating the need for custom event collection endpoints.
 
 ## Implementation overview
 
 Here is how the Fleet + GitOps + Santa workflow operates in practice:
 
-1. **Configuration Definition:** Security and IT teams define Santa rules in files within a Git repository
-2. **Change Management:** Rule updates go through standard pull request review processes
-3. **Automated Deployment:** Fleet GitOps detects changes and applies configurations
-4. **Real-time Monitoring:** osquery tables provide visibility into Santa events
-5. **Incident Response:** Fleet's queries and policies trigger automated workflows for investigation or remediation
+1. **Configuration Definition:** Security and IT teams define Santa rules in files within a Git repository.
+2. **Change Management:** Rule updates go through standard pull request review processes.
+3. **Automated Deployment:** Fleet GitOps detects changes and applies configurations.
+4. **Real-time Monitoring:** `osquery` tables provide visibility into Santa events.
+5. **Incident Response:** Fleet's Reports and Policy queries trigger automated workflows for investigation or remediation.
 
 ## The bottom line
 
-Fleet believes in reducing complexity. Fleet's GitOps-native approach provides the functionality of a custom Santa sync server while adding enterprise device management, operational simplicity, and modern change management capabilities while eliminating infrastructure maintenance. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
+Fleet believes in reducing complexity. Fleet's GitOps-native approach integrates the functionality of a custom Santa sync server with Fleet's enterprise device management capabilities. Operations and change management are simplified. Infrastructure maintenance is reduced. It's a more scalable and secure approach to binary authorization that aligns with modern infrastructure practices.
 
-Ready to modernize your Santa deployment? Fleet's open-source platform makes it easier than ever. 
+Ready to build your Santa deployment? Fleet's open-source platform makes it easier than ever. 
 
 Stay tuned into the progress and discussion on a native Santa + Fleet integration currently in design by viewing this [Fleet feature request on GitHub](https://github.com/fleetdm/fleet/issues/24910)
 

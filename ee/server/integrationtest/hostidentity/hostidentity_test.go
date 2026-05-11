@@ -29,7 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/hostidentity"
 	orbitscep "github.com/fleetdm/fleet/v4/ee/orbit/pkg/scep"
 	"github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw"
-	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
+	"github.com/fleetdm/fleet/v4/ee/pkg/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttpsig"
@@ -37,6 +37,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/kitlogadapter"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/x509util"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/google/go-tpm/tpm2/transport/simulator"
@@ -161,7 +162,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -169,7 +170,7 @@ func testGetCertWithCurve(t *testing.T, s *Suite, curve elliptic.Curve) (cert *x
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Verify successful response
@@ -241,7 +242,7 @@ func createHTTPSigner(t *testing.T, eccPrivateKey *ecdsa.PrivateKey, cert *x509.
 func testOrbitEnrollment(t *testing.T, s *Suite, cert *x509.Certificate, eccPrivateKey *ecdsa.PrivateKey) string {
 	ctx := t.Context()
 	// Test orbit enrollment with the certificate
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -616,7 +617,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		SignerCert:  tempRSACert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -624,7 +625,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// The renewal should succeed
@@ -769,7 +770,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 			SignerCert:  retryTempRSACert,
 		}
 
-		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(s.Logger))
+		retryMsg, err := scep.NewCSRRequest(retryCSR, retryPkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 		require.NoError(t, err)
 
 		// Send PKI operation request
@@ -777,7 +778,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 		require.NoError(t, err)
 
 		// Parse response
-		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(s.Logger), scep.WithCACerts(retryMsg.Recipients))
+		retryPkiMsgResp, err := scep.ParsePKIMessage(retryRespBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(retryMsg.Recipients))
 		require.NoError(t, err)
 
 		// Should fail - the certificate has already been revoked
@@ -797,7 +798,7 @@ func testDeleteHostAndReenroll(t *testing.T, s *Suite, cert *x509.Certificate, e
 	s.Do(t, "DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostToDelete.ID), nil, http.StatusOK)
 
 	// Try to enroll the same host with the same certificate - this should fail
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + cert.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + cert.Subject.CommonName,
@@ -1016,7 +1017,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 		SignerCert:  deviceCert,
 	}
 
-	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(s.Logger))
+	msg, err := scep.NewCSRRequest(csr, pkiMsgReq, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)))
 	require.NoError(t, err)
 
 	// Send PKI operation request
@@ -1024,7 +1025,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	require.NoError(t, err)
 
 	// Parse response
-	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(s.Logger), scep.WithCACerts(msg.Recipients))
+	pkiMsgResp, err := scep.ParsePKIMessage(respBytes, scep.WithLogger(kitlogadapter.NewLogger(s.Logger)), scep.WithCACerts(msg.Recipients))
 	require.NoError(t, err)
 
 	// Verify failure response
@@ -1054,7 +1055,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	)
 	require.NoError(t, err)
 
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + certHost1.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + certHost1.Subject.CommonName,
@@ -1166,7 +1167,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 	})
 
 	// Successfully enroll host2 with correct certificate
-	enrollRequest2 := contract.EnrollOrbitRequest{
+	enrollRequest2 := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + certHost2.Subject.CommonName,
 		HardwareSerial:    "test-serial-" + certHost2.Subject.CommonName,
@@ -1252,7 +1253,7 @@ func testWrongCertAuthentication(t *testing.T, s *Suite) {
 
 	// Test enrollment failures after host is enrolled - use different host identifiers to avoid re-enrollment
 	t.Run("enroll new host with host1 cert should fail after enrollment", func(t *testing.T) {
-		newHostEnrollRequest := contract.EnrollOrbitRequest{
+		newHostEnrollRequest := fleet.EnrollOrbitRequest{
 			EnrollSecret:      testEnrollmentSecret,
 			HardwareUUID:      "test-uuid-new-host-wrong-cert",
 			HardwareSerial:    "test-serial-new-host-wrong-cert",
@@ -1354,7 +1355,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	assert.True(t, eccPubKey.Equal(certPubKey), "Certificate public key should match TPM key")
 
 	// Test enrollment with HTTP signature using TPM key
-	enrollRequest := contract.EnrollOrbitRequest{
+	enrollRequest := fleet.EnrollOrbitRequest{
 		EnrollSecret:      testEnrollmentSecret,
 		HardwareUUID:      "test-uuid-" + commonName,
 		HardwareSerial:    "test-serial-" + commonName,

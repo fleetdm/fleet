@@ -1,5 +1,5 @@
 {
-  "kind": "team",
+  "kind": "fleet",
   "apiVersion": "v1",
   "spec": {
     "fleet": {
@@ -7,7 +7,11 @@
       "description": "team1 description",
       "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 42,
       "host_expiry_settings": {
@@ -24,9 +28,13 @@
       "mdm": {
         "android_settings": {
           "certificates": null,
-          "custom_settings": null
+          "configuration_profiles": null
+        },
+        "apple_settings": {
+          "configuration_profiles": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
           "minimum_version": null,
@@ -37,27 +45,28 @@
           "minimum_version": null,
           "update_new_hosts": null
         },
-        "macos_settings": {
-          "custom_settings": null
-        },
-        "macos_setup": {
-          "bootstrap_package": null,
-          "enable_end_user_authentication": false,
-          "enable_release_device_manually": false,
-          "macos_setup_assistant": null,
-          "manual_agent_install": null,
-          "require_all_software_macos": false,
-          "script": null,
-          "software": null
-        },
         "macos_updates": {
           "deadline": null,
           "minimum_version": null,
           "update_new_hosts": null
         },
+        "setup_experience": {
+          "apple_enable_release_device_manually": false,
+          "apple_setup_assistant": null,
+          "enable_create_local_admin_account": null,
+          "enable_end_user_authentication": false,
+          "end_user_local_account_type": null,
+          "lock_end_user_info": false,
+          "macos_bootstrap_package": null,
+          "macos_manual_agent_install": null,
+          "macos_script": null,
+          "require_all_software_macos": false,
+          "require_all_software_windows": false,
+          "software": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "configuration_profiles": null
         },
         "windows_updates": {
           "deadline_days": null,
@@ -82,7 +91,11 @@
       "description": "team1 description",
       "features": {
         "enable_host_users": true,
-        "enable_software_inventory": true
+        "enable_software_inventory": true,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 42,
       "host_expiry_settings": {
@@ -102,6 +115,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": false,
         "ios_updates": {
           "deadline": null,
           "minimum_version": null,
@@ -118,10 +132,14 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
+          "enable_managed_local_account": null,
           "enable_release_device_manually": false,
+          "end_user_local_account_type": null,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "script": null,
           "software": null
         },
@@ -155,7 +173,7 @@
   }
 }
 {
-  "kind": "team",
+  "kind": "fleet",
   "apiVersion": "v1",
   "spec": {
     "fleet": {
@@ -178,7 +196,11 @@
           "foo": "bar"
         },
         "enable_host_users": false,
-        "enable_software_inventory": false
+        "enable_software_inventory": false,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 43,
       "host_expiry_settings": {
@@ -195,9 +217,13 @@
       "mdm": {
         "android_settings": {
           "certificates": null,
-          "custom_settings": null
+          "configuration_profiles": null
+        },
+        "apple_settings": {
+          "configuration_profiles": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",
@@ -208,27 +234,28 @@
           "minimum_version": "18.0",
           "update_new_hosts": null
         },
-        "macos_settings": {
-          "custom_settings": null
-        },
-        "macos_setup": {
-          "bootstrap_package": null,
-          "enable_end_user_authentication": false,
-          "enable_release_device_manually": false,
-          "macos_setup_assistant": null,
-          "manual_agent_install": null,
-          "require_all_software_macos": false,
-          "script": null,
-          "software": null
-        },
         "macos_updates": {
           "deadline": "2021-12-14",
           "minimum_version": "12.3.1",
           "update_new_hosts": null
         },
+        "setup_experience": {
+          "apple_enable_release_device_manually": false,
+          "apple_setup_assistant": null,
+          "enable_create_local_admin_account": null,
+          "enable_end_user_authentication": false,
+          "end_user_local_account_type": null,
+          "lock_end_user_info": false,
+          "macos_bootstrap_package": null,
+          "macos_manual_agent_install": null,
+          "macos_script": null,
+          "require_all_software_macos": false,
+          "require_all_software_windows": false,
+          "software": null
+        },
         "windows_require_bitlocker_pin": false,
         "windows_settings": {
-          "custom_settings": null
+          "configuration_profiles": null
         },
         "windows_updates": {
           "deadline_days": 7,
@@ -268,7 +295,11 @@
           "foo": "bar"
         },
         "enable_host_users": false,
-        "enable_software_inventory": false
+        "enable_software_inventory": false,
+        "historical_data": {
+          "uptime": true,
+          "vulnerabilities": true
+        }
       },
       "host_count": 43,
       "host_expiry_settings": {
@@ -288,6 +319,7 @@
           "custom_settings": null
         },
         "enable_disk_encryption": false,
+        "enable_recovery_lock_password": true,
         "ios_updates": {
           "deadline": "2022-11-15",
           "minimum_version": "17.5",
@@ -304,10 +336,14 @@
         "macos_setup": {
           "bootstrap_package": null,
           "enable_end_user_authentication": false,
+          "enable_managed_local_account": null,
           "enable_release_device_manually": false,
+          "end_user_local_account_type": null,
+          "lock_end_user_info": false,
           "macos_setup_assistant": null,
           "manual_agent_install": null,
           "require_all_software_macos": false,
+          "require_all_software_windows": false,
           "script": null,
           "software": null
         },

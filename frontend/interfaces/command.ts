@@ -12,6 +12,7 @@ export interface ICommand {
   updated_at: string;
   request_type: string;
   hostname: string;
+  name: string | null; // Profile name when command is for installing/removing a macOS profile
 }
 
 /**
@@ -30,9 +31,9 @@ export interface ICommandResult {
   payload: string;
   /** Base64-encoded string containing the MDM command response */
   result: string;
+  name: string | null; // Profile name when command is for installing/removing a macOS profile
   /** ResultsMetadata contains command-specific metadata.
-   * VPP install commands includes a "software_installed" boolean. */
+   * VPP install commands include a "software_installed" boolean and
+   * "vpp_verify_timeout_seconds" integer. */
   results_metadata?: Record<string, unknown>;
 }
-
-export type IMDMCommandResult = ICommandResult;

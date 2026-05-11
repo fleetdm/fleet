@@ -18,7 +18,7 @@ import InfoBanner from "components/InfoBanner";
 import Spinner from "components/Spinner";
 import Pagination from "components/Pagination";
 import SectionHeader from "components/SectionHeader";
-import Card from "components/Card";
+import EmptyState from "components/EmptyState";
 
 import UploadList from "../../../../../components/UploadList";
 import DeleteScriptModal from "../../components/DeleteScriptModal";
@@ -67,13 +67,13 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
     [
       {
         scope: "scripts",
-        team_id: teamId,
+        fleet_id: teamId,
         page: currentPage,
         per_page: SCRIPTS_PER_PAGE,
       },
     ],
-    ({ queryKey: [{ team_id, page, per_page }] }) =>
-      scriptAPI.getScripts({ team_id, page, per_page }),
+    ({ queryKey: [{ fleet_id, page, per_page }] }) =>
+      scriptAPI.getScripts({ fleet_id, page, per_page }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       staleTime: 3000,
@@ -192,7 +192,7 @@ const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
         currentPage === 0 &&
         !scripts?.length &&
         (isTechnician ? (
-          <Card className="empty-scripts">No scripts uploaded.</Card>
+          <EmptyState variant="header-list" header="No scripts uploaded" />
         ) : (
           <ScriptUploader onButtonClick={() => setShowAddScriptModal(true)} />
         ))}

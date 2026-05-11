@@ -39,6 +39,14 @@ func (m *mockService) VerifyMDMWindowsConfigured(ctx context.Context) error {
 	return nil
 }
 
+// VerifyMDMAndroidConfigured marks whether Android MDM is enabled for the test.
+func (m *mockService) VerifyMDMAndroidConfigured(ctx context.Context) error {
+	if !m.androidConfigured.Load() {
+		return fleet.ErrAndroidMDMNotConfigured
+	}
+	return nil
+}
+
 // VerifyAnyMDMConfigured is the mock implementation that mirrors the production
 // VerifyAnyMDMConfigured service method, adding Android to the Apple/Windows check.
 func (m *mockService) VerifyAnyMDMConfigured(ctx context.Context) error {
@@ -113,6 +121,40 @@ func TestWindowsMDMNotConfigured(t *testing.T) {
 	f := mw.VerifyWindowsMDM()(next)
 	_, err := f(context.Background(), struct{}{})
 	require.ErrorIs(t, err, fleet.ErrWindowsMDMNotConfigured)
+	require.False(t, nextCalled)
+}
+
+func TestAndroidMDMConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.androidConfigured.Store(true)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAndroidMDM()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.NoError(t, err)
+	require.True(t, nextCalled)
+}
+
+func TestAndroidMDMNotConfigured(t *testing.T) {
+	svc := mockService{}
+	svc.androidConfigured.Store(false)
+	mw := NewMDMConfigMiddleware(&svc)
+
+	nextCalled := false
+	next := func(ctx context.Context, req any) (any, error) {
+		nextCalled = true
+		return struct{}{}, nil
+	}
+
+	f := mw.VerifyAndroidMDM()(next)
+	_, err := f(context.Background(), struct{}{})
+	require.ErrorIs(t, err, fleet.ErrAndroidMDMNotConfigured)
 	require.False(t, nextCalled)
 }
 

@@ -159,6 +159,7 @@ const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
     failed: 3,
   },
   labels_include_any: null,
+  labels_include_all: null,
   labels_exclude_any: null,
 };
 
@@ -183,6 +184,7 @@ const DEFAULT_APP_STORE_APP_ANDROID_MOCK: IAppStoreApp = {
   categories: null,
   labels_include_any: null,
   labels_exclude_any: null,
+  labels_include_all: null,
   configuration: '{ workProfileWidgets: "WORK_PROFILE_WIDGETS_ALLOWED" }',
 };
 
@@ -256,6 +258,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   url: "https://fakeurl.testpackageurlforfalconapp.fake/test/package",
   hash_sha256: "abcd1234",
   labels_include_any: null,
+  labels_include_all: null,
   labels_exclude_any: null,
   install_during_setup: undefined,
 };

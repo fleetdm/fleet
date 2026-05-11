@@ -67,7 +67,7 @@ func (r *teamsResource) Schema(ctx context.Context, _ resource.SchemaRequest, re
 }
 
 // teamModelToTF is a handy function to take the results of the API call
-// to the FleetDM API and convert it to the Terraform state.
+// to the Fleet API and convert it to the Terraform state.
 func teamModelToTF(ctx context.Context, tm *fleetdm_client.TeamGetResponse, tf *TeamModel) error {
 	tf.Id = types.Int64Value(tm.Team.ID)
 	tf.Name = types.StringValue(tm.Team.Name)
@@ -144,7 +144,7 @@ func (r *teamsResource) Create(ctx context.Context, req resource.CreateRequest, 
 	}
 }
 
-// Read queries the FleetDM API and sets the TF state to what it finds.
+// Read reports (formerly "queries") the Fleet API and sets the TF state to what it finds.
 func (r *teamsResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
 	var state TeamModel
 	diags := req.State.Get(ctx, &state)
@@ -186,7 +186,7 @@ func (r *teamsResource) Read(ctx context.Context, req resource.ReadRequest, resp
 }
 
 // Update will compare the plan and the current state and see how they
-// differ. It will then update the team in FleetDM to match the plan,
+// differ. It will then update the team in Fleet to match the plan,
 // and then update the Terraform state to match that plan.
 func (r *teamsResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
 	var state TeamModel
@@ -265,7 +265,7 @@ func (r *teamsResource) Update(ctx context.Context, req resource.UpdateRequest, 
 }
 
 // ImportState enables import of teams. We accept the name of the team
-// as input, query the FleetDM API to get the ID, and then set the ID.
+// as input, query the Fleet API to get the ID, and then set the ID.
 // Terraform will turn around and call Read() on that id.
 func (r *teamsResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	id, err := r.client.TeamNameToID(req.ID)

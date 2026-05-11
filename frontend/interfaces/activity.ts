@@ -1,4 +1,5 @@
 import { ILabelSoftwareTitle } from "./label";
+import { IOrgLogoMode } from "./org_logo";
 import { Platform } from "./platform";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
@@ -46,6 +47,11 @@ export enum ActivityType {
   EnabledMacosUpdateNewHosts = "enabled_macos_update_new_hosts",
   DisabledMacosUpdateNewHosts = "disabled_macos_update_new_hosts",
   ReadHostDiskEncryptionKey = "read_host_disk_encryption_key",
+  ViewedHostRecoveryLockPassword = "viewed_host_recovery_lock_password",
+  SetHostRecoveryLockPassword = "set_host_recovery_lock_password",
+  RotatedHostRecoveryLockPassword = "rotated_host_recovery_lock_password",
+  EnabledRecoveryLockPasswords = "enabled_recovery_lock_passwords",
+  DisabledRecoveryLockPasswords = "disabled_recovery_lock_passwords",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
   CreatedAppleOSProfile = "created_macos_profile",
   /** Note: BE not renamed (yet) from macOS even though activity is also used for iOS and iPadOS */
@@ -80,13 +86,10 @@ export enum ActivityType {
   DeletedAndroidProfile = "deleted_android_profile",
   EditedAndroidProfile = "edited_android_profile",
   EditedAndroidCertificate = "edited_android_certificate",
-  // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  EnabledDiskEncryption = "enabled_disk_encryption",
+  ResentCertificate = "resent_certificate",
+  // Note: This activity is generated for all platforms.
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
-  // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
-  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
-  DisabledDiskEncryption = "disabled_disk_encryption",
+  // Note: This activity is generated for all platforms.
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",
@@ -99,6 +102,8 @@ export enum ActivityType {
   DisabledWindowsMdm = "disabled_windows_mdm",
   EnabledGitOpsMode = "enabled_gitops_mode",
   DisabledGitOpsMode = "disabled_gitops_mode",
+  EnabledGitOpsException = "enabled_gitops_exception",
+  DisabledGitOpsException = "disabled_gitops_exception",
   EnabledWindowsMdmMigration = "enabled_windows_mdm_migration",
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
@@ -113,6 +118,7 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  FailedWipe = "failed_wipe",
   CreatedDeclarationProfile = "created_declaration_profile",
   DeletedDeclarationProfile = "deleted_declaration_profile",
   EditedDeclarationProfile = "edited_declaration_profile",
@@ -136,6 +142,7 @@ export enum ActivityType {
   CanceledInstallAppStoreApp = "canceled_install_app_store_app",
   CanceledInstallSoftware = "canceled_install_software",
   CanceledUninstallSoftware = "canceled_uninstall_software",
+  CanceledSetupExperience = "canceled_setup_experience",
   EnabledAndroidMdm = "enabled_android_mdm",
   DisabledAndroidMdm = "disabled_android_mdm",
   ConfiguredMSEntraConditionalAccess = "added_conditional_access_integration_microsoft",
@@ -154,9 +161,25 @@ export enum ActivityType {
   EditedHostIdpData = "edited_host_idp_data",
   AddedCertificate = "added_certificate",
   DeletedCertificate = "deleted_certificate",
+  InstalledCertificate = "installed_certificate",
   EditedEnrollSecrets = "edited_enroll_secrets",
   AddedMicrosoftEntraTenant = "added_microsoft_entra_tenant",
   DeletedMicrosoftEntraTenant = "deleted_microsoft_entra_tenant",
+  ClearedPasscode = "cleared_passcode",
+  EnabledManagedLocalAccount = "enabled_managed_local_account",
+  DisabledManagedLocalAccount = "disabled_managed_local_account",
+  ViewedManagedLocalAccount = "read_managed_local_account",
+  CreatedManagedLocalAccount = "created_managed_local_account",
+  RotatedManagedLocalAccountPassword = "rotated_managed_local_account_password",
+  FailedToRotateManagedLocalAccountPassword = "failed_to_rotate_managed_local_account_password",
+  FailedEnrollmentProfileRenewal = "failed_enrollment_profile_renewal",
+  CreatedLabel = "created_label",
+  EditedLabel = "edited_label",
+  DeletedLabel = "deleted_label",
+  ChangedOrgLogo = "changed_org_logo",
+  DeletedOrgLogo = "deleted_org_logo",
+  EnabledHistoricalDataset = "enabled_historical_dataset",
+  DisabledHistoricalDataset = "disabled_historical_dataset",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -164,7 +187,11 @@ export type IHostPastActivityType =
   | ActivityType.RanScript
   | ActivityType.LockedHost
   | ActivityType.WipedHost
+  | ActivityType.FailedWipe
   | ActivityType.ReadHostDiskEncryptionKey
+  | ActivityType.ViewedHostRecoveryLockPassword
+  | ActivityType.SetHostRecoveryLockPassword
+  | ActivityType.RotatedHostRecoveryLockPassword
   | ActivityType.UnlockedHost
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
@@ -172,7 +199,16 @@ export type IHostPastActivityType =
   | ActivityType.CanceledRunScript
   | ActivityType.CanceledInstallAppStoreApp
   | ActivityType.CanceledInstallSoftware
-  | ActivityType.CanceledUninstallSoftware;
+  | ActivityType.CanceledUninstallSoftware
+  | ActivityType.CanceledSetupExperience
+  | ActivityType.InstalledCertificate
+  | ActivityType.ResentCertificate
+  | ActivityType.ClearedPasscode
+  | ActivityType.ViewedManagedLocalAccount
+  | ActivityType.CreatedManagedLocalAccount
+  | ActivityType.RotatedManagedLocalAccountPassword
+  | ActivityType.FailedToRotateManagedLocalAccountPassword
+  | ActivityType.FailedEnrollmentProfileRenewal;
 
 /** This is a subset of ActivityType that are shown only for the host upcoming activities */
 export type IHostUpcomingActivityType =
@@ -240,6 +276,7 @@ export interface IActivityDetails {
   location?: string; // name of location associated with VPP token
   mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
+  mode?: IOrgLogoMode;
   name?: string;
   pack_id?: number;
   pack_name?: string;
@@ -271,6 +308,7 @@ export interface IActivityDetails {
   team_name?: string | null;
   teams?: ITeamSummary[];
   triggered_by?: string;
+  from_setup_experience?: boolean;
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
@@ -278,6 +316,15 @@ export interface IActivityDetails {
   host_idp_username?: string;
   idp_full_name?: string;
   tenant_id?: string;
+  certificate_name?: string;
+  certificate_template_id?: number;
+  detail?: string;
+  exception?: string;
+  label_id?: number;
+  label_name?: string;
+  fleet_id?: number | null;
+  fleet_name?: string | null;
+  dataset?: string;
 }
 
 // maps activity types to their corresponding label to use when filtering activites via the dropdown
@@ -293,7 +340,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   added_software: "Added software",
   applied_spec_pack: "GitOps: edited packs",
   applied_spec_policy: "GitOps: edited policies",
-  applied_spec_saved_query: "GitOps: edited queries",
+  applied_spec_saved_query: "GitOps: edited reports",
   applied_spec_team: "GitOps: edited fleets",
   applied_spec_software: "GitOps: edited software",
   canceled_install_app_store_app:
@@ -301,14 +348,16 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   canceled_install_software: "Canceled activity: install software",
   canceled_run_script: "Canceled activity: run script",
   canceled_uninstall_software: "Canceled activity: uninstall software",
+  canceled_setup_experience: "Canceled setup experience",
   changed_macos_setup_assistant: "Edited macOS automatic enrollment profile",
+  changed_org_logo: "Updated organization logo",
   changed_user_global_role: "Edited user's role: global",
   changed_user_team_role: "Edited user's role: fleet",
   created_declaration_profile: "Added declaration (DDM) profile",
   created_macos_profile: "Added configuration profile: Apple",
   created_pack: "Created pack",
   created_policy: "Created policy",
-  created_saved_query: "Added query",
+  created_saved_query: "Added report",
   created_team: "Added fleet",
   created_user: "Added user",
   created_windows_profile: "Added configuration profile: Windows",
@@ -321,11 +370,12 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   deleted_macos_profile: "Deleted configuration profile: Apple",
   deleted_macos_setup_assistant: "Deleted macOS automatic enrollment profile",
   deleted_microsoft_entra_tenant: "Deleted Microsoft Entra tenant",
-  deleted_multiple_saved_query: "Bulk deleted queries",
+  deleted_multiple_saved_query: "Bulk deleted reports",
   deleted_ndes_scep_proxy: "Deleted certificate authority (CA): NDES",
+  deleted_org_logo: "Deleted organization logo",
   deleted_pack: "Deleted pack",
   deleted_policy: "Deleted policy",
-  deleted_saved_query: "Deleted query",
+  deleted_saved_query: "Deleted report",
   deleted_script: "Deleted script",
   deleted_software: "Deleted software",
   deleted_team: "Deleted fleet",
@@ -337,8 +387,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   disabled_android_mdm: "Turned off Android MDM",
   disabled_conditional_access_automations:
     "Disabled conditional access automations",
+  disabled_gitops_exception: "Disabled GitOps exception",
   disabled_gitops_mode: "Disabled GitOps mode",
-  disabled_disk_encryption: "Turned off disk encryption",
   disabled_macos_disk_encryption: "Turned off disk encryption",
   disabled_macos_setup_end_user_auth:
     "Turned off end user authentication (setup experience)",
@@ -360,7 +410,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   edited_ndes_scep_proxy: "Edited certificate authority (CA): NDES",
   edited_pack: "Edited pack",
   edited_policy: "Edited policy",
-  edited_saved_query: "Edited query",
+  edited_saved_query: "Edited report",
   edited_script: "Edited script",
   edited_software: "Edited software",
   edited_windows_profile: "GitOps: edited configuration profiles: Windows",
@@ -369,8 +419,8 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   enabled_android_mdm: "Turned on Android MDM",
   enabled_conditional_access_automations:
     "Enabled conditional access automations",
+  enabled_gitops_exception: "Enabled GitOps exception",
   enabled_gitops_mode: "Enabled GitOps mode",
-  enabled_disk_encryption: "Turned on disk encryption",
   enabled_macos_disk_encryption: "Turned on disk encryption",
   enabled_macos_setup_end_user_auth:
     "Turned on end user authentication (setup experience)",
@@ -381,7 +431,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   fleet_enrolled: "Host enrolled",
   installed_app_store_app: "Installed App Store (VPP) app",
   installed_software: "Install software",
-  live_query: "Ran live query",
+  live_query: "Ran live report",
   locked_host: "Locked host",
   mdm_enrolled: "MDM turned on",
   mdm_unenrolled: "MDM turned off",
@@ -390,6 +440,12 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   scheduled_script_batch: "Scheduled script batch",
   canceled_script_batch: "Canceled script batch",
   read_host_disk_encryption_key: "Viewed disk encryption key",
+  viewed_host_recovery_lock_password: "Viewed Recovery Lock password",
+  set_host_recovery_lock_password: "Set Recovery Lock password",
+  rotated_host_recovery_lock_password:
+    "Triggered Recovery Lock password rotation",
+  enabled_recovery_lock_passwords: "Turned on Recovery Lock passwords",
+  disabled_recovery_lock_passwords: "Turned off Recovery Lock passwords",
   resent_configuration_profile: "Resent configuration profile",
   resent_configuration_profile_batch: "Bulk resent configuration profile",
   transferred_hosts: "Transferred hosts",
@@ -400,6 +456,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   user_failed_login: "User login: failed",
   user_logged_in: "User login: success",
   wiped_host: "Wiped host",
+  failed_wipe: "Failed wipe",
   added_conditional_access_integration_microsoft:
     "Added conditional access integration: Microsoft",
   deleted_conditional_access_integration_microsoft:
@@ -429,6 +486,7 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
     "GitOps: edited configuration profiles: Android",
   [ActivityType.EditedAndroidCertificate]:
     "GitOps: edited certificate templates: Android",
+  [ActivityType.ResentCertificate]: "Resent certificate",
   [ActivityType.AddedConditionalAccessOkta]: "Added conditional access: Okta",
   [ActivityType.HostBypassedConditionalAccess]:
     "Host bypassed conditional access",
@@ -441,5 +499,23 @@ export const ACTIVITY_TYPE_TO_FILTER_LABEL: Record<ActivityType, string> = {
   [ActivityType.EditedHostIdpData]: "Edited host identity provider (IdP) data",
   [ActivityType.AddedCertificate]: "Added certificate",
   [ActivityType.DeletedCertificate]: "Deleted certificate",
+  [ActivityType.InstalledCertificate]: "Installed certificate",
   [ActivityType.EditedEnrollSecrets]: "Edited enroll secrets",
+  [ActivityType.ClearedPasscode]: "Cleared passcode",
+  [ActivityType.EnabledManagedLocalAccount]: "Turned on managed local account",
+  [ActivityType.DisabledManagedLocalAccount]:
+    "Turned off managed local account",
+  [ActivityType.ViewedManagedLocalAccount]: "Viewed managed account",
+  [ActivityType.CreatedManagedLocalAccount]: "Created managed account",
+  [ActivityType.RotatedManagedLocalAccountPassword]:
+    "Triggered managed local account password rotation",
+  [ActivityType.FailedToRotateManagedLocalAccountPassword]:
+    "Failed to rotate managed local account password",
+  [ActivityType.FailedEnrollmentProfileRenewal]:
+    "Enrollment profile renewal failed",
+  [ActivityType.CreatedLabel]: "Created label",
+  [ActivityType.EditedLabel]: "Edited label",
+  [ActivityType.DeletedLabel]: "Deleted label",
+  [ActivityType.EnabledHistoricalDataset]: "Enabled chart data collection",
+  [ActivityType.DisabledHistoricalDataset]: "Disabled chart data collection",
 };

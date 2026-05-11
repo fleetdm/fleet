@@ -190,64 +190,55 @@ $base-class: "button";
     }
   }
 
-  &--text-link {
-    @include button-variant(transparent);
-    border: 0;
-    box-shadow: none;
+  &--grey-pill {
+    @include button-variant(
+      $core-fleet-white,
+      $ui-off-white,
+      null,
+      $inverse: true
+    );
     color: $ui-fleet-black-75;
-    font-size: $x-small;
-    cursor: pointer;
-    margin: 0;
-    padding: 0;
-    height: auto;
-    line-height: normal;
-    text-align: left;
-
-    &:focus {
-      outline: none;
-    }
+    border: 1px solid $ui-fleet-black-25;
+    border-radius: 4px;
+    box-sizing: border-box;
+    font-size: $xx-small;
+    font-weight: $bold;
+    padding: 0 $pad-small;
+    height: 28px;
+    white-space: nowrap;
 
     &:hover,
     &:focus {
-      color: $ui-fleet-black-75-over;
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
+      border: 1px solid $ui-fleet-black-50;
     }
 
     &:active {
-      color: $ui-fleet-black-75-down;
-      box-shadow: none;
-      top: 0;
-    }
-
-    &.light-text {
-      font-weight: $regular;
+      box-shadow: inset 2px 2px 2px rgba(0, 0, 0, 0.1);
     }
   }
 
-  &--text-link-dark {
-    @include button-variant(transparent);
+  // Looks exactly like a CustomLink but is a <button>
+  &--link {
+    @include link;
+    @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+    background: transparent;
     border: 0;
     box-shadow: none;
-    color: $core-fleet-black;
-    font-size: $x-small;
     cursor: pointer;
     margin: 0;
     padding: 0;
     height: auto;
-    line-height: normal;
-    text-align: left;
+    line-height: $line-height;
+    display: inline-flex;
+    align-items: center;
+    gap: $pad-xsmall;
 
     &:focus {
       outline: none;
     }
 
-    &:hover,
-    &:focus {
-      background-color: transparent;
-      box-shadow: none;
-      text-decoration: underline;
+    &:focus-visible {
+      @include unstyled-button-focus-outline(3px);
     }
 
     &:active {
@@ -369,7 +360,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: rgba($core-fleet-black, 0.05);
+      background-color: $core-fleet-black-overlay-05;
       color: $core-fleet-green-over;
 
       svg {
@@ -550,5 +541,10 @@ $base-class: "button";
   &.button--justify-right {
     right: -$pad-small;
     margin-left: -$pad-small;
+  }
+
+  // Used in registration/auth pages
+  &__wide {
+    width: 200px;
   }
 }

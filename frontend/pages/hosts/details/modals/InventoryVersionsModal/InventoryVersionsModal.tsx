@@ -50,7 +50,7 @@ const InventoryVersionsModal = ({
       isTopScrolling={isTopScrolling}
       primaryButtons={
         <Button type="submit" onClick={onExit}>
-          Done
+          Close
         </Button>
       }
     />
@@ -66,10 +66,8 @@ const InventoryVersionsModal = ({
       onExit={onExit}
       width="large"
     >
-      <>
-        {renderScrollableContent()}
-        {renderFooter()}
-      </>
+      {renderScrollableContent()}
+      {renderFooter()}
     </Modal>
   );
 };

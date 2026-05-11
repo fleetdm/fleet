@@ -246,63 +246,61 @@ const EditTeamsVppModal = ({
       width="large"
       isContentDisabled={isSaving}
     >
-      <>
-        <p>
-          Edit fleets for <b>{currentToken.org_name}</b>.
-        </p>
-        <p>
-          If you delete a fleet, App Store apps will be deleted from that fleet.
-          Installed apps won&apos;t be uninstalled from hosts.
-        </p>
-        <form onSubmit={onSave} className={baseClass} autoComplete="off">
-          <TooltipWrapper
-            position="top"
-            underline={false}
-            showArrow
-            tipContent={
-              <div className={`${baseClass}__tooltip--all-teams`}>
-                You can&apos;t choose fleets because you already have a VPP
-                token assigned to all fleets. First, edit fleets for that VPP
-                token to choose fleets here.
-              </div>
+      <p>
+        Edit fleets for <b>{currentToken.org_name}</b>.
+      </p>
+      <p>
+        If you delete a fleet, App Store apps will be deleted from that fleet.
+        Installed apps won&apos;t be uninstalled from hosts.
+      </p>
+      <form onSubmit={onSave} className={baseClass} autoComplete="off">
+        <TooltipWrapper
+          position="top"
+          underline={false}
+          showArrow
+          tipContent={
+            <div className={`${baseClass}__tooltip--all-teams`}>
+              You can&apos;t choose fleets because you already have a VPP token
+              assigned to all fleets. First, edit fleets for that VPP token to
+              choose fleets here.
+            </div>
+          }
+          disableTooltip={!isDropdownDisabled}
+        >
+          <Dropdown
+            options={options}
+            multi
+            onChange={onChange}
+            placeholder="Search fleets"
+            value={selectedValue}
+            label="Fleets"
+            className={`${baseClass}__vpp-dropdown`}
+            wrapperClassName={`${baseClass}__form-field--vpp-teams ${
+              isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
+            }`}
+            tooltip={
+              isDropdownDisabled ? undefined : (
+                <>
+                  Each fleet can have only one VPP token. Fleets that already
+                  have a VPP token won&apos;t show up here.
+                </>
+              )
             }
-            disableTooltip={!isDropdownDisabled}
+            helpText="App Store apps in this VPP token's Apple Business (AB) will only be available to install on hosts in these fleets."
+            disabled={isDropdownDisabled}
+          />
+        </TooltipWrapper>
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            className="save-vpp-teams-loading"
+            isLoading={isSaving}
+            disabled={isDropdownDisabled}
           >
-            <Dropdown
-              options={options}
-              multi
-              onChange={onChange}
-              placeholder="Search fleets"
-              value={selectedValue}
-              label="Fleets"
-              className={`${baseClass}__vpp-dropdown`}
-              wrapperClassName={`${baseClass}__form-field--vpp-teams ${
-                isDropdownDisabled ? `${baseClass}__form-field--disabled` : ""
-              }`}
-              tooltip={
-                isDropdownDisabled ? undefined : (
-                  <>
-                    Each fleet can have only one VPP token. Fleets that already
-                    have a VPP token won&apos;t show up here.
-                  </>
-                )
-              }
-              helpText="App Store apps in this VPP token's Apple Business Manager (ABM) will only be available to install on hosts in these fleets."
-              disabled={isDropdownDisabled}
-            />
-          </TooltipWrapper>
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              className="save-vpp-teams-loading"
-              isLoading={isSaving}
-              disabled={isDropdownDisabled}
-            >
-              Save
-            </Button>
-          </div>
-        </form>
-      </>
+            Save
+          </Button>
+        </div>
+      </form>
     </Modal>
   );
 };

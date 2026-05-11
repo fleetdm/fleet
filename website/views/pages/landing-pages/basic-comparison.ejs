@@ -2,10 +2,13 @@
   <div purpose="page-container" class="container-fluid">
     <div purpose="article-title-and-image">
       <div purpose="article-title">
-        <h4><%= thisPage.meta.articleSubtitle%></h4>
+        <div>
+        <h4>How to choose the right MDM</h4>
         <h1><%=thisPage.meta.articleTitle %></h1>
+        </div>
         <p><%= thisPage.meta.introductionTextBlockOne%></p>
         <%if(thisPage.meta.introductionTextBlockTwo){%><p class="mb-0"><%= thisPage.meta.introductionTextBlockTwo%></p><% } %>
+        <div><a purpose="demo-button" class="btn btn-primary" href="/contact">Get a demo</a></div>
       </div>
       <div purpose="hero-image">
         <img alt="Hero image" src="/images/comparison-page-hero-504x349@2x.png">
@@ -26,6 +29,12 @@
       <div purpose="article-container">
         <div purpose="article-content" parasails-has-no-page-script>
           <%- partial(path.relative(path.dirname(__filename), path.resolve( sails.config.appPath, path.join(sails.config.builtStaticContent.compiledPagePartialsAppPath, thisPage.htmlId)))) %>
+        </div>
+        <div purpose="bottom-cta">
+          <hr>
+          <h2>See Fleet in action</h2>
+          <p>Compare your current setup and plan your move to Fleet</p>
+          <div><a purpose="demo-button" class="btn btn-primary" href="/contact">Get a demo</a></div>
         </div>
       </div>
     </div>

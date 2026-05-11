@@ -564,24 +564,6 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders an 'enabled_disk_encryption' type activity for a team", () => {
-    const activity = createMockActivity({
-      type: ActivityType.EnabledDiskEncryption,
-      details: { team_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText("enforced disk encryption for hosts assigned to the", {
-        exact: false,
-      })
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
-  });
-
   it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
     // Test deprecated activity type
     const activity = createMockActivity({
@@ -601,7 +583,7 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for a team", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
       details: { team_name: "Alphas" },
@@ -620,43 +602,6 @@ describe("Activity Feed", () => {
     expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
     const withNoTeams = screen.queryByText("with no team");
     expect(withNoTeams).toBeNull();
-  });
-
-  it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
-    // Test deprecated activity type
-    const activity = createMockActivity({
-      type: ActivityType.DisabledDiskEncryption,
-      details: { team_name: "Alphas" },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "removed disk encryption enforcement for hosts assigned to the",
-        {
-          exact: false,
-        }
-      )
-    ).toBeInTheDocument();
-    expect(screen.getByText("Alphas")).toBeInTheDocument();
-    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
-    const withNoTeams = screen.queryByText("with no team");
-    expect(withNoTeams).toBeNull();
-  });
-
-  it("renders an 'enabled_disk_encryption' type activity for hosts that are unassigned.", () => {
-    const activity = createMockActivity({
-      type: ActivityType.EnabledDiskEncryption,
-      details: {},
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText(
-        "enforced disk encryption for hosts that are unassigned."
-      )
-    ).toBeInTheDocument();
-    expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
   it("renders an 'enabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
@@ -675,9 +620,10 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_disk_encryption' type activity for hosts that are unassigned.", () => {
+  it("renders a 'disabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
-      type: ActivityType.DisabledDiskEncryption,
+      type: ActivityType.DisabledMacDiskEncryption,
       details: {},
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
@@ -693,17 +639,166 @@ describe("Activity Feed", () => {
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
-  it("renders a 'disabled_macos_disk_encryption' type activity for hosts that are unassigned.", () => {
-    // Test deprecated activity type
+  it("renders a 'viewed_host_recovery_lock_password' type activity", () => {
     const activity = createMockActivity({
-      type: ActivityType.DisabledMacDiskEncryption,
+      type: ActivityType.ViewedHostRecoveryLockPassword,
+      details: { host_display_name: "Anna's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("viewed the Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a 'set_host_recovery_lock_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.SetHostRecoveryLockPassword,
+      details: { host_display_name: "Anna's MacBook Pro" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("set a Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Anna's MacBook Pro")).toBeInTheDocument();
+  });
+
+  it("renders a 'rotated_host_recovery_lock_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedHostRecoveryLockPassword,
+      details: { host_display_name: "Alex's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("triggered rotation of the Recovery Lock password for", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alex's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a 'rotated_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedManagedLocalAccountPassword,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "triggered rotation of the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a Fleet-initiated 'rotated_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.RotatedManagedLocalAccountPassword,
+      fleet_initiated: true,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "triggered rotation of the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders a 'failed_to_rotate_managed_local_account_password' type activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.FailedToRotateManagedLocalAccountPassword,
+      fleet_initiated: true,
+      details: { host_display_name: "Marsh's Macbook Air" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText("Fleet")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "failed to rotate the managed local account password for",
+        { exact: false }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Marsh's Macbook Air")).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_recovery_lock_passwords' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledRecoveryLockPasswords,
+      details: { team_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "enforced Recovery Lock passwords for hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders an 'enabled_recovery_lock_passwords' type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledRecoveryLockPasswords,
       details: {},
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for hosts that are unassigned.",
+        "enforced Recovery Lock passwords for hosts that are unassigned."
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'disabled_recovery_lock_passwords' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledRecoveryLockPasswords,
+      details: { team_name: "Alphas" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed Recovery Lock password enforcement for hosts assigned to the",
+        {
+          exact: false,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" fleet.", { exact: false })).toBeInTheDocument();
+  });
+
+  it("renders a 'disabled_recovery_lock_passwords' type activity for unassigned hosts", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledRecoveryLockPasswords,
+      details: {},
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed Recovery Lock password enforcement for hosts that are unassigned.",
         {
           exact: false,
         }
@@ -871,7 +966,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
+        "required end user authentication for hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -888,7 +983,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "required end user authentication for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
+        "required end user authentication for hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -903,7 +998,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to",
+        "removed end user authentication requirement for hosts that automatically enroll to",
         { exact: false }
       )
     ).toBeInTheDocument();
@@ -920,10 +1015,89 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed end user authentication requirement for macOS, iOS, iPadOS, and Android hosts that automatically enroll to unassigned.",
+        "removed end user authentication requirement for hosts that automatically enroll to unassigned.",
         { exact: false }
       )
     ).toBeInTheDocument();
+  });
+
+  it("renders a global 'enabled_historical_dataset' activity with the dataset label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledHistoricalDataset,
+      details: { dataset: "uptime", fleet_id: null, fleet_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
+    expect(screen.queryByText(/for the /)).toBeNull();
+  });
+
+  it("renders a global 'disabled_historical_dataset' activity with the dataset label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: { dataset: "vulnerabilities", fleet_id: null, fleet_name: null },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
+    expect(screen.queryByText(/for the /)).toBeNull();
+  });
+
+  it("renders a fleet-scoped 'enabled_historical_dataset' activity with the fleet suffix", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledHistoricalDataset,
+      details: { dataset: "uptime", fleet_id: 7, fleet_name: "Engineering" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Hosts online")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+  });
+
+  it("renders a fleet-scoped 'disabled_historical_dataset' activity with the fleet suffix", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: {
+        dataset: "vulnerabilities",
+        fleet_id: 7,
+        fleet_name: "Engineering",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Vulnerability exposure")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+  });
+
+  it("renders an unknown historical dataset key in sentence case", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledHistoricalDataset,
+      details: {
+        dataset: "policy_compliance",
+        fleet_id: null,
+        fleet_name: null,
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("disabled data collection for", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Policy compliance")).toBeInTheDocument();
   });
 
   it("renders a 'transferred_hosts' type activity for one host transferred to Unassigned.", () => {
@@ -1773,5 +1947,65 @@ describe("Activity Feed", () => {
     expect(screen.getByText(/macOS/i)).toBeInTheDocument();
     expect(screen.getByText(/Lions/i)).toBeInTheDocument();
     expect(screen.getByText(/fleet/i)).toBeInTheDocument();
+  });
+
+  it("renders an enabled_gitops_exception activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledGitOpsException,
+      details: { exception: "labels" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("enabled the labels exception for GitOps.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders a disabled_gitops_exception activity", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledGitOpsException,
+      details: { exception: "software" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("disabled the software exception for GitOps.")
+    ).toBeInTheDocument();
+  });
+
+  it("renders a created_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.CreatedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("created a label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+  });
+
+  it("renders an edited_label activity scoped to a fleet", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedLabel,
+      details: {
+        label_id: 1,
+        label_name: "Workstations",
+        fleet_id: 5,
+        fleet_name: "Engineering",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(
+      screen.getByText("edited the label on the fleet.")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
+    expect(screen.getByText("Engineering")).toBeInTheDocument();
+  });
+
+  it("renders a deleted_label activity for a global label", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedLabel,
+      details: { label_id: 1, label_name: "Workstations" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+    expect(screen.getByText("deleted the label .")).toBeInTheDocument();
+    expect(screen.getByText("Workstations")).toBeInTheDocument();
   });
 });

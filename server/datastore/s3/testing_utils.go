@@ -15,8 +15,16 @@ import (
 const (
 	accessKeyID     = "locals3"
 	secretAccessKey = "locals3"
-	testEndpoint    = "http://localhost:9000"
 )
+
+var testEndpoint = getTestEndpoint()
+
+func getTestEndpoint() string {
+	if port := os.Getenv("FLEET_S3_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return "http://localhost:9000"
+}
 
 func SetupTestSoftwareInstallerStore(tb testing.TB, bucket, prefix string) *SoftwareInstallerStore {
 	store := setupTestStore(tb, bucket, prefix, NewSoftwareInstallerStore)

@@ -3,7 +3,10 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -353,9 +356,11 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		return "", nil, fleet.MissingSecretsError{MissingSecrets: missingSecrets}
 	}
 
-	// Check if document is XML
-	// We need to be more aggressive here, to also escape XML in Windows profiles which does not begin with <?xml
-	documentIsXML := strings.HasPrefix(strings.TrimSpace(document), "<")
+	// Detect document format so we can escape the secret value appropriately.
+	// XML detection is aggressive because Windows profiles do not begin with <?xml.
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
 
 	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
 		if !strings.HasPrefix(s, fleet.ServerSecretPrefix) {
@@ -363,8 +368,10 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 		}
 		val, ok := secretMap[strings.TrimPrefix(s, fleet.ServerSecretPrefix)]
 
-		if documentIsXML {
-			// Escape XML special characters
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
 			var b strings.Builder
 			err = xml.EscapeText(&b, []byte(val))
 			if err != nil {
@@ -377,6 +384,18 @@ func (ds *Datastore) expandEmbeddedSecrets(ctx context.Context, document string)
 	})
 
 	return expanded, secrets, nil
+}
+
+// jsonEscapeString returns the JSON-escaped interior of a string value
+// (without surrounding quotes), suitable for embedding inside a JSON string.
+func jsonEscapeString(s string) string {
+	b, err := json.Marshal(s)
+	if err != nil {
+		// json.Marshal on a string should never fail, but return the
+		// original string as a fallback.
+		return s
+	}
+	return string(b[1 : len(b)-1])
 }
 
 func (ds *Datastore) ExpandEmbeddedSecretsAndUpdatedAt(ctx context.Context, document string) (string, *time.Time, error) {
@@ -435,4 +454,126 @@ func (ds *Datastore) ValidateEmbeddedSecrets(ctx context.Context, documents []st
 	}
 
 	return nil
+}
+
+// ExpandHostSecrets expands host-scoped secrets ($FLEET_HOST_SECRET_*) in the document.
+// The enrollmentID (typically UDID/host UUID) is used to look up host-specific secrets.
+func (ds *Datastore) ExpandHostSecrets(ctx context.Context, document string, enrollmentID string) (string, error) {
+	// Check for host secret placeholders
+	hostSecrets := fleet.ContainsPrefixVars(document, fleet.HostSecretPrefix)
+	if len(hostSecrets) == 0 {
+		return document, nil
+	}
+
+	// Build a map of secret type -> value
+	// enrollmentID is the host UUID, which is the primary key in host_recovery_key_passwords
+	secretValues := make(map[string]string)
+	for _, secretType := range hostSecrets {
+		switch secretType {
+		case fleet.HostSecretRecoveryLockPassword:
+			password, err := ds.getHostRecoveryLockPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
+		case fleet.HostSecretRecoveryLockPendingPassword:
+			password, err := ds.getHostRecoveryLockPendingPasswordDecrypted(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting pending recovery lock password for host %s", enrollmentID)
+			}
+			secretValues[secretType] = password
+		case fleet.HostSecretMDMUnlockToken:
+			details, err := ds.GetNanoMDMEnrollmentDetails(ctx, enrollmentID)
+			if err != nil {
+				return "", ctxerr.Wrapf(ctx, err, "getting MDM enrollment details for host %s", enrollmentID)
+			}
+			if details == nil {
+				return "", ctxerr.Errorf(ctx, "no MDM enrollment details found for host %s", enrollmentID)
+			}
+			if details.UnlockToken == nil {
+				return "", ctxerr.Errorf(ctx, "%s", fleet.CantClearPasscodePersonalHostsMessage)
+			}
+
+			// We need to send base64 encoded data in the <data> field.
+			encoded := base64.StdEncoding.EncodeToString([]byte(*details.UnlockToken))
+			secretValues[secretType] = encoded
+		default:
+			return "", ctxerr.Errorf(ctx, "unknown host secret type: %s", secretType)
+		}
+	}
+
+	// Detect document format (same logic as expandEmbeddedSecrets)
+	trimmed := strings.TrimSpace(document)
+	documentIsXML := strings.HasPrefix(trimmed, "<")
+	documentIsJSON := strings.HasPrefix(trimmed, "{")
+
+	// Expand the placeholders
+	expanded := fleet.MaybeExpand(document, func(s string, startPos, endPos int) (string, bool) {
+		if !strings.HasPrefix(s, fleet.HostSecretPrefix) {
+			return "", false
+		}
+		secretType := strings.TrimPrefix(s, fleet.HostSecretPrefix)
+		val, ok := secretValues[secretType]
+		if !ok {
+			return "", false
+		}
+
+		switch {
+		case documentIsJSON:
+			val = jsonEscapeString(val)
+		case documentIsXML:
+			var b strings.Builder
+			if err := xml.EscapeText(&b, []byte(val)); err != nil {
+				return "", false
+			}
+			val = b.String()
+		}
+
+		return val, ok
+	})
+
+	return expanded, nil
+}
+
+// getHostRecoveryLockPasswordDecrypted retrieves and decrypts the recovery lock password for a host.
+func (ds *Datastore) getHostRecoveryLockPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted recovery lock password")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting recovery lock password")
+	}
+
+	return string(password), nil
+}
+
+// getHostRecoveryLockPendingPasswordDecrypted retrieves and decrypts the pending recovery lock
+// password for a host during password rotation.
+func (ds *Datastore) getHostRecoveryLockPendingPasswordDecrypted(ctx context.Context, hostUUID string) (string, error) {
+	var encryptedPassword []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &encryptedPassword,
+		`SELECT pending_encrypted_password FROM host_recovery_key_passwords WHERE host_uuid = ? AND deleted = 0 AND pending_encrypted_password IS NOT NULL`, hostUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ctxerr.Wrap(ctx, notFound("HostRecoveryLockPendingPassword").
+				WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		}
+		return "", ctxerr.Wrap(ctx, err, "getting encrypted pending recovery lock password")
+	}
+
+	password, err := decrypt(encryptedPassword, ds.serverPrivateKey)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "decrypting pending recovery lock password")
+	}
+
+	return string(password), nil
 }

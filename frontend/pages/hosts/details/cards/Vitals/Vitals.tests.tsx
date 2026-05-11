@@ -240,6 +240,41 @@ describe("Vitals Card component", () => {
   });
 });
 
+describe("MDM attestation", () => {
+  it("renders MDM attestation when mdm_enrollment_hardware_attested is true", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      mdm_enrollment_hardware_attested: true,
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.getByText("MDM attestation")).toBeInTheDocument();
+    expect(screen.getByText("Yes")).toBeInTheDocument();
+  });
+
+  it("does not render MDM attestation when mdm_enrollment_hardware_attested is false", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+      mdm_enrollment_hardware_attested: false,
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("MDM attestation")).not.toBeInTheDocument();
+  });
+
+  it("does not render MDM attestation when mdm_enrollment_hardware_attested is undefined", () => {
+    const mockHost = createMockHost({
+      platform: "darwin",
+    });
+
+    render(<Vitals vitalsData={mockHost} mdm={mockHost.mdm} />);
+
+    expect(screen.queryByText("MDM attestation")).not.toBeInTheDocument();
+  });
+});
+
 describe("Disk encryption data", () => {
   it("renders 'On' for macOS when enabled", () => {
     const mockHost = createMockHost({

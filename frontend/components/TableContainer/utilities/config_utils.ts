@@ -33,7 +33,7 @@ export const getConditionalSelectHeaderCheckboxProps = ({
       });
     } else {
       // Otherwise select every selectable row on the page
-      headerProps.page.forEach((row) => {
+      headerProps.rows.forEach((row) => {
         const rowChecked = checkIfRowIsSelectable(row);
         headerProps.toggleRowSelected(row.id, rowChecked);
       });

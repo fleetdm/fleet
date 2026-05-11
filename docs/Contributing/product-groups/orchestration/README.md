@@ -9,7 +9,7 @@ Fleet's Orchestration functionality allows organizations to manage and query dev
 ## Contents
 
 - [Understanding Host Vitals](understanding-host-vitals.md)
-- [Teams](teams.md)
+- [Fleet](fleets.md)
 - [File Carving](file-carving.md)
 
 ## Related Resources

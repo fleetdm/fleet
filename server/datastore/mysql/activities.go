@@ -12,12 +12,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	deleteIDsBatchSize = 1000
-)
+var deleteIDsBatchSize = 1000
+
+// hostUpcomingActivitiesAllowedOrderKeys is empty: the query supplies its own
+// ORDER BY and the service layer forces opt.OrderKey to "".
+var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -281,7 +284,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// the ListOptions supported for this query are limited, only the pagination
 	// OFFSET and LIMIT can be added, so it's fine to have the ORDER BY already
 	// in the query before calling this (enforced at the server layer).
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(listStmt, args, &opt, hostUpcomingActivitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list upcoming activities")
+	}
 
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
@@ -297,35 +303,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	return activities, metaData, nil
 }
 
-func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, maxCount int, expiredWindowDays int) error {
-	const selectActivitiesQuery = `
-		SELECT a.id FROM activities a
-		LEFT JOIN host_activities ha ON (a.id=ha.activity_id)
-		WHERE ha.activity_id IS NULL AND a.created_at < DATE_SUB(NOW(), INTERVAL ? DAY)
-		ORDER BY a.id ASC
-		LIMIT ?;`
-	var activityIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &activityIDs, selectActivitiesQuery, expiredWindowDays, maxCount); err != nil {
-		return ctxerr.Wrap(ctx, err, "select activities for deletion")
-	}
-	if len(activityIDs) > 0 {
-		deleteActivitiesQuery, args, err := sqlx.In(`DELETE FROM activities WHERE id IN (?);`, activityIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build activities IN query")
-		}
-		if _, err := ds.writer(ctx).ExecContext(ctx, deleteActivitiesQuery, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete expired activities")
-		}
-	}
-
-	// `activities` and `queries` are not tied because the activity itself holds
-	// the query SQL so they don't need to be executed on the same transaction.
-	//
+func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindowDays int) error {
 	// All expired live queries are deleted in batch sizes of
 	// `deleteIDsBatchSize` to ensure the table size is kept in check
-	// with high volumes of live queries (zero-trust workflows). This differs
-	// from the `activities` cleanup which uses maxCount as a limit to the
-	// number of activities to delete.
+	// with high volumes of live queries (zero-trust workflows).
 
 	const selectUnsavedQueryIDs = `
 		SELECT id
@@ -416,7 +397,7 @@ func (ds *Datastore) CleanupActivitiesAndAssociatedData(ctx context.Context, max
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	var details fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID)
+		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID, true)
 		details = activityDetails
 		return err
 	}); err != nil {
@@ -424,6 +405,50 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	}
 
 	return details, nil
+}
+
+// BatchCancelAllHostUpcomingActivities cancels every upcoming activity (both queued
+// and already-activated) for the given host in a single transaction. Unlike the public
+// single-cancel API, this bypasses the lock/wipe service-layer guard intentionally -
+// this is called after a Wipe so there's no need for this check. Returns the canceled
+// activities.
+func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
+	var canceled []fleet.ActivityDetails
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		canceled, err = ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID)
+		return err
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch cancel upcoming activities transaction")
+	}
+
+	return canceled, nil
+}
+
+// batchCancelAllHostUpcomingActivities is the tx-aware variant of
+// BatchCancelAllHostUpcomingActivities. Call this from within a surrounding
+// withTx/withRetryTxx callback to keep cancellations atomic with the caller's other writes.
+func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, tx sqlx.ExtContext, hostID uint) ([]fleet.ActivityDetails, error) {
+	const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
+	var execIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
+	}
+
+	canceled := make([]fleet.ActivityDetails, 0, len(execIDs))
+	for i, execID := range execIDs {
+		// only the last cancellation triggers activation of the next activity; the others
+		// would activate something that is about to be canceled in the next iteration.
+		// Technically we could always pass "false" as there shouldn't be any activity
+		// at the end, but there's no harm in doing it just in case a race could happen.
+		activateNext := i == len(execIDs)-1
+		details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel upcoming activity")
+		}
+		canceled = append(canceled, details)
+	}
+	return canceled, nil
 }
 
 type activityToCancel struct {
@@ -435,7 +460,7 @@ type activityToCancel struct {
 	Activated       bool   `db:"activated"`
 }
 
-func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, activateNext bool) (fleet.ActivityDetails, error) {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -588,7 +613,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 	// if the activity is related to lock/wipe actions, clear the status for that
 	// action as it was canceled (note that lock/wipe is prevented at the service
 	// layer from being canceled if it was already activated).
-	if err := clearLockWipeForCanceledActivity(ctx, tx, hostID, executionID); err != nil {
+	if err := clearHostMDMActionsForCanceledLockWipe(ctx, tx, hostID, executionID); err != nil {
 		return nil, err
 	}
 
@@ -644,12 +669,14 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
 	}
 
-	// must activate the next activity, if any (this should be required only if
-	// the canceled activity was already "activated", but there's no harm in
-	// doing it if it wasn't, and it makes sure there's always progress even in
-	// unsuspected scenarios)
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+	if activateNext {
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
 	}
 
 	// creating the canceled activity must be done via svc.NewActivity, so we
@@ -810,56 +837,19 @@ func cancelHostScriptUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, a
 	}, nil
 }
 
-func clearLockWipeForCanceledActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
+func clearHostMDMActionsForCanceledLockWipe(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) error {
 	const clearLockStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND lock_ref = ?`
-	resLock, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
+	_, err := tx.ExecContext(ctx, clearLockStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for lock")
 	}
 
 	const clearWipeStmt = `DELETE FROM host_mdm_actions WHERE host_id = ? AND wipe_ref = ?`
-	resWipe, err := tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
+	_, err = tx.ExecContext(ctx, clearWipeStmt, hostID, executionID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for wipe")
 	}
 
-	lockCnt, _ := resLock.RowsAffected()
-	wipeCnt, _ := resWipe.RowsAffected()
-	if lockCnt > 0 || wipeCnt > 0 {
-		// if it did delete host_mdm_actions, then it was a lock or wipe activity,
-		// we need to delete the "past" activity that gets created immediately
-		// when that command is queued.
-		actType := fleet.ActivityTypeLockedHost{}.ActivityName()
-		if wipeCnt > 0 {
-			actType = fleet.ActivityTypeWipedHost{}.ActivityName()
-		}
-
-		const findActStmt = `SELECT
-				id
-			FROM
-				activities
-				INNER JOIN host_activities ON (host_activities.activity_id = activities.id)
-			WHERE
-				host_activities.host_id = ? AND
-				activities.activity_type = ?
-			ORDER BY
-				activities.created_at DESC
-			LIMIT 1
-`
-		var activityID uint
-		if err := sqlx.GetContext(ctx, tx, &activityID, findActStmt, hostID, actType); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// no activity to delete, nothing to do
-				return nil
-			}
-			return ctxerr.Wrap(ctx, err, "find past activity for lock/wipe")
-		}
-
-		const delStmt = `DELETE FROM activities WHERE id = ?`
-		if _, err := tx.ExecContext(ctx, delStmt, activityID); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete past activity for lock/wipe")
-		}
-	}
 	return nil
 }
 
@@ -1512,7 +1502,7 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "get in-house app title id")
 	}
 
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?team_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
+	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
 
 	// insert the nano command
 	namedArgs := map[string]any{

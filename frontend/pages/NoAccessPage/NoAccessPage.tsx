@@ -59,9 +59,11 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
           .
         </p>
       </div>
-      <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
-        Back to login
-      </Button>
+      <div className="button-wrap--center">
+        <Button onClick={onBackToLogin} size="wide">
+          Back to login
+        </Button>
+      </div>
     </AuthenticationFormWrapper>
   );
 };

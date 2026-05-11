@@ -3,17 +3,10 @@
   $gap-data-sets: $pad-medium;
 
   &__change-avatar {
-    position: relative;
-    padding: 0 0 20px;
-
-    a {
-      display: block;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-      text-decoration: none;
-      margin-top: $pad-xsmall;
-    }
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+    align-items: center;
   }
 
   &__avatar {
@@ -51,6 +44,17 @@
 
   &.button-wrap {
     justify-content: flex-end;
+  }
+
+  &__theme-picker {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
+  }
+
+  &__theme-picker-label {
+    font-size: $x-small;
+    font-weight: $bold;
   }
 
   &__version {

@@ -1,6 +1,5 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { Link } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -18,6 +17,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PageDescription from "components/PageDescription";
+import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
 import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
@@ -373,7 +373,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     }
 
     return <TableCount name="users" count={teamUsers?.length} />;
-  }, [teamUsers?.length]);
+  }, [teamUsers?.length, searchString]);
 
   const columnConfigs = useMemo(
     () => generateColumnConfigs(onActionSelection),
@@ -393,9 +393,10 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           <>
             Manage users with access to this fleet.{" "}
             {isGlobalAdmin && (
-              <Link to={PATHS.ADMIN_USERS}>
-                Manage users with global access here
-              </Link>
+              <CustomLink
+                url={PATHS.ADMIN_USERS}
+                text="Manage users with global access here"
+              />
             )}
           </>
         }

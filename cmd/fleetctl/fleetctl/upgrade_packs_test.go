@@ -325,7 +325,7 @@ func TestFleetctlUpgradePacks_NonEmpty(t *testing.T) {
 
 	const expected = `
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: false
   description: (converted from pack "p1", query "q1")
@@ -340,7 +340,7 @@ spec:
   query: select 1
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
@@ -355,7 +355,7 @@ spec:
   query: select 2
 ---
 apiVersion: v1
-kind: query
+kind: report
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")

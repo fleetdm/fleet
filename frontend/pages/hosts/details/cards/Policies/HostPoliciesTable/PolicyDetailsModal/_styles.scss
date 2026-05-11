@@ -1,9 +1,10 @@
 .policy-details-modal {
   &__body {
+    @include vertical-modal-layout;
+
     white-space: pre-wrap;
   }
   &__resolution {
-    margin-top: $pad-small;
     overflow: hidden;
   }
 

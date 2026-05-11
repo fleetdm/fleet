@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/websocket"
 	gws "github.com/gorilla/websocket"
 	"github.com/igm/sockjs-go/v3/sockjs"
@@ -24,7 +24,7 @@ import (
 
 var reVersion = regexp.MustCompile(`\{fleetversion:\(\?:([^\}\)]+)\)\}`)
 
-func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig, svc fleet.Service, logger *logging.Logger) func(string) http.Handler {
+func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig, svc fleet.Service, logger *slog.Logger) func(string) http.Handler {
 	opt := sockjs.DefaultOptions
 	opt.Websocket = true
 	opt.RawWebsocket = true
@@ -61,7 +61,7 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			conn := &websocket.Conn{Session: session}
 			defer func() {
 				if p := recover(); p != nil {
-					logger.Log("err", p, "msg", "panic in result handler")
+					logger.ErrorContext(context.TODO(), "panic in result handler", "err", p)
 					conn.WriteJSONError("panic in result handler") //nolint:errcheck
 				}
 				session.Close(0, "none")
@@ -70,14 +70,14 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			// Receive the auth bearer token
 			token, err := conn.ReadAuthToken()
 			if err != nil {
-				logger.Log("err", err, "msg", "failed to read auth token")
+				logger.ErrorContext(context.TODO(), "failed to read auth token", "err", err)
 				return
 			}
 
 			// Authenticate with the token
 			vc, err := auth.AuthViewer(context.Background(), string(token), svc)
 			if err != nil || !vc.CanPerformActions() {
-				logger.Log("err", err, "msg", "unauthorized viewer")
+				logger.ErrorContext(context.TODO(), "unauthorized viewer", "err", err)
 				conn.WriteJSONError("unauthorized") //nolint:errcheck
 				return
 			}
@@ -86,12 +86,12 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 
 			msg, err := conn.ReadJSONMessage()
 			if err != nil {
-				logger.Log("err", err, "msg", "reading select_campaign JSON")
+				logger.ErrorContext(ctx, "reading select_campaign JSON", "err", err)
 				conn.WriteJSONError("error reading select_campaign") //nolint:errcheck
 				return
 			}
 			if msg.Type != "select_campaign" {
-				logger.Log("err", "unexpected msg type, expected select_campaign", "msg-type", msg.Type)
+				logger.ErrorContext(ctx, "unexpected msg type, expected select_campaign", "msg-type", msg.Type)
 				conn.WriteJSONError("expected select_campaign") //nolint:errcheck
 				return
 			}
@@ -101,12 +101,12 @@ func makeStreamDistributedQueryCampaignResultsHandler(config config.ServerConfig
 			}
 			err = json.Unmarshal(*(msg.Data.(*json.RawMessage)), &info)
 			if err != nil {
-				logger.Log("err", err, "msg", "unmarshaling select_campaign data")
+				logger.ErrorContext(ctx, "unmarshaling select_campaign data", "err", err)
 				conn.WriteJSONError("error unmarshaling select_campaign data") //nolint:errcheck
 				return
 			}
 			if info.CampaignID == 0 {
-				logger.Log("err", "campaign ID not set")
+				logger.ErrorContext(ctx, "campaign ID not set")
 				conn.WriteJSONError("0 is not a valid campaign ID") //nolint:errcheck
 				return
 			}

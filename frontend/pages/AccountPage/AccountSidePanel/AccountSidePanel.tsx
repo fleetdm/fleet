@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useState } from "react";
-import { upperFirst } from "lodash";
 
 import { IUser } from "interfaces/user";
 import { IVersionData } from "interfaces/version";
@@ -11,6 +10,8 @@ import versionAPI from "services/entities/version";
 import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -19,6 +20,7 @@ import {
   greyCell,
   readableDate,
 } from "utilities/helpers";
+import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -35,6 +37,15 @@ const AccountSidePanel = ({
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
+    getThemeMode()
+  );
+
+  const onThemeSelect = (value: string) => {
+    const mode = value as ThemeMode;
+    setThemeModeState(mode);
+    setThemeMode(mode);
+  };
 
   useEffect(() => {
     const getVersionData = async () => {
@@ -43,7 +54,6 @@ const AccountSidePanel = ({
         setVersionData(data);
       } catch (response) {
         console.error(response);
-        return false;
       }
     };
 
@@ -68,13 +78,42 @@ const AccountSidePanel = ({
     <div className={baseClass}>
       <div className={`${baseClass}__change-avatar`}>
         <Avatar user={currentUser} className={`${baseClass}__avatar`} />
-        <a
-          href="https://en.gravatar.com/emails/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Change photo at Gravatar
-        </a>
+        <CustomLink
+          url="https://en.gravatar.com/emails/"
+          text="Change photo at Gravatar"
+          newTab
+        />
+      </div>
+      <div
+        className={`${baseClass}__theme-picker`}
+        role="radiogroup"
+        aria-label="Theme"
+      >
+        <div className={`${baseClass}__theme-picker-label`}>Theme</div>
+        <Radio
+          id="theme-system"
+          name="theme"
+          value="system"
+          label="System"
+          checked={themeMode === "system"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-light"
+          name="theme"
+          value="light"
+          label="Light"
+          checked={themeMode === "light"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-dark"
+          name="theme"
+          value="dark"
+          label="Dark"
+          checked={themeMode === "dark"}
+          onChange={onThemeSelect}
+        />
       </div>
       {isPremiumTier && (
         <DataSet
@@ -121,13 +160,11 @@ const AccountSidePanel = ({
         className={`${baseClass}__version`}
       >{`Fleet ${versionData?.version} • Go ${versionData?.go_version}`}</span>
       <span className={`${baseClass}__privacy-policy`}>
-        <a
-          href="https://fleetdm.com/legal/privacy"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Privacy policy
-        </a>
+        <CustomLink
+          url="https://fleetdm.com/legal/privacy"
+          text="Privacy policy"
+          newTab
+        />
       </span>
     </div>
   );

@@ -3,9 +3,11 @@ package worker
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"testing"
 	"time"
@@ -16,7 +18,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	mock "github.com/fleetdm/fleet/v4/server/mock/mdm"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -98,10 +99,9 @@ func TestAppleMDM(t *testing.T) {
 	mdmStorage, err := ds.NewMDMAppleMDMStorage()
 	require.NoError(t, err)
 
-	// nopLog := logging.NewNopLogger()
+	// nopLog := slog.New(slog.DiscardHandler)
 	// use this to debug/verify details of calls
-	nopLog := logging.NewJSONLogger(os.Stdout)
-	slogLog := nopLog.SlogLogger()
+	slogLog := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 	testOrgName := "fleet-test"
 
@@ -792,6 +792,52 @@ func TestAppleMDM(t *testing.T) {
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
 
+	t.Run("enroll reference with SSO enabled on iOS does not send AccountConfiguration", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		err := ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+			Username: "test",
+			Fullname: "test",
+			Email:    "test@example.com",
+		})
+		require.NoError(t, err)
+
+		idpAcc, err := ds.GetMDMIdPAccountByEmail(ctx, "test@example.com")
+		require.NoError(t, err)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		tm, err = ds.TeamWithExtras(ctx, tm.ID)
+		require.NoError(t, err)
+		tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		_, err = ds.SaveTeam(ctx, tm)
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "ios", &tm.ID, idpAcc.UUID, false, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// AccountConfiguration is macOS-only and must NOT be sent to iOS/iPadOS devices.
+		// iOS doesn't get InstallEnterpriseApplication (fleetd) either, so no MDM
+		// commands should be enqueued (the release device follow-up job is expected
+		// to remain queued since there is no real device to respond).
+		cmdTypes := getEnqueuedCommandTypes(t)
+		require.NotContains(t, cmdTypes, "AccountConfiguration", "AccountConfiguration must not be sent to iOS/iPadOS devices")
+	})
+
 	t.Run("installs fleetd for manual enrollments", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
@@ -1109,7 +1155,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {
@@ -1280,7 +1326,7 @@ INSERT INTO setup_experience_status_results (
 		}
 		require.ElementsMatch(t, expectedAdamIDs, installedAdamIDs)
 
-		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID)
+		results, err := ds.ListSetupExperienceResultsByHostUUID(ctx, h.UUID, tm.ID)
 		require.NoError(t, err)
 		require.Len(t, results, len(expectedAppInstalls))
 		for _, result := range results {
@@ -1352,6 +1398,71 @@ INSERT INTO setup_experience_status_results (
 		require.Contains(t, getEnqueuedCommandTypes(t), "DeviceConfigured")
 	})
 
+	t.Run("emits activity on VPP install failure during setup experience", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		test.CreateInsertGlobalVPPToken(t, ds)
+		defer mysql.TruncateTables(t, ds)
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true, "ios")
+
+		vppApp := &fleet.VPPApp{
+			Name: "fail-app", LatestVersion: "1.0.0",
+			VPPAppTeam:       fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "fail-adam-id", Platform: fleet.IOSPlatform}},
+			BundleIdentifier: "com.example.fail",
+		}
+		vppAppWithTeam, err := ds.InsertVPPAppWithTeam(ctx, vppApp, &tm.ID)
+		require.NoError(t, err)
+
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err = q.ExecContext(ctx, `
+INSERT INTO setup_experience_status_results (host_uuid, name, status, vpp_app_team_id)
+VALUES (?, ?, ?, ?)`, h.UUID, vppAppWithTeam.Name, fleet.SetupExperienceStatusPending, vppAppWithTeam.VPPAppTeam.AppTeamID)
+			return err
+		})
+
+		appInstallResponses := map[string]installAppResponse{
+			vppAppWithTeam.AdamID: {CommandUUID: "bad-cmd", Error: errors.New("no available licenses")},
+		}
+		vppInstaller := &mockVPPInstaller{t: t, ds: ds, appInstallResponses: appInstallResponses}
+
+		var capturedActivities []fleet.ActivityDetails
+		mdmWorker := &AppleMDM{
+			VPPInstaller: vppInstaller,
+			Datastore:    ds,
+			Log:          slogLog,
+			Commander:    apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+			NewActivityFn: func(_ context.Context, _ *fleet.User, activity fleet.ActivityDetails) error {
+				capturedActivities = append(capturedActivities, activity)
+				return nil
+			},
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, h.Platform, nil, "", true, false)
+		require.NoError(t, err)
+
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// Exactly one activity should have been emitted for the failed VPP install
+		require.Len(t, capturedActivities, 1)
+		act, ok := capturedActivities[0].(fleet.ActivityInstalledAppStoreApp)
+		require.True(t, ok, "expected ActivityInstalledAppStoreApp, got %T", capturedActivities[0])
+
+		assert.Equal(t, h.ID, act.HostID)
+		assert.Equal(t, h.DisplayName(), act.HostDisplayName)
+		assert.Equal(t, vppAppWithTeam.Name, act.SoftwareTitle)
+		assert.Equal(t, vppAppWithTeam.AdamID, act.AppStoreID)
+		assert.Equal(t, string(fleet.SoftwareInstallFailed), act.Status)
+		assert.Equal(t, h.Platform, act.HostPlatform)
+		assert.True(t, act.FromSetupExperience)
+		assert.False(t, act.SelfService)
+	})
+
 	t.Run("treats NotNow status as a finished command status that does not block device release", func(t *testing.T) {
 		mysql.SetTestABMAssets(t, ds, testOrgName)
 		defer mysql.TruncateTables(t, ds)
@@ -1414,6 +1525,216 @@ INSERT INTO setup_experience_status_results (
 		require.NoError(t, err)
 		require.Len(t, jobs, 0)
 	})
+
+	t.Run("installs profiles on post dep enrollment", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		profile1 := []byte("profile1")
+		profile2 := []byte("profile2")
+		profile3 := []byte("profile3")
+
+		_, err := ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile1,
+			Identifier:   "profile1",
+			Name:         "Profile 1",
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile2,
+			Identifier:   "profile2",
+			Name:         "Profile 2",
+		}, nil)
+		require.NoError(t, err)
+
+		_, err = ds.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+			Mobileconfig: profile3,
+			Identifier:   "profile3",
+			Name:         "Profile 3",
+		}, nil)
+		require.NoError(t, err)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, slogLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostDEPEnrollmentTask, h.UUID, "darwin", nil, "", true, false)
+		require.NoError(t, err)
+
+		// run the worker, should send install profiles commands, and a ddm request
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		// check all commands that were enqueued
+		require.ElementsMatch(t, []string{"InstallProfile", "DeclarativeManagement", "InstallProfile", "InstallProfile", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("sendManagedAccounts with SSO and admin account", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		ssoAccount := &fleet.MDMIdPAccount{
+			UUID:     uuid.New().String(),
+			Username: "sso_user",
+			Fullname: "SSO User",
+			Email:    "sso@example.com",
+		}
+
+		adminAccount := &apple_mdm.AdminAccountConfig{
+			ShortName:    "_fleetadmin",
+			FullName:     "Fleet Admin",
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
+			Hidden:       true,
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, ssoAccount, adminAccount, true, cmdUUID)
+		require.NoError(t, err)
+
+		// Read the enqueued command XML from nano_commands
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// Verify the command contains SSO account fields
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.Contains(t, rawCommand, "<string>SSO User</string>")
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.Contains(t, rawCommand, "<string>sso_user</string>")
+		assert.Contains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+		assert.Contains(t, rawCommand, "<true />")
+
+		// Verify the command contains admin account fields with correct Apple plist structure
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
+		assert.Contains(t, rawCommand, "<array>")
+		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
+		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
+
+		// Verify the command structure
+		assert.Contains(t, rawCommand, "<string>AccountConfiguration</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<string>%s</string>", cmdUUID))
+	})
+
+	t.Run("sendManagedAccounts with SSO only", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		ssoAccount := &fleet.MDMIdPAccount{
+			UUID:     uuid.New().String(),
+			Username: "sso_user",
+			Fullname: "SSO User",
+			Email:    "sso@example.com",
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, ssoAccount, nil, false, cmdUUID)
+		require.NoError(t, err)
+
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// SSO fields present
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.Contains(t, rawCommand, "<string>SSO User</string>")
+		assert.Contains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.Contains(t, rawCommand, "<string>sso_user</string>")
+		assert.Contains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+		assert.Contains(t, rawCommand, "<false />")
+
+		// Admin fields NOT present
+		assert.NotContains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
+		assert.NotContains(t, rawCommand, "_fleetadmin")
+	})
+
+	t.Run("sendManagedAccounts with admin only", func(t *testing.T) {
+		mysql.SetTestABMAssets(t, ds, testOrgName)
+		defer mysql.TruncateTables(t, ds)
+
+		h := createEnrolledHost(t, 1, nil, true, "darwin")
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       slogLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+
+		adminAccount := &apple_mdm.AdminAccountConfig{
+			ShortName:    "_fleetadmin",
+			FullName:     "Fleet Admin",
+			PasswordHash: []byte("PASSWORD_HASH_PLACEHOLDER"),
+			Hidden:       true,
+		}
+
+		args := &appleMDMArgs{
+			HostUUID: h.UUID,
+			Platform: "darwin",
+		}
+
+		cmdUUID := uuid.New().String()
+		err := mdmWorker.sendManagedAccounts(ctx, args, nil, adminAccount, false, cmdUUID)
+		require.NoError(t, err)
+
+		var rawCommand string
+		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &rawCommand,
+				"SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+		})
+
+		// Admin fields present with correct Apple plist structure
+		assert.Contains(t, rawCommand, "<key>AutoSetupAdminAccounts</key>")
+		assert.Contains(t, rawCommand, "<array>")
+		assert.Contains(t, rawCommand, "<string>_fleetadmin</string>")
+		assert.Contains(t, rawCommand, "<string>Fleet Admin</string>")
+		assert.Contains(t, rawCommand, fmt.Sprintf("<data>%s</data>", base64.StdEncoding.EncodeToString([]byte("PASSWORD_HASH_PLACEHOLDER"))))
+
+		// SSO fields NOT present
+		assert.NotContains(t, rawCommand, "<key>PrimaryAccountFullName</key>")
+		assert.NotContains(t, rawCommand, "<key>PrimaryAccountUserName</key>")
+		assert.NotContains(t, rawCommand, "<key>LockPrimaryAccountInfo</key>")
+	})
 }
 
 func TestGetSignedURL(t *testing.T) {
@@ -1426,8 +1747,8 @@ func TestGetSignedURL(t *testing.T) {
 
 	var data []byte
 	buf := bytes.NewBuffer(data)
-	logger := logging.NewLogfmtLogger(buf)
-	a := &AppleMDM{Log: logger.SlogLogger()}
+	logger := slog.New(slog.NewTextHandler(buf, nil))
+	a := &AppleMDM{Log: logger}
 
 	// S3 not configured
 	assert.Empty(t, a.getSignedURL(ctx, meta))

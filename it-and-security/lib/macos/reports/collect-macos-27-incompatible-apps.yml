@@ -1,0 +1,27 @@
+- name: Intel-only apps incompatible with macOS 27
+  automations_enabled: false
+  description: Collects Intel-only app bundles that will not run on macOS 27. Uses Spotlight metadata via the mdls table joined with the apps table.
+  discard_data: false
+  interval: 604800
+  logging: snapshot
+  observer_can_run: true
+  platform: "darwin"
+  query: >-
+    SELECT
+      a.name AS app_name,
+      a.path AS app_path,
+      a.bundle_identifier,
+      a.bundle_short_version AS version,
+      m.value AS architectures,
+      CASE WHEN a.last_opened_time = -1
+        THEN 'Never'
+        ELSE DATETIME(a.last_opened_time, 'unixepoch')
+      END AS last_opened_time
+    FROM apps a
+    JOIN mdls m
+      ON m.path = a.path
+    WHERE m.key = 'kMDItemExecutableArchitectures'
+      AND m.value LIKE '%x86_64%'
+      AND m.value NOT LIKE '%arm64%'
+    ORDER BY
+      app_name ASC;

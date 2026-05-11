@@ -23,10 +23,19 @@
 
   &__wrapper {
     display: flex;
+    gap: $pad-small;
     align-items: center;
     height: 24px; // Noticeable with help text below slider
+
     &--disabled {
-      @include disabled;
+      .fleet-slider {
+        @include disabled;
+      }
+
+      .fleet-slider__label {
+        @include disabled;
+        pointer-events: initial; // Allow label interaction when slider is disabled to view tooltip
+      }
     }
   }
 
@@ -49,7 +58,6 @@
     font-size: $x-small;
     font-weight: $regular;
     text-align: left;
-    margin-left: $pad-small;
   }
 
   &__help-text {

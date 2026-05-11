@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"net/http/cookiejar"
@@ -25,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
-	"github.com/fleetdm/fleet/v4/server/platform/logging"
 	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
@@ -37,6 +37,21 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
+
+// testSAMLIDPBaseURL is the SAML IDP base URL, read from FLEET_SAML_IDP_HTTP_PORT (defaults to http://localhost:9080).
+var (
+	testSAMLIDPBaseURL     = getTestSAMLIDPBaseURL()
+	testSAMLIDPMetadataURL = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/metadata.php"
+	testSAMLIDPSSOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SSOService.php"
+	testSAMLIDPSLOURL      = testSAMLIDPBaseURL + "/simplesaml/saml2/idp/SingleLogoutService.php"
+)
+
+func getTestSAMLIDPBaseURL() string {
+	if port := os.Getenv("FLEET_SAML_IDP_HTTP_PORT"); port != "" {
+		return "http://localhost:" + port
+	}
+	return "http://localhost:9080"
+}
 
 type withDS struct {
 	s       *suite.Suite
@@ -100,7 +115,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 		DBConns:     ts.dbConns,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
-		opts.Logger = logging.NewNopLogger()
+		opts.Logger = slog.New(slog.DiscardHandler)
 	}
 	users, server := RunServerForTestsWithDS(ts.s.T(), ts.ds, opts)
 	ts.server = server
@@ -455,7 +470,7 @@ func (ts *withServer) LoginSSOUserIDPInitiated(username, password, entityID stri
 	res := ts.loginSSOUserIDPInitiated(
 		username, password,
 		"/api/v1/fleet/sso",
-		fmt.Sprintf("http://127.0.0.1:9080/simplesaml/saml2/idp/SSOService.php?spentityid=%s", entityID),
+		fmt.Sprintf("%s?spentityid=%s", testSAMLIDPSSOURL, entityID),
 		http.StatusOK,
 	)
 	defer res.Body.Close()
@@ -592,6 +607,14 @@ func (ts *withServer) loginSSOUserIDPInitiated(
 	return res
 }
 
+type listActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listActivitiesResponse) Error() error { return r.Err }
+
 func (ts *withServer) lastActivityMatches(name, details string, id uint) uint {
 	return ts.lastActivityMatchesExtended(name, details, id, nil)
 }
@@ -618,6 +641,27 @@ func (ts *withServer) lastActivityMatchesExtended(name, details string, id uint,
 	}
 	if fleetInitiated != nil {
 		assert.Equal(t, *fleetInitiated, act.FleetInitiated)
+	}
+	return act.ID
+}
+
+func (ts *withServer) lastHostActivityMatches(hostID uint, name, details string, id uint) uint {
+	t := ts.s.T()
+	var listActivities listActivitiesResponse
+	ts.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", hostID), nil, http.StatusOK, &listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+	require.NotEmpty(t, listActivities.Activities)
+
+	act := listActivities.Activities[0]
+
+	if name != "" {
+		assert.Equal(t, name, act.Type)
+	}
+	if details != "" {
+		require.NotNil(t, act.Details)
+		assert.JSONEq(t, details, string(*act.Details))
+	}
+	if id > 0 {
+		assert.Equal(t, id, act.ID)
 	}
 	return act.ID
 }
@@ -757,6 +801,11 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
 		}
 	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
+		}
+	}
 	if payload.AutomaticInstall {
 		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
@@ -837,6 +886,11 @@ func (ts *withServer) updateSoftwareInstaller(
 	if payload.LabelsExcludeAny != nil {
 		for _, l := range payload.LabelsExcludeAny {
 			require.NoError(t, w.WriteField("labels_exclude_any", l))
+		}
+	}
+	if payload.LabelsIncludeAll != nil {
+		for _, l := range payload.LabelsIncludeAll {
+			require.NoError(t, w.WriteField("labels_include_all", l))
 		}
 	}
 	if payload.Categories != nil {

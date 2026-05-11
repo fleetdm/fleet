@@ -19,7 +19,6 @@ import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
-import Card from "components/Card";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
@@ -292,12 +291,10 @@ const Integrations = (): JSX.Element => {
         }}
         resultsTitle="integrations"
         emptyComponent={() => (
-          <Card borderRadiusSize="small">
-            <EmptyIntegrationsTable
-              className={noIntegrationsClass}
-              onActionButtonClick={toggleAddIntegrationModal}
-            />
-          </Card>
+          <EmptyIntegrationsTable
+            className={noIntegrationsClass}
+            onActionButtonClick={toggleAddIntegrationModal}
+          />
         )}
         showMarkAllPages={false}
         isAllPagesSelected={false}

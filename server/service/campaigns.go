@@ -89,7 +89,7 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, err
 	}
 
-	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: query.ObserverCanRun, ObserverTeamID: query.TeamID}
 
 	campaign, err := svc.ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
 		QueryID: query.ID,

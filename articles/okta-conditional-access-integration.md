@@ -6,15 +6,13 @@ When a host fails a policy in Fleet, IT and Security teams can block access to t
 
 ## Prerequisites
 
-Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL.
+> This section is only for self-hosted instances of Fleet. If you are on a cloud-managed instance, skip down to [Step 1](#step-1-download-idp-signature-certificate-from-fleet).
 
-### Fleet-hosted servers
+Okta's [Adaptive MFA](https://www.okta.com/learn/adaptive-mfa/) SKU is required to use this feature.
 
-If your Fleet server is hosted by Fleet, contact your Fleet representative to set up the mTLS infrastructure for you.
+Conditional access with Okta requires an mTLS reverse proxy on a separate subdomain (e.g., `okta.fleet.example.com`). All other Fleet traffic continues to use your existing Fleet server URL. If you're a managed-cloud customer, please reach out to Fleet to set up the mTLS infrastructure for you.
 
-### Self-hosted servers
-
-> If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/tree/main/docs/contributing/guides/okta-conditional-access-testing).
+If you would like to set up a testing environment, see the [Okta conditional access testing guide](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/okta-conditional-access-testing.md).
 
 If you use [fleet-terraform](https://github.com/fleetdm/fleet-terraform) modules for AWS hosting, see the [okta-conditional-access addon](https://github.com/fleetdm/fleet-terraform/tree/main/addons/okta-conditional-access) for streamlined mTLS proxy setup.
 
@@ -65,22 +63,23 @@ Replace:
 - `/etc/caddy/fleet-scep-ca.crt` with the path to your SCEP CA certificate
 - `https://fleet.example.com` with your Fleet server URL
 
-
-## Instructions
-
-### Step 1: Download IdP signature certificate from Fleet
+## Step 1: Download IdP signature certificate from Fleet
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, go to **Identity provider (IdP) signature certificate**. Click **Download certificate**.
 
-### Step 2: Deploy user scope profile
+## Step 2: Deploy user scope profile
 
 1. In Fleet, go to **Settings** > **Integrations** > **Conditional access** > **Okta** and click **Connect**.
 2. In the modal, find the read-only **User scope profile**.
 3. Copy the profile to a new `.mobileconfig` file and save.
-4. Follow the instructions in the [Custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
+4. Follow the instructions in the [custom OS settings](https://fleetdm.com/guides/custom-os-settings) guide to deploy the profile to the hosts where you want conditional access to apply.
 
-### Step 3: Create IdP in Okta
+Deploying this profile will deploy a SCEP certificate to your hosts. These certificates are valid for 1 year and 33 days. Automatic renewal for this certificate is [coming soon](https://github.com/fleetdm/fleet/issues/40639). When the certificate is renewed, the old certificate isn't removed. To clean up the old certificate, you can run [this script](https://github.com/fleetdm/fleet/blob/31ec68e325801bfd2199191f70d021383a45161f/assets/scripts/delete-duplicate-scep-certificates.sh).
+
+> If using GitOps, use the challenge in a [secret variable](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles), instead of hardcoding into the profile.
+
+## Step 3: Create IdP in Okta
 
 1. In the Okta Admin Console, go to **Security** > **Identity Providers**.
 2. Click **Add Identity Provider**.
@@ -94,7 +93,7 @@ Replace:
 7. For **IdP Signature Certificate**, upload the IdP signature certificate downloaded from Fleet.
 8. Click **Finish**.
 
-### Step 4: Configure Okta settings in Fleet
+## Step 4: Configure Okta settings in Fleet
 
 Once you've created the identity provider in Okta, click on the Fleet identity provider to view its settings. You'll need to copy these values into Fleet.
 
@@ -105,7 +104,7 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 5. In the Okta Admin Console, go to **Security** > **Identity Providers**, select **Actions** for the Fleet identity provider and choose **Download certificate**.
 6. In Fleet, for **Okta certificate**, upload the certificate downloaded from Okta.
 
-### Step 5: Add Fleet IdP authenticator in Okta
+## Step 5: Add Fleet IdP authenticator in Okta
 
 1. In the Okta Admin Console, go to **Security** > **Authenticators**.
 2. Click **Add authenticator**.
@@ -114,7 +113,7 @@ Once you've created the identity provider in Okta, click on the Fleet identity p
 5. For the logo, download the [Fleet logo](http://fleetdm.com/images/press-kit/fleet-logo-mark.svg) and upload it.
 6. Click **Add**.
 
-### Step 6: Add Fleet to an authentication policy
+## Step 6: Add Fleet to an authentication policy
 
 Create an authentication policy rule that requires Fleet verification for macOS hosts:
 
@@ -128,9 +127,9 @@ Create an authentication policy rule that requires Fleet verification for macOS 
 
 > To apply this policy to specific apps, go to **Applications** > select an app > **Sign On** tab > **Authentication policy** and assign the policy.
 
-### Step 7: Configure conditional access policies in Fleet
+## Step 7: Configure conditional access policies in Fleet
 
-Once Okta is configured in settings, head to **Policies**. Select the team that you want to enable conditional access for.
+Once Okta is configured in settings, head to **Policies**. Select the fleet that you want to enable conditional access for.
 
 1. Go to **Manage automations** > **Conditional access** and enable conditional access.
 2. Select the policies you want to block login via Okta.
@@ -151,9 +150,22 @@ Once disabled on the Okta side, you can delete the conditional access configurat
 
 ## Bypassing conditional access
 
-End users can temporarily bypass conditional access from their **My device** page if their host is failing a policy. To trigger a bypass, click a failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
+End users can temporarily bypass conditional access from their **My device** page if their host is not failing any critical policies. To trigger a bypass, click a non-critical failing policy labeled **Action required**, select **Resolve later**, and confirm in the following modal. The bypass allows the user to complete a single login even with failing policies and is consumed immediately upon successful login.
 
-This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**.
+If a host is failing multiple conditional access policies, the bypass option is only available if **no** failing policy is marked critical. If any one of the failing policies is marked critical, the end user will not see the option to bypass and must resolve the issue to regain access. (You can update a policy's `critical` setting on the **Edit policy** page.)
+
+This feature is enabled by default, but can be disabled by checking the **Disable bypass** checkbox in **Settings** > **Integrations** > **Conditional access**. 
+
+
+
+
+### Per-policy bypass
+
+> **Experimental feature.** The per-policy bypass setting is experimental, and will be replaced with a reference to the policy's `critical` setting in Fleet 4.83.0. To ensure a seamless upgrade, please avoid enabling bypass for policies marked critical.
+
+By default, all conditional access policies allow bypassing. You can control which policies allow bypass individually in **Manage automations** > **Conditional access**. Each policy with conditional access enabled has an additional checkbox to allow or disallow bypass.
+
+If a host is failing multiple conditional access policies, the bypass option is only available if **every** failing policy allows bypass. If any one of the failing policies does not allow bypass, the end user will not see the option to bypass and must resolve the issue to regain access.
 
 <meta name="articleTitle" value="Conditional access: Okta">
 <meta name="authorFullName" value="Rachael Shaw">

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"math/rand"
 	"testing"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/fleetdm/fleet/v4/server/logging/mock"
-	platformlogging "github.com/fleetdm/fleet/v4/server/platform/logging"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,7 +21,7 @@ func makeKinesisWriterWithMock(client KinesisAPI, stream string) *kinesisLogWrit
 	return &kinesisLogWriter{
 		client: client,
 		stream: stream,
-		logger: platformlogging.NewNopLogger(),
+		logger: slog.New(slog.DiscardHandler),
 		rand:   rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }

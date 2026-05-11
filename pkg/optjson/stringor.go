@@ -29,3 +29,26 @@ func (s *StringOr[T]) UnmarshalJSON(data []byte) error {
 	s.IsOther = true
 	return json.Unmarshal(data, &s.Other)
 }
+
+// BoolOr is a JSON value that can be a boolean or a different type of object
+type BoolOr[T any] struct {
+	Bool    bool
+	Other   T
+	IsOther bool
+}
+
+func (s BoolOr[T]) MarshalJSON() ([]byte, error) {
+	if s.IsOther {
+		return json.Marshal(s.Other)
+	}
+	return json.Marshal(s.Bool)
+}
+
+func (s *BoolOr[T]) UnmarshalJSON(data []byte) error {
+	if bytes.Equal(data, []byte(`true`)) || bytes.Equal(data, []byte(`false`)) {
+		s.IsOther = false
+		return json.Unmarshal(data, &s.Bool)
+	}
+	s.IsOther = true
+	return json.Unmarshal(data, &s.Other)
+}

@@ -1,4 +1,10 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import { useQuery } from "react-query";
 
@@ -29,7 +35,6 @@ import validURL from "components/forms/validators/valid_url";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
-// @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
@@ -37,8 +42,12 @@ import SectionHeader from "components/SectionHeader";
 import Dropdown from "components/forms/fields/Dropdown";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import ConfirmDataCollectionDisableModal from "components/ConfirmDataCollectionDisableModal";
+
+import { HistoricalDataConfigKey } from "interfaces/charts";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
+import HistoricalDataTeamControls from "./components/HistoricalDataTeamControls";
 
 const baseClass = "team-settings";
 
@@ -49,6 +58,8 @@ type ITeamSettingsFormData = {
   teamHostStatusWebhookDestinationUrl: string;
   teamHostStatusWebhookHostPercentage: number;
   teamHostStatusWebhookWindow: number;
+  disableHostsActive: boolean;
+  disableVulnerabilities: boolean;
 };
 
 type FormNames = keyof ITeamSettingsFormData;
@@ -98,7 +109,14 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostStatusWebhookDestinationUrl: "",
     teamHostStatusWebhookHostPercentage: 1,
     teamHostStatusWebhookWindow: 1,
+    disableHostsActive: false,
+    disableVulnerabilities: false,
   });
+  const [originalDisable, setOriginalDisable] = useState({
+    disableHostsActive: false,
+    disableVulnerabilities: false,
+  });
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
   // stateful approach required since initial options come from team config api response
   const [isInitialTeamConfig, setIsInitialTeamConfig] = useState(true);
   const [
@@ -154,6 +172,13 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     gitops: { gitops_mode_enabled: gitopsModeEnabled },
   } = appConfig ?? { host_expiry_settings: {}, gitops: {} };
 
+  const globalHostsActiveDisabled = !(
+    appConfig?.features?.historical_data?.uptime ?? true
+  );
+  const globalVulnerabilitiesDisabled = !(
+    appConfig?.features?.historical_data?.vulnerabilities ?? true
+  );
+
   const {
     data: teamConfig,
     isLoading: isLoadingTeamConfig,
@@ -167,6 +192,13 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       enabled: isRouteOk && !!teamIdForApi,
       select: (data) => data.team,
       onSuccess: (tC) => {
+        const teamHistoricalData = tC?.features?.historical_data;
+        const disableHostsActive = teamHistoricalData
+          ? !teamHistoricalData.uptime
+          : false;
+        const disableVulnerabilities = teamHistoricalData
+          ? !teamHistoricalData.vulnerabilities
+          : false;
         setFormData({
           // host expiry settings
           teamHostExpiryEnabled:
@@ -183,7 +215,10 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             tC?.webhook_settings?.host_status_webhook?.host_percentage ?? 1,
           teamHostStatusWebhookWindow:
             tC?.webhook_settings?.host_status_webhook?.days_count ?? 1,
+          disableHostsActive,
+          disableVulnerabilities,
         });
+        setOriginalDisable({ disableHostsActive, disableVulnerabilities });
       },
     }
   );
@@ -223,63 +258,101 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     [formData, globalHostExpiryEnabled]
   );
 
-  const updateTeamSettings = useCallback(
-    (evt: React.MouseEvent<HTMLFormElement>) => {
-      evt.preventDefault();
+  const datasetsBeingDisabled = useMemo<HistoricalDataConfigKey[]>(() => {
+    const list: HistoricalDataConfigKey[] = [];
+    if (
+      !originalDisable.disableHostsActive &&
+      formData.disableHostsActive &&
+      !globalHostsActiveDisabled
+    ) {
+      list.push("uptime");
+    }
+    if (
+      !originalDisable.disableVulnerabilities &&
+      formData.disableVulnerabilities &&
+      !globalVulnerabilitiesDisabled
+    ) {
+      list.push("vulnerabilities");
+    }
+    return list;
+  }, [
+    originalDisable,
+    formData.disableHostsActive,
+    formData.disableVulnerabilities,
+    globalHostsActiveDisabled,
+    globalVulnerabilitiesDisabled,
+  ]);
 
-      setUpdatingTeamSettings(true);
-      const castedHostExpiryWindow = Number(formData.teamHostExpiryWindow);
-      let enableHostExpiry;
-      if (globalHostExpiryEnabled) {
-        if (!castedHostExpiryWindow) {
-          enableHostExpiry = false;
-        } else {
-          enableHostExpiry = formData.teamHostExpiryEnabled;
-        }
+  const performSave = useCallback(() => {
+    setUpdatingTeamSettings(true);
+    const castedHostExpiryWindow = Number(formData.teamHostExpiryWindow);
+    let enableHostExpiry;
+    if (globalHostExpiryEnabled) {
+      if (!castedHostExpiryWindow) {
+        enableHostExpiry = false;
       } else {
         enableHostExpiry = formData.teamHostExpiryEnabled;
       }
-      teamsAPI
-        .update(
-          {
-            host_expiry_settings: {
-              host_expiry_enabled: enableHostExpiry,
-              host_expiry_window: castedHostExpiryWindow,
-            },
-            webhook_settings: {
-              host_status_webhook: {
-                enable_host_status_webhook:
-                  formData.teamHostStatusWebhookEnabled,
-                destination_url: formData.teamHostStatusWebhookDestinationUrl,
-                host_percentage: formData.teamHostStatusWebhookHostPercentage,
-                days_count: formData.teamHostStatusWebhookWindow,
-              },
+    } else {
+      enableHostExpiry = formData.teamHostExpiryEnabled;
+    }
+    teamsAPI
+      .update(
+        {
+          host_expiry_settings: {
+            host_expiry_enabled: enableHostExpiry,
+            host_expiry_window: castedHostExpiryWindow,
+          },
+          webhook_settings: {
+            host_status_webhook: {
+              enable_host_status_webhook: formData.teamHostStatusWebhookEnabled,
+              destination_url: formData.teamHostStatusWebhookDestinationUrl,
+              host_percentage: formData.teamHostStatusWebhookHostPercentage,
+              days_count: formData.teamHostStatusWebhookWindow,
             },
           },
-          teamIdForApi
-        )
-        .then(() => {
-          renderFlash("success", "Successfully updated settings.");
-          refetchTeamConfig();
-          setIsInitialTeamConfig(false);
-        })
-        .catch((errorResponse: { data: IApiError }) => {
-          renderFlash(
-            "error",
-            `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
-          );
-        })
-        .finally(() => {
-          setUpdatingTeamSettings(false);
-        });
+          features: {
+            historical_data: {
+              uptime: !formData.disableHostsActive,
+              vulnerabilities: !formData.disableVulnerabilities,
+            },
+          },
+        },
+        teamIdForApi
+      )
+      .then(() => {
+        renderFlash("success", "Successfully updated settings.");
+        refetchTeamConfig();
+        setIsInitialTeamConfig(false);
+        setConfirmModalOpen(false);
+      })
+      .catch((errorResponse: { data: IApiError }) => {
+        renderFlash(
+          "error",
+          `Could not update fleet settings. ${errorResponse.data.errors[0].reason}`
+        );
+      })
+      .finally(() => {
+        setUpdatingTeamSettings(false);
+      });
+  }, [
+    formData,
+    globalHostExpiryEnabled,
+    refetchTeamConfig,
+    renderFlash,
+    teamIdForApi,
+  ]);
+
+  const updateTeamSettings = useCallback(
+    (evt: React.MouseEvent<HTMLFormElement>) => {
+      evt.preventDefault();
+      if (datasetsBeingDisabled.length > 0) {
+        setConfirmModalOpen(true);
+        return;
+      }
+      performSave();
     },
-    [
-      formData,
-      globalHostExpiryEnabled,
-      refetchTeamConfig,
-      renderFlash,
-      teamIdForApi,
-    ]
+    [datasetsBeingDisabled, performSave]
   );
 
   const renderForm = () => {
@@ -294,7 +367,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         <SectionHeader title="Webhook settings" />
         <Checkbox
           name="teamHostStatusWebhookEnabled"
-          onChange={onInputChange}
+          onChange={({ name: n, value: v }) =>
+            onInputChange({ name: n as FormNames, value: v })
+          }
           parseTarget
           value={formData.teamHostStatusWebhookEnabled}
           helpText={`This will trigger webhooks specific to this fleet, separate from the global host status webhook.`}
@@ -396,8 +471,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             disabled={gitopsModeEnabled}
           />
         )}
+        <HistoricalDataTeamControls
+          disableHostsActive={formData.disableHostsActive}
+          disableVulnerabilities={formData.disableVulnerabilities}
+          globalHostsActiveDisabled={globalHostsActiveDisabled}
+          globalVulnerabilitiesDisabled={globalVulnerabilitiesDisabled}
+          onChange={({ name, value }) =>
+            onInputChange({ name: name as FormNames, value })
+          }
+        />
         <GitOpsModeTooltipWrapper
-          tipOffset={-8}
           renderChildren={(disableChildren) => (
             <Button
               type="submit"
@@ -420,6 +503,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         <HostStatusWebhookPreviewModal
           toggleModal={toggleHostStatusWebhookPreviewModal}
           isTeamScope
+        />
+      )}
+      {confirmModalOpen && (
+        <ConfirmDataCollectionDisableModal
+          scope="fleet"
+          datasets={datasetsBeingDisabled}
+          fleetName={teamConfig?.name}
+          isUpdating={updatingTeamSettings}
+          onConfirm={performSave}
+          onCancel={() => setConfirmModalOpen(false)}
         />
       )}
     </section>

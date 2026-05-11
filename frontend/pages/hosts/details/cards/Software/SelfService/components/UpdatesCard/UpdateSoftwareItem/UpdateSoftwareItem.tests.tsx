@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import { noop } from "lodash";
@@ -86,7 +86,7 @@ describe("Self-service - UpdateSoftwareItem component", () => {
       ui_status: "failed_install_update_available",
     };
 
-    render(
+    const { user } = render(
       <UpdateSoftwareItem
         software={software}
         onClickUpdateAction={noop}
@@ -97,7 +97,13 @@ describe("Self-service - UpdateSoftwareItem component", () => {
     const failedButton = screen.getByRole("button", { name: "Failed" });
     expect(failedButton).toBeInTheDocument();
 
-    expect(screen.getByText(/Software failed to install/)).toBeInTheDocument();
+    await user.hover(failedButton);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Software failed to install/)
+      ).toBeInTheDocument();
+    });
   });
 
   it("renders 'Updated' state when ui_status is 'recently_updated'", () => {

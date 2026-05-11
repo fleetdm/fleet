@@ -14,41 +14,109 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
-	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, false)
+func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
 }
 
-func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
-	return ds.enqueueSetupExperienceItems(ctx, hostPlatformLike, hostUUID, teamID, true)
+func (ds *Datastore) ResetSetupExperienceItemsAfterFailure(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
+	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, true)
 }
 
-func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
-	// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
-	// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
-	// Orbit version that didn't support setup experience to one that does.
-	// See https://github.com/fleetdm/fleet/issues/35717
-	stmtHost := `
-	SELECT
-		last_enrolled_at
-	FROM
-		hosts
-	WHERE uuid = ? AND platform = ?
-	`
-	var lastEnrolledAt sql.NullTime
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatformLike); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			// This shouldn't happen but we don't check for it elsewhere,
-			// so we'll log a warning and continue.
-			ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike)
-		} else {
-			return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
-		}
+func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint, resetFailedSetupSteps bool) (bool, error) {
+	// NOTE: there are 3 different "platform" values in play here: host platform,
+	// host platform-like and fleet-platform-like.
+	//
+	// The host platform is the most specific, e.g. "darwin", "windows", "ios",
+	// "ubuntu", "arch", "fedora", etc.
+	//
+	// Platform-like is the "generic platform" to which the specific platform belongs,
+	// e.g. "debian" for "ubuntu", "rhel" for "fedora", etc. For Apple or Windows, it
+	// is typically the same as platform. It may be empty in some cases (e.g. for "arch"
+	// as it doesn't have a "ID_LIKE" set in /etc/os-release by default, but also "ios").
+	//
+	// Fleet-platform-like is the even-more-generic platform, and is implemented in
+	// fleet.PlatformFromHost: "windows", "darwin", "linux", "ios", etc.
+	//
+	// So for many platforms, all three are the same, but for linux distros, those can be
+	// 3 different values. There is no harm - at least in this function - in filling
+	// hostPlatformLike to hostPlatform if it is empty (e.g. for "ios" or "arch").
+	//
+	// From my tests enrolling such hosts, results are:
+	// - host platform - host platform like - fleet platform like -
+	//   ios             <empty>              ios
+	//   darwin          darwin               darwin
+	//   arch            <empty>              linux
+	//   ubuntu          debian               linux
+	//   windows         windows              windows
+	if hostPlatformLike == "" {
+		hostPlatformLike = hostPlatform
 	}
-	// If the host was enrolled more than 24 hours ago, don't enqueue any items.
-	// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
-	if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-		ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
-		return false, nil
+
+	if hostPlatformLike != "darwin" && hostPlatformLike != "ios" && hostPlatformLike != "ipados" {
+		// Find the host with the given UUID and platform. If it's already been enrolled for > the cutoff,
+		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
+		// Orbit version that didn't support setup experience to one that does.
+		// See https://github.com/fleetdm/fleet/issues/35717
+		// Match either osquery_host_id or uuid because the hostUUID parameter comes from
+		// fleet.HostUUIDForSetupExperience, which on Windows/Linux resolves to OsqueryHostID and on
+		// Apple platforms to host.UUID. Without the OR, the lookup misses Windows/Linux hosts when
+		// OsqueryHostID and the Fleet host UUID differ (default osquery host_identifier modes).
+		stmtHost := `
+		SELECT
+			last_enrolled_at
+		FROM
+			hosts
+		WHERE (osquery_host_id = ? OR uuid = ?) AND platform = ?
+		`
+		var lastEnrolledAt sql.NullTime
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostUUID, hostPlatform); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				// This shouldn't happen but we don't check for it elsewhere,
+				// so we'll log a warning and continue.
+				ds.logger.WarnContext(ctx, "Host not found while enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "platform", hostPlatform)
+			} else {
+				return false, ctxerr.Wrap(ctx, err, "finding host for enqueueing setup experience items")
+			}
+		}
+		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
+		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
+		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
+			// On Windows, the 24h-old-host guard races with last_enrolled_at on re-Autopilot:
+			// orbit calls SetupExperienceInit before the new last_enrolled_at lands, so a
+			// previously-enrolled host that's mid-Autopilot-OOBE looks "old" and gets skipped
+			// even though it IS in ESP and we DO want setup-experience to run. Fall back to a
+			// direct check of mdm_windows_enrollments.awaiting_configuration: if the host is
+			// in Pending/Active, it's actively in ESP, bypass the age guard.
+			// mdm_windows_enrollments.host_uuid stores the Fleet host UUID (hosts.uuid), but the
+			// hostUUID parameter here comes from fleet.HostUUIDForSetupExperience, which on Windows
+			// resolves to OsqueryHostID. Resolve via JOIN and match either identifier so the lookup
+			// works regardless of how OsqueryHostID and the Fleet host UUID relate (this depends on
+			// the osquery host_identifier mode).
+			if hostPlatform == "windows" {
+				var awaiting fleet.WindowsMDMAwaitingConfiguration
+				stmtAwaiting := `
+				SELECT mwe.awaiting_configuration
+				FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON mwe.host_uuid = h.uuid
+				WHERE (h.osquery_host_id = ? OR h.uuid = ?) AND h.platform = 'windows'
+				ORDER BY mwe.created_at DESC, mwe.id DESC
+				LIMIT 1
+				`
+				if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmtAwaiting, hostUUID, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return false, ctxerr.Wrap(ctx, err, "checking windows awaiting_configuration for setup experience age guard")
+				} else if err == nil && awaiting != fleet.WindowsMDMAwaitingConfigurationNone {
+					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but is in awaiting_configuration; running setup experience for re-Autopilot",
+						"host_uuid", hostUUID, "awaiting_configuration", awaiting)
+					// fall through to enqueue
+				} else {
+					ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+					return false, nil
+				}
+			} else {
+				ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)
+				return false, nil
+			}
+		}
 	}
 
 	// NOTE: currently, the Android platform does not use the "enqueue setup experience items" flow as it
@@ -66,23 +134,32 @@ WHERE host_uuid = ? AND %s`
 		stmtClearSetupStatus = fmt.Sprintf(stmtClearSetupStatus, "TRUE")
 	}
 
-	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
-	stmtSoftwareInstallers := `
-INSERT INTO setup_experience_status_results (
-	host_uuid,
-	name,
-	status,
-	software_installer_id
-) SELECT
-	?,
-	st.name,
-	'pending',
-	si.id
+	// Build combined software query (installers + VPP apps) before the transaction.
+	fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
+
+	var softwareUnionParts []string
+	var softwareArgs []any
+
+	includeSoftwareInstallers := fleetPlatform != "ios" && fleetPlatform != "ipados"
+	includeVPPApps := fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados"
+
+	if includeSoftwareInstallers {
+		installerSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	si.id AS software_installer_id,
+	NULL AS vpp_app_team_id,
+	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
 WHERE install_during_setup = true
 AND global_or_team_id = ?
+AND si.is_active = TRUE
 AND (
 	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
@@ -106,41 +183,66 @@ AND (
 		)
 	)
 )
-AND %s ORDER BY st.name ASC
-`
-	if resetFailedSetupSteps {
-		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
-	} else {
-		stmtSoftwareInstallers = fmt.Sprintf(stmtSoftwareInstallers, "TRUE")
+AND %s`
+		if resetFailedSetupSteps {
+			installerSelect = fmt.Sprintf(installerSelect, "si.id NOT IN (SELECT software_installer_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND software_installer_id IS NOT NULL)")
+		} else {
+			installerSelect = fmt.Sprintf(installerSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, installerSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
 	}
 
-	stmtVPPApps := `
-INSERT INTO setup_experience_status_results (
-	host_uuid,
-	name,
-	status,
-	vpp_app_team_id
-) SELECT
-	?,
-	st.name,
-	'pending',
-	vat.id
+	if includeVPPApps {
+		vppSelect := `
+SELECT
+	? AS host_uuid,
+	st.name AS name,
+	'pending' AS status,
+	NULL AS software_installer_id,
+	vat.id AS vpp_app_team_id,
+	COALESCE(stdn.display_name, st.name) AS sort_name
 FROM vpp_apps va
 INNER JOIN vpp_apps_teams vat
 	ON vat.adam_id = va.adam_id
 	AND vat.platform = va.platform
 INNER JOIN software_titles st
 	ON va.title_id = st.id
+LEFT JOIN software_title_display_names stdn
+	ON stdn.software_title_id = st.id AND stdn.team_id = ?
 WHERE vat.install_during_setup = true
 AND vat.global_or_team_id = ?
 AND va.platform = ?
-AND %s
-ORDER BY st.name ASC
-`
-	if resetFailedSetupSteps {
-		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
-	} else {
-		stmtVPPApps = fmt.Sprintf(stmtVPPApps, "TRUE")
+AND %s`
+		if resetFailedSetupSteps {
+			vppSelect = fmt.Sprintf(vppSelect, "vat.id NOT IN (SELECT vpp_app_team_id FROM setup_experience_status_results WHERE host_uuid = ? AND status = 'success' AND vpp_app_team_id IS NOT NULL)")
+		} else {
+			vppSelect = fmt.Sprintf(vppSelect, "TRUE")
+		}
+		softwareUnionParts = append(softwareUnionParts, vppSelect)
+		softwareArgs = append(softwareArgs, hostUUID, teamID, teamID, fleetPlatform)
+		if resetFailedSetupSteps {
+			softwareArgs = append(softwareArgs, hostUUID)
+		}
+	}
+
+	var stmtSoftwareCombined string
+	if len(softwareUnionParts) > 0 {
+		stmtSoftwareCombined = fmt.Sprintf(`
+INSERT INTO setup_experience_status_results (
+	host_uuid,
+	name,
+	status,
+	software_installer_id,
+	vpp_app_team_id
+)
+SELECT host_uuid, name, status, software_installer_id, vpp_app_team_id FROM (
+	%s
+) AS combined
+ORDER BY sort_name ASC, COALESCE(software_installer_id, vpp_app_team_id, 0)`, strings.Join(softwareUnionParts, " UNION ALL "))
 	}
 
 	stmtSetupScripts := `
@@ -166,37 +268,15 @@ WHERE global_or_team_id = ?`
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
 		}
 
-		// Software installers
-		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		args := []any{hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike}
-		if resetFailedSetupSteps {
-			args = append(args, hostUUID)
-		}
-		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
-			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, args...)
+		// Combined software (installers + VPP apps)
+		if stmtSoftwareCombined != "" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareCombined, softwareArgs...)
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software items")
 			}
 			inserts, err := res.RowsAffected()
 			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
-			}
-			totalInsertions += uint(inserts) // nolint: gosec
-		}
-
-		// VPP apps
-		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
-			args := []any{hostUUID, teamID, fleetPlatform}
-			if resetFailedSetupSteps {
-				args = append(args, hostUUID)
-			}
-			res, err := tx.ExecContext(ctx, stmtVPPApps, args...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
-			}
-			inserts, err := res.RowsAffected()
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software items")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
@@ -260,6 +340,8 @@ LEFT JOIN
 	ON st.id = si.title_id
 WHERE
 	si.global_or_team_id = ?
+AND
+	si.is_active = TRUE
 AND
 	st.id IN (%s)
 `, titleIDQuestionMarks)
@@ -499,7 +581,7 @@ func questionMarks(number int) string {
 	return strings.Join(slices.Repeat([]string{"?"}, number), ",")
 }
 
-func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+func (ds *Datastore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string, teamID uint) ([]*fleet.SetupExperienceStatusResult, error) {
 	const stmt = `
 SELECT
 	sesr.id,
@@ -533,12 +615,13 @@ SELECT
     END AS error
 FROM setup_experience_status_results sesr
 LEFT JOIN setup_experience_scripts ses ON ses.id = sesr.setup_experience_script_id
-LEFT JOIN software_installers si ON si.id = sesr.software_installer_id
+LEFT JOIN software_installers si ON si.id = sesr.software_installer_id AND si.is_active = TRUE
 LEFT JOIN host_software_installs hsi ON hsi.execution_id = sesr.host_software_installs_execution_id
 LEFT JOIN host_script_results hsr ON hsr.execution_id = sesr.script_execution_id
 LEFT JOIN vpp_apps_teams vat ON vat.id = sesr.vpp_app_team_id
 LEFT JOIN vpp_apps va ON vat.adam_id = va.adam_id AND vat.platform = va.platform
 WHERE host_uuid = ?
+ORDER BY sesr.id
 	`
 	var results []*fleet.SetupExperienceStatusResult
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, stmt, hostUUID); err != nil {
@@ -556,28 +639,12 @@ WHERE host_uuid = ?
 
 	// load custom display name and custom icon for the software installers, if any
 	if len(titleIDs) > 0 {
-		// NOTE: as documented in fleet.HostUUIDForSetupExperience, the setup experience "host_uuid"
-		// is NOT always the host.uuid (on Windows and Linux, specifically). So if the host's team is
-		// not found, we simply don't load the icons and display names, anyway we only need those
-		// on macOS currently as it's the only place where the setup experience UI is shown.
-
-		// we need the host's team to load the custom icons and display names
-		const hostTeam = `SELECT team_id FROM hosts WHERE uuid = ? LIMIT 1`
-		var hostTeamID sql.Null[uint]
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostTeamID, hostTeam, hostUUID); err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				// host not found, skip loading icons and display names
-				return results, nil
-			}
-			return nil, ctxerr.Wrap(ctx, err, "get host team ID for setup experience results")
-		}
-
-		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, titleIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
 
-		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, hostTeamID.V, titleIDs)
+		displayNames, err := ds.getDisplayNamesByTeamAndTitleIds(ctx, teamID, titleIDs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get software display names by team and title IDs")
 		}
@@ -833,68 +900,32 @@ WHERE host_uuid = ?
 }
 
 func (ds *Datastore) MaybeUpdateSetupExperienceVPPStatus(ctx context.Context, hostUUID string, nanoCommandUUID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND nano_command_uuid = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
-
-	var id uint
-	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, nanoCommandUUID); err != nil {
-		// TODO: maybe we can use the reader instead for this query
-		if errors.Is(err, sql.ErrNoRows) {
-			// return early if no results found
-			return false, nil
-		}
-		return false, err
-	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	stmt := `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND nano_command_uuid = ? AND status NOT IN (?, ?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID, nanoCommandUUID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
 	n, _ := res.RowsAffected()
-
 	return n > 0, nil
 }
 
 func (ds *Datastore) MaybeUpdateSetupExperienceSoftwareInstallStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND host_software_installs_execution_id = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
-
-	var id uint
-	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
-		// TODO: maybe we can use the reader instead for this query
-		if errors.Is(err, sql.ErrNoRows) {
-			// return early if no results found
-			return false, nil
-		}
-		return false, err
-	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	stmt := `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND host_software_installs_execution_id = ? AND status NOT IN (?, ?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID, executionID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
 	n, _ := res.RowsAffected()
-
 	return n > 0, nil
 }
 
 func (ds *Datastore) MaybeUpdateSetupExperienceScriptStatus(ctx context.Context, hostUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
-	selectStmt := "SELECT id FROM setup_experience_status_results WHERE host_uuid = ? AND script_execution_id = ?"
-	updateStmt := "UPDATE setup_experience_status_results SET status = ? WHERE id = ?"
-
-	var id uint
-	if err := ds.writer(ctx).GetContext(ctx, &id, selectStmt, hostUUID, executionID); err != nil {
-		// TODO: maybe we can use the reader instead for this query
-		if errors.Is(err, sql.ErrNoRows) {
-			// return early if no results found
-			return false, nil
-		}
-		return false, err
-	}
-	res, err := ds.writer(ctx).ExecContext(ctx, updateStmt, status, id)
+	stmt := `UPDATE setup_experience_status_results SET status = ? WHERE host_uuid = ? AND script_execution_id = ? AND status NOT IN (?, ?, ?)`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, status, hostUUID, executionID, fleet.SetupExperienceStatusSuccess, fleet.SetupExperienceStatusFailure, fleet.SetupExperienceStatusCancelled)
 	if err != nil {
 		return false, err
 	}
 	n, _ := res.RowsAffected()
-
 	return n > 0, nil
 }
 

@@ -10,18 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-////////////////////////////////////////////////////////////////////////////////
-// Activities response (used by host past activities endpoint)
-////////////////////////////////////////////////////////////////////////////////
-
-type listActivitiesResponse struct {
-	Meta       *fleet.PaginationMetadata `json:"meta"`
-	Activities []*fleet.Activity         `json:"activities"`
-	Err        error                     `json:"error,omitempty"`
-}
-
-func (r listActivitiesResponse) Error() error { return r.Err }
-
 func (svc *Service) GetActivitiesWebhookSettings(ctx context.Context) (fleet.ActivitiesWebhookSettings, error) {
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -34,7 +22,7 @@ func (svc *Service) ActivateNextUpcomingActivityForHost(ctx context.Context, hos
 	return svc.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }
 
-func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity activity_api.ActivityDetails) error {
 	var apiUser *activity_api.User
 	if user != nil {
 		apiUser = &activity_api.User{
@@ -106,8 +94,6 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	return svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// List host past activities
 ////////////////////////////////////////////////////////////////////////////////
 // Cancel host upcoming activity
 ////////////////////////////////////////////////////////////////////////////////

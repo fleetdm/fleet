@@ -7,7 +7,7 @@ import React, {
   useEffect,
 } from "react";
 import { InjectedRouter } from "react-router";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { AxiosError } from "axios";
 
 import hostAPI, {
@@ -19,7 +19,6 @@ import {
   IHostSoftware,
   IVPPHostSoftware,
   ISoftware,
-  NO_VERSION_OR_HOST_DATA_SOURCES,
 } from "interfaces/software";
 import { HostPlatform, isIPadOrIPhone, isAndroid } from "interfaces/platform";
 
@@ -136,11 +135,11 @@ const HostSoftwareLibrary = ({
   const {
     isGlobalAdmin,
     isGlobalMaintainer,
-    isTeamAdmin,
-    isTeamMaintainer,
     isGlobalTechnician,
     currentUser,
   } = useContext(AppContext);
+
+  const queryClient = useQueryClient();
 
   const isUnsupported = isAndroid(platform); // no Android software
   const isWindowsHost = platform === "windows";
@@ -369,23 +368,25 @@ const HostSoftwareLibrary = ({
 
   const onAddSoftware = useCallback(() => {
     // "Add Software" path dependent on host's platform
-    const addSoftwarePathForHostPlatform = () => {
-      if (isIPadOrIPhoneHost || isAndroidHost) {
-        return getPathWithQueryParams(PATHS.SOFTWARE_ADD_APP_STORE, {
-          platform: isAndroidHost ? "android" : "apple",
-        });
-      }
-      if (isMacOSHost || isWindowsHost) {
-        return PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
-      }
-      return PATHS.SOFTWARE_ADD_PACKAGE;
-    };
+    let path = "";
+    const params: {
+      fleet_id: number;
+      platform?: string;
+    } = { fleet_id: hostTeamId };
 
-    router.push(
-      getPathWithQueryParams(addSoftwarePathForHostPlatform(), {
-        fleet_id: hostTeamId,
-      })
-    );
+    switch (true) {
+      case isIPadOrIPhoneHost || isAndroidHost:
+        path = PATHS.SOFTWARE_ADD_APP_STORE;
+        params.platform = isAndroidHost ? "android" : "apple";
+        break;
+      case isMacOSHost || isWindowsHost:
+        path = PATHS.SOFTWARE_ADD_FLEET_MAINTAINED;
+        break;
+      default:
+        path = PATHS.SOFTWARE_ADD_PACKAGE;
+    }
+
+    router.push(getPathWithQueryParams(path, params));
   }, [
     hostTeamId,
     isIPadOrIPhoneHost,
@@ -461,17 +462,26 @@ const HostSoftwareLibrary = ({
     isHostOnline,
   ]);
 
+  const isHostTeamAdmin = permissions.isTeamAdmin(currentUser, hostTeamId);
+  const isHostTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    hostTeamId
+  );
+
   const hasSWWriteRole = Boolean(
     isGlobalAdmin ||
       isGlobalMaintainer ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer ||
       isGlobalTechnician ||
       permissions.isTeamTechnician(currentUser, hostTeamId)
   );
 
   const canAddSoftware =
-    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isHostTeamAdmin ||
+      isHostTeamMaintainer) &&
     !isAndroidHost;
 
   // 4.77 Currently Android apps can only be installed via self-service by end user
@@ -492,6 +502,9 @@ const HostSoftwareLibrary = ({
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "upcoming-activities" }],
+        });
 
         const message = () => {
           switch (true) {
@@ -516,7 +529,7 @@ const HostSoftwareLibrary = ({
         renderFlash("error", getInstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const onClickUninstallAction = useCallback(
@@ -526,6 +539,9 @@ const HostSoftwareLibrary = ({
         if (isMountedRef.current) {
           onInstallOrUninstall();
         }
+        queryClient.invalidateQueries({
+          queryKey: [{ scope: "upcoming-activities" }],
+        });
         renderFlash(
           "success",
           <>
@@ -540,7 +556,7 @@ const HostSoftwareLibrary = ({
         renderFlash("error", getUninstallErrorMessage(e));
       }
     },
-    [id, renderFlash, onInstallOrUninstall, isHostOnline]
+    [id, renderFlash, onInstallOrUninstall, isHostOnline, queryClient]
   );
 
   const tableConfig = useMemo(() => {
@@ -611,6 +627,8 @@ const HostSoftwareLibrary = ({
         pagePath={pathname}
         selfService={queryParams.self_service}
         teamId={queryParams.fleet_id}
+        canAddSoftware={canAddSoftware}
+        onAddSoftware={onAddSoftware}
       />
     );
   };

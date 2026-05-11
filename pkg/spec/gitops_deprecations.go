@@ -18,12 +18,45 @@ type DeprecatedKeyMapping struct {
 	NewPath string
 }
 
-// DeprecatedGitOpsKeyMappings defines all deprecated GitOps YAML key mappings.
+// DeprecatedGitOpsKeyMappings is the single source of truth for all deprecated key renames.
+// It serves two purposes:
+//  1. ApplyDeprecatedKeyMappings uses the full paths to migrate deprecated keys in gitops YAML input.
+//  2. buildAliasRules (in generate_gitops.go) extracts leaf key names to rename keys in
+//     serialized output for generate_gitops, fleetctl get, and fleetctl apply.
+//
 // When adding new deprecations, add them here.
 var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
-	// Top-level keys
+	// Top-level gitops keys
 	{"team_settings", "settings"},
 	{"queries", "reports"},
+
+	// Controls: macos_settings -> apple_settings (parent first, then children)
+	{"controls.macos_settings", "controls.apple_settings"},
+	{"controls.apple_settings.custom_settings", "controls.apple_settings.configuration_profiles"},
+
+	// Controls: windows_settings children
+	{"controls.windows_settings.custom_settings", "controls.windows_settings.configuration_profiles"},
+
+	// Controls: android_settings children
+	{"controls.android_settings.custom_settings", "controls.android_settings.configuration_profiles"},
+
+	// Controls: macos_setup -> setup_experience (parent first, then children)
+	{"controls.macos_setup", "controls.setup_experience"},
+	{"controls.setup_experience.bootstrap_package", "controls.setup_experience.macos_bootstrap_package"},
+	{"controls.setup_experience.macos_setup_assistant", "controls.setup_experience.apple_setup_assistant"},
+	{"controls.setup_experience.enable_release_device_manually", "controls.setup_experience.apple_enable_release_device_manually"},
+	{"controls.setup_experience.script", "controls.setup_experience.macos_script"},
+	{"controls.setup_experience.manual_agent_install", "controls.setup_experience.macos_manual_agent_install"},
+	{"controls.setup_experience.enable_managed_local_account", "controls.setup_experience.enable_create_local_admin_account"},
+
+	// Org settings: server_settings
+	{"org_settings.server_settings.live_query_disabled", "org_settings.server_settings.live_reporting_disabled"},
+	{"org_settings.server_settings.query_reports_disabled", "org_settings.server_settings.discard_reports_data"},
+	{"org_settings.server_settings.query_report_cap", "org_settings.server_settings.report_cap"},
+
+	// Org settings: org_info logo URL fields renamed to mode-aware variants.
+	{"org_settings.org_info.org_logo_url", "org_settings.org_info.org_logo_url_dark_mode"},
+	{"org_settings.org_info.org_logo_url_light_background", "org_settings.org_info.org_logo_url_light_mode"},
 
 	// Nested keys in org_settings.mdm.apple_business_manager[]
 	{"org_settings.mdm.apple_business_manager[].macos_team", "org_settings.mdm.apple_business_manager[].macos_fleet"},
@@ -32,6 +65,31 @@ var DeprecatedGitOpsKeyMappings = []DeprecatedKeyMapping{
 
 	// Nested keys in org_settings.mdm.volume_purchasing_program[]
 	{"org_settings.mdm.volume_purchasing_program[].teams", "org_settings.mdm.volume_purchasing_program[].fleets"},
+
+	// The following entries are renameto tags on struct fields that appear in serialized
+	// API output (fleetctl get and fleetctl apply) but are not gitops input keys. They are
+	// included here so that buildAliasRules can derive them. The paths are leaf-only (no dots)
+	// since they don't participate in ApplyDeprecatedKeyMappings traversal.
+	{"available_teams", "available_fleets"},
+	{"default_team", "default_fleet"},
+	{"host_team_id", "host_fleet_id"},
+	{"inherited_query_count", "inherited_report_count"},
+	{"ios_team_id", "ios_fleet_id"},
+	{"ipados_team_id", "ipados_fleet_id"},
+	{"live_query_results", "live_report_results"},
+	{"macos_team_id", "macos_fleet_id"},
+	{"query_count", "report_count"},
+	{"query_id", "report_id"},
+	{"query_ids", "report_ids"},
+	{"query_name", "report_name"},
+	{"query_stats", "report_stats"},
+	{"scheduled_query_id", "scheduled_report_id"},
+	{"scheduled_query_name", "scheduled_report_name"},
+	{"team", "fleet"},
+	{"team_id", "fleet_id"},
+	{"team_ids_by_name", "fleet_ids_by_name"},
+	{"team_ids", "fleet_ids"},
+	{"team_name", "fleet_name"},
 }
 
 // ApplyDeprecatedKeyMappings walks the YAML data map and migrates deprecated keys to their new names.

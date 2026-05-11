@@ -417,10 +417,6 @@ func checkCVEs(
 
 	// Group dictionary by vendor using a map.
 	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
-	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
-	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
-	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
-	// Further optimization can be done by also using a map for product name comparison.
 	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
 	for key, vuln := range dict {
 		attrsArray := vuln.Config()
@@ -436,7 +432,12 @@ func checkCVEs(
 
 	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
 	for vendor, subDict := range dictGrouped {
+		// Build a product index per vendor so that cache.Get() narrows the
+		// dictionary to only CVEs matching the queried product name before
+		// running version-range matching.
+		idx := cvefeed.NewIndex(subDict)
 		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cache.Idx = idx
 		cacheGrouped[vendor] = cache
 	}
 
@@ -606,6 +607,17 @@ func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
 		}
 	}
 
+	// The NVD CPE dictionary contains an invalid CPE for Ipswitch WhatsUp with product="whatsup",
+	// but CVE-2006-2354 references product="whatsup_professional".
+	// See https://github.com/fleetdm/fleet/issues/32662.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.Vendor == "ipswitch" && cpeItem.Product == "whatsup" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "whatsup_professional"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
 	// pgAdmin CVEs in NVD use target_sw=postgresql and product=pgadmin_4, but Fleet generates
 	// CPEs with platform-based target_sw (macos, windows) and may use different product
 	// names (pgadmin, pgadmin4). Add aliases with target_sw=postgresql and product name
@@ -721,6 +733,10 @@ func getMatchingVersionEndExcluding(ctx context.Context, cve string, hostSoftwar
 
 		// ensure the product and vendor match
 		if attr.Product != hostSoftwareMeta.Product || attr.Vendor != hostSoftwareMeta.Vendor {
+			continue
+		}
+		if attr.SWEdition != wfn.Any && attr.SWEdition != hostSoftwareMeta.SWEdition &&
+			!(hostSoftwareMeta.SWEdition == wfn.Any && attr.SWEdition == wfn.NA) {
 			continue
 		}
 

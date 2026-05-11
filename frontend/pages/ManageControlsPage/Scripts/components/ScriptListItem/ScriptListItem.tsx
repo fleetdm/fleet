@@ -31,7 +31,7 @@ const getFileRenderDetails = (
 
   switch (fileExtension) {
     case "py":
-      return { graphicName: "file-py", platform: null };
+      return { graphicName: "file-py", platform: "macOS & Linux" };
     case "sh":
       return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":
@@ -86,23 +86,20 @@ const ScriptListItem = ({
 
   const { graphicName, platform } = getFileRenderDetails(script.name);
 
-  const onClickEdit = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickEdit = () => {
     onEdit(script);
   };
 
-  const onClickDownload = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickDownload = () => {
     onDownload(script, renderFlash);
   };
 
-  const onClickDelete = (evt: React.MouseEvent | React.KeyboardEvent) => {
-    evt.stopPropagation();
+  const onClickDelete = () => {
     onDelete(script);
   };
 
   const actions = (
-    <>
+    <div onClick={(evt) => evt.stopPropagation()}>
       <GitOpsModeTooltipWrapper
         renderChildren={(disableChildren) => (
           <Button
@@ -134,14 +131,14 @@ const ScriptListItem = ({
           </Button>
         )}
       />
-    </>
+    </div>
   );
 
   return (
     <ListItem
       className={baseClass}
       graphic={graphicName}
-      title={<Button variant="text-link">{script.name}</Button>}
+      title={<Button variant="link">{script.name}</Button>}
       details={
         <ScriptListItemDetails
           platform={platform}

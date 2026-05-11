@@ -2,12 +2,14 @@ package scim
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/elimity-com/scim"
+	scimerrors "github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	mockservice "github.com/fleetdm/fleet/v4/server/mock/service"
@@ -17,6 +19,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// alreadyExistsErr implements fleet.AlreadyExistsError for testing.
+type alreadyExistsErr struct {
+	msg string
+}
+
+func (e *alreadyExistsErr) Error() string  { return e.msg }
+func (e *alreadyExistsErr) IsExists() bool { return true }
 
 type testMocks struct {
 	ds  *mock.Store
@@ -32,9 +42,9 @@ func newTestMocks() *testMocks {
 
 func (m *testMocks) newTestHandler() *UserHandler {
 	return &UserHandler{
-		ds:             m.ds,
-		activityModule: m.svc,
-		logger:         slog.New(slog.DiscardHandler),
+		ds:          m.ds,
+		newActivity: m.svc.NewActivity,
+		logger:      slog.New(slog.DiscardHandler),
 	}
 }
 
@@ -231,8 +241,8 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
 		}
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil // Only 1 admin
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 
 		handler := mocks.newTestHandler()
@@ -243,7 +253,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		assert.Contains(t, err.Error(), "cannot delete last global admin")
 
 		assert.True(t, mocks.ds.UserByEmailFuncInvoked)
-		assert.True(t, mocks.ds.CountGlobalAdminsFuncInvoked)
+		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
 
@@ -258,10 +268,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		mocks.ds.UserByEmailFunc = func(ctx context.Context, email string) (*fleet.User, error) {
 			return fleetUser, nil
 		}
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 3, nil // Multiple admins
-		}
-		mocks.ds.DeleteUserFunc = func(ctx context.Context, id uint) error {
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
 			return nil
 		}
 		mocks.svc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -274,7 +281,7 @@ func TestDeleteMatchingFleetUser(t *testing.T) {
 		err := handler.deleteMatchingFleetUser(t.Context(), scimUser)
 		require.NoError(t, err)
 
-		assert.True(t, mocks.ds.DeleteUserFuncInvoked)
+		assert.True(t, mocks.ds.DeleteUserIfNotLastAdminFuncInvoked)
 	})
 
 	t.Run("matches on scim_user_emails when userName is not email", func(t *testing.T) {
@@ -408,8 +415,8 @@ func TestUserHandlerDelete(t *testing.T) {
 			return fleetUser, nil
 		}
 		// Last admin - Fleet user deletion will fail
-		mocks.ds.CountGlobalAdminsFunc = func(ctx context.Context) (int, error) {
-			return 1, nil
+		mocks.ds.DeleteUserIfNotLastAdminFunc = func(ctx context.Context, id uint) error {
+			return fleet.ErrLastGlobalAdmin
 		}
 		// SCIM user deletion should still succeed
 		mocks.ds.DeleteScimUserFunc = func(ctx context.Context, id uint) error {
@@ -612,6 +619,69 @@ func TestUserHandlerReplaceDeactivation(t *testing.T) {
 
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
+
+	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// Pre-check passes (no other user with this username)
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
+		}
+		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		}
+
+		handler := mocks.newTestHandler()
+		attrs := newTestAttrs("taken@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusConflict, scimErr.Status)
+		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
+
+	t.Run("returns bad params error when ReplaceScimUser returns SCIMValidationError", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// ReplaceScimUser returns a validation error (field too long)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return &fleet.SCIMValidationError{Field: "given_name", Message: "exceeds maximum length of 255 characters"}
+		}
+
+		handler := mocks.newTestHandler()
+		attrs := newTestAttrs("user@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Replace(httptest.NewRequest(http.MethodPut, "/scim/v2/Users/1", nil), "1", attrs)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
+		assert.Contains(t, scimErr.Detail, "given_name")
+	})
 }
 
 func TestUserHandlerPatchDeactivation(t *testing.T) {
@@ -757,6 +827,41 @@ func TestUserHandlerPatchDeactivation(t *testing.T) {
 
 		assert.False(t, mocks.ds.DeleteUserFuncInvoked)
 	})
+
+	t.Run("returns uniqueness error when ReplaceScimUser returns wrapped AlreadyExistsError via Patch", func(t *testing.T) {
+		mocks := newTestMocks()
+		existingScimUser := newTestScimUser(&scimUserOpts{
+			active:     ptr.Bool(true),
+			givenName:  "John",
+			familyName: "Doe",
+		})
+
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingScimUser, nil
+		}
+		// ReplaceScimUser returns a wrapped AlreadyExistsError (race condition: concurrent update took the username)
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			return fmt.Errorf("update scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		userNamePath, err := filter.ParsePath([]byte("userName"))
+		require.NoError(t, err)
+
+		patchOps := []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &userNamePath, Value: "taken@example.com"},
+		}
+
+		_, err = handler.Patch(req, "1", patchOps)
+		require.Error(t, err)
+
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusConflict, scimErr.Status)
+		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
 }
 
 func TestUserHandlerCreateReactivation(t *testing.T) {
@@ -847,6 +952,60 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
 	})
 
+	t.Run("returns uniqueness error when CreateScimUser returns wrapped AlreadyExistsError", func(t *testing.T) {
+		mocks := newTestMocks()
+
+		// No existing user found during pre-check (simulating race condition)
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
+		}
+
+		// CreateScimUser returns a wrapped AlreadyExistsError (as ctxerr.Wrap produces in production)
+		mocks.ds.CreateScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+			return 0, fmt.Errorf("insert scim user: %w", &alreadyExistsErr{msg: "user_name already exists"})
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPost, "/scim/v2/Users", nil)
+		attrs := newTestAttrs("user@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Create(req, attrs)
+		require.Error(t, err)
+
+		// Should be a SCIM uniqueness error (409), not a 500
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusConflict, scimErr.Status)
+		assert.Equal(t, scimerrors.ScimTypeUniqueness, scimErr.ScimType)
+	})
+
+	t.Run("returns bad params error when CreateScimUser returns SCIMValidationError", func(t *testing.T) {
+		mocks := newTestMocks()
+
+		// No existing user found during pre-check
+		mocks.ds.ScimUserByUserNameFunc = func(ctx context.Context, userName string) (*fleet.ScimUser, error) {
+			return nil, platform_mysql.NotFound("ScimUser")
+		}
+
+		// CreateScimUser returns a validation error (field too long)
+		mocks.ds.CreateScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) (uint, error) {
+			return 0, &fleet.SCIMValidationError{Field: "user_name", Message: "exceeds maximum length of 255 characters"}
+		}
+
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPost, "/scim/v2/Users", nil)
+		attrs := newTestAttrs("user@example.com", ptr.Bool(true), "John", "Doe")
+
+		_, err := handler.Create(req, attrs)
+		require.Error(t, err)
+
+		// Should be a SCIM bad params error (400), not a 500
+		scimErr, ok := err.(scimerrors.ScimError)
+		require.True(t, ok, "expected ScimError, got %T: %v", err, err)
+		assert.Equal(t, http.StatusBadRequest, scimErr.Status)
+		assert.Contains(t, scimErr.Detail, "user_name")
+	})
+
 	t.Run("returns uniqueness error for user with nil active", func(t *testing.T) {
 		mocks := newTestMocks()
 		existingScimUser := newTestScimUser(&scimUserOpts{
@@ -868,5 +1027,187 @@ func TestUserHandlerCreateReactivation(t *testing.T) {
 		// Should not have called Replace or Create
 		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
 		assert.False(t, mocks.ds.CreateScimUserFuncInvoked)
+	})
+}
+
+func TestUserHandlerPatchUnknownAttributes(t *testing.T) {
+	const enterpriseExtURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+
+	setupMocks := func(t *testing.T) (*testMocks, *fleet.ScimUser, **fleet.ScimUser) {
+		t.Helper()
+		mocks := newTestMocks()
+		existingUser := newTestScimUser(&scimUserOpts{active: new(true), givenName: "John", familyName: "Doe"})
+		mocks.ds.ScimUserByIDFunc = func(ctx context.Context, id uint) (*fleet.ScimUser, error) {
+			return existingUser, nil
+		}
+		var saved *fleet.ScimUser
+		mocks.ds.ReplaceScimUserFunc = func(ctx context.Context, user *fleet.ScimUser) error {
+			saved = user
+			return nil
+		}
+		return mocks, existingUser, &saved
+	}
+
+	t.Run("explicit-path with unrecognized path is ignored, department in same batch is applied", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "EMP-1"},
+			{Op: scim.PatchOperationReplace, Path: &deptPath, Value: "Engineering"},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Engineering", *(*saved).Department)
+	})
+
+	t.Run("no-path value with unrecognized field is ignored, department in same value is applied", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN + ":department":     "Sales",
+					enterpriseExtURN + ":employeeNumber": "EMP-2",
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
+	})
+
+	t.Run("patchName ignores unrecognized name subattributes", func(t *testing.T) {
+		// givenName/familyName get applied; honorificPrefix and middleName are silently
+		// dropped instead of aborting the PATCH.
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					"name": map[string]any{
+						"givenName":       "WithPrefix",
+						"familyName":      "User",
+						"honorificPrefix": "Mr",
+						"middleName":      "Q",
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).GivenName)
+		require.NotNil(t, (*saved).FamilyName)
+		assert.Equal(t, "WithPrefix", *(*saved).GivenName)
+		assert.Equal(t, "User", *(*saved).FamilyName)
+	})
+
+	t.Run("PATCH with only unrecognized explicit-path operations skips database write", func(t *testing.T) {
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "EMP-1"},
+			{Op: scim.PatchOperationReplace, Path: &unknownPath, Value: "EMP-2"},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("PATCH with only unrecognized no-path fields skips database write", func(t *testing.T) {
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		_, err := handler.Patch(req, "1", []scim.PatchOperation{
+			{
+				Op:   scim.PatchOperationReplace,
+				Path: nil,
+				Value: map[string]any{
+					enterpriseExtURN + ":employeeNumber": "EMP-1",
+					enterpriseExtURN + ":costCenter":     "CC-1",
+				},
+			},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("add op with unrecognized explicit path is silently skipped", func(t *testing.T) {
+		// The recognition refactor applies equally to add ops; verify a no-op add on
+		// an unrecognized path doesn't 400 and doesn't trigger a DB write.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationAdd, Path: &unknownPath, Value: "EMP-1"},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("remove op with unrecognized explicit path is silently skipped", func(t *testing.T) {
+		// Removing an attribute Fleet doesn't store is a no-op by definition; verify
+		// it doesn't 400 and doesn't trigger a DB write.
+		mocks, _, _ := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":costCenter"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationRemove, Path: &unknownPath, Value: nil},
+		})
+		require.NoError(t, err)
+		assert.False(t, mocks.ds.ReplaceScimUserFuncInvoked)
+	})
+
+	t.Run("add op with unrecognized path mixed with recognized op applies the recognized one", func(t *testing.T) {
+		mocks, _, saved := setupMocks(t)
+		handler := mocks.newTestHandler()
+		req := httptest.NewRequest(http.MethodPatch, "/scim/v2/Users/1", nil)
+
+		unknownPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":employeeNumber"))
+		require.NoError(t, err)
+		deptPath, err := filter.ParsePath([]byte(enterpriseExtURN + ":department"))
+		require.NoError(t, err)
+
+		_, err = handler.Patch(req, "1", []scim.PatchOperation{
+			{Op: scim.PatchOperationAdd, Path: &unknownPath, Value: "EMP-2"},
+			{Op: scim.PatchOperationAdd, Path: &deptPath, Value: "Sales"},
+		})
+		require.NoError(t, err)
+		require.True(t, mocks.ds.ReplaceScimUserFuncInvoked)
+		require.NotNil(t, *saved)
+		require.NotNil(t, (*saved).Department)
+		assert.Equal(t, "Sales", *(*saved).Department)
 	})
 }

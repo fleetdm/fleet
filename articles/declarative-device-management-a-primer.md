@@ -123,7 +123,7 @@ After you've deployed DDM, you should measure its impact by comparing the new ap
 
 ## How Fleet supports declarative device management
 
-[Fleet](http://fleetdm.com/) is an open-source device management platform that enables administrators to send DDM payloads directly to macOS, iOS, and iPadOS devices. DDM profiles can live in git repository management solutions like GitHub, GitLab or Bitbucket where teams can peer review changes, track history, or roll back updates through automated GitOps workflows. The osquery capabilities of Fleet add near real-time querying capabilities giving security teams a "double check" on device management state on top of MDM / DDM: reporting of richly-detailed data, on-demand device information for investigations and fast compliance checks.
+[Fleet](http://fleetdm.com/) is an open-source device management platform that enables administrators to send DDM payloads directly to macOS, iOS, and iPadOS devices. DDM profiles can live in git repository management solutions like GitHub, GitLab or Bitbucket where teams can peer review changes, track history, or roll back updates through automated GitOps workflows. The osquery capabilities of Fleet add near real-time reporting capabilities giving security teams a "double check" on device management state on top of MDM / DDM: reporting of richly-detailed data, on-demand device information for investigations and fast compliance checks.
 
 For organizations looking to implement DDM with full transparency and no vendor lock-in, Fleet provides an open alternative. [Schedule a demo](https://fleetdm.com/contact) to see how it works.
 

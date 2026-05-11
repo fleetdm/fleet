@@ -32,12 +32,13 @@ func TestActivity(t *testing.T) {
 	}{
 		{"UsernameChange", testActivityUsernameChange},
 		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
-		{"CleanupActivitiesAndAssociatedData", testCleanupActivitiesAndAssociatedData},
-		{"CleanupActivitiesAndAssociatedDataBatch", testCleanupActivitiesAndAssociatedDataBatch},
+		{"CleanupExpiredLiveQueries", testCleanupExpiredLiveQueries},
+		{"CleanupExpiredLiveQueriesBatch", testCleanupExpiredLiveQueriesBatch},
 		{"ActivateNextActivity", testActivateNextActivity},
 		{"ActivateItselfOnEmptyQueue", testActivateItselfOnEmptyQueue},
 		{"CancelNonActivatedUpcomingActivity", testCancelNonActivatedUpcomingActivity},
 		{"CancelActivatedUpcomingActivity", testCancelActivatedUpcomingActivity},
+		{"BatchCancelAllHostUpcomingActivities", testBatchCancelAllHostUpcomingActivities},
 		{"SetResultAfterCancelUpcomingActivity", testSetResultAfterCancelUpcomingActivity},
 		{"GetHostUpcomingActivityMeta", testGetHostUpcomingActivityMeta},
 		{"UnblockHostsUpcomingActivityQueue", testUnblockHostsUpcomingActivityQueue},
@@ -534,10 +535,14 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
-func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
+func testCleanupExpiredLiveQueries(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := &fleet.User{
 		Password:   []byte("p4ssw0rd.123"),
@@ -549,219 +554,123 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// Nothing to delete.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, 500, 1)
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	nonSavedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "nonSavedQuery1",
+	nonSavedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "nonSavedQuery",
 		Saved:   false,
 		Query:   "SELECT 1;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	savedQuery1, err := ds.NewQuery(ctx, &fleet.Query{
-		Name:    "savedQuery1",
+	savedQuery, err := ds.NewQuery(ctx, &fleet.Query{
+		Name:    "savedQuery",
 		Saved:   true,
 		Query:   "SELECT 2;",
 		Logging: fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
-	distributedQueryCampaign1, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
-		QueryID: nonSavedQuery1.ID,
+	campaign, err := ds.NewDistributedQueryCampaign(ctx, &fleet.DistributedQueryCampaign{
+		QueryID: nonSavedQuery.ID,
 		Status:  fleet.QueryComplete,
 		UserID:  user1.ID,
 	})
 	require.NoError(t, err)
 	_, err = ds.NewDistributedQueryCampaignTarget(ctx, &fleet.DistributedQueryCampaignTarget{
-		DistributedQueryCampaignID: distributedQueryCampaign1.ID,
+		DistributedQueryCampaignID: campaign.ID,
 		TargetID:                   1,
 		Type:                       fleet.TargetHost,
 	})
 	require.NoError(t, err)
-	apiUser := &activity_api.User{ID: user1.ID, Name: user1.Name, Email: user1.Email}
-	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
-		name:    "other activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-	})
-	require.NoError(t, err)
-	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
-		name:    "live query",
-		details: map[string]interface{}{"detail": 1, "foo": "bar"},
-	})
-	require.NoError(t, err)
-	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
-		name:    "some host activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
-		hostIDs: []uint{1},
-	})
-	require.NoError(t, err)
-	err = activitySvc.NewActivity(ctx, apiUser, dummyActivity{
-		name:    "some host activity 2",
-		details: map[string]interface{}{"detail": 0, "foo": "bar"},
-		hostIDs: []uint{2},
-	})
+
+	// Nothing is deleted because the data is recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	// Nothing is deleted, as the activities and associated data is recent.
-	const maxCount = 500
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.NoError(t, err)
-
-	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 4)
-	nonExpiredActivityID := activities[0].ID
-	expiredActivityID := activities[1].ID
-	nonExpiredHostActivityID := activities[2].ID
-	expiredHostActivityID := activities[3].ID
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.NoError(t, err)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
-	require.NoError(t, err)
-	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err := ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Len(t, targets.HostIDs, 1)
 
-	// Make some of the activity and associated data older.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), expiredActivityID, expiredHostActivityID,
-	)
-	require.NoError(t, err)
+	// Make the queries older.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id = ? OR id = ?`,
-		time.Now().Add(-48*time.Hour), nonSavedQuery1.ID, savedQuery1.ID,
+		time.Now().Add(-48*time.Hour), nonSavedQuery.ID, savedQuery.ID,
 	)
 	require.NoError(t, err)
 
-	// Expired activity and associated data should be cleaned up.
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Expired unsaved query, its campaign, and campaign targets should be cleaned up.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 3)
-	require.Equal(t, nonExpiredActivityID, activities[0].ID)
-	require.Equal(t, nonExpiredHostActivityID, activities[1].ID)
-	require.Equal(t, expiredHostActivityID, activities[2].ID)
-	_, err = ds.Query(ctx, nonSavedQuery1.ID)
+	_, err = ds.Query(ctx, nonSavedQuery.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	_, err = ds.DistributedQueryCampaign(ctx, distributedQueryCampaign1.ID)
+	_, err = ds.DistributedQueryCampaign(ctx, campaign.ID)
 	require.ErrorIs(t, err, sql.ErrNoRows)
-	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, distributedQueryCampaign1.ID)
+	targets, err = ds.DistributedQueryCampaignTargetIDs(ctx, campaign.ID)
 	require.NoError(t, err)
 	require.Empty(t, targets.HostIDs)
 	require.Empty(t, targets.LabelIDs)
 	require.Empty(t, targets.TeamIDs)
 
 	// Saved query should not be cleaned up.
-	savedQuery1, err = ds.Query(ctx, savedQuery1.ID)
+	savedQuery, err = ds.Query(ctx, savedQuery.ID)
 	require.NoError(t, err)
-	require.NotNil(t, savedQuery1)
+	require.NotNil(t, savedQuery)
 }
 
-func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
-	activitySvc := NewTestActivityService(t, ds)
+func testCleanupExpiredLiveQueriesBatch(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	user1 := &fleet.User{
-		Password:   []byte("p4ssw0rd.123"),
-		Name:       "user1",
-		Email:      "user1@example.com",
-		GlobalRole: ptr.String(fleet.RoleAdmin),
-	}
-	user1, err := ds.NewUser(ctx, user1)
-	require.NoError(t, err)
-
-	const maxCount = 500
-
-	// Create 1500 activities.
-	insertActivitiesStmt := `
-		INSERT INTO activities
-		(user_id, user_name, activity_type, details, user_email)
-		VALUES `
-	var insertActivitiesArgs []interface{}
-	for i := 0; i < 1500; i++ {
-		insertActivitiesArgs = append(insertActivitiesArgs,
-			user1.ID, user1.Name, "foobar", `{"foo": "bar"}`, user1.Email,
-		)
-	}
-	insertActivitiesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertActivitiesStmt, insertActivitiesArgs...)
-	require.NoError(t, err)
 
 	// Create 1500 non-saved queries.
 	insertQueriesStmt := `
 		INSERT INTO queries
 		(name, description, query)
 		VALUES `
-	var insertQueriesArgs []interface{}
-	for i := 0; i < 1500; i++ {
+	var insertQueriesArgs []any
+	for i := range 1500 {
 		insertQueriesArgs = append(insertQueriesArgs,
 			fmt.Sprintf("foobar%d", i), "foobar", "SELECT 1;",
 		)
 	}
 	insertQueriesStmt += strings.TrimSuffix(strings.Repeat("(?, ?, ?),", 1500), ",")
-	_, err = ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
+	_, err := ds.writer(ctx).ExecContext(ctx, insertQueriesStmt, insertQueriesArgs...)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Nothing deleted; all recent.
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities := ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 1500)
 	var queriesLen int
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 1500, queriesLen)
 
-	// Make 1250 activities as expired.
-	_, err = ds.writer(context.Background()).Exec(`
-		UPDATE activities SET created_at = ? WHERE id <= 1250`,
-		time.Now().Add(-48*time.Hour),
-	)
-	require.NoError(t, err)
-
-	// Make 1250 queries as expired.
+	// Make 1250 queries expired.
 	_, err = ds.writer(context.Background()).Exec(`
 		UPDATE queries SET created_at = ? WHERE id <= 1250`,
 		time.Now().Add(-48*time.Hour),
 	)
 	require.NoError(t, err)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// All 1250 expired queries should be cleaned up in one call (batched internally).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 1000)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen) // All expired queries should be cleaned up.
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 500)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
 	require.Equal(t, 250, queriesLen)
 
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
+	// Running again should be a no-op (remaining 250 are not expired).
+	err = ds.CleanupExpiredLiveQueries(ctx, 1)
 	require.NoError(t, err)
 
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 250)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
-	})
-	require.Equal(t, 250, queriesLen)
-
-	err = ds.CleanupActivitiesAndAssociatedData(ctx, maxCount, 1)
-	require.NoError(t, err)
-
-	activities = ListActivitiesAPI(t, ctx, activitySvc, activity_api.ListOptions{})
-	require.Len(t, activities, 250)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &queriesLen, `SELECT COUNT(*) FROM queries WHERE NOT saved;`)
 	})
@@ -1756,6 +1665,103 @@ func testCancelActivatedUpcomingActivity(t *testing.T, ds *Datastore) {
 	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
 }
 
+func testBatchCancelAllHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	host := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, host, false)
+	hostIOS := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now(), test.WithPlatform("ios"))
+	nanoEnrollAndSetHostMDMData(t, ds, hostIOS, false)
+	hostLeftUntouched := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+	nanoEnrollAndSetHostMDMData(t, ds, hostLeftUntouched, false)
+
+	pluckExecIDs := func(acts []*fleet.UpcomingActivity) []string {
+		execIDs := []string{}
+		for _, act := range acts {
+			execIDs = append(execIDs, act.UUID)
+		}
+		return execIDs
+	}
+
+	// edge case: host with no upcoming activities returns empty slice with no error
+	canceled, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostLeftUntouched.ID)
+	require.NoError(t, err)
+	require.Empty(t, canceled)
+
+	// enqueue an activity on hostLeftUntouched, must still be there after the test
+	execIDUntouched := test.CreateHostScriptUpcomingActivity(t, ds, hostLeftUntouched)
+
+	// enqueue mixed activities on the main host: the first becomes activated,
+	// the rest stay queued.
+	exec1 := test.CreateHostScriptUpcomingActivity(t, ds, host)
+	exec2 := test.CreateHostSoftwareInstallUpcomingActivity(t, ds, host, u)
+	exec3 := test.CreateHostSoftwareUninstallUpcomingActivity(t, ds, host, u)
+	exec4, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, host)
+	expectedExecIDs := []string{exec1, exec2, exec3, exec4}
+
+	got, _, err := ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, len(expectedExecIDs))
+	require.Equal(t, expectedExecIDs, pluckExecIDs(got))
+
+	// exec1 should already be activated (single activity at enqueue time)
+	meta, err := ds.GetHostUpcomingActivityMeta(ctx, host.ID, exec1)
+	require.NoError(t, err)
+	require.NotNil(t, meta.ActivatedAt)
+
+	// cancel everything in one shot
+	canceled, err = ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID)
+	require.NoError(t, err)
+	require.Len(t, canceled, len(expectedExecIDs))
+
+	// queue should now be empty
+	got, _, err = ds.ListHostUpcomingActivities(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec1 was activated, so its host_script_results row must be marked canceled
+	var scriptCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &scriptCanceled,
+			`SELECT canceled FROM host_script_results WHERE execution_id = ?`, exec1)
+	})
+	require.True(t, scriptCanceled)
+
+	// hostLeftUntouched still has its single activity untouched
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostLeftUntouched.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	require.Equal(t, []string{execIDUntouched}, pluckExecIDs(got))
+
+	// repeat on an iOS host with an in-house app install (activated) followed by
+	// a vpp install, to cover the in_house and vpp activated-cancel branches.
+	exec5 := test.CreateHostInHouseAppInstallUpcomingActivity(t, ds, hostIOS, u)
+	exec6, _ := test.CreateHostVPPAppInstallUpcomingActivity(t, ds, hostIOS)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, []string{exec5, exec6}, pluckExecIDs(got))
+
+	canceledIOS, err := ds.BatchCancelAllHostUpcomingActivities(ctx, hostIOS.ID)
+	require.NoError(t, err)
+	require.Len(t, canceledIOS, 2)
+
+	got, _, err = ds.ListHostUpcomingActivities(ctx, hostIOS.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Empty(t, got)
+
+	// exec5 was activated; its host_in_house_software_installs row must be canceled
+	var inHouseCanceled bool
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &inHouseCanceled,
+			`SELECT canceled FROM host_in_house_software_installs WHERE command_uuid = ?`, exec5)
+	})
+	require.True(t, inHouseCanceled)
+}
+
 func testSetResultAfterCancelUpcomingActivity(t *testing.T, ds *Datastore) {
 	activitySvc := NewTestActivityService(t, ds)
 	newActivityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -2098,13 +2104,13 @@ func testActivateScriptPackageInstallWithCorruptPayload(t *testing.T, ds *Datast
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-123", "test-script.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 
@@ -2273,13 +2279,13 @@ func testActivateScriptPackageUninstallWithCorruptPayload(t *testing.T, ds *Data
 			extension, version, platform, install_script_content_id,
 			pre_install_query, post_install_script_content_id, uninstall_script_content_id,
 			self_service, user_id, user_name, user_email, package_ids,
-			fleet_maintained_app_id, url, upgrade_code
+			fleet_maintained_app_id, url, upgrade_code, patch_query
 		)
-		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?)
+		VALUES (NULL, 0, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
 	`
 	res, err = ds.writer(ctx).ExecContext(ctx, installerStmt,
 		titleID, "storage-id-uninstall", "test-uninstall.sh", "sh", "", "linux", scriptContentID,
-		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "")
+		"", scriptContentID, 0, u.ID, u.Name, u.Email, "", "", "", "")
 	require.NoError(t, err)
 	installerID, _ := res.LastInsertId()
 

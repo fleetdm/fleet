@@ -6,18 +6,21 @@ locals {
     FLEET_LOGGING_TRACING_ENABLED              = "true"
     FLEET_LOGGING_TRACING_TYPE                 = "elasticapm"
     FLEET_MYSQL_MAX_OPEN_CONNS                 = "25"
+    FLEET_MYSQL_CONN_MAX_LIFETIME              = "14400"
+    FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME = "14400"
     FLEET_VULNERABILITIES_DATABASES_PATH       = "/home/fleet"
     FLEET_OSQUERY_ENABLE_ASYNC_HOST_PROCESSING = "false"
     # ELASTIC_APM_SERVER_URL                     = var.elastic_url
     # ELASTIC_APM_SECRET_TOKEN                   = var.elastic_token
     # ELASTIC_APM_SERVICE_NAME                   = "dogfood-free"
-    FLEET_SERVER_GZIP_RESPONSES                = "true"
+    FLEET_SERVER_GZIP_RESPONSES = "true"
 
 
     # Load TLS Certificate for RDS Authentication
     FLEET_MYSQL_TLS_CA                  = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CA     = local.cert_path
     FLEET_MYSQL_READ_REPLICA_TLS_CONFIG = "custom"
+    FLEET_ENABLE_LOG_TOPICS             = "deprecated-field-names"
   }
 
   /* 
@@ -60,7 +63,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.18.3"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-byo-vpc-v1.27.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -71,7 +74,7 @@ module "free" {
   rds_config = {
     preferred_maintenance_window = "fri:04:00-fri:05:00"
     name                         = local.customer_free
-    engine_version               = "8.0.mysql_aurora.3.08.2"
+    engine_version               = "8.0.mysql_aurora.3.10.3"
     snapshot_identifier          = "arn:aws:rds:us-east-2:611884880216:cluster-snapshot:a2023-03-06-pre-migration"
     db_parameters = {
       # 8mb up from 262144 (256k) default
@@ -89,7 +92,10 @@ module "free" {
     }
   }
   redis_config = {
-    name = local.customer_free
+    name           = local.customer_free
+    engine         = "redis"
+    engine_version = "7.1"
+    family         = "redis7"
     log_delivery_configuration = [
       {
         destination      = "dogfood-free-redis-logs"
@@ -105,6 +111,17 @@ module "free" {
   }
   ecs_cluster = {
     cluster_name = local.customer_free
+    cluster_configuration = {
+      execute_command_configuration = {
+        logging = "OVERRIDE"
+        log_configuration = {
+          cloud_watch_log_group_name = "/aws/ecs/${local.customer_free}"
+        }
+      }
+    }
+    cloudwatch_log_group = {
+      retention_in_days = 365
+    }
   }
   fleet_config = {
     image               = local.geolite2_image
@@ -192,7 +209,7 @@ resource "aws_route53_record" "free" {
 }
 
 module "ses-free" {
-  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.0"
+  source            = "github.com/fleetdm/fleet-terraform//addons/ses?ref=tf-mod-addon-ses-v1.4.1"
   zone_id           = aws_route53_zone.free.zone_id
   domain            = "free.fleetdm.com"
   extra_txt_records = []
@@ -206,7 +223,7 @@ module "migrations_free" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.1"
+  source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.2.2"
   ecs_cluster              = module.free.byo-db.byo-ecs.service.cluster
   task_definition          = module.free.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.free.byo-db.byo-ecs.task_definition.revision

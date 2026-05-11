@@ -1,5 +1,9 @@
 .add-vpp-modal {
 
+  &__description {
+    margin: 0;
+  }
+
   &__request-button {
     display: flex;
     gap: $pad-small;
@@ -39,7 +43,6 @@
 
   &__file-uploader {
     margin-top: $pad-medium;
-    margin-left: $pad-medium;
 
     .file-uploader__message {
       color: $ui-fleet-black-75;
