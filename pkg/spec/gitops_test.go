@@ -3640,6 +3640,122 @@ org_settings:
 	})
 }
 
+// TestSetupExperienceSoftwareDeprecation verifies that supplying a list of
+// software under `controls.setup_experience.software` emits a deprecation
+// warning steering users toward the per-item `setup_experience: true` form.
+func TestSetupExperienceSoftwareDeprecation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("warning_emitted_when_setup_experience_software_set", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "installer.pkg"), []byte("test"), 0o644))
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    software:
+      - package_path: ./installer.pkg
+      - app_store_id: "1091189122"
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.Contains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+		assert.Contains(t, logs.String(), "setup_experience: true")
+	})
+
+	t.Run("no_warning_when_setup_experience_software_unset", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    enable_end_user_authentication: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+	})
+
+	t.Run("no_warning_when_setup_experience_software_empty", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    software: []
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+	})
+}
+
 func TestSoftwarePackagesScriptPath(t *testing.T) {
 	t.Parallel()
 	appConfig := &fleet.EnrichedAppConfig{}
