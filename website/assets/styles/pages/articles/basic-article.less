@@ -798,7 +798,14 @@
           transition: background-color 0.15s ease;
         }
         &:hover::after {
-          background-color: #cc0000; //lesshint-disable-line colorVariables
+          background-color: `#cc0000`; //lesshint-disable-line colorVariables
+        }
+        &:focus-visible::after {
+          background-color: `#cc0000`; //lesshint-disable-line colorVariables
+        }
+        &:focus-visible {
+          outline: 2px solid `@core-vibrant-blue`;
+          outline-offset: 2px;
         }
       }
     }
