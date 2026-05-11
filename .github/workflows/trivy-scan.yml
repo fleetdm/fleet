@@ -129,7 +129,7 @@ jobs:
           # - tools/osquery/in-a-box/osquery/fleet.key: TLS key for the "Fleet in a box" demo
           # - tools/osquery/fleet.key: TLS key for the standalone osquery dev sandbox
           # - orbit/pkg/insecure/proxy.go: TLS key used when running orbit with `--insecure` mode for development/testing.
-          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key only used for osquery to orbit _local_ communcation 
+          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key only used for osquery to orbit _local_ communication 
           #   (for injection of HTTP signatures for the TPM-backed feature in Linux).
           skip-files: |
             tools/osquery/in-a-box/osquery/fleet.key
