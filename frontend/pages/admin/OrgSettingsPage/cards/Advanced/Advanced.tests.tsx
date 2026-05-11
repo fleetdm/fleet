@@ -50,7 +50,9 @@ describe("Advanced settings — Activity & data retention", () => {
 
   it("starts with both checkboxes unchecked when collection is enabled", () => {
     renderAdvanced();
-    expect(screen.getByLabelText(/Disable hosts online historical reporting/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).not.toBeChecked();
     expect(screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)).not.toBeChecked();
   });
 
