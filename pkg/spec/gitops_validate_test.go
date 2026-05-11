@@ -156,7 +156,7 @@ func TestValidateUnknownKeys(t *testing.T) {
 		assert.Empty(t, errs)
 	})
 
-	t.Run("unknown keys at google_calendar entry level are still rejected", func(t *testing.T) {
+	t.Run("unknown keys at google_calendar entry level are rejected", func(t *testing.T) {
 		// Skipping validation for api_key_json must not leak into siblings.
 		data := map[string]any{
 			"google_calendar": []any{
