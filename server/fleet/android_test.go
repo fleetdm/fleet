@@ -47,7 +47,7 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - workProfileWidgets bad value",
 			config:      json.RawMessage(`{"workProfileWidgets": "NO_SUCH_VALUE"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidget".`,
+			errorMsg:    `Couldn't update configuration. "NO_SUCH_VALUE" is not a supported value for "workProfileWidgets".`,
 		},
 		{
 			name:        "valid - empty object",
@@ -98,19 +98,77 @@ func TestValidateAndroidAppConfiguration(t *testing.T) {
 			name:        "invalid - unknown top-level key",
 			config:      json.RawMessage(`{"invalidKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "installType", "managedConfiguration", and "workProfileWidgets" are supported as top-level keys.`,
 		},
 		{
 			name:        "invalid - extra key with valid keys",
 			config:      json.RawMessage(`{"managedConfiguration": {}, "extraKey": "value"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "installType", "managedConfiguration", and "workProfileWidgets" are supported as top-level keys.`,
 		},
 		{
 			name:        "invalid - multiple invalid keys",
 			config:      json.RawMessage(`{"key1": "value1", "key2": "value2"}`),
 			expectError: true,
-			errorMsg:    `Couldn't update configuration. Only "managedConfiguration" and "workProfileWidgets" are supported as top-level keys.`,
+			errorMsg:    `Couldn't update configuration. Only "installType", "managedConfiguration", and "workProfileWidgets" are supported as top-level keys.`,
+		},
+		// installType tests
+		{
+			name:        "valid - installType AVAILABLE",
+			config:      json.RawMessage(`{"installType": "AVAILABLE"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType FORCE_INSTALLED",
+			config:      json.RawMessage(`{"installType": "FORCE_INSTALLED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType BLOCKED",
+			config:      json.RawMessage(`{"installType": "BLOCKED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType REQUIRED_FOR_SETUP",
+			config:      json.RawMessage(`{"installType": "REQUIRED_FOR_SETUP"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType PREINSTALLED",
+			config:      json.RawMessage(`{"installType": "PREINSTALLED"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType KIOSK",
+			config:      json.RawMessage(`{"installType": "KIOSK"}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType empty string (uses caller default)",
+			config:      json.RawMessage(`{"installType": ""}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - installType with managedConfiguration",
+			config:      json.RawMessage(`{"installType": "FORCE_INSTALLED", "managedConfiguration": {"server": "https://example.com"}}`),
+			expectError: false,
+		},
+		{
+			name:        "valid - all three keys together",
+			config:      json.RawMessage(`{"installType": "FORCE_INSTALLED", "managedConfiguration": {"key": "val"}, "workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`),
+			expectError: false,
+		},
+		{
+			name:        "invalid - installType unknown value",
+			config:      json.RawMessage(`{"installType": "FOOBAR"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "FOOBAR" is not a supported value for "installType".`,
+		},
+		{
+			name:        "invalid - installType wrong case",
+			config:      json.RawMessage(`{"installType": "force_installed"}`),
+			expectError: true,
+			errorMsg:    `Couldn't update configuration. "force_installed" is not a supported value for "installType".`,
 		},
 	}
 
