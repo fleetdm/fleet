@@ -400,7 +400,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Create a token object' is set to an empty list
+  name: CIS - Ensure 'Create a token object' is set to 'No One'
   platforms: win10
   platform: windows
   description: |
@@ -527,7 +527,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on as a batch job' includes 'Guests'
+  name: CIS - Ensure 'Deny log on as a batch job' to include 'Guests'
   platforms: win10
   platform: windows
   description: |
@@ -546,7 +546,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on as a service' includes 'Guests'
+  name: CIS - Ensure 'Deny log on as a service' to include 'Guests'
   platforms: win10
   platform: windows
   description: |
@@ -565,7 +565,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on locally' includes 'Guest'
+  name: CIS - Ensure 'Deny log on locally' to include 'Guests'
   platforms: win10
   platform: windows
   description: |
@@ -585,7 +585,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Deny log on through Remote Desktop Services' includes 'Guest'
+  name: CIS - Ensure 'Deny log on through Remote Desktop Services' to include 'Guests, Local account'
   platforms: win10
   platform: windows
   description: |
@@ -724,7 +724,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Lock pages in memory' is set to an empty list
+  name: CIS - Ensure 'Lock pages in memory' is set to 'No One'
   platforms: win10
   platform: windows
   description: |
@@ -1137,7 +1137,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
+  name: CIS - Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1162,7 +1162,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
+  name: CIS - Ensure 'Domain member: Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1187,7 +1187,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Digitally sign secure channel data (when possible)' is set to 'Enabled'
+  name: CIS - Ensure 'Domain member: Digitally sign secure channel data (when possible)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1213,7 +1213,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Disable machine account password changes' is set to 'Disabled'
+  name: CIS - Ensure 'Domain member: Disable machine account password changes' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -1242,7 +1242,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Maximum machine account password age' is set to '30 or fewer days, but not 0'
+  name: CIS - Ensure 'Domain member: Maximum machine account password age' is set to '30 or fewer days, but not 0'
   platforms: win10
   platform: windows
   description: |
@@ -1272,7 +1272,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Require strong (Windows 2000 or later) session key' is set to 'Enabled'
+  name: CIS - Ensure 'Domain member: Require strong (Windows 2000 or later) session key' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1458,7 +1458,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (always)' is set to 'Enabled'
+  name: CIS - Ensure 'Microsoft network client: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1476,7 +1476,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Digitally sign communications (if server agrees)' is set to 'Enabled'
+  name: CIS - Ensure 'Microsoft network client: Digitally sign communications (if server agrees)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1494,7 +1494,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network client Send unencrypted password to third-party SMB servers' is set to 'Disabled'
+  name: CIS - Ensure 'Microsoft network client: Send unencrypted password to third-party SMB servers' is set to 'Disabled'
   platforms: win10
   platform: windows
   description: |
@@ -1512,7 +1512,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
+  name: CIS - Ensure 'Microsoft network server: Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
   platforms: win10
   platform: windows
   description: |
@@ -1533,7 +1533,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (always)' is set to 'Enabled'
+  name: CIS - Ensure 'Microsoft network server: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1553,7 +1553,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Digitally sign communications (if client agrees)' is set to 'Enabled'
+  name: CIS - Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1573,7 +1573,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Disconnect clients when logon hours expire' is set to 'Enabled'
+  name: CIS - Ensure 'Microsoft network server: Disconnect clients when logon hours expire' is set to 'Enabled'
   platforms: win10
   platform: windows
   description: |
@@ -1593,7 +1593,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure that 'Microsoft network server Server SPN target name validation level' is set to 'Accept if provided by client'
+  name: CIS - Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client'
   platforms: win10
   platform: windows
   description: |
@@ -3683,7 +3683,7 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Audit PNP Activity' is set to 'Success'
+  name: CIS - Ensure 'Audit User Account Management' is set to 'Success and Failure'
   platforms: win10
   platform: windows
   description: |
