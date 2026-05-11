@@ -728,6 +728,38 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 	require.Contains(t, err.Error(), "team 'name' is required")
 }
 
+func TestMissingNameErrorMessages(t *testing.T) {
+	t.Parallel()
+
+	// Empty default.yml should report the generic missing-name guidance.
+	defaultPath, defaultBase := createNamedFileOnTempDir(t, "default.yml", "")
+	_, err := GitOpsFromFile(defaultPath, defaultBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
+
+	// Empty no-team.yml should report the No Team name requirement.
+	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
+	_, err = GitOpsFromFile(noTeamPath, noTeamBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`name` must be `No Team` for `no-team.yml`")
+
+	// Empty unassigned.yml should report the Unassigned name requirement.
+	unassignedPath, unassignedBase := createNamedFileOnTempDir(t, "unassigned.yml", "")
+	_, err = GitOpsFromFile(unassignedPath, unassignedBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`name` must be `Unassigned` for `unassigned.yml`")
+
+	// Any other team file missing `name` should report the generic requirement.
+	teamPath, teamBase := createNamedFileOnTempDir(t, "workstations.yml", "")
+	_, err = GitOpsFromFile(teamPath, teamBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
+}
+
 func TestPaddedTeamNameIsTrimmed(t *testing.T) {
 	t.Parallel()
 	config := getTeamConfig([]string{"name"})
@@ -932,28 +964,28 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
 					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath7))
+					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
 
 					// unassigned.yml with a non-"Unassigned" name should fail.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
 					unassignedPathBadName, unassignedBasePathBadName := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathBadName))
+					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
 
 					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
 					config = getConfig([]string{"name", "settings"})
 					config += "name: Unassigned\n"
 					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath8))
+					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
 
 					// unassigned.yml with "No team" name should fail (wrong name for this file).
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathNoTeam))
+					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
 
 					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
 					config = getConfig([]string{"name", "settings"})
@@ -1221,7 +1253,7 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 				if test.shouldPass {
 					assert.NoError(t, err)
 				} else {
-					assert.ErrorContains(t, err, "is required")
+					assert.ErrorContains(t, err, "add `org_settings:` as a top-level key")
 				}
 			},
 		)
