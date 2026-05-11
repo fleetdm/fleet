@@ -16,7 +16,7 @@ func TestSoftwareTitlesSortByDisplayName(t *testing.T) {
 		// The "name" order key should use COALESCE(NULLIF(...)) to treat empty
 		// display names as NULL, falling back to st.name.
 		orderExpr, ok := softwareTitlesAllowedOrderKeys["name"]
-		assert.True(t, ok)
+		require.True(t, ok, "expected 'name' key in softwareTitlesAllowedOrderKeys")
 		assert.Contains(t, orderExpr, "NULLIF(stdn.display_name, '')")
 		assert.Contains(t, orderExpr, "st.name")
 	})
