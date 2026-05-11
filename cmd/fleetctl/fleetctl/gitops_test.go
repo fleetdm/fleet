@@ -1679,6 +1679,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
 		return map[string]uint{"a": 1, "b": 2}, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	const (
 		fleetServerURL = "https://fleet.example.com"
@@ -2019,6 +2022,10 @@ func TestGitOpsFullTeam(t *testing.T) {
 		if teamID != nil && *teamID != 0 {
 			appliedSoftwareInstallers = installers
 		}
+		return nil
+	}
+
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
 		return nil
 	}
 
@@ -2382,6 +2389,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
 	}
 	testing_utils.StartAndServeVPPServer(t)
 
