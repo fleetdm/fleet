@@ -10673,9 +10673,9 @@ func testRenewMDMManagedCertificatesNullType(t *testing.T, ds *Datastore) {
 
 	ndesStr := "ndes"
 
-	// Two rows: NULL, ndes. Both with the same expiring schedule.
-	// NULL exercises the new non-proxied path (the central change in this PR).
-	// ndes exercises the existing proxied path to confirm no regression.
+	// Two rows expiring on the same schedule: one with NULL type
+	// (non-proxied flow) and one with type='ndes' (proxied flow).
+	// Both buckets must be picked up by the renewal cron.
 	nullProfile := mkExpiringRow(t, "null-prof", nil, "non-proxied-ca")
 	ndesProfile := mkExpiringRow(t, "ndes-prof", &ndesStr, "ndes-ca")
 
