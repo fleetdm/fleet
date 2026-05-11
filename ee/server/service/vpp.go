@@ -853,7 +853,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		// re-anchor self-heal.
 		anchor, err = svc.resolveAddAnchor(ctx, asset.AdamID, appID.Platform, teamTokenInfo)
 		if err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "resolving anchor for vpp app add")
+			return 0, "", ctxerr.Wrap(ctx, err, "resolving anchor for vpp app add")
 		}
 
 		assetMetadata, err := apple_apps.GetMetadata([]string{asset.AdamID}, anchor.region, anchor.fetchSecret, svc.getVPPConfig(ctx))
@@ -944,7 +944,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	// INSERT-only on insertVPPApps, so we explicitly UPDATE here.
 	if appID.Platform != fleet.AndroidPlatform && anchor.reAnchor && anchor.anchorCountry != "" {
 		if err := svc.ds.UpdateVPPAppCountryCode(ctx, app.AdamID, app.Platform, anchor.anchorCountry); err != nil {
-			return 0, ctxerr.Wrap(ctx, err, "re-anchoring vpp app country")
+			return 0, "", ctxerr.Wrap(ctx, err, "re-anchoring vpp app country")
 		}
 	}
 	if appID.Platform == fleet.AndroidPlatform {
