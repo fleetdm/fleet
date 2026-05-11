@@ -164,7 +164,7 @@ func TestHashErrFleetError(t *testing.T) {
 
 	t.Run("request-timeout errors use different hashes if the non-socket-address content differs", func(t *testing.T) {
 		err1 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: i/o timeout", status: http.StatusRequestTimeout}
-		err2 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: connection reset by peer", status: http.StatusRequestTimeout}
+		err2 := &statusErr{msg: "read tcp 10.0.0.1:80->10.0.0.2:55732: context deadline exceeded", status: http.StatusRequestTimeout}
 		assert.NotEqual(t, hashError(err1), hashError(err2))
 	})
 

@@ -168,11 +168,13 @@ func hashError(err error) string {
 
 	var sb strings.Builder
 	// hash the cause type and message (it might not be a FleetError).
-	// For request-timeout errors only, socket addresses are normalized
-	// away first so that occurrences which differ only by ephemeral TCP
-	// source port collapse into a single dedup entry.
+	// For request-timeout errors only, all socket addresses in the
+	// message (both local and remote, IPs and ports) are normalized
+	// away so that occurrences differing only by those addresses
+	// collapse into a single dedup entry.
 	msg := cause.Error()
-	if sc, ok := cause.(statusCoder); ok && sc.Status() == http.StatusRequestTimeout {
+	var sc statusCoder
+	if errors.As(err, &sc) && sc.Status() == http.StatusRequestTimeout {
 		msg = maybeReplaceSocketAddr(msg)
 	}
 	fmt.Fprintf(&sb, "%T\n%s\n", cause, msg)
