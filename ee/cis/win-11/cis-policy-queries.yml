@@ -11181,3 +11181,111 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
   contributors: rachelelysia
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'WDigest Authentication' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    When WDigest authentication is enabled, Lsass.exe retains a copy of the user's plaintext password in memory, where it can be at risk of theft.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\WDigest Authentication'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    If you configure a computer for automatic logon, anyone who can physically gain access to the computer can also gain access to everything that is on the computer.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon' AND data = '0';
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should follow through the network.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting IPv6) IP source routing protection level'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    IP source routing is a mechanism that allows the sender to determine the IP route that a datagram should follow through the network.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (DisableIPSourceRouting) IP source routing protection level'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    Internet Control Message Protocol (ICMP) redirects cause the IPv4 stack to plumb host routes. These routes override the OSPF generated routes.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\EnableICMPRedirect' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    NetBIOS over TCP/IP is a network protocol that provides a way to resolve NetBIOS names. This setting determines whether the computer releases its NetBIOS name when it receives a name-release request.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
+    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\NoNameReleaseOnDemand' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
+  contributors: fleet
