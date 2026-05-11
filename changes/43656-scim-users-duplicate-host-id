@@ -1,1 +1,1 @@
-* Fixed 500 errors on `/api/v1/fleet/scim/Users` when the matched host already had a SCIM user mapping.
+* Fixed 500 errors on `POST /api/v1/fleet/scim/Users` when the matched host was already mapped to a SCIM user; the host now gets reassigned to the newly-created SCIM user.

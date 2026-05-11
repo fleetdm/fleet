@@ -4575,7 +4575,7 @@ WHERE %s`
 	}
 	hid = hostIDs[0]
 
-	if err := associateHostWithScimUser(ctx, tx, logger, hid, user.ID); err != nil {
+	if err := associateHostWithScimUser(ctx, tx, hid, user.ID); err != nil {
 		return ctxerr.Wrap(ctx, err, "maybeAssociateScimUserWithHostMDMIdPAccount: associate host with scim user")
 	}
 
@@ -4648,7 +4648,7 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 		return nil
 	}
 
-	err = associateHostWithScimUser(ctx, tx, logger, hostID, scimUser.ID)
+	err = associateHostWithScimUser(ctx, tx, hostID, scimUser.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "associate host with scim user")
 	}
@@ -4658,26 +4658,27 @@ func maybeAssociateHostMDMIdPWithScimUser(ctx context.Context, tx sqlx.ExtContex
 
 func (ds *Datastore) associateHostWithScimUser(ctx context.Context, hostID uint, scimUserID uint) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		return associateHostWithScimUser(ctx, tx, ds.logger, hostID, scimUserID)
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
 	})
 }
 
-func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, logger *slog.Logger, hostID uint, scimUserID uint) error {
-	_, err := tx.ExecContext(
+func associateHostWithScimUser(ctx context.Context, tx sqlx.ExtContext, hostID uint, scimUserID uint) error {
+	// On conflict with host_scim_user.PRIMARY (host_id), reassign the host to the current SCIM user.
+	result, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
+		`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)
+		 ON DUPLICATE KEY UPDATE scim_user_id = VALUES(scim_user_id)`,
 		hostID, scimUserID,
 	)
 	if err != nil {
-		// host_scim_user has host_id as its sole primary key. A duplicate means the host already
-		// has a SCIM mapping (this user or another). Treat it as a no-op so concurrent SCIM
-		// creates and replica-lag pre-checks don't surface as 5XXs, and skip the profile resend
-		// since no new association was actually created.
-		if IsDuplicate(err) {
-			logger.InfoContext(ctx, "associateHostWithScimUser: host already has a scim user mapping; skipping", "host_id", hostID, "scim_user_id", scimUserID)
-			return nil
-		}
 		return ctxerr.Wrap(ctx, err, "insert into host_scim_user")
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "host_scim_user rows affected")
+	}
+	if rows == 0 {
+		return nil
 	}
 	// resend profiles that depend on the user now associated with that host
 	//
@@ -4702,7 +4703,7 @@ func (ds *Datastore) SetOrUpdateHostSCIMUserMapping(ctx context.Context, hostID 
 			return err
 		}
 
-		return associateHostWithScimUser(ctx, tx, ds.logger, hostID, scimUserID)
+		return associateHostWithScimUser(ctx, tx, hostID, scimUserID)
 	})
 }
 

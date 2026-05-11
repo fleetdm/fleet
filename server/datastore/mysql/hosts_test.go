@@ -9183,7 +9183,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	// Create a SCIM user and link it to host
 	scimUserID, err := ds.CreateScimUser(ctx, &fleet.ScimUser{UserName: "user"})
 	require.NoError(t, err)
-	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), ds.logger, host.ID, scimUserID))
+	require.NoError(t, associateHostWithScimUser(ctx, ds.writer(ctx), host.ID, scimUserID))
 
 	script, err := ds.NewScript(ctx, &fleet.Script{
 		Name:           "script.sh",
@@ -13062,7 +13062,7 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 		assert.Equal(t, 0, count)
 	})
 
-	t.Run("host already mapped to a scim user does not error on new scim user create", func(t *testing.T) {
+	t.Run("new scim user matching an already-mapped host reassigns the mapping", func(t *testing.T) {
 		defer cleanup()
 
 		host, err := ds.NewHost(ctx, &fleet.Host{
@@ -13104,8 +13104,8 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 		})
 		require.Equal(t, firstUserID, existingScimUserID)
 
-		// Second SCIM user matches the same host via primary email. Without the pre-check,
-		// this would 500 with a duplicate-entry error on host_scim_user.PRIMARY.
+		// Second SCIM user matches the same host via primary email. Without idempotent insert
+		// handling this would 500 with a duplicate-entry error on host_scim_user.PRIMARY.
 		secondUser := fleet.ScimUser{
 			UserName:   "different-username",
 			GivenName:  ptr.String("Second"),
@@ -13119,16 +13119,16 @@ func testScimUserAssociationViaHostEmails(t *testing.T, ds *Datastore) {
 				},
 			},
 		}
-		_, err = ds.CreateScimUser(ctx, &secondUser)
+		secondUserID, err := ds.CreateScimUser(ctx, &secondUser)
 		require.NoError(t, err)
 
-		// The existing mapping should be preserved (skip rather than overwrite).
+		// The mapping should now point to the newly-created SCIM user (upsert).
 		var associatedScimUserID uint
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &associatedScimUserID,
 				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
 		})
-		assert.Equal(t, firstUserID, associatedScimUserID)
+		assert.Equal(t, secondUserID, associatedScimUserID)
 
 		var count int
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
