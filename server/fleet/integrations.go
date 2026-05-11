@@ -394,7 +394,7 @@ const (
 // When marshaled in masked state, it serializes to just "********".
 // When unmarshaled, it accepts either "********" (indicating masked/preserve) or a JSON object.
 //
-// Gitops unknown-key validation is intentionally skipped for this type: users
+// GitOps unknown-key validation is intentionally skipped for this type: users
 // typically paste the full Google service-account JSON blob (which contains many
 // keys beyond the two Fleet uses), and ValidateGoogleCalendarIntegrations still
 // enforces that client_email and private_key are present.
