@@ -1321,10 +1321,8 @@ ORDER BY
 // activateNextInHouseAppInstallActivity is the single fan-in point for every
 // InstallApplication command Fleet sends for an in-house (.ipa) app. All of:
 //
-//   - manual install from host details > software > library
+//   - manual install from host details > software > library (including admin reinstall)
 //   - self-service install
-//   - retry-on-failure
-//   - admin reinstall
 //
 // land here. Configuration is fetched and per-host $FLEET_VAR_* substitution
 // is performed inside this function so every send path inherits the latest
