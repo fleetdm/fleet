@@ -44,6 +44,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"ListSoftwareTitlesInHouseApps", testListSoftwareTitlesInHouseApps},
 		{"ListSoftwareTitlesByPlatform", testListSoftwareTitlesByPlatform},
 		{"UpdateAutoUpdateConfig", testUpdateAutoUpdateConfig},
+		{"ListSoftwareTitlesSortByDisplayName", testListSoftwareTitlesSortByDisplayName},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1763,6 +1764,107 @@ func testUpdateSoftwareTitleName(t *testing.T, ds *Datastore) {
 	title2, err := ds.SoftwareTitleByID(ctx, installer2, &tm.ID, fleet.TeamFilter{User: user1})
 	require.NoError(t, err)
 	require.Equal(t, "installer2", title2.Name)
+}
+
+func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	adminFilter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+	// Create a team for team-scoped display names.
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Sort Test Team"})
+	require.NoError(t, err)
+
+	// Create hosts — one global, one on the team.
+	host1 := test.NewHost(t, ds, "sorthost1", "", "sorthost1key", "sorthost1uuid", time.Now())
+	host2 := test.NewHost(t, ds, "sorthost2", "", "sorthost2key", "sorthost2uuid", time.Now())
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
+	require.NoError(t, err)
+
+	// Install software on hosts so software titles are created.
+	// Names are chosen so that without display names, alphabetical order is: alpha, bravo, charlie.
+	sw := []fleet.Software{
+		{Name: "alpha", Version: "1.0", Source: "apps"},
+		{Name: "bravo", Version: "1.0", Source: "apps"},
+		{Name: "charlie", Version: "1.0", Source: "apps"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, sw)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, sw)
+	require.NoError(t, err)
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.CleanupSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Look up the title IDs.
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 3)
+
+	titleByName := func(name string) uint {
+		for _, tt := range titles {
+			if tt.Name == name {
+				return tt.ID
+			}
+		}
+		t.Fatalf("title %q not found", name)
+		return 0
+	}
+
+	alphaID := titleByName("alpha")
+	bravoID := titleByName("bravo")
+	charlieID := titleByName("charlie")
+
+	// Set display names on the team that reverse the sort order:
+	//   alpha  -> display "Zulu"   (should sort last)
+	//   bravo  -> display ""       (empty — should fall back to "bravo")
+	//   charlie -> display "Able"  (should sort first)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, alphaID, "Zulu"); err != nil {
+			return err
+		}
+		if err := updateSoftwareTitleDisplayName(ctx, q, &team.ID, bravoID, ""); err != nil {
+			return err
+		}
+		return updateSoftwareTitleDisplayName(ctx, q, &team.ID, charlieID, "Able")
+	})
+
+	// Sort by name ASC on the team — expected order: Able (charlie), bravo, Zulu (alpha).
+	sorted, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderAscending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, sorted, 3)
+	assert.Equal(t, "charlie", sorted[0].Name, "Able (charlie) should sort first")
+	assert.Equal(t, "bravo", sorted[1].Name, "bravo (empty display name fallback) should sort second")
+	assert.Equal(t, "alpha", sorted[2].Name, "Zulu (alpha) should sort last")
+
+	// Sort by name DESC — reversed.
+	sortedDesc, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "name", OrderDirection: fleet.OrderDescending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, sortedDesc, 3)
+	assert.Equal(t, "alpha", sortedDesc[0].Name, "Zulu (alpha) should sort first in DESC")
+	assert.Equal(t, "bravo", sortedDesc[1].Name, "bravo should sort second in DESC")
+	assert.Equal(t, "charlie", sortedDesc[2].Name, "Able (charlie) should sort last in DESC")
+
+	// Sort by hosts_count — secondary sort should use display name.
+	// All three have the same host count (1 on this team), so the
+	// secondary sort by display name ASC determines order.
+	sortedByCount, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending},
+		TeamID:      &team.ID,
+	}, adminFilter)
+	require.NoError(t, err)
+	require.Len(t, sortedByCount, 3)
+	assert.Equal(t, "charlie", sortedByCount[0].Name, "secondary sort: Able (charlie) first")
+	assert.Equal(t, "bravo", sortedByCount[1].Name, "secondary sort: bravo second")
+	assert.Equal(t, "alpha", sortedByCount[2].Name, "secondary sort: Zulu (alpha) last")
 }
 
 func TestSelectSoftwareTitlesSQLGeneration(t *testing.T) {
