@@ -1947,7 +1947,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 		},
 		{
-			"profiles has variable validation on dry-drun",
+			"profiles have variable validation on dry-run",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 			true,
 			nil,

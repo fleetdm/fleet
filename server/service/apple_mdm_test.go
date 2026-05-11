@@ -2778,6 +2778,9 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})

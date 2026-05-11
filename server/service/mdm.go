@@ -2205,7 +2205,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		androidProfilesSlice = append(androidProfilesSlice, p)
 	}
 
-	// Verify Apple Config profiles PaylodScope conflicts
+	// Verify Apple Config profiles PayloadScope conflicts
 	err = svc.ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, appleProfilesSlice)
 	if err != nil {
 		return err
