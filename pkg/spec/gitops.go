@@ -294,6 +294,7 @@ func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePac
 	packageLevel.LabelsIncludeAll = spec.LabelsIncludeAll
 	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
 	packageLevel.SelfService = spec.SelfService
+	packageLevel.Configuration = spec.Configuration
 
 	// This will only override display name set at path: path/to/software.yml level
 	// if display_name is specified at the team level yml
