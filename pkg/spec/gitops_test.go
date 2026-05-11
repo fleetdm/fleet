@@ -2414,6 +2414,52 @@ labels:
 	})
 }
 
+func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no-team.yml", func(t *testing.T) {
+		t.Parallel()
+
+		config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+
+		var logMessages []string
+		captureLogf := func(format string, a ...any) {
+			logMessages = append(logMessages, fmt.Sprintf(format, a...))
+		}
+
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
+		require.NoError(t, err)
+
+		// LabelsPresent should be true (the key was in the YAML), but labels should not be parsed.
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
+
+		// A warning should have been logged.
+		assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in no-team.yml")
+	})
+
+	t.Run("unassigned.yml", func(t *testing.T) {
+		t.Parallel()
+
+		config := "name: Unassigned\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		unassignedPath, unassignedBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
+
+		var logMessages []string
+		captureLogf := func(format string, a ...any) {
+			logMessages = append(logMessages, fmt.Sprintf(format, a...))
+		}
+
+		gitops, err := GitOpsFromFile(unassignedPath, unassignedBasePath, nil, captureLogf)
+		require.NoError(t, err)
+
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in unassigned file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in unassigned file")
+
+		assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in unassigned.yml")
+	})
+}
+
 func TestParsePoliciesGlob(t *testing.T) {
 	t.Parallel()
 
