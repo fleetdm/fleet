@@ -142,7 +142,7 @@ const SoftwareVulnerabilitiesTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const hasData = !!data?.vulnerabilities;
+  const hasData = (data?.vulnerabilities?.length ?? 0) > 0;
   const hasQuery = query !== "";
 
   const isTrulyEmpty =
