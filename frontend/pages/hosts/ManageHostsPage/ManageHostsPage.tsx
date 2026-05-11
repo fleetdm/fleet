@@ -22,7 +22,7 @@ import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
-import globalPoliciesAPI from "services/entities/global_policies";
+import policiesAPI from "services/entities/policies";
 import hostsAPI, {
   HOSTS_QUERY_PARAMS as PARAMS,
   ILoadHostsQueryKey,
@@ -478,7 +478,7 @@ const ManageHostsPage = ({
     error: errorPolicy,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId),
+    () => policiesAPI.load(policyId),
     {
       enabled: isRouteOk && !!policyId,
       select: (data) => data.policy,

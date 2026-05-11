@@ -586,6 +586,14 @@ module.exports.routes = {
     }
   },
 
+  'GET /on-premise': {
+    action: 'landing-pages/view-on-premise',
+    locals: {
+      pageTitleForMeta: 'On-premise device management',
+      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
@@ -1268,8 +1276,9 @@ module.exports.routes = {
   'GET /learn-more-about/generate-fleets-agent': 'https://fleetdm.com/guides/enroll-hosts#ui',
   'GET /learn-more-about/certificates': '/guides/connect-end-user-to-wifi-with-certificate',
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
-  'GET /learn-more-about/psso-local-account': '/guides/setup-experience',
+  'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
 
   // Sitemap
   // =============================================================================================================
