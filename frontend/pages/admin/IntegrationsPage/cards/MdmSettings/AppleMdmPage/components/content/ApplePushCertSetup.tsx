@@ -6,7 +6,6 @@ import mdmAppleApi from "services/entities/mdm_apple";
 
 import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
-import ClickableUrls from "components/ClickableUrls";
 import DownloadCSR from "../../../../../../components/DownloadFileButtons/DownloadCSR";
 
 interface IApplePushCertSetupProps {
@@ -33,13 +32,22 @@ const ApplePushCertSetup = ({
         onSetupSuccess();
       } catch (e) {
         const msg = getErrorReason(e);
-        if (
-          msg.toLowerCase().includes("invalid certificate") ||
-          msg.toLowerCase().includes("download the certificate signing request")
-        ) {
-          renderFlash("error", msg);
+        if (msg.toLowerCase().includes("required private key")) {
+          renderFlash(
+            "error",
+            <>
+              Couldn&apos;t add APNs certificate. Please configure a private
+              key.{" "}
+              <CustomLink
+                url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+                text="Learn how"
+                newTab
+                variant="flash-message-link"
+              />
+            </>
+          );
         } else {
-          renderFlash("error", "Couldn’t connect. Please try again.");
+          renderFlash("error", msg || "Couldn’t connect. Please try again.");
         }
         setIsUploading(false);
       }
@@ -53,8 +61,18 @@ const ApplePushCertSetup = ({
       if (msg.includes("is not permitted for APNS certificate signing.")) {
         renderFlash("error", msg);
       } else if (msg.toLowerCase().includes("required private key")) {
-        // replace link with actually clickable link
-        renderFlash("error", ClickableUrls({ text: msg }));
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t download. Please configure a private key.{" "}
+            <CustomLink
+              url="https://fleetdm.com/learn-more-about/fleet-server-private-key"
+              text="Learn how"
+              newTab
+              variant="flash-message-link"
+            />
+          </>
+        );
       } else {
         renderFlash("error", "Something's gone wrong. Please try again.");
       }
