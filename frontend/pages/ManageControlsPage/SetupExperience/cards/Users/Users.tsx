@@ -155,7 +155,6 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
       />
       <PageDescription
         variant="right-panel"
-<<<<<<< 43984-setup-experience-psso-ui-updates
         content={
           <>
             Customize local user accounts. You can automatically create local
@@ -167,9 +166,6 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
             />
           </>
         }
-=======
-        content="Configure end user authentication and local account settings for hosts that automatically enroll to Fleet."
->>>>>>> main
       />
       <SetupExperienceContentContainer>
         {renderContent()}
