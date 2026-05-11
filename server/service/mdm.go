@@ -2082,11 +2082,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return err
 	}
 
-	// Skip run on no profiles
-	if len(profiles) == 0 {
-		return nil
-	}
-
 	if noCache {
 		// The no_cache flag is used in situations where appConfig was just updated, such as gitops
 		ctx = ctxdb.BypassCachedMysql(ctx, true)
