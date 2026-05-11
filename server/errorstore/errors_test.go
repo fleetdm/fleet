@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -130,6 +131,28 @@ func TestHashErrFleetError(t *testing.T) {
 		assert.NotEqual(t, h1, h2)
 		assert.NotEqual(t, h1, h3)
 		assert.NotEqual(t, h2, h3)
+	})
+
+	t.Run("errors use the same hash if their content differs only by the socket address (IPv4)", func(t *testing.T) {
+		err1 := errors.New("read tcp 10.10.3.44:8080->10.10.11.251:55732: i/o timeout")
+		err2 := errors.New("read tcp 10.10.3.44:8080->10.10.11.251:61204: i/o timeout")
+		err3 := errors.New("read tcp 10.10.3.44:8080->10.10.11.251:38891: i/o timeout")
+
+		h1, h2, h3 := hashError(err1), hashError(err2), hashError(err3)
+		assert.Equal(t, h1, h2)
+		assert.Equal(t, h1, h3)
+	})
+
+	t.Run("errors use the same hash if their content differs only by the socket address (IPv6)", func(t *testing.T) {
+		err1 := errors.New("read tcp [::1]:8080->[fe80::1]:55732: i/o timeout")
+		err2 := errors.New("read tcp [::1]:8080->[fe80::1]:61204: i/o timeout")
+		assert.Equal(t, hashError(err1), hashError(err2))
+	})
+
+	t.Run("errors use different hashes if the non-socket-address content differs", func(t *testing.T) {
+		err1 := errors.New("read tcp 10.0.0.1:80->10.0.0.2:55732: i/o timeout")
+		err2 := errors.New("read tcp 10.0.0.1:80->10.0.0.2:55732: connection reset by peer")
+		assert.NotEqual(t, hashError(err1), hashError(err2))
 	})
 }
 
