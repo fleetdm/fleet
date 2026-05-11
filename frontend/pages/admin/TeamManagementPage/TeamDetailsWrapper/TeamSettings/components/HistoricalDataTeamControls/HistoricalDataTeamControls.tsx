@@ -46,7 +46,7 @@ const HistoricalDataTeamControls = ({
                   )
             }
           >
-            Disable hosts online
+            Disable hosts online historical reporting
           </Checkbox>
         )}
       />
