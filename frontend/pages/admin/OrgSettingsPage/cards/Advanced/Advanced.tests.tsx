@@ -38,7 +38,7 @@ describe("Advanced settings — Activity & data retention", () => {
   it("renders the new section heading and both checkboxes", () => {
     renderAdvanced();
     expect(screen.getByText("Activity & data retention")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Disable hosts online/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Disable hosts online historical reporting/i)).toBeInTheDocument();
     expect(
       screen.getByLabelText(/Disable vulnerabilities/i)
     ).toBeInTheDocument();
@@ -46,8 +46,8 @@ describe("Advanced settings — Activity & data retention", () => {
 
   it("starts with both checkboxes unchecked when collection is enabled", () => {
     renderAdvanced();
-    expect(screen.getByLabelText(/Disable hosts online/i)).not.toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Disable hosts online historical reporting/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)).not.toBeChecked();
   });
 
   it("starts with the checkbox checked when collection is disabled in config", () => {
@@ -55,7 +55,7 @@ describe("Advanced settings — Activity & data retention", () => {
       historicalData: { uptime: false, vulnerabilities: true },
     });
     expect(screen.getByLabelText(/Disable hosts online/i)).toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerabilities/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)).not.toBeChecked();
   });
 
   it("submits without confirmation when no dataset is being newly disabled", async () => {
