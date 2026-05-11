@@ -72,7 +72,7 @@ func SubstituteFleetVarsInAppConfig(
 				return nil, ctxerr.Wrap(ctx, err, "get host idp email for app config")
 			}
 			if len(emails) == 0 {
-				return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+				return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
 			}
 			contents = profiles.ReplaceFleetVariableInXML(fleetVarHostEndUserEmailIDPRegexp, contents, emails[0])
 		case fleet.FleetVarHostEndUserIDPUsername,
@@ -91,7 +91,7 @@ func SubstituteFleetVarsInAppConfig(
 				return nil, ctxerr.Wrap(ctx, err, "substitute host idp variable in app config")
 			}
 			if !ok {
-				return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+				return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
 			}
 			contents = replaced
 		default:
@@ -99,7 +99,7 @@ func SubstituteFleetVarsInAppConfig(
 			// write time, so an unknown variable here means the validator and
 			// this switch have drifted. Treat it as unresolvable rather than
 			// silently leaving the literal token in the device-bound XML.
-			return nil, fmt.Errorf("%w: $FLEET_VAR_%s", ErrUnresolvableAppConfigVar, name)
+			return nil, ctxerr.Wrapf(ctx, ErrUnresolvableAppConfigVar, "$FLEET_VAR_%s", name)
 		}
 	}
 
