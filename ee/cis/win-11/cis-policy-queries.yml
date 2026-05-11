@@ -11973,3 +11973,129 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Remote host allows delegation of non-exportable credentials' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    When using credential delegation, devices provide an exportable version of credentials to the remote host. This exposes users to the risk of credential theft from threat actors on the remote host. The Restricted Admin Mode and Windows Defender Remote Credential Guard features are two options to help protect against this risk.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Credentials Delegation\Remote host allows delegation of non-exportable credentials'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowProtectedCreds' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting specifies whether Virtualization Based Security is enabled. Virtualization Based Security uses the Windows Hypervisor to provide support for security services. This setting was moved from the Next Generation (NG) profile to L1 for Windows 11 only.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\EnableVirtualizationBasedSecurity' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security: Select Platform Security Level' is set to 'Secure Boot' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting specifies whether Virtualization Based Security (VBS) is enabled. VBS uses the Windows Hypervisor to provide support for security services. The recommended state is Secure Boot. Configuring this setting to Secure Boot and DMA Protection also conforms to the benchmark.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Secure Boot or Secure Boot and DMA Protection:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Select Platform Security Level'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\RequirePlatformSecurityFeatures' AND (data = 1 OR data = 3);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity' is set to 'Enabled with UEFI lock'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting enables virtualization based protection of Kernel Mode Code Integrity. When this is enabled, kernel mode memory protections are enforced and the Code Integrity validation path is protected by the Virtualization Based Security feature. This setting was moved from NG to L1 for Windows 11 only.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled with UEFI lock:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\HypervisorEnforcedCodeIntegrity' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security: Require UEFI Memory Attributes Table' is set to 'True (checked)'
+  platforms: win11
+  platform: windows
+  description: |
+    This option will only enable Virtualization Based Protection of Code Integrity on devices with UEFI firmware support for the Memory Attributes Table. Devices without the UEFI Memory Attributes Table may have firmware that is incompatible with Virtualization Based Protection of Code Integrity. This setting was moved from NG to L1 for Windows 11 only.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to TRUE:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Require UEFI Memory Attributes Table'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\HVCIMATRequired' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security: Credential Guard Configuration' is set to 'Enabled with UEFI lock'
+  platforms: win11
+  platform: windows
+  description: |
+    This setting lets users turn on Credential Guard with virtualization-based security to help protect credentials. The Enabled with UEFI lock option ensures that Credential Guard cannot be disabled remotely. This setting was moved from NG to L1 for Windows 11 only.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled with UEFI lock:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Credential Guard Configuration'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\LsaCfgFlags' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Turn On Virtualization Based Security: Secure Launch Configuration' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    Secure Launch protects the Virtualization Based Security environment from exploited vulnerabilities in device firmware. This setting was moved from NG to L1 for Windows 11 only.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Secure Launch Configuration'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\ConfigureSystemGuardLaunch' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
