@@ -10,6 +10,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -433,7 +434,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			os.Exit(1)
 		}
 	case fleet.NeedsFleetv4732Fix:
-		printFleetv4732FixNeededMessage()
+		printFleetv4732FixNeededMessage(os.Stdout)
 		if !config.Upgrades.AllowMissingMigrations {
 			os.Exit(1)
 		}
@@ -444,12 +445,12 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	case fleet.SomeMigrationsCompleted:
 		tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
-		printMissingMigrationsWarning(tables, data)
+		printMissingMigrationsWarning(os.Stdout, tables, data)
 		if !config.Upgrades.AllowMissingMigrations {
 			os.Exit(1)
 		}
 	case fleet.NoMigrationsCompleted:
-		printDatabaseNotInitializedError()
+		printDatabaseNotInitializedError(os.Stdout)
 		os.Exit(1)
 	}
 
@@ -2030,8 +2031,8 @@ func createActivityBoundedContext(svc fleet.Service, dbConns *common_mysql.DBCon
 	return activitySvc, activityRoutes
 }
 
-func printDatabaseNotInitializedError() {
-	fmt.Printf("################################################################################\n"+
+func printDatabaseNotInitializedError(w io.Writer) {
+	fmt.Fprintf(w, "################################################################################\n"+
 		"# ERROR:\n"+
 		"#   Your Fleet database is not initialized. Fleet cannot start up.\n"+
 		"#\n"+
@@ -2040,8 +2041,8 @@ func printDatabaseNotInitializedError() {
 		os.Args[0])
 }
 
-func printMissingMigrationsWarning(tables []int64, data []int64) {
-	fmt.Printf("################################################################################\n"+
+func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
+	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 		"#   errors in Fleet.\n"+
@@ -2058,8 +2059,8 @@ func printMissingMigrationsWarning(tables []int64, data []int64) {
 		tablesAndDataToString(tables, data), os.Args[0])
 }
 
-func printFleetv4732FixNeededMessage() {
-	fmt.Printf("################################################################################\n"+
+func printFleetv4732FixNeededMessage(w io.Writer) {
+	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database has misnumbered migrations introduced in some released\n"+
 		"#   v4.73.2 artifacts. Fleet will automatically perform this fix prior to database\n"+

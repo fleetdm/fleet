@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -1347,6 +1348,7 @@ func TestOTELResourceCreation(t *testing.T) {
 }
 
 func TestArgsToString(t *testing.T) {
+	t.Parallel()
 	for _, tc := range []struct {
 		name string
 		args []driver.NamedValue
@@ -1395,15 +1397,18 @@ func TestArgsToString(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.want, argsToString(tc.args))
 		})
 	}
 }
 
 func TestGetTLSConfig(t *testing.T) {
+	t.Parallel()
 	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
 
 	t.Run("modern", func(t *testing.T) {
+		t.Parallel()
 		cfg := getTLSConfig(config.TLSProfileModern)
 		require.NotNil(t, cfg)
 		assert.Equal(t, uint16(tls.VersionTLS13), cfg.MinVersion)
@@ -1419,6 +1424,7 @@ func TestGetTLSConfig(t *testing.T) {
 	})
 
 	t.Run("intermediate", func(t *testing.T) {
+		t.Parallel()
 		cfg := getTLSConfig(config.TLSProfileIntermediate)
 		require.NotNil(t, cfg)
 		assert.Equal(t, uint16(tls.VersionTLS12), cfg.MinVersion)
@@ -1439,7 +1445,9 @@ func TestGetTLSConfig(t *testing.T) {
 }
 
 func TestInitLicense(t *testing.T) {
+	t.Parallel()
 	t.Run("dev license", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, true, false)
 		require.NoError(t, err)
@@ -1450,6 +1458,7 @@ func TestInitLicense(t *testing.T) {
 	})
 
 	t.Run("dev expired license", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, false, true)
 		require.NoError(t, err)
@@ -1459,6 +1468,7 @@ func TestInitLicense(t *testing.T) {
 	})
 
 	t.Run("no license key", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, false, false)
 		require.NoError(t, err)
@@ -1466,4 +1476,46 @@ func TestInitLicense(t *testing.T) {
 		assert.Equal(t, fleet.TierFree, license.Tier)
 		assert.Empty(t, cfg.License.Key)
 	})
+}
+
+func TestPrintMissingMigrationsWarning(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name           string
+		tables         []int64
+		data           []int64
+		wantSubstrings []string
+	}{
+		{
+			name:           "tables only",
+			tables:         []int64{1, 2, 3},
+			wantSubstrings: []string{"tables=[1 2 3]", "missing required migrations"},
+		},
+		{
+			name:           "data only",
+			data:           []int64{4, 5},
+			wantSubstrings: []string{"data=[4 5]"},
+		},
+		{
+			name:           "tables and data",
+			tables:         []int64{1},
+			data:           []int64{2},
+			wantSubstrings: []string{"tables=[1], data=[2]"},
+		},
+		{
+			name:           "neither",
+			wantSubstrings: []string{"unknown"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var buf bytes.Buffer
+			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
+			out := buf.String()
+			for _, sub := range tc.wantSubstrings {
+				assert.Contains(t, out, sub)
+			}
+			assert.Contains(t, out, os.Args[0])
+		})
+	}
 }
