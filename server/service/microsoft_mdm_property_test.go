@@ -133,6 +133,7 @@ func newPBTESPSvc(
 	}
 
 	svc := &Service{ds: ds, logger: pbtESPLogger}
+	svc.SetActivityService(&mock.MockActivityService{})
 
 	device := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:           pbtESPDeviceID,

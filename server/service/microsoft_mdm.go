@@ -2065,6 +2065,13 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
 			// AllowCollectLogsButton: pre-configure Collect Logs button so it's visible on both progress and failure pages.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
+			// CustomErrorText: pre-configure with the timeout-flavored error so that if the OS-side ESP failure UI
+			// renders before Fleet's Active-phase finalize runs (e.g. when TimeOutUntilSyncFailure expires, or when the
+			// device is stuck in Pending and Windows itself fails the ESP), the user sees Fleet's text instead of
+			// Windows's default "We ran into a problem with one of the following setup steps" message. Active-phase
+			// finalize will Replace this with ESPSoftwareFailureErrorText if a software install actually failed; in the
+			// pure-timeout case the value here is already correct.
+			newSyncMLCmdText(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", providerID), microsoft_mdm.ESPTimeoutErrorText),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
 			// PolicyProviders/{providerID} is a dynamic node -- must be created with Add before its children can be set with Replace.
@@ -2342,10 +2349,14 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// Cancel ordering: upcoming_activities first, then status table. If we crash mid-loop, the next retry sees the same
 	// status rows still pending, re-iterates, and will tolerate the now-deleted upcoming_activities row via IsNotFound.
 	//
-	// The canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
-	// software-install-result reporting path when require_all=true and a software install fails. Pure-timeout and
-	// require_all=false cancellations don't emit the activity at all (matching macOS, which only emits on the
-	// require_all=true software-failure case).
+	// The canceled_setup_experience activity is emitted at two points:
+	// - For software-failure with require_all=true: emitted by maybeCancelPendingSetupExperienceSteps in the
+	//   software-install-result reporting path, referencing the failed software item.
+	// - For pure-timeout (regardless of require_all): emitted below, referencing the first pending/running software
+	//   item if one exists (the item that was in flight when the timeout fired). This deviates from macOS, which
+	//   only emits on the require_all=true software-failure case, but matches the activity-feed expectation in
+	//   issue #38785's test plan: "Timeout cancellation: canceled_setup_experience activity emitted on the timeout
+	//   branch as well as the failure branch."
 	if timedOut || (hasSoftwareFailure && requireAll) {
 		seHostUUID, err := setupExperienceHostUUID()
 		if err != nil {
@@ -2389,6 +2400,40 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// next session is safe.
 		if err := svc.ds.CancelPendingSetupExperienceSteps(ctx, seHostUUID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
+		}
+
+		// Emit the canceled_setup_experience activity for the timeout case. The software-failure-with-require_all=true
+		// case is already covered upstream by maybeCancelPendingSetupExperienceSteps (called from the software-install
+		// result reporter), which references the failed item; do not duplicate it here.
+		//
+		// For timeout, pick the first pending or running software item (the one that was in flight when the timeout
+		// fired) as the activity reference. If none was queued (orbit's setup_experience/init never ran, or the timeout
+		// fired before any software was scheduled), the activity is still emitted but with empty software fields so the
+		// host is still represented in the activity feed.
+		if timedOut && !hasSoftwareFailure {
+			host, err := loadHost()
+			if err != nil {
+				return nil, err
+			}
+			var softwareTitle string
+			var softwareTitleID uint
+			for _, s := range statuses {
+				if (s.Status == fleet.SetupExperienceStatusPending || s.Status == fleet.SetupExperienceStatusRunning) && s.IsForSoftware() {
+					softwareTitle = s.Name
+					if s.SoftwareTitleID != nil {
+						softwareTitleID = *s.SoftwareTitleID
+					}
+					break
+				}
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				SoftwareTitle:   softwareTitle,
+				SoftwareTitleID: softwareTitleID,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
+			}
 		}
 	}
 

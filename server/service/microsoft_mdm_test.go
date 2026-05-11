@@ -1332,7 +1332,9 @@ func TestGetESPCommands(t *testing.T) {
 		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 			return nil, nil
 		}
-		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc.SetActivityService(&mock.MockActivityService{})
+		return ds, svc
 	}
 
 	// newActiveDevice returns the most common device fixture used by these tests: AwaitingConfiguration=Active
