@@ -278,7 +278,11 @@ export const HostInstallerActionCell = ({
     !app_store_app &&
     !isIpaPackage &&
     !!software_package &&
-    (installedVersionsDetected || installedTgzPackageDetected);
+    // Show uninstall button even when the stauts is installed but the host's
+    // inventory has no matching title ID with the installer
+    (installedVersionsDetected ||
+      installedTgzPackageDetected ||
+      ui_status === "installed");
 
   // Instructions to open software available for macOS apps and Windows programs only
   const canViewOpenInstructions =
