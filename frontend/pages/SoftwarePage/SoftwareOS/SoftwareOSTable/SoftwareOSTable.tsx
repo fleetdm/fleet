@@ -94,7 +94,7 @@ const SoftwareOSTable = ({
   currentPage,
   teamId,
   isLoading,
-  platform,
+  platform = "all",
 }: ISoftwareOSTableProps) => {
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {

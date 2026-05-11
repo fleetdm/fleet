@@ -176,7 +176,10 @@ const SoftwareTable = ({
   const vulnFilterDetails = getVulnFilterRenderDetails(vulnFilters);
   const hasVulnFilters = vulnFilterDetails.filterCount > 0;
 
-  const isTrulyEmpty = !hasData && !hasQuery && !hasVulnFilters;
+  // Include showVersions — the titles view can have installers even when
+  // the versions view is empty, so the toggle should stay interactive.
+  const isTrulyEmpty =
+    !hasData && !hasQuery && !hasVulnFilters && !showVersions;
   const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleShowVersionsToggle = () => {

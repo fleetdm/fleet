@@ -97,7 +97,9 @@ describe("Software inventory table", () => {
 
     expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see software? Check back later.")
+      screen.getByText(
+        "Recently installed software will appear after the next scheduled check-in."
+      )
     ).toBeInTheDocument();
     expect(screen.getByText("0 items")).toBeInTheDocument();
     expect(
@@ -109,7 +111,7 @@ describe("Software inventory table", () => {
     expect(screen.getByText("Show versions")).toBeInTheDocument();
   });
 
-  it("Renders the page-wide empty state with disabled controls when versions toggle is applied but no data", () => {
+  it("Keeps controls enabled when versions toggle is applied but no data so users can toggle back", () => {
     const render = createCustomRenderer({
       context: {
         app: {
@@ -148,14 +150,18 @@ describe("Software inventory table", () => {
 
     expect(screen.getByText("No software detected")).toBeInTheDocument();
     expect(
-      screen.getByText("Expecting to see software? Check back later.")
+      screen.getByText(
+        "Recently installed software will appear after the next scheduled check-in."
+      )
     ).toBeInTheDocument();
+    // Controls stay enabled so users can toggle back to the titles view,
+    // which may have installers even when the versions view is empty.
     expect(
       screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /add filters/i })
-    ).toBeDisabled();
+    ).toBeEnabled();
   });
 
   it("Renders the empty search state and vulnerability filtering when search query does not exist but vulnerability filter is applied", () => {
