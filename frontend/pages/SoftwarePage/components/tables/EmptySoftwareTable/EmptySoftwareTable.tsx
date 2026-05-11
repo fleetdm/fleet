@@ -19,7 +19,8 @@ export interface IEmptySoftwareTableProps {
 
 /** Maps tableName to the truly-empty (no filters) info text. */
 const EMPTY_INFO_BY_TABLE: Record<string, string> = {
-  software: "Expecting to see software? Check back later.",
+  software:
+    "Recently installed software will appear after the next scheduled check-in.",
   "operating systems":
     "Operating system data will appear after the next scheduled check-in.",
   vulnerabilities:
