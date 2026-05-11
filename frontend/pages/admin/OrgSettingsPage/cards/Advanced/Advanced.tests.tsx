@@ -38,7 +38,9 @@ describe("Advanced settings — Activity & data retention", () => {
   it("renders the new section heading and both checkboxes", () => {
     renderAdvanced();
     expect(screen.getByText("Activity & data retention")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Disable hosts online historical reporting/i)).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Disable hosts online historical reporting/i)
+    ).toBeInTheDocument();
     expect(
       screen.getByLabelText(/Disable vulnerabilities/i)
     ).toBeInTheDocument();
