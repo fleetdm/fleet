@@ -29,5 +29,10 @@ func CleanStatusCodeErr(err error) error {
 	if !errors.As(err, &sce) {
 		return err
 	}
-	return errors.New(statusCodeErrPrefixRE.ReplaceAllString(err.Error(), ""))
+	// Strip the first instance of the status code error prefix from the message, if present.
+	msg := err.Error()
+	if loc := statusCodeErrPrefixRE.FindStringIndex(msg); loc != nil {
+		msg = msg[:loc[0]] + msg[loc[1]:]
+	}
+	return errors.New(msg)
 }
