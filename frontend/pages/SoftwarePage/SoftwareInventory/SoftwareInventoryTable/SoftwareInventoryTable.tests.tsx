@@ -105,9 +105,7 @@ describe("Software inventory table", () => {
     expect(
       screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
     ).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: /add filters/i })
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /add filters/i })).toBeDisabled();
     expect(screen.getByText("Show versions")).toBeInTheDocument();
   });
 
@@ -159,9 +157,7 @@ describe("Software inventory table", () => {
     expect(
       screen.getByPlaceholderText("Search by name or vulnerability (CVE)")
     ).toBeEnabled();
-    expect(
-      screen.getByRole("button", { name: /add filters/i })
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: /add filters/i })).toBeEnabled();
   });
 
   it("Renders the empty search state and vulnerability filtering when search query does not exist but vulnerability filter is applied", () => {
