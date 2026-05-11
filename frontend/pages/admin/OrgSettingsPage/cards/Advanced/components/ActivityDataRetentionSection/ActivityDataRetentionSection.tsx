@@ -203,7 +203,7 @@ const ActivityDataRetentionSection = ({
               )
             }
           >
-            Disable vulnerabilities
+            Disable vulnerability exposure historical reporting
           </Checkbox>
         )}
       />
