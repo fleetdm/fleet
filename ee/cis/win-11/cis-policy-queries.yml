@@ -12099,3 +12099,76 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable / disable CLFS logfile authentication' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting configures Common Log File System (CLFS) logfile authentication. Logfile authentication provides the ability for the CLFS driver to detect malicious modifications made to logfiles. CLFS is a security feature which hardens logfile parsing. If modifications to logfiles are detected, CLFS will consider the logfile unsafe for parsing and return an error to the caller. It is also able to detect modifications by writing authentication codes to logfiles which combines file data with a system-unique cryptographic key.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\System\Filesystem\Enable / disable CLFS logfile authentication'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Policies\ClfsAuthenticationChecking' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Allow Recall to be enabled' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the Recall optional component is available for end users to enable on the system. Microsoft Recall periodically captures screenshots of the system display, creating a searchable timeline of activity including apps, documents, and websites. Saving snapshots of all user activity could result in sensitive information such as passwords or banking details being stored insecurely and making it easily accessible.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Windows Components\Windows AI\Allow Recall to be enabled'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\AllowRecallEnablement' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Disable HTTP proxy features: Disable WPAD' is set to 'Enabled: Checked'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Web Proxy Auto-Discovery protocol (WPAD) is disabled on the system. WPAD is used to discover Proxy Auto-Config (PAC) files from the local network. WPAD could expose the system to Man-In-The-Middle (MITM) attacks. If an organization depends on HTTP proxy configuration, it is recommended that other client configuration mechanisms be used instead, such as Group Policy.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Checked:
+    'Computer Configuration\Policies\Administrative Templates\Center for Internet Security (CIS)\Additional Benchmark Settings\Disable HTTP proxy features: Disable WPAD'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp\DisableWpad' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: >
+    CIS - Ensure 'Disable HTTP proxy features: Disable proxy authentication' is set to 'Enabled: Disable authentication over loopback interfaces' or higher
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether Windows can authenticate over a loopback interface. It is best to limit the sign-in interface to only known and trusted services, so malicious actors can't impersonate them. Configuring this setting to 'Disable all authentication protocols and loopback authentication' also conforms to the benchmark.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Disable authentication over loopback interfaces or Disable all authentication protocols and loopback authentication:
+    'Computer Configuration\Policies\Administrative Templates\Center for Internet Security (CIS)\Additional Benchmark Settings\Disable HTTP proxy features: Disable proxy authentication'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\DisableProxyAuthenticationSchemes' AND (data = 256 OR data = 287);
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
