@@ -1819,6 +1819,16 @@ type LambdaConfig struct {
 	AuditFunction  string `json:"audit_function"`
 }
 
+// CloudRunServiceConfig shadows config.CloudRunServiceConfig.
+type CloudRunServiceConfig struct {
+	StatusURL      string `json:"status_url"`
+	StatusAudience string `json:"status_audience"`
+	ResultURL      string `json:"result_url"`
+	ResultAudience string `json:"result_audience"`
+	AuditURL       string `json:"audit_url"`
+	AuditAudience  string `json:"audit_audience"`
+}
+
 // KafkaRESTConfig shadows config.KafkaRESTConfig
 type KafkaRESTConfig struct {
 	StatusTopic string `json:"status_topic"`

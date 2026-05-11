@@ -554,6 +554,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 			StsAssumeRoleArn: config.Lambda.StsAssumeRoleArn,
 			StsExternalID:    config.Lambda.StsExternalID,
 		},
+		CloudRunService: logging.CloudRunServiceConfig{},
 		PubSub: logging.PubSubConfig{
 			Project: config.PubSub.Project,
 		},
@@ -582,6 +583,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggingConfig.Firehose.StreamName = config.Firehose.StatusStream
 	loggingConfig.Kinesis.StreamName = config.Kinesis.StatusStream
 	loggingConfig.Lambda.Function = config.Lambda.StatusFunction
+	loggingConfig.CloudRunService.URL = config.CloudRunService.StatusURL
+	loggingConfig.CloudRunService.Audience = config.CloudRunService.StatusAudience
 	loggingConfig.PubSub.Topic = config.PubSub.StatusTopic
 	loggingConfig.PubSub.AddAttributes = false // only used by result logs
 	loggingConfig.KafkaREST.Topic = config.KafkaREST.StatusTopic
@@ -599,6 +602,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 	loggingConfig.Firehose.StreamName = config.Firehose.ResultStream
 	loggingConfig.Kinesis.StreamName = config.Kinesis.ResultStream
 	loggingConfig.Lambda.Function = config.Lambda.ResultFunction
+	loggingConfig.CloudRunService.URL = config.CloudRunService.ResultURL
+	loggingConfig.CloudRunService.Audience = config.CloudRunService.ResultAudience
 	loggingConfig.PubSub.Topic = config.PubSub.ResultTopic
 	loggingConfig.PubSub.AddAttributes = config.PubSub.AddAttributes
 	loggingConfig.KafkaREST.Topic = config.KafkaREST.ResultTopic
@@ -617,6 +622,8 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		loggingConfig.Firehose.StreamName = config.Firehose.AuditStream
 		loggingConfig.Kinesis.StreamName = config.Kinesis.AuditStream
 		loggingConfig.Lambda.Function = config.Lambda.AuditFunction
+		loggingConfig.CloudRunService.URL = config.CloudRunService.AuditURL
+		loggingConfig.CloudRunService.Audience = config.CloudRunService.AuditAudience
 		loggingConfig.PubSub.Topic = config.PubSub.AuditTopic
 		loggingConfig.PubSub.AddAttributes = false // only used by result logs
 		loggingConfig.KafkaREST.Topic = config.KafkaREST.AuditTopic

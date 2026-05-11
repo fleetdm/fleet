@@ -207,6 +207,18 @@ func (svc *Service) LoggingConfig(ctx context.Context) (*fleet.Logging, error) {
 					AuditFunction:  conf.Lambda.AuditFunction,
 				},
 			}
+		case "cloudrun_service":
+			*lp.target = fleet.LoggingPlugin{
+				Plugin: "cloudrun_service",
+				Config: fleet.CloudRunServiceConfig{
+					StatusURL:      conf.CloudRunService.StatusURL,
+					StatusAudience: conf.CloudRunService.StatusAudience,
+					ResultURL:      conf.CloudRunService.ResultURL,
+					ResultAudience: conf.CloudRunService.ResultAudience,
+					AuditURL:       conf.CloudRunService.AuditURL,
+					AuditAudience:  conf.CloudRunService.AuditAudience,
+				},
+			}
 		case "pubsub":
 			*lp.target = fleet.LoggingPlugin{
 				Plugin: "pubsub",

@@ -376,6 +376,16 @@ type LambdaConfig struct {
 	AuditFunction    string `yaml:"audit_function"`
 }
 
+// CloudRunServiceConfig defines configs for the Cloud Run service logging plugin
+type CloudRunServiceConfig struct {
+	StatusURL      string `yaml:"status_url"`
+	StatusAudience string `yaml:"status_audience"`
+	ResultURL      string `yaml:"result_url"`
+	ResultAudience string `yaml:"result_audience"`
+	AuditURL       string `yaml:"audit_url"`
+	AuditAudience  string `yaml:"audit_audience"`
+}
+
 // S3Config defines config to enable file carving storage to an S3 bucket
 type S3Config struct {
 	Bucket           string `yaml:"bucket"`
@@ -685,6 +695,7 @@ type FleetConfig struct {
 	Firehose                   FirehoseConfig
 	Kinesis                    KinesisConfig
 	Lambda                     LambdaConfig
+	CloudRunService            CloudRunServiceConfig `yaml:"cloudrun_service"`
 	S3                         S3Config
 	Email                      EmailConfig
 	SES                        SESConfig
@@ -1437,6 +1448,20 @@ func (man Manager) addConfigs() {
 	man.addConfigString("lambda.audit_function", "",
 		"Lambda function name for audit logs")
 
+	// Cloud Run service
+	man.addConfigString("cloudrun_service.status_url", "",
+		"Cloud Run service URL for status logs")
+	man.addConfigString("cloudrun_service.status_audience", "",
+		"Audience to use when authenticating to the Cloud Run service for status logs with a Google-signed ID token")
+	man.addConfigString("cloudrun_service.result_url", "",
+		"Cloud Run service URL for result logs")
+	man.addConfigString("cloudrun_service.result_audience", "",
+		"Audience to use when authenticating to the Cloud Run service for result logs with a Google-signed ID token")
+	man.addConfigString("cloudrun_service.audit_url", "",
+		"Cloud Run service URL for audit logs")
+	man.addConfigString("cloudrun_service.audit_audience", "",
+		"Audience to use when authenticating to the Cloud Run service for audit logs with a Google-signed ID token")
+
 	// S3 for file carving: Deprecated
 	man.addConfigString("s3.bucket", "", "Deprecated: Bucket where to store file carves")
 	man.addConfigString("s3.prefix", "", "Deprecated: Prefix under which carves are stored")
@@ -1850,6 +1875,14 @@ func (man Manager) LoadConfig() FleetConfig {
 			AuditFunction:    man.getConfigString("lambda.audit_function"),
 			StsAssumeRoleArn: man.getConfigString("lambda.sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString("lambda.sts_external_id"),
+		},
+		CloudRunService: CloudRunServiceConfig{
+			StatusURL:      man.getConfigString("cloudrun_service.status_url"),
+			StatusAudience: man.getConfigString("cloudrun_service.status_audience"),
+			ResultURL:      man.getConfigString("cloudrun_service.result_url"),
+			ResultAudience: man.getConfigString("cloudrun_service.result_audience"),
+			AuditURL:       man.getConfigString("cloudrun_service.audit_url"),
+			AuditAudience:  man.getConfigString("cloudrun_service.audit_audience"),
 		},
 		S3: man.loadS3Config(),
 		Email: EmailConfig{

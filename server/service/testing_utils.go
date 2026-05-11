@@ -761,6 +761,22 @@ func testLambdaPluginConfig() config.FleetConfig {
 	return c
 }
 
+func testCloudRunServicePluginConfig() config.FleetConfig {
+	c := config.TestConfig()
+	c.Osquery.ResultLogPlugin = "cloudrun_service"
+	c.Osquery.StatusLogPlugin = "cloudrun_service"
+	c.Activity.AuditLogPlugin = "cloudrun_service"
+	c.CloudRunService = config.CloudRunServiceConfig{
+		StatusURL:      "https://example.run.app/status",
+		StatusAudience: "https://example.run.app/",
+		ResultURL:      "https://example.run.app/result",
+		ResultAudience: "https://example.run.app/",
+		AuditURL:       "https://example.run.app/audit",
+		AuditAudience:  "https://example.run.app/",
+	}
+	return c
+}
+
 func testPubSubPluginConfig() config.FleetConfig {
 	c := config.TestConfig()
 	c.Osquery.ResultLogPlugin = "pubsub"
