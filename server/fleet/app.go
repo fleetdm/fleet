@@ -189,7 +189,7 @@ type MDM struct {
 	AppleServerURL string `json:"apple_server_url"`
 
 	// Deprecated: use AppleBussinessManager instead
-	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"`
+	DeprecatedAppleBMDefaultTeam string `json:"apple_bm_default_team,omitempty"` //nolint:apiparamcheck // not renaming already-deprecated field
 
 	// AppleBusinessManager defines the associations between ABM tokens
 	// and the teams used to assign hosts when they're ingested from ABM.
@@ -1348,8 +1348,8 @@ type ActivityExpirySettings struct {
 type Features struct {
 	EnableHostUsers         bool                   `json:"enable_host_users"`
 	EnableSoftwareInventory bool                   `json:"enable_software_inventory"`
-	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`
-	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"`
+	AdditionalQueries       *json.RawMessage       `json:"additional_queries,omitempty"`     //nolint:apiparamcheck // osquery host-details queries
+	DetailQueryOverrides    map[string]*string     `json:"detail_query_overrides,omitempty"` //nolint:apiparamcheck // osquery detail-query overrides
 	HistoricalData          HistoricalDataSettings `json:"historical_data"`
 
 	/////////////////////////////////////////////////////////////////
@@ -1902,6 +1902,7 @@ type CertificateTemplateSpec struct {
 	Name                     string `json:"name"`
 	CertificateAuthorityName string `json:"certificate_authority_name"`
 	SubjectName              string `json:"subject_name"`
+	SubjectAlternativeName   string `json:"subject_alternative_name,omitempty"`
 }
 
 func (c CertificateTemplateSpec) NameValid() bool {

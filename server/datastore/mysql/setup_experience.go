@@ -57,15 +57,19 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		// don't enqueue any items. This handles the edge case where an enrolled host upgrades from an
 		// Orbit version that didn't support setup experience to one that does.
 		// See https://github.com/fleetdm/fleet/issues/35717
+		// Match either osquery_host_id or uuid because the hostUUID parameter comes from
+		// fleet.HostUUIDForSetupExperience, which on Windows/Linux resolves to OsqueryHostID and on
+		// Apple platforms to host.UUID. Without the OR, the lookup misses Windows/Linux hosts when
+		// OsqueryHostID and the Fleet host UUID differ (default osquery host_identifier modes).
 		stmtHost := `
 		SELECT
 			last_enrolled_at
 		FROM
 			hosts
-		WHERE uuid = ? AND platform = ?
+		WHERE (osquery_host_id = ? OR uuid = ?) AND platform = ?
 		`
 		var lastEnrolledAt sql.NullTime
-		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostPlatform); err != nil {
+		if err := sqlx.GetContext(ctx, ds.reader(ctx), &lastEnrolledAt, stmtHost, hostUUID, hostUUID, hostPlatform); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				// This shouldn't happen but we don't check for it elsewhere,
 				// so we'll log a warning and continue.
@@ -83,16 +87,22 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 			// even though it IS in ESP and we DO want setup-experience to run. Fall back to a
 			// direct check of mdm_windows_enrollments.awaiting_configuration: if the host is
 			// in Pending/Active, it's actively in ESP, bypass the age guard.
+			// mdm_windows_enrollments.host_uuid stores the Fleet host UUID (hosts.uuid), but the
+			// hostUUID parameter here comes from fleet.HostUUIDForSetupExperience, which on Windows
+			// resolves to OsqueryHostID. Resolve via JOIN and match either identifier so the lookup
+			// works regardless of how OsqueryHostID and the Fleet host UUID relate (this depends on
+			// the osquery host_identifier mode).
 			if hostPlatform == "windows" {
 				var awaiting fleet.WindowsMDMAwaitingConfiguration
 				stmtAwaiting := `
-				SELECT awaiting_configuration
-				FROM mdm_windows_enrollments
-				WHERE host_uuid = ?
-				ORDER BY created_at DESC, id DESC
+				SELECT mwe.awaiting_configuration
+				FROM mdm_windows_enrollments mwe
+				JOIN hosts h ON mwe.host_uuid = h.uuid
+				WHERE (h.osquery_host_id = ? OR h.uuid = ?) AND h.platform = 'windows'
+				ORDER BY mwe.created_at DESC, mwe.id DESC
 				LIMIT 1
 				`
-				if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmtAwaiting, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+				if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmtAwaiting, hostUUID, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
 					return false, ctxerr.Wrap(ctx, err, "checking windows awaiting_configuration for setup experience age guard")
 				} else if err == nil && awaiting != fleet.WindowsMDMAwaitingConfigurationNone {
 					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but is in awaiting_configuration; running setup experience for re-Autopilot",

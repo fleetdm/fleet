@@ -27,9 +27,10 @@ import (
 //   - Wait → no side effects (no cancel, no persist, no CAS).
 //   - Block path command shape: BlockInStatusPage=1, AllowCollectLogsButton, TimeOutUntilSyncFailure=1,
 //     reason-specific CustomErrorText, NO ServerHasFinishedProvisioning, NO InstallationState.
-//   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning,
-//     NO CustomErrorText, NO BlockInStatusPage. The user-scope Provider node is created during the hold
-//     phase via Add commands so the user-scope SHFP write lands instead of being 405-rejected.
+//   - Release path command shape: Device-scope AND User-scope ServerHasFinishedProvisioning plus
+//     PolicyProviders InstallationState=3; NO CustomErrorText, NO BlockInStatusPage. The user-scope
+//     Provider node is created during the hold phase via Add commands so the user-scope SHFP write
+//     lands instead of being 405-rejected.
 //   - Persisted CommandUUIDs equal inline CmdID.Value (the ack-clearing invariant).
 //   - Persist runs as a single batched call (a regression that loops single inserts would split CustomErrorText
 //     and the block flags across multiple TX boundaries).
@@ -262,11 +263,11 @@ func TestPBT_HandleESPRelease(t *testing.T) {
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "InstallationState"),
 				"block path uses the timeout-based trigger, not InstallationState")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "WasDeviceSuccessfullyProvisioned"),
-				"block path must NOT include WasDeviceSuccessfullyProvisioned (cycle 10 verified the documented "+
-					"path does not render failure UI on Win11 26200 non-Sidecar MDM)")
+				"block path must NOT include WasDeviceSuccessfullyProvisioned (verified on Win11 26200: the "+
+					"documented path does not render failure UI on non-Sidecar MDM)")
 			assert.Nilf(rt, pbtFindCmdByLocURI(cmds, "IsSyncDone"),
-				"block path must NOT include IsSyncDone (cycle 10 verified the documented path does not render "+
-					"failure UI on Win11 26200 non-Sidecar MDM)")
+				"block path must NOT include IsSyncDone (verified on Win11 26200: the documented path does not "+
+					"render failure UI on non-Sidecar MDM)")
 			// Block path always includes BlockInStatusPage=1 (Reset PC), AllowCollectLogsButton, and
 			// TimeOutUntilSyncFailure=1 (one minute, forces failure UI).
 			blockCmd := pbtFindCmdByLocURI(cmds, "BlockInStatusPage")

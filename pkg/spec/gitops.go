@@ -165,6 +165,7 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 	return nil
 }
 
+// If you add a new key to this struct, ensure the Set() method below also checks for it
 type GitOpsControls struct {
 	fleet.BaseItem
 	MacOSUpdates   any               `json:"macos_updates"`
@@ -200,7 +201,9 @@ func (c GitOpsControls) Set() bool {
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
-		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
+		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
+		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
+		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
@@ -522,7 +525,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
 	if _, ok := top["labels"]; ok {
 		result.LabelsPresent = true
-		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		if result.IsNoTeam() {
+			logFn("[!] 'labels' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
+		} else {
+			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		}
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
@@ -1405,17 +1412,16 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
 
-		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		// Validate mutually exclusive field combinations per label membership type
+		if err := fleet.ValidateLabelMembershipFields(l); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
 		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
-		}
-
-		if _, ok := fleet.ValidLabelPlatformVariants[l.Platform]; !ok {
-			multiError = multierror.Append(multiError, fmt.Errorf("invalid platform for label %q: %s", l.Name, l.Platform))
 		}
 		// Check that host vitals criteria is valid
 		if l.HostVitalsCriteria != nil {

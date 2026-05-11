@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "1.4.3",
+      "version": "1.4.4",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape' AND version_compare(version, '1.4.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Inkscape' AND publisher = 'Inkscape' AND version_compare(version, '1.4.4') < 0);"
       },
-      "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-1.4.3.msi",
+      "installer_url": "https://media.inkscape.org/dl/resources/file/inkscape-1.4.4_2026-05-05_dcaf3e7-x64.signed.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "a55ab56d",
-      "sha256": "d80842f349bec6505129e48a56495c6f337884693e5a18e505dbbc5d7afc2266",
+      "sha256": "25c67a2e4b8d83deade457b1291801921d3cf78c05bc0232521d52ab9a8b37ef",
       "default_categories": [
         "Productivity"
       ],

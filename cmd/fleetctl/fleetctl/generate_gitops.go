@@ -900,7 +900,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 
 type GlobalOrTeamIntegrations struct {
 	GlobalIntegrations *fleet.Integrations     `json:"global_integrations,omitempty"`
-	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"`
+	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"` //nolint:apiparamcheck // internal routing key, not emitted to user
 }
 
 func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]interface{}, error) {
@@ -1356,11 +1356,17 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		certType := reflect.TypeFor[fleet.CertificateTemplateResponse]()
 		fullCerts := make([]map[string]any, 0, len(certSummaries))
 		for _, certSummary := range certSummaries {
-			fullCerts = append(fullCerts, map[string]interface{}{
+			cert := map[string]any{
 				jsonFieldName(certType, "Name"):                     certSummary.Name,
 				jsonFieldName(certType, "CertificateAuthorityName"): certSummary.CertificateAuthorityName,
 				jsonFieldName(certType, "SubjectName"):              certSummary.SubjectName,
-			})
+			}
+			// Emit subject_alternative_name only when set, so existing GitOps files for templates
+			// without SAN do not pick up a spurious empty key.
+			if certSummary.SubjectAlternativeName != "" {
+				cert[jsonFieldName(certType, "SubjectAlternativeName")] = certSummary.SubjectAlternativeName
+			}
+			fullCerts = append(fullCerts, cert)
 		}
 		androidSettings, ok := result[jsonFieldName(mdmT, "AndroidSettings")].(map[string]interface{})
 		if !ok {
@@ -1432,7 +1438,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your setup_experience configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
-					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#macos-setup",
+					Note:     "The setup_experience configuration is not supported by this tool yet.  To configure it, please follow the Fleet documentation at https://fleetdm.com/docs/configuration/yaml-files#setup-experience",
 				})
 			}
 		}
@@ -2251,7 +2257,7 @@ func (cmd *GenerateGitopsCommand) generateLabels(team *fleet.Team) ([]map[string
 			jsonFieldName(t, "Description"):         label.Description,
 			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,
 		}
-		if label.Platform != "" {
+		if label.LabelMembershipType == fleet.LabelMembershipTypeDynamic && label.Platform != "" {
 			labelSpec[jsonFieldName(t, "Platform")] = label.Platform
 		}
 		switch label.LabelMembershipType {

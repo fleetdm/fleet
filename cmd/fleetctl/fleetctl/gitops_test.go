@@ -2343,14 +2343,16 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Foobar",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token",
+		Location:    "Foobar",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token",
+		CountryCode: "us",
 	}
 	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Gadzooks",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token2",
+		Location:    "Gadzooks",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token2",
+		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
@@ -6096,11 +6098,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	}
 	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{
-			ID:        1,
-			OrgName:   "fleet",
-			Location:  "ca",
-			RenewDate: tokExpire,
-			Token:     string(token),
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
 		}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
@@ -6939,4 +6942,73 @@ policies:
 	require.ErrorContains(t, err, "bad-policy")
 	require.ErrorContains(t, err, "labels_include_all")
 	require.ErrorContains(t, err, "labels_exclude_any")
+}
+
+func TestGitOpsScriptsLogging(t *testing.T) {
+	// Cannot run t.Parallel() because SetupFullGitOpsPremiumServer sets env vars.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Echo back a ScriptResponse for each input script so the real-run no-team
+	// log line reflects the count of scripts sent to the server. (In dry-run,
+	// the service short-circuits before reaching this mock.)
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		responses := make([]fleet.ScriptResponse, len(scripts))
+		for i, s := range scripts {
+			responses[i] = fleet.ScriptResponse{ID: uint(i + 1), Name: s.Name, TeamID: s.TeamID} //nolint:gosec // dismiss G115
+		}
+		return responses, nil
+	}
+
+	// No labels — keep the test focused on scripts.
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "script.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(`echo "hello"`), 0o644))
+
+	globalPath := filepath.Join(tmpDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalPath, []byte(`
+controls:
+  scripts:
+    - path: ./script.sh
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: $ORG_NAME
+  secrets:
+    - secret: globalSecret
+software:
+`), 0o644))
+
+	teamPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamPath, []byte(`
+name: $TEST_TEAM_NAME
+team_settings:
+  secrets:
+    - secret: team-secret
+agent_options:
+controls:
+  scripts:
+    - path: ./script.sh
+policies:
+queries:
+software:
+`), 0o644))
+
+	// Dry run.
+	logs := RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath, "--dry-run"})
+	assert.Contains(t, logs, "[+] would've applied 1 script\n")
+	assert.Contains(t, logs, fmt.Sprintf("[+] would've applied 1 script for fleet %s\n", teamName))
+
+	// Real run.
+	logs = RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
+	assert.Contains(t, logs, "[+] applied 1 script\n")
+	assert.Contains(t, logs, fmt.Sprintf("[+] applied 1 script for fleet %s\n", teamName))
 }

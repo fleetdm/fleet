@@ -511,7 +511,11 @@ type GetDetailsForUninstallFromExecutionIDFunc func(ctx context.Context, executi
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, filter fleet.VulnSoftwareFilter) ([]fleet.Software, error)
 
+type ListSoftwareForVulnDetectionByOSVersionFunc func(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error)
+
 type ListSoftwareVulnerabilitiesByHostIDsSourceFunc func(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error)
+
+type ListSoftwareVulnerabilitiesBySoftwareIDsFunc func(ctx context.Context, softwareIDs []uint, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error)
 
 type LoadHostSoftwareFunc func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error
 
@@ -891,6 +895,8 @@ type CleanupWorkerJobsFunc func(ctx context.Context, failedSince time.Duration, 
 
 type GetJobFunc func(ctx context.Context, jobID uint) (*fleet.Job, error)
 
+type HasQueuedJobWithArgsFunc func(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 type InnoDBStatusFunc func(ctx context.Context) (string, error)
 
 type ProcessListFunc func(ctx context.Context) ([]fleet.MySQLProcess, error)
@@ -1107,6 +1113,22 @@ type GetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string) (
 
 type SetManagedLocalAccountUUIDFunc func(ctx context.Context, hostUUID string, accountUUID string) error
 
+type MarkManagedLocalAccountPasswordViewedFunc func(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+type InitiateManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error
+
+type MarkManagedLocalAccountRotationDeferredFunc func(ctx context.Context, hostUUID string) error
+
+type ClearManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string) error
+
+type CompleteManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string) error
+
+type FailManagedLocalAccountRotationFunc func(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error
+
+type GetManagedLocalAccountsForAutoRotationFunc func(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error)
+
+type GetManagedLocalAccountByPendingCommandUUIDFunc func(ctx context.Context, commandUUID string) (host *fleet.Host, err error)
+
 type InsertMDMAppleBootstrapPackageFunc func(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error
 
 type CopyDefaultMDMAppleBootstrapPackageFunc func(ctx context.Context, ac *fleet.AppConfig, toTeamID uint) error
@@ -1212,6 +1234,16 @@ type GetVPPTokenByTeamIDFunc func(ctx context.Context, teamID *uint) (*fleet.VPP
 type UpdateVPPTokenTeamsFunc func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error)
 
 type UpdateVPPTokenFunc func(ctx context.Context, id uint, tok *fleet.VPPTokenData) (*fleet.VPPTokenDB, error)
+
+type UpdateVPPTokenCountryCodeFunc func(ctx context.Context, tokenID uint, countryCode string) error
+
+type UpdateVPPAppCountryCodeFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error
+
+type BackfillVPPAppCountriesFromTokensFunc func(ctx context.Context) (int64, error)
+
+type GetVPPAppByAdamIDPlatformFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error)
+
+type GetVPPTokenOwningAppInCountryFunc func(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error)
 
 type DeleteVPPTokenFunc func(ctx context.Context, tokenID uint) error
 
@@ -1912,6 +1944,8 @@ type MDMWindowsUpdateEnrolledDeviceCredentialsFunc func(ctx context.Context, dev
 type MDMWindowsAcknowledgeEnrolledDeviceCredentialsFunc func(ctx context.Context, deviceId string) error
 
 type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID string, hostUUID string) (bool, error)
+
+type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
@@ -2646,8 +2680,14 @@ type DataStore struct {
 	ListSoftwareForVulnDetectionFunc        ListSoftwareForVulnDetectionFunc
 	ListSoftwareForVulnDetectionFuncInvoked bool
 
+	ListSoftwareForVulnDetectionByOSVersionFunc        ListSoftwareForVulnDetectionByOSVersionFunc
+	ListSoftwareForVulnDetectionByOSVersionFuncInvoked bool
+
 	ListSoftwareVulnerabilitiesByHostIDsSourceFunc        ListSoftwareVulnerabilitiesByHostIDsSourceFunc
 	ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked bool
+
+	ListSoftwareVulnerabilitiesBySoftwareIDsFunc        ListSoftwareVulnerabilitiesBySoftwareIDsFunc
+	ListSoftwareVulnerabilitiesBySoftwareIDsFuncInvoked bool
 
 	LoadHostSoftwareFunc        LoadHostSoftwareFunc
 	LoadHostSoftwareFuncInvoked bool
@@ -3216,6 +3256,9 @@ type DataStore struct {
 	GetJobFunc        GetJobFunc
 	GetJobFuncInvoked bool
 
+	HasQueuedJobWithArgsFunc        HasQueuedJobWithArgsFunc
+	HasQueuedJobWithArgsFuncInvoked bool
+
 	InnoDBStatusFunc        InnoDBStatusFunc
 	InnoDBStatusFuncInvoked bool
 
@@ -3540,6 +3583,30 @@ type DataStore struct {
 	SetManagedLocalAccountUUIDFunc        SetManagedLocalAccountUUIDFunc
 	SetManagedLocalAccountUUIDFuncInvoked bool
 
+	MarkManagedLocalAccountPasswordViewedFunc        MarkManagedLocalAccountPasswordViewedFunc
+	MarkManagedLocalAccountPasswordViewedFuncInvoked bool
+
+	InitiateManagedLocalAccountRotationFunc        InitiateManagedLocalAccountRotationFunc
+	InitiateManagedLocalAccountRotationFuncInvoked bool
+
+	MarkManagedLocalAccountRotationDeferredFunc        MarkManagedLocalAccountRotationDeferredFunc
+	MarkManagedLocalAccountRotationDeferredFuncInvoked bool
+
+	ClearManagedLocalAccountRotationFunc        ClearManagedLocalAccountRotationFunc
+	ClearManagedLocalAccountRotationFuncInvoked bool
+
+	CompleteManagedLocalAccountRotationFunc        CompleteManagedLocalAccountRotationFunc
+	CompleteManagedLocalAccountRotationFuncInvoked bool
+
+	FailManagedLocalAccountRotationFunc        FailManagedLocalAccountRotationFunc
+	FailManagedLocalAccountRotationFuncInvoked bool
+
+	GetManagedLocalAccountsForAutoRotationFunc        GetManagedLocalAccountsForAutoRotationFunc
+	GetManagedLocalAccountsForAutoRotationFuncInvoked bool
+
+	GetManagedLocalAccountByPendingCommandUUIDFunc        GetManagedLocalAccountByPendingCommandUUIDFunc
+	GetManagedLocalAccountByPendingCommandUUIDFuncInvoked bool
+
 	InsertMDMAppleBootstrapPackageFunc        InsertMDMAppleBootstrapPackageFunc
 	InsertMDMAppleBootstrapPackageFuncInvoked bool
 
@@ -3698,6 +3765,21 @@ type DataStore struct {
 
 	UpdateVPPTokenFunc        UpdateVPPTokenFunc
 	UpdateVPPTokenFuncInvoked bool
+
+	UpdateVPPTokenCountryCodeFunc        UpdateVPPTokenCountryCodeFunc
+	UpdateVPPTokenCountryCodeFuncInvoked bool
+
+	UpdateVPPAppCountryCodeFunc        UpdateVPPAppCountryCodeFunc
+	UpdateVPPAppCountryCodeFuncInvoked bool
+
+	BackfillVPPAppCountriesFromTokensFunc        BackfillVPPAppCountriesFromTokensFunc
+	BackfillVPPAppCountriesFromTokensFuncInvoked bool
+
+	GetVPPAppByAdamIDPlatformFunc        GetVPPAppByAdamIDPlatformFunc
+	GetVPPAppByAdamIDPlatformFuncInvoked bool
+
+	GetVPPTokenOwningAppInCountryFunc        GetVPPTokenOwningAppInCountryFunc
+	GetVPPTokenOwningAppInCountryFuncInvoked bool
 
 	DeleteVPPTokenFunc        DeleteVPPTokenFunc
 	DeleteVPPTokenFuncInvoked bool
@@ -4748,6 +4830,9 @@ type DataStore struct {
 
 	IsAppleEnrollmentRenewalCommandFunc        IsAppleEnrollmentRenewalCommandFunc
 	IsAppleEnrollmentRenewalCommandFuncInvoked bool
+
+	MDMAppleResetOnReenrollmentFunc        MDMAppleResetOnReenrollmentFunc
+	MDMAppleResetOnReenrollmentFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -6460,11 +6545,25 @@ func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, filter fle
 	return s.ListSoftwareForVulnDetectionFunc(ctx, filter)
 }
 
+func (s *DataStore) ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer fleet.OSVersion) ([]fleet.Software, error) {
+	s.mu.Lock()
+	s.ListSoftwareForVulnDetectionByOSVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareForVulnDetectionByOSVersionFunc(ctx, osVer)
+}
+
 func (s *DataStore) ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source fleet.VulnerabilitySource) (map[uint][]fleet.SoftwareVulnerability, error) {
 	s.mu.Lock()
 	s.ListSoftwareVulnerabilitiesByHostIDsSourceFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSoftwareVulnerabilitiesByHostIDsSourceFunc(ctx, hostIDs, source)
+}
+
+func (s *DataStore) ListSoftwareVulnerabilitiesBySoftwareIDs(ctx context.Context, softwareIDs []uint, source fleet.VulnerabilitySource) ([]fleet.SoftwareVulnerability, error) {
+	s.mu.Lock()
+	s.ListSoftwareVulnerabilitiesBySoftwareIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListSoftwareVulnerabilitiesBySoftwareIDsFunc(ctx, softwareIDs, source)
 }
 
 func (s *DataStore) LoadHostSoftware(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
@@ -7790,6 +7889,13 @@ func (s *DataStore) GetJob(ctx context.Context, jobID uint) (*fleet.Job, error) 
 	return s.GetJobFunc(ctx, jobID)
 }
 
+func (s *DataStore) HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error) {
+	s.mu.Lock()
+	s.HasQueuedJobWithArgsFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasQueuedJobWithArgsFunc(ctx, name, args)
+}
+
 func (s *DataStore) InnoDBStatus(ctx context.Context) (string, error) {
 	s.mu.Lock()
 	s.InnoDBStatusFuncInvoked = true
@@ -8546,6 +8652,62 @@ func (s *DataStore) SetManagedLocalAccountUUID(ctx context.Context, hostUUID str
 	return s.SetManagedLocalAccountUUIDFunc(ctx, hostUUID, accountUUID)
 }
 
+func (s *DataStore) MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error) {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountPasswordViewedFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountPasswordViewedFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID string, pendingPlaintextPassword string, cmdUUID string) error {
+	s.mu.Lock()
+	s.InitiateManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.InitiateManagedLocalAccountRotationFunc(ctx, hostUUID, pendingPlaintextPassword, cmdUUID)
+}
+
+func (s *DataStore) MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MarkManagedLocalAccountRotationDeferredFuncInvoked = true
+	s.mu.Unlock()
+	return s.MarkManagedLocalAccountRotationDeferredFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.ClearManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.ClearManagedLocalAccountRotationFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string) error {
+	s.mu.Lock()
+	s.CompleteManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.CompleteManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID)
+}
+
+func (s *DataStore) FailManagedLocalAccountRotation(ctx context.Context, hostUUID string, cmdUUID string, errorMessage string) error {
+	s.mu.Lock()
+	s.FailManagedLocalAccountRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.FailManagedLocalAccountRotationFunc(ctx, hostUUID, cmdUUID, errorMessage)
+}
+
+func (s *DataStore) GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]fleet.HostManagedLocalAccountAutoRotationInfo, error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountsForAutoRotationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountsForAutoRotationFunc(ctx)
+}
+
+func (s *DataStore) GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *fleet.Host, err error) {
+	s.mu.Lock()
+	s.GetManagedLocalAccountByPendingCommandUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetManagedLocalAccountByPendingCommandUUIDFunc(ctx, commandUUID)
+}
+
 func (s *DataStore) InsertMDMAppleBootstrapPackage(ctx context.Context, bp *fleet.MDMAppleBootstrapPackage, pkgStore fleet.MDMBootstrapPackageStore) error {
 	s.mu.Lock()
 	s.InsertMDMAppleBootstrapPackageFuncInvoked = true
@@ -8915,6 +9077,41 @@ func (s *DataStore) UpdateVPPToken(ctx context.Context, id uint, tok *fleet.VPPT
 	s.UpdateVPPTokenFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateVPPTokenFunc(ctx, id, tok)
+}
+
+func (s *DataStore) UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error {
+	s.mu.Lock()
+	s.UpdateVPPTokenCountryCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPTokenCountryCodeFunc(ctx, tokenID, countryCode)
+}
+
+func (s *DataStore) UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, countryCode string) error {
+	s.mu.Lock()
+	s.UpdateVPPAppCountryCodeFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateVPPAppCountryCodeFunc(ctx, adamID, platform, countryCode)
+}
+
+func (s *DataStore) BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error) {
+	s.mu.Lock()
+	s.BackfillVPPAppCountriesFromTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.BackfillVPPAppCountriesFromTokensFunc(ctx)
+}
+
+func (s *DataStore) GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform) (*fleet.VPPApp, error) {
+	s.mu.Lock()
+	s.GetVPPAppByAdamIDPlatformFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppByAdamIDPlatformFunc(ctx, adamID, platform)
+}
+
+func (s *DataStore) GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform fleet.InstallableDevicePlatform, country string) (*fleet.VPPTokenDB, error) {
+	s.mu.Lock()
+	s.GetVPPTokenOwningAppInCountryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPTokenOwningAppInCountryFunc(ctx, adamID, platform, country)
 }
 
 func (s *DataStore) DeleteVPPToken(ctx context.Context, tokenID uint) error {
@@ -11365,4 +11562,11 @@ func (s *DataStore) IsAppleEnrollmentRenewalCommand(ctx context.Context, command
 	s.IsAppleEnrollmentRenewalCommandFuncInvoked = true
 	s.mu.Unlock()
 	return s.IsAppleEnrollmentRenewalCommandFunc(ctx, commandUUID, hostUUID)
+}
+
+func (s *DataStore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+	s.mu.Lock()
+	s.MDMAppleResetOnReenrollmentFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleResetOnReenrollmentFunc(ctx, hostUUID, preserveHostActivities)
 }

@@ -56,6 +56,11 @@
   --ui-yellow-banner: #fef7e0;
   --ui-yellow-banner-outline: #ece0bb;
 
+  // Toast surfaces. Same as base status colors in light mode; muted in dark
+  // mode so the large filled surface isn't blinding.
+  --ui-success-toast-bg: #3db67b;
+  --ui-error-toast-bg: #d66c7b;
+
   // TS COLORS aliases (match keys used in colors.ts for JS inline styles)
   --core-fleet-red: #ff5c83;
   --ui-blue-hover: #5d5ae7;
@@ -92,6 +97,10 @@
   --core-fleet-black-overlay-40: rgba(25, 33, 71, 0.4);
   --core-fleet-black-overlay-05: rgba(25, 33, 71, 0.05);
   --loading-overlay: rgba(255, 255, 255, 0.8);
+
+  // Dropdown menu outline — transparent in light mode (drop-shadow alone is
+  // enough); a 1px gray ring in dark mode where the shadow disappears.
+  --dropdown-menu-outline: transparent;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,20 +112,20 @@ body.dark-mode {
   //   Base #181a1f → Surface-0 #1e2128 → Surface-1 #252830
   //   → Surface-2 #32363e → Surface-3 #42464f
   --core-fleet-black: #e2e4ea;
-  --core-fleet-green: #00C28B;
+  --core-fleet-green: #00c28b;
   --core-fleet-white: #1a1c21;
-  --ui-fleet-black-75: #BEBEBF;
-  --ui-fleet-black-50: #87888B;
+  --ui-fleet-black-75: #bebebf;
+  --ui-fleet-black-50: #87888b;
   --ui-fleet-black-33: #636777;
   --ui-fleet-black-25: #42464f;
   --ui-fleet-black-10: #474c58;
-  --ui-fleet-black-5: #25272D;
+  --ui-fleet-black-5: #25272d;
 
   // Secondary / interaction
   --ui-fleet-black-75-over: #c5c7d1;
   --ui-fleet-black-75-down: #d5d7de;
-  --core-fleet-green-over: #01A889;
-  --core-fleet-green-down: #02BE9C;
+  --core-fleet-green-over: #01a889;
+  --core-fleet-green-down: #02be9c;
   --ui-fleet-black-5-down: #2c2f37;
 
   // Core accent — slightly brighter for dark-bg contrast
@@ -137,7 +146,7 @@ body.dark-mode {
   --ui-shadow: #32363e;
   --ui-vibrant-blue-50: rgba(123, 121, 255, 0.3);
   --ui-vibrant-blue-25: #282736;
-  --ui-vibrant-blue-10: #1e1f2a;
+  --ui-vibrant-blue-10: #2c2f37;
   --tooltip-bg: #353940;
 
   // Notifications & status — slightly brighter
@@ -148,6 +157,11 @@ body.dark-mode {
   --ui-info: #7b79ff;
   --ui-yellow-banner: #2e291d;
   --ui-yellow-banner-outline: #4e4125;
+
+  // Toast surfaces — muted in dark mode so the large filled fill is easy on
+  // the eyes against the darkened UI.
+  --ui-success-toast-bg: #2d8f5f;
+  --ui-error-toast-bg: #a8525f;
 
   // TS COLORS aliases
   --core-fleet-red: #ff7a9a;
@@ -168,7 +182,6 @@ body.dark-mode {
   // Gradients — slightly lighter top for subtle depth
   --gradient-background: #202226;
 
-
   // Button hover / active
   --core-vibrant-red-over: #ff8da5;
   --core-vibrant-red-down: #e07090;
@@ -186,6 +199,8 @@ body.dark-mode {
   --core-fleet-black-overlay-40: rgba(0, 0, 0, 0.6);
   --core-fleet-black-overlay-05: rgba(226, 228, 234, 0.06);
   --loading-overlay: rgba(24, 26, 31, 0.8);
+
+  --dropdown-menu-outline: var(--ui-fleet-black-10);
 }
 
 // =============================================================================
@@ -241,6 +256,8 @@ $ui-error: var(--ui-error);
 $ui-info: var(--ui-info);
 $ui-yellow-banner: var(--ui-yellow-banner);
 $ui-yellow-banner-outline: var(--ui-yellow-banner-outline);
+$ui-success-toast-bg: var(--ui-success-toast-bg);
+$ui-error-toast-bg: var(--ui-error-toast-bg);
 
 // Rainbow
 $rainbow-orange: var(--rainbow-orange);
@@ -285,13 +302,6 @@ $dark-mode-nav-hover: #1f2228;
 
 // Opaque colors for table shadows — compile-time SCSS math, not themed.
 // These are subtle edge effects; dark-mode polish can refine them later.
-$ui-vibrant-blue-10-alpha: (255-240)/255; // rgba(241, 240, 255)
-$ui-vibrant-blue-10-opaque: rgba(
-  (241-240) / $ui-vibrant-blue-10-alpha,
-  (240-240) / $ui-vibrant-blue-10-alpha,
-  (255-240) / $ui-vibrant-blue-10-alpha,
-  $ui-vibrant-blue-10-alpha
-);
 $ui-off-white-alpha: (255-249)/255; // rgba(249, 250, 252)
 $ui-off-white-opaque: rgba(
   (249-249) / $ui-off-white-alpha,

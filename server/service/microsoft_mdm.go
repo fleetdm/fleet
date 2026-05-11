@@ -2039,6 +2039,7 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 		// activate the ESP and block the device during OOBE. These must be sent
 		// immediately -- if we wait for orbit, OOBE progresses past the ESP window.
 		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
+		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
 		holdCmds := []*mdm_types.SyncMLCmd{
 			// Create the user-scope DMClient Provider tree before any user-scope writes. Verified on Win11 26200
 			// in the Entra-join-during-OOBE flow without an Autopilot deployment profile: the user-scope
@@ -2066,6 +2067,10 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
+			// PolicyProviders/{providerID} is a dynamic node -- must be created with Add before its children can be set with Replace.
+			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
+			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
+			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
 		}
 		for _, cmd := range holdCmds {
 			cmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
@@ -2076,11 +2081,20 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	// Orbit has linked the host UUID. Transition to Active so handleESPRelease
 	// can finalize and release the device.
 	svc.logger.DebugContext(ctx, "ESP: orbit linked, transitioning to active", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
-	if _, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
-		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive); err != nil {
+	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
+		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "set awaiting configuration to active")
 	}
-	return nil, nil
+	if !transitioned {
+		return nil, nil
+	}
+
+	// Mark DevicePreparation as completed to advance the ESP phase.
+	dpCmd := newSyncMLCmdInt(fleet.CmdReplace,
+		fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", providerID), "3")
+	dpCmd.CmdID = mdm_types.CmdID{Value: uuid.New().String()}
+	return []*mdm_types.SyncMLCmd{dpCmd}, nil
 }
 
 // handleESPRelease handles awaiting_configuration=Active. It waits for all profiles and setup experience items to reach
@@ -2452,6 +2466,14 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 		// per-software-item progress state that Fleet cannot populate today; until that gap is closed (documented in
 		// https://github.com/fleetdm/fleet/issues/43776), the timeout trigger above is the only mechanism that
 		// reliably surfaces the failure UI for these enrollments.
+		//
+		// TODO: replace this empirical hack with documented per-tracker InstallationState=4 once orbit reports
+		// setup-experience progress via the LocalMDM channel (subtask
+		// https://github.com/fleetdm/fleet/issues/43776). At that point each setup-experience software item becomes
+		// a TrackedResourceTypes/{tracker} on the device, a failed install reports InstallationError on its tracker,
+		// and the ESP renders the failure UI natively from per-tracker state -- no timeout trick required. Setting
+		// InstallationState=4 on the parent PolicyProviders node alone (as we tested) does NOT escalate the UI
+		// without trackers underneath, which is why we keep the timeout-based approach for now.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
@@ -2462,11 +2484,13 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 	return cmds
 }
 
-// buildESPReleaseCommands builds SyncML commands that release the device from the ESP. ServerHasFinishedProvisioning
-// is written at both Device and User scopes to complete both the Device setup and the Account setup phases of the
-// ESP.
+// buildESPReleaseCommands builds SyncML commands that release the device from the ESP. The release path advances
+// DevicePreparation to "complete" and signals ServerHasFinishedProvisioning at both Device and User scopes to
+// complete both the Device setup and Account setup phases of the ESP so Windows proceeds to login.
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
+		newSyncMLCmdInt(fleet.CmdReplace,
+			fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s/InstallationState", provID), "3"),
 		newSyncMLCmdBool(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/ServerHasFinishedProvisioning", provID), "true"),
 		newSyncMLCmdBool(fleet.CmdReplace,

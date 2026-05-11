@@ -1384,12 +1384,15 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 
-		// At orbit-link transition, no SyncML is returned: handleESPHoldOrTransition
-		// only flips awaiting_configuration to Active. ESP release is signaled later
-		// via ServerHasFinishedProvisioning from buildESPReleaseCommands.
+		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
+		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
+		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
+		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
 		cmds, err := svc.getESPCommands(t.Context(), device)
 		require.NoError(t, err)
-		assert.Empty(t, cmds)
+		require.Len(t, cmds, 1)
+		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
 		assert.True(t, transitioned)
 	})
 

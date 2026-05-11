@@ -415,30 +415,39 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
 	var canceled []fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
-		var execIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
-			return ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
-		}
-
-		canceled = make([]fleet.ActivityDetails, 0, len(execIDs))
-		for i, execID := range execIDs {
-			// only the last cancellation triggers activation of the next activity; the others
-			// would activate something that is about to be canceled in the next iteration.
-			// Technically we could always pass "false" as there shouldn't be any activity
-			// at the end, but there's no harm in doing it just in case a race could happen.
-			activateNext := i == len(execIDs)-1
-			details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "cancel upcoming activity")
-			}
-			canceled = append(canceled, details)
-		}
-		return nil
+		var err error
+		canceled, err = ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID)
+		return err
 	}); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "batch cancel upcoming activities transaction")
 	}
 
+	return canceled, nil
+}
+
+// batchCancelAllHostUpcomingActivities is the tx-aware variant of
+// BatchCancelAllHostUpcomingActivities. Call this from within a surrounding
+// withTx/withRetryTxx callback to keep cancellations atomic with the caller's other writes.
+func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, tx sqlx.ExtContext, hostID uint) ([]fleet.ActivityDetails, error) {
+	const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
+	var execIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
+	}
+
+	canceled := make([]fleet.ActivityDetails, 0, len(execIDs))
+	for i, execID := range execIDs {
+		// only the last cancellation triggers activation of the next activity; the others
+		// would activate something that is about to be canceled in the next iteration.
+		// Technically we could always pass "false" as there shouldn't be any activity
+		// at the end, but there's no harm in doing it just in case a race could happen.
+		activateNext := i == len(execIDs)-1
+		details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel upcoming activity")
+		}
+		canceled = append(canceled, details)
+	}
 	return canceled, nil
 }
 

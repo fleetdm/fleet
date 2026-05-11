@@ -2051,6 +2051,40 @@ describe("Host Actions Dropdown", () => {
       });
     });
 
+    it("enables the action when status is pending but password is available (e.g. viewed-and-waiting)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="pending"
+          managedAccountPasswordAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toBeInTheDocument();
+      expect(option).not.toHaveAttribute("aria-disabled", "true");
+    });
+
     it("renders the action for company-owned ADE enrollment status", async () => {
       const render = createCustomRenderer({
         context: {
