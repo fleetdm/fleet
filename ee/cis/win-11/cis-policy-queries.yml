@@ -11505,3 +11505,111 @@ spec:
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit server does not support encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the SMB client will log events when the SMB server doesn't support encryption. Organizations should be aware of all unencrypted SMB traffic in their environment.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support encryption'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportEncryption' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Audit server does not support signing' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines whether the SMB client will log events when the SMB server doesn't support signing. Organizations should be aware of all unsigned SMB traffic in their environment.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support signing'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportSigning' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable insecure guest logons' is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting determines if the SMB client will allow insecure guest logons to an SMB server. Insecure guest logons are used by file servers to allow unauthenticated access to shared folders.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Enable insecure guest logons'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AllowInsecureGuestAuth' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Enable remote mailslots' (Lanman Workstation) is set to 'Disabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls whether the SMB client will use remote mailslots over Multiple UNC Provider (MUP). The remote mailslots protocol is an old, simple, unreliable, and insecure inter-process communication method.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Enable remote mailslots'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\EnableMailslots' AND data = 0;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Workstation) is set to 'Enabled: 3.1.1'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy settings controls the minimum version of Server Message Block (SMB) protocol that can be used on the system. The newer SMB v3 is supported on all currently supported Microsoft Windows OSes.
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 3.1.1:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Mandate the minimum version of SMB'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\MinSmb2Dialect' AND CAST(data AS INTEGER) = 785;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
+---
+apiVersion: v1
+kind: policy
+spec:
+  name: CIS - Ensure 'Require Encryption' is set to 'Enabled'
+  platforms: win11
+  platform: windows
+  description: |
+    This policy setting controls whether the SMB client will require encryption. The SMB server must support and have SMB encryption enabled (requires SMB v3.0 or later).
+  resolution: |
+    Automatic method:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
+    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Require Encryption'
+  query: |
+    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\RequireEncryption' AND data = 1;
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level1
+  contributors: fleet
