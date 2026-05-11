@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -282,16 +281,16 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			if caName == "" {
 				caName = "non_proxied"
 			}
+			// Type is written as NULL by insertHostMDMManagedCertDB —
+			// Fleet wasn't in the issuance path so it doesn't know the
+			// CA type. The struct's Type field is left unset.
 			hostMDMManagedCertsToInsert = append(hostMDMManagedCertsToInsert, &fleet.MDMManagedCertificate{
 				HostUUID:       hostUUID,
 				ProfileUUID:    profileUUID,
 				NotValidBefore: &bestMatch.NotValidBefore,
 				NotValidAfter:  &bestMatch.NotValidAfter,
 				CAName:         caName,
-				// Type intentionally left zero (empty string) — Fleet wasn't
-				// in the issuance path so it doesn't know the CA type.
-				// Persisted as NULL by insertHostMDMManagedCertDB.
-				Serial: ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+				Serial:         ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
 			})
 		}
 	}
@@ -687,26 +686,23 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 }
 
 // insertHostMDMManagedCertDB creates host_mdm_managed_certificates rows for
-// non-proxied SCEP/ACME flows discovered via cert ingestion. Empty Type is
-// converted to SQL NULL since the column's enum doesn't accept empty strings.
-// Uses INSERT IGNORE so a row created concurrently by another transaction
-// (e.g., a SCEP proxy issuance) doesn't cause a duplicate-key error here —
-// the matcher's UPDATE pass picks up that row on the next ingestion call.
+// non-proxied SCEP/ACME flows discovered via cert ingestion. type is always
+// written as NULL because Fleet wasn't in the issuance path and doesn't know
+// the CA type. Uses INSERT IGNORE so a row created concurrently by another
+// transaction (e.g., a SCEP proxy issuance) doesn't cause a duplicate-key
+// error here — the matcher's UPDATE pass picks up that row on the next
+// ingestion call.
 func insertHostMDMManagedCertDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
 	if len(certs) == 0 {
 		return nil
 	}
 	for _, c := range certs {
-		var typeArg any = sql.NullString{Valid: false}
-		if c.Type != "" {
-			typeArg = string(c.Type)
-		}
 		_, err := tx.ExecContext(ctx, `
 			INSERT IGNORE INTO host_mdm_managed_certificates
 				(host_uuid, profile_uuid, ca_name, type,
 				 not_valid_before, not_valid_after, serial)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			c.HostUUID, c.ProfileUUID, c.CAName, typeArg,
+			VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+			c.HostUUID, c.ProfileUUID, c.CAName,
 			c.NotValidBefore, c.NotValidAfter, c.Serial)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "insert host mdm managed certificate")
