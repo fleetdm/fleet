@@ -5195,6 +5195,8 @@ Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM t
 
 Retrieves the certificates installed on a host.
 
+For macOS hosts, certificates from MDM-delivered profiles containing an ACME payload are retrieved via the MDM `CertificateList` command on each profile install and re-install (not on a recurring cadence). Hardware-bound ACME certificates that aren't visible to osquery first appear in the response after the host installs or re-installs the delivering profile.
+
 `GET /api/v1/fleet/hosts/:id/certificates`
 
 #### Parameters
