@@ -53,7 +53,9 @@ describe("Advanced settings — Activity & data retention", () => {
     expect(
       screen.getByLabelText(/Disable hosts online historical reporting/i)
     ).not.toBeChecked();
-    expect(screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)).not.toBeChecked();
+    expect(
+      screen.getByLabelText(/Disable vulnerability exposure historical reporting/i)
+    ).not.toBeChecked();
   });
 
   it("starts with the checkbox checked when collection is disabled in config", () => {
