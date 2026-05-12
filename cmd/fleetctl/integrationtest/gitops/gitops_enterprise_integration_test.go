@@ -3968,7 +3968,7 @@ reports:
 
 	team, err := s.DS.TeamByName(ctx, teamName)
 	require.NoError(t, err)
-	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, pols, 3)
 	policyIDsByName := map[string]uint{}
@@ -3985,7 +3985,7 @@ reports:
 		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
 	}))
 
-	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
 
