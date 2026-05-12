@@ -251,10 +251,10 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		ds.TeamPolicyFunc = func(ctx context.Context, tID uint, id uint) (*fleet.Policy, error) {
 			return freshPolicy(), nil
 		}
-		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, []*fleet.Policy, error) {
+		ds.ListTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, iopts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, []*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil, nil
 		}
-		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string) ([]*fleet.Policy, error) {
+		ds.ListMergedTeamPoliciesFunc = func(ctx context.Context, tID uint, opts fleet.ListOptions, automationFilter string, platform string) ([]*fleet.Policy, error) {
 			return []*fleet.Policy{freshPolicy()}, nil
 		}
 		ds.SavePolicyFunc = func(ctx context.Context, p *fleet.Policy, _ bool, _ bool) error {
@@ -353,7 +353,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "")
+		teamPols, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, false, "", "")
 		require.NoError(t, err)
 		require.Len(t, teamPols, 1)
 		requireAutomationsPopulated(t, teamPols[0])
@@ -364,7 +364,7 @@ func TestTeamPolicyAutomationsPopulated(t *testing.T) {
 		svc, baseCtx := newTestService(t, ds, nil, nil)
 		ctx := adminCtx(baseCtx)
 
-		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "")
+		merged, _, err := svc.ListTeamPolicies(ctx, teamID, fleet.ListOptions{}, fleet.ListOptions{}, true, "", "")
 		require.NoError(t, err)
 		require.Len(t, merged, 1)
 		requireAutomationsPopulated(t, merged[0])
