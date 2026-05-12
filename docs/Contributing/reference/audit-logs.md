@@ -2576,7 +2576,7 @@ This activity contains the following fields:
 - "host_display_name": Display name of the host.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "request_type": the type of custom MDM command.
-- "platform": the platform of the host ("darwin", "android", "windows", or "linux").
+- "platform": the platform of the host ("darwin" or "windows").
 
 #### Example
 
