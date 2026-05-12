@@ -41,7 +41,10 @@ const PolicyAutomations = ({
   const hasPatchSoftware = !!storedPolicy.patch_software;
   const hasSoftwareAutomation = !!storedPolicy.install_software;
   const showCtaCard =
-    isPatchPolicy && hasPatchSoftware && !hasSoftwareAutomation && onAddAutomation;
+    isPatchPolicy &&
+    hasPatchSoftware &&
+    !hasSoftwareAutomation &&
+    onAddAutomation;
 
   const automationRows: IAutomationRow[] = [];
 
