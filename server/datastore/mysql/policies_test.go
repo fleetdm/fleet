@@ -6740,7 +6740,7 @@ func testPolicyLabelMembershipCleanup(t *testing.T, ds *Datastore) {
 		},
 	})
 	require.NoError(t, err)
-	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	allPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	var freshPolicy *fleet.Policy
 	for _, p := range allPolicies {
@@ -8200,7 +8200,7 @@ func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Data
 	})
 	require.NoError(t, err)
 
-	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err := ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, "Adobe Reader up to date", policies[0].Name)
@@ -8222,7 +8222,7 @@ func testApplyPolicySpecsRenamePatchPolicyRegression43687(t *testing.T, ds *Data
 	require.NoError(t, err)
 
 	// The same row must now carry the new name (update, not delete + recreate).
-	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "")
+	policies, _, err = ds.ListTeamPolicies(ctx, team.ID, fleet.ListOptions{}, fleet.ListOptions{}, "", "")
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, originalID, policies[0].ID)

@@ -30263,7 +30263,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	invalidName := "batch-invalid-" + t.Name()
 
 	assertNonePersisted := func(label string) {
-		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+		policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 		require.NoError(t, err)
 		for _, p := range policies {
 			require.NotEqual(t, validAnyName, p.Name, "%s: no spec from rejected batch should persist", label)
@@ -30306,7 +30306,7 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 		},
 	}, http.StatusOK)
 
-	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
+	policies, err := s.ds.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 	require.NoError(t, err)
 	byName := make(map[string]*fleet.Policy, len(policies))
 	for _, p := range policies {
