@@ -109,6 +109,26 @@ func TestParseUXPPlugin(t *testing.T) {
 		assert.Empty(t, row[colVersion])
 	})
 
+	t.Run("manifest with empty name and id falls back to dir name", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		pluginPath := filepath.Join(dir, "dirname-fallback")
+		require.NoError(t, os.MkdirAll(pluginPath, 0o755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(pluginPath, "manifest.json"),
+			[]byte(`{"version": "1.0"}`),
+			0o644,
+		))
+
+		sp := scanPath{extensionType: "UXP"}
+		row := tbl.parseUXPPlugin(pluginPath, sp)
+		require.NotNil(t, row)
+
+		assert.Equal(t, "dirname-fallback", row[colName])
+		assert.Equal(t, "1.0", row[colVersion])
+		assert.Empty(t, row[colBundleID])
+	})
+
 	t.Run("manifest with id but no name uses id", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
@@ -230,4 +250,87 @@ func TestScanEntry(t *testing.T) {
 		row := tbl.scanEntry(filepath.Join(dir, ".DS_Store"), entries[0], sp)
 		assert.Nil(t, row)
 	})
+}
+
+func TestOversizedManifestFallback(t *testing.T) {
+	t.Parallel()
+
+	tbl := &adobePluginsTable{logger: zerolog.Nop()}
+
+	t.Run("CEP manifest over 1MB falls back to dir name", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		pluginPath := filepath.Join(dir, "huge-manifest")
+		require.NoError(t, os.MkdirAll(filepath.Join(pluginPath, "CSXS"), 0o755))
+
+		// Write a manifest larger than maxManifestSize (1MB)
+		bigData := make([]byte, maxManifestSize+100)
+		copy(bigData, []byte("<ExtensionManifest>"))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(pluginPath, "CSXS", "manifest.xml"),
+			bigData,
+			0o644,
+		))
+
+		sp := scanPath{extensionType: "CEP"}
+		row := tbl.parseCEPPlugin(pluginPath, sp)
+		require.NotNil(t, row)
+
+		assert.Equal(t, "huge-manifest", row[colName])
+		assert.Empty(t, row[colVersion])
+		assert.Equal(t, "CEP", row[colExtensionType])
+	})
+
+	t.Run("UXP manifest over 1MB falls back to dir name", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		pluginPath := filepath.Join(dir, "huge-uxp")
+		require.NoError(t, os.MkdirAll(pluginPath, 0o755))
+
+		bigData := make([]byte, maxManifestSize+100)
+		copy(bigData, []byte(`{"name": "Should Not Parse"`))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(pluginPath, "manifest.json"),
+			bigData,
+			0o644,
+		))
+
+		sp := scanPath{extensionType: "UXP"}
+		row := tbl.parseUXPPlugin(pluginPath, sp)
+		require.NotNil(t, row)
+
+		assert.Equal(t, "huge-uxp", row[colName])
+		assert.Empty(t, row[colVersion])
+		assert.Equal(t, "UXP", row[colExtensionType])
+	})
+}
+
+func TestSymlinkSkipped(t *testing.T) {
+	t.Parallel()
+
+	tbl := &adobePluginsTable{logger: zerolog.Nop()}
+
+	dir := t.TempDir()
+	// Create a real directory and a symlink to it
+	realDir := filepath.Join(dir, "real-plugin")
+	require.NoError(t, os.MkdirAll(realDir, 0o755))
+	symlinkPath := filepath.Join(dir, "symlink-plugin")
+	require.NoError(t, os.Symlink(realDir, symlinkPath))
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+
+	sp := scanPath{extensionType: "CEP"}
+	var skipped, kept int
+	for _, entry := range entries {
+		row := tbl.scanEntry(filepath.Join(dir, entry.Name()), entry, sp)
+		if row == nil {
+			skipped++
+		} else {
+			kept++
+		}
+	}
+
+	assert.Equal(t, 1, skipped, "symlink should be skipped")
+	assert.Equal(t, 1, kept, "real directory should produce a row")
 }

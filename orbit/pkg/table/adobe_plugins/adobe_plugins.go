@@ -134,6 +134,10 @@ func (t *adobePluginsTable) generate(ctx context.Context, queryContext table.Que
 	seen := make(map[string]struct{})
 
 	for _, sp := range paths {
+		if ctx.Err() != nil {
+			return results, nil
+		}
+
 		matches, err := filepath.Glob(sp.basePath)
 		if err != nil {
 			t.logger.Debug().Err(err).Str("path", sp.basePath).Msg("glob error")
@@ -141,6 +145,10 @@ func (t *adobePluginsTable) generate(ctx context.Context, queryContext table.Que
 		}
 
 		for _, dir := range matches {
+			if ctx.Err() != nil {
+				return results, nil
+			}
+
 			entries, err := os.ReadDir(dir)
 			if err != nil {
 				t.logger.Debug().Err(err).Str("dir", dir).Msg("cannot read directory")
