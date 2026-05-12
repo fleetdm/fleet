@@ -90,4 +90,10 @@ software:
     # Linux apps
   fleet_maintained_apps:
     # macOS apps
+    - slug: docker-desktop/darwin # Docker for macOS (ARM)
+      self_service: true
+      labels_include_any:
+        - Department - Engineering
+      categories:
+        - Developer tools
     # Windows apps
