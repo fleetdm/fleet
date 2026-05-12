@@ -60,9 +60,7 @@ describe("PolicyAutomations", () => {
         />
       );
 
-      expect(
-        screen.getByText(/Automatically patch Zoom/)
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Automatically patch Zoom/)).toBeInTheDocument();
       expect(
         screen.getByRole("button", { name: /Add automation/ })
       ).toBeInTheDocument();
@@ -79,9 +77,7 @@ describe("PolicyAutomations", () => {
         />
       );
 
-      await user.click(
-        screen.getByRole("button", { name: /Add automation/ })
-      );
+      await user.click(screen.getByRole("button", { name: /Add automation/ }));
       expect(onAddAutomation).toHaveBeenCalledTimes(1);
     });
 
@@ -128,9 +124,7 @@ describe("PolicyAutomations", () => {
         />
       );
 
-      expect(
-        screen.queryByText(/Automatically patch/)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Automatically patch/)).not.toBeInTheDocument();
     });
 
     it("hides the CTA card when patch_software is not set", () => {
@@ -142,9 +136,7 @@ describe("PolicyAutomations", () => {
         />
       );
 
-      expect(
-        screen.queryByText(/Automatically patch/)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Automatically patch/)).not.toBeInTheDocument();
     });
 
     it("hides the CTA card when install_software is already set", () => {
@@ -161,9 +153,7 @@ describe("PolicyAutomations", () => {
         />
       );
 
-      expect(
-        screen.queryByText(/Automatically patch/)
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/Automatically patch/)).not.toBeInTheDocument();
     });
   });
 });
