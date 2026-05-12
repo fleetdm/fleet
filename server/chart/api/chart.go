@@ -85,7 +85,7 @@ type DatasetStore interface {
 	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
 	// titles, unioned with all critical OS vulnerabilities. Used by the CVE
 	// collector to scope collection to only the CVEs the chart actually
-	// renders. See TODO(iteration-2) in the mysql implementation.
+	// renders. See TODO in the mysql implementation.
 	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket

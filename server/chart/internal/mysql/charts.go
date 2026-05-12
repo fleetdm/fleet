@@ -102,19 +102,9 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 	return ids, nil
 }
 
-// TODO(iteration-2): the matcher list and TrackedCriticalCVEs exist only
-// until user-configurable CVE filtering ships on the dashboard. Today the
-// curated set is used twice — to scope what the CVE collector writes (so
-// host_scd_data only carries rows for tracked CVEs) and to scope what the
-// chart service reads. The write-side scoping is a temporary measure while
-// per-row blob storage is still dense; once roaring-bitmap encoding lands,
-// collection can go back to recording all CVEs and the read-side filter
-// alone is enough. When user-configurable filtering ships, delete
-// trackedCVESoftwareMatchers, TrackedCriticalCVEs, its entries on the
-// Datastore/DatasetStore interfaces, the cves argument to
-// AffectedHostIDsByCVE, the TrackedCriticalCVEs call in CVEDataset.Collect,
-// and the `if metric == "cve"` branch in the chart service. See change
-// `cve-chart-demo-filter`.
+// The matcher list and TrackedCriticalCVEs exist as performance optimizations.
+// TODO: implement bitmap compression so we can collect more CVE data.
+// TODO: implement more filtering options for users.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source.
@@ -161,9 +151,8 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 // and merges the results into a single map. Duplicates across sources are
 // harmless — the downstream HostIDsToBlob setBit is idempotent.
 //
-// nil or empty cves returns an empty map without running any query. Callers
-// (today only CVEDataset.Collect) must pre-compute the set of CVEs they want
-// to collect for — see TrackedCriticalCVEs.
+// nil or empty cves returns an empty map without running any query.
+// TODO: support `nil` meaning "all CVEs" once bitmap compression is implemented.
 func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
 	result := make(map[string][]uint)
 	if len(cves) == 0 {
@@ -221,7 +210,7 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 // distinguish "filter resolved to empty" from "no filter requested" (nil).
 // See GetSCDData for how empty vs nil is interpreted at the query layer.
 //
-// TODO(iteration-2): replace with user-configurable filtering. See the
+// TODO: replace with user-configurable filtering. See the
 // matcher-list comment above.
 func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
 	const criticalCVSS = 9.0
