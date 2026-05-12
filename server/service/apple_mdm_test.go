@@ -2529,6 +2529,9 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
+	}
 
 	type testCase struct {
 		name     string
@@ -2853,6 +2856,26 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 	}
 }
 
+func TestMDMBatchSetAppleProfilesDryRunPayloadScopeConflictValidation(t *testing.T) {
+	svc, ctx, ds, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
+		return []*fleet.MDMConfigProfilePayload{}, nil, nil
+	}
+
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return errors.New("scope conflict")
+	}
+
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{mobileconfigForTest("N1", "I1")}, true, false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "scope conflict")
+	require.True(t, ds.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked)
+}
+
 func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	svc, ctx, ds, svcOpts := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 
@@ -2871,6 +2894,9 @@ func TestMDMBatchSetAppleProfilesBoolArgs(t *testing.T) {
 	}
 	ds.ListMDMConfigProfilesFunc = func(ctx context.Context, tid *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
+	}
+	ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+		return nil
 	}
 
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})

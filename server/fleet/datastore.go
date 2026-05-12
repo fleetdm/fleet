@@ -3138,6 +3138,12 @@ type Datastore interface {
 	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
 	// Host activities will not be cleared if preserveHostActivities is true
 	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
+	// VerifyAppleConfigProfileScopesDoNotConflict checks scopes against existing profiles across the entire DB
+	// to ensure there are no conflicts where an existing profile with the same identifier
+	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
+	// to allow for scope changes when a host switches teams or when a profile is updated.
+	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 }
 
 type AndroidDatastore interface {

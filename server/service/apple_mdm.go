@@ -2988,9 +2988,16 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
+	// Verify profile scopes conflict before stopping dry-run, but also before entering the transaction in BatchSetMDMAppleProfiles
+	err = svc.ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, profs)
+	if err != nil {
+		return err
+	}
+
 	if dryRun {
 		return nil
 	}
+
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
 	}
