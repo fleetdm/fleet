@@ -273,3 +273,64 @@ func TestIsScriptPackage(t *testing.T) {
 		})
 	}
 }
+
+func TestIconChangesDedupesDuplicateTitleRows(t *testing.T) {
+	titleID := uint(100)
+	hash := "abc123"
+	localPath := "/tmp/icon.png"
+
+	packages := []SoftwarePackageResponse{
+		{
+			TeamID:        ptr.Uint(1),
+			TitleID:       &titleID,
+			HashSHA256:    "active-pkg-sha",
+			IconHash:      hash,
+			IconFilename:  "icon.png",
+			LocalIconHash: hash,
+			LocalIconPath: localPath,
+		},
+		{
+			TeamID:       ptr.Uint(1),
+			TitleID:      &titleID,
+			HashSHA256:   "inactive-pkg-sha",
+			IconHash:     hash,
+			IconFilename: "icon.png",
+		},
+	}
+
+	changes := IconChanges{}.WithSoftware(packages, nil)
+
+	require.Empty(t, changes.TitleIDsToRemoveIconsFrom)
+	require.Empty(t, changes.IconsToUpload)
+	require.Empty(t, changes.IconsToUpdate)
+}
+
+func TestIconChangesDedupPrefersPopulatedRow(t *testing.T) {
+	titleID := uint(100)
+	hash := "abc123"
+	localPath := "/tmp/icon.png"
+
+	packages := []SoftwarePackageResponse{
+		{
+			TeamID:       ptr.Uint(1),
+			TitleID:      &titleID,
+			HashSHA256:   "inactive-pkg-sha",
+			IconHash:     hash,
+			IconFilename: "icon.png",
+		},
+		{
+			TeamID:        ptr.Uint(1),
+			TitleID:       &titleID,
+			HashSHA256:    "active-pkg-sha",
+			IconHash:      hash,
+			IconFilename:  "icon.png",
+			LocalIconHash: hash,
+			LocalIconPath: localPath,
+		},
+	}
+
+	changes := IconChanges{}.WithSoftware(packages, nil)
+	require.Empty(t, changes.TitleIDsToRemoveIconsFrom)
+	require.Empty(t, changes.IconsToUpload)
+	require.Empty(t, changes.IconsToUpdate)
+}

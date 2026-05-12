@@ -32,7 +32,7 @@ func TestBasic(t *testing.T) {
 	client := NewFleetDMClient(apiURL, apiKey)
 	require.NotNil(t, client)
 
-	// Create a nice default team
+	// Create a nice default fleet (formerly "team")
 	teamName := randTeam()
 	team, err := client.CreateTeam(teamName, defaultDescription)
 	require.NoError(t, err)

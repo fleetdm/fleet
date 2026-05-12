@@ -229,10 +229,12 @@ const routes = (
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
-              to="integrations/mdm/abm"
+              to="integrations/mdm/ab"
             />
+            {/* Redirect old /abm URL to /ab */}
+            <Redirect from="integrations/mdm/abm" to="integrations/mdm/ab" />
             <Route
-              path="integrations/mdm/abm"
+              path="integrations/mdm/ab"
               component={AppleBusinessManagerPage}
             />
             <Route
@@ -278,15 +280,6 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageHostsPage} />
             <Route path="manage/labels/:label_id" component={ManageHostsPage} />
-            <Route path="manage/:active_label" component={ManageHostsPage} />
-            <Route
-              path="manage/labels/:label_id/:active_label"
-              component={ManageHostsPage}
-            />
-            <Route
-              path="manage/:active_label/labels/:label_id"
-              component={ManageHostsPage}
-            />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
               <Route path="details" component={HostDetailsPage} />

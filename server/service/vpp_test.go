@@ -77,8 +77,8 @@ func TestVPPAuth(t *testing.T) {
 		{"global observer team", test.UserObserver, ptr.Uint(1), true, true, true},
 		{"global observer+ no team", test.UserObserverPlus, nil, true, true, true},
 		{"global observer+ team", test.UserObserverPlus, ptr.Uint(1), true, true, true},
-		{"global gitops no team", test.UserGitOps, nil, true, false, false},
-		{"global gitops team", test.UserGitOps, ptr.Uint(1), true, false, false},
+		{"global gitops no team", test.UserGitOps, nil, false, false, false},
+		{"global gitops team", test.UserGitOps, ptr.Uint(1), false, false, false},
 		{"team admin no team", test.UserTeamAdminTeam1, nil, true, true, false},
 		{"team admin team", test.UserTeamAdminTeam1, ptr.Uint(1), false, false, false},
 		{"team admin other team", test.UserTeamAdminTeam2, ptr.Uint(1), true, true, false},
@@ -92,7 +92,7 @@ func TestVPPAuth(t *testing.T) {
 		{"team observer+ team", test.UserTeamObserverPlusTeam1, ptr.Uint(1), true, true, true},
 		{"team observer+ other team", test.UserTeamObserverPlusTeam2, ptr.Uint(1), true, true, true},
 		{"team gitops no team", test.UserTeamGitOpsTeam1, nil, true, true, false},
-		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), true, false, false},
+		{"team gitops team", test.UserTeamGitOpsTeam1, ptr.Uint(1), false, false, false},
 		{"team gitops other team", test.UserTeamGitOpsTeam2, ptr.Uint(1), true, true, false},
 	}
 
@@ -126,7 +126,7 @@ func TestVPPAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailRead, err)
 			}
 
-			_, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
+			_, _, err = svc.AddAppStoreApp(ctx, tt.teamID, fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "123", Platform: fleet.IOSPlatform}})
 			if tt.teamID == nil {
 				require.Error(t, err)
 			} else {

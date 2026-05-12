@@ -9,17 +9,17 @@ To configure SSO, follow steps for your IdP and then complete [Fleet configurati
 
 ## Okta
 
+> Okta added a built-in Fleet app and Fleet is testing it internally. Keep in mind that adding push groups will create new fleets. Currently, the best practice is to create a SAML app (instructions below).
+
 Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
 If you're configuring [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
-Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
-
 > Note that while setting up the SAML app in Okta, the Entity ID is called "Audience URI (SP Entity ID)", but after the app is set up, Okta labels this as "Audience Restriction".
 
-![Where to find SSO links for Fleet](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-retrieve-links.png)
+Once configured, you will need to retrieve the Identity Provider metadata URL either from **View Setup Instructions** from the **Identity Provider metadata** link within the application **Sign on** settings, or under the **SAML 2.0** section under **Metadata details**.
 
 > The Provider Sign-on URL within **View Setup Instructions** has a similar format as the Provider SAML Metadata URL, but this link provides a redirect to _sign into_ the application, not the metadata necessary for dynamic configuration.
 
@@ -181,7 +181,7 @@ Fleet can automatically create users using just-in-time (JIT) provisioning. To e
 
 When enabled, Fleet will automatically create an account when a user logs in for the first time with the configured SSO. The new account's email and full name are copied from the user data in the SSO response.
 
-By default, accounts created via JIT provisioning are assigned the [Global Observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below.
+By default, accounts created via JIT provisioning are assigned the [global observer role](https://fleetdm.com/docs/using-fleet/permissions). To assign different roles for accounts created via JIT provisioning, see [customization of user roles](#customization-of-user-roles) below. Fleet will assign role updates everytime a user logs in.
 
 For this to work correctly make sure that:
 
@@ -294,3 +294,4 @@ You can't edit the authentication method for your currently logged-in user. To e
 <meta name="title" value="Single sign-on (SSO)">
 <meta name="pageOrderInSection" value="200">
 <meta name="description" value="Learn how to configure single sign-on (SSO)">
+<meta name="keywordsForDocsearch" value="azure ad, just-in-time provisioning, deprovision users">

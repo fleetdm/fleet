@@ -1,0 +1,1 @@
+- Improved errors returned from API when running fleetctl commands by dropping path / status code.

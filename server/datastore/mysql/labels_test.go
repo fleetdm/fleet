@@ -107,6 +107,7 @@ func TestLabels(t *testing.T) {
 		{"ApplyLabelSpecsWithManualTeamLabels", testApplyLabelSpecsWithManualTeamLabels},
 		{"ApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam", testApplyLabelSpecsErrorsWhenLabelExistsOnAnotherTeam},
 		{"ApplyLabelSpecsManualNilHosts", testApplyLabelSpecsManualNilHosts},
+		{"ListLabelsOrderKeys", testListLabelsOrderKeys},
 		{"LabelMembershipHostIDs", testLabelMembershipHostIDs},
 	}
 	// call TruncateTables first to remove migration-created labels
@@ -3606,6 +3607,53 @@ func testApplyLabelSpecsManualNilHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, hosts, 1)
 	require.Equal(t, h1.ID, hosts[0].ID)
+}
+
+func testListLabelsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		err := ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{{Name: name, Query: "select 1"}})
+		require.NoError(t, err)
+	}
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	for _, key := range []string{
+		"id",
+		"created_at",
+		"updated_at",
+		"name",
+		"description",
+		"query",
+		"platform",
+		"label_type",
+		"label_membership_type",
+		"author_id",
+		"criteria",
+		"team_id",
+		"host_count",
+	} {
+		t.Run("order_"+key, func(t *testing.T) {
+			labels, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: key, PerPage: 100}, true)
+			require.NoError(t, err)
+			require.GreaterOrEqual(t, len(labels), 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "l.id; SELECT 1"}, false)
+		require.Error(t, err)
+	})
+
+	t.Run("page_pagination_with_allowed_key", func(t *testing.T) {
+		page0, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 0}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page0)
+		page1, err := ds.ListLabels(ctx, filter, fleet.ListOptions{OrderKey: "name", PerPage: 2, Page: 1}, false)
+		require.NoError(t, err)
+		require.NotEmpty(t, page1)
+		require.NotEqual(t, page0[0].Name, page1[0].Name)
+	})
 }
 
 func testLabelMembershipHostIDs(t *testing.T, ds *Datastore) {

@@ -53,7 +53,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
 | Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
-| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
 
 **Areas of expertise**:
 - MDM protocol & configuration

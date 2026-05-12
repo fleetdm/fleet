@@ -46,48 +46,15 @@
     justify-content: flex-end;
   }
 
-  &__theme-toggle {
+  &__theme-picker {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
     gap: $pad-small;
   }
 
-  &__theme-icon {
-    color: $ui-fleet-black-50;
-    flex-shrink: 0;
-  }
-
-  &__toggle {
-    transition: background-color 150ms ease-in-out;
-    background-color: $ui-fleet-black-50;
-    border-radius: 12px;
-    display: inline-block;
-    height: 20px;
-    min-width: 35px;
-    width: 35px;
-    position: relative;
-    flex-shrink: 0;
-    cursor: pointer;
-
-    &--active {
-      background-color: $core-fleet-green;
-    }
-  }
-
-  &__toggle-dot {
-    width: 16px;
-    height: 16px;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: left 150ms ease-in-out;
-    border-radius: 50%;
-    background-color: $core-fleet-white;
-
-    &--active {
-      left: 17px;
-    }
+  &__theme-picker-label {
+    font-size: $x-small;
+    font-weight: $bold;
   }
 
   &__version {

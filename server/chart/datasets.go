@@ -19,8 +19,8 @@ func (u *UptimeDataset) DefaultResolutionHours() int        { return 3 }
 func (u *UptimeDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategyAccumulate }
 func (u *UptimeDataset) DefaultVisualization() string       { return "checkerboard" }
 
-func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow))
+func (u *UptimeDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	hostIDs, err := store.FindRecentlySeenHostIDs(ctx, now.Add(-uptimeRecentlySeenWindow), disabledFleetIDs)
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,8 @@ func (c *CVEDataset) DefaultResolutionHours() int        { return 3 }
 func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStrategySnapshot }
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
-func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time) error {
-	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx)
+func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
+	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs)
 	if err != nil {
 		return err
 	}
