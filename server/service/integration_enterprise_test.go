@@ -18469,7 +18469,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18479,7 +18479,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18494,7 +18494,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			`SELECT count(1) FROM activity_past`,
 		)
 	})
-	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
+	require.Equal(t, activityCount+2, activityNewCount, "an activity should be created for each failed install attempt (including retries)")
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.
