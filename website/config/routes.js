@@ -1145,6 +1145,7 @@ module.exports.routes = {
   'GET /announcements/consolidate-multiple-tools-with-fleet': '/case-study/stripe',
   'GET /announcements/foursquare-quickly-migrates-to-fleet': '/case-study/foursquare',
 
+  'GET /downloads' : '/download',
   'GET /deals': '/partners#deals',
 
   // Shortlinks for texting friends, radio ads, etc
