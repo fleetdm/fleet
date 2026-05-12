@@ -62,8 +62,8 @@
   --ui-error-toast-bg: #d66c7b;
 
   // Flash message background surfaces (light mode)
-  --flash-success-bkg: #e2f4eb;
-  --flash-error-bkg: #f9e9eb;
+  --ui-success-flash-bg: #e2f4eb;
+  --ui-error-flash-bg: #f9e9eb;
 
   // TS COLORS aliases (match keys used in colors.ts for JS inline styles)
   --core-fleet-red: #ff5c83;
@@ -168,8 +168,8 @@ body.dark-mode {
   --ui-error-toast-bg: #a8525f;
 
   // Flash message background surfaces (dark mode)
-  --flash-success-bkg: #1f332e;
-  --flash-error-bkg: #36282e;
+  --ui-success-flash-bg: #1f332e;
+  --ui-error-flash-bg: #36282e;
 
   // TS COLORS aliases
   --core-fleet-red: #ff7a9a;
@@ -266,8 +266,8 @@ $ui-yellow-banner: var(--ui-yellow-banner);
 $ui-yellow-banner-outline: var(--ui-yellow-banner-outline);
 $ui-success-toast-bg: var(--ui-success-toast-bg);
 $ui-error-toast-bg: var(--ui-error-toast-bg);
-$flash-success-bkg: var(--flash-success-bkg);
-$flash-error-bkg: var(--flash-error-bkg);
+$ui-success-flash-bg: var(--ui-success-flash-bg);
+$ui-error-flash-bg: var(--ui-error-flash-bg);
 
 // Rainbow
 $rainbow-orange: var(--rainbow-orange);

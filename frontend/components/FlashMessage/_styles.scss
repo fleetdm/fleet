@@ -27,12 +27,12 @@
   pointer-events: auto;
 
   &--success {
-    background-color: $flash-success-bkg;
+    background-color: $ui-success-flash-bg;
     border-color: $ui-success;
   }
 
   &--error {
-    background-color: $flash-error-bkg;
+    background-color: $ui-error-flash-bg;
     border-color: $ui-error;
   }
 
