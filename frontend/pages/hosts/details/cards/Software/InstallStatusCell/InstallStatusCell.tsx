@@ -496,7 +496,7 @@ const InstallStatusCell = ({
     const isMissingLastInstallInfo =
       isAppleAppStoreApp && !software.app_store_app?.last_install;
 
-    // keep status clickable unless the install failed
+    // keep clickable except for App Store apps missing last_install (modal would be empty)
     const shouldOnClickBeDisabled =
       isMissingLastInstallInfo &&
       (software.status === "failed_install" || isInstalledInFleetAndUI);
