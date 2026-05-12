@@ -336,27 +336,15 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 			}
 		}
 
-		// nil = leave unchanged; empty = clear; non-empty = set. Apply the change
-		// to both the iOS and iPadOS rows so platform-specific installer-ID
-		// lookups stay in sync (a single .ipa upload created two rows).
+		// nil = leave unchanged; empty = clear; non-empty = set.
 		if payload.Configuration != nil {
-			ids, err := installerIDsForInHouseAppSibling(ctx, tx, payload.InstallerID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "looking up sibling in-house app row")
-			}
 			if len(payload.Configuration) == 0 {
-				query, args, err := sqlx.In(`DELETE FROM in_house_app_configurations WHERE in_house_app_id IN (?)`, ids)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build clear in-house app configuration query")
-				}
-				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, payload.InstallerID); err != nil {
 					return ctxerr.Wrap(ctx, err, "clearing in-house app configuration")
 				}
 			} else {
-				for _, id := range ids {
-					if err := ds.updateInHouseAppConfigurationTx(ctx, tx, id, payload.Configuration); err != nil {
-						return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
-					}
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, payload.InstallerID, payload.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
 				}
 			}
 		}
@@ -1778,26 +1766,3 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-// installerIDsForInHouseAppSibling returns the supplied in_house_apps.id along
-// with the row sharing its (global_or_team_id, bundle_identifier) pair on the
-// other Apple platform. A single .ipa upload always creates two rows (ios and
-// ipados); configuration changes need to land on both so platform-specific
-// installer-ID lookups always see the same content.
-func installerIDsForInHouseAppSibling(ctx context.Context, tx sqlx.ExtContext, installerID uint) ([]uint, error) {
-	const stmt = `
-SELECT id FROM in_house_apps
-WHERE (global_or_team_id, bundle_identifier) = (
-	SELECT global_or_team_id, bundle_identifier FROM in_house_apps WHERE id = ?
-)`
-
-	var ids []uint
-	if err := sqlx.SelectContext(ctx, tx, &ids, stmt, installerID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select sibling in-house app ids")
-	}
-	if len(ids) == 0 {
-		// Defensive: caller already verified the row exists. Fall back to the
-		// supplied id so we never write zero rows.
-		return []uint{installerID}, nil
-	}
-	return ids, nil
-}
