@@ -1774,7 +1774,7 @@ func testListSoftwareTitlesSortByDisplayName(t *testing.T, ds *Datastore) {
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Sort Test Team"})
 	require.NoError(t, err)
 
-	user, err := ds.NewUser(ctx, &fleet.User{Name: "sort-test", Email: "sort@test.com", Password: []byte("p")})
+	user, err := ds.NewUser(ctx, &fleet.User{Name: "sort-test", Email: "sort@test.com", Password: []byte("p"), GlobalRole: ptr.String(fleet.RoleAdmin)})
 	require.NoError(t, err)
 
 	// Create a host on the team.
