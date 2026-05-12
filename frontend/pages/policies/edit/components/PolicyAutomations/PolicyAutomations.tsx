@@ -17,8 +17,8 @@ const baseClass = "policy-automations";
 interface IPolicyAutomationsProps {
   storedPolicy: IPolicy;
   currentAutomatedPolicies: number[];
-  onAddAutomation: () => void;
-  isAddingAutomation: boolean;
+  onAddAutomation?: () => void;
+  isAddingAutomation?: boolean;
 }
 
 interface IAutomationRow {
@@ -41,7 +41,7 @@ const PolicyAutomations = ({
   const hasPatchSoftware = !!storedPolicy.patch_software;
   const hasSoftwareAutomation = !!storedPolicy.install_software;
   const showCtaCard =
-    isPatchPolicy && hasPatchSoftware && !hasSoftwareAutomation;
+    isPatchPolicy && hasPatchSoftware && !hasSoftwareAutomation && onAddAutomation;
 
   const automationRows: IAutomationRow[] = [];
 
