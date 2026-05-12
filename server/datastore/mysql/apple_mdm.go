@@ -7969,9 +7969,13 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
 
 	// Update all claimed hosts to remove/pending
+	// auto_rotate_at is also nulled: it's meaningful only for install-state
+	// rows (see GetHostsForAutoRotation), so leaving a stale view-deadline on
+	// a row pending removal would cause the read API to report a rotation
+	// time that auto-rotation will never honor.
 	updateStmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET operation_type = '%s', status = '%s'
+		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL
 		WHERE host_uuid IN (?)
 	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -8291,9 +8295,19 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	return hasPending, nil
 }
 
+// MarkRecoveryLockPasswordViewed schedules auto-rotation by setting
+// auto_rotate_at to 1 hour from now on the host's install-state recovery lock
+// row, overwriting any prior deadline. Returns the scheduled rotation time.
+//
+// If the row is missing or not in install state (e.g.,
+// ClaimHostsForRecoveryLockClear has flipped it to operation_type='remove'
+// because the host's current team has the feature disabled), returns a zero
+// time and no error: the password is still readable until the device confirms
+// ClearRecoveryLock, but auto-rotation does not apply and would be undone by
+// the clear anyway. Callers should treat zero as "no rotation scheduled" and
+// omit auto_rotate_at from the response rather than reporting a deadline the
+// auto-rotation cron (filtered on operation_type='install') will never honor.
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
-	// Set auto_rotate_at to 1 hour from now when password is viewed.
-	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
 	rotateAt := time.Now().Add(1 * time.Hour)
 
 	stmt := fmt.Sprintf(`
@@ -8311,12 +8325,6 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		// Row is not in install state (e.g., ClaimHostsForRecoveryLockClear has
-		// flipped it to operation_type='remove' because the host's current team
-		// has the feature disabled). The password is still readable until the
-		// device confirms ClearRecoveryLock; auto-rotation does not apply and
-		// would be undone by the clear anyway. Return zero time so the caller
-		// can omit auto_rotate_at from the response.
 		return time.Time{}, nil
 	}
 
