@@ -48,15 +48,19 @@ const renderWithAppContext = (ui: React.ReactElement) => {
   );
 };
 
+const defaultProps = {
+  onAddAutomation: jest.fn(),
+  currentAutomatedPolicies: [] as number[],
+};
+
 describe("PolicyAutomations", () => {
   describe("CTA card (patch policy with patch_software, no install_software)", () => {
-    it("shows the CTA card and Add automation button when onAddAutomation is provided", () => {
-      const onAddAutomation = jest.fn();
+    it("shows the CTA card and Add automation button when canEditPolicy is true", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy()}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={onAddAutomation}
+          canEditPolicy
+          {...defaultProps}
         />
       );
 
@@ -73,6 +77,7 @@ describe("PolicyAutomations", () => {
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy()}
           currentAutomatedPolicies={[]}
+          canEditPolicy
           onAddAutomation={onAddAutomation}
         />
       );
@@ -81,11 +86,12 @@ describe("PolicyAutomations", () => {
       expect(onAddAutomation).toHaveBeenCalledTimes(1);
     });
 
-    it("does NOT show the CTA card when onAddAutomation is undefined (no edit access)", () => {
+    it("does NOT show the CTA card when canEditPolicy is false", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy()}
-          currentAutomatedPolicies={[]}
+          canEditPolicy={false}
+          {...defaultProps}
         />
       );
 
@@ -101,8 +107,8 @@ describe("PolicyAutomations", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy()}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={jest.fn()}
+          canEditPolicy
+          {...defaultProps}
           isAddingAutomation
         />
       );
@@ -119,8 +125,8 @@ describe("PolicyAutomations", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy({ type: "dynamic" })}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={jest.fn()}
+          canEditPolicy
+          {...defaultProps}
         />
       );
 
@@ -131,8 +137,8 @@ describe("PolicyAutomations", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy({ patch_software: undefined })}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={jest.fn()}
+          canEditPolicy
+          {...defaultProps}
         />
       );
 
@@ -143,8 +149,8 @@ describe("PolicyAutomations", () => {
       renderWithAppContext(
         <PolicyAutomations
           storedPolicy={createMockPatchPolicy({ team_id: 0 })}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={jest.fn()}
+          canEditPolicy
+          {...defaultProps}
         />
       );
 
@@ -163,8 +169,8 @@ describe("PolicyAutomations", () => {
               software_title_id: 42,
             },
           })}
-          currentAutomatedPolicies={[]}
-          onAddAutomation={jest.fn()}
+          canEditPolicy
+          {...defaultProps}
         />
       );
 

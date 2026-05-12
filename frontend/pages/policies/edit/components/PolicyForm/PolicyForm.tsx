@@ -693,6 +693,7 @@ const PolicyForm = ({
             <PolicyAutomations
               storedPolicy={storedPolicy}
               currentAutomatedPolicies={currentAutomatedPolicies}
+              canEditPolicy={isEditMode}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
             />

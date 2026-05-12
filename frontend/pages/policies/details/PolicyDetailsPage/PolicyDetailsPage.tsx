@@ -439,9 +439,8 @@ const PolicyDetailsPage = ({
               <PolicyAutomations
                 storedPolicy={storedPolicy}
                 currentAutomatedPolicies={currentAutomatedPolicies}
-                onAddAutomation={
-                  canEditPolicy ? onAddPatchAutomation : undefined
-                }
+                canEditPolicy={canEditPolicy}
+                onAddAutomation={onAddPatchAutomation}
                 isAddingAutomation={isAddingAutomation}
               />
             )}

@@ -17,7 +17,9 @@ const baseClass = "policy-automations";
 interface IPolicyAutomationsProps {
   storedPolicy: IPolicy;
   currentAutomatedPolicies: number[];
-  onAddAutomation?: () => void;
+  /** Some users only have access to read-only view */
+  canEditPolicy: boolean;
+  onAddAutomation: () => void;
   isAddingAutomation?: boolean;
 }
 
@@ -34,6 +36,7 @@ interface IAutomationRow {
 const PolicyAutomations = ({
   storedPolicy,
   currentAutomatedPolicies,
+  canEditPolicy,
   onAddAutomation,
   isAddingAutomation,
 }: IPolicyAutomationsProps): JSX.Element => {
@@ -44,7 +47,7 @@ const PolicyAutomations = ({
     isPatchPolicy &&
     hasPatchSoftware &&
     !hasSoftwareAutomation &&
-    onAddAutomation;
+    canEditPolicy;
 
   const automationRows: IAutomationRow[] = [];
 
