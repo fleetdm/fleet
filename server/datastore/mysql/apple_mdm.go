@@ -8311,8 +8311,13 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		// Row is not in install state (e.g., ClaimHostsForRecoveryLockClear has
+		// flipped it to operation_type='remove' because the host's current team
+		// has the feature disabled). The password is still readable until the
+		// device confirms ClearRecoveryLock; auto-rotation does not apply and
+		// would be undone by the clear anyway. Return zero time so the caller
+		// can omit auto_rotate_at from the response.
+		return time.Time{}, nil
 	}
 
 	return rotateAt, nil

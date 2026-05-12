@@ -4066,7 +4066,12 @@ func (svc *Service) GetHostRecoveryLockPassword(ctx context.Context, hostID uint
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "mark recovery lock password viewed")
 	}
-	password.AutoRotateAt = &rotateAt
+	// Zero time means rotation does not apply to this row's current state
+	// (e.g., it's pending removal). Leave AutoRotateAt nil so the response
+	// omits the field rather than reporting a rotation that won't happen.
+	if !rotateAt.IsZero() {
+		password.AutoRotateAt = &rotateAt
+	}
 
 	return password, nil
 }
