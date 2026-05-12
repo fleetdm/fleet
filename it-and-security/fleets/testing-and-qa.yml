@@ -81,7 +81,15 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
-  # macOS policies
+  # macOS policies - CIS Level 1 benchmarks
+  - path: ../lib/macos/policies/all-software-updates-installed.yml
+  - path: ../lib/macos/policies/firewall-enabled.yml
+  - path: ../lib/macos/policies/gatekeeper-enabled.yml
+  - path: ../lib/macos/policies/disk-encryption-check.yml
+  - path: ../lib/macos/policies/remote-login-disabled.yml
+  - path: ../lib/macos/policies/screen-lock-inactivity.yml
+  - path: ../lib/macos/policies/sip-enabled.yml
+  - path: ../lib/macos/policies/local-admin-count-reasonable.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
