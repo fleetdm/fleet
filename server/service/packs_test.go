@@ -65,6 +65,33 @@ func TestNewPackSavesTargets(t *testing.T) {
 	assert.True(t, opts.ActivityMock.NewActivityFuncInvoked)
 }
 
+func TestNewPackRejectsMissingName(t *testing.T) {
+	cases := []struct {
+		name    string
+		payload fleet.PackPayload
+	}{
+		{name: "nil name", payload: fleet.PackPayload{}},
+		{name: "empty string name", payload: fleet.PackPayload{Name: ptr.String("")}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			svc, ctx := newTestService(t, ds, nil, nil)
+
+			ds.NewPackFunc = func(ctx context.Context, pack *fleet.Pack, opts ...fleet.OptionalArg) (*fleet.Pack, error) {
+				return pack, nil
+			}
+
+			_, err := svc.NewPack(test.UserContext(ctx, test.UserAdmin), c.payload)
+			require.Error(t, err)
+			var badReqErr *fleet.BadRequestError
+			require.ErrorAs(t, err, &badReqErr)
+			assert.Contains(t, badReqErr.Message, "pack name cannot be empty")
+			assert.False(t, ds.NewPackFuncInvoked, "datastore should not be called when name is missing")
+		})
+	}
+}
+
 func TestPacksWithDS(t *testing.T) {
 	ds := mysql.CreateMySQLDS(t)
 

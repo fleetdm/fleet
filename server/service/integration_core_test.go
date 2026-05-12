@@ -8117,6 +8117,11 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
 		})
 	}
+
+	t.Run("null name on create", func(t *testing.T) {
+		res := s.Do("POST", "/api/latest/fleet/packs", json.RawMessage(`{"name": null}`), http.StatusBadRequest)
+		assertBodyContains(t, res, "pack name cannot be empty")
+	})
 }
 
 func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
