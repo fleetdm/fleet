@@ -508,10 +508,9 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		if smallstepVars.RenewalOnly() {
 			smallstepVars = nil
 		}
-		// If only the renewal ID variable appeared without any of its associated SCEP variables,
-		// return an error — UNLESS the profile contains an ACME payload, where the renewal-ID
-		// variable stands alone (no SCEP URL/Challenge) and validation lives in
-		// additionalACMEValidation upstream.
+		// Only-renewal-ID is an error for SCEP (needs URL/Challenge companions)
+		// but valid for ACME — ACME profiles use the marker variable alone and
+		// are validated by additionalACMEValidation upstream.
 		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil &&
 			!strings.Contains(profileContents, mobileconfig.ACMEPayloadType) {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}

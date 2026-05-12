@@ -511,12 +511,9 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
-	// ACME payloads must carry the renewal-ID marker in Subject CN/OU so the
-	// non-proxied renewal mechanism can later link the issued cert back to the
-	// installing profile. This check runs before the Fleet-variable early
-	// return because an ACME profile with no other Fleet variables would
-	// otherwise sneak through and never auto-renew. Fast-path on a substring
-	// match avoids parsing for the common (non-ACME) case.
+	// Run before the fleetVars early-return: an ACME profile may carry
+	// no Fleet variables besides the renewal-ID marker and would otherwise
+	// skip this check.
 	if err := additionalACMEValidation(contents); err != nil {
 		return nil, err
 	}
@@ -726,9 +723,8 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 	return nil
 }
 
-// acmePayloadForValidation captures just the fields needed to enforce the
-// renewal-ID marker requirement. ACME payload shape differs from SCEP: Subject
-// is a sibling of PayloadType rather than nested under PayloadContent.
+// acmePayloadForValidation differs from SCEPPayloadContent because an ACME
+// payload's Subject is a sibling of PayloadType, not nested inside it.
 type acmePayloadForValidation struct {
 	PayloadType string       `plist:"PayloadType"`
 	Subject     [][][]string `plist:"Subject"`
@@ -738,12 +734,10 @@ type acmeProfileForValidation struct {
 	PayloadContent []acmePayloadForValidation `plist:"PayloadContent"`
 }
 
-// additionalACMEValidation checks that any com.apple.security.acme payload in
-// the profile carries the renewal-ID marker variable in the cert Subject's CN
-// or OU. Either the preferred $FLEET_VAR_CERTIFICATE_RENEWAL_ID or the legacy
-// $FLEET_VAR_SCEP_RENEWAL_ID is accepted. Without the marker, the cert issued
-// by the device's ACME exchange cannot be linked back to its profile and will
-// never be auto-renewed.
+// additionalACMEValidation rejects profiles whose com.apple.security.acme
+// payload Subject lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID in CN or OU.
+// Without the marker the cert can't be linked back to its profile and
+// renewal won't fire.
 func additionalACMEValidation(contents string) error {
 	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
 		return nil
