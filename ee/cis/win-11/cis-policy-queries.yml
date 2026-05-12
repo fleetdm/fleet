@@ -407,7 +407,7 @@ spec:
     This policy setting allows a process to create an access token, which may provide elevated rights to access sensitive data.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create a token object'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreateToken</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -445,7 +445,7 @@ spec:
     not necessary to specifically assign this user right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to an empty list:
+    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to 'No One':
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Create permanent shared objects'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/CreatePermanentSharedObjects</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "";
@@ -516,7 +516,7 @@ spec:
     this computer from the network user right if an account is subject to both policies.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guest'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
@@ -592,7 +592,7 @@ spec:
     This policy setting determines whether users can log on as Remote Desktop clients. This user right supersedes the Allow log on through Remote Desktop Services user right if an account is subject to both policies.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
@@ -632,7 +632,7 @@ spec:
     right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Force shutdown from a remote system'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RemoteShutdown</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -650,7 +650,7 @@ spec:
     This policy setting determines which users or processes can generate audit records in the Security log.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'LOCAL SERVICE, NETWORK SERVICE'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Generate security audits'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/GenerateSecurityAudits</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(LOCAL SERVICE|NETWORK SERVICE).*",0) is not null);
@@ -672,7 +672,7 @@ spec:
     they have created to impersonate that client, which could elevate the unauthorized user's permissions to administrative or system levels.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, LOCAL SERVICE, NETWORK SERVICE, SERVICE'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Impersonate a client after authentication'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ImpersonateClient</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|LOCAL SERVICE|NETWORK SERVICE|([^\w\s]SERVICE)).*",0) is not null);
@@ -692,7 +692,7 @@ spec:
     user right is not required by administrative tools that are supplied with the operating system but might be required by software development tools.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators, Window Manager\Window Manager Group'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/IncreaseSchedulingPriority</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Administrators|Window Manager Group).*",0) is not null);
@@ -713,8 +713,8 @@ spec:
     Windows.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
-    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Increase scheduling priority'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
+    'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Load and unload device drivers'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/LoadUnloadDeviceDrivers</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
   purpose: Informational
@@ -753,7 +753,7 @@ spec:
     after gaining user level access to a computer.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Log on as a batch job'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.28" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
@@ -793,7 +793,7 @@ spec:
     This policy setting determines which users can change the auditing options for files and directories and clear the Security log.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Manage auditing and security log'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ManageAuditingAndSecurityLog</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -833,7 +833,7 @@ spec:
     Configuration. Modification of these values and could lead to a hardware failure that would result in a denial of service condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Modify firmware environment values'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ModifyFirmwareEnvironment</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -851,7 +851,7 @@ spec:
     This policy setting allows users to manage the system's volume or disk configuration, which could allow a user to delete a volume and cause data loss as well as a denial-ofservice condition.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Perform volume maintenance tasks'
   query: |
     SELECT 1 FROM cis_audit where item = "2.2.33" AND (regex_match(value,".*(?=.*Administrators).*",0) is not null);
@@ -874,7 +874,7 @@ spec:
     information that could be used to mount an attack on the system.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Profile single process'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/ProfileSingleProcess</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -935,7 +935,7 @@ spec:
     directories user right.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Restore files and directories'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/RestoreFilesAndDirectories</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
@@ -973,7 +973,7 @@ spec:
     or threads. This user right bypasses any permissions that are in place to protect objects to give ownership to the specified user.
   resolution: |
     Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'No One'
+    Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path is set to 'Administrators'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Take ownership of files or other objects'
   query: |
     SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/TakeOwnership</LocURI></Target></Item></Get></SyncBody>" AND mdm_command_output == "Administrators";
