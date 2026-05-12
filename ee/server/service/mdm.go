@@ -350,8 +350,10 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	}
 
 	// If any Apple-only setup feature is being turned on, ensure Apple MDM is configured.
-	// Sending a falsy/empty value for these fields is treated as a no-op so the UI can
-	// safely batch them with end_user_authentication on Windows-only / Linux-only fleets.
+	// A nil pointer or boolean `false` passes this gate so the UI can safely batch
+	// these fields with end_user_authentication on Windows-only / Linux-only fleets.
+	// Downstream update logic still applies its own per-field validation (e.g. only
+	// "admin" is accepted for end_user_local_account_type).
 	turningOnAppleOnlySetup := (payload.RequireAllSoftware != nil && *payload.RequireAllSoftware) ||
 		(payload.EnableReleaseDeviceManually != nil && *payload.EnableReleaseDeviceManually) ||
 		(payload.ManualAgentInstall != nil && *payload.ManualAgentInstall) ||
