@@ -13,16 +13,31 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	// SoftwareMutationProb is the probability of mutating software after initial load
-	SoftwareMutationProb = 0.2
-	// MaxSoftwareAdd is the maximum number of software items to add during mutation
-	MaxSoftwareAdd = 20
-	// MaxSoftwareRemove is the maximum number of software items to remove during mutation
-	MaxSoftwareRemove = 20
-	// MaxSoftwarePerPlatform is the maximum number of software items to load per platform
-	MaxSoftwarePerPlatform = 50000
+// Mutation knobs. Defaults match the "realistic worse" load-test profile:
+// roughly 1 software change per host per day at a 1-minute check-in cadence
+// (0.001 × 0.8 softwareDB-path × 1440 check-ins ≈ 1.15 mutations/day, each
+// changing ~1 item). For stress-test reproducibility of the legacy behavior,
+// override via the osquery-perf flags --software_mutation_prob_per_checkin,
+// --software_mutation_max_add, --software_mutation_max_remove.
+var (
+	// SoftwareMutationProb is the probability of mutating software after initial load.
+	SoftwareMutationProb = 0.001
+	// MaxSoftwareAdd is the maximum number of software items to add during mutation.
+	MaxSoftwareAdd = 1
+	// MaxSoftwareRemove is the maximum number of software items to remove during mutation.
+	MaxSoftwareRemove = 1
 )
+
+// MaxSoftwarePerPlatform is the maximum number of software items to load per platform.
+const MaxSoftwarePerPlatform = 50000
+
+// SetMutationParams overrides the mutation knobs from CLI flags. Intended to
+// be called once before agent loops start.
+func SetMutationParams(prob float64, maxAdd, maxRemove int) {
+	SoftwareMutationProb = prob
+	MaxSoftwareAdd = maxAdd
+	MaxSoftwareRemove = maxRemove
+}
 
 // String interning pools to reduce memory usage by reusing common strings
 var (
@@ -209,11 +224,12 @@ func (db *DB) UbuntuToMaps(indices []uint32) []map[string]string {
 	return results
 }
 
-// MaybeMutateSoftware randomly mutates software indices (adds/removes items) 20% of the time.
-// This simulates software being installed/uninstalled on a host over time.
-// maxPoolSize is the total number of available software items in the database.
+// MaybeMutateSoftware randomly mutates software indices (adds/removes items)
+// with probability SoftwareMutationProb (configurable; see top-of-package
+// comment). Simulates software being installed/uninstalled on a host over
+// time. maxPoolSize is the total number of available software items in the
+// database.
 func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
-	// Only mutate 20% of the time
 	if rand.Float64() >= SoftwareMutationProb { // nolint:gosec,G404 // load testing, not security-sensitive
 		return indices
 	}
@@ -222,7 +238,7 @@ func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 	result := make([]uint32, len(indices))
 	copy(result, indices)
 
-	// Randomly remove 0-20 items
+	// Randomly remove up to MaxSoftwareRemove items
 	numToRemove := rand.IntN(MaxSoftwareRemove + 1) // nolint:gosec,G404 // load testing, not security-sensitive
 	if numToRemove > len(result) {
 		numToRemove = len(result)
@@ -235,7 +251,7 @@ func MaybeMutateSoftware(indices []uint32, maxPoolSize int) []uint32 {
 		result = result[:len(result)-numToRemove]
 	}
 
-	// Randomly add 0-20 items
+	// Randomly add up to MaxSoftwareAdd items
 	numToAdd := rand.IntN(MaxSoftwareAdd + 1) // nolint:gosec,G404 // load testing, not security-sensitive
 	if numToAdd > 0 {
 		// Create a map of existing indices for quick lookup

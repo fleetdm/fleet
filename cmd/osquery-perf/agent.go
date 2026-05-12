@@ -3613,10 +3613,23 @@ func main() {
 		commonSoftwareNameSuffix = flag.String("common_software_name_suffix", "", "Suffix to add to generated common software names")
 		softwareDatabasePath     = flag.String("software_db_path", "software-library/software.db",
 			"Path to software.db (SQLite database with realistic software data). Auto-generates from software.sql if missing.")
+
+		// Software mutation tuning. Defaults model a "realistic worse" fleet:
+		// ~1 software change per host per day. To reproduce the legacy
+		// stress-test behavior, pass --software_mutation_prob_per_checkin=0.2
+		// --software_mutation_max_add=20 --software_mutation_max_remove=20.
+		softwareMutationProbPerCheckin = flag.Float64("software_mutation_prob_per_checkin", 0.001,
+			"Probability that a check-in mutates the host's software inventory [0, 1]. Lower = closer to real fleets; higher = stress-test churn.")
+		softwareMutationMaxAdd = flag.Int("software_mutation_max_add", 1,
+			"Maximum number of software items added per mutation event (per-event count is uniform [0, max]).")
+		softwareMutationMaxRemove = flag.Int("software_mutation_max_remove", 1,
+			"Maximum number of software items removed per mutation event (per-event count is uniform [0, max]).")
 	)
 
 	flag.Parse()
 	rand.Seed(*randSeed)
+
+	softwaredb.SetMutationParams(*softwareMutationProbPerCheckin, *softwareMutationMaxAdd, *softwareMutationMaxRemove)
 
 	// Load software from database if path provided
 	if *softwareDatabasePath != "" {

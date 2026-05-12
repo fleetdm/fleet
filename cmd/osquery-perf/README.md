@@ -112,6 +112,81 @@ Example of running the agent with MDM. Note that `enroll_secret` is not needed f
 go run agent.go --os_templates ipad_13.18,iphone_14.6 --host_count 10 --mdm_scep_challenge 0d53306e-6d7a-9d14-a372-f9e53f9d62db
 ```
 
+## Software mutation tuning
+
+osquery-perf can dial how aggressively simulated hosts churn their software
+inventory. Three flags control this:
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--software_mutation_prob_per_checkin` | `0.001` | Probability that a check-in mutates the host's software inventory |
+| `--software_mutation_max_add` | `1` | Max items added per mutation event (uniform [0, max]) |
+| `--software_mutation_max_remove` | `1` | Max items removed per mutation event (uniform [0, max]) |
+
+### Defaults: "realistic worse"
+
+The defaults model a fleet with roughly **1 software change per host per
+day** — the upper end of what real fleets exhibit. Math:
+
+```
+0.001 prob × 0.8 softwareDB-path × 1440 check-ins/day ≈ 1.15 mutations/day
+mean items changed per event = ~1 (rand.IntN(2) → 0..1)
+→ ~1.15 software changes per host per day
+```
+
+Of those changes, ~10-20% land in tracked-software categories (browsers,
+Office, Adobe, Linux kernel) — the categories that drive the CVE chart
+under tracked-CVE scoping.
+
+### Stress-test mode
+
+To reproduce the legacy pathological behavior (every host mutates roughly
+every 6 minutes, ±20 items per event):
+
+```
+--software_mutation_prob_per_checkin=0.2 \
+--software_mutation_max_add=20 \
+--software_mutation_max_remove=20
+```
+
+This produces ~230 mutations/host/day of ~10 items each — 2-3 orders of
+magnitude over a real fleet. Useful for hunting races and lock contention
+that the realistic defaults won't surface.
+
+## What the load test does NOT model
+
+- **NVD-driven CVE spike events.** Spikes are triggered by Fleet's
+  vulnerability scanner ingesting new CVE-meta from NVD. To simulate them
+  in `software_cve`, either trigger the cron manually mid-test or use
+  `tools/charts-backfill --profile realistic` to seed historical data
+  with the right shape.
+- **Patch-Tuesday timing.** Real software updates cluster temporally;
+  osquery-perf churn is uniform across time.
+- **Host onboarding/offboarding.** The host roster is static. Real
+  fleets gain and lose hosts continuously, which shifts the host_id
+  distribution.
+- **Cron-batch quantization.** Real backgrounds have recurring hourly
+  counts (e.g., `30 / 185 / 193 / 215`) driven by Fleet's cron timing;
+  the simulated churn is per-check-in Poisson-like.
+
+## Host-count scaling
+
+Under tracked-CVE scoping (#45247), the dominant chart-cron stressor is
+**host count**, not CVE count. Per-pass bitmap memory budget:
+
+```
+bitmap_bytes_per_cve = ceil(host_count / 8)
+cron_pass_bytes      = bitmap_bytes_per_cve × tracked_cve_count
+
+  10k hosts × 1k tracked CVEs   ≈ 1.25 MB
+ 100k hosts × 1k tracked CVEs   ≈ 12.5 MB
+ 100k hosts × 2k tracked CVEs   ≈ 25 MB
+```
+
+When pushing the chart cron, scale `--host_count` here rather than the
+CVE catalog. The CVE-count knob caps out at a few thousand under
+tracked-CVE scoping; the host-count knob has no such cap.
+
 ## Installing software
 
 The agent can install software for "macos", "ubuntu", and "windows" OSs when running with orbit agent. The following options control the installation behavior:

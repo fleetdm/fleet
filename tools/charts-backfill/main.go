@@ -34,6 +34,8 @@ func main() {
 	entityIDsStr := flag.String("entity-ids", "", "comma-separated entity IDs (default: '' for non-entity datasets)")
 	hostIDsStr := flag.String("host-ids", "", "comma-separated host IDs (default: all from hosts table)")
 	dsn := flag.String("mysql-dsn", "fleet:fleet@tcp(localhost:3306)/fleet?parseTime=true", "MySQL connection string")
+	profile := flag.String("profile", "realistic", "data profile for the cve dataset: realistic (default) | worst-case. Other datasets ignore this flag.")
+	trackedCVECount := flag.Int("tracked_cve_count", 1000, "Catalog size for the realistic cve profile. Observed load-test-env baseline: 832.")
 	flag.Parse()
 
 	var start time.Time
@@ -75,17 +77,20 @@ func main() {
 		entityIDs = []string{""}
 	}
 
-	log.Printf("backfilling dataset=%q, days=%d, start=%s, hosts=%d, entities=%d",
-		*dataset, *days, start.Format("2006-01-02"), len(hostIDs), len(entityIDs))
+	log.Printf("backfilling dataset=%q, days=%d, start=%s, hosts=%d, entities=%d, profile=%q",
+		*dataset, *days, start.Format("2006-01-02"), len(hostIDs), len(entityIDs), *profile)
 
 	startTime := time.Now()
-	totalRows := backfill(db, *dataset, *days, start, hostIDs, entityIDs)
+	totalRows := backfill(db, *dataset, *days, start, hostIDs, entityIDs, *profile, *trackedCVECount)
 	log.Printf("done: %d SCD rows inserted/updated in %.1fs", totalRows, time.Since(startTime).Seconds())
 }
 
-func backfill(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
+func backfill(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string, profile string, trackedCVECount int) int {
 	if _, ok := dailyDatasets[dataset]; ok {
-		return backfillDaily(db, dataset, days, start, hostIDs, entityIDs)
+		if dataset == "cve" && profile == "realistic" {
+			return backfillDailyRealistic(db, dataset, days, start, hostIDs, trackedCVECount)
+		}
+		return backfillDailyWorstCase(db, dataset, days, start, hostIDs, entityIDs)
 	}
 	return backfillHourly(db, dataset, days, start, hostIDs, entityIDs)
 }
@@ -126,7 +131,45 @@ func backfillHourly(db *sql.DB, dataset string, days int, start time.Time, hostI
 	return totalRows
 }
 
-func backfillDaily(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
+// backfillDailyRealistic generates host_scd_data rows for the cve dataset
+// matching the shape observed in real fleets: a tracked-CVE-sized catalog
+// (`tracked_cve_count`) with a 20/40/40 stable/single_flip/active churn mix,
+// small per-flip host deltas, and weekly spike events.
+func backfillDailyRealistic(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, trackedCVECount int) int {
+	rng := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0)) //nolint:gosec // dev data generator, not crypto
+
+	plans := planCVECatalog(rng, trackedCVECount, days, hostIDs)
+	spikeDays := pickSpikeDays(rng, days)
+	injectSpikes(rng, plans, spikeDays, hostIDs)
+	rows := plansToRows(plans, days)
+
+	log.Printf("  realistic plan: %d CVEs, %d spike days, %d rows to write",
+		len(plans), len(spikeDays), len(rows))
+
+	totalRows := 0
+	for i, r := range rows {
+		validFrom := start.AddDate(0, 0, r.fromDay)
+		validTo := start.AddDate(0, 0, r.toDay)
+		blob := chart.HostIDsToBlob(r.hostSet)
+
+		_, err := db.Exec(
+			`INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
+			 VALUES (?, ?, ?, ?, ?)
+			 ON DUPLICATE KEY UPDATE host_bitmap = VALUES(host_bitmap), valid_to = VALUES(valid_to)`,
+			dataset, r.entityID, blob, validFrom, validTo)
+		if err != nil {
+			log.Fatalf("insert realistic SCD row failed for %q (day %d→%d): %v", r.entityID, r.fromDay, r.toDay, err)
+		}
+		totalRows++
+
+		if (i+1)%1000 == 0 || i == len(rows)-1 {
+			log.Printf("  realistic: %d/%d rows", i+1, len(rows))
+		}
+	}
+	return totalRows
+}
+
+func backfillDailyWorstCase(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, entityIDs []string) int {
 	totalRows := 0
 	minDensity, maxDensity := densityRange(dataset)
 	n := len(hostIDs)
