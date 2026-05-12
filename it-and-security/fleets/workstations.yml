@@ -153,6 +153,8 @@ controls:
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/all/scripts/configure-npmrc-min-release-age.sh
+    - path: ../lib/all/scripts/configure-npmrc-min-release-age.ps1
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -190,8 +192,7 @@ policies:
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
-  # Cross-platform policies
-  - path: ../lib/all/policies/tanstack-supply-chain-attack.yml
+  - path: ../lib/all/policies/npm-user-npmrc-min-release-age.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
