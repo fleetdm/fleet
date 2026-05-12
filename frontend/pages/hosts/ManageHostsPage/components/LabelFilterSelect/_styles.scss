@@ -27,7 +27,7 @@
     height: 36px;
 
     body.dark-mode & {
-      background-color: #25272d;
+      background-color: $ui-fleet-black-5;
     }
 
     &:hover {
@@ -107,7 +107,7 @@
     background-color: $core-fleet-white;
 
     body.dark-mode & {
-      background-color: #25272d;
+      background-color: $ui-fleet-black-5;
     }
   }
 
