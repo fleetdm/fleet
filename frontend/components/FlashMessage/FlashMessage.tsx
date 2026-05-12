@@ -90,13 +90,6 @@ const SingleFlashMessage = ({
     return null;
   }
 
-  let iconColor = "ui-error";
-  if (alertType === "warning-filled") {
-    iconColor = "static-black";
-  } else if (alertType === "success") {
-    iconColor = "ui-success";
-  }
-
   return (
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
