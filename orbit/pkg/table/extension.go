@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filecontents"
@@ -153,6 +154,7 @@ func OrbitDefaultTables(opts PluginOpts) []osquery.OsqueryPlugin {
 		// Note: the logger passed here and to all other tables is the global logger from zerolog.
 		// This logger has already been configured with some required settings in
 		// orbit/cmd/orbit/orbit.go.
+		adobe_plugins.TablePlugin(log.Logger),
 		firefox_preferences.TablePlugin(log.Logger),
 		cryptoinfotable.TablePlugin(log.Logger),
 
