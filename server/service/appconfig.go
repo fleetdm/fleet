@@ -1955,7 +1955,7 @@ func (svc *Service) validateVPPAssignments(
 
 		loc := norm.NFC.String(vpp.Location)
 		if _, ok := tokensByLocation[loc]; !ok {
-			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			invalid.Appendf("mdm.volume_purchasing_program", "token with organization unit %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 

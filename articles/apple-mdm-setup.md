@@ -112,7 +112,7 @@ Connect Fleet to VPP to deploy [Apple App Store apps](https://fleetdm.com/guides
 1. In Fleet, select your avatar on the far right of the main navigation menu, and then **Settings > Integrations > MDM**.
 2. Under **Apple Business (AB)**, select **Add VPP** next to **Volume Purchasing Program (VPP)**.
 3. Sign in to [Apple Business](https://business.apple.com). If your organization doesn't have an account, select **Sign up now**.
-4. Head to **Settings > Apps & Books** and download the content token for the location you want to use. Each token is based on a location in Apple Business.
+4. Head to **Settings > Apps & Books** and download the content token for the organization unit you want to use. Each token is based on an organization unit in Apple Business.
 5. Upload the content token (.vpptoken file) to Fleet.
 6. To assign the VPP token to a specific fleet, find the token in the table of VPP tokens. Select the **Actions** dropdown, and then select **Edit fleets**. Use the picker to select which fleet(s) this VPP token should be assigned to.
 
