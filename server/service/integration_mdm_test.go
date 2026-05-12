@@ -342,8 +342,8 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		SoftwareInstallStore:   s.softwareInstallerStore,
 		SoftwareTitleIconStore: softwareTitleIconStore,
 		BootstrapPackageStore:  bootstrapPackageStore,
-		androidMockClient:      androidMockClient,
-		androidModule:          androidSvc,
+		AndroidMockClient:      androidMockClient,
+		AndroidModule:          androidSvc,
 		KeyValueStore:          keyValueStore,
 		StartCronSchedules: []TestNewScheduleFunc{
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
