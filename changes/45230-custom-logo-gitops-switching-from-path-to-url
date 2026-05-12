@@ -1,0 +1,1 @@
+* Fixed gitops switching a custom org logo from `org_logo_path_*` to `org_logo_url_*` so the new URL is preserved instead of being cleared by the follow-up delete.

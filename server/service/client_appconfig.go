@@ -79,6 +79,12 @@ func (c *Client) Version() (*version.Info, error) {
 type orgLogoAction struct {
 	mode       fleet.OrgLogoMode
 	uploadPath string
+	// replaceWithURL is set on a delete action when the gitops YAML is
+	// switching from a Fleet-hosted logo (path key) to an external URL.
+	// DeleteOrgLogo unconditionally clears the URL fields it tracks, so
+	// the new URL has to be written after the delete — see
+	// doGitOpsOrgLogos for the follow-up PATCH.
+	replaceWithURL string
 }
 
 // planAndStripOrgLogos plans the PUT/DELETE /logo calls that run after the
@@ -92,6 +98,11 @@ type orgLogoAction struct {
 //     org_logo_path_dark_mode, we strip org_logo_url_dark_mode too so the
 //     follow-up PUT is the sole writer of OrgLogoURLDarkMode — otherwise
 //     PATCH would blank that field briefly before PUT corrects it.
+//   - when the YAML supplies a URL key for a mode that currently holds a
+//     Fleet-hosted blob, we strip the URL keys too. The follow-up DELETE
+//     clears the URL fields it tracks, which would clobber any URL set
+//     by the PATCH; doGitOpsOrgLogos re-PATCHes the intended URL after
+//     the blob is gone.
 //
 // Modes the YAML doesn't mention are left alone (current server state preserved).
 func (c *Client) planAndStripOrgLogos(
@@ -152,17 +163,28 @@ func (c *Client) planAndStripOrgLogos(
 				logFn("[+] would upload org logo (%s) from %s\n", s.mode, yamlPath)
 			}
 		case yamlURL != "":
-			if fleet.IsFleetHostedLogoURL(s.currentURL) {
-				actions = append(actions, orgLogoAction{mode: s.mode})
-			}
 			delete(orgInfo, s.pathKey)
-			// Mirror the new key into the deprecated alias so PATCH carries
-			// both with the same value. Without this, a PATCH that only sets
-			// the new key leaves the deprecated field unchanged on the
-			// server, and the post-merge NormalizeLogoFields copies the old
-			// value back into the new field — silently undoing a clear or
-			// rewrite. See server/service/appconfig.go ModifyAppConfig.
-			orgInfo[s.deprecatedURLKey] = yamlURL
+			if fleet.IsFleetHostedLogoURL(s.currentURL) {
+				// Switching from a Fleet-hosted logo to an external URL:
+				// the orphan blob still needs a DELETE /logo, and that
+				// call clears the URL fields it tracks. If the PATCH set
+				// the new URL up front, the DELETE would clobber it.
+				// Strip the URL keys from this PATCH and carry the new
+				// URL on the delete action; doGitOpsOrgLogos re-PATCHes
+				// it once the blob is gone.
+				delete(orgInfo, s.urlKey)
+				delete(orgInfo, s.deprecatedURLKey)
+				actions = append(actions, orgLogoAction{mode: s.mode, replaceWithURL: yamlURL})
+			} else {
+				// No Fleet-hosted blob to clean up — the PATCH alone can
+				// flip the URL. Mirror the new key into the deprecated
+				// alias so server-side NormalizeLogoFields can't undo our
+				// write (a PATCH that only sets the new key leaves the
+				// deprecated field unchanged, and the post-merge
+				// normalization copies the old value back into the new
+				// field). See server/service/appconfig.go ModifyAppConfig.
+				orgInfo[s.deprecatedURLKey] = yamlURL
+			}
 		default:
 			if fleet.IsFleetHostedLogoURL(s.currentURL) {
 				actions = append(actions, orgLogoAction{mode: s.mode})
@@ -193,15 +215,49 @@ func (c *Client) doGitOpsOrgLogos(
 			continue
 		}
 		if dryRun {
-			logFn("[+] would delete org logo (%s)\n", a.mode)
+			if a.replaceWithURL != "" {
+				logFn("[+] would replace org logo (%s) with %s\n", a.mode, a.replaceWithURL)
+			} else {
+				logFn("[+] would delete org logo (%s)\n", a.mode)
+			}
 			continue
 		}
 		if err := c.DeleteOrgLogo(a.mode); err != nil {
 			return fmt.Errorf("deleting org logo (%s): %w", a.mode, err)
 		}
+		if a.replaceWithURL != "" {
+			// DeleteOrgLogo cleared the URL fields it tracks, so write
+			// the intended external URL now. Both the new and deprecated
+			// keys are mirrored to keep server-side NormalizeLogoFields a
+			// no-op.
+			if err := c.setOrgLogoURL(a.mode, a.replaceWithURL); err != nil {
+				return fmt.Errorf("setting org logo URL (%s): %w", a.mode, err)
+			}
+			logFn("[+] replaced org logo (%s) with %s\n", a.mode, a.replaceWithURL)
+			continue
+		}
 		logFn("[+] deleted org logo (%s)\n", a.mode)
 	}
 	return nil
+}
+
+func (c *Client) setOrgLogoURL(mode fleet.OrgLogoMode, url string) error {
+	var urlKey, deprecatedURLKey string
+	switch mode {
+	case fleet.OrgLogoModeLight:
+		urlKey, deprecatedURLKey = "org_logo_url_light_mode", "org_logo_url_light_background"
+	case fleet.OrgLogoModeDark:
+		urlKey, deprecatedURLKey = "org_logo_url_dark_mode", "org_logo_url"
+	default:
+		return fmt.Errorf("unsupported mode %q for org logo URL set", mode)
+	}
+	payload := map[string]any{
+		"org_info": map[string]any{
+			urlKey:           url,
+			deprecatedURLKey: url,
+		},
+	}
+	return c.ApplyAppConfig(payload, fleet.ApplySpecOptions{})
 }
 
 // validateOrgLogoFile reads the file at path and runs the canonical

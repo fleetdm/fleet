@@ -2,16 +2,22 @@ package service
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"image/png"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -106,7 +112,8 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		}
 	})
 
-	t.Run("external URL with current Fleet-hosted blob plans delete and mirrors deprecated alias", func(t *testing.T) {
+	t.Run("external URL replacing Fleet-hosted blob defers URL write until after DELETE", func(t *testing.T) {
+		// Regression test for https://github.com/fleetdm/fleet/pull/45230.
 		os := orgSettings(map[string]any{
 			"org_logo_url_dark_mode": "https://example.com/logo.png",
 		})
@@ -117,12 +124,35 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		require.Len(t, actions, 1)
 		assert.Equal(t, fleet.OrgLogoModeDark, actions[0].mode)
 		assert.Empty(t, actions[0].uploadPath, "empty uploadPath signals delete")
+		assert.Equal(t, "https://example.com/logo.png", actions[0].replaceWithURL,
+			"the new URL rides on the action so doGitOpsOrgLogos can re-PATCH it after the DELETE")
 
-		// URL key kept so PATCH writes the external URL, and the deprecated
-		// alias is mirrored so server-side NormalizeLogoFields can't undo it.
+		// URL keys must be stripped from this PATCH — otherwise the
+		// follow-up DELETE clobbers them.
 		orgInfo := os["org_info"].(map[string]any)
-		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url_dark_mode"])
-		assert.Equal(t, "https://example.com/logo.png", orgInfo["org_logo_url"])
+		for _, k := range []string{"org_logo_url_dark_mode", "org_logo_url"} {
+			_, present := orgInfo[k]
+			assert.False(t, present, "%s should be stripped (DELETE would clobber it; URL is re-PATCHed after)", k)
+		}
+	})
+
+	t.Run("external URL replacing another external URL plans no delete and PATCHes the URL", func(t *testing.T) {
+		// No Fleet-hosted blob to clean up, so the PATCH can flip the URL
+		// directly. The deprecated alias is mirrored to keep server-side
+		// NormalizeLogoFields a no-op.
+		os := orgSettings(map[string]any{
+			"org_logo_url_dark_mode": "https://example.com/new.png",
+		})
+		actions, err := c.planAndStripOrgLogos(os, &fleet.OrgInfo{
+			OrgLogoURLDarkMode: "https://example.com/old.png",
+			OrgLogoURL:         "https://example.com/old.png",
+		}, dir, false, logFn)
+		require.NoError(t, err)
+		assert.Empty(t, actions, "no Fleet-hosted blob → no DELETE needed")
+
+		orgInfo := os["org_info"].(map[string]any)
+		assert.Equal(t, "https://example.com/new.png", orgInfo["org_logo_url_dark_mode"])
+		assert.Equal(t, "https://example.com/new.png", orgInfo["org_logo_url"])
 	})
 
 	t.Run("explicit empty URL with Fleet-hosted blob plans delete and mirrors deprecated alias as empty", func(t *testing.T) {
@@ -211,10 +241,12 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		darkAct, ok := byMode[fleet.OrgLogoModeDark]
 		require.True(t, ok)
 		assert.NotEmpty(t, darkAct.uploadPath, "dark mode should plan an upload")
-		// Light: external URL replacing a Fleet-hosted blob → delete action.
+		// Light: external URL replacing a Fleet-hosted blob → delete action
+		// that carries the new URL (re-PATCHed after DELETE, see https://github.com/fleetdm/fleet/pull/45230).
 		lightAct, ok := byMode[fleet.OrgLogoModeLight]
 		require.True(t, ok)
 		assert.Empty(t, lightAct.uploadPath, "light mode should plan a delete")
+		assert.Equal(t, "https://example.com/light.png", lightAct.replaceWithURL)
 
 		orgInfo := os["org_info"].(map[string]any)
 		// Dark: every URL key for the mode is stripped (PUT will set them).
@@ -222,11 +254,13 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 			_, present := orgInfo[k]
 			assert.False(t, present, "%s should be stripped", k)
 		}
-		// Light: URL key kept so PATCH writes the external URL, and the
-		// deprecated alias is mirrored to keep the server's
-		// NormalizeLogoFields a no-op.
-		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_mode"])
-		assert.Equal(t, "https://example.com/light.png", orgInfo["org_logo_url_light_background"])
+		// Light: URL keys also stripped — the follow-up DELETE would
+		// clobber any URL written by this PATCH. doGitOpsOrgLogos
+		// re-PATCHes the URL after the DELETE.
+		for _, k := range []string{"org_logo_url_light_mode", "org_logo_url_light_background"} {
+			_, present := orgInfo[k]
+			assert.False(t, present, "%s should be stripped (DELETE would clobber it)", k)
+		}
 	})
 
 	t.Run("missing path file surfaces a validation error", func(t *testing.T) {
@@ -274,4 +308,105 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		joined := strings.Join(logs, "\n")
 		assert.Contains(t, joined, "would upload org logo (dark)")
 	})
+}
+
+func TestDoGitOpsOrgLogosReplaceWithURL(t *testing.T) {
+	type recorded struct {
+		method string
+		path   string
+		query  string
+		body   string
+	}
+	var calls []recorded
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		calls = append(calls, recorded{
+			method: r.Method,
+			path:   r.URL.Path,
+			query:  r.URL.RawQuery,
+			body:   string(body),
+		})
+		// appConfigResponse and deleteOrgLogoResponse are both tolerant of an empty object.
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	c := &Client{
+		baseClient: &baseClient{
+			BaseURL: baseURL,
+			HTTP:    fleethttp.NewClient(),
+		},
+		token: "test-token",
+	}
+
+	actions := []orgLogoAction{
+		{mode: fleet.OrgLogoModeDark, replaceWithURL: "https://example.com/dark.png"},
+	}
+	var logs []string
+	logFn := func(format string, args ...any) {
+		logs = append(logs, fmt.Sprintf(format, args...))
+	}
+	require.NoError(t, c.doGitOpsOrgLogos(actions, false, logFn))
+
+	require.Len(t, calls, 2, "expected DELETE followed by PATCH")
+
+	// 1. DELETE /api/latest/fleet/logo?mode=dark — clears the orphan blob
+	//    (and clears URL fields server-side, which is exactly why the
+	//    PATCH below has to run after).
+	assert.Equal(t, http.MethodDelete, calls[0].method)
+	assert.Equal(t, "/api/latest/fleet/logo", calls[0].path)
+	assert.Equal(t, "mode=dark", calls[0].query)
+
+	// 2. PATCH /api/latest/fleet/config — writes the new URL. Both keys
+	//    must be mirrored to keep server-side NormalizeLogoFields a no-op.
+	assert.Equal(t, http.MethodPatch, calls[1].method)
+	assert.Equal(t, "/api/latest/fleet/config", calls[1].path)
+	var payload struct {
+		OrgInfo struct {
+			OrgLogoURLDarkMode string `json:"org_logo_url_dark_mode"`
+			OrgLogoURL         string `json:"org_logo_url"`
+		} `json:"org_info"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(calls[1].body), &payload))
+	assert.Equal(t, "https://example.com/dark.png", payload.OrgInfo.OrgLogoURLDarkMode)
+	assert.Equal(t, "https://example.com/dark.png", payload.OrgInfo.OrgLogoURL,
+		"deprecated alias must be set to the same URL")
+
+	require.Len(t, logs, 1)
+	assert.Contains(t, logs[0], "replaced org logo (dark) with https://example.com/dark.png")
+}
+
+func TestDoGitOpsOrgLogosDryRun(t *testing.T) {
+	var calls int
+	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
+		calls++
+	}))
+	defer ts.Close()
+
+	baseURL, err := url.Parse(ts.URL)
+	require.NoError(t, err)
+	c := &Client{
+		baseClient: &baseClient{
+			BaseURL: baseURL,
+			HTTP:    fleethttp.NewClient(),
+		},
+		token: "test-token",
+	}
+
+	actions := []orgLogoAction{
+		{mode: fleet.OrgLogoModeLight, replaceWithURL: "https://example.com/light.png"},
+	}
+	var logs []string
+	logFn := func(format string, args ...any) {
+		logs = append(logs, fmt.Sprintf(format, args...))
+	}
+	require.NoError(t, c.doGitOpsOrgLogos(actions, true, logFn))
+
+	assert.Equal(t, 0, calls, "dry-run must not hit the server")
+	require.Len(t, logs, 1)
+	assert.Contains(t, logs[0], "would replace org logo (light) with https://example.com/light.png")
 }
