@@ -137,7 +137,15 @@ The customer-facing variable name was renamed from `$FLEET_VAR_SCEP_RENEWAL_ID` 
 
 Today (4.85 and earlier) the only valid name is `SCEP_RENEWAL_ID`. The rename is half-shipped: docs use the new name, code still defines and substitutes only the old name. Phase 2 closes that gap.
 
-**Implementation approach:** add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables` validation. Both substitute to the same value (`"fleet-" + ProfileUUID`) via the same substitution helper — implemented as a single regex matching either name. Profile validation accepts either name; validation error messages reference only the new `CERTIFICATE_RENEWAL_ID` (we want new authoring to use the new name).
+**Implementation approach:** add `FleetVarCertificateRenewalID = "CERTIFICATE_RENEWAL_ID"` alongside the existing `FleetVarSCEPRenewalID`. Both are recognized by `FindFleetVariables`. Both substitute to the same value (`"fleet-" + ProfileUUID`) via the same substitution helper — implemented as a single regex matching either name. Validation error messages reference only the new `CERTIFICATE_RENEWAL_ID` (we want new authoring to use the new name).
+
+**Acceptance rule — pre-existing surfaces vs net-new surfaces:** the back-compat motivation below applies only to validation surfaces that customers have already authored against. Specifically:
+
+- **SCEP validators (NDES / Custom SCEP / Smallstep)** — pre-existing since 4.65 (PR #34403). Accept BOTH the legacy `SCEP_RENEWAL_ID` and the preferred `CERTIFICATE_RENEWAL_ID`. Customers may have deployed 4.85-era SCEP profiles using the legacy name; hard-rejecting it would break those on next upload/edit.
+- **ACME validator (this PR)** — net-new. Accept ONLY `CERTIFICATE_RENEWAL_ID`. There are no pre-rename deployed ACME profiles to back-compat against — ACME validation didn't exist before this PR, and pre-rename ACME docs/examples (#40639) already used the new name. Accepting a SCEP-prefixed variable in an ACME context perpetuates the very confusion the rename was meant to fix.
+- **Future validators (raw SCEP per PR 2.3b, Windows non-proxied SCEP per PR 2.4)** — apply the same rule: if the surface is net-new to validation, accept only the preferred name; if validation already existed, accept both.
+
+Substitution is unaffected by this distinction: both names continue to substitute identically across all platforms. The distinction is purely about what validation lets through at upload time.
 
 **Why accept both rather than hard-rename:**
 - Customers running 4.85 likely have `$FLEET_VAR_SCEP_RENEWAL_ID` in deployed SCEP profile Subjects. Hard-renaming the substitution constant would break those profiles on the next upload/edit cycle (validation passes, but substitution leaves the literal `$FLEET_VAR_SCEP_RENEWAL_ID` string in the profile, which the device CA rejects).
