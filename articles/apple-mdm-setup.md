@@ -88,7 +88,9 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 #### If a macOS host is listed in AB:
 
 1. The end user will see a **Turn on MDM** banner at the top of their **My device** page.
+
 2. Clicking **Turn on MDM** opens a modal with a step-by-step instruction on how to turn on MDM on their host.
+
 3. After completing the steps, the host has MDM features turned on.
 
 ### Host isn't in AB
@@ -96,6 +98,7 @@ End users can turn on MDM from their **Fleet Desktop > My device** page.
 #### If the host isn’t in AB, users can still turn on MDM:
 
 1. On the **My device** page, the end user sees the same **Turn on MDM** banner.
+
 2. Clicking **Turn on MDM** opens a new tab.
    - If [end user authentication](https://fleetdm.com/guides/setup-experience#end-user-authentication) is enabled, the end user is prompted to sign in with your organization’s identity provider (IdP).
    - If authentication is successful, or if end user authentication is disabled, the end user is taken to a page with instructions to download the manual enrollment profile and install it on their macOS host.
@@ -197,9 +200,24 @@ renews each host's SCEP certificates automatically every 180 days.
 
 For manually enrolled devices, if SCEP certificate renewal fails, MDM will be turned off on the host. The user will need to re-enroll the device to restore MDM management.
 
-## Troubleshooting failed enrollments
+## Troubleshooting
 
-If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
+### Failed enrollments
+
+If a host is restarted/shut down during macOS Setup Assistant, it will fail to enroll to Fleet. Failed enrollments also happen if Fleet instance is down for an upgrade. When this happens, sometimes hosts automatically restart setup. If that doesn't happen, the best practice is to remotely [wipe the host](https://fleetdm.com/guides/lock-wipe-hosts#wipe-a-host) if the host is connected to Wi-Fi. If it's not, you'll need physical access to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
+
+### Apple Business (AB)
+
+Fleet surfaces AB (formerly Apple Business Manager) automatic enrollment profile assignment by retrieving assignment errors and timestamps for each host. While Fleet does not actively monitor push events, admins can view assignment and push timestamps in host details. If a device shows an assignment time but no push time, admins can infer the push did not occur and may need to restart the device or run `sudo profiles renew -type enrollment` for remediation. Error details and timestamps are available for targeted troubleshooting. Customers may need to contact Apple support if an online host never has a push time. 
+
+![Fleet-AB-workflow](https://github.com/fleetdm/fleet/blob/main/website/assets/images/articles/abm-assignment-workflow.jpg)
+
+To view an AB issue:
+
+1. If there is an active issue assigning a profile, a vital called **AB issue** will be on the **Dashboard** page. This will take you to a filtered list of hosts with AB issues.
+
+2. Select a host and click on the MDM status to view details.
+
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">
