@@ -107,6 +107,18 @@ func TestValidateProfileCertificateAuthorityVariables(t *testing.T) {
 			errMsg: "SCEP profile for custom SCEP certificate authority requires: $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>, $FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>, and $FLEET_VAR_CERTIFICATE_RENEWAL_ID variables.",
 		},
 		{
+			// This variable was renamed but needs to still validate
+			// for back-compat.
+			name: "Custom SCEP accepts legacy $FLEET_VAR_SCEP_RENEWAL_ID",
+			profile: customSCEPForValidation(
+				"$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName",
+				"$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName",
+				"Name",
+				"com.apple.security.scep",
+			),
+			errMsg: "",
+		},
+		{
 			name: "Custom SCEP challenge and url CA names don't match",
 			profile: customSCEPForValidation("$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_scepName", "$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_scepName2",
 				"Name", "com.apple.security.scep"),
