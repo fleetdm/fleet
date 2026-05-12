@@ -1397,7 +1397,6 @@ func TestArgsToString(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			assert.Equal(t, tc.want, argsToString(tc.args))
 		})
 	}
@@ -1408,7 +1407,6 @@ func TestGetTLSConfig(t *testing.T) {
 	expectedCurves := []tls.CurveID{tls.X25519, tls.CurveP256, tls.CurveP384}
 
 	t.Run("modern", func(t *testing.T) {
-		t.Parallel()
 		cfg := getTLSConfig(config.TLSProfileModern)
 		require.NotNil(t, cfg)
 		assert.Equal(t, uint16(tls.VersionTLS13), cfg.MinVersion)
@@ -1424,7 +1422,6 @@ func TestGetTLSConfig(t *testing.T) {
 	})
 
 	t.Run("intermediate", func(t *testing.T) {
-		t.Parallel()
 		cfg := getTLSConfig(config.TLSProfileIntermediate)
 		require.NotNil(t, cfg)
 		assert.Equal(t, uint16(tls.VersionTLS12), cfg.MinVersion)
@@ -1447,7 +1444,6 @@ func TestGetTLSConfig(t *testing.T) {
 func TestInitLicense(t *testing.T) {
 	t.Parallel()
 	t.Run("dev license", func(t *testing.T) {
-		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, true, false)
 		require.NoError(t, err)
@@ -1458,7 +1454,6 @@ func TestInitLicense(t *testing.T) {
 	})
 
 	t.Run("dev expired license", func(t *testing.T) {
-		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, false, true)
 		require.NoError(t, err)
@@ -1468,7 +1463,6 @@ func TestInitLicense(t *testing.T) {
 	})
 
 	t.Run("no license key", func(t *testing.T) {
-		t.Parallel()
 		cfg := &config.FleetConfig{}
 		license, err := initLicense(cfg, false, false)
 		require.NoError(t, err)
@@ -1508,7 +1502,6 @@ func TestPrintMissingMigrationsWarning(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
 			var buf bytes.Buffer
 			printMissingMigrationsWarning(&buf, tc.tables, tc.data)
 			out := buf.String()
