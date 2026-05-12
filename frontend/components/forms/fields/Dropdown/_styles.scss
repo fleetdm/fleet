@@ -94,31 +94,17 @@
     .Select-value-icon {
       border: 0;
       float: right;
-      position: relative;
       line-height: 28px;
       width: 20px;
       padding: 0;
       margin: 0 5px;
-      text-indent: -999em;
-
-      &::after {
-        transition: color 150ms ease-in-out;
-        content: url(../assets/images/icon-close-fleet-black-16x16@2x.png);
-        transform: scale(0.5);
-        position: absolute;
-        top: -5px;
-        left: -5px;
-        visibility: visible;
-        font-size: $x-small;
-        color: $ui-gray;
-        text-indent: 0;
-      }
+      text-align: center;
+      font-size: $small;
+      color: $ui-fleet-black-50;
+      transition: color 150ms ease-in-out;
 
       &:hover {
-        &::after {
-          content: url("../assets/images/icon-close-fleet-black-16x16@2x.png");
-          transform: scale(0.5);
-        }
+        color: $core-fleet-black;
       }
     }
 
@@ -205,21 +191,21 @@
     }
   }
 
-  &.has-value {
-    > .Select-control,
-    &.is-pseudo-focused > .Select-control {
-      .Select-value {
-        .Select-value-label {
-          color: $core-fleet-black;
-          font-size: $x-small;
-        }
-      }
+  // react-select v1 ships with `.Select.has-value.Select--single > .Select-control
+  // .Select-value .Select-value-label { color: #333; }` (5-class specificity).
+  // We must match or beat that selector to theme the displayed value — critical
+  // for dark mode, where #333 reads as nearly-invisible against the dark control.
+  &.has-value.Select--single,
+  &.has-value.is-pseudo-focused.Select--single {
+    > .Select-control .Select-value .Select-value-label {
+      color: $core-fleet-black;
+      font-size: $x-small;
     }
+  }
 
-    &.is-disabled {
-      > .Select-control .Select-value .Select-value-label {
-        color: $ui-fleet-black-50;
-      }
+  &.has-value.is-disabled {
+    > .Select-control .Select-value .Select-value-label {
+      color: $ui-fleet-black-50;
     }
   }
 
@@ -254,7 +240,7 @@
     border-radius: $border-radius;
 
     &.is-selected {
-      background-color: transparent;
+      background-color: $ui-vibrant-blue-10;
       font-weight: bold;
     }
 
@@ -291,13 +277,22 @@
   }
 
   .Select-placeholder {
-    color: $core-fleet-blue;
+    color: $ui-fleet-black-50;
     font-size: $x-small;
     line-height: 34px;
     box-sizing: border-box;
   }
+
+  .Select-clear-zone {
+    color: $ui-fleet-black-50;
+    transition: color 150ms ease-in-out;
+
+    &:hover {
+      color: $core-fleet-black;
+    }
+  }
   .Select-input {
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
     font-size: $x-small;
     box-sizing: border-box;
     height: 34px;

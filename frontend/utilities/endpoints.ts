@@ -126,6 +126,7 @@ export default {
 
   LOGIN: `/${API_VERSION}/fleet/login`,
   CREATE_SESSION: `/${API_VERSION}/fleet/sessions`,
+  LOGO: `/${API_VERSION}/fleet/logo`,
   LOGOUT: `/${API_VERSION}/fleet/logout`,
   MACADMINS: `/${API_VERSION}/fleet/macadmins`,
 
@@ -203,6 +204,8 @@ export default {
     `/${API_VERSION}/fleet/hosts/${id}/recovery_lock_password/rotate`,
   HOST_MANAGED_ACCOUNT_PASSWORD: (id: number) =>
     `/${API_VERSION}/fleet/hosts/${id}/managed_account_password`,
+  HOST_MANAGED_LOCAL_ACCOUNT_ROTATE: (id: number) =>
+    `/${API_VERSION}/fleet/hosts/${id}/managed_account_password/rotate`,
 
   ME: `/${API_VERSION}/fleet/me`,
 

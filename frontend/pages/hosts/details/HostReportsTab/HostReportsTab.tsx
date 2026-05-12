@@ -19,6 +19,8 @@ import Slider from "components/forms/fields/Slider";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Pagination from "components/Pagination";
+import EmptyState from "components/EmptyState";
+import Button from "components/buttons/Button";
 
 import HostReportCard from "./HostReportCard";
 import EmptyReports from "./EmptyReports";
@@ -71,6 +73,8 @@ interface IHostReportsTabProps {
   };
   saveReportsDisabledInConfig?: boolean;
   showReportsEmptyState?: boolean;
+  canScheduleReport?: boolean;
+  onScheduleReport?: () => void;
 }
 
 const HostReportsTab = ({
@@ -80,6 +84,8 @@ const HostReportsTab = ({
   location,
   saveReportsDisabledInConfig,
   showReportsEmptyState = false,
+  canScheduleReport,
+  onScheduleReport,
 }: IHostReportsTabProps): JSX.Element => {
   const searchQuery = location.query.query ?? "";
   const sortOption: SortOption =
@@ -199,9 +205,11 @@ const HostReportsTab = ({
 
   // No reports should be available if MDM enrollment is pending so hide any previous reports
   // that may be associated with the host to prevent confusion while pending
-  if ((totalCount === 0 && !searchQuery) || showReportsEmptyState) {
+  if (showReportsEmptyState) {
     return <EmptyReports isSearching={false} />;
   }
+
+  const isTrulyEmpty = totalCount === 0 && !searchQuery;
 
   return (
     <div className={baseClass}>
@@ -210,6 +218,9 @@ const HostReportsTab = ({
           <span className={`${baseClass}__count`}>
             {totalCount} {pluralize(totalCount, "report")}
           </span>
+          {/* Slider stays enabled even when empty — the "truly empty" state
+              may be caused by don't-store-results reports being filtered out,
+              and the user needs the toggle to reveal them. */}
           {!saveReportsDisabledInConfig && (
             <Slider
               value={showDontStoreResults}
@@ -228,18 +239,38 @@ const HostReportsTab = ({
             onChange={onSortChange}
             className={`${baseClass}__sort-dropdown`}
             variant="table-filter"
+            isDisabled={isTrulyEmpty}
           />
           <SearchField
             placeholder="Search by name"
             defaultValue={searchQuery}
             onChange={onSearchChange}
+            disabled={isTrulyEmpty}
           />
         </div>
       </div>
 
-      {reports.length === 0 && searchQuery ? (
+      {isTrulyEmpty && (
+        <EmptyState
+          header="No reports scheduled"
+          info={
+            canScheduleReport
+              ? "Select Refetch to load the latest data from this host, or schedule a report."
+              : "Select Refetch to load the latest data from this host."
+          }
+          primaryButton={
+            canScheduleReport ? (
+              <Button onClick={onScheduleReport} type="button">
+                Schedule a report
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+      {!isTrulyEmpty && reports.length === 0 && searchQuery && (
         <EmptyReports isSearching />
-      ) : (
+      )}
+      {!isTrulyEmpty && reports.length > 0 && (
         <>
           <div className={`${baseClass}__reports-list`}>
             {reports.map((report) => (

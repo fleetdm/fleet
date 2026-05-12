@@ -11,6 +11,7 @@ import Avatar from "components/Avatar";
 import DataSet from "components/DataSet";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
+import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import {
@@ -19,7 +20,7 @@ import {
   greyCell,
   readableDate,
 } from "utilities/helpers";
-import { isDarkMode, toggleDarkMode } from "utilities/theme";
+import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
   currentUser: IUser;
@@ -36,16 +37,15 @@ const AccountSidePanel = ({
 }: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
-  const [darkMode, setDarkMode] = useState(() => isDarkMode());
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() =>
+    getThemeMode()
+  );
 
-  useEffect(() => {
-    const onThemeChange = (e: Event) => {
-      setDarkMode((e as CustomEvent).detail.dark);
-    };
-    window.addEventListener("fleet-theme-change", onThemeChange);
-    return () =>
-      window.removeEventListener("fleet-theme-change", onThemeChange);
-  }, []);
+  const onThemeSelect = (value: string) => {
+    const mode = value as ThemeMode;
+    setThemeModeState(mode);
+    setThemeMode(mode);
+  };
 
   useEffect(() => {
     const getVersionData = async () => {
@@ -54,7 +54,6 @@ const AccountSidePanel = ({
         setVersionData(data);
       } catch (response) {
         console.error(response);
-        return false;
       }
     };
 
@@ -85,58 +84,36 @@ const AccountSidePanel = ({
           newTab
         />
       </div>
-      <div className={`${baseClass}__theme-toggle`}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          className={`${baseClass}__theme-icon`}
-        >
-          <circle
-            cx="8"
-            cy="8"
-            r="3.5"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          />
-          <path
-            d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-        </svg>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={darkMode}
-          aria-label="Toggle dark mode"
-          className={`button button--unstyled ${baseClass}__toggle ${
-            darkMode ? `${baseClass}__toggle--active` : ""
-          }`}
-          onClick={() => setDarkMode(toggleDarkMode())}
-        >
-          <div
-            className={`${baseClass}__toggle-dot ${
-              darkMode ? `${baseClass}__toggle-dot--active` : ""
-            }`}
-          />
-        </button>
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 16 16"
-          fill="none"
-          className={`${baseClass}__theme-icon`}
-        >
-          <path
-            d="M14.3 10.7A7 7 0 0 1 5.3 1.7 7 7 0 1 0 14.3 10.7Z"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
-          />
-        </svg>
+      <div
+        className={`${baseClass}__theme-picker`}
+        role="radiogroup"
+        aria-label="Theme"
+      >
+        <div className={`${baseClass}__theme-picker-label`}>Theme</div>
+        <Radio
+          id="theme-system"
+          name="theme"
+          value="system"
+          label="System"
+          checked={themeMode === "system"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-light"
+          name="theme"
+          value="light"
+          label="Light"
+          checked={themeMode === "light"}
+          onChange={onThemeSelect}
+        />
+        <Radio
+          id="theme-dark"
+          name="theme"
+          value="dark"
+          label="Dark"
+          checked={themeMode === "dark"}
+          onChange={onThemeSelect}
+        />
       </div>
       {isPremiumTier && (
         <DataSet
