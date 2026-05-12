@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"image/png"
@@ -254,6 +255,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					LabelsIncludeAll:    payload.LabelsIncludeAll,
 					Categories:          payload.Categories,
 					DisplayName:         payload.DisplayName,
+					Configuration:       payload.Configuration,
 					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
 					AutoUpdateStartTime: payload.AutoUpdateStartTime,
 					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
@@ -268,6 +270,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 					LabelsIncludeAll:    payload.LabelsIncludeAll,
 					Categories:          payload.Categories,
 					DisplayName:         payload.DisplayName,
+					Configuration:       payload.Configuration,
 					AutoUpdateEnabled:   payload.AutoUpdateEnabled,
 					AutoUpdateStartTime: payload.AutoUpdateStartTime,
 					AutoUpdateEndTime:   payload.AutoUpdateEndTime,
@@ -370,6 +373,16 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				appStoreApp.Configuration = payload.Configuration
 				incomingAndroidApps = append(incomingAndroidApps, appStoreApp)
 			case fleet.IOSPlatform, fleet.IPadOSPlatform, fleet.MacOSPlatform:
+				if payload.Configuration != nil && payload.Platform != fleet.MacOSPlatform {
+					var plist string
+					if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
+						return nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
+					}
+					if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+						return nil, err
+					}
+					appStoreApp.Configuration = []byte(plist)
+				}
 				incomingAppleApps = append(incomingAppleApps, appStoreApp)
 			}
 
@@ -863,8 +876,9 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		assetMD := assetMetadata[asset.AdamID]
 
-		// Configuration is an Android only feature
-		appID.Configuration = nil
+		if appID.Platform == fleet.MacOSPlatform {
+			appID.Configuration = nil
+		}
 
 		platforms := apple_apps.ToVPPApps(assetMD)
 		appFromApple, ok := platforms[appID.Platform]
@@ -927,12 +941,24 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 	var androidConfigChanged bool
 	// note that if appID.Configuration is nil, InsertVPPAppWithTeam will ignore it (it will not
 	// update or remove it), so here we ignore it too if it is nil.
-	if appID.Configuration != nil && appID.Platform == fleet.AndroidPlatform {
-		changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
-		if err != nil {
-			return 0, "", ctxerr.Wrap(ctx, err, "checking android app configuration change")
+	if appID.Configuration != nil {
+		switch appID.Platform {
+		case fleet.AndroidPlatform:
+			changed, err := svc.ds.HasAndroidAppConfigurationChanged(ctx, appID.AdamID, ptr.ValOrZero(teamID), appID.Configuration)
+			if err != nil {
+				return 0, "", ctxerr.Wrap(ctx, err, "checking android app configuration change")
+			}
+			androidConfigChanged = changed
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			var plist string
+			if err := json.Unmarshal(appID.Configuration, &plist); err != nil {
+				return 0, "", fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
+			}
+			if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+				return 0, "", err
+			}
+			app.Configuration = []byte(plist)
 		}
-		androidConfigChanged = changed
 	}
 
 	addedApp, err := svc.ds.InsertVPPAppWithTeam(ctx, app, teamID)
@@ -967,7 +993,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		LabelsIncludeAny: actLabelsInclAny,
 		LabelsExcludeAny: actLabelsExclAny,
 		LabelsIncludeAll: actLabelsInclAll,
-		Configuration:    app.Configuration,
+		Configuration:    json.RawMessage(appID.Configuration),
 	}
 
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
@@ -1107,6 +1133,7 @@ func (svc *Service) getAnchoredVPPAppsMetadata(ctx context.Context, ids []fleet.
 				Categories:          props.Categories,
 				CategoryIDs:         props.CategoryIDs,
 				DisplayName:         props.DisplayName,
+				Configuration:       props.Configuration,
 				AutoUpdateEnabled:   props.AutoUpdateEnabled,
 				AutoUpdateStartTime: props.AutoUpdateStartTime,
 				AutoUpdateEndTime:   props.AutoUpdateEndTime,
@@ -1190,8 +1217,21 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 	if payload.SelfService != nil && meta.Platform != fleet.AndroidPlatform {
 		selfServiceVal = *payload.SelfService
 	}
-	if payload.Configuration != nil && meta.Platform != fleet.AndroidPlatform {
+	if meta.Platform == fleet.MacOSPlatform {
 		payload.Configuration = nil
+	}
+
+	// datastoreConfig holds the decoded plist for iOS/iPadOS; payload.Configuration stays in its incoming form for the activity below.
+	datastoreConfig := payload.Configuration
+	if payload.Configuration != nil && (meta.Platform == fleet.IOSPlatform || meta.Platform == fleet.IPadOSPlatform) {
+		var plist string
+		if err := json.Unmarshal(payload.Configuration, &plist); err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("configuration", "expected configuration as a JSON string containing the XML")
+		}
+		if err := fleet.ValidateAppleAppConfiguration([]byte(plist)); err != nil {
+			return nil, nil, err
+		}
+		datastoreConfig = []byte(plist)
 	}
 
 	appToWrite := &fleet.VPPApp{
@@ -1202,7 +1242,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 			SelfService:     selfServiceVal,
 			ValidatedLabels: validatedLabels,
 			DisplayName:     payload.DisplayName,
-			Configuration:   payload.Configuration,
+			Configuration:   datastoreConfig,
 		},
 		TeamID:           teamID,
 		TitleID:          titleID,
@@ -1342,12 +1382,24 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		LabelsIncludeAll:    actLabelsInclAll,
 		SoftwareIconURL:     meta.IconURL,
 		SoftwareDisplayName: displayNameVal,
-		Configuration:       appToWrite.Configuration,
+		Configuration:       payload.Configuration,
 	}
 
 	updatedAppMeta, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, teamID, titleID)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "UpdateAppStoreApp: getting updated app metadata")
+	}
+
+	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	if len(updatedAppMeta.Configuration) > 0 {
+		switch updatedAppMeta.Platform {
+		case fleet.IOSPlatform, fleet.IPadOSPlatform:
+			wrapped, err := json.Marshal(string(updatedAppMeta.Configuration))
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+			}
+			updatedAppMeta.Configuration = wrapped
+		}
 	}
 
 	return updatedAppMeta, &act, nil
