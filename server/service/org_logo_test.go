@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,22 +34,22 @@ func TestOrgLogoAuth(t *testing.T) {
 	}{
 		{
 			"global admin",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			&fleet.User{GlobalRole: new(fleet.RoleAdmin)},
 			false,
 		},
 		{
 			"global maintainer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			&fleet.User{GlobalRole: new(fleet.RoleMaintainer)},
 			true,
 		},
 		{
 			"global observer",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			&fleet.User{GlobalRole: new(fleet.RoleObserver)},
 			true,
 		},
 		{
 			"global observer+",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			&fleet.User{GlobalRole: new(fleet.RoleObserverPlus)},
 			true,
 		},
 		{
@@ -58,7 +57,7 @@ func TestOrgLogoAuth(t *testing.T) {
 			// which is what fleetctl gitops uses to upload custom org
 			// logos via the new org_logo_path_*_mode keys.
 			"global gitops",
-			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			&fleet.User{GlobalRole: new(fleet.RoleGitOps)},
 			false,
 		},
 		{
@@ -128,7 +127,7 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
-			User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)},
+			User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 		})
 
 		dsAppConfig := &fleet.AppConfig{
@@ -166,7 +165,7 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
-			User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)},
+			User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 		})
 
 		// Light mode has a Fleet-hosted URL (would normally have a blob in
@@ -210,7 +209,7 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
-			User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)},
+			User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 		})
 
 		dsAppConfig := &fleet.AppConfig{}
@@ -245,7 +244,7 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
-			User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)},
+			User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 		})
 
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -269,7 +268,7 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
 		ctx = viewer.NewContext(ctx, viewer.Viewer{
-			User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)},
+			User: &fleet.User{ID: 1, GlobalRole: new(fleet.RoleAdmin)},
 		})
 
 		dsAppConfig := &fleet.AppConfig{
