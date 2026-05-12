@@ -1,5 +1,5 @@
 #patch-faster {
-  @primary: #6A67FE;
+  @primary: #009A7D;
   @primary-dark: #5654d4;
   @text-dark: #192147;
   @text-secondary: #515774;
@@ -95,6 +95,7 @@
     display: flex;
     flex-direction: column;
     gap: 0;
+    scroll-margin-top: 90px;
     h2 {
       font-size: 20px;
       font-weight: 600;
@@ -422,7 +423,7 @@
 
   // ─── CLOSING CTA ───────────────────────────────────────────────
   [purpose='closing-cta'] {
-    background: @primary;
+    background: linear-gradient(180deg, #F8F9FA 0%, #E9F4F4 100%);
     padding: 80px 64px;
   }
 
@@ -439,30 +440,18 @@
       font-size: 32px;
       font-weight: 800;
       line-height: @heading-lineheight;
-      color: #FFFFFF;
     }
   }
 
   [purpose='closing-cta-sub'] {
     font-size: 17px;
     line-height: 1.6;
-    color: rgba(255, 255, 255, 0.82);
     max-width: 520px;
   }
 
   [purpose='closing-cta'] [purpose='cta-button'] {
-    display: inline-block;
+    .cta-button();
     padding: 13px 32px;
-    background: #FFFFFF;
-    color: @primary;
-    font-weight: 600;
-    font-size: 15px;
-    border-radius: 7px;
-    text-decoration: none;
-    transition: opacity 0.15s ease;
-    &:hover {
-      opacity: 0.92;
-    }
   }
 
   // ─── RESPONSIVE: 1199px ────────────────────────────────────────
