@@ -161,6 +161,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 				LabelName: label.Name,
 			},
 		}}
+	cfg := []byte(`<dict><key>k</key><string>v1</string></dict>`)
 	updatePayload := fleet.UpdateSoftwareInstallerPayload{
 		TeamID:          &team.ID,
 		TitleID:         titleID,
@@ -169,6 +170,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		StorageID:       "new_storage_id",
 		ValidatedLabels: &validatedLabels,
 		SelfService:     ptr.Bool(true),
+		Configuration:   cfg,
 	}
 
 	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
@@ -183,6 +185,35 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, "new_storage_id", newInstaller.StorageID)
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
 	require.True(t, newInstaller.SelfService)
+
+	// Configuration: non-empty = set on both the iOS row and its iPadOS sibling.
+	var ipadInstallerID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadInstallerID,
+		`SELECT id FROM in_house_apps WHERE bundle_identifier = ? AND platform = 'ipados'`, payload.BundleIdentifier))
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIOS)
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIPad)
+
+	// Configuration: nil = leave unchanged on both rows.
+	updatePayload.Configuration = nil
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIOS)
+	gotIPad, err = ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIPad)
+
+	// Configuration: empty = clear on both rows.
+	updatePayload.Configuration = []byte{}
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
+	_, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
+	require.ErrorContains(t, err, "not found")
 
 	// Summary is unchanged?
 	summary2, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
