@@ -155,7 +155,7 @@ org_settings:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "'org_settings' is required")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
@@ -3826,6 +3826,9 @@ software:
 
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
+			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
 			}
 
 			args := []string{"gitops"}

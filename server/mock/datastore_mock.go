@@ -1949,6 +1949,8 @@ type IsAppleEnrollmentRenewalCommandFunc func(ctx context.Context, commandUUID s
 
 type MDMAppleResetOnReenrollmentFunc func(ctx context.Context, hostUUID string, preserveHostActivities bool) error
 
+type VerifyAppleConfigProfileScopesDoNotConflictFunc func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error
+
 type DataStore struct {
 	AppConfigFunc        AppConfigFunc
 	AppConfigFuncInvoked bool
@@ -4838,6 +4840,9 @@ type DataStore struct {
 
 	MDMAppleResetOnReenrollmentFunc        MDMAppleResetOnReenrollmentFunc
 	MDMAppleResetOnReenrollmentFuncInvoked bool
+
+	VerifyAppleConfigProfileScopesDoNotConflictFunc        VerifyAppleConfigProfileScopesDoNotConflictFunc
+	VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -11581,4 +11586,11 @@ func (s *DataStore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID st
 	s.MDMAppleResetOnReenrollmentFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleResetOnReenrollmentFunc(ctx, hostUUID, preserveHostActivities)
+}
+
+func (s *DataStore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+	s.mu.Lock()
+	s.VerifyAppleConfigProfileScopesDoNotConflictFuncInvoked = true
+	s.mu.Unlock()
+	return s.VerifyAppleConfigProfileScopesDoNotConflictFunc(ctx, cps)
 }
