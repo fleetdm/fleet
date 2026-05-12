@@ -11,10 +11,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
+
+// onlineIntervalBufferSeconds mirrors fleet.OnlineIntervalBuffer (the grace
+// period added on top of a host's own check-in interval before it's
+// considered offline). Duplicated rather than imported because the chart
+// bounded context must not depend on server/fleet — arch test enforced.
+const onlineIntervalBufferSeconds = 60
 
 // Datastore is the MySQL implementation of the chart datastore.
 type Datastore struct {
@@ -81,7 +86,7 @@ func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disab
 		JOIN host_seen_times hst ON h.id = hst.host_id
 		WHERE DATE_ADD(hst.seen_time,
 			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
-		) > ?`, fleet.OnlineIntervalBuffer)
+		) > ?`, onlineIntervalBufferSeconds)
 	args := []any{now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
