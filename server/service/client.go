@@ -544,11 +544,6 @@ func (c *Client) ApplyGroup(
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 	filename *string,
-	// afterTeamCreate, if non-nil, is invoked once after ApplyTeams succeeds
-	// and before any fleet-scoped resource (profiles, software, policies,
-	// declarations) is applied. The GitOps fleet flow uses this hook to apply
-	// fleet-scoped labels at the only point that satisfies both
-	// "team-before-label" and "label-before-resource" ordering constraints.
 	afterTeamCreate func(teamIDsByName map[string]uint) error,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
@@ -981,7 +976,7 @@ func (c *Client) ApplyGroup(
 
 		// Run any caller-supplied hook between fleet creation and fleet-resource
 		// apply. The GitOps fleet flow uses this to apply fleet-scoped labels
-		// before profiles / software / policies / declarations validate label
+		// before possible consumers (profiles, policies etc.) validate label
 		// references against the database.
 		if afterTeamCreate != nil {
 			if err := afterTeamCreate(teamIDsByName); err != nil {
@@ -2457,13 +2452,8 @@ func (c *Client) DoGitOps(
 	}
 
 	// For the fleet-scoped flow, apply fleet labels via an ApplyGroup hook that
-	// fires after the fleet is created and before fleet-scoped resources
-	// (profiles, software, policies, declarations) are applied. This is the
-	// only point that satisfies both "team-before-label" (labels can be
-	// fleet-scoped) and "label-before-resource" (resources validate label
-	// references against the database) ordering constraints. The global flow
-	// applies labels separately before this call (see doGitOpsLabels for
-	// org-level labels earlier in this function) and passes nil here.
+	// fires after the fleet is created and before possible label consumers
+	// (profiles, software, policies, declarations) are applied.
 	var afterTeamCreate func(teamIDsByName map[string]uint) error
 	if incoming.TeamName != nil && !incoming.IsNoTeam() {
 		afterTeamCreate = func(teamIDsByName map[string]uint) error {
