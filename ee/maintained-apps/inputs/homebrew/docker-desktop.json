@@ -5,6 +5,5 @@
   "token": "docker-desktop",
   "installer_format": "dmg",
   "default_categories": ["Developer tools"],
-  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/docker_desktop_install.sh",
-  "patch_policy_path": "ee/maintained-apps/inputs/homebrew/patch_policies/docker_desktop.sql"
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/docker_desktop_install.sh"
 }
