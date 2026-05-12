@@ -93,7 +93,19 @@ jobs:
         if: failure()
         run: |
           if [ -f trivy-results.json ]; then
-            cve_list=$(jq -r '[.Results[]?.Vulnerabilities[]?.VulnerabilityID] | unique | map("• " + .) | join("\\n")' trivy-results.json)
+            # `safe` JSON-escapes string fields so they can be embedded inline in
+            # the Slack payload JSON (titles can contain quotes, backslashes, etc.).
+            # `\\n` (literal backslash-n) is used as the separator so the value
+            # stays on a single line in $GITHUB_OUTPUT and Slack renders it as a
+            # newline when parsing the JSON payload.
+            cve_list=$(jq -r '
+              def safe(s): (s // "") | tojson | .[1:-1];
+              [.Results[]?.Vulnerabilities[]?]
+              | unique_by(.VulnerabilityID + "|" + (.PkgName // ""))
+              | sort_by(.Severity, .VulnerabilityID)
+              | map("• *\(.VulnerabilityID)* (\(.Severity // "UNKNOWN")) — \(safe(.PkgName // "?")) \(safe(.InstalledVersion // "?")) → \(safe(.FixedVersion // "?"))\\n    _\(safe(.Title // "(no title)"))_")
+              | join("\\n")
+            ' trivy-results.json)
           fi
           echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
