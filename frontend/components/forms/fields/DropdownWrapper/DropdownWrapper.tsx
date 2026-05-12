@@ -328,6 +328,7 @@ export const generateCustomDropdownStyles = (
     input: (provided) => {
       return {
         ...provided,
+        color: COLORS["core-fleet-black"],
         fontSize: "13px",
         margin: 0,
         padding: 0,
