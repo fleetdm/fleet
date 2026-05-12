@@ -64,11 +64,13 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	return true, nil
 }
 
-// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
-// where an existing profile with the same identifier has a different scope than the incoming
-// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
-// changes when a host switches teams or when a profile is updated.
-func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+func (ds *Datastore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+	return ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		return ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, cps)
+	})
+}
+
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflictDB(ctx context.Context, tx sqlx.QueryerContext, cps []*fleet.MDMAppleConfigProfile) error {
 	if len(cps) == 0 {
 		return nil
 	}
@@ -208,7 +210,7 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		err := ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
 		if err != nil {
 			return err
 		}
@@ -2421,10 +2423,7 @@ ON DUPLICATE KEY UPDATE
 		profTeamID = *tmID
 	}
 
-	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
-	if err != nil {
-		return false, err
-	}
+	// We don't verify profile scopes conflict, as we have already done it at the service level
 
 	// build a list of identifiers for the incoming profiles, will keep the
 	// existing ones if there's a match and no change
