@@ -45,8 +45,8 @@ const DATASETS: IDataSet[] = [
     defaultChartType: "checkerboard",
     description: (
       <>
-        The number of hosts detected online (checking in to Fleet) during 
-        a given hour.
+        The number of hosts detected online (checking in to Fleet) during a 
+        given hour.
         <br />
         <br />
         Currently, only macOS, Windows, Linux, and ChromeOS are supported.
