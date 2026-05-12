@@ -652,3 +652,4 @@ Below are some projects created by Fleet community members. These projects provi
 
 <meta name="pageOrderInSection" value="400">
 <meta name="description" value="An opinionated view of running Fleet in a production environment, and configuration strategies to enable high availability.">
+<meta name="keywordsForDocsearch" value="production deployment, reverse proxy">

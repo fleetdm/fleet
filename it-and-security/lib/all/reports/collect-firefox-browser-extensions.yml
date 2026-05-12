@@ -1,8 +1,6 @@
 - name: Collect Firefox browser extensions
   description: |-
     Add-on/extension inventory across Firefox profiles for all users.
-
-    Supports **NET-94** / ISO **A.8.23** (web/content exposure), **VPM-75** / **A.8.8** (vulnerability management), and SOC2 **CC 7.1**.
   query: |-
     SELECT
       u.username,

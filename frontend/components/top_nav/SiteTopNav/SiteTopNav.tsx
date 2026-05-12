@@ -8,6 +8,7 @@ import { isDarkMode } from "utilities/theme";
 
 import { AppContext } from "context/app";
 
+import PATHS from "router/paths";
 import { IConfig } from "interfaces/config";
 import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import { IUser } from "interfaces/user";
@@ -77,7 +78,11 @@ const isGlobalPage = (path: string) => {
   return Object.values(REGEX_GLOBAL_PAGES).some((re) => path.match(re));
 };
 
-const GitOpsModeIndicator = () => {
+const GitOpsModeIndicator = ({
+  isGlobalAdmin,
+}: {
+  isGlobalAdmin?: boolean;
+}) => {
   const baseClass = "gitops-mode-indicator";
   const tipContent = (
     <>
@@ -91,6 +96,12 @@ const GitOpsModeIndicator = () => {
       />
     </>
   );
+  const content = (
+    <div className={`${baseClass}__content`}>
+      <Icon name="gitops-mode" />
+      GitOps mode
+    </div>
+  );
   return (
     <TooltipWrapper
       position="bottom"
@@ -99,10 +110,16 @@ const GitOpsModeIndicator = () => {
       tipContent={tipContent}
       tipOffset={2}
     >
-      <div className={`${baseClass}__content`}>
-        <Icon name="gitops-mode" />
-        GitOps mode
-      </div>
+      {isGlobalAdmin ? (
+        <Link
+          className={`${baseClass}__link`}
+          to={PATHS.ADMIN_INTEGRATIONS_CHANGE_MANAGEMENT}
+        >
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
     </TooltipWrapper>
   );
 };
@@ -152,8 +169,11 @@ const SiteTopNav = ({
 
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
-    const darkLogoURL = config.org_info.org_logo_url;
-    const lightLogoURL = config.org_info.org_logo_url_light_background;
+    const darkLogoURL =
+      config.org_info.org_logo_url_dark_mode || config.org_info.org_logo_url;
+    const lightLogoURL =
+      config.org_info.org_logo_url_light_mode ||
+      config.org_info.org_logo_url_light_background;
     const hasDarkLogo = darkLogoURL && darkLogoURL !== lightLogoURL;
     const orgLogoURL = darkMode && hasDarkLogo ? darkLogoURL : lightLogoURL;
     const active = navItem.location.regex.test(currentPath);
@@ -261,7 +281,9 @@ const SiteTopNav = ({
           })}
         </ul>
         <div className="site-nav-right">
-          {config.gitops.gitops_mode_enabled && <GitOpsModeIndicator />}
+          {config.gitops.gitops_mode_enabled && (
+            <GitOpsModeIndicator isGlobalAdmin={isGlobalAdmin} />
+          )}
           <UserMenu
             onLogout={onLogoutUser}
             onUserMenuItemClick={onUserMenuItemClick}

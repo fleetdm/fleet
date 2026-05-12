@@ -64,11 +64,13 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	return true, nil
 }
 
-// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
-// where an existing profile with the same identifier has a different scope than the incoming
-// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
-// changes when a host switches teams or when a profile is updated.
-func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+func (ds *Datastore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+	return ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		return ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, cps)
+	})
+}
+
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflictDB(ctx context.Context, tx sqlx.QueryerContext, cps []*fleet.MDMAppleConfigProfile) error {
 	if len(cps) == 0 {
 		return nil
 	}
@@ -208,7 +210,7 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		err := ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
 		if err != nil {
 			return err
 		}
@@ -1654,6 +1656,12 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associating host with idp account")
 			}
+		} else if idpUUID == "" && len(hosts) > 0 {
+			ds.logger.InfoContext(ctx, "clearing previous mdm idp account association", "host_uuid", hosts[0].UUID)
+			if _, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?", hosts[0].UUID); err != nil {
+				// We intentionally do not error out here, to avoid breaking the other queries if we fail to remove this, as this is non-critical to remove.
+				ds.logger.ErrorContext(ctx, "failed to clear mdm idp account association", "host_uuid", hosts[0].UUID, "error", err)
+			}
 		}
 
 		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
@@ -2415,10 +2423,7 @@ ON DUPLICATE KEY UPDATE
 		profTeamID = *tmID
 	}
 
-	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
-	if err != nil {
-		return false, err
-	}
+	// We don't verify profile scopes conflict, as we have already done it at the service level
 
 	// build a list of identifiers for the incoming profiles, will keep the
 	// existing ones if there's a match and no change
@@ -3552,34 +3557,20 @@ func (ds *Datastore) UpdateOrDeleteHostMDMAppleProfile(ctx context.Context, prof
 	}
 
 	// Check whether we want to set a install operation as 'verifying' for an iOS/iPadOS device.
-	// For non-managed-cert profiles, iOS/iPadOS short-circuits to 'verified' because there is
-	// no osquery available to drive the standard verifying -> verified transition. Managed-cert
-	// profiles instead use CertificateList ingestion (updateHostMDMManagedCertDetailsDB) as
-	// their verification trigger; leaving them at 'verifying' here closes the renewal-cron race
-	// where 'verified' would arrive before fresh cert metadata had been ingested. See #44111.
-	var iOSAckCheck struct {
-		IsIOS         bool `db:"is_ios"`
-		IsManagedCert bool `db:"is_managed_cert"`
-	}
+	var isIOSIPadOSInstallVerifiying bool
 	if profile.OperationType == fleet.MDMOperationTypeInstall && profile.Status != nil && *profile.Status == fleet.MDMDeliveryVerifying {
-		if err := ds.writer(ctx).GetContext(ctx, &iOSAckCheck, `
-          SELECT
-              (h.platform = 'ios' OR h.platform = 'ipados') AS is_ios,
-              EXISTS(SELECT 1 FROM host_mdm_managed_certificates WHERE host_uuid = h.uuid AND profile_uuid = ?) AS is_managed_cert
-          FROM hosts h
-          WHERE h.uuid = ?`,
-			profile.ProfileUUID, profile.HostUUID,
+		if err := ds.writer(ctx).GetContext(ctx, &isIOSIPadOSInstallVerifiying, `
+          SELECT platform = 'ios' OR platform = 'ipados' FROM hosts WHERE uuid = ?`,
+			profile.HostUUID,
 		); err != nil {
 			return err
 		}
 	}
 
 	status := profile.Status
-	if iOSAckCheck.IsIOS && !iOSAckCheck.IsManagedCert {
-		// iOS/iPadOS devices do not have osquery, thus they go from 'pending'
-		// straight to 'verified'. Managed-cert profiles are the exception and
-		// transition via updateHostMDMManagedCertDetailsDB once fresh metadata
-		// arrives.
+	if isIOSIPadOSInstallVerifiying {
+		// iOS/iPadOS devices do not have osquery,
+		// thus they go from 'pending' straight to 'verified'
 		status = &fleet.MDMDeliveryVerified
 	}
 
@@ -4891,7 +4882,7 @@ WHERE
 		totalProcessed += len(serials)
 	}
 	if totalProcessed != len(serials) {
-		ds.logger.ErrorContext(ctx, fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
+		ds.logger.WarnContext(ctx, fmt.Sprintf("screen dep serials: expected to process %d serials but processed %d", len(serials), totalProcessed))
 	}
 
 	return skipSerialsByOrgName, serialsByOrgName, nil
@@ -5607,7 +5598,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	// unrelated decl+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
-	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
+	  WHERE ((apple_declaration_uuid, label_id) NOT IN (%s) OR label_id IS NULL) AND
 	  apple_declaration_uuid IN (?)
 	`
 
@@ -5630,7 +5621,7 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	`
 
 	selectStmt := `
-		SELECT apple_declaration_uuid as profile_uuid, label_name, label_id, exclude, require_all FROM mdm_declaration_labels
+		SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id, exclude, require_all FROM mdm_declaration_labels
 		WHERE (apple_declaration_uuid, label_name) IN (%s)
 	`
 
@@ -6435,7 +6426,7 @@ func (ds *Datastore) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames
 
 	stmt := `
 SELECT
-    name, value
+    name, value, HEX(md5_checksum) as md5_checksum
 FROM
    mdm_config_assets
 WHERE
@@ -6467,7 +6458,7 @@ WHERE
 			return nil, ctxerr.Wrapf(ctx, err, "decrypting mdm config asset %s", asset.Name)
 		}
 
-		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal}
+		assetMap[asset.Name] = fleet.MDMConfigAsset{Name: asset.Name, Value: decryptedVal, MD5Checksum: asset.MD5Checksum}
 	}
 
 	if len(res) < len(assetNames) {
@@ -7506,12 +7497,25 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		return "", ctxerr.New(ctx, "machine info is nil")
 	}
 
+	if enrollRef == "" {
+		// delete from host_mdm_idp_accounts if enrollRef is empty, which indicates a new enrollment without IDP.
+		// we do this outside the transaction to avoid breaking the getMDMAppleLegacyEnrollRefDB logic, if we fail here.
+		if _, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`, machineInfo.UDID); err != nil {
+			// log the error, but let the flow continue
+			ds.logger.ErrorContext(ctx, "failed to delete host mdm idp account association for empty enroll ref", "err", err, "host_uuid", machineInfo.UDID)
+		}
+	}
+
 	var result string
 	// TODO: maybe we don't need a transaction here?
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef); err != nil {
-			return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
+		if enrollRef != "" {
+			// only associate if we have a non-empty enroll ref, to avoid empty account_uuid in table.
+			if err := associateHostMDMIdPAccountDB(ctx, tx, machineInfo.UDID, enrollRef); err != nil {
+				return ctxerr.Wrap(ctx, err, "associate host mdm idp account")
+			}
 		}
+
 		legacyRef, err := getMDMAppleLegacyEnrollRefDB(ctx, tx, ds.logger, machineInfo.UDID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get mdm apple legacy enroll ref")
@@ -7519,8 +7523,6 @@ func (ds *Datastore) ReconcileMDMAppleEnrollRef(ctx context.Context, enrollRef s
 		result = legacyRef
 		return nil
 	})
-
-	// TODO: when should we delete from host_mdm_idp_accounts?
 
 	return result, err
 }
@@ -8360,4 +8362,70 @@ func (ds *Datastore) IsAppleEnrollmentRenewalCommand(ctx context.Context, comman
 	}
 
 	return exists, nil
+}
+
+// appleHostRefsForMDMReset are the tables referenced by host ids.
+// These tables are cleared when the host is re-enrolled.
+var appleHostRefsForMDMReset = []string{
+	"label_membership",
+	"host_disks",
+	"host_mdm_commands",
+	"host_batteries",
+	"host_operating_system",
+	"host_certificates",
+	"host_issues",
+	"host_last_known_locations",
+	"host_munki_info",
+	"host_munki_issues",
+}
+
+func (ds *Datastore) MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var hostIds []uint
+		err := sqlx.SelectContext(
+			ctx, tx, &hostIds,
+			`SELECT id FROM hosts WHERE uuid = ?`, hostUUID,
+		)
+		switch {
+		case err != nil:
+			return ctxerr.Wrap(ctx, err, "resetting mdm enrollment: getting host info from UUID")
+		case len(hostIds) == 0:
+			return ctxerr.Wrap(ctx, notFound("Host").WithName(hostUUID), "resetting mdm enrollment: getting host info from UUID")
+		case len(hostIds) > 1:
+			// This shouldn't happen, but if it does, we log the IDs of the hosts
+			// with the same UUID for debugging purposes.
+			ds.logger.InfoContext(ctx, "multiple hosts found with the same uuid", "host_ids", fmt.Sprintf("%v", hostIds), "processed_host_id", hostIds[0])
+		}
+		hostID := hostIds[0]
+
+		if _, err := ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID); err != nil {
+			return ctxerr.Wrap(ctx, err, "cancel upcoming activities for mdm reset", "host_uuid", hostUUID)
+		}
+
+		for _, table := range appleHostRefsForMDMReset {
+			if _, err := tx.ExecContext(ctx, fmt.Sprintf("DELETE FROM %s WHERE host_id = ?", table), hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, fmt.Sprintf("clear %s for mdm reset", table), "host_uuid", hostUUID)
+			}
+		}
+
+		if !preserveHostActivities {
+			if err := ds.clearHostActivitiesForAppleMDMReset(ctx, tx, hostUUID, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "clear host activities for mdm reset")
+			}
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) clearHostActivitiesForAppleMDMReset(ctx context.Context, tx sqlx.ExtContext, hostUUID string, hostID uint) error {
+	if _, err := tx.ExecContext(ctx, "DELETE FROM activity_host_past WHERE host_id = ?", hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "clear past host activities for mdm reset", "host_id", fmt.Sprintf("%d", hostID), "host_uuid", hostUUID)
+	}
+
+	if _, err := tx.ExecContext(ctx, "UPDATE nano_enrollment_queue SET active = 0 WHERE active = 1 AND id IN (SELECT id FROM nano_enrollments WHERE device_id = ?)", hostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "deactivate nano enrollment queue for mdm reset", "host_uuid", hostUUID)
+	}
+
+	return nil
 }

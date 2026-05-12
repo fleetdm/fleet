@@ -165,6 +165,7 @@ func YamlUnmarshal(yamlBytes []byte, out any) error {
 	return nil
 }
 
+// If you add a new key to this struct, ensure the Set() method below also checks for it
 type GitOpsControls struct {
 	fleet.BaseItem
 	MacOSUpdates   any               `json:"macos_updates"`
@@ -200,7 +201,9 @@ func (c GitOpsControls) Set() bool {
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
 		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || c.EnableRecoveryLockPassword != nil ||
-		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
+		len(c.Scripts) > 0 || c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil ||
+		c.AppleRequireHardwareAttestation != nil || c.EnableTurnOnWindowsMDMManually != nil ||
+		c.WindowsEntraTenantIDs != nil || c.RequireBitLockerPIN != nil
 }
 
 type Policy struct {
@@ -323,6 +326,18 @@ type GitOpsOrgSettings struct {
 	fleet.AppConfig
 	Secrets                any `json:"secrets"`
 	CertificateAuthorities any `json:"certificate_authorities"`
+}
+
+// GitOpsOrgInfo extends fleet.OrgInfo with gitops-only path keys for uploading
+// a custom org logo from a local file. The path keys are extracted from the
+// OrgInfo before it's sent to the AppConfig PATCH endpoint, and the actual
+// PUT /api/v1/fleet/logo upload runs after the PATCH succeeds (see
+// Client.DoGitOps in server/service/client.go) so a PATCH failure leaves
+// logo storage untouched.
+type GitOpsOrgInfo struct {
+	fleet.OrgInfo
+	OrgLogoPathDarkMode  string `json:"org_logo_path_dark_mode,omitempty"`
+	OrgLogoPathLightMode string `json:"org_logo_path_light_mode,omitempty"`
 }
 
 // GitOpsFleetSettings defines the valid keys for the top-level `settings:` section (fleet-level).
@@ -453,10 +468,10 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 		// If the file is no-team.yml, the name must be "No team".
 		switch {
 		case filepath.Base(filePath) == "no-team.yml" && !result.IsNoTeam():
-			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'No Team'", filePath))
+			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
 			return result, multiError.ErrorOrNil()
 		case filepath.Base(filePath) == "unassigned.yml" && !result.IsUnassignedTeam():
-			multiError = multierror.Append(multiError, fmt.Errorf("file %q must have team name 'Unassigned'", filePath))
+			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
 			return result, multiError.ErrorOrNil()
 		case result.IsNoTeam() && filepath.Base(filePath) != "no-team.yml":
 			multiError = multierror.Append(multiError, fmt.Errorf("file `%s` for No Team must be named `no-team.yml`", filePath))
@@ -481,7 +496,14 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 			multiError = parseTeamSettings(settingsRaw, result, baseDir, filePath, multiError)
 		}
 	default:
-		multiError = multierror.Append(multiError, errors.New("if `name` is not provided, 'org_settings' is required"))
+		switch filepath.Base(filePath) {
+		case "no-team.yml":
+			multiError = multierror.Append(multiError, errors.New("`name` must be `No Team` for `no-team.yml`"))
+		case "unassigned.yml":
+			multiError = multierror.Append(multiError, errors.New("`name` must be `Unassigned` for `unassigned.yml`"))
+		default:
+			multiError = multierror.Append(multiError, fmt.Errorf("No `name` was provided in %s. If this file is intended to define org-level settings, add `org_settings:` as a top-level key. Otherwise, use `name` to specify the fleet name.", filePath))
+		}
 	}
 
 	for _, topKey := range topKeys {
@@ -510,7 +532,11 @@ func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig
 	// Get the labels. LabelsPresent tracks whether the key was in the YAML.
 	if _, ok := top["labels"]; ok {
 		result.LabelsPresent = true
-		multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		if result.IsNoTeam() {
+			logFn("[!] 'labels' is not supported in %s. This key will be ignored.\n", filepath.Base(filePath))
+		} else {
+			multiError = parseLabels(top, result, baseDir, logFn, filePath, multiError)
+		}
 	}
 	// Get other top-level entities.
 	multiError = parseControls(top, result, logFn, filePath, multiError)
@@ -624,11 +650,35 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, fileP
 			multiError = multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"org_settings"}, err))
 		} else {
 			multiError = parseSecrets(result, multiError)
+			multiError = validateOrgInfoLogo(result.OrgSettings, multiError)
 		}
 		// Validate unknown keys in org_settings section.
 		multiError = multierror.Append(multiError, validateYAMLKeys(raw, reflect.TypeFor[GitOpsOrgSettings](), settingsFilePath, []string{"org_settings"})...)
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
+	return multiError
+}
+
+// validateOrgInfoLogo rejects org_info configurations that specify both a path
+// and a URL for the same mode. Deprecated URL keys are already migrated to the
+// new mode-aware names by ApplyDeprecatedKeyMappings before this runs.
+func validateOrgInfoLogo(orgSettings map[string]any, multiError *multierror.Error) *multierror.Error {
+	orgInfo, _ := orgSettings["org_info"].(map[string]any)
+	if orgInfo == nil {
+		return multiError
+	}
+	check := func(mode, pathKey, urlKey string) {
+		path, _ := orgInfo[pathKey].(string)
+		urlVal, _ := orgInfo[urlKey].(string)
+		if path != "" && urlVal != "" {
+			multiError = multierror.Append(multiError, fmt.Errorf(
+				"org_settings.org_info: cannot specify both '%s' and '%s' for %s mode; choose one",
+				pathKey, urlKey, mode,
+			))
+		}
+	}
+	check("dark", "org_logo_path_dark_mode", "org_logo_url_dark_mode")
+	check("light", "org_logo_path_light_mode", "org_logo_url_light_mode")
 	return multiError
 }
 
@@ -937,6 +987,9 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, logFn Logf, y
 
 	// Find the Fleet Secrets in the macos setup script file
 	if result.Controls.MacOSSetup != nil {
+		if result.Controls.MacOSSetup.Software.Set && len(result.Controls.MacOSSetup.Software.Value) > 0 {
+			logFn("[!] 'controls.setup_experience.software / controls.macos_setup.software' is deprecated; set 'setup_experience: true' on individual items under 'software.packages', 'software.app_store_apps', or 'software.fleet_maintained_apps' instead.\n")
+		}
 		if result.Controls.MacOSSetup.Script.Set {
 			startupScriptPath := resolveApplyRelativePath(controlsDir, result.Controls.MacOSSetup.Script.Value)
 			fileBytes, err := os.ReadFile(startupScriptPath)
@@ -1244,11 +1297,21 @@ func expandBaseItems[T any, PT interface {
 			result = append(result, entity)
 		// Single path -- resolve to absolute path and add to result.
 		case hasPath:
-			if containsGlobMeta(*baseItem.Path) {
-				errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
-				continue
-			}
 			resolved := resolveApplyRelativePath(baseDir, *baseItem.Path)
+			// Reject glob metacharacters in "path:" only when the literal path
+			// does not resolve to an existing file. This allows filenames that
+			// contain literal glob metacharacters (e.g. Windows CSP names like
+			// "[AllowSpotlightCollection].xml") to be referenced via "path:".
+			if containsGlobMeta(*baseItem.Path) {
+				if _, err := os.Stat(resolved); err != nil {
+					if os.IsNotExist(err) {
+						errs = append(errs, fmt.Errorf(`%s "path" %q contains glob characters; use "paths" for glob patterns`, entityType, *baseItem.Path))
+					} else {
+						errs = append(errs, fmt.Errorf("failed to stat %s path %q: %w", entityType, resolved, err))
+					}
+					continue
+				}
+			}
 			// Check for duplicate filenames if requested.
 			if opts.RequireUniqueBasenames {
 				base := filepath.Base(resolved)
@@ -1369,17 +1432,16 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 			multiError = multierror.Append(multiError, errors.New("name is required for each label"))
 		}
 
-		if l.LabelMembershipType != fleet.LabelMembershipTypeManual && l.Query == "" && l.HostVitalsCriteria == nil {
-			multiError = multierror.Append(multiError, errors.New("a SQL query or host vitals criteria is required for each non-manual label"))
+		// Validate mutually exclusive field combinations per label membership type
+		if err := fleet.ValidateLabelMembershipFields(l); err != nil {
+			for _, inv := range err.Invalid() {
+				multiError = multierror.Append(multiError, fmt.Errorf("%s", inv["reason"]))
+			}
 		}
 
 		// Don't use non-ASCII
 		if !isASCII(l.Name) {
 			multiError = multierror.Append(multiError, fmt.Errorf("label name must be in ASCII: %s", l.Name))
-		}
-
-		if _, ok := fleet.ValidLabelPlatformVariants[l.Platform]; !ok {
-			multiError = multierror.Append(multiError, fmt.Errorf("invalid platform for label %q: %s", l.Name, l.Platform))
 		}
 		// Check that host vitals criteria is valid
 		if l.HostVitalsCriteria != nil {
