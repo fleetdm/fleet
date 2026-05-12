@@ -36,6 +36,29 @@
     border-color: $ui-error;
   }
 
+  &--warning-filled {
+    background-color: $ui-warning;
+    // Yellow is light enough that foreground should be dark in BOTH modes.
+    // Use static (un-themed) tokens so dark mode doesn't flip to light text.
+    color: $static-black;
+
+    span {
+      margin-left: 15px;
+      margin-right: 15px;
+      font-size: $x-small;
+      color: $static-black;
+    }
+
+    .flash-message__remove .fleeticon,
+    .flash-message__remove .fleeticon:hover {
+      color: $static-black;
+    }
+
+    .flash-message__undo {
+      color: $static-black;
+    }
+  }
+
   &__content {
     display: flex;
     align-items: center;

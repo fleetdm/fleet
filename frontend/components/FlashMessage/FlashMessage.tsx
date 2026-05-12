@@ -95,7 +95,9 @@ const SingleFlashMessage = ({
       <div className={`${baseClass}__content`}>
         <Icon
           name={alertType === "success" ? "success" : "error"}
-          color={alertType === "success" ? "ui-success" : "ui-error"}
+          color={
+            alertType === "warning-filled" ? "static-black" : alertType === "success" ? "ui-success" : "ui-error"
+          }
         />
         <span>{message}</span>
       </div>
@@ -107,7 +109,9 @@ const SingleFlashMessage = ({
           >
             <Icon
               name="close"
-              color="core-fleet-black"
+              color={
+                alertType === "warning-filled" ? "static-black" : "core-fleet-black"
+              }
             />
           </button>
         </div>
