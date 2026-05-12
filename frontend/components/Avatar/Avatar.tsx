@@ -93,7 +93,7 @@ const APIOnlyAvatar = ({ className }: IAPIOnlyAvatar) => {
         cx="16"
         cy="16"
         r="15"
-        fill="white"
+        fill="none"
         stroke={COLORS["ui-fleet-black-50"]}
         strokeWidth="2"
       />

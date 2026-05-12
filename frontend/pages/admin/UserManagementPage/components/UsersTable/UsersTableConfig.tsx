@@ -135,6 +135,7 @@ const generateTableHeaders = (
         return (
           <TextCell
             value={cellProps.cell.value}
+            grey={greyCell(cellProps.cell.value)}
             italic={greyCell(cellProps.cell.value)}
           />
         );
