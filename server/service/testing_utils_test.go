@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
@@ -53,7 +52,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	acme_bootstrap "github.com/fleetdm/fleet/v4/server/mdm/acme/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
@@ -63,7 +61,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	fleet_mock "github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
@@ -213,8 +210,8 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
 	}
 
-	if len(opts) > 0 && opts[0].androidModule != nil {
-		androidService = opts[0].androidModule
+	if len(opts) > 0 && opts[0].AndroidModule != nil {
+		androidService = opts[0].AndroidModule
 	}
 
 	var wstepManager microsoft_mdm.CertManager
@@ -275,7 +272,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 
 		var androidModule android.Service
 		if len(opts) > 0 {
-			androidModule = opts[0].androidModule
+			androidModule = opts[0].AndroidModule
 		}
 
 		svc, err = eeservice.NewService(
@@ -358,12 +355,6 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 	return users
 }
 
-const (
-	TestAdminUserEmail      = "admin1@example.com"
-	TestMaintainerUserEmail = "user1@example.com"
-	TestObserverUserEmail   = "user2@example.com"
-)
-
 var testUsers = map[string]struct {
 	Email             string
 	PlaintextPassword string
@@ -408,68 +399,6 @@ func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 	return smtpSettings.SMTPConfigured
 }
 
-type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
-
-// HostIdentity combines host identity-related test options
-type HostIdentity struct {
-	SCEPStorage                 scep_depot.Depot
-	RequireHTTPMessageSignature bool
-}
-
-// ConditionalAccess combines conditional access-related test options
-type ConditionalAccess struct {
-	SCEPStorage scep_depot.Depot
-}
-
-type TestServerOpts struct {
-	Logger                          *slog.Logger
-	License                         *fleet.LicenseInfo
-	SkipCreateTestUsers             bool
-	Rs                              fleet.QueryResultStore
-	Lq                              fleet.LiveQueryStore
-	Pool                            fleet.RedisPool
-	FailingPolicySet                fleet.FailingPolicySet
-	Clock                           clock.Clock
-	Task                            *async.Task
-	EnrollHostLimiter               fleet.EnrollHostLimiter
-	Is                              fleet.InstallerStore
-	FleetConfig                     *config.FleetConfig
-	MDMStorage                      fleet.MDMAppleStore
-	DEPStorage                      nanodep_storage.AllDEPStorage
-	SCEPStorage                     scep_depot.Depot
-	MDMPusher                       nanomdm_push.Pusher
-	HTTPServerConfig                *http.Server
-	StartCronSchedules              []TestNewScheduleFunc
-	UseMailService                  bool
-	APNSTopic                       string
-	ProfileMatcher                  fleet.ProfileMatcher
-	EnableCachedDS                  bool
-	NoCacheDatastore                bool
-	SoftwareInstallStore            fleet.SoftwareInstallerStore
-	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
-	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
-	KeyValueStore                   fleet.KeyValueStore
-	EnableSCEPProxy                 bool
-	WithDEPWebview                  bool
-	FeatureRoutes                   []endpointer.HandlerRoutesFunc
-	SCEPConfigService               fleet.SCEPConfigService
-	DigiCertService                 fleet.DigiCertService
-	EnableSCIM                      bool
-	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
-	HostIdentity                    *HostIdentity
-	androidMockClient               *android_mock.Client
-	androidModule                   android.Service
-	ConditionalAccess               *ConditionalAccess
-	DBConns                         *common_mysql.DBConnections
-
-	// ActivityMock is populated automatically by newTestServiceWithConfig.
-	// After setup, tests can use it to intercept or assert on activity creation.
-	ActivityMock *fleet_mock.MockActivityService
-
-	ACMECertCA  *x509.Certificate
-	ACMECertKey *ecdsa.PrivateKey
-}
-
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
 	if len(opts) > 0 && opts[0].EnableCachedDS {
 		ds = cached_mysql.New(ds)
@@ -501,7 +430,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 
 	if len(opts) > 0 {
-		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].androidModule))
+		opts[0].FeatureRoutes = append(opts[0].FeatureRoutes, android_service.GetRoutes(svc, opts[0].AndroidModule))
 	}
 
 	// Activity routes. If DBConns is provided, wire the real bounded context into
@@ -810,82 +739,6 @@ func assertErrorCodeAndMessage(t *testing.T, resp *http.Response, code int, mess
 	require.Nil(t, getJSON(resp, err))
 	assert.Equal(t, code, err.Code)
 	assert.Equal(t, message, err.Message)
-}
-
-type memFailingPolicySet struct {
-	mMu sync.RWMutex
-	m   map[uint][]fleet.PolicySetHost
-}
-
-var _ fleet.FailingPolicySet = (*memFailingPolicySet)(nil)
-
-func NewMemFailingPolicySet() *memFailingPolicySet {
-	return &memFailingPolicySet{
-		m: make(map[uint][]fleet.PolicySetHost),
-	}
-}
-
-// AddFailingPoliciesForHost adds the given host to the policy sets.
-func (m *memFailingPolicySet) AddHost(policyID uint, host fleet.PolicySetHost) error {
-	m.mMu.Lock()
-	defer m.mMu.Unlock()
-
-	m.m[policyID] = append(m.m[policyID], host)
-	return nil
-}
-
-// ListHosts returns the list of hosts present in the policy set.
-func (m *memFailingPolicySet) ListHosts(policyID uint) ([]fleet.PolicySetHost, error) {
-	m.mMu.RLock()
-	defer m.mMu.RUnlock()
-
-	hosts := make([]fleet.PolicySetHost, len(m.m[policyID]))
-	copy(hosts, m.m[policyID])
-	return hosts, nil
-}
-
-// RemoveHosts removes the hosts from the policy set.
-func (m *memFailingPolicySet) RemoveHosts(policyID uint, hosts []fleet.PolicySetHost) error {
-	m.mMu.Lock()
-	defer m.mMu.Unlock()
-
-	if _, ok := m.m[policyID]; !ok {
-		return nil
-	}
-	hostsSet := make(map[uint]struct{})
-	for _, host := range hosts {
-		hostsSet[host.ID] = struct{}{}
-	}
-	n := 0
-	for _, host := range m.m[policyID] {
-		if _, ok := hostsSet[host.ID]; !ok {
-			m.m[policyID][n] = host
-			n++
-		}
-	}
-	m.m[policyID] = m.m[policyID][:n]
-	return nil
-}
-
-// RemoveSet removes a policy set.
-func (m *memFailingPolicySet) RemoveSet(policyID uint) error {
-	m.mMu.Lock()
-	defer m.mMu.Unlock()
-
-	delete(m.m, policyID)
-	return nil
-}
-
-// ListSets lists all the policy sets.
-func (m *memFailingPolicySet) ListSets() ([]uint, error) {
-	m.mMu.RLock()
-	defer m.mMu.RUnlock()
-
-	var policyIDs []uint
-	for policyID := range m.m {
-		policyIDs = append(policyIDs, policyID)
-	}
-	return policyIDs, nil
 }
 
 type nopEnrollHostLimiter struct{}
