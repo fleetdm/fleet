@@ -67,7 +67,7 @@ Each operating system assigns a default account type when a user account is crea
 
 ### Controlling account type with Fleet
 
-Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business Manager (ABM).
+Fleet's `end_user_local_account_type` setting lets you enforce either `admin`, `standard`, or `none` as the account type for the end user's local account on macOS hosts that automatically enroll via Apple Business (AB).
 
 To configure via the Fleet UI:
 
@@ -85,13 +85,16 @@ mdm:
 
 Valid values are `"admin"`, `"standard"`, and `"none"`. When set to `"standard"`, Fleet creates the end user's local account as a standard (non-admin) account during macOS setup, regardless of the OS default. When set to `"none"`, Fleet skips creating the end user's local account during macOS setup, leaving the device with only the managed local admin account provisioned by Fleet.
 
-> This setting applies to macOS hosts that automatically enroll via Apple Business Manager (ABM). For Windows and Linux, account type is controlled by the operating system during setup.
+> This setting applies to macOS hosts that automatically enroll via Apple Business (AB). For Windows and Linux, account type is controlled by the operating system during setup.
+
+> System-scoped profiles apply device-wide, including to any Fleet-managed local admin account. Admins are responsible for ensuring profile scope (`PayloadScope`) aligns with their intended targets.
+
 
 ## End user license agreement (EULA)
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
 
-Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business Manager (ABM).
+Currently, the EULA is only displayed for macOS hosts that automatically enroll via Apple Business (AB).
 
 ## Bootstrap package
 
