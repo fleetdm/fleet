@@ -926,16 +926,26 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// Best-effort: drop orphan blobs whose URL was just replaced with an
-	// external or empty value.
+	// external or empty value. Mirrors the explicit DELETE /logo endpoint's
+	// audit signal by emitting a deleted_org_logo activity per mode that
+	// actually had a blob removed.
 	if svc.orgLogoStore != nil {
 		for _, m := range []fleet.OrgLogoMode{fleet.OrgLogoModeLight, fleet.OrgLogoModeDark} {
 			oldURL := getOrgLogoURL(&oldAppConfig.OrgInfo, m)
 			newURL := getOrgLogoURL(&appConfig.OrgInfo, m)
-			if fleet.IsFleetHostedLogoURL(oldURL) && !fleet.IsFleetHostedLogoURL(newURL) {
-				if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
-					svc.logger.WarnContext(ctx, "failed to delete orphan org logo blob",
-						"mode", string(m), "err", err.Error())
-				}
+			if !fleet.IsFleetHostedLogoURL(oldURL) || fleet.IsFleetHostedLogoURL(newURL) {
+				continue
+			}
+			if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
+				svc.logger.WarnContext(ctx, "failed to delete orphan org logo blob",
+					"mode", string(m), "err", err.Error())
+				continue
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedOrgLogo{
+				Mode: string(m),
+			}); err != nil {
+				svc.logger.WarnContext(ctx, "failed to create deleted_org_logo activity for auto-cleanup",
+					"mode", string(m), "err", err.Error())
 			}
 		}
 	}

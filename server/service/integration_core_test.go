@@ -17064,4 +17064,22 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
 	require.NoError(t, res.Body.Close())
+
+	// And the cleanup recorded a deleted_org_logo activity.
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	var sawAutoCleanupActivity bool
+	for _, a := range activities.Activities {
+		if a.Type != "deleted_org_logo" || a.Details == nil {
+			continue
+		}
+		var d struct {
+			Mode string `json:"mode"`
+		}
+		if err := json.Unmarshal(*a.Details, &d); err == nil && d.Mode == string(fleet.OrgLogoModeLight) {
+			sawAutoCleanupActivity = true
+			break
+		}
+	}
+	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
 }
