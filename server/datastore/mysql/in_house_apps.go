@@ -1697,6 +1697,14 @@ func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppI
 }
 
 func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, tx, inHouseAppIDs)
+}
+
+func (ds *Datastore) bulkGetInHouseAppConfigurations(ctx context.Context, q sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
 	if len(inHouseAppIDs) == 0 {
 		return nil, nil
 	}
@@ -1718,7 +1726,7 @@ WHERE in_house_app_id IN (?)
 		InHouseAppID  uint   `db:"in_house_app_id"`
 		Configuration []byte `db:"configuration"`
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
 	}

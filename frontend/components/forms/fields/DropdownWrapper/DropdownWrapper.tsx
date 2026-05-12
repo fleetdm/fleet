@@ -131,7 +131,7 @@ const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
   if (state.isFocused) return COLORS["ui-fleet-black-5"];
-  if (state.isSelected) return COLORS["ui-vibrant-blue-10"];
+  if (state.isSelected) return COLORS["ui-fleet-black-10"];
   return "transparent";
 };
 
