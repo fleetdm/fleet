@@ -74,11 +74,19 @@ type DatasetStore interface {
 	// recent host activity.
 	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map — callers must pass the
+	// CVE set they want to collect for. Unresolved-only is implicit in the
 	// underlying joins: a host's software/OS row transitions when it upgrades
 	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+
+	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
+	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
+	// titles, unioned with all critical OS vulnerabilities. Used by the CVE
+	// collector to scope collection to only the CVEs the chart actually
+	// renders. See TODO(iteration-2) in the mysql implementation.
+	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.

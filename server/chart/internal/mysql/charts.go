@@ -103,10 +103,18 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 }
 
 // TODO(iteration-2): the matcher list and TrackedCriticalCVEs exist only
-// until user-configurable CVE filtering ships on the dashboard. When that
-// lands, delete trackedCVESoftwareMatchers, TrackedCriticalCVEs, its entries
-// on the Datastore/DatasetStore interfaces, and the `if metric == "cve"`
-// branch in the chart service. See change `cve-chart-demo-filter`.
+// until user-configurable CVE filtering ships on the dashboard. Today the
+// curated set is used twice — to scope what the CVE collector writes (so
+// host_scd_data only carries rows for tracked CVEs) and to scope what the
+// chart service reads. The write-side scoping is a temporary measure while
+// per-row blob storage is still dense; once roaring-bitmap encoding lands,
+// collection can go back to recording all CVEs and the read-side filter
+// alone is enough. When user-configurable filtering ships, delete
+// trackedCVESoftwareMatchers, TrackedCriticalCVEs, its entries on the
+// Datastore/DatasetStore interfaces, the cves argument to
+// AffectedHostIDsByCVE, the TrackedCriticalCVEs call in CVEDataset.Collect,
+// and the `if metric == "cve"` branch in the chart service. See change
+// `cve-chart-demo-filter`.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source.
@@ -148,12 +156,19 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{"kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE. It streams two joins
-// (software-level and OS-level vulnerabilities) and merges the results into a
-// single map. Duplicates across sources are harmless — the downstream
-// HostIDsToBlob setBit is idempotent.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
+// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+// cves set. It streams two joins (software-level and OS-level vulnerabilities)
+// and merges the results into a single map. Duplicates across sources are
+// harmless — the downstream HostIDsToBlob setBit is idempotent.
+//
+// nil or empty cves returns an empty map without running any query. Callers
+// (today only CVEDataset.Collect) must pre-compute the set of CVEs they want
+// to collect for — see TrackedCriticalCVEs.
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
 	result := make(map[string][]uint)
+	if len(cves) == 0 {
+		return result, nil
+	}
 
 	// Both subqueries gain a hosts JOIN + WHERE only when there are fleets to
 	// exclude. Skipping the JOIN entirely when the slice is empty keeps the
@@ -167,18 +182,25 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 		FROM operating_system_vulnerabilities osv
 		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`
 
-	var swArgs, osArgs []any
+	swWhere := []string{"sc.cve IN (?)"}
+	osWhere := []string{"osv.cve IN (?)"}
+	swArgs := []any{cves}
+	osArgs := []any{cves}
+
 	if len(disabledFleetIDs) > 0 {
 		swQuery += `
-			JOIN hosts h ON h.id = hs.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		swArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hs.host_id`
+		swWhere = append(swWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		swArgs = append(swArgs, disabledFleetIDs)
 
 		osQuery += `
-			JOIN hosts h ON h.id = hos.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		osArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hos.host_id`
+		osWhere = append(osWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		osArgs = append(osArgs, disabledFleetIDs)
 	}
+
+	swQuery += " WHERE " + strings.Join(swWhere, " AND ")
+	osQuery += " WHERE " + strings.Join(osWhere, " AND ")
 
 	if err := ds.streamCVEHostPairs(ctx, swQuery, swArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
