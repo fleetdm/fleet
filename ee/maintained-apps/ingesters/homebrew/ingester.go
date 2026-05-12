@@ -185,13 +185,25 @@ func (i *brewIngester) ingestOne(ctx context.Context, input inputApp) (*maintain
 	external_refs.EnrichManifest(out)
 
 	// create patch policy
-	out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
-		Platform:    "darwin",
-		Version:     out.Version,
-		ExistsQuery: out.Queries.Exists,
-	})
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+	switch input.PatchPolicyPath {
+	case "":
+		out.Queries.Patched, err = patch_policy.GenerateQueryForManifest(patch_policy.PolicyData{
+			Platform:    "darwin",
+			Version:     out.Version,
+			ExistsQuery: out.Queries.Exists,
+		})
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "creating patch policy")
+		}
+	default:
+		patchBytes, err := os.ReadFile(input.PatchPolicyPath)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "reading provided patch policy file")
+		}
+		// Substitute the current version into the template. Using a non-%s token
+		// avoids fmt.Sprintf escaping headaches around literal '%' chars (e.g.
+		// SQL LIKE patterns like '%.back').
+		out.Queries.Patched = strings.TrimSuffix(strings.ReplaceAll(string(patchBytes), "__VERSION__", out.Version), "\n")
 	}
 
 	return out, nil
