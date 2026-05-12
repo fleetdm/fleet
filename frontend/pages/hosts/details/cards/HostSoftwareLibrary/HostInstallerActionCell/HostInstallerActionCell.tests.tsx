@@ -774,10 +774,7 @@ describe("HostInstallerActionCell component", () => {
     expect(refreshIcons).toHaveLength(2);
   });
 
-  it.each([
-    ["installed" as const],
-    ["recently_installed" as const],
-  ])(
+  it.each([["installed" as const], ["recently_installed" as const]])(
     "renders enabled Uninstall when ui_status is %s but installed_versions is empty (title-id mismatch, fleet#42026)",
     (uiStatus) => {
       render(
@@ -996,10 +993,7 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
     expect(screen.queryByText("How to open")).toBeInTheDocument();
   });
 
-  it.each([
-    ["installed" as const],
-    ["recently_installed" as const],
-  ])(
+  it.each([["installed" as const], ["recently_installed" as const]])(
     "renders standalone Uninstall button on My Device when ui_status is %s but installed_versions is empty (title-id mismatch, fleet#42026)",
     (uiStatus) => {
       // installed_versions is empty so canViewOpenInstructions is false; Uninstall surfaces
