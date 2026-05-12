@@ -56,12 +56,6 @@ type scanPath struct {
 	user          string // username for user-scoped installs, empty for system
 }
 
-// localUser represents a local system user for per-user plugin scanning.
-type localUser struct {
-	name    string
-	homeDir string
-}
-
 // hostAppCodes maps Adobe host application codes found in manifests to
 // human-readable application names.
 var hostAppCodes = map[string]string{

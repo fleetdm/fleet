@@ -70,6 +70,11 @@ func getScanPaths(level string, logger zerolog.Logger) ([]scanPath, error) {
 	return paths, nil
 }
 
+type localUser struct {
+	name    string
+	homeDir string
+}
+
 func listLocalUsers() ([]localUser, error) {
 	entries, err := os.ReadDir("/Users")
 	if err != nil {
