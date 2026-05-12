@@ -1,6 +1,7 @@
 package apple_mdm
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -104,7 +105,7 @@ func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
 				require.NotContains(t, out, s, "did not expect %q in output", s)
 			}
 			require.Contains(t, out,
-				"<integer>"+itoa(c.wantMgmt)+"</integer>",
+				"<integer>"+strconv.Itoa(c.wantMgmt)+"</integer>",
 				"ManagementFlags should be %d", c.wantMgmt)
 			require.Contains(t, out, "<string>"+commandUUID+"</string>")
 		})
@@ -173,20 +174,4 @@ func TestBuildInstallApplicationCommand_ConfigurationOuterDictPreserved(t *testi
 	cfgDict, ok := cfgVal.(map[string]any)
 	require.True(t, ok, "Configuration value should be a dict, got %T", cfgVal)
 	require.Equal(t, "https://example.com", cfgDict["ServerURL"])
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n == 1 {
-		return "1"
-	}
-	// Builder only emits 0 or 1 today.
-	t := []byte{}
-	for n > 0 {
-		t = append([]byte{byte('0' + n%10)}, t...)
-		n /= 10
-	}
-	return string(t)
 }
