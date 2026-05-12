@@ -17025,10 +17025,14 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	// 6. DELETE for an external URL: customer sets a logo URL pointing at
 	// an external host, then deletes via the UI. The endpoint must clear
-	// the URL field without touching any store (#45213).
+	// the URL field without touching any store (#45213). The dark side
+	// still has a Fleet-hosted URL from step 2, so we replace both keys
+	// for each pair to keep NormalizeLogoFields happy.
 	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
 		"org_info": {
 			"org_logo_url": "https://placehold.co/100",
+			"org_logo_url_dark_mode": "https://placehold.co/100",
+			"org_logo_url_light_background": "https://placehold.co/200",
 			"org_logo_url_light_mode": "https://placehold.co/200"
 		}
 	}`), http.StatusOK)
@@ -17038,6 +17042,7 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
 	require.Empty(t, acResp.OrgInfo.OrgLogoURL)
 	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground)
 
 	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
 	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
