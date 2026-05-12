@@ -182,7 +182,7 @@ func testFindOnlineOfflineExcluded(t *testing.T, tdb *testutils.TestDB, ds *Data
 	// All three hosts have a 10-min check-in interval (effective online
 	// window: 660s). Only host 0 is within that window.
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval},      // 0: online
+		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval},          // 0: online
 		{teamID: 2, seenTime: now.Add(-1 * time.Hour), distributedInterval: defaultInterval},  // 1: offline (well past its window)
 		{teamID: 0, seenTime: now.Add(-48 * time.Hour), distributedInterval: defaultInterval}, // 2: offline even though NULL team
 	})
@@ -200,7 +200,7 @@ func testFindOnlineMobileExcluded(t *testing.T, tdb *testutils.TestDB, ds *Datas
 	// INNER JOIN regardless of how recently it might have checked in via MDM.
 	ids := seedHosts(t, tdb, []hostSeed{
 		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 0: osquery online
-		{teamID: 1, seenTime: now, omitSeenTime: true},                                // 1: mobile (no hst row)
+		{teamID: 1, seenTime: now, omitSeenTime: true},                               // 1: mobile (no hst row)
 	})
 
 	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
