@@ -124,6 +124,14 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		}
 	}
 
+	// Validate iOS / iPadOS managed app configuration (if provided) before
+	// persisting; SaveInHouseAppUpdates handles the storage inside its tx.
+	if len(payload.Configuration) > 0 {
+		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+			return nil, err
+		}
+	}
+
 	if err := svc.ds.SaveInHouseAppUpdates(ctx, payload); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "saving installer updates")
 	}
