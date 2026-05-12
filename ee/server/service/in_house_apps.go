@@ -3,6 +3,7 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"text/template"
@@ -110,6 +111,12 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		payload.SelfService = &existingInstaller.SelfService
 	}
 
+	if len(payload.Configuration) > 0 {
+		if err := fleet.ValidateAppleAppConfiguration(payload.Configuration); err != nil {
+			return nil, err
+		}
+	}
+
 	// persist changes starting here, now that we've done all the validation/diffing we can
 	if payloadForNewInstallerFile != nil {
 		if err := svc.storeSoftware(ctx, payloadForNewInstallerFile); err != nil {
@@ -154,6 +161,15 @@ func (svc *Service) updateInHouseAppInstaller(ctx context.Context, payload *flee
 		return nil, ctxerr.Wrap(ctx, err, "getting updated installer statuses")
 	}
 	updatedInstaller.Status = &fleet.SoftwareInstallerStatusSummary{Installed: st.Installed, PendingInstall: st.Pending, FailedInstall: st.Failed}
+
+	// Wrap iOS / iPadOS plist as a JSON string for the response.
+	if len(updatedInstaller.Configuration) > 0 {
+		wrapped, err := json.Marshal(string(updatedInstaller.Configuration))
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "wrapping configuration for response")
+		}
+		updatedInstaller.Configuration = wrapped
+	}
 
 	return updatedInstaller, nil
 }
