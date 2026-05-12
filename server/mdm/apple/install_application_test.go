@@ -1,10 +1,12 @@
 package apple_mdm
 
 import (
+	"context"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/stretchr/testify/require"
 	"howett.net/plist"
 )
@@ -174,4 +176,136 @@ func TestBuildInstallApplicationCommand_ConfigurationOuterDictPreserved(t *testi
 	cfgDict, ok := cfgVal.(map[string]any)
 	require.True(t, ok, "Configuration value should be a dict, got %T", cfgVal)
 	require.Equal(t, "https://example.com", cfgDict["ServerURL"])
+}
+
+func TestSubstituteFleetVarsInAppConfig(t *testing.T) {
+	ctx := context.Background()
+	host := AppConfigSubstitutionHost{
+		UUID:           "host-uuid-1",
+		HardwareSerial: "ABC123",
+		Platform:       "ios",
+	}
+
+	// emptyDS is a non-nil placeholder for paths that don't actually consult
+	// the datastore (host-only variables). The nilaway linter treats nil
+	// arguments as nilable through the call chain even when the called branch
+	// can never dereference them, so always pass a real mock.
+	emptyDS := new(mock.Store)
+
+	t.Run("no config returns nil error", func(t *testing.T) {
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, nil, host)
+		require.NoError(t, err)
+		require.Nil(t, got)
+	})
+
+	t.Run("config without variables returns unchanged", func(t *testing.T) {
+		cfg := []byte(`<dict><key>K</key><string>plain</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
+		require.NoError(t, err)
+		require.Equal(t, cfg, got)
+	})
+
+	t.Run("HOST_UUID substituted", func(t *testing.T) {
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_UUID</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
+		require.NoError(t, err)
+		require.Contains(t, string(got), "host-uuid-1")
+		require.NotContains(t, string(got), "$FLEET_VAR_HOST_UUID")
+	})
+
+	t.Run("HOST_HARDWARE_SERIAL substituted", func(t *testing.T) {
+		cfg := []byte(`<dict><key>K</key><string>${FLEET_VAR_HOST_HARDWARE_SERIAL}</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, host)
+		require.NoError(t, err)
+		require.Contains(t, string(got), "ABC123")
+	})
+
+	t.Run("HOST_PLATFORM darwin maps to macos", func(t *testing.T) {
+		darwinHost := host
+		darwinHost.Platform = "darwin"
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_PLATFORM</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, emptyDS, cfg, darwinHost)
+		require.NoError(t, err)
+		require.Contains(t, string(got), "macos")
+	})
+
+	t.Run("HOST_END_USER_EMAIL_IDP resolves via datastore", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			require.Equal(t, "host-uuid-1", hostUUID)
+			return []string{"user@example.com"}, nil
+		}
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		require.Contains(t, string(got), "user@example.com")
+	})
+
+	t.Run("HOST_END_USER_EMAIL_IDP missing returns ErrUnresolvable", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return nil, nil
+		}
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		require.ErrorIs(t, err, ErrUnresolvableAppConfigVar)
+		require.Nil(t, got)
+	})
+
+	t.Run("XML special chars in substituted value are escaped", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return []string{"a&b@example.com"}, nil
+		}
+		cfg := []byte(`<dict><key>K</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		// Round-trip the resulting XML through the plist parser; if escaping
+		// is broken the parser will fail or decode incorrectly.
+		var parsed map[string]any
+		_, perr := plist.Unmarshal(got, &parsed)
+		require.NoError(t, perr)
+		require.Equal(t, "a&b@example.com", parsed["K"])
+	})
+
+	t.Run("multiple variables substituted independently", func(t *testing.T) {
+		ds := new(mock.Store)
+		ds.GetHostEmailsFunc = func(ctx context.Context, hostUUID string, source string) ([]string, error) {
+			return []string{"user@example.com"}, nil
+		}
+		cfg := []byte(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string><key>S</key><string>$FLEET_VAR_HOST_HARDWARE_SERIAL</string><key>E</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)
+		got, err := SubstituteFleetVarsInAppConfig(ctx, ds, cfg, host)
+		require.NoError(t, err)
+		s := string(got)
+		require.Contains(t, s, "host-uuid-1")
+		require.Contains(t, s, "ABC123")
+		require.Contains(t, s, "user@example.com")
+	})
+}
+
+// Ensure the result of substitution slots into BuildInstallApplicationCommand
+// without breaking the plist envelope.
+func TestSubstituteThenBuildRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	cfg := []byte(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`)
+	host := AppConfigSubstitutionHost{UUID: "uuid-x", Platform: "ios"}
+
+	substituted, err := SubstituteFleetVarsInAppConfig(ctx, new(mock.Store), cfg, host)
+	require.NoError(t, err)
+
+	cmd := BuildInstallApplicationCommand(InstallApplicationParams{
+		CommandUUID:   "cmd",
+		HostPlatform:  "ios",
+		ITunesStoreID: "1",
+		Configuration: substituted,
+	})
+
+	var parsed map[string]any
+	format, err := plist.Unmarshal(cmd, &parsed)
+	require.NoError(t, err)
+	require.Equal(t, plist.XMLFormat, format)
+	command, _ := parsed["Command"].(map[string]any)
+	configDict, ok := command["Configuration"].(map[string]any)
+	require.True(t, ok)
+	require.Equal(t, "uuid-x", configDict["UUID"])
 }
