@@ -77,6 +77,8 @@ var hostAppCodes = map[string]string{
 	"LTRM": "Lightroom",
 	"LRCC": "Lightroom Classic",
 	"XD":   "XD",
+	"AICY": "InCopy",
+	"PRLD": "Prelude",
 }
 
 type adobePluginsTable struct {
