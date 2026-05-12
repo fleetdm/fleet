@@ -196,7 +196,7 @@ const Avatar = ({
 
   const avatarClasses = classnames(baseClass, className, {
     [`${baseClass}--${size?.toLowerCase()}`]: !!size,
-    "has-white-background": !!hasWhiteBackground,
+    "has-white-background": !!hasWhiteBackground && !useApiOnlyAvatar,
   });
   const { gravatar_url } = user;
 
