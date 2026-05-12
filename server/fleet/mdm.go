@@ -76,13 +76,9 @@ const (
 	FleetVarHostPlatform                    FleetVarName = "HOST_PLATFORM"
 
 	// Certificate authority variables
-	FleetVarNDESSCEPChallenge FleetVarName = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL  FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID     FleetVarName = "SCEP_RENEWAL_ID"
-	// FleetVarCertificateRenewalID is the preferred name for the renewal-ID
-	// marker variable as of 4.86 (PR #44069). The legacy SCEP_RENEWAL_ID name
-	// remains accepted for back-compat with profiles authored against earlier
-	// docs. Both substitute to "fleet-" + profile_uuid.
+	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID" // deprecated in favor of FleetVarCertificateRenewalID, but remains for back-compat
 	FleetVarCertificateRenewalID         FleetVarName = "CERTIFICATE_RENEWAL_ID"
 	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
 	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
