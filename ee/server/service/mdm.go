@@ -349,9 +349,15 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 
-	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
-	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
-		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
+	// If any Apple-only setup feature is being turned on, ensure Apple MDM is configured.
+	// Sending a falsy/empty value for these fields is treated as a no-op so the UI can
+	// safely batch them with end_user_authentication on Windows-only / Linux-only fleets.
+	turningOnAppleOnlySetup := (payload.RequireAllSoftware != nil && *payload.RequireAllSoftware) ||
+		(payload.EnableReleaseDeviceManually != nil && *payload.EnableReleaseDeviceManually) ||
+		(payload.ManualAgentInstall != nil && *payload.ManualAgentInstall) ||
+		(payload.EnableManagedLocalAccount != nil && *payload.EnableManagedLocalAccount) ||
+		(payload.EndUserLocalAccountType != nil && *payload.EndUserLocalAccountType != "")
+	if turningOnAppleOnlySetup && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
