@@ -239,10 +239,10 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
-	// Read AppConfig up front so we can distinguish Fleet-hosted URLs (which
-	// also have a blob in the store) from external URLs (which don't). For
-	// external URLs there's nothing to delete from the store — we just clear
-	// the URL field. Bypass the cache so we see any concurrent write.
+	// Read AppConfig so we can clear the URL fields even when there's no
+	// backing blob in the store (e.g. the URL was set to an external host
+	// like https://example.com/logo.png). Bypass the cache so we see any
+	// concurrent write.
 	ctx = ctxdb.BypassCachedMysql(ctx, true)
 	ac, err := svc.ds.AppConfig(ctx)
 	if err != nil {
@@ -251,27 +251,24 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 
 	// toDelete: modes whose blob lives in the store and must be removed.
 	// toClear: modes whose URL field is non-empty and must be cleared.
-	// The two sets can diverge:
-	//   - External URL → toClear only (no blob backs an external URL).
-	//   - Empty URL + lingering blob → toDelete only. Happens in the
-	//     GitOps flow, which PATCHes the URL to "" before calling
-	//     DeleteOrgLogo to drop the blob (see doGitOpsOrgLogos).
-	//   - Fleet-hosted URL + blob → both.
+	// The two sets are computed independently because they can diverge:
+	//   - External URL with no blob → toClear only.
+	//   - Empty URL with orphan blob → toDelete only. Happens in the GitOps
+	//     flow (doGitOpsOrgLogos PATCHes the URL to "" before calling
+	//     DeleteOrgLogo) or after a PATCH overwrites a Fleet-hosted URL
+	//     with an external one without clearing the previously stored blob.
+	//   - Fleet-hosted URL with blob → both.
 	modes := mode.Modes()
 	var toDelete, toClear []fleet.OrgLogoMode
 	for _, m := range modes {
-		currentURL := orgLogoURLForMode(&ac.OrgInfo, m)
-		if currentURL != "" {
+		if orgLogoURLForMode(&ac.OrgInfo, m) != "" {
 			toClear = append(toClear, m)
 		}
-		// External URLs never have a backing blob — skip the Exists check.
-		// For empty or Fleet-hosted URLs the blob may exist.
-		if currentURL != "" && !fleet.IsFleetHostedLogoURL(currentURL) {
-			continue
-		}
-		// The S3 store's Delete is silent on missing keys, so check Exists
-		// first — otherwise we'd persist a misleading "logo deleted" activity
-		// when there was nothing to delete.
+		// Always check Exists: a blob may live in the store independent of
+		// what the URL field currently says (orphan from a prior partial
+		// state). The S3 store's Delete is silent on missing keys, so
+		// without this check we'd persist a misleading "logo deleted"
+		// activity when there was nothing to delete.
 		exists, err := svc.orgLogoStore.Exists(ctx, m)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "checking org logo exists (%s)", m)
