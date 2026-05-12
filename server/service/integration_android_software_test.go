@@ -771,7 +771,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			TeamID: teamID,
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_1", *titleResp.SoftwareTitle.ApplicationID)
-		require.Equal(t, json.RawMessage(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+		require.Equal(t, []byte(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp2), &getSoftwareTitleRequest{
 			ID:     titleApp2,
@@ -800,7 +800,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			TeamID: teamID,
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_1", *titleResp.SoftwareTitle.ApplicationID)
-		require.Equal(t, json.RawMessage(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+		require.Equal(t, []byte(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp2), &getSoftwareTitleRequest{
 			ID:     titleApp2,
