@@ -94,20 +94,8 @@ const SingleFlashMessage = ({
     <div className={baseClasses} id={baseClasses}>
       <div className={`${baseClass}__content`}>
         <Icon
-          name={
-            alertType === "success"
-              ? "success"
-              : alertType === "warning-filled"
-              ? "warning"
-              : "error"
-          }
-          color={
-            alertType === "success"
-              ? "ui-success"
-              : alertType === "warning-filled"
-              ? "ui-warning"
-              : "ui-error"
-          }
+          name={alertType === "success" ? "success" : "error"}
+          color={alertType === "success" ? "ui-success" : "ui-error"}
         />
         <span>{message}</span>
       </div>

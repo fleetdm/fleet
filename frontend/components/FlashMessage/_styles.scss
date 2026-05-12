@@ -36,11 +36,6 @@
     border-color: $ui-error;
   }
 
-  &--warning-filled {
-    background-color: $flash-warning-bkg;
-    border-color: $ui-warning;
-  }
-
   &__content {
     display: flex;
     align-items: center;
