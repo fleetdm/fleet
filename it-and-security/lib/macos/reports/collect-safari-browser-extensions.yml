@@ -2,8 +2,6 @@
   description: |-
     Extension inventory across Safari profiles for all macOS users.
 
-    Supports **NET-94** / ISO **A.8.23** (web/content exposure), **VPM-75** / **A.8.8** (vulnerability management), and SOC2 **CC 7.1**.
-
     Note: Safari data is isolated per macOS user, so osquery requires Full Disk Access to read it. See https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos.
   query: |-
     SELECT
