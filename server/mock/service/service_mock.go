@@ -458,7 +458,7 @@ type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, err
 
 type ModifyGlobalPolicyFunc func(ctx context.Context, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
 
-type GetPolicyByIDQueriesFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
+type GetPolicyByIDFunc func(ctx context.Context, policyID uint) (*fleet.Policy, error)
 
 type ApplyPolicySpecsFunc func(ctx context.Context, policies []*fleet.PolicySpec) error
 
@@ -532,7 +532,7 @@ type DeleteTeamPoliciesFunc func(ctx context.Context, teamID uint, ids []uint) (
 
 type ModifyTeamPolicyFunc func(ctx context.Context, teamID uint, id uint, p fleet.ModifyPolicyPayload) (*fleet.Policy, error)
 
-type GetTeamPolicyByIDQueriesFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
+type GetTeamPolicyByIDFunc func(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error)
 
 type CountTeamPoliciesFunc func(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error)
 
@@ -1584,8 +1584,8 @@ type Service struct {
 	ModifyGlobalPolicyFunc        ModifyGlobalPolicyFunc
 	ModifyGlobalPolicyFuncInvoked bool
 
-	GetPolicyByIDQueriesFunc        GetPolicyByIDQueriesFunc
-	GetPolicyByIDQueriesFuncInvoked bool
+	GetPolicyByIDFunc        GetPolicyByIDFunc
+	GetPolicyByIDFuncInvoked bool
 
 	ApplyPolicySpecsFunc        ApplyPolicySpecsFunc
 	ApplyPolicySpecsFuncInvoked bool
@@ -1695,8 +1695,8 @@ type Service struct {
 	ModifyTeamPolicyFunc        ModifyTeamPolicyFunc
 	ModifyTeamPolicyFuncInvoked bool
 
-	GetTeamPolicyByIDQueriesFunc        GetTeamPolicyByIDQueriesFunc
-	GetTeamPolicyByIDQueriesFuncInvoked bool
+	GetTeamPolicyByIDFunc        GetTeamPolicyByIDFunc
+	GetTeamPolicyByIDFuncInvoked bool
 
 	CountTeamPoliciesFunc        CountTeamPoliciesFunc
 	CountTeamPoliciesFuncInvoked bool
@@ -3822,11 +3822,11 @@ func (s *Service) ModifyGlobalPolicy(ctx context.Context, id uint, p fleet.Modif
 	return s.ModifyGlobalPolicyFunc(ctx, id, p)
 }
 
-func (s *Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
+func (s *Service) GetPolicyByID(ctx context.Context, policyID uint) (*fleet.Policy, error) {
 	s.mu.Lock()
-	s.GetPolicyByIDQueriesFuncInvoked = true
+	s.GetPolicyByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPolicyByIDQueriesFunc(ctx, policyID)
+	return s.GetPolicyByIDFunc(ctx, policyID)
 }
 
 func (s *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.PolicySpec) error {
@@ -4081,11 +4081,11 @@ func (s *Service) ModifyTeamPolicy(ctx context.Context, teamID uint, id uint, p 
 	return s.ModifyTeamPolicyFunc(ctx, teamID, id, p)
 }
 
-func (s *Service) GetTeamPolicyByIDQueries(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
+func (s *Service) GetTeamPolicyByID(ctx context.Context, teamID uint, policyID uint) (*fleet.Policy, error) {
 	s.mu.Lock()
-	s.GetTeamPolicyByIDQueriesFuncInvoked = true
+	s.GetTeamPolicyByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetTeamPolicyByIDQueriesFunc(ctx, teamID, policyID)
+	return s.GetTeamPolicyByIDFunc(ctx, teamID, policyID)
 }
 
 func (s *Service) CountTeamPolicies(ctx context.Context, teamID uint, matchQuery string, mergeInherited bool, automationType string) (int, int, error) {

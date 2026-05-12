@@ -900,7 +900,7 @@ func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSett
 
 type GlobalOrTeamIntegrations struct {
 	GlobalIntegrations *fleet.Integrations     `json:"global_integrations,omitempty"`
-	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"`
+	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"` //nolint:apiparamcheck // internal routing key, not emitted to user
 }
 
 func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]interface{}, error) {

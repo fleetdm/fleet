@@ -985,7 +985,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.NotNil(t, pending[0].Args)
 		var gotArgs struct {
 			Task              string   `json:"task"`
-			TeamID            *uint    `json:"team_id,omitempty"`
+			TeamID            *uint    `json:"team_id,omitempty"` //nolint:apiparamcheck // matches worker job payload shape (see server/worker/macos_setup_assistant.go)
 			HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 		}
 		require.NoError(t, json.Unmarshal(*pending[0].Args, &gotArgs))

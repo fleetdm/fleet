@@ -8433,6 +8433,61 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
 }
 
+// TestGetPolicyByIDCrossTeamAccess verifies that GET /api/latest/fleet/policies/{id}
+// returns a team policy to a user that has access to the team it belongs to and
+// rejects the request with 403 when the requesting user has no role on that team.
+// This guards the security fix for the "Cross-Team Policy Data Exposure" disclosure.
+func (s *integrationTestSuite) TestGetPolicyByIDCrossTeamAccess() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:  t.Name() + "_team1_policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	password := test.GoodPassword
+
+	team1Observer := &fleet.User{
+		Name:  "team1 observer",
+		Email: t.Name() + "_team1_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team1Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team1Observer)
+	require.NoError(t, err)
+
+	team2Observer := &fleet.User{
+		Name:  "team2 observer",
+		Email: t.Name() + "_team2_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team2Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team2Observer)
+	require.NoError(t, err)
+
+	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
+
+	// A user with access to the policy's team can read it.
+	s.setTokenForTest(t, team1Observer.Email, password)
+	var okResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusOK, &okResp)
+	require.NotNil(t, okResp.Policy)
+	assert.Equal(t, policy.ID, okResp.Policy.ID)
+	require.NotNil(t, okResp.Policy.TeamID)
+	assert.Equal(t, team1.ID, *okResp.Policy.TeamID)
+
+	// A user with no role on the policy's team is forbidden from reading it.
+	s.setTokenForTest(t, team2Observer.Email, password)
+	s.Do("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusForbidden)
+}
+
 func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
 	t := s.T()
 
@@ -16336,26 +16391,21 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}
 }
 
-// TestOsqueryBodySizeLimit verifies the body size limits on the
-// /api/osquery/log and /api/osquery/distributed/write endpoints:
-//   - Bodies exceeding the default limit are rejected with HTTP 413.
-//   - Bodies within the limit are accepted.
-//   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
-//     (guards against the false-positive PayloadTooLargeError fix).
-//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
-//     server config overrides the built-in defaults.
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	t := s.T()
 
 	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
 
-	// Body over DefaultMaxOsqueryLogWriteSize must be rejected with 413. The padding
+	logLimit := int(fleet.DefaultMaxOsqueryLogWriteSize)
+	distLimit := int(fleet.DefaultMaxOsqueryDistributedWriteSize)
+
+	// Body over the per-route default must be rejected with 413. The padding
 	// is inside a JSON string value so the body is syntactically valid up to
 	// the point where the reader is cut off.
 	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
 	logSuffix := `"]}`
-	logPadSize := int(fleet.DefaultMaxOsqueryLogWriteSize) + 1 - len(logPrefix) - len(logSuffix)
-	require.Positive(t, logPadSize, "padding must be positive; DefaultMaxOsqueryLogWriteSize may be too small")
+	logPadSize := logLimit + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive")
 	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
 
@@ -16375,11 +16425,11 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
 	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
 
-	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
+	// Body over the per-route default must be rejected with 413.
 	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
 	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
-	distPadSize := int(fleet.DefaultMaxOsqueryDistributedWriteSize) + 1 - len(distPrefix) - len(distSuffix)
-	require.Positive(t, distPadSize, "padding must be positive; DefaultMaxOsqueryDistributedWriteSize may be too small")
+	distPadSize := distLimit + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive")
 	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
 
@@ -16399,9 +16449,10 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
 
-	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
-	// in the server config override the built-in defaults.
-	s.Run("config override", func() {
+	s.Run("config overrides take effect in body-auth mode", func() {
+		// Spin up a second server with custom per-route limits and
+		// confirm bodies above the override are rejected while bodies
+		// below are accepted.
 		const customLimit = 2 * units.MiB
 
 		cfg := config.TestConfig()
@@ -16416,21 +16467,51 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 		ts := withServer{server: customServer}
 		ts.s = &s.Suite
 
-		// body over the custom limit must return 413.
 		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
-		require.Positive(s.T(), logPad, "padding must be positive; customLimit may be too small")
-		ts.DoRawNoAuth("POST", "/api/osquery/log", []byte(logPrefix+strings.Repeat("x", logPad)+logSuffix), http.StatusRequestEntityTooLarge)
-
-		// body within the custom limit must succeed.
+		s.Require().Positive(logPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", logPad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
 		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
 
-		// body over the custom limit must return 413.
 		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
-		require.Positive(s.T(), distPad, "padding must be positive; customLimit may be too small")
-		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", []byte(distPrefix+strings.Repeat("x", distPad)+distSuffix), http.StatusRequestEntityTooLarge)
-
-		// body within the custom limit must succeed.
+		s.Require().Positive(distPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(distPrefix+strings.Repeat("x", distPad)+distSuffix),
+			http.StatusRequestEntityTooLarge)
 		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+
+	s.Run("header-auth mode imposes no body size limit", func() {
+		// In header-auth mode the per-route configs are intentionally
+		// ignored AND no body size limit applies. A body well above the
+		// global default (and well above any per-route default) must
+		// succeed when authenticated via header.
+		cfg := config.TestConfig()
+		cfg.Osquery.AllowBodyAuthFallback = false
+		cfg.Osquery.MaxLogWriteBodySize = 1 * units.MiB         // ignored
+		cfg.Osquery.MaxDistributedWriteBodySize = 1 * units.MiB // ignored
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// 12 MiB body — over both the global limit (1 MiB) and any
+		// per-route default. Must succeed because header-auth mode
+		// applies no body size constraint.
+		oversizedLog, err := json.Marshal(submitLogsRequest{
+			NodeKey: *host.NodeKey,
+			LogType: "status",
+			Data:    []json.RawMessage{json.RawMessage(`"` + strings.Repeat("x", 12*1024*1024) + `"`)},
+		})
+		s.Require().NoError(err)
+		ts.DoRawWithHeaders("POST", "/api/osquery/log", oversizedLog,
+			http.StatusOK,
+			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
 	})
 }
 

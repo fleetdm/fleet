@@ -676,7 +676,13 @@ type Datastore interface {
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
+	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
+	// matching the given OS version.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
+	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
+	// filtered by source. Queries software_cve directly without joining through host_software.
+	ListSoftwareVulnerabilitiesBySoftwareIDs(ctx context.Context, softwareIDs []uint, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
 	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
@@ -3119,6 +3125,12 @@ type Datastore interface {
 	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
 	// Host activities will not be cleared if preserveHostActivities is true
 	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
+	// VerifyAppleConfigProfileScopesDoNotConflict checks scopes against existing profiles across the entire DB
+	// to ensure there are no conflicts where an existing profile with the same identifier
+	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
+	// to allow for scope changes when a host switches teams or when a profile is updated.
+	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 }
 
 type AndroidDatastore interface {

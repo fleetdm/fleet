@@ -273,6 +273,14 @@ func (r carveBlockResponse) Error() error { return r.Err }
 // stable for many years) and parse the body field by field. The "session_id" and "request_id" always
 // come before the "data" field; thus Fleet will extract "session_id" and "request_id", perform authentication
 // and if the credentials are valid parse and decode the "data" field.
+//
+// The Authorization: NodeKey <token> header (validated by the HTTP pre-auth
+// middleware) is treated as an additional short-circuit gate: a present-but-
+// invalid header rejects the request before this parser ever runs. When the
+// header is absent or valid, this parser still runs — the session/request_id
+// check remains the primary authentication mechanism. When the header is
+// valid, CarveBlock additionally verifies that the carve's host_id matches
+// the authenticated host.
 func (r carveBlockRequest) DecodeRequest(ctx context.Context, req *http.Request) (any, error) {
 	carveStore := carvestorectx.FromContext(ctx)
 	if carveStore == nil {
@@ -441,8 +449,18 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
-	// Note host did not authenticate via node key. We need to authenticate them
-	// by the session ID and request ID
+	// Authentication on this endpoint is layered:
+	//  1. The streaming body parser (carveBlockRequest.DecodeRequest)
+	//     verifies session_id+request_id against the carve store.
+	//  2. When osquery.allow_body_auth_fallback=false, the HTTP pre-auth
+	//     middleware (osqueryCarveBlockHeaderPreAuth) is installed and
+	//     additionally validates a NodeKey header before the body is read,
+	//     stashing the authenticated host in ctx. The check below uses
+	//     that host to verify carve ownership — ensuring one host cannot
+	//     post blocks into another host's carve session.
+	//  3. With osquery.allow_body_auth_fallback=true (default), the
+	//     pre-auth middleware is not installed; no host ends up in ctx,
+	//     and the ownership check is skipped.
 	carve, err := svc.carveStore.CarveBySessionId(ctx, payload.SessionId)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "find carve by session_id")
@@ -450,6 +468,14 @@ func (svc *Service) CarveBlock(ctx context.Context, payload fleet.CarveBlockPayl
 
 	if payload.RequestId != carve.RequestId {
 		return errors.New("request_id does not match")
+	}
+
+	if host, ok := hostctx.FromContext(ctx); ok && host.ID != carve.HostId {
+		logging.WithExtras(ctx, "carve_host_id", carve.HostId, "authed_host_id", host.ID,
+			"reason", "carve host ownership mismatch")
+		ose := newOsqueryError("authentication error")
+		ose.StatusCode = http.StatusUnauthorized
+		return ose
 	}
 
 	// Request is now authenticated
