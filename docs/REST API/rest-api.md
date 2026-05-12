@@ -1263,7 +1263,7 @@ Returns an Apple configuration profile file with `Content-Type: application/x-ap
 
 Disconnects Fleet from Entra. This won't unblock end users failing policies. Learn how to [unblock end users](https://fleetdm.com/guides/entra-conditional-access-integration#disable).
 
-`DELETE /api/v1/conditional-access/microsoft`
+`DELETE /api/v1/fleet/conditional-access/microsoft`
 
 #### Parameters
 
@@ -1461,7 +1461,7 @@ Returns all information about the Fleet's configuration.
 
 The `agent_options`, `sso_settings` and `smtp_settings` fields are only returned for admin and GitOps users with global access (see the [Role-based access guide](https://fleetdm.com/guides/role-based-access)).
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `mdm.macos_setup`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
+`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `mdm.setup_experience`, `mdm.volume_purchasing_program`, and `scripts` only include the settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list the settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience), [List Volume Purchasing Program (VPP) tokens](https://fleetdm.com/docs/rest-api/rest-api#list-volume-purchasing-program-vpp-tokens), or [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts) instead.
 
 `GET /api/v1/fleet/config`
 
@@ -1577,8 +1577,22 @@ None.
         }
       ]
     },
+    "apple_settings": {
+      "configuration_profiles": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels": ["Label 1", "Label 2"]
+        }
+      ]
+    },
     "windows_settings": {
       "custom_settings": [
+        {
+         "path": "path/to/profile2.xml",
+         "labels": ["Label 3", "Label 4"]
+        }
+      ],
+      "configuration_profiles": [
         {
          "path": "path/to/profile2.xml",
          "labels": ["Label 3", "Label 4"]
@@ -1601,6 +1615,13 @@ None.
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
+      "enable_release_device_manually": false,
+      "manual_agent_install": false
+    },
+    "setup_experience": {
+      "bootstrap_package": "",
+      "enable_end_user_authentication": false,
+      "apple_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false
     },
@@ -1907,8 +1928,30 @@ Modifies the Fleet's configuration with the supplied information.
         },
       ]
     },
+    "apple_settings": {
+      "configuration_profiles": [
+        {
+          "path": "path/to/profile1.mobileconfig",
+          "labels_exclude_any": ["Label 1", "Label 2"]
+        },
+        {
+          "path": "path/to/profile2.json",
+          "labels_include_all": ["Label 3", "Label 4"]
+        },
+        {
+          "path": "path/to/profile3.json",
+          "labels_include_any": ["Label 5", "Label 6"]
+        },
+      ]
+    },
     "windows_settings": {
       "custom_settings": [
+        {
+          "path": "path/to/profile3.xml",
+          "labels_exclude_any": ["Label 1", "Label 2"]
+        }
+      ],
+      "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
           "labels_exclude_any": ["Label 1", "Label 2"]
@@ -1931,6 +1974,12 @@ Modifies the Fleet's configuration with the supplied information.
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
       "macos_setup_assistant": "path/to/config.json"
+    },
+    "setup_experience": {
+      "bootstrap_package": "",
+      "enable_end_user_authentication": false,
+      "lock_end_user_info": true,
+      "apple_setup_assistant": "path/to/config.json"
     },
     "apple_server_url": "https://instance.fleet.com"
   },
@@ -2470,7 +2519,7 @@ When updating conditional access config, all `conditional_access` fields must ei
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
 | windows_updates         | object  | See [`mdm.window_updates`](#mdm-windows-updates). |
 | macos_migration         | object  | See [`mdm.macos_migration`](#mdm-macos-migration). |
-| macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup). |
+| setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings). |
 | apple_server_url         | string  | Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)  |
@@ -2548,11 +2597,11 @@ _Available in Fleet Premium._
 
 <br/>
 
-##### mdm.macos_setup
+##### mdm.setup_experience
 
 _Available in Fleet Premium._
 
-`mdm.macos_setup` is an object with the following structure:
+`mdm.setup_experience` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2614,8 +2663,8 @@ _Available in Fleet Premium._
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
+    "apple_settings": {
+      "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
@@ -2627,7 +2676,7 @@ _Available in Fleet Premium._
       ]
     },
     "windows_settings": {
-      "custom_settings": [
+      "configuration_profiles": [
         {
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
@@ -2645,11 +2694,11 @@ _Available in Fleet Premium._
       "mode": "voluntary",
       "webhook_url": "https://webhook.example.com"
     },
-    "macos_setup": {
+    "setup_experience": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
       "lock_end_user_info": true,
-      "macos_setup_assistant": "path/to/config.json"
+      "apple_setup_assistant": "path/to/config.json"
     }
   }
 }
@@ -3738,7 +3787,16 @@ Returns the information of the specified host.
         "disk_encryption": "verified",
         "action_required": null
       },
+      "apple_settings": {
+        "disk_encryption": "verified",
+        "action_required": null
+      },
       "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
+      "setup_experience": {
         "bootstrap_package_status": "installed",
         "detail": "",
         "bootstrap_package_name": "test.pkg"
@@ -3979,7 +4037,15 @@ If `hostname` is specified when there is more than one host with the same hostna
         "disk_encryption": null,
         "action_required": null
       },
+      "apple_settings": {
+        "disk_encryption": null,
+        "action_required": null
+      },
       "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": ""
+      },
+      "setup_experience": {
         "bootstrap_package_status": "installed",
         "detail": ""
       },
@@ -4197,7 +4263,16 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
         "disk_encryption": "verified",
         "action_required": null
       },
+      "apple_settings": {
+        "disk_encryption": "verified",
+        "action_required": null
+      },
       "macos_setup": {
+        "bootstrap_package_status": "installed",
+        "detail": "",
+        "bootstrap_package_name": "test.pkg"
+      },
+      "setup_experience": {
         "bootstrap_package_status": "installed",
         "detail": "",
         "bootstrap_package_name": "test.pkg"
@@ -6688,29 +6763,6 @@ The summary can optionally be filtered by fleet ID.
 }
 ```
 
-### Update Recovery Lock
-
-_Available in Fleet Premium_
-
-Edit Recovery Lock password enforcement settings for eligible macOS hosts.
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-#### Parameters
-
-| Name                          | Type    | In    | Description                                                                                                 |
-| ----------------------------- | ------  | ----  | --------------------------------------------------------------------------------------                      |
-| team_id                       | integer | body  | The team ID to apply the settings to. If omitted, settings apply to unassigned hosts.                       |
-| enable_recovery_lock_password | boolean | body  | Whether to enforce Recovery Lock password on eligible hosts.   |
-
-#### Example
-
-`POST /api/v1/fleet/recovery_lock_password`
-
-##### Default response
-
-`204`
-
 ### Get OS settings (configuration profiles) status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
@@ -6751,7 +6803,7 @@ Get aggregate status counts of profiles for macOS and Windows hosts that are "Un
 
 Get status counts of a single OS settings (configuration profile) enforced on hosts.
 
-`GET /api/v1/fleet/configuration_profile/:profile_uuid/status`
+`GET /api/v1/fleet/configuration_profiles/:profile_uuid/status`
 
 #### Parameters
 
@@ -6761,7 +6813,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 
 #### Example
 
-`GET /api/v1/fleet/configuration_profile/f663713f-04ee-40f0-a95a-7af428c351a9/status`
+`GET /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9/status`
 
 ##### Default response
 
@@ -7458,36 +7510,6 @@ script="myscript.sh"
 
 `Status: 200`
 
-### Update setup experience script
-
-_Available in Fleet Premium_
-
-Changes the script that will automatically run during macOS setup. Updates the existing script for the fleet, or for "Unassigned" hosts, if one already exists.
-
-> You need to send a request of type `multipart/form-data`.
-
-`PUT /api/v1/fleet/setup_experience/script`
-
-| Name  | Type   | In    | Description                              |
-| ----- | ------ | ----- | ---------------------------------------- |
-| fleet_id | integer | body | _Available in Fleet Premium_. The ID of the fleet to add the script to. If not specified, a script will be added for "Unassigned" hosts. |
-| script | file | body | The contents of the script to run during setup. |
-
-#### Example
-
-`PUT /api/v1/fleet/setup_experience/script`
-
-##### Request body
-
-```http
-fleet_id="1"
-script="myscript.sh"
-```
-
-##### Default response
-
-`Status: 200`
-
 ### Get or download setup experience script
 
 _Available in Fleet Premium_
@@ -7945,17 +7967,17 @@ None.
 ## Policies
 
 - [List policies](#list-policies)
-- [List fleet policies](#list-fleet-policies)
+- [List fleet-level policies](#list-fleet-level-policies)
 - [Get policies count](#get-policies-count)
-- [Get fleet policies count](#get-fleet-policies-count)
+- [Get fleet-level policies count](#get-fleet-level-policies-count)
 - [Get policy](#get-policy)
-- [Get fleet policy](#get-fleet-policy)
+- [Get fleet-level policy](#get-fleet-level-policy)
 - [Create policy](#create-policy)
-- [Create fleet policy](#create-fleet-policy)
+- [Create fleet-level policy](#create-fleet-level-policy)
 - [Delete policies](#delete-policies)
-- [Delete fleet policies](#delete-fleet-policies)
+- [Delete fleet-level policies](#delete-fleet-level-policies)
 - [Update policy](#update-policy)
-- [Update fleet policy](#update-fleet-policy)
+- [Update fleet-level policy](#update-fleet-level-policy)
 - [Reset policy automations](#reset-policy-automations)
 
 Policies are yes or no questions you can ask about your hosts.
@@ -8037,7 +8059,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ---
 
-### List fleet policies
+### List fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8271,7 +8293,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policies count
+### Get fleet-level policies count
 
 _Available in Fleet Premium_
 
@@ -8344,7 +8366,7 @@ _Available in Fleet Premium_
 
 ---
 
-### Get fleet policy
+### Get fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8475,7 +8497,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Create fleet policy
+### Create fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8598,7 +8620,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Delete fleet policies
+### Delete fleet-level policies
 
 _Available in Fleet Premium_
 
@@ -8701,7 +8723,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 ---
 
-### Update fleet policy
+### Update fleet-level policy
 
 _Available in Fleet Premium_
 
@@ -8723,7 +8745,6 @@ _Available in Fleet Premium_
 | critical                | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. Critical policies can never bypass conditional access. |
 | calendar_events_enabled | boolean | body | _Available in Fleet Premium_. Whether to trigger calendar events when policy is failing.                                                                |
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
-| conditional_access_bypass_enabled | boolean | body | _Available in Fleet Premium_. Additional option to allow end users to bypass conditional access for this policy for a single Okta login. This setting is ignored if `conditional_access_enabled` is `false`, if Okta conditional access is not configured, or if bypass is disabled in org settings. (Default: `true`.) |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
 | labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
@@ -8828,6 +8849,7 @@ Resets [webhook and ticket policy automations](https://fleetdm.com/docs/using-fl
 ## Reports
 
 - [List reports](#list-reports)
+- [List host's reports](#list-hosts-reports)
 - [Get report](#get-report)
 - [Get report data](#get-report-data)
 - [Get host's report data](#get-hosts-report-data)
@@ -8997,6 +9019,89 @@ Returns a list of reports. To see each report's data, use the [get report data](
 }
 ```
 
+### List host's reports
+
+Lists the saved reports that run on a host, along with the first result for each report that saves results.
+
+`GET /api/v1/fleet/hosts/:id/reports`
+
+#### Parameters
+
+| Name               | Type    | In    | Description                                                                                                   |
+| ------------------ | ------- | ----- | ------------------------------------------------------------------------------------------------------------- |
+| id                 | integer | path  | **Required**. The host's ID.                                                                                  |
+| query              | string  | query | Search query keywords. Searchable fields include `name`.                                                      |
+| exclude_no_results | boolean | query | If `true`, exclude reports that don't save results. Default is `false`.                                       |
+| page               | integer | query | Page number of the results to fetch.                                                                          |
+| per_page           | integer | query | Results per page.                                                                                             |
+| order_key          | string  | query | What to order results by. Valid options are `"name"` and `"last_fetched"`. Default is `"name"`.               |
+| order_direction    | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/reports`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "reports": [
+    {
+      "id": 31,
+      "name": "List USB devices",
+      "description": "Retrieves USB devices and their details.",
+      "query": "SELECT model, vendor FROM usb_devices;",
+      "logging": "snapshot",
+      "discard_data": false,
+      "total_results_count": 4,
+      "last_fetched": "2021-01-19T17:08:31Z",
+      "first_result_columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "id": 44,
+      "name": "Get operating system version",
+      "description": "Retrieves the host's operating system version.",
+      "query": "SELECT name, version, major, minor, patch FROM os_version;",
+      "logging": "differential",
+      "discard_data": false,
+      "total_results_count": 1,
+      "last_fetched": "2021-01-20T14:52:09Z",
+      "first_result_columns": {
+        "name": "macOS",
+        "version": "14.2.1",
+        "major": "14",
+        "minor": "2",
+        "patch": "1"
+      }
+    },
+    {
+      "id": 52,
+      "name": "Check disk encryption status",
+      "description": "Checks disk encryption status.",
+      "query": "SELECT 1 FROM disk_encryption WHERE encrypted = 1;",
+      "logging": "snapshot",
+      "discard_data": true,
+      "total_results_count": 0,
+      "last_fetched": "2021-01-21T09:30:00Z",
+      "first_result_columns": null
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 3
+}
+```
+
+> The report's first row reflects the order returned by the underlying [table](https://fleetdm.com/tables) implementation. Without an `ORDER BY` clause in the query, this order is not guaranteed to be consistent across runs — particularly for tables backed by live OS state (e.g. processes, network connections). To ensure a predictable first result, add `ORDER BY <column>` to your query.
+  
+
 ### Get report
 
 Returns the report specified by ID.
@@ -9065,7 +9170,7 @@ Returns the report specified by ID.
 
 Returns a specific report's data.
 
-`GET /api/v1/fleet/report/:id/report`
+`GET /api/v1/fleet/reports/:id/report`
 
 #### Parameters
 
@@ -12322,7 +12427,7 @@ _Available in Fleet Premium_
 
 `GET /api/v1/fleet/fleets/:id`
 
-`mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
+`mdm.apple_settings.configuration_profiles`, `mdm.windows_settings.configuration_profiles`, `scripts`, and `mdm.setup_experience` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
 "Unassigned" (id 0) will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
 
@@ -12402,6 +12507,14 @@ _Available in Fleet Premium_
           }
         ]
       },
+      "apple_settings": {
+        "configuration_profiles": [
+          {
+            "path": "path/to/profile1.mobileconfig",
+            "labels": ["Label 1", "Label 2"]
+          }
+        ]
+      },
       "windows_settings": {
         "custom_settings": [
           {
@@ -12409,11 +12522,24 @@ _Available in Fleet Premium_
             "labels": ["Label 3", "Label 4"]
           }
         ],
+        "configuration_profiles": [
+          {
+            "path": "path/to/profile2.xml",
+            "labels": ["Label 3", "Label 4"]
+          }
+        ]
       },
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json",
+        "enable_release_device_manually": false,
+        "manual_agent_install": false
+      },
+      "setup_experience": {
+        "bootstrap_package": "",
+        "enable_end_user_authentication": false,
+        "apple_setup_assistant": "path/to/config.json",
         "enable_release_device_manually": false,
         "manual_agent_install": false
       }
@@ -12741,7 +12867,7 @@ Returned when the requested name only differs from another fleet's name by lette
 | windows_updates         | object  | See [`mdm.windows_updates`](#mdm-windows-updates2). |
 | macos_settings         | object  | See [`mdm.macos_settings`](#mdm-macos-settings2). |
 | windows_settings         | object  | See [`mdm.windows_settings`](#mdm-windows-settings2). |
-| macos_setup         | object  | See [`mdm.macos_setup`](#mdm-macos-setup2). |
+| setup_experience         | object  | See [`mdm.setup_experience`](#mdm-setup-experience2). |
 
 <br/>
 
@@ -12815,10 +12941,10 @@ Returned when the requested name only differs from another fleet's name by lette
 
 <br/>
 
-##### mdm.macos_setup
+##### mdm.setup_experience
 
 
-`mdm.macos_setup` is an object with the following structure:
+`mdm.setup_experience` is an object with the following structure:
 
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -12848,8 +12974,8 @@ Returned when the requested name only differs from another fleet's name by lette
       "deadline_days": 5,
       "grace_period_days": 1
     },
-    "macos_settings": {
-      "custom_settings": [
+    "apple_settings": {
+      "configuration_profiles": [
         {
           "path": "path/to/profile1.mobileconfig",
           "labels": ["Label 1", "Label 2"]
@@ -12866,9 +12992,15 @@ Returned when the requested name only differs from another fleet's name by lette
           "path": "path/to/profile3.xml",
           "labels": ["Label 1", "Label 2"]
         }
+      ],
+      "configuration_profiles": [
+        {
+          "path": "path/to/profile3.xml",
+          "labels": ["Label 1", "Label 2"]
+        }
       ]
     },
-    "macos_setup": {
+    "setup_experience": {
       "enable_end_user_authentication": false
     }
   }
@@ -12992,6 +13124,14 @@ _Available in Fleet Premium_
           }
         ]
       },
+      "apple_settings": {
+        "configuration_profiles": [
+          {
+           "path": "path/to/profile1.mobileconfig",
+           "labels": ["Label 1", "Label 2"]
+          }
+        ]
+      },
       "windows_settings": {
         "custom_settings": [
           {
@@ -12999,11 +13139,22 @@ _Available in Fleet Premium_
            "labels": ["Label 3", "Label 4"]
           }
         ],
+        "configuration_profiles": [
+          {
+           "path": "path/to/profile2.xml",
+           "labels": ["Label 3", "Label 4"]
+          }
+        ]
       },
       "macos_setup": {
         "bootstrap_package": "",
         "enable_end_user_authentication": false,
         "macos_setup_assistant": "path/to/config.json"
+      },
+      "setup_experience": {
+        "bootstrap_package": "",
+        "enable_end_user_authentication": false,
+        "apple_setup_assistant": "path/to/config.json"
       }
     },
     "users": [
@@ -14337,3 +14488,4 @@ Response:
 
 <meta name="description" value="Documentation for Fleet's REST API. See example requests and responses for each API endpoint.">
 <meta name="pageOrderInSection" value="30">
+<meta name="keywordsForDocsearch" value="api reference, api authentication, hosts api, policies api, reports api, scripts api, software api, vulnerabilities api, sessions api, users api, teams api, fleets api, mdm commands api, certificates api, labels api, activities api">

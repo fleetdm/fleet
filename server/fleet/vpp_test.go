@@ -131,6 +131,18 @@ func TestValidateAppleAppConfiguration(t *testing.T) {
 			errSub:  "unsupported variable $FLEET_VAR_BOGUS",
 		},
 		{
+			name:    "duplicate key bypass: disallowed var hidden by last-wins map semantics",
+			input:   `<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string><key>K</key><string>safe_value</string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
+			name:    "trailing sibling bypass: disallowed var in element dropped by parser",
+			input:   `<dict><key>K</key><string>safe</string></dict><dict><key>X</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`,
+			wantErr: true,
+			errSub:  "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+		},
+		{
 			name:    "openstep dict format rejected",
 			input:   `{ServerURL = "https://x.com";}`,
 			wantErr: true,

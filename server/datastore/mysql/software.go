@@ -3309,6 +3309,88 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 	return result, nil
 }
 
+const softwareVulnDetectionBatchSize = 10000
+
+func (ds *Datastore) ListSoftwareForVulnDetectionByOSVersion(
+	ctx context.Context,
+	osVer fleet.OSVersion,
+) ([]fleet.Software, error) {
+	var softwareIDs []uint
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &softwareIDs, `
+		SELECT DISTINCT hs.software_id
+		FROM host_software hs
+		JOIN hosts h ON hs.host_id = h.id
+		WHERE h.platform = ? AND h.os_version = ?
+	`, osVer.Platform, osVer.Name)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing distinct software IDs for OS version")
+	}
+
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.Software
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT s.id, s.name, s.version, s.release, s.arch, COALESCE(cpe.cpe, '') AS generated_cpe
+			FROM software s
+			LEFT JOIN software_cpe cpe ON s.id = cpe.software_id
+			WHERE s.id IN (%s)
+		`, placeholders)
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			args[i] = id
+		}
+		var batchResult []fleet.Software
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software details for vulnerability detection")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (ds *Datastore) ListSoftwareVulnerabilitiesBySoftwareIDs(
+	ctx context.Context,
+	softwareIDs []uint,
+	source fleet.VulnerabilitySource,
+) ([]fleet.SoftwareVulnerability, error) {
+	if len(softwareIDs) == 0 {
+		return nil, nil
+	}
+
+	var result []fleet.SoftwareVulnerability
+	if err := common_mysql.BatchProcessSimple(softwareIDs, softwareVulnDetectionBatchSize, func(batch []uint) error {
+		placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+		query := fmt.Sprintf(`
+			SELECT software_id, cve, resolved_in_version
+			FROM software_cve
+			WHERE source = ? AND software_id IN (%s)
+		`, placeholders)
+		args := make([]any, 0, len(batch)+1)
+		args = append(args, source)
+		for _, id := range batch {
+			args = append(args, id)
+		}
+		var batchResult []fleet.SoftwareVulnerability
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &batchResult, query, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "fetching software vulnerabilities by software IDs")
+		}
+		result = append(result, batchResult...)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
 // ListCVEs returns all cve_meta rows published after 'maxAge'
 func (ds *Datastore) ListCVEs(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 	var result []fleet.CVEMeta
@@ -4511,6 +4593,13 @@ func promoteSoftwareTitleInHouseApp(softwareTitleRecord *hostSoftware) {
 			softwareTitleRecord.SoftwarePackage.LastInstall.InstalledAt = *softwareTitleRecord.LastInstallInstalledAt
 		}
 	}
+}
+
+// hostSoftwareAllowedOrderKeys is minimal: the service layer pins OrderKey to "name".
+// "source" is included for test determinism (used as the secondary order key in tests).
+var hostSoftwareAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
+	"name":   "name",
+	"source": "source",
 }
 
 func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opts fleet.HostSoftwareTitleListOptions) ([]*fleet.HostSoftwareWithInstaller, *fleet.PaginationMetadata, error) {
@@ -5970,7 +6059,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
 		stmt = fmt.Sprintf("SELECT * FROM (%s) AS combined_results", stmt)
-		stmt, _ = appendListOptionsToSQL(stmt, &opts.ListOptions)
+		stmt, _, err = appendListOptionsToSQLSecure(stmt, &opts.ListOptions, hostSoftwareAllowedOrderKeys)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")
+		}
 
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostSoftwareList, stmt, args...); err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "list host software")

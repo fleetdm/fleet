@@ -21,6 +21,10 @@ import {
 import { getPathWithQueryParams } from "utilities/url";
 
 import { IPolicy, IPolicyFormData } from "interfaces/policy";
+import {
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import { CommaSeparatedPlatformString } from "interfaces/platform";
 import { DEFAULT_POLICIES } from "pages/policies/constants";
 
@@ -172,13 +176,8 @@ const PolicyForm = ({
   const queryClient = useQueryClient();
 
   const {
-    currentUser,
     currentTeam,
     isGlobalObserver,
-    isGlobalAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainerOrTeamAdmin,
-    isObserverPlus,
     isTeamTechnician,
     isGlobalTechnician,
     isOnGlobalTeam,
@@ -379,7 +378,7 @@ const PolicyForm = ({
   const onAddPatchAutomation = async () => {
     if (
       !storedPolicy?.patch_software?.software_title_id ||
-      !storedPolicy?.team_id
+      storedPolicy?.team_id == null
     ) {
       return;
     }
@@ -608,15 +607,34 @@ const PolicyForm = ({
   };
 
   const renderPolicyFleetName = () => {
-    if (isFreeTier || !currentTeam?.name) return null;
+    if (isFreeTier) return null;
+
+    // In edit mode, the displayed Fleet must reflect the policy's actual
+    // owner, not the URL/navigation context: a user can land here by clicking
+    // an inherited (global) policy from a team's policy list, in which case
+    // currentTeam reflects the team URL, not the policy's true Fleet.
+    let fleetName: string | undefined;
+    if (isEditMode) {
+      if (storedPolicy?.team_id === null) {
+        fleetName = APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+      } else if (storedPolicy?.team_id === 0) {
+        fleetName = APP_CONTEXT_NO_TEAM_SUMMARY.name;
+      } else {
+        fleetName = currentTeam?.name;
+      }
+    } else {
+      fleetName = currentTeam?.name;
+    }
+
+    if (!fleetName) return null;
 
     return isEditMode ? (
       <p>
-        Editing policy for <strong>{currentTeam?.name}</strong>.
+        Editing policy for <strong>{fleetName}</strong>.
       </p>
     ) : (
       <p>
-        Creating a new policy for <strong>{currentTeam?.name}</strong>.
+        Creating a new policy for <strong>{fleetName}</strong>.
       </p>
     );
   };
@@ -675,9 +693,9 @@ const PolicyForm = ({
             <PolicyAutomations
               storedPolicy={storedPolicy}
               currentAutomatedPolicies={currentAutomatedPolicies}
+              canEditPolicy={isEditMode}
               onAddAutomation={onAddPatchAutomation}
               isAddingAutomation={isAddingAutomation}
-              gitOpsModeEnabled={!!gitOpsModeEnabled}
             />
           )}
           {isEditMode &&

@@ -259,6 +259,29 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		return nil, err
 	}
 
+	// Mirror deprecated logo URL fields to the new mode-aware fields (and
+	// vice versa) so every read returns a consistent view to clients.
+	// NormalizeLogoFields only errors when both forms are set with
+	// conflicting values — that shouldn't happen via the normal write path
+	// (which 422s on conflict), so reaching this branch implies the row
+	// was edited out-of-band. Log it so the inconsistency is visible, then
+	// canonicalize by preferring the mode-aware fields.
+	if invalid := ac.OrgInfo.NormalizeLogoFields(); invalid != nil {
+		svc.logger.WarnContext(ctx, "persisted org logo URL fields are inconsistent; canonicalizing to mode-aware values for response", "err", invalid.Error())
+		if ac.OrgInfo.OrgLogoURLDarkMode != "" {
+			ac.OrgInfo.OrgLogoURL = ac.OrgInfo.OrgLogoURLDarkMode
+		}
+		if ac.OrgInfo.OrgLogoURLLightMode != "" {
+			ac.OrgInfo.OrgLogoURLLightBackground = ac.OrgInfo.OrgLogoURLLightMode
+		}
+	}
+	// Rewrite Fleet-hosted relative logo URLs to absolute ones using the
+	// current ServerURL. Persisted form stays relative; this is purely a
+	// read-time view. Safe to do here because no SaveAppConfig caller
+	// consumes the result of AppConfigObfuscated — they all re-fetch via
+	// svc.ds.AppConfig directly.
+	ac.OrgInfo.AbsolutizeLogoURLs(ac.ServerSettings.ServerURL)
+
 	ac.Obfuscate()
 
 	return ac, nil
@@ -408,9 +431,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		})
 	}
 
+	// In Overwrite mode (gitops), older clients (e.g. fleetctl <=4.84
+	// predating the field) omit features.historical_data entirely.
+	// Without defaulting here, the Overwrite branch below would persist
+	// those sub-keys as false because Go's bool zero value is
+	// indistinguishable from "absent".
+	if applyOpts.Overwrite {
+		applyHistoricalDataOverwriteDefaults(p, &newAppConfig)
+	}
+
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
 	if fleetDesktopSettingsInvalidErr.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, fleetDesktopSettingsInvalidErr)
+	}
+
+	// Reject conflicting deprecated/new logo URL pairs and mirror them so
+	// both forms are persisted with identical values. Done on the incoming
+	// payload before merge so we surface the conflict at the source field.
+	if normErr := newAppConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.SSOSettings != nil {
@@ -575,6 +614,13 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if appConfig.OrgInfo.ContactURL == "" {
 		appConfig.OrgInfo.ContactURL = fleet.DefaultOrgInfoContactURL
+	}
+
+	// Validate logo fields immediately after the merge
+	// A persisted-row conflict the patch didn't touch surfaces here as a 422,
+	// instead of letting the request silently complete its side effects.
+	if normErr := appConfig.OrgInfo.NormalizeLogoFields(); normErr != nil {
+		return nil, ctxerr.Wrap(ctx, normErr)
 	}
 
 	if newAppConfig.AgentOptions != nil {
@@ -903,6 +949,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "create activity %s", act.ActivityName())
 		}
+	}
+
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped. SaveAppConfig (above) commits first; the worker
+	// that picks up scrub jobs will see the new config and the collection
+	// cron will already have stopped writing the disabled scope.
+	if err := fleet.OnHistoricalDataChanged(
+		ctx,
+		svc,
+		svc.ds,
+		authz.UserFromContext(ctx),
+		oldAppConfig.Features.HistoricalData,
+		appConfig.Features.HistoricalData,
+		nil, nil,
+	); err != nil {
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err)
 	}
 
 	addedEntraTenantIDs := make([]string, 0)
@@ -1483,10 +1547,6 @@ func (svc *Service) validateMDM(
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
-		if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
-			invalid.Append("setup_experience.enable_end_user_authentication",
-				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
 	}
 	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
 		for i, prof := range customSettings {
@@ -1895,7 +1955,7 @@ func (svc *Service) validateVPPAssignments(
 
 		loc := norm.NFC.String(vpp.Location)
 		if _, ok := tokensByLocation[loc]; !ok {
-			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			invalid.Appendf("mdm.volume_purchasing_program", "token with organization unit %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 
@@ -1960,6 +2020,48 @@ func validateSSOSettings(p fleet.AppConfig, existing *fleet.AppConfig, invalid *
 				invalid.Append("enable_jit_provisioning", ErrMissingLicense.Error())
 			}
 		}
+	}
+}
+
+// gitopsHistoricalDataView is the narrow tri-state view of
+// features.historical_data used to detect which sub-keys were absent
+// from a gitops payload. Pointer fields distinguish "absent" from
+// "false" — something the fleet.HistoricalDataSettings plain bools
+// cannot do once unmarshaled.
+//
+// Only used by applyHistoricalDataOverwriteDefaults below.
+type gitopsHistoricalDataView struct {
+	Features struct {
+		HistoricalData struct {
+			Uptime          *bool `json:"uptime"`
+			Vulnerabilities *bool `json:"vulnerabilities"`
+		} `json:"historical_data"`
+	} `json:"features"`
+}
+
+// applyHistoricalDataOverwriteDefaults defaults absent
+// features.historical_data sub-keys to true.
+// Older clients will not send values for these keys,
+// and in Overwrite mode we want to preserve the default
+// "enabled" state so that we don't disable data collection
+// and wipe data incorrectly.
+func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
+	var view gitopsHistoricalDataView
+	if err := json.Unmarshal(p, &view); err != nil {
+		return // main decode path will surface the typed error
+	}
+	var defaults fleet.Features
+	defaults.ApplyDefaults()
+	// For each sub-key, check if the incoming data provided a value (true or false).
+	// If not, then set the config to the default value we want rather than
+	// the Go default for bools (false).
+	cfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+	if v := view.Features.HistoricalData.Uptime; v != nil {
+		cfg.Features.HistoricalData.Uptime = *v
+	}
+	cfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
+		cfg.Features.HistoricalData.Vulnerabilities = *v
 	}
 }
 

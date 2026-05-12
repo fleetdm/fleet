@@ -114,6 +114,11 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Device management (MDM)
             </label>
+            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
+              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-misc">
+              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
+              Auto-patching
+            </label>
             <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-gap-filler-mdm' ? 'selected' : '']">
               <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-gap-filler-mdm">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
@@ -141,7 +146,7 @@
          </cloud-error>
           <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
           <div class="form-group btn-container">
-            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Schedule a call</ajax-button>
+            <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Talk to an engineer</ajax-button>
           </div>
         </ajax-form>
       </div>

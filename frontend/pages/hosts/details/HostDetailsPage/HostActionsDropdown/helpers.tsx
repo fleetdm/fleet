@@ -115,6 +115,7 @@ interface IHostActionConfigOptions {
   recoveryLockPasswordAvailable: boolean;
   isManagedLocalAccountEnabled: boolean;
   managedAccountStatus: string | null | undefined;
+  managedAccountPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -523,6 +524,7 @@ const modifyOptions = (
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
     managedAccountStatus,
+    managedAccountPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -632,13 +634,18 @@ const modifyOptions = (
     }
   }
 
-  if (managedAccountStatus !== "verified") {
+  // Gate on password_available rather than status === "verified" — a row whose
+  // status is "pending" because of a recent view (or a deferred rotation
+  // waiting on UUID capture) still has a viewable password. Mirrors the
+  // backend gate in GetHostManagedAccountPassword.
+  if (!managedAccountPasswordAvailable) {
     const managedAccountOption = options.find(
       (option) => option.value === "managedAccount"
     );
     if (managedAccountOption) {
       managedAccountOption.disabled = true;
       if (managedAccountStatus === "pending") {
+        // No password yet — the AccountConfiguration command hasn't been acked.
         managedAccountOption.tooltipContent = (
           <>
             The managed account is still being

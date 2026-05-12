@@ -27,7 +27,9 @@ const baseClass = "edit-user-page";
 interface IEditUserPageProps {
   router: InjectedRouter;
   params: { user_id: string };
-  location: any; // no type in react-router v3
+  location: {
+    query?: { type?: string };
+  };
 }
 
 const EditUserPage = ({ router, params, location }: IEditUserPageProps) => {

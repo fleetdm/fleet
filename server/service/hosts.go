@@ -2084,6 +2084,9 @@ func (svc *Service) ListHostReports(
 		opts.ListOptions.OrderDirection = fleet.OrderDescending
 	}
 
+	// labels_include_all is a premium-only feature only
+	opts.ExcludeIncludeAllQueries = !license.IsPremium(ctx)
+
 	reports, total, meta, err := svc.ds.ListHostReports(ctx, hostID, host.TeamID, fleet.PlatformFromHost(host.Platform), opts, maxQueryReportRows)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "list host reports from datastore")
@@ -4130,4 +4133,32 @@ func (svc *Service) GetHostManagedAccountPassword(ctx context.Context, hostID ui
 	svc.authz.SkipAuthorization(ctx)
 
 	return nil, fleet.ErrMissingLicense
+}
+
+type rotateManagedLocalAccountPasswordRequest struct {
+	ID uint `url:"id"`
+}
+
+type rotateManagedLocalAccountPasswordResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r rotateManagedLocalAccountPasswordResponse) Error() error { return r.Err }
+
+func (r rotateManagedLocalAccountPasswordResponse) Status() int { return http.StatusNoContent }
+
+func rotateManagedLocalAccountPasswordEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*rotateManagedLocalAccountPasswordRequest)
+	if err := svc.RotateManagedLocalAccountPassword(ctx, req.ID); err != nil {
+		return rotateManagedLocalAccountPasswordResponse{Err: err}, nil
+	}
+	return rotateManagedLocalAccountPasswordResponse{}, nil
+}
+
+func (svc *Service) RotateManagedLocalAccountPassword(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
 }
