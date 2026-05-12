@@ -40,7 +40,7 @@ Fleet is open source and transparent about what it can and can't see. End users 
 #### Visibility and compliance
 Fleet can report on hundreds of attributes across your devices and ships with [CIS benchmarks for macOS and Windows](https://fleetdm.com/docs/using-fleet/cis-benchmarks) and hundreds of ready-made [compliance policies](https://fleetdm.com/queries). Check out the [table reference documentation](https://fleetdm.com/tables) to see what's available.
 
-#### Integrations
+#### Good neighbors
 Ready-to-use, enterprise-friendly [integrations](https://fleetdm.com/integrations) exist for Snowflake, Splunk, GitHub Actions, Vanta, Elastic Jira, Zendesk, and more. Fleet also works alongside tools like Munki, Chef, Puppet, Ansible, Crowdstrike, and SentinelOne.
 
 ## Lighter than air
