@@ -1974,17 +1974,11 @@ func (c *Client) DoGitOps(
 		group.CertificateAuthorities = groupedCAs
 		delete(incoming.OrgSettings, "certificate_authorities")
 
-		// Plan org logo upload/delete actions and strip the gitops-only path
-		// keys before the AppConfig PATCH. Execution runs after ApplyGroup so
-		// a PATCH failure leaves the logo store untouched. Skipped entirely
-		// when appConfig wasn't fetched (e.g. validation-only call paths in
-		// tests) — the planner needs the current OrgInfo to decide whether
-		// stale Fleet-hosted blobs should be deleted.
-		if appConfig != nil {
-			orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, &appConfig.OrgInfo, baseDir, dryRun, logFn)
-			if err != nil {
-				return nil, err
-			}
+		// Plan PUT uploads and strip the gitops-only `path` keys, which
+		// aren't part of fleet.OrgInfo. URL changes ride on the PATCH.
+		orgLogoActions, err = c.planAndStripOrgLogos(incoming.OrgSettings, baseDir, dryRun, logFn)
+		if err != nil {
+			return nil, err
 		}
 
 		// Update labels if there were any changes.

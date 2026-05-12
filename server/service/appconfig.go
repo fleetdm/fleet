@@ -925,6 +925,21 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, err
 	}
 
+	// Best-effort: drop orphan blobs whose URL was just replaced with an
+	// external or empty value.
+	if svc.orgLogoStore != nil {
+		for _, m := range []fleet.OrgLogoMode{fleet.OrgLogoModeLight, fleet.OrgLogoModeDark} {
+			oldURL := getOrgLogoURL(&oldAppConfig.OrgInfo, m)
+			newURL := getOrgLogoURL(&appConfig.OrgInfo, m)
+			if fleet.IsFleetHostedLogoURL(oldURL) && !fleet.IsFleetHostedLogoURL(newURL) {
+				if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
+					svc.logger.WarnContext(ctx, "failed to delete orphan org logo blob",
+						"mode", string(m), "err", err.Error())
+				}
+			}
+		}
+	}
+
 	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
 	newExceptions := appConfig.GitOpsConfig.Exceptions
 	exceptionChanges := []struct {
