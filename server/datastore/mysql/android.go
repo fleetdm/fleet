@@ -1718,7 +1718,7 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
 	CAST(? AS JSON) != configuration AS has_changed
@@ -1747,10 +1747,10 @@ WHERE
 }
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
 	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1759,10 +1759,10 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, application
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	stmt := `
 	SELECT aac.configuration
 	FROM android_app_configurations aac
@@ -1771,7 +1771,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	WHERE vat.id = ?
 `
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1780,10 +1780,10 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
 		application_id,
@@ -1802,15 +1802,15 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 	}
 
 	var configs []*struct {
-		ApplicationID string          `db:"application_id"`
-		Configuration json.RawMessage `db:"configuration"`
+		ApplicationID string `db:"application_id"`
+		Configuration []byte `db:"configuration"`
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	m := make(map[string]json.RawMessage, len(configs))
+	m := make(map[string][]byte, len(configs))
 	for _, c := range configs {
 		m[c.ApplicationID] = c.Configuration
 	}
@@ -1869,7 +1869,7 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config []byte) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")
