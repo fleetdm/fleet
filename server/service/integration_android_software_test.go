@@ -304,6 +304,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		http.StatusOK,
 		&addAppResp,
 	)
+	require.Equal(t, androidAppNewTeam2.Name, addAppResp.Name)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 2)
@@ -388,6 +389,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		http.StatusOK,
 		&appWithConfigResp,
 	)
+	require.Equal(t, androidAppWithConfig.Name, appWithConfigResp.Name)
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
