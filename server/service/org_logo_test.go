@@ -262,10 +262,9 @@ func TestDeleteOrgLogoExternalURL(t *testing.T) {
 	})
 
 	t.Run("legacy deprecated field only", func(t *testing.T) {
-		// Mirrors the issue's repro: an external URL is written directly to
-		// the DB under the deprecated org_logo_url field (so the new
-		// mode-aware field is empty until NormalizeLogoFields runs). DELETE
-		// must still clear it.
+		// an external URL is written directly to the DB under the deprecated org_logo_url field
+		// (so the new mode-aware field is empty until NormalizeLogoFields runs).
+		// DELETE must still clear it.
 		ds := new(mock.Store)
 		opts := &TestServerOpts{}
 		svc, ctx := newTestService(t, ds, nil, nil, opts)
