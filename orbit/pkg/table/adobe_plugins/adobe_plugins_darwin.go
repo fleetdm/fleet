@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
-func getScanPaths(level string) ([]scanPath, error) {
+func getScanPaths(level string, logger zerolog.Logger) ([]scanPath, error) {
 	var paths []scanPath
 
 	// System-wide CEP extensions
@@ -27,7 +27,7 @@ func getScanPaths(level string) ([]scanPath, error) {
 	// Per-user CEP and UXP extensions
 	users, err := listLocalUsers()
 	if err != nil {
-		log.Warn().Err(err).Msg("adobe_plugins: failed to enumerate local users, skipping per-user paths")
+		logger.Warn().Err(err).Msg("failed to enumerate local users, skipping per-user paths")
 	}
 	for _, u := range users {
 		paths = append(paths, scanPath{
@@ -68,11 +68,6 @@ func getScanPaths(level string) ([]scanPath, error) {
 	}
 
 	return paths, nil
-}
-
-type localUser struct {
-	name    string
-	homeDir string
 }
 
 func listLocalUsers() ([]localUser, error) {
