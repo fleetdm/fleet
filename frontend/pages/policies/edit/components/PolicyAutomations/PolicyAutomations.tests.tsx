@@ -139,6 +139,21 @@ describe("PolicyAutomations", () => {
       expect(screen.queryByText(/Automatically patch/)).not.toBeInTheDocument();
     });
 
+    it("shows the CTA card for a no-team policy (team_id === 0)", () => {
+      renderWithAppContext(
+        <PolicyAutomations
+          storedPolicy={createMockPatchPolicy({ team_id: 0 })}
+          currentAutomatedPolicies={[]}
+          onAddAutomation={jest.fn()}
+        />
+      );
+
+      expect(screen.getByText(/Automatically patch Zoom/)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Add automation/ })
+      ).toBeInTheDocument();
+    });
+
     it("hides the CTA card when install_software is already set", () => {
       renderWithAppContext(
         <PolicyAutomations

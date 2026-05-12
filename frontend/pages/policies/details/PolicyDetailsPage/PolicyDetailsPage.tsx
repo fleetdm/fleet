@@ -219,7 +219,7 @@ const PolicyDetailsPage = ({
   const onAddPatchAutomation = async () => {
     if (
       !storedPolicy?.patch_software?.software_title_id ||
-      !storedPolicy?.team_id
+      storedPolicy?.team_id == null
     ) {
       return;
     }
