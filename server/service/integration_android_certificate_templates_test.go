@@ -1927,11 +1927,11 @@ func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnother
 	s.setSkipWorkerJobs(t)
 
 	const (
-		oncProfileName       = "onc-wifi"
-		cameraProfileName    = "camera-policy"
-		certTemplateName     = "wifi-cert"
-		expectedDetailSubstr = `Waiting for certificate "wifi-cert"`
+		oncProfileName    = "onc-wifi"
+		cameraProfileName = "camera-policy"
+		certTemplateName  = "wifi-cert"
 	)
+	expectedDetailSubstr := fmt.Sprintf(`Waiting for certificate %q`, certTemplateName)
 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
 		{Secret: "secret-" + t.Name()},
