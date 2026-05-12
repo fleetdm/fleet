@@ -2,6 +2,7 @@ package apple_mdm
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -106,11 +107,40 @@ func TestBuildInstallApplicationCommand_VPP(t *testing.T) {
 				require.NotContains(t, out, s, "did not expect %q in output", s)
 			}
 			require.Contains(t, out,
-				"<integer>"+itoa(c.wantMgmt)+"</integer>",
+				"<integer>"+strconv.Itoa(c.wantMgmt)+"</integer>",
 				"ManagementFlags should be %d", c.wantMgmt)
 			require.Contains(t, out, "<string>"+commandUUID+"</string>")
 		})
 	}
+}
+
+func TestBuildInstallApplicationCommand_FullPlistDocumentNormalized(t *testing.T) {
+	fullDoc := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>ServerURL</key>
+	<string>https://example.com</string>
+</dict>
+</plist>`)
+
+	out := string(BuildInstallApplicationCommand(InstallApplicationParams{
+		CommandUUID:   "uuid",
+		HostPlatform:  "ios",
+		ITunesStoreID: "1",
+		Configuration: fullDoc,
+	}))
+
+	var parsed map[string]any
+	_, err := plist.Unmarshal([]byte(out), &parsed)
+	require.NoError(t, err, "output with full-doc config must be a valid plist")
+	require.Equal(t, 1, strings.Count(out, "<?xml"), "only one XML declaration allowed")
+	require.Equal(t, 1, strings.Count(out, "<plist"), "only one <plist> element allowed")
+
+	cmd := parsed["Command"].(map[string]any)
+	cfgDict, ok := cmd["Configuration"].(map[string]any)
+	require.True(t, ok, "Configuration value should be a dict")
+	require.Equal(t, "https://example.com", cfgDict["ServerURL"])
 }
 
 func TestBuildInstallApplicationCommand_ConfigurationOuterDictPreserved(t *testing.T) {
@@ -278,20 +308,4 @@ func TestSubstituteThenBuildRoundTrip(t *testing.T) {
 	configDict, ok := command["Configuration"].(map[string]any)
 	require.True(t, ok)
 	require.Equal(t, "uuid-x", configDict["UUID"])
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	if n == 1 {
-		return "1"
-	}
-	// Builder only emits 0 or 1 today.
-	t := []byte{}
-	for n > 0 {
-		t = append([]byte{byte('0' + n%10)}, t...)
-		n /= 10
-	}
-	return string(t)
 }

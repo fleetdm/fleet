@@ -41,9 +41,7 @@ export interface ITeam extends ITeamSummary {
   count?: number;
   created_at?: string;
   features?: IConfigFeatures;
-  agent_options?: {
-    [key: string]: any;
-  };
+  agent_options?: Record<string, unknown>;
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];

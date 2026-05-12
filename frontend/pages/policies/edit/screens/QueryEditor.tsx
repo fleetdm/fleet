@@ -11,6 +11,7 @@ import PATHS from "router/paths";
 import debounce from "utilities/debounce";
 import deepDifference from "utilities/deep_difference";
 import { getPathWithQueryParams } from "utilities/url";
+import { getErrorReason } from "interfaces/errors";
 import { IPolicyFormData, IPolicy } from "interfaces/policy";
 
 import BackButton from "components/BackButton";
@@ -175,9 +176,9 @@ const QueryEditor = ({
         })
       );
       renderFlash("success", "Policy created.");
-    } catch (createError: any) {
+    } catch (createError) {
       console.error(createError);
-      if (createError.data.errors[0].reason.includes("already exists")) {
+      if (getErrorReason(createError).includes("already exists")) {
         setBackendValidators({
           name: "A policy with this name already exists",
         });
@@ -229,9 +230,9 @@ const QueryEditor = ({
     try {
       await updateAPIRequest();
       renderFlash("success", "Policy updated.");
-    } catch (updateError: any) {
+    } catch (updateError) {
       console.error(updateError);
-      if (updateError.data.errors[0].reason.includes("Duplicate")) {
+      if (getErrorReason(updateError).includes("Duplicate")) {
         renderFlash("error", "A policy with this name already exists.");
       } else {
         renderFlash(

@@ -8,13 +8,18 @@ Fleet 4.84.0 is now available. See the complete [changelog](https://github.com/f
 
 ## Highlights
 
-- GitOps mode exceptions
-- Automatically rotate Recovery Lock passwords
-- Run Python scripts on macOS & Linux
-- Entra conditional access for Windows
-- Remove settings from Windows when profile is deleted
+- [GitOps mode exceptions](#gitops-mode-exceptions)
+- [Automatically rotate Recovery Lock passwords](#automatically-rotate-recovery-lock-passwords)
+- [Run Python scripts on macOS & Linux](#run-python-scripts-on-macos-linux)
+- [Entra conditional access for Windows](#entra-conditional-access-for-windows)
+- [Remove settings from Windows when profile is deleted](#remove-settings-from-windows-when-profile-is-deleted)
+
 
 ### GitOps mode exceptions
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/B4t2XvwUoZE?si=SSYAG_MM5m-XDxNI" title="0" allowfullscreen></iframe>
+</div>
 
 Fleet now lets IT admins opt specific resources out of GitOps enforcement. When GitOps mode is enabled, admins can configure exceptions for software, labels, and enroll secrets — allowing those resources to be managed via the UI or API instead of git.
 
@@ -26,7 +31,12 @@ This makes it easier to ramp up with GitOps incrementally: start by managing pol
 
 GitHub issue: [#40171](https://github.com/fleetdm/fleet/issues/40171)
 
+
 ### Automatically rotate Recovery Lock passwords
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/xMj-ezBO0zQ?si=Xa02JjilZrg2I6j1" title="0" allowfullscreen></iframe>
+</div>
 
 Fleet now automatically rotates macOS Recovery Lock passwords after an IT admin views them. Previously, Fleet escrowed a unique password per host and let IT admins rotate it on demand — but rotation was a manual step. Now, after a password is viewed, Fleet schedules an automatic rotation (1 hr after view) so passwords aren't reused.
 
@@ -34,7 +44,12 @@ Admins can still trigger a manual rotation at any time from the Host details pag
 
 GitHub issue: [#41003](https://github.com/fleetdm/fleet/issues/41003)
 
+
 ### Run Python scripts on macOS & Linux
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/GzVT6TfnrUE?si=D8sx4qLfvXfOcdCO" title="0" allowfullscreen></iframe>
+</div>
 
 Fleet now supports Python scripts alongside shell (`.sh`) and PowerShell (`.ps1`) scripts. IT admins can upload `.py` files in **Controls > Scripts** and run them on macOS and Linux hosts — on demand, in bulk, or as a policy automation.
 
@@ -42,7 +57,12 @@ Python scripts follow the same rules as other script types: they respect Fleet's
 
 GitHub issue: [#38793](https://github.com/fleetdm/fleet/issues/38793)
 
+
 ### Entra conditional access for Windows
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/2ZmPeq26oqI?si=cnQxZg0ktknmiZu7" title="0" allowfullscreen></iframe>
+</div>
 
 Fleet now supports [Microsoft Entra conditional access](https://fleetdm.com/guides/entra-conditional-access-integration) for Windows hosts. IT admins can mark policies as conditional access policies targeting Windows hosts — when a host fails one of those policies, Entra blocks the end user from accessing corporate resources such as Microsoft Teams and Office.
 
@@ -50,7 +70,12 @@ This extends the existing macOS conditional access integration to Windows, using
 
 GitHub issue: [#38041](https://github.com/fleetdm/fleet/issues/38041)
 
+
 ### Remove settings from Windows when profile is deleted
+
+<div purpose="embedded-content">
+   <iframe src="https://www.youtube.com/embed/v4m93tCjw40?si=QvSQvO0ee93qB7gG" title="0" allowfullscreen></iframe>
+</div>
 
 When an IT admin deletes a Windows configuration profile in Fleet, Fleet now actively removes those settings from enrolled hosts. This ensures that hosts match the intended configuration state regardless of when they enrolled.
 

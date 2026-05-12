@@ -97,12 +97,13 @@ func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 
@@ -293,12 +294,13 @@ func TestGitOpsNoTeamVPPPolicies(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 			labelToIDs := map[string]uint{
@@ -425,12 +427,13 @@ func TestGitOpsNoTeamSoftwareInstallers(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: tokExpire,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   tokExpire,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 			ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
@@ -578,12 +581,13 @@ func TestGitOpsTeamVPPApps(t *testing.T) {
 
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: c.tokenExpiration,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   c.tokenExpiration,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 
@@ -685,12 +689,13 @@ func TestGitOpsTeamVPPAndApp(t *testing.T) {
 
 	// The following mocks are key to this test.
 	vppToken := &fleet.VPPTokenDB{
-		ID:        1,
-		OrgName:   "Fleet",
-		Location:  "Earth",
-		RenewDate: renewDate,
-		Token:     string(token),
-		Teams:     nil,
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       nil,
+		CountryCode: "us",
 	}
 	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
@@ -775,12 +780,13 @@ func TestGitOpsExistingTeamVPPAppsWithMissingTeam(t *testing.T) {
 	}
 
 	vppToken := &fleet.VPPTokenDB{
-		ID:        1,
-		OrgName:   "Fleet",
-		Location:  "Earth",
-		RenewDate: renewDate,
-		Token:     string(token),
-		Teams:     nil,
+		ID:          1,
+		OrgName:     "Fleet",
+		Location:    "Earth",
+		RenewDate:   renewDate,
+		Token:       string(token),
+		Teams:       nil,
+		CountryCode: "us",
 	}
 	tokensByTeams := make(map[uint]*fleet.VPPTokenDB)
 	ds.UpdateVPPTokenTeamsFunc = func(ctx context.Context, id uint, teams []uint) (*fleet.VPPTokenDB, error) {
@@ -1135,12 +1141,12 @@ software:
 				ipadTeam,
 			},
 			dryRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
+				require.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
 			realRunAssertion: func(t *testing.T, appCfg *fleet.AppConfig, ds fleet.Datastore, out string, err error) {
-				assert.ErrorContains(t, err, "token with location Does not exist doesn't exist")
+				require.ErrorContains(t, err, "token with organization unit Does not exist doesn't exist")
 				assert.Empty(t, appCfg.MDM.VolumePurchasingProgram.Value)
 				assert.NotContains(t, out, "[!] gitops dry run succeeded")
 			},
@@ -1156,7 +1162,7 @@ software:
 			}
 
 			ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
-				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc."}, {Location: "Acme Inc."}}, nil
+				return []*fleet.VPPTokenDB{{Location: "Fleet Device Management Inc.", CountryCode: "us"}, {Location: "Acme Inc.", CountryCode: "us"}}, nil
 			}
 
 			ds.ListABMTokensFunc = func(ctx context.Context) ([]*fleet.ABMToken, error) {

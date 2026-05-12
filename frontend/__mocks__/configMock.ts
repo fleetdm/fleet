@@ -133,6 +133,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   activity_expiry_settings: {
     activity_expiry_enabled: true,
     activity_expiry_window: 90,
+    preserve_host_activities_on_reenrollment: false,
   },
   agent_options: "",
   license: DEFAULT_LICENSE_MOCK,
@@ -213,6 +214,10 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     enable_software_inventory: true,
     enable_conditional_access: true,
     enable_conditional_access_bypass: true,
+    historical_data: {
+      uptime: true,
+      vulnerabilities: true,
+    },
   },
   fleet_desktop: {
     transparency_url: "https://fleetdm.com/transparency",
