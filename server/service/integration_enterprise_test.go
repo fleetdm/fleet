@@ -18677,7 +18677,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Queued retry (attempt_number is NULL until result is submitted)
 	require.Nil(t, results[1].InstallScriptExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18700,7 +18701,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18721,9 +18722,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].InstallScriptExitCode, "final attempt should be completed")
 
-	// Activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// No more retries, max reached
@@ -20208,7 +20209,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	// Note: attempt_number is only calculated when the result is submitted, not when queued, so it will be NULL
 	require.Nil(t, results[1].ExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20231,7 +20233,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20252,9 +20254,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].ExitCode, "final attempt should be completed")
 
-	// activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// no more retries, max reached
