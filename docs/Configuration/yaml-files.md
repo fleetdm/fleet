@@ -2,13 +2,13 @@
 
 In Fleet, you can manage your devices as code.  This section of the docs is a reference for how to do that.
 
+Quick start: [install fleetctl](https://fleetdm.com/guides/fleetctl#installing-fleetctl) and follow the instructions to [generate a starter repository](https://github.com/fleetdm/fleet/blob/main/cmd/fleetctl/fleetctl/templates/new/README.md). 
+
 > Want to get hands-on?  We run [free GitOps workshops globally](https://fleetdm.com/gitops-workshop) where you can get certified.
 
-<div purpose="embedded-content">
-   <iframe src="https://www.youtube.com/embed/wgqI_lHnGJc" allowfullscreen></iframe>
-</div>
+## General reference
 
-> When renaming a fleet, first update the name in the UI, then update your YAML. If you only update the YAML, the fleet will be deleted and its hosts will lose their settings because they become "Unassigned".
+When renaming a fleet, first update the name in the UI, then update your YAML. If you only update the YAML, the fleet will be deleted and its hosts will lose their settings because they become "Unassigned".
 
 Any settings not defined in your YAML files will be reset to the default values or deleted (e.g. software packages).
 
@@ -178,7 +178,6 @@ policies:
   critical: false
   calendar_events_enabled: false
   conditional_access_enabled: true
-  conditional_access_bypass_enabled: true
 - name: macOS - Disable guest account
   description: This policy checks if the guest account is disabled.
   resolution: As an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
@@ -363,7 +362,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution. `enable_turn_on_windows_mdm_manually` must be set to `false`. (default: `false`). Can only be configured for "All fleets" (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
 - `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
-- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment.
+- `apple_require_hardware_attestation` specifies whether or not to require Apple Silicon macOS hosts to complete a device attestation challenge verifying that the hardware serial matches a known host record from ABM as part of DEP enrollment (default: `false`).
 - `enable_recovery_lock_password` specifies whether or not to enforce Recovery Lock password on eligible macOS hosts (default: `false`).
 
 #### Example
@@ -398,21 +397,10 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
-      - path: ../lib/macos-profile1.mobileconfig
-        labels_exclude_any: # Available in Fleet Premium
-          - Macs on Sequoia
-      - path: ../lib/macos-profile2.json
-        labels_include_all: # Available in Fleet Premium
-          - Macs on Sonoma
-      - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
-        labels_include_any: # Available in Fleet Premium
-          - Engineering
-          - Product
-      - paths: ../lib/configuration-profiles/*.json
+      - paths: ../lib/macos/profiles/*.mobileconfig
   windows_settings:
     configuration_profiles:
-      - path: ../lib/windows-profile.xml
-      - paths: ../lib/windows/profiles/*.xml  # Glob pattern to include all .xml files in directory
+      - paths: ../lib/windows/profiles/*.xml
         labels_include_any:
           - Engineering
   android_settings:
@@ -680,20 +668,22 @@ You can view the hash for existing software in the software detail page in the F
 
 ##### Script-only
 
-Script-only packages (`.sh` and `.ps1` files) are referenced directly inline in the team YAML file. The file contents become the install script. Script packages do not support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
-
-`self_service`, `categories`, `labels`, and `icon` are specified inline in the team YAML file.
+Script-only packages (`.sh` and `.ps1` files) are created by referencing a script file in the fleet YAML file. Currently, script-only packages don't support `install_script`, `uninstall_script`, `post_install_script`, `pre_install_query`, or automatic install (`install_software` in policies).
 
 ```yaml
 software:
   packages:
     - path: ../lib/linux/scripts/vpn-setup.sh
+      display_name: VPN setup
+      icon:
+         path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
         - Utilities
+      labels_include_any:
+      - Engineering
+      - Customer Support
 ```
-
-> Script-only packages do not currently support configuration via a separate package YAML file. All options must be specified inline in the team YAML file.
 
 ### app_store_apps
 
@@ -1300,3 +1290,4 @@ Unlike other options, omitting `smtp_settings` or leaving it blank won't reset t
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">
+<meta name="keywordsForDocsearch" value="configuration as code, org settings, ci/cd, version control, declarative configuration">

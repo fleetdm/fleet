@@ -123,6 +123,10 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
   enable_conditional_access: boolean;
   enable_conditional_access_bypass: boolean;
+  historical_data: {
+    uptime: boolean;
+    vulnerabilities: boolean;
+  };
 }
 
 export interface IConfigServerSettings {
@@ -138,8 +142,12 @@ export interface IConfigServerSettings {
 export interface IConfig {
   org_info: {
     org_name: string;
+    /** @deprecated use `org_logo_url_dark_mode` */
     org_logo_url: string;
+    /** @deprecated use `org_logo_url_light_mode` */
     org_logo_url_light_background: string;
+    org_logo_url_dark_mode?: string;
+    org_logo_url_light_mode?: string;
     contact_url: string;
   };
   sandbox_enabled: boolean;
@@ -193,6 +201,7 @@ export interface IConfig {
   activity_expiry_settings: {
     activity_expiry_enabled: boolean;
     activity_expiry_window?: number;
+    preserve_host_activities_on_reenrollment: boolean;
   };
   features: IConfigFeatures;
   agent_options: unknown; // Can pass empty object

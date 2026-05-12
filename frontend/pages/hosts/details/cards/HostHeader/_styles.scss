@@ -12,16 +12,18 @@
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: $xx-small;
-    color: $core-fleet-black;
+    // Surface stays yellow in both themes; text must stay dark for contrast.
+    color: $static-black;
     font-weight: $bold;
     border-radius: $border-radius;
 
     &.warning {
       background-color: $ui-warning;
+      color: $static-black;
     }
 
     &.error {
-      color: $core-fleet-white;
+      color: $static-white;
       background-color: $core-vibrant-red;
     }
   }

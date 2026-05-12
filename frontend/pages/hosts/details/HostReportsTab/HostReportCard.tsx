@@ -105,6 +105,7 @@ const HostReportCard = ({
             key={key}
             title={key}
             value={<TooltipTruncatedText value={value} />}
+            textOnly
           />
         ))}
       </div>

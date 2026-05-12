@@ -117,6 +117,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop.app installed"
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -125,7 +128,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
-    update_new_hosts: true
+    update_new_hosts: false
   windows_settings:
     configuration_profiles:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -157,9 +160,10 @@ policies:
   - path: ../lib/macos/policies/all-software-updates-installed.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
-  # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
-  # - path: ../lib/macos/policies/nudge-installed.yml
+  - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/macos/policies/battery-health-check.yml
@@ -174,7 +178,7 @@ policies:
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
-  # - path: ../lib/windows/policies/1password-installed.yml
+  - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
@@ -191,21 +195,16 @@ reports:
   - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
+  - path: ../lib/macos/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/dex-queries.yml
   - path: ../lib/all/reports/collect-local-user-accounts.yml
   - path: ../lib/all/reports/collect-usb-devices.yml
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
-  - path: ../lib/all/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/1password.yml # 1Password for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
@@ -214,6 +213,12 @@ software:
         - Productivity
     - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
       self_service: false
+      categories:
+        - Utilities
+    - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
+      self_service: false
+      labels_include_any:
+        - "Macs with Fleet Desktop.app launch agent MDM profile"
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo

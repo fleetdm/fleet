@@ -708,12 +708,26 @@ func applyQuerySpecsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpec) error {
-	// 1. Turn specs into queries.
-	queries := []*fleet.Query{}
+	// 1. Validate each spec (nil, premium label scoping, payload verification)
+	// and turn it into a query. Fail-fast on the first invalid spec.
+	isPremium := license.IsPremium(ctx)
+	queries := make([]*fleet.Query, 0, len(specs))
 	for _, spec := range specs {
-		if len(spec.LabelsIncludeAny) > 0 && !license.IsPremium(ctx) {
+		if spec == nil {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: "invalid query spec: nil",
+			})
+		}
+		if !isPremium && (len(spec.LabelsIncludeAny) > 0 || len(spec.LabelsIncludeAll) > 0) {
 			setAuthCheckedOnPreAuthErr(ctx)
 			return fleet.ErrMissingLicense
+		}
+		if err := spec.Verify(); err != nil {
+			setAuthCheckedOnPreAuthErr(ctx)
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+				Message: fmt.Sprintf("invalid query spec: %s", err),
+			})
 		}
 		query, err := svc.queryFromSpec(ctx, spec)
 		if err != nil {
@@ -802,28 +816,27 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 	if logging == "" {
 		logging = fleet.LoggingSnapshot
 	}
-	// Find labels by name.
-	var queryLabels []fleet.LabelIdent
-	if len(spec.LabelsIncludeAny) > 0 {
+	// Resolve labels for both supported scopes (mutual exclusion enforced
+	// upstream by spec.Verify, so at most one slice is non-empty in practice).
+	allLabelNames := slices.Concat(spec.LabelsIncludeAny, spec.LabelsIncludeAll)
+	if len(allLabelNames) > 0 {
 		vc, ok := viewer.FromContext(ctx)
 		if !ok {
 			return nil, fleet.ErrNoContext
 		}
-
-		labelsMap, err := svc.ds.LabelsByName(ctx, spec.LabelsIncludeAny, fleet.TeamFilter{User: vc.User, TeamID: teamID})
+		labelsMap, err := svc.ds.LabelsByName(ctx, allLabelNames, fleet.TeamFilter{User: vc.User, TeamID: teamID})
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get labels by name")
 		}
-		for labelName := range labelsMap {
-			queryLabels = append(queryLabels, fleet.LabelIdent{LabelName: labelName, LabelID: labelsMap[labelName].ID})
-		}
-		// Make sure that all labels were found.
-		for _, label := range spec.LabelsIncludeAny {
-			if _, ok := labelsMap[label]; !ok {
+		for _, name := range allLabelNames {
+			if _, ok := labelsMap[name]; !ok {
 				return nil, ctxerr.New(ctx, "label not found")
 			}
 		}
 	}
+	// LabelID is left zero — updateQueryLabelsInTx resolves names to IDs.
+	includeAny := fleet.LabelNamesToIdents(spec.LabelsIncludeAny)
+	includeAll := fleet.LabelNamesToIdents(spec.LabelsIncludeAll)
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
@@ -837,7 +850,8 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		AutomationsEnabled: spec.AutomationsEnabled,
 		Logging:            logging,
 		DiscardData:        spec.DiscardData,
-		LabelsIncludeAny:   queryLabels,
+		LabelsIncludeAny:   includeAny,
+		LabelsIncludeAll:   includeAll,
 	}, nil
 }
 
@@ -885,10 +899,6 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		}
 		teamName = team.Name
 	}
-	labelsAny := []string{}
-	for _, label := range query.LabelsIncludeAny {
-		labelsAny = append(labelsAny, label.LabelName)
-	}
 	return &fleet.QuerySpec{
 		Name:        query.Name,
 		Description: query.Description,
@@ -902,7 +912,8 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		AutomationsEnabled: query.AutomationsEnabled,
 		Logging:            query.Logging,
 		DiscardData:        query.DiscardData,
-		LabelsIncludeAny:   labelsAny,
+		LabelsIncludeAny:   fleet.LabelIdentsToNames(query.LabelsIncludeAny),
+		LabelsIncludeAll:   fleet.LabelIdentsToNames(query.LabelsIncludeAll),
 	}, nil
 }
 

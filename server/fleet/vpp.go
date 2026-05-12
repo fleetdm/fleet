@@ -59,8 +59,8 @@ type VPPAppTeam struct {
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
-	// Configuration is the managed app configuration payload.
-	// JSON for Android, XML for iOS / iPadOS.
+	// Configuration is the managed app configuration payload. JSON for Android,
+	// XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool   `json:"-"`
 	AutoUpdateStartTime *string `json:"-"`
@@ -89,6 +89,12 @@ type VPPApp struct {
 	Name string `db:"name" json:"name"`
 	// LatestVersion is the latest version of this app.
 	LatestVersion string `db:"latest_version" json:"latest_version"`
+	// CountryCode is the App Store storefront country (lowercase ISO 3166-1
+	// alpha-2 such as "us", "de") that this app is "anchored" to. It is set
+	// on the first add of the (adam_id, platform) and re-used for all future
+	// metadata fetches so the displayed name/icon/version stay consistent
+	// regardless of which team's token triggers the fetch.
+	CountryCode string `db:"country_code" json:"-"`
 	// TeamID is used for authorization, it must be json serialized to be available
 	// to the rego script. We don't set it outside authorization anyway, so it
 	// won't render otherwise.
@@ -132,8 +138,8 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is the managed app configuration payload.
-	// JSON for Android, XML for iOS / iPadOS.
+	// Configuration is the managed app configuration payload. JSON for Android,
+	// XML for iOS / iPadOS.
 	Configuration []byte `json:"configuration,omitempty"`
 }
 
@@ -242,10 +248,14 @@ func ValidateAppleAppConfiguration(config []byte) error {
 		return NewInvalidArgumentError("configuration", "configuration must be an XML plist")
 	}
 
-	// Scan the decoded structure (not the raw bytes) so XML-entity-encoded
-	// tokens like &#x24;FLEET_VAR_NDES_SCEP_CHALLENGE — which the parser
-	// resolves back to a literal $-prefixed string — can't slip past the
-	// allow-list check.
+	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
+	// siblings) invisible to the decoded tree. The decoded-tree walk below
+	// catches XML-entity-encoded tokens the regex won't match.
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		}
+	}
 	if name, ok := findUnsupportedFleetVar(root); ok {
 		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
 	}
