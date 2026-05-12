@@ -9,7 +9,7 @@
         <p purpose="hero-subhead">When a critical patch drops, the bottleneck isn't your team. It's your toolchain. Fleet's maintained app catalog and automated patch policies push updates to your devices on a regular, predictable cadence. No manual repackaging. No osquery queries to write. No waiting.</p>
       </div>
       <div purpose="hero-form-col">
-        <div purpose="form-card" v-if="!cloudSuccess">
+        <div id="demo-form" purpose="form-card" v-if="!cloudSuccess">
           <h2>See how it works.</h2>
           <ajax-form :handle-submitting="handleSubmittingDemoForm" :form-errors.sync="formErrors" :form-data="formData" :form-rules="demoFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
             <div purpose="form-group">
@@ -31,8 +31,9 @@
               </cloud-error>
             </div>
             <div purpose="form-group">
-              <label for="patch-company">Company</label>
+              <label for="patch-company">Company <span purpose="required-star">*</span></label>
               <input class="form-control" id="patch-company" type="text" v-model.trim="formData.organization" autocomplete="organization" placeholder="Acme Corp">
+              <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
             </div>
             <div purpose="form-group">
               <label for="patch-num-employees">Number of employees <span purpose="required-star">*</span></label>
@@ -42,7 +43,6 @@
             <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
             <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Book a demo</ajax-button>
           </ajax-form>
-          <p purpose="fine-print">No spam. We'll reach out within one business day.</p>
           <div purpose="trust-signals">
             <div purpose="trust-signal">
               <img src="/images/icon-checkmark-green-16x16@2x.png" width="16" height="16" alt="" aria-hidden="true">
@@ -57,11 +57,6 @@
               <span>macOS, Windows, and Linux</span>
             </div>
           </div>
-        </div>
-        <div purpose="form-success" v-if="cloudSuccess">
-          <h2>Thanks! Check your calendar.</h2>
-          <p>We'll be in touch within one business day to schedule your demo.</p>
-          <a purpose="cta-button" href="/contact">Book a demo →</a>
         </div>
       </div>
     </div><%/* hero */%>
@@ -190,7 +185,7 @@
     <div purpose="closing-cta-inner">
       <h2>See what automated patching looks like in Fleet.</h2>
       <p purpose="closing-cta-sub">Book a 30-minute demo. We'll walk you through the Fleet-maintained catalog and automated patch policies. Live.</p>
-      <a purpose="cta-button" href="/contact">Book a demo →</a>
+      <a purpose="cta-button" href="#demo-form">Book a demo</a>
     </div>
   </div><%/* closing-cta */%>
 
