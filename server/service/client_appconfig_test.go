@@ -136,6 +136,23 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		assert.Empty(t, orgInfo["org_logo_url_light_background"])
 	})
 
+	t.Run("empty path key clears both new and deprecated URL fields", func(t *testing.T) {
+		// `org_logo_path_dark_mode: ""` (path key only, no URL key in YAML)
+		// must produce a PATCH that clears both URL fields.
+		os := orgSettings(map[string]any{
+			"org_logo_path_dark_mode": "",
+		})
+		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.NoError(t, err)
+		assert.Empty(t, actions)
+
+		orgInfo := os["org_info"].(map[string]any)
+		_, pathPresent := orgInfo["org_logo_path_dark_mode"]
+		assert.False(t, pathPresent, "path key should be stripped")
+		assert.Empty(t, orgInfo["org_logo_url_dark_mode"], "new key must be in the PATCH as \"\"")
+		assert.Empty(t, orgInfo["org_logo_url"], "deprecated alias must be in the PATCH as \"\"")
+	})
+
 	t.Run("clearing new URL keeps the deprecated alias in sync", func(t *testing.T) {
 		os := orgSettings(map[string]any{
 			"org_logo_url_dark_mode":  "",
@@ -157,6 +174,26 @@ func TestPlanAndStripOrgLogos(t *testing.T) {
 		actions, err := c.planAndStripOrgLogos(os, dir, false, logFn)
 		require.NoError(t, err)
 		assert.Empty(t, actions, "absent keys must not trigger any action")
+	})
+
+	t.Run("conflicting new and deprecated URL keys rejected", func(t *testing.T) {
+		os := orgSettings(map[string]any{
+			"org_logo_url_dark_mode": "https://example.com/new.png",
+			"org_logo_url":           "https://example.com/old.png",
+		})
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "conflicts with")
+	})
+
+	t.Run("clearing a mode while setting deprecated alias rejected", func(t *testing.T) {
+		os := orgSettings(map[string]any{
+			"org_logo_path_dark_mode": "",
+			"org_logo_url":            "https://example.com/keep.png",
+		})
+		_, err := c.planAndStripOrgLogos(os, dir, false, logFn)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "being cleared")
 	})
 
 	t.Run("both path and url for same mode rejected", func(t *testing.T) {

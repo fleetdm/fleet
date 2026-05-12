@@ -146,14 +146,33 @@ func (c *Client) planAndStripOrgLogos(
 				logFn("[+] would upload org logo (%s) from %s\n", s.mode, yamlPath)
 			}
 		case yamlURL != "":
-			delete(orgInfo, s.pathKey)
 			// Mirror the new key into the deprecated alias: PATCH merges,
 			// and the server rejects the request if the two keys end up
-			// disagreeing after the merge.
+			// disagreeing after the merge. If the user explicitly set the
+			// deprecated alias to a different value, surface the
+			// conflict instead of silently overwriting it.
+			if dep, ok := orgInfo[s.deprecatedURLKey].(string); ok && dep != yamlURL {
+				return nil, fmt.Errorf(
+					"org_settings.org_info: '%s' (%q) conflicts with '%s' (%q) for %s mode",
+					s.urlKey, yamlURL, s.deprecatedURLKey, dep, s.mode,
+				)
+			}
+			delete(orgInfo, s.pathKey)
 			orgInfo[s.deprecatedURLKey] = yamlURL
 		default:
+			// Clearing this mode: surface any contradictory deprecated
+			// alias value rather than silently overwriting it.
+			if dep, ok := orgInfo[s.deprecatedURLKey].(string); ok && dep != "" {
+				return nil, fmt.Errorf(
+					"org_settings.org_info: '%s' is being cleared but '%s' is set to %q for %s mode",
+					s.urlKey, s.deprecatedURLKey, dep, s.mode,
+				)
+			}
 			delete(orgInfo, s.pathKey)
-			// Same mirroring rule for the clear path.
+			// Send both URL keys as "". If only the deprecated alias is
+			// sent, NormalizeLogoFields mirrors the still-populated new
+			// key back into it after merge, leaving the URL unchanged.
+			orgInfo[s.urlKey] = ""
 			orgInfo[s.deprecatedURLKey] = ""
 		}
 	}

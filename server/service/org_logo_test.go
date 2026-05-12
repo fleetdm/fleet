@@ -210,7 +210,7 @@ func TestDeleteOrgLogo(t *testing.T) {
 	})
 
 	t.Run("mode=all clears every mode", func(t *testing.T) {
-		svc, ctx, stored, _ := setup(t, &fleet.AppConfig{
+		svc, ctx, stored, fired := setup(t, &fleet.AppConfig{
 			OrgInfo: fleet.OrgInfo{
 				OrgLogoURLLightMode:       "https://example.com/light.png",
 				OrgLogoURLLightBackground: "https://example.com/light.png",
@@ -219,6 +219,7 @@ func TestDeleteOrgLogo(t *testing.T) {
 			},
 		})
 		require.NoError(t, svc.DeleteOrgLogo(ctx, fleet.OrgLogoModeAll))
+		assert.True(t, *fired, "delete all should fire deleted_org_logo activity")
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightMode)
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLLightBackground)
 		assert.Empty(t, stored.OrgInfo.OrgLogoURLDarkMode)
