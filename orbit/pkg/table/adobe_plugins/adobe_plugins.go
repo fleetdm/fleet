@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/tablehelpers"
@@ -119,11 +120,8 @@ func (t *adobePluginsTable) generate(ctx context.Context, queryContext table.Que
 	)
 
 	level := "standard"
-	for _, l := range scanLevels {
-		if l == "deep" {
-			level = "deep"
-			break
-		}
+	if slices.Contains(scanLevels, "deep") {
+		level = "deep"
 	}
 
 	paths, err := getScanPaths(level, t.logger)
