@@ -12,7 +12,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
-
 // ErrUnresolvableAppConfigVar signals that one of the $FLEET_VAR_* tokens
 // referenced in a host's managed-app-configuration could not be resolved
 // (for example, the host is not linked to an end-user IDP account).
