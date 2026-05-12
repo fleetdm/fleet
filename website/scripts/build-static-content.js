@@ -1635,8 +1635,40 @@ module.exports = {
         }
         builtStaticContent.mdmCommands = mdmCommandsLibrary;
         builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
+      },
+      //
+      //  ╔═╗╦  ╔═╗╔═╗╔╦╗╔═╗╔╦╗╦    ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╦═╗  ╦  ╦╔╗╔╦╔═╔═╗
+      //  ╠╣ ║  ║╣ ║╣  ║ ║   ║ ║    ║║║║╚═╗ ║ ╠═╣║  ║  ║╣ ╠╦╝  ║  ║║║║╠╩╗╚═╗
+      //  ╚  ╩═╝╚═╝╚═╝ ╩ ╚═╝ ╩ ╩═╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╚═╝╩╚═  ╩═╝╩╝╚╝╩ ╩╚═╝
+      // Fetch the latest fleetctl release asset URLs from GitHub so the /download page can render them without making a runtime HTTP call (which would otherwise be rate-limited under load across multiple production dynos).
+      async()=>{
+        if (githubAccessToken) {
+          let githubResponse = await sails.helpers.http.get.with({
+            url: 'https://api.github.com/repos/fleetdm/fleet/releases/latest',
+            headers: baseHeadersForGithubRequests,
+          }).intercept((err) =>{
+            new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occured. Full error: ${util.inspect(err)}`)
+          });
+          let downloadAssets = githubResponse.assets;
+          let macOsAsset = _.find(downloadAssets, (asset)=> _.endsWith(asset.browser_download_url, '_macos.zip'));
+          let windowsAsset = _.find(downloadAssets, (asset)=> _.endsWith(asset.browser_download_url, '_windows_amd64.zip'));
+          let windowsArmAsset = _.find(downloadAssets, (asset)=> _.endsWith(asset.browser_download_url, '_windows_arm64.zip'));
+          builtStaticContent.fleetctlDownloadUrls = {
+            macOs: macOsAsset.browser_download_url,
+            windows: windowsAsset.browser_download_url,
+            windowsArm: windowsArmAsset.browser_download_url,
+          };
+        } else {
+          let genericLatestReleaseUrl = 'https://github.com/fleetdm/fleet/releases/latest';
+          builtStaticContent.fleetctlDownloadUrls = {
+            macOs: genericLatestReleaseUrl,
+            windows: genericLatestReleaseUrl,
+            windowsArm: genericLatestReleaseUrl,
+          };
+        }
       }
     ]);
+
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
     //  ██████╔╝█████╗  ██████╔╝██║     ███████║██║     █████╗         ███████╗███████║██║██║     ███████╗██████╔╝██║     ╚═╝

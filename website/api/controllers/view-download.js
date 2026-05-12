@@ -11,39 +11,24 @@ module.exports = {
 
     success: {
       viewTemplatePath: 'pages/download'
-    }
+    },
+    badConfig: { responseType: 'badConfig' },
 
   },
 
 
   fn: async function () {
+    if (!_.isObject(sails.config.builtStaticContent) || !_.isObject(sails.config.builtStaticContent.fleetctlDownloadUrls)) {
+      throw {badConfig: 'builtStaticContent.fleetctlDownloadUrls'};
+    }
 
-    let gitHubReponse = await sails.helpers.http.get.with({
-      url: 'https://api.github.com/repos/fleetdm/fleet/releases/latest',
-      headers: {
-        'User-Agent': 'fleet website',
-      }
-    });
+    let fleetctlDownloadUrls = sails.config.builtStaticContent.fleetctlDownloadUrls;
 
-    let downloadAssets = gitHubReponse.assets;
-
-
-    let macOsDownloadUrl = _.find(downloadAssets, (asset)=>{
-      return _.endsWith(asset.browser_download_url, '_macos.zip');
-    }).browser_download_url;
-
-    let windowsDownloadUrl = _.find(downloadAssets, (asset)=>{
-      return _.endsWith(asset.browser_download_url, '_windows_amd64.zip');
-    }).browser_download_url;
-
-    let windowsArmDownloadUrl = _.find(downloadAssets, (asset)=>{
-      return _.endsWith(asset.browser_download_url, '_windows_arm64.zip');
-    }).browser_download_url;
 
     return {
-      macOsDownloadUrl,
-      windowsDownloadUrl,
-      windowsArmDownloadUrl,
+      macOsDownloadUrl: fleetctlDownloadUrls.macOs,
+      windowsDownloadUrl: fleetctlDownloadUrls.windows,
+      windowsArmDownloadUrl: fleetctlDownloadUrls.windowsArm,
     };
 
   }
