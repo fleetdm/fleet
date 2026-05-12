@@ -483,7 +483,7 @@ Every internal meeting is inherently "optional" in the sense that if it's not a 
 
 ## Why think like a historian?
 
-When writing docs, issues, or plans at Fleet, include enough context that someone in the future can understand not just _what_ was done, but _why_ it matters and how it fits in.  A bare task description like "Write up scavenger hunt" is hard to find in search and almost impossible for other people to learn from or contribute to.  Adding a few words about the purpose, background, or intended outcome makes documentation more discoverable, more accessible, and more useful for everyone at the company — now and in the future.
+When writing docs, issues, or plans at Fleet, include enough context that someone in the future can understand not just _what_ was done, but _why_ it matters and how it fits in.  A bare task description like "Write up scavenger hunt" is hard to find in search and almost impossible for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating launch of Mythos-ready autonomous endpoint management" — now anyone who finds the entry later knows the event, the date, and the business milestone it relates to, without needing to ask.  Adding a few words about the purpose, background, or intended outcome makes documentation more discoverable, more accessible, and more useful for everyone at the company — now and in the future.
 
 
 #### Stubs
