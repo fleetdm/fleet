@@ -1119,7 +1119,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally encrypt or sign secure channel data (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1144,7 +1145,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally encrypt secure channel data (when possible)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1169,7 +1171,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Digitally sign secure channel data (when possible)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Digitally sign secure channel data (when possible)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1195,7 +1198,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Disable machine account password changes' is set to 'Disabled'
+  name: >
+    CIS - Ensure 'Domain member: Disable machine account password changes' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
@@ -1224,7 +1228,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Maximum machine account password age' is set to '30 or fewer days, but not 0'
+  name: >
+    CIS - Ensure 'Domain member: Maximum machine account password age' is set to '30 or fewer days, but not 0'
   platforms: win11
   platform: windows
   description: |
@@ -1254,7 +1259,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Domain member: Require strong (Windows 2000 or later) session key' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Domain member: Require strong (Windows 2000 or later) session key' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1440,7 +1446,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network client: Digitally sign communications (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1458,7 +1465,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network client: Digitally sign communications (if server agrees)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Digitally sign communications (if server agrees)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1476,7 +1484,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network client: Send unencrypted password to third-party SMB servers' is set to 'Disabled'
+  name: >
+    CIS - Ensure 'Microsoft network client: Send unencrypted password to third-party SMB servers' is set to 'Disabled'
   platforms: win11
   platform: windows
   description: |
@@ -1494,7 +1503,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network server: Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
+  name: >
+    CIS - Ensure 'Microsoft network server: Amount of idle time required before suspending session' is set to '15 or fewer minute(s)'
   platforms: win11
   platform: windows
   description: |
@@ -1515,7 +1525,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network server: Digitally sign communications (always)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Digitally sign communications (always)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1535,7 +1546,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Digitally sign communications (if client agrees)' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1555,7 +1567,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network server: Disconnect clients when logon hours expire' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Microsoft network server: Disconnect clients when logon hours expire' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -1575,7 +1588,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client'
+  name: >
+    CIS - Ensure 'Microsoft network server: Server SPN target name validation level' is set to 'Accept if provided by client'
   platforms: win11
   platform: windows
   description: |
@@ -1931,7 +1945,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Network security: Do not store LAN Manager hash value on next password change' is set to 'Enabled'
+  name: >
+    CIS - Ensure 'Network security: Do not store LAN Manager hash value on next password change' is set to 'Enabled'
   platforms: win11
   platform: windows
   description: |
@@ -11185,43 +11200,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'WDigest Authentication' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    When WDigest authentication is enabled, Lsass.exe retains a copy of the user's plaintext password in memory, where it can be at risk of theft.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
-    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\WDigest Authentication'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecurityProviders\WDigest\UseLogonCredential' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'MSS: (AutoAdminLogon) Enable Automatic Logon' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    If you configure a computer for automatic logon, anyone who can physically gain access to the computer can also gain access to everything that is on the computer.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (AutoAdminLogon) Enable Automatic Logon'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon' AND data = '0';
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  name: >
+    CIS - Ensure 'MSS: (DisableIPSourceRouting IPv6) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
   platforms: win11
   platform: windows
   description: |
@@ -11239,7 +11219,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
+  name: >
+    CIS - Ensure 'MSS: (DisableIPSourceRouting) IP source routing protection level' is set to 'Enabled: Highest protection, source routing is completely disabled'
   platforms: win11
   platform: windows
   description: |
@@ -11257,168 +11238,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Internet Control Message Protocol (ICMP) redirects cause the IPv4 stack to plumb host routes. These routes override the OSPF generated routes.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\EnableICMPRedirect' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    NetBIOS over TCP/IP is a network protocol that provides a way to resolve NetBIOS names. This setting determines whether the computer releases its NetBIOS name when it receives a name-release request.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path as prescribed:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\NetBT\Parameters\NoNameReleaseOnDemand' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'MSS: (SafeDllSearchMode) Enable Safe DLL search mode' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    The DLL search order can be configured to search for DLLs that are requested by running processes in one of two ways. When enabled, the system first searches folders specified in the system path and then searches the current working folder.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (SafeDllSearchMode) Enable Safe DLL search mode'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\SafeDllSearchMode' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning' is set to 'Enabled: 90% or less'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting can generate a security audit in the Security event log when the log reaches a user-defined threshold. If log settings are configured to Overwrite events as needed or Overwrite events older than x days, this event will not be generated.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: 90% or less:
-    'Computer Configuration\Policies\Administrative Templates\MSS (Legacy)\MSS: (WarningLevel) Percentage threshold for the security event log at which the system will generate a warning'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Eventlog\Security\WarningLevel' AND CAST(data AS INTEGER) <= 90;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure multicast DNS (mDNS) protocol' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines if the DNS client will perform name resolution over Multicast DNS (mDNS). mDNS performs local network name and service discoveries without the need for central DNS.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure multicast DNS (mDNS) protocol'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMDNS' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure NetBIOS settings' is set to 'Enabled: Disable NetBIOS name resolution on public networks'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting specifies if the DNS client will perform name resolution over Network Basic Input/Output System (NetBIOS). NetBIOS is a legacy name resolution method for internal Microsoft networking that predates the use of DNS for that purpose.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Disable NetBIOS name resolution on public networks:
-    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Configure NetBIOS settings'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableNetbios' AND (data = 0 OR data = 2);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn off multicast name resolution' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Link-Local Multicast Name Resolution (LLMNR) is a secondary name resolution protocol. With LLMNR, queries are sent using multicast over a local network link on a single subnet. LLMNR does not require a DNS server or DNS client configuration and provides name resolution in scenarios in which conventional DNS name resolution is not possible.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\DNS Client\Turn off multicast name resolution'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\DNSClient\EnableMulticast' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Audit client does not support encryption' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether the SMB server will log events when the SMB client doesn't support encryption. Organizations should be aware of all unencrypted SMB traffic in their environment.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support encryption'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportEncryption' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Audit client does not support signing' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether the SMB server will log events when the SMB client doesn't support signing. Organizations should be aware of all unsigned SMB traffic in their environment.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit client does not support signing'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditClientDoesNotSupportSigning' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure 'Audit insecure guest logon' (Lanman Server) is set to 'Enabled'
   platforms: win11
   platform: windows
@@ -11430,24 +11249,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Audit insecure guest logon'
   query: |
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditInsecureGuestLogon' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Enable authentication rate limiter' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy settings configures the SMB server authentication rate limiter. The authentication rate limiter is a feature of SMB that is designed to address brute force attacks by implementing a 2-second delay between each failed NTLM or PKU2U-based authentication attempt.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Server\Enable authentication rate limiter'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\EnableAuthRateLimiter' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
@@ -11473,7 +11274,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Server) is set to 'Enabled: 3.1.1'
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Server) is set to 'Enabled: 3.1.1'
   platforms: win11
   platform: windows
   description: |
@@ -11509,60 +11311,6 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Audit server does not support encryption' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether the SMB client will log events when the SMB server doesn't support encryption. Organizations should be aware of all unencrypted SMB traffic in their environment.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support encryption'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportEncryption' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Audit server does not support signing' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether the SMB client will log events when the SMB server doesn't support signing. Organizations should be aware of all unsigned SMB traffic in their environment.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Audit server does not support signing'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditServerDoesNotSupportSigning' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Enable insecure guest logons' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines if the SMB client will allow insecure guest logons to an SMB server. Insecure guest logons are used by file servers to allow unauthenticated access to shared folders.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Enable insecure guest logons'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AllowInsecureGuestAuth' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
   name: CIS - Ensure 'Enable remote mailslots' (Lanman Workstation) is set to 'Disabled'
   platforms: win11
   platform: windows
@@ -11581,7 +11329,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Workstation) is set to 'Enabled: 3.1.1'
+  name: >
+    CIS - Ensure 'Mandate the minimum version of SMB' (Lanman Workstation) is set to 'Enabled: 3.1.1'
   platforms: win11
   platform: windows
   description: |
@@ -11599,79 +11348,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Require Encryption' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether the SMB client will require encryption. The SMB server must support and have SMB encryption enabled (requires SMB v3.0 or later).
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Lanman Workstation\Require Encryption'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\RequireEncryption' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Prohibit installation and configuration of Network Bridge on your DNS domain network' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    You can use this procedure to control a user's ability to install and configure a Network Bridge. The Network Bridge setting, if enabled, allows users to create a Layer 2 Media Access Control (MAC) bridge, enabling them to connect two or more physical network segments together.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit installation and configuration of Network Bridge on your DNS domain network'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_AllowNetBridge_NLA' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Prohibit use of Internet Connection Sharing on your DNS domain network' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Although this legacy setting traditionally applied to the use of Internet Connection Sharing (ICS), this setting now freshly applies to the Mobile Hotspot feature in Windows 10 and Server 2016.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Prohibit use of Internet Connection Sharing on your DNS domain network'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_ShowSharedAccessUI' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Require domain users to elevate when setting a network's location' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether to require domain users to elevate when setting a network's location. Allowing regular users to set a network location increases the risk and attack surface.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Network\Network Connections\Require domain users to elevate when setting a network's location'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Network Connections\NC_StdDomainUserSetLocation' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Minimize the number of simultaneous connections to the Internet or a Windows Domain' is set to 'Enabled: 3 = Prevent Wi-Fi when on Ethernet'
+  name: >
+    CIS - Ensure 'Minimize the number of simultaneous connections to the Internet or a Windows Domain' is set to 'Enabled: 3 = Prevent Wi-Fi when on Ethernet'
   platforms: win11
   platform: windows
   description: |
@@ -11725,97 +11403,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Allow Print Spooler to accept client connections' is set to 'Disabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether the Print Spooler service will accept client connections. Disabling this mitigates remote attacks against the PrintNightmare vulnerability (CVE-2021-34527) and other remote Print Spooler attacks.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Disabled:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Allow Print Spooler to accept client connections'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\RegisterSpoolerRemoteRpcEndPoint' AND CAST(data AS INTEGER) = 2;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure Redirection Guard' is set to 'Enabled: Redirection Guard Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting determines whether Redirection Guard is enabled for the print spooler. Redirection Guard can prevent file redirections from being used within the print spooler process.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Redirection Guard Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Configure Redirection Guard'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RedirectionguardPolicy' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure RPC connection settings: Protocol to use for outgoing RPC connections' is set to 'Enabled: RPC over TCP'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls which protocol and protocol settings to use for outgoing Remote Procedure Call (RPC) connections to a remote print spooler. This prevents the use of named pipes for RPC connections and forces the use of TCP which is a more secure communication method.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: RPC over TCP:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC connection settings: Protocol to use for outgoing RPC connections'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcUseNamedPipeProtocol' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure RPC connection settings: Use authentication for outgoing RPC connections' is set to 'Enabled: Default'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls which protocol and protocol settings to use for outgoing Remote Procedure Call (RPC) connections to a remote print spooler.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Default:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC connection settings: Use authentication for outgoing RPC connections'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcAuthentication' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure RPC listener settings: Protocols to allow for incoming RPC connections' is set to 'Enabled: RPC over TCP'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls which protocols incoming Remote Procedure Call (RPC) connections to the print spooler are allowed to use. This forces the use of TCP which is a more secure communication method.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: RPC over TCP:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC listener settings: Protocols to allow for incoming RPC connections'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcProtocols' AND CAST(data AS INTEGER) = 5;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections' is set to 'Enabled: Negotiate' or higher
+  name: >
+    CIS - Ensure 'Configure RPC listener settings: Authentication protocol to use for incoming RPC connections' is set to 'Enabled: Negotiate' or higher
   platforms: win11
   platform: windows
   description: |
@@ -11833,7 +11422,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Configure RPC over TCP port' is set to 'Enabled: 0'
+  name: >
+    CIS - Ensure 'Configure RPC over TCP port' is set to 'Enabled: 0'
   platforms: win11
   platform: windows
   description: |
@@ -11844,258 +11434,6 @@ spec:
     'Computer Configuration\Policies\Administrative Templates\Printers\Configure RPC over TCP port'
   query: |
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcTcpPort' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Configure RPC packet level privacy setting for incoming connections' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls packet level privacy for Remote Procedure Call (RPC) incoming connections. Enabling this enforces the server-side to increase the authentication level to minimize the Print Spooler Spoofing Vulnerability (CVE-2021-1678).
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\MS Security Guide\Configure RPC packet level privacy setting for incoming connections'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Print\RpcAuthnLevelPrivacyEnabled' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Limits print driver installation to Administrators' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether users who aren't Administrators can install print drivers on the system. Restricting the installation of print drivers to Administrators can help mitigate the PrintNightmare vulnerability (CVE-2021-34527).
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Limits print driver installation to Administrators'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\PointAndPrint\RestrictDriverInstallationToAdministrators' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Manage processing of Queue-specific files' is set to 'Enabled: Limit Queue-specific files to Color profiles'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting manages how queue-specific files are processed during printer installation. A Windows Print Spooler Remote Code Execution Vulnerability (CVE-2021-36958) exists when the service improperly performs privileged file operations.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Limit Queue-specific files to Color profiles:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Manage processing of Queue-specific files'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\CopyFilesPolicy' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Point and Print Restrictions: When installing drivers for a new connection' is set to 'Enabled: Show warning and elevation prompt'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether computers will show a warning and a security elevation prompt when users create a new printer connection using Point and Print. This helps mitigate the PrintNightmare vulnerability (CVE-2021-34527).
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Show warning and elevation prompt:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When installing drivers for a new connection'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\NoWarningNoElevationOnInstall' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Point and Print Restrictions: When updating drivers for an existing connection' is set to 'Enabled: Show warning and elevation prompt'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether computers will show a warning and a security elevation prompt when users are updating drivers for an existing connection using Point and Print. This helps mitigate the PrintNightmare vulnerability (CVE-2021-34527).
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Show warning and elevation prompt:
-    'Computer Configuration\Policies\Administrative Templates\Printers\Point and Print Restrictions: When updating drivers for an existing connection'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows NT\Printers\PointAndPrint\UpdatePromptSettings' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Include command line in process creation events' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting controls whether the process creation command line text is logged in security audit events when a new process has been created. Capturing process command line information in event logs can be very valuable when performing forensic investigations of attack incidents.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Audit Process Creation\Include command line in process creation events'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\Audit\ProcessCreationIncludeCmdLine_Enabled' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Encryption Oracle Remediation' is set to 'Enabled: Force Updated Clients'
-  platforms: win11
-  platform: windows
-  description: |
-    Some versions of the CredSSP protocol that is used by some applications (such as Remote Desktop Connection) are vulnerable to an encryption oracle attack against the client. This policy controls compatibility with vulnerable clients and servers and allows you to set the level of protection desired for the encryption oracle vulnerability.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled: Force Updated Clients:
-    'Computer Configuration\Policies\Administrative Templates\System\Credentials Delegation\Encryption Oracle Remediation'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System\CredSSP\Parameters\AllowEncryptionOracle' AND data = 0;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Remote host allows delegation of non-exportable credentials' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    When using credential delegation, devices provide an exportable version of credentials to the remote host. This exposes users to the risk of credential theft from threat actors on the remote host. The Restricted Admin Mode and Windows Defender Remote Credential Guard features are two options to help protect against this risk.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Credentials Delegation\Remote host allows delegation of non-exportable credentials'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\CredentialsDelegation\AllowProtectedCreds' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting specifies whether Virtualization Based Security is enabled. Virtualization Based Security uses the Windows Hypervisor to provide support for security services. This setting was moved from the Next Generation (NG) profile to L1 for Windows 11 only.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\EnableVirtualizationBasedSecurity' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security: Select Platform Security Level' is set to 'Secure Boot' or higher
-  platforms: win11
-  platform: windows
-  description: |
-    This policy setting specifies whether Virtualization Based Security (VBS) is enabled. VBS uses the Windows Hypervisor to provide support for security services. The recommended state is Secure Boot. Configuring this setting to Secure Boot and DMA Protection also conforms to the benchmark.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Secure Boot or Secure Boot and DMA Protection:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Select Platform Security Level'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\RequirePlatformSecurityFeatures' AND (data = 1 OR data = 3);
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity' is set to 'Enabled with UEFI lock'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting enables virtualization based protection of Kernel Mode Code Integrity. When this is enabled, kernel mode memory protections are enforced and the Code Integrity validation path is protected by the Virtualization Based Security feature. This setting was moved from NG to L1 for Windows 11 only.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled with UEFI lock:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Virtualization Based Protection of Code Integrity'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\HypervisorEnforcedCodeIntegrity' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security: Require UEFI Memory Attributes Table' is set to 'True (checked)'
-  platforms: win11
-  platform: windows
-  description: |
-    This option will only enable Virtualization Based Protection of Code Integrity on devices with UEFI firmware support for the Memory Attributes Table. Devices without the UEFI Memory Attributes Table may have firmware that is incompatible with Virtualization Based Protection of Code Integrity. This setting was moved from NG to L1 for Windows 11 only.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to TRUE:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Require UEFI Memory Attributes Table'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\HVCIMATRequired' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security: Credential Guard Configuration' is set to 'Enabled with UEFI lock'
-  platforms: win11
-  platform: windows
-  description: |
-    This setting lets users turn on Credential Guard with virtualization-based security to help protect credentials. The Enabled with UEFI lock option ensures that Credential Guard cannot be disabled remotely. This setting was moved from NG to L1 for Windows 11 only.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled with UEFI lock:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Credential Guard Configuration'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\LsaCfgFlags' AND data = 1;
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: fleet
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure 'Turn On Virtualization Based Security: Secure Launch Configuration' is set to 'Enabled'
-  platforms: win11
-  platform: windows
-  description: |
-    Secure Launch protects the Virtualization Based Security environment from exploited vulnerabilities in device firmware. This setting was moved from NG to L1 for Windows 11 only.
-  resolution: |
-    Automatic method:
-    Ask your system administrator to establish the recommended configuration via GP, set the following UI path to Enabled:
-    'Computer Configuration\Policies\Administrative Templates\System\Device Guard\Turn On Virtualization Based Security: Secure Launch Configuration'
-  query: |
-    SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\DeviceGuard\ConfigureSystemGuardLaunch' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
   contributors: fleet
@@ -12139,7 +11477,8 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure 'Disable HTTP proxy features: Disable WPAD' is set to 'Enabled: Checked'
+  name: >
+    CIS - Ensure 'Disable HTTP proxy features: Disable WPAD' is set to 'Enabled: Checked'
   platforms: win11
   platform: windows
   description: |
