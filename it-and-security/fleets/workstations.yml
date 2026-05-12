@@ -190,6 +190,8 @@ policies:
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
+  # Cross-platform policies
+  - path: ../lib/all/policies/tanstack-supply-chain-attack.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml
   - path: ../lib/macos/reports/collect-default-browser.yml
