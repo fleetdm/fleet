@@ -80,11 +80,11 @@ export const getStatusMessage = ({
   const formattedVerifyTimeout = secondsToDhms(vppVerifyTimeoutSeconds || 600);
   const displayTimestamp =
     ["failed_install", "installed"].includes(displayStatus || "") &&
-    commandUpdatedAt
+      commandUpdatedAt
       ? ` (${formatDistanceToNow(new Date(commandUpdatedAt), {
-          includeSeconds: true,
-          addSuffix: true,
-        })})`
+        includeSeconds: true,
+        addSuffix: true,
+      })})`
       : null;
 
   // Handles "pending" value prior to 4.57
@@ -154,7 +154,8 @@ export const getStatusMessage = ({
             <div>
               The host acknowledged the MDM command to install <b>{appName}</b>
               {!isMyDevicePage && <> on {formattedHost}</>}, but the install
-              took longer than {formattedVerifyTimeout}, so Fleet marked it as failed.
+              took longer than {formattedVerifyTimeout}, so Fleet marked it as
+              failed.
             </div>
             {platform && isMacOS(platform) && hasInstalledVersionsOnHost && (
               <div className="vpp-install-details-modal__update-tip">
@@ -337,8 +338,8 @@ export const VppInstallDetailsModal = ({
     async () => {
       return deviceAuthToken
         ? deviceUserAPI
-            .getVppCommandResult(deviceAuthToken, commandUuid)
-            .then(responseHandler)
+          .getVppCommandResult(deviceAuthToken, commandUuid)
+          .then(responseHandler)
         : commandAPI.getCommandResults(commandUuid).then(responseHandler);
     },
     {
@@ -531,11 +532,12 @@ export const VppInstallDetailsModal = ({
         />
         {isVerificationTimedOut && (
           <p>
-            If the install finishes later, Fleet will update the status when the host is refetched.
+            If the install finishes later, Fleet will update the status when
+            the host is refetched.
           </p>
         )}
         {shouldShowInventoryVersions &&
-        hostSoftware?.installed_versions?.length ? (
+          hostSoftware?.installed_versions?.length ? (
           <InventoryVersions hostSoftware={hostSoftware} />
         ) : null}
         {!isPendingInstall &&
