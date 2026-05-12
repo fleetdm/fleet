@@ -17,6 +17,8 @@ import (
 	"context"
 	"encoding/json"
 	"encoding/xml"
+	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -26,6 +28,10 @@ import (
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog"
 )
+
+// maxManifestSize is the maximum size of a manifest file we'll read.
+// Prevents memory exhaustion from unexpectedly large files (orbit runs as root).
+const maxManifestSize = 1 << 20 // 1 MB
 
 const tableName = "adobe_plugins"
 
@@ -142,6 +148,11 @@ func (t *adobePluginsTable) generate(ctx context.Context, queryContext table.Que
 			}
 
 			for _, entry := range entries {
+				// Skip symlinks to avoid traversing outside intended scan dirs.
+				if entry.Type()&fs.ModeSymlink != 0 {
+					continue
+				}
+
 				pluginPath := filepath.Join(dir, entry.Name())
 
 				if _, ok := seen[pluginPath]; ok {
@@ -209,7 +220,7 @@ func (t *adobePluginsTable) parseCEPPlugin(pluginPath string, sp scanPath) map[s
 	}
 
 	manifestPath := filepath.Join(pluginPath, "CSXS", "manifest.xml")
-	data, err := os.ReadFile(manifestPath)
+	data, err := readFileCapped(manifestPath, maxManifestSize)
 	if err != nil {
 		t.logger.Debug().Err(err).Str("path", manifestPath).Msg("no CEP manifest found")
 		return row
@@ -262,7 +273,7 @@ func (t *adobePluginsTable) parseUXPPlugin(pluginPath string, sp scanPath) map[s
 	}
 
 	manifestPath := filepath.Join(pluginPath, "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+	data, err := readFileCapped(manifestPath, maxManifestSize)
 	if err != nil {
 		t.logger.Debug().Err(err).Str("path", manifestPath).Msg("no UXP manifest found")
 		return row
@@ -316,6 +327,17 @@ func parseNativePlugin(pluginPath string, entry os.DirEntry, sp scanPath) map[st
 		colUser:            sp.user,
 		colPlatform:        runtime.GOOS,
 	}
+}
+
+// readFileCapped reads up to maxBytes from a file. This prevents memory
+// exhaustion from unexpectedly large files since orbit runs as root.
+func readFileCapped(path string, maxBytes int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(io.LimitReader(f, maxBytes))
 }
 
 // resolveHostApps converts a list of Adobe host application codes to
