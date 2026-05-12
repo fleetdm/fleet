@@ -67,9 +67,9 @@ func createTestUsers(t *testing.T, ds fleet.Datastore) map[string]fleet.User {
 			GlobalRole: u.GlobalRole,
 		}
 		err := user.SetPassword(u.PlaintextPassword, 10, 10)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		user, err = ds.NewUser(context.Background(), user)
-		require.Nil(t, err)
+		require.NoError(t, err)
 		users[user.Email] = *user
 		userID++
 	}
@@ -83,7 +83,7 @@ func GetToken(t *testing.T, email string, password string, serverURL string) str
 		Email:    email,
 		Password: password,
 	}
-	j, err := json.Marshal(&params)
+	j, err := json.Marshal(&params) //nolint:gosec // dismiss G117
 	require.NoError(t, err)
 
 	requestBody := io.NopCloser(bytes.NewBuffer(j))
@@ -99,7 +99,7 @@ func GetToken(t *testing.T, email string, password string, serverURL string) str
 	}{}
 	err = json.NewDecoder(resp.Body).Decode(&jsn)
 	require.NoError(t, err)
-	require.Len(t, jsn.Err, 0)
+	require.Empty(t, jsn.Err)
 
 	return jsn.Token
 }
