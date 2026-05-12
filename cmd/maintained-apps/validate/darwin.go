@@ -84,19 +84,7 @@ func removeAppQuarantine(appPath string) (QuarantineResult, error) {
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
-	// Some installers (e.g. OpenVPN Connect) put the .app bundle inside a
-	// wrapper directory under /Applications/ rather than placing the .app
-	// directly there. When that happens, appPath points at the wrapper
-	// directory and `lsregister -f <dir>` fails with exit 1 because the path
-	// isn't a bundle. Use `-R` to recursively register .app bundles found
-	// inside the directory.
-	lsregisterPath := "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-	var cmd *exec.Cmd
-	if strings.HasSuffix(appPath, ".app") {
-		cmd = exec.Command(lsregisterPath, "-f", appPath)
-	} else {
-		cmd = exec.Command(lsregisterPath, "-R", "-f", appPath)
-	}
+    cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
 	}
