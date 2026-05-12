@@ -132,12 +132,10 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
-        const greyAndItalic = greyCell(cellProps.cell.value);
         return (
           <TextCell
             value={cellProps.cell.value}
-            grey={greyAndItalic}
-            italic={greyAndItalic}
+            italic={greyCell(cellProps.cell.value)}
           />
         );
       },
