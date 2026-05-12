@@ -18,8 +18,8 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
    - **Custom version** — Set a specific **Minimum version** (e.g., `15.4.1`) and an absolute **Deadline** (date). Hosts below this version will be prompted to update by the deadline.
    - **Latest version** — Fleet automatically enforces the latest macOS version available for each host's hardware. Set **Days after release** to control how long hosts have to update after Apple publishes a new version.
-   - **Latest within major** — Same as above, but hosts stay on their current major version (e.g., a host on macOS 14 gets the latest 14.x release, not macOS 15).
-   - **Latest within minor** — Same as above, but hosts stay on their current minor version (e.g., a host on 15.4 gets the latest 15.4.x patch).
+   - **Latest within major** — Fleet automatically enforces the latest macOS version, but host stays on the current major version (e.g., a host on macOS 14 gets the latest 14.x release, not macOS 15).
+   - **Latest within minor** — Fleet automatically enforces the latest macOS version, but host stays on the current minor version (e.g., a host on 15.4 gets the latest 15.4.x patch).
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
