@@ -21,6 +21,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 1 day. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 1
+
 jobs:
   test:
     name: Test Engineering Metrics Action
