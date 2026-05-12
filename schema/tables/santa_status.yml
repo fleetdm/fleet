@@ -1,5 +1,5 @@
 name: santa_status
-description: The output of `santactl status --json` showing current Santa statistics and configuration.
+description: The output of `santactl status --json` showing current Santa statistics and configuration. Supported for Santa verion X and above.
 platforms: 
   - darwin
 evented: false
