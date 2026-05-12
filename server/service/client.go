@@ -906,12 +906,9 @@ func (c *Client) ApplyGroup(
 					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
 				}
 
-				var androidConfig json.RawMessage
-				if app.Platform == string(fleet.AndroidPlatform) {
-					androidConfig, err = getAndroidAppConfig(app.Configuration.Path)
-					if err != nil {
-						return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
-					}
+				appConfig, err := getAppStoreAppConfig(app.Platform, app.Configuration.Path)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", app.AppStoreID, app.Configuration.Path, err)
 				}
 
 				payload := fleet.VPPBatchPayload{
@@ -930,8 +927,8 @@ func (c *Client) ApplyGroup(
 					AutoUpdateStartTime: app.AutoUpdateStartTime,
 					AutoUpdateEndTime:   app.AutoUpdateEndTime,
 				}
-				if androidConfig != nil {
-					payload.Configuration = androidConfig
+				if appConfig != nil {
+					payload.Configuration = appConfig
 				}
 				appPayloads = append(appPayloads, payload)
 
@@ -1311,6 +1308,17 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		var cfg []byte
+		if si.Configuration.Path != "" {
+			cfg, err = os.ReadFile(si.Configuration.Path)
+			if err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Reading configuration %s: %w", si.URL, si.Configuration.Path, err)
+			}
+			if err := fleet.ValidateAppleAppConfiguration(cfg); err != nil {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Configuration %s: %w", si.URL, si.Configuration.Path, err)
+			}
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                urlValue,
 			SelfService:        si.SelfService,
@@ -1328,6 +1336,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			IconPath:           si.Icon.Path,
 			IconHash:           iconHash,
 			AlwaysDownload:     si.AlwaysDownload,
+			Configuration:      cfg,
 		}
 
 		if si.Slug != nil {
@@ -1368,24 +1377,37 @@ func getIconHashIfValid(path string) (string, error) {
 	return hash, nil
 }
 
-func getAndroidAppConfig(path string) (json.RawMessage, error) {
+func getAppStoreAppConfig(platform, path string) (json.RawMessage, error) {
 	if path == "" {
 		return nil, nil
 	}
 
-	configReader, err := os.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading android app configuration file: %w", err)
+		return nil, fmt.Errorf("reading app store app configuration file: %w", err)
 	}
 
-	config := json.RawMessage(configReader)
-
-	err = fleet.ValidateAndroidAppConfiguration(config)
-	if err != nil {
-		return nil, err
+	switch platform {
+	case string(fleet.AndroidPlatform):
+		config := json.RawMessage(contents)
+		if err := fleet.ValidateAndroidAppConfiguration(config); err != nil {
+			return nil, err
+		}
+		return config, nil
+	case string(fleet.IOSPlatform), string(fleet.IPadOSPlatform):
+		if err := fleet.ValidateAppleAppConfiguration(contents); err != nil {
+			return nil, err
+		}
+		// Wrap as a JSON-encoded string of XML to match the wire format
+		// BatchAssociateVPPApps expects (see ee/server/service/vpp.go).
+		wrapped, err := json.Marshal(string(contents))
+		if err != nil {
+			return nil, fmt.Errorf("wrapping apple app configuration: %w", err)
+		}
+		return wrapped, nil
 	}
 
-	return config, nil
+	return nil, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -2737,12 +2759,9 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", appStoreApp.AppStoreID, appStoreApp.Icon.Path, err)
 			}
 
-			var androidConfig json.RawMessage
-			if appStoreApp.Platform == string(fleet.AndroidPlatform) {
-				androidConfig, err = getAndroidAppConfig(appStoreApp.Configuration.Path)
-				if err != nil {
-					return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
-				}
+			appConfig, err := getAppStoreAppConfig(appStoreApp.Platform, appStoreApp.Configuration.Path)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Reading configuration %s: %w", appStoreApp.AppStoreID, appStoreApp.Configuration.Path, err)
 			}
 
 			payload := fleet.VPPBatchPayload{
@@ -2758,8 +2777,8 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				AutoUpdateEndTime:   appStoreApp.AutoUpdateEndTime,
 				Categories:          appStoreApp.Categories,
 			}
-			if androidConfig != nil {
-				payload.Configuration = androidConfig
+			if appConfig != nil {
+				payload.Configuration = appConfig
 			}
 			appsPayload = append(appsPayload, payload)
 		}

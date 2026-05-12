@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import { noop } from "lodash";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
@@ -16,6 +16,7 @@ import {
 } from "interfaces/team";
 import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
 import policiesAPI from "services/entities/policies";
+import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
@@ -63,6 +64,7 @@ const PolicyDetailsPage = ({
 }: IPolicyDetailsPageProps): JSX.Element => {
   const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   const {
     currentUser,
@@ -112,7 +114,10 @@ const PolicyDetailsPage = ({
     },
   });
 
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showQueryModal, setShowQueryModal] = useState(false);
+  const [isAddingAutomation, setIsAddingAutomation] = useState(false);
 
   if (policyId === null || isNaN(policyId)) {
     router.push(PATHS.MANAGE_POLICIES);
@@ -178,8 +183,8 @@ const PolicyDetailsPage = ({
       integrations,
     } = teamData.team;
     const isIntegrationEnabled =
-      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];
@@ -210,6 +215,28 @@ const PolicyDetailsPage = ({
     isTeamTechnician;
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
+
+  const onAddPatchAutomation = async () => {
+    if (
+      !storedPolicy?.patch_software?.software_title_id ||
+      storedPolicy?.team_id == null
+    ) {
+      return;
+    }
+    setIsAddingAutomation(true);
+    try {
+      await teamPoliciesAPI.update(policyId as number, {
+        team_id: storedPolicy.team_id,
+        software_title_id: storedPolicy.patch_software.software_title_id,
+      });
+      queryClient.invalidateQueries(["policy", policyId]);
+      renderFlash("success", "Automation added.");
+    } catch {
+      renderFlash("error", "Couldn't set automation. Please try again.");
+    } finally {
+      setIsAddingAutomation(false);
+    }
+  };
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,
@@ -412,8 +439,9 @@ const PolicyDetailsPage = ({
               <PolicyAutomations
                 storedPolicy={storedPolicy}
                 currentAutomatedPolicies={currentAutomatedPolicies}
-                onAddAutomation={noop}
-                isAddingAutomation={false}
+                canEditPolicy={canEditPolicy}
+                onAddAutomation={onAddPatchAutomation}
+                isAddingAutomation={isAddingAutomation}
               />
             )}
           </>

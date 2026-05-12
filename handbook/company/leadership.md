@@ -450,6 +450,7 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
+
 ## Executive bios
 
 Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
@@ -458,7 +459,7 @@ Certain members of the executive team are asked for press involvement from time 
 |:---------------------|:-------------|:------|
 | Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
 | Ashish Kuthiala          | <img width="800" height="800" alt="AshishBIoPic" src="https://github.com/user-attachments/assets/19498baf-e96c-48af-876a-3d9ec20e5f21" /> | Chief Marketing Officer at Fleet Device Management. Before Fleet, Ashish served as CMO at BlinkOps and Traceable AI (acquired by Harness IO). As Senior Director of strategic marketing at GitLab, he helped GitLab establish brand leadership in the DevOps automation category and contributed to growing the company's valuation from $200M to over $6B in three years. Earlier in his career, Ashish held leadership roles in marketing, product, and R&D at Hewlett Packard Enterprise, Electric Cloud (acquired by CloudBees), and AccelOps (acquired by Fortinet). |
-
+| Luke Heath          | <img alt="Luke Heath bio photo" width="460" height="459" alt="Image" src="https://github.com/user-attachments/assets/24afb40f-d33c-4e05-9672-e64dd03761a5" /> | Chief Technology Officer at Fleet Device Management. Luke spends a lot of time thinking about people and computers, and how the two can best get along. He joined Fleet in 2021 and was named CTO in March 2024. Before Fleet, Luke founded Heath Software, an Austin-based agency providing design and development services to startups and Fortune 500 companies including TIAA. Earlier in his career, he led engineering at TreeHouse and worked as an independent consultant for clients including Microsoft, Reuters, Samsung, SanDisk, and Paramount. Luke got his start in IT in 1998, providing technical support at AOL. |
 
 
 #### Stubs

@@ -1547,10 +1547,6 @@ func (svc *Service) validateMDM(
 			invalid.Append("setup_experience.macos_bootstrap_package",
 				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
-		if mdm.MacOSSetup.EnableEndUserAuthentication && oldMdm.MacOSSetup.EnableEndUserAuthentication != mdm.MacOSSetup.EnableEndUserAuthentication {
-			invalid.Append("setup_experience.enable_end_user_authentication",
-				`Couldn't update setup_experience because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
-		}
 	}
 	checkCustomSettings := func(prefix string, customSettings []fleet.MDMProfileSpec) {
 		for i, prof := range customSettings {
@@ -1959,7 +1955,7 @@ func (svc *Service) validateVPPAssignments(
 
 		loc := norm.NFC.String(vpp.Location)
 		if _, ok := tokensByLocation[loc]; !ok {
-			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			invalid.Appendf("mdm.volume_purchasing_program", "token with organization unit %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 
