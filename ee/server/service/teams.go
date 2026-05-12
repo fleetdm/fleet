@@ -310,8 +310,8 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
+			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apply-only).
+			if appCfg.MDM.EnabledAndConfigured && macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
 				team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 			}
 
@@ -2161,6 +2161,11 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 }
 
 func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetch app config")
+	}
+
 	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 
 	if payload.EnableEndUserAuthentication != nil {
@@ -2179,7 +2184,7 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 	}
 
 	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+	if appCfg.MDM.EnabledAndConfigured && didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
 		tm.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 

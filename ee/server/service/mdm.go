@@ -221,8 +221,8 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	if ac.MDM.EnabledAndConfigured && didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
 		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(ac.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
@@ -349,17 +349,9 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 		return err
 	}
 
-	// If any Apple-only setup feature is being turned on, ensure Apple MDM is configured.
-	// A nil pointer or boolean `false` passes this gate so the UI can safely batch
-	// these fields with end_user_authentication on Windows-only / Linux-only fleets.
-	// Downstream update logic still applies its own per-field validation (e.g. only
-	// "admin" is accepted for end_user_local_account_type).
-	turningOnAppleOnlySetup := (payload.RequireAllSoftware != nil && *payload.RequireAllSoftware) ||
-		(payload.EnableReleaseDeviceManually != nil && *payload.EnableReleaseDeviceManually) ||
-		(payload.ManualAgentInstall != nil && *payload.ManualAgentInstall) ||
-		(payload.EnableManagedLocalAccount != nil && *payload.EnableManagedLocalAccount) ||
-		(payload.EndUserLocalAccountType != nil && *payload.EndUserLocalAccountType != "")
-	if turningOnAppleOnlySetup && !ac.MDM.EnabledAndConfigured {
+	// If anything besides enable_end_user_authentication is being updated, ensure MDM is on.
+	if (payload.RequireAllSoftware != nil || payload.EnableReleaseDeviceManually != nil || payload.ManualAgentInstall != nil ||
+		payload.EnableManagedLocalAccount != nil || payload.EndUserLocalAccountType != nil) && !ac.MDM.EnabledAndConfigured {
 		return fleet.ErrMDMNotConfigured
 	}
 
