@@ -642,8 +642,8 @@ module.exports.routes = {
   'GET /download': {
     action: 'view-download',
     locals: {
-      pageTitleForMeta: 'TODO',
-      pageDescriptionForMeta: 'TODO'
+      pageTitleForMeta: 'Download fleetctl',
+      pageDescriptionForMeta: 'Download fleetctl, Fleet\'s CLI for managing hosts, applying configurations, running reports, and interacting with the Fleet API.'
     }
   },
 
