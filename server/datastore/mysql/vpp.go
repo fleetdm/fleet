@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-sql-driver/mysql"
@@ -2861,99 +2862,101 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, platform
+	uuid, platform, team_id
 FROM
 	hosts
 WHERE
 	id = ?
 `
-	// get the host uuid, requires for the nano tables
 	var hostData struct {
 		UUID     string `db:"uuid"`
 		Platform string `db:"platform"`
+		TeamID   *uint  `db:"team_id"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
+		return ctxerr.Wrap(ctx, err, "get host info for vpp install")
 	}
 
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
+	// Pull the (execution_id, adam_id, platform) tuples for the pending
+	// activations on this host so we can build per-app commands in Go and
+	// inject the managed-app-configuration dict per (adam_id, platform, team).
+	const pendingStmt = `
 SELECT
 	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, vaua.adam_id, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
+	vaua.adam_id,
+	vaua.platform
 FROM
 	upcoming_activities ua
 	INNER JOIN vpp_app_upcoming_activities vaua
 		ON vaua.upcoming_activity_id = ua.id
 WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
+	ua.host_id = ? AND ua.execution_id IN (?)
 `
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>iTunesStoreID</key>
-        <integer>`
-
-	const rawCmdPart2 = `</integer>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
-
-	// Set management flags based on platform
-	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+	type vppPending struct {
+		ExecutionID string `db:"execution_id"`
+		AdamID      string `db:"adam_id"`
+		Platform    string `db:"platform"`
 	}
-
-	// insert the nano command
-	namedArgs := map[string]any{
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err := sqlx.Named(insCmdStmt, namedArgs)
+	stmt, args, err := sqlx.In(pendingStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+		return ctxerr.Wrap(ctx, err, "prepare pending vpp install lookup")
 	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+	var pending []vppPending
+	if err := sqlx.SelectContext(ctx, tx, &pending, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "list pending vpp installs")
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+	if len(pending) == 0 {
+		return nil
+	}
+
+	// Fetch managed configurations in bulk per platform. Configurations are
+	// keyed on (platform, adam_id, team_id) — host's team_id at install time.
+	// Only iOS / iPadOS get a Configuration dict; macOS VPP installs always
+	// drop the field at the builder level (and we don't even bother fetching).
+	tid := uint(0)
+	if hostData.TeamID != nil {
+		tid = *hostData.TeamID
+	}
+	configsByPlatformAdamID := make(map[string]map[string][]byte, 2)
+	{
+		adamIDsByPlatform := make(map[string][]string, 2)
+		for _, p := range pending {
+			if p.Platform == string(fleet.IOSPlatform) || p.Platform == string(fleet.IPadOSPlatform) {
+				adamIDsByPlatform[p.Platform] = append(adamIDsByPlatform[p.Platform], p.AdamID)
+			}
+		}
+		for platform, adamIDs := range adamIDsByPlatform {
+			cfgs, err := ds.BulkGetVPPAppConfigurationsTx(ctx, tx, fleet.InstallableDevicePlatform(platform), adamIDs, tid)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "bulk get vpp app configurations for install")
+			}
+			configsByPlatformAdamID[platform] = cfgs
+		}
+	}
+
+	// Build the InstallApplication plist for each pending activation, then do
+	// one batch INSERT into nano_commands. Per-host, per-app build is required
+	// so the Configuration dict (which varies by team / adam_id) can be
+	// inlined.
+	insValues := make([]string, 0, len(pending))
+	insArgs := make([]any, 0, len(pending)*4)
+	for _, p := range pending {
+		var cfg []byte
+		if cfgs, ok := configsByPlatformAdamID[p.Platform]; ok {
+			cfg = cfgs[p.AdamID]
+		}
+		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
+			CommandUUID:   p.ExecutionID,
+			HostPlatform:  hostData.Platform,
+			ITunesStoreID: p.AdamID,
+			Configuration: cfg,
+		})
+		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
+		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
+	}
+	insCmdStmt := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES ` +
+		strings.Join(insValues, ", ")
+	if _, err := tx.ExecContext(ctx, insCmdStmt, insArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
 	}
 
@@ -3051,6 +3054,14 @@ func (ds *Datastore) GetVPPAppConfiguration(ctx context.Context, platform fleet.
 }
 
 func (ds *Datastore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, ds.reader(ctx), platform, adamIDs, teamID)
+}
+
+func (ds *Datastore) BulkGetVPPAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	return ds.bulkGetVPPAppConfigurations(ctx, tx, platform, adamIDs, teamID)
+}
+
+func (ds *Datastore) bulkGetVPPAppConfigurations(ctx context.Context, q sqlx.QueryerContext, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
 	if len(adamIDs) == 0 {
 		return nil, nil
 	}
@@ -3072,7 +3083,7 @@ WHERE application_id IN (?) AND team_id = ? AND platform = ?
 		ApplicationID string `db:"application_id"`
 		Configuration []byte `db:"configuration"`
 	}
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
+	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get vpp app configurations")
 	}
