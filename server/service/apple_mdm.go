@@ -745,7 +745,7 @@ type acmeProfileForValidation struct {
 // by the device's ACME exchange cannot be linked back to its profile and will
 // never be auto-renewed.
 func additionalACMEValidation(contents string) error {
-	if !strings.Contains(contents, "com.apple.security.acme") {
+	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
 		return nil
 	}
 	// Strip variables embedded in <data> elements so the plist unmarshal
@@ -756,7 +756,7 @@ func additionalACMEValidation(contents string) error {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse ACME payload with Fleet variables: %s", err.Error())}
 	}
 	for _, payload := range acmeProf.PayloadContent {
-		if payload.PayloadType != "com.apple.security.acme" {
+		if payload.PayloadType != mobileconfig.ACMEPayloadType {
 			continue
 		}
 		var commonName, orgUnit strings.Builder

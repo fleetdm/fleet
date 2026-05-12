@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/variables"
 )
 
@@ -512,7 +513,7 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		// variable stands alone (no SCEP URL/Challenge) and validation lives in
 		// additionalACMEValidation upstream.
 		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil &&
-			!strings.Contains(profileContents, "com.apple.security.acme") {
+			!strings.Contains(profileContents, mobileconfig.ACMEPayloadType) {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}
