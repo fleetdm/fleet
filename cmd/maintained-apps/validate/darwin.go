@@ -84,7 +84,7 @@ func removeAppQuarantine(appPath string) (QuarantineResult, error) {
 }
 
 func forceLaunchServicesRefresh(appPath string) error {
-    cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
+	cmd := exec.Command("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", "-f", appPath)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("forcing LaunchServices refresh: %w", err)
 	}
