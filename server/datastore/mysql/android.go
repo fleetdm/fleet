@@ -1183,8 +1183,22 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, true)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, updateDetail bool) error {
 	if len(payload) == 0 {
 		return nil
+	}
+
+	detailUpdate := "detail = VALUES(detail),"
+	if !updateDetail {
+		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
+		// the reconciler owns this field and may carry a forward-looking message
+		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
+		// must survive this state reset.
+		detailUpdate = ""
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -1206,14 +1220,14 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 			ON DUPLICATE KEY UPDATE
 				status = VALUES(status),
 				operation_type = VALUES(operation_type),
-				detail = VALUES(detail),
+				%s
 				profile_name = VALUES(profile_name),
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
 				included_in_policy_version = VALUES(included_in_policy_version),
 				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","),
+`, strings.TrimSuffix(valuePart, ","), detailUpdate,
 		)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
@@ -1443,12 +1457,14 @@ WHERE
 		}
 	}
 
+	// Mark every row backing an incoming profile as needing reprocessing. We do NOT
+	// clear `detail` here: that column is owned by the reconciler and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on ONC profiles)
 	const updateIncludedInPolicyVersionStmt = `
 	UPDATE
 		host_mdm_android_profiles
 	SET
 		included_in_policy_version = NULL,
-		detail = NULL,
 		policy_request_uuid = NULL,
 		device_request_uuid = NULL,
 		status = NULL,
@@ -1532,7 +1548,12 @@ func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx
 	return nil
 }
 
-// For android we set the status to NIL
+// bulkSetPendingMDMAndroidHostProfilesDB resets the status of every applicable
+// Android host profile to NULL so the next reconciler tick picks them up. New
+// rows are inserted with an empty detail; for existing rows we deliberately
+// leave the detail column alone so that forward-looking messages (e.g. the
+// "Waiting for certificate ..." text on ONC profiles withheld pending a cert
+// install) are not wiped between this call and the next reconciler run.
 func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	ctx context.Context,
 	hostUUIDs []string,
@@ -1573,9 +1594,8 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, false); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
 	return true, nil

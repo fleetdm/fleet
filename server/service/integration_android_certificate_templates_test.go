@@ -1916,6 +1916,100 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	s.assertONCProfilesReleased(t, host.UUID, "cert template deleted")
 }
 
+// TestONCProfileDetailPreservedWhenAddingAnotherProfile guards against this
+// regression: once an ONC profile is withheld pending a cert install
+// ("Waiting for certificate ..."), adding any other Android configuration
+// profile to the same team must NOT wipe the withheld profile's `detail`.
+func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnotherProfile() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
+
+	const (
+		oncProfileName       = "onc-wifi"
+		cameraProfileName    = "camera-policy"
+		certTemplateName     = "wifi-cert"
+		expectedDetailSubstr = `Waiting for certificate "wifi-cert"`
+	)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
+	require.NoError(t, err)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   certTemplateName,
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-detail-test", &team.ID, true)
+
+	// Apply the initial profile set and reconcile once so the ONC profile is
+	// in the withheld state we want to defend.
+	oncProfileJSON, cameraProfileJSON := s.oncWithholdingProfiles()
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: oncProfileName, Contents: oncProfileJSON},
+		{Name: cameraProfileName, Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.awaitTriggerAndroidProfileSchedule(t)
+	s.assertONCProfileWithheld(t, host.UUID)
+
+	fetchONCProfileRow := func(t *testing.T) (status, detail *string) {
+		t.Helper()
+		var row struct {
+			Status *string `db:"status"`
+			Detail *string `db:"detail"`
+		}
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &row,
+				"SELECT status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_name = ?",
+				host.UUID, oncProfileName)
+		})
+		return row.Status, row.Detail
+	}
+
+	requireDetailPreservedAndStatusReset := func(t *testing.T, trigger string) {
+		t.Helper()
+		status, detail := fetchONCProfileRow(t)
+		require.Nil(t, status, "%s: status should be reset to NULL", trigger)
+		require.NotNil(t, detail, "%s: detail must not be nil", trigger)
+		require.Contains(t, *detail, expectedDetailSubstr, "%s: detail must not be wiped", trigger)
+	}
+
+	t.Run("single-profile upload", func(t *testing.T) {
+		// POST /configuration_profiles
+		body, headers := generateNewProfileMultipartRequest(
+			t,
+			"extra-single.json",
+			[]byte(`{"cameraDisabled": false}`),
+			s.token,
+			map[string][]string{"team_id": {fmt.Sprint(team.ID)}},
+		)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		defer res.Body.Close()
+
+		requireDetailPreservedAndStatusReset(t, "POST /configuration_profiles")
+	})
+
+	t.Run("batch profile set", func(t *testing.T) {
+		// POST /mdm/profiles/batch
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: oncProfileName, Contents: oncProfileJSON},
+			{Name: cameraProfileName, Contents: cameraProfileJSON},
+			{Name: "extra-batch", Contents: []byte(`{"cameraDisabled": false}`)},
+		}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+		requireDetailPreservedAndStatusReset(t, "POST /mdm/profiles/batch")
+	})
+}
+
 // oncWithholdingProfiles returns ONC and camera profile JSON payloads for ONC
 // withholding tests. The ONC profile references a "wifi-cert" certificate alias.
 func (s *integrationMDMTestSuite) oncWithholdingProfiles() (oncJSON, cameraJSON []byte) {
