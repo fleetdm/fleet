@@ -7324,10 +7324,14 @@ func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T)
 		require.NoError(t, err)
 	})
 
-	t.Run("ACME profile with legacy SCEP_RENEWAL_ID is accepted", func(t *testing.T) {
+	t.Run("ACME profile with legacy SCEP_RENEWAL_ID is rejected", func(t *testing.T) {
+		// ACME is a net-new validation surface; the legacy variable name
+		// is rejected even though SCEP profiles accept it.
 		profile := fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")
 		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.NoError(t, err)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+		require.Contains(t, err.Error(), "ACME certificate")
 	})
 
 	t.Run("ACME profile missing renewal-ID marker is rejected", func(t *testing.T) {

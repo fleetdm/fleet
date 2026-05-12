@@ -779,8 +779,8 @@ func additionalACMEValidation(contents string) error {
 				}
 			}
 		}
-		if !fleet.FleetVarRenewalIDRegexp.MatchString(commonName.String()) &&
-			!fleet.FleetVarRenewalIDRegexp.MatchString(orgUnit.String()) {
+		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(commonName.String()) &&
+			!fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
 			return &fleet.BadRequestError{
 				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
 					" must be in the ACME certificate's organizational unit (OU).",
