@@ -555,8 +555,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	// Also sync when EUA was just disabled so the Lock-requires-EUA invariant stays satisfied.
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
-		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid && oldAppConfig.MDM.EnabledAndConfigured {
+		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid &&
+		(oldAppConfig.MDM.EnabledAndConfigured || !appConfig.MDM.MacOSSetup.EnableEndUserAuthentication) {
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
