@@ -5,8 +5,8 @@
     <div purpose="hero">
       <div purpose="hero-copy">
         <p purpose="eyebrow">Software management</p>
-        <h1>Stop waiting on your MDM catalog.</h1>
-        <p purpose="hero-subhead">When a critical patch drops, the bottleneck isn't your team — it's your toolchain. Fleet's maintained app catalog and automated patch policies push updates to your devices on a regular, predictable cadence. No manual repackaging. No osquery queries to write. No waiting.</p>
+        <h1>Stop waiting on your MDM.</h1>
+        <p purpose="hero-subhead">When a critical patch drops, the bottleneck isn't your team. It's your toolchain. Fleet's maintained app catalog and automated patch policies push updates to your devices on a regular, predictable cadence. No manual repackaging. No osquery queries to write. No waiting.</p>
       </div>
       <div purpose="hero-form-col">
         <div purpose="form-card" v-if="!cloudSuccess">
@@ -16,6 +16,11 @@
               <label for="patch-first-name">First name <span purpose="required-star">*</span></label>
               <input class="form-control" id="patch-first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name" placeholder="Jane" focus-first>
               <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
+            </div>
+            <div purpose="form-group">
+              <label for="patch-last-name">Last name <span purpose="required-star">*</span></label>
+              <input class="form-control" id="patch-last-name" type="text" :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="family-name" placeholder="Smith">
+              <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
             </div>
             <div purpose="form-group">
               <label for="patch-email">Work email <span purpose="required-star">*</span></label>
@@ -28,6 +33,11 @@
             <div purpose="form-group">
               <label for="patch-company">Company</label>
               <input class="form-control" id="patch-company" type="text" v-model.trim="formData.organization" autocomplete="organization" placeholder="Acme Corp">
+            </div>
+            <div purpose="form-group">
+              <label for="patch-num-employees">Number of employees <span purpose="required-star">*</span></label>
+              <input class="form-control" id="patch-num-employees" type="number" min="1" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
+              <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter the number of employees.</div>
             </div>
             <cloud-error v-if="cloudError && cloudError !== 'invalidEmailDomain'"></cloud-error>
             <ajax-button purpose="submit-button" type="submit" :syncing="syncing" class="btn btn-primary">Book a demo</ajax-button>
@@ -61,7 +71,7 @@
       <div purpose="section-divider"></div>
       <h2>Manual patching doesn't scale.</h2>
       <div purpose="prose">
-        <p>When a critical CVE drops, the clock starts. But for most IT and security teams, the bottleneck isn't awareness — it's the toolchain. Someone has to download the new version, validate it, package it, and get it into the catalog before a single device gets updated. If you're doing that manually, you're burning engineering time on work that doesn't have to be manual.</p>
+        <p>When a critical CVE drops, the clock starts. But for most IT and security teams, the bottleneck isn't awareness, it's the toolchain. Someone has to download the new version, validate it, package it, and get it into the catalog before a single device gets updated. If you're doing that manually, you're burning engineering time on work that doesn't have to be manual.</p>
         <p>The alternative is a catalog that's maintained for you, and policies that trigger automatically when a device falls behind. That's the difference between patching as a project and patching as a background process.</p>
       </div>
     </div><%/* problem-section */%>
@@ -79,8 +89,8 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
           </div>
           <div purpose="feature-body">
-            <p purpose="feature-label">Fleet-maintained apps — no uploads, no extra configuration</p>
-            <p purpose="feature-desc">Fleet maintains installation metadata for a growing catalog of apps. Add them to your Fleet instance and install on your hosts without any additional configuration. Chrome, Firefox, Slack, Zoom, Office, and more — across macOS and Windows.</p>
+            <p purpose="feature-label">Fleet maintained apps: no uploads, no extra configuration</p>
+            <p purpose="feature-desc">Fleet maintains installation metadata for a growing catalog of apps. Add them to your Fleet instance and install on your hosts without any additional configuration. Chrome, Firefox, Slack, Zoom, Office, and more, across macOS and Windows.</p>
           </div>
         </div>
 
@@ -90,7 +100,7 @@
           </div>
           <div purpose="feature-body">
             <p purpose="feature-label">Patch policies that run automatically</p>
-            <p purpose="feature-desc">A patch policy checks whether each Fleet-maintained app is up to date on your hosts. Fleet auto-generates the correct osquery query for each app — you don't write or update them. When a host fails the policy, Fleet sends an install request automatically.</p>
+            <p purpose="feature-desc">A patch policy checks whether each Fleet maintained app is up to date on your hosts. Fleet auto-generates the correct osquery query for each app, so you don't write or update them. When a host fails the policy, Fleet automatically sends an install request.</p>
           </div>
         </div>
 
@@ -143,7 +153,7 @@
     <div purpose="platform-section">
       <div purpose="section-divider"></div>
       <h2>One platform. Every OS.</h2>
-      <p purpose="platform-body">Fleet manages software across macOS, Windows, and Linux from a single place. The same patch policies, the same catalog, the same automation — whether you're supporting a Mac-first team, a Windows shop, or a mixed environment with Linux servers.</p>
+      <p purpose="platform-body">Fleet manages software across macOS, Windows, and Linux from a single place. The same patch policies, the same catalog, the same automation, whether you're supporting a Mac-first team, a Windows shop, or a mixed environment with Linux servers.</p>
       <div purpose="os-pills">
         <span purpose="os-pill">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
@@ -179,7 +189,7 @@
   <div purpose="closing-cta">
     <div purpose="closing-cta-inner">
       <h2>See what automated patching looks like in Fleet.</h2>
-      <p purpose="closing-cta-sub">Book a 30-minute demo. We'll walk you through the Fleet-maintained catalog and automated patch policies — live.</p>
+      <p purpose="closing-cta-sub">Book a 30-minute demo. We'll walk you through the Fleet-maintained catalog and automated patch policies. Live.</p>
       <a purpose="cta-button" href="/contact">Book a demo →</a>
     </div>
   </div><%/* closing-cta */%>

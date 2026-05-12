@@ -11,6 +11,8 @@ parasails.registerPage('patch-faster', {
     demoFormRules: {
       emailAddress: { isEmail: true, required: true },
       firstName: { required: true },
+      lastName: { required: true },
+      numberOfHosts: { required: true },
     },
   },
 
@@ -31,10 +33,8 @@ parasails.registerPage('patch-faster', {
 
     handleSubmittingDemoForm: async function(argins) {
       this.syncing = true;
-      // Supply required fields not collected from the form.
-      argins.lastName = argins.lastName || '';
+      // Supply fields not collected from the form.
       argins.organization = argins.organization || '';
-      argins.numberOfHosts = '1';
       argins.primaryBuyingSituation = 'it-misc';
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
