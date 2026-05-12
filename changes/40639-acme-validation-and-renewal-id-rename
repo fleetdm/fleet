@@ -1,2 +1,0 @@
-* Reject Apple ACME profile uploads that don't include a renewal-ID marker variable in the cert Subject CN or OU. Without the marker the cert can't be linked back to its profile and won't auto-renew.
-* Add `$FLEET_VAR_CERTIFICATE_RENEWAL_ID` as the preferred Apple/Windows profile variable for the renewal-ID marker. The legacy `$FLEET_VAR_SCEP_RENEWAL_ID` is still accepted for back-compat with existing profiles.
