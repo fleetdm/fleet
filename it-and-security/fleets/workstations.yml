@@ -9,8 +9,8 @@ settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 90
   secrets:
     - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
   integrations:
@@ -91,15 +91,15 @@ controls:
       - path: ../lib/macos/configuration-profiles/enable-gatekeeper.mobileconfig
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
-      - path: ../lib/macos/configuration-profiles/fleet-desktop-login-item.mobileconfig
-        labels_include_any:
-          - "Macs with Fleet Desktop installed"
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
+      - path: ../lib/macos/configuration-profiles/screen-lock-inactivity.mobileconfig
+        labels_exclude_any:
+          - macOS screen lock exclusions
       - path: ../lib/macos/configuration-profiles/secure-terminal-keyboard.mobileconfig
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
@@ -117,6 +117,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/microsoft-autoupdate-settings.mobileconfig
         labels_include_any:
           - "Microsoft AutoUpdate installed"
+      - path: ../lib/macos/configuration-profiles/fleet-desktop-launch-agent.mobileconfig
+        labels_include_any:
+          - "Macs with Fleet Desktop.app installed"
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
@@ -125,7 +128,7 @@ controls:
   macos_updates:
     deadline:
     minimum_version:
-    update_new_hosts: true
+    update_new_hosts: false
   windows_settings:
     configuration_profiles:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -133,6 +136,9 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Screen lock timeout.xml
+        labels_exclude_any:
+          - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
@@ -152,15 +158,14 @@ policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/latest-macos.yml
   - path: ../lib/macos/policies/all-software-updates-installed.yml
-  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/disk-space-check.yml
-  # - path: ../lib/macos/policies/1password-installed.yml https://github.com/fleetdm/fleet/pull/44179
-  # - path: ../lib/macos/policies/nudge-installed.yml
+  - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/nudge-installed.yml
   - path: ../lib/macos/policies/install-nudge-assets.yml
+  - path: ../lib/macos/policies/install-fleet-desktop-launch-agent.yml
   - path: ../lib/macos/policies/santa-endpoint-security-extension-active.yml
   - path: ../lib/macos/policies/patch-fleet-maintained-apps.yml
-  - path: ../lib/macos/policies/update-fleet-desktop.yml
   - path: ../lib/macos/policies/battery-health-check.yml
   - path: ../lib/macos/policies/firewall-enabled.yml
   - path: ../lib/macos/policies/gatekeeper-enabled.yml
@@ -173,7 +178,7 @@ policies:
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/disk-space-check.yml
-  # - path: ../lib/windows/policies/1password-installed.yml
+  - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/patch-fleet-maintained-apps.yml
   - path: ../lib/windows/policies/battery-health-check.yml
   - path: ../lib/windows/policies/windows-defender-compliance-check.yml
@@ -190,21 +195,16 @@ reports:
   - path: ../lib/macos/reports/collect-default-browser.yml
   - path: ../lib/macos/reports/collect-santa-denied-logs.yml
   - path: ../lib/macos/reports/collect-macos-27-incompatible-apps.yml
+  - path: ../lib/macos/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/dex-queries.yml
   - path: ../lib/all/reports/collect-local-user-accounts.yml
   - path: ../lib/all/reports/collect-usb-devices.yml
   - path: ../lib/all/reports/collect-chromium-browser-extensions.yml
-  - path: ../lib/all/reports/collect-safari-browser-extensions.yml
   - path: ../lib/all/reports/collect-firefox-browser-extensions.yml
   - path: ../lib/all/reports/collect-listening-ports.yml
 software:
   packages:
     # macOS apps
-    - path: ../lib/macos/software/1password.yml # 1Password for macOS
-      self_service: true
-      setup_experience: true
-      categories:
-        - Security
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
       self_service: true
       labels_include_any:
@@ -215,8 +215,10 @@ software:
       self_service: false
       categories:
         - Utilities
-    - path: ../lib/macos/software/fleet-desktop.yml # Fleet Desktop for macOS
-      self_service: true
+    - path: ../lib/macos/software/fleet-desktop-launch-agent.yml
+      self_service: false
+      labels_include_any:
+        - "Macs with Fleet Desktop.app launch agent MDM profile"
       categories:
         - Utilities
     - path: ../lib/macos/scripts/enable-touch-id-sudo.sh # Enable Touch ID for sudo
@@ -362,6 +364,10 @@ software:
       setup_experience: true
       categories:
         - Security
+    - slug: fleet-desktop/darwin # Fleet Desktop for macOS
+      self_service: true
+      categories:
+        - Utilities
     - slug: claude/darwin # Claude for macOS
       self_service: true
       setup_experience: true

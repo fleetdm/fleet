@@ -836,8 +836,11 @@ func (ds *Datastore) ResetNonPolicyInstallAttempts(ctx context.Context, hostID, 
 		// as canceled, and activates the next upcoming activity.
 		// The returned ActivityDetails is discarded because this is an
 		// internal reset for a new install, not a user-initiated cancel.
-		for _, execID := range executionIDs {
-			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID); err != nil {
+		for i, execID := range executionIDs {
+			// only the last cancellation triggers activation of the next activity; the others
+			// would activate something that is about to be canceled in the next iteration.
+			activateNext := i == len(executionIDs)-1
+			if _, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext); err != nil {
 				return ctxerr.Wrap(ctx, err, "cancel pending non-policy install retry")
 			}
 		}
@@ -2111,9 +2114,11 @@ WHERE
   team_id = ?
 `
 
-	const deleteAllPatchPolicies = `
-DELETE FROM
+	const unsetAllPatchPolicies = `
+UPDATE
 	policies
+SET
+	patch_software_title_id = NULL
 WHERE
 	team_id = ? AND
 	type = 'patch'
@@ -2263,9 +2268,11 @@ WHERE
   )
 `
 
-	const deletePatchPoliciesWithInstallersNotInList = `
-DELETE FROM
+	const unsetPatchPoliciesWithInstallersNotInList = `
+UPDATE
 	policies
+SET
+	patch_software_title_id = NULL
 WHERE
 	team_id = ? AND
 	patch_software_title_id NOT IN (?)
@@ -2508,8 +2515,8 @@ WHERE
 				return ctxerr.Wrap(ctx, err, "unset all obsolete installers in policies")
 			}
 
-			if _, err := tx.ExecContext(ctx, deleteAllPatchPolicies, globalOrTeamID); err != nil {
-				return ctxerr.Wrap(ctx, err, "delete all obsolete patch policies")
+			if _, err := tx.ExecContext(ctx, unsetAllPatchPolicies, globalOrTeamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unset all obsolete patch policies")
 			}
 
 			if _, err := tx.ExecContext(ctx, deleteAllPendingUninstallScriptExecutions, globalOrTeamID); err != nil {
@@ -2612,12 +2619,12 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "unset obsolete software installers from policies")
 		}
 
-		stmt, args, err = sqlx.In(deletePatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
+		stmt, args, err = sqlx.In(unsetPatchPoliciesWithInstallersNotInList, globalOrTeamID, titleIDs)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete patch policies")
+			return ctxerr.Wrap(ctx, err, "build statement to unset obsolete patch policies")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete patch policies")
+			return ctxerr.Wrap(ctx, err, "unset obsolete patch policies")
 		}
 
 		// check if any in the list are install_during_setup, fail if there is one

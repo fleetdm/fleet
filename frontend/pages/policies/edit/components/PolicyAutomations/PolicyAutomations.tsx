@@ -19,7 +19,6 @@ interface IPolicyAutomationsProps {
   currentAutomatedPolicies: number[];
   onAddAutomation: () => void;
   isAddingAutomation: boolean;
-  gitOpsModeEnabled: boolean;
 }
 
 interface IAutomationRow {
@@ -37,7 +36,6 @@ const PolicyAutomations = ({
   currentAutomatedPolicies,
   onAddAutomation,
   isAddingAutomation,
-  gitOpsModeEnabled,
 }: IPolicyAutomationsProps): JSX.Element => {
   const isPatchPolicy = storedPolicy.type === "patch";
   const hasPatchSoftware = !!storedPolicy.patch_software;

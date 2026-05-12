@@ -110,7 +110,7 @@ Next, we need to get more details about the device from Fleet. Devices are calle
 
 _Tines HTTP Request action to get Fleet device details._
 
-To access Fleet’s API, we need to provide an API key. We store the API key as a CREDENTIAL in the current story. The API key should belong to an API-only user in Fleet so that the key does not reset when the user logs out.
+To access Fleet’s API, we need to provide an API key. We store the API key as a CREDENTIAL in the current story. The API key should belong to an API-only user in Fleet so that the key does not reset when the user logs out. Since we are running MDM commands in this workflow, the user will need a global role of Maintainer or Admin.
 
 
 ![Add credential to Tines story](../website/assets/images/articles/building-webhook-flows-with-fleet-and-tines-3-417x645@2x.png "Add credential to Tines story")

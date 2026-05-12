@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		Platform:         req.Platform,
 		Critical:         req.Critical,
 		LabelsIncludeAny: req.LabelsIncludeAny,
+		LabelsIncludeAll: req.LabelsIncludeAll,
 		LabelsExcludeAny: req.LabelsExcludeAny,
 		Type:             fleet.PolicyTypeDynamic,
 	})
@@ -59,7 +61,11 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 		})
 	}
 
-	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, append(p.LabelsIncludeAny, p.LabelsExcludeAny...), vc.User); err != nil {
+	if len(p.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	if err := verifyLabelsToAssociate(ctx, svc.ds, nil, slices.Concat(p.LabelsIncludeAny, p.LabelsIncludeAll, p.LabelsExcludeAny), vc.User); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify labels to associate")
 	}
 
@@ -108,38 +114,6 @@ func (svc Service) ListGlobalPolicies(ctx context.Context, opts fleet.ListOption
 	}
 
 	return svc.ds.ListGlobalPolicies(ctx, opts, platform)
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-// Get by id
-/////////////////////////////////////////////////////////////////////////////////
-
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*fleet.GetPolicyByIDRequest)
-	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
-	if err != nil {
-		return fleet.GetPolicyByIDResponse{Err: err}, nil
-	}
-	return fleet.GetPolicyByIDResponse{Policy: policy}, nil
-}
-
-func (svc Service) GetPolicyByIDQueries(ctx context.Context, policyID uint) (*fleet.Policy, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Policy{}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	policy, err := svc.ds.Policy(ctx, policyID)
-	if err != nil {
-		return nil, err
-	}
-	if err := svc.populatePolicyInstallSoftware(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate install_software")
-	}
-	if err := svc.populatePolicyRunScript(ctx, policy); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
-	}
-
-	return policy, nil
 }
 
 // ///////////////////////////////////////////////////////////////////////////////
@@ -496,9 +470,13 @@ func (svc *Service) ApplyPolicySpecs(ctx context.Context, policies []*fleet.Poli
 			})
 		}
 
+		// LabelsIncludeAll is premium-only.
+		if len(policy.LabelsIncludeAll) > 0 && !license.IsPremium(ctx) {
+			return fleet.ErrMissingLicense
+		}
+
 		// Make sure any applied labels exist.
-		labels := policy.LabelsIncludeAny
-		labels = append(labels, policy.LabelsExcludeAny...)
+		labels := slices.Concat(policy.LabelsIncludeAny, policy.LabelsIncludeAll, policy.LabelsExcludeAny)
 		if len(labels) > 0 {
 			var teamID *uint       // ensure labels specified exist and are global or on the same team as the policy
 			if policy.Team != "" { // if we get 0 as team ID, we'll pull only global labels, which is fine

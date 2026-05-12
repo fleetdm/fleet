@@ -89,6 +89,18 @@ type RedisConfig struct {
 	ConnWaitTimeout time.Duration `yaml:"conn_wait_timeout"`
 	WriteTimeout    time.Duration `yaml:"write_timeout"`
 	ReadTimeout     time.Duration `yaml:"read_timeout"`
+	// HostCacheEnabled turns on the Redis-backed cache that fronts
+	// LoadHostByNodeKey and LoadHostByOrbitNodeKey on the osquery and orbit
+	// authentication paths. When false, every authenticated request resolves the
+	// host from MySQL; when true (default), successful lookups are cached in
+	// Redis and invalidated on write paths. Hidden from --help: this is a
+	// feature flag, not an operator-facing tunable. See
+	// server/datastore/mysqlredis/host_cache.go.
+	HostCacheEnabled bool `yaml:"host_cache_enabled"`
+	// HostCacheTTL is the base TTL for cached host lookup entries. Actual
+	// per-entry TTL is jittered by ±10% to avoid synchronized expiry waves.
+	// Only meaningful when HostCacheEnabled is true. Hidden from --help.
+	HostCacheTTL time.Duration `yaml:"host_cache_ttl"`
 }
 
 const (
@@ -212,12 +224,27 @@ type OsqueryConfig struct {
 	AsyncHostRedisScanKeysCount      int           `yaml:"async_host_redis_scan_keys_count"`
 	MinSoftwareLastOpenedAtDiff      time.Duration `yaml:"min_software_last_opened_at_diff"`
 
-	// MaxLogWriteBodySize overrides the default body size limit for the
-	// osquery/log endpoint. A value of 0 means use the built-in default.
+	// MaxLogWriteBodySize overrides the default request body size limit
+	// for the /api/osquery/log endpoint. A value of 0 means use the
+	// built-in default (DefaultMaxOsqueryLogWriteSize). This setting
+	// only takes effect when allow_body_auth_fallback is true (legacy
+	// body-auth mode). When allow_body_auth_fallback is false (header-
+	// auth mode) the route is not subject to any body size limit.
 	MaxLogWriteBodySize int64 `yaml:"max_log_write_body_size"`
-	// MaxDistributedWriteBodySize overrides the default body size limit for the
-	// osquery/distributed/write endpoint. A value of 0 means use the built-in default.
+	// MaxDistributedWriteBodySize is the equivalent of MaxLogWriteBodySize
+	// for /api/osquery/distributed/write.
 	MaxDistributedWriteBodySize int64 `yaml:"max_distributed_write_body_size"`
+
+	// AllowBodyAuthFallback selects which authentication scheme is in
+	// effect for host-authenticated osquery requests.
+	//
+	//   - true (default): the Authorization: NodeKey header is ignored
+	//     entirely. The node_key extracted from the JSON body
+	//     is the sole authenticator.
+	//   - false: the Authorization: NodeKey header is required and the
+	//     body's node_key field is ignored. Pre-auth rejects
+	//     absent/invalid headers BEFORE the body is read.
+	AllowBodyAuthFallback bool `yaml:"allow_body_auth_fallback"`
 }
 
 // AsyncTaskName is the type of names that identify tasks supporting
@@ -1197,6 +1224,13 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
 	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
+	man.addConfigBool("redis.host_cache_enabled", true,
+		"Enable Redis-backed cache for host lookups on the osquery and orbit auth paths. Disable to bypass the cache "+
+			"and serve every check-in from MySQL.")
+	man.addConfigDuration("redis.host_cache_ttl", 60*time.Second,
+		"Base TTL for Redis-backed host lookup cache entries. Actual per-entry TTL is jittered by ±10% to avoid "+
+			"synchronized expiry waves. Must be > 0 when redis.host_cache_enabled is true; set "+
+			"redis.host_cache_enabled=false to disable the cache.")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1310,9 +1344,11 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("osquery.min_software_last_opened_at_diff", 2*time.Minute,
 		"Minimum time difference of the software's last opened timestamp (compared to the last one saved) to trigger an update to the database")
 	man.addConfigByteSize("osquery.max_log_write_body_size", "0",
-		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/log endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (10MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
 	man.addConfigByteSize("osquery.max_distributed_write_body_size", "0",
-		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Values below the server minimum request body size are raised to that minimum.")
+		"Maximum body size for the osquery/distributed/write endpoint (e.g. 10MiB, 500KB). 0 means use the built-in default (5MiB). Only applied when osquery.allow_body_auth_fallback is true. In header-auth mode (false) the route is not subject to any body size limit; this value is ignored.")
+	man.addConfigBool("osquery.allow_body_auth_fallback", true,
+		"Selects how host-authenticated osquery requests are authenticated. When true (default), only body-based node_key is used for authentication. When false, the nodey_key header is required for authentication and the body's node_key is ignored; pre-auth rejects absent/invalid headers before the body is read.")
 
 	// Activities
 	man.addConfigBool("activity.enable_audit_log", false,
@@ -1695,6 +1731,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
 			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
 			StsExternalID:             man.getConfigString("redis.sts_external_id"),
+			HostCacheEnabled:          man.getConfigBool("redis.host_cache_enabled"),
+			HostCacheTTL:              man.getConfigDuration("redis.host_cache_ttl"),
 		},
 		Server: ServerConfig{
 			Address:                          man.getConfigString("server.address"),
@@ -1764,6 +1802,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MinSoftwareLastOpenedAtDiff:      man.getConfigDuration("osquery.min_software_last_opened_at_diff"),
 			MaxLogWriteBodySize:              man.getConfigByteSize("osquery.max_log_write_body_size"),
 			MaxDistributedWriteBodySize:      man.getConfigByteSize("osquery.max_distributed_write_body_size"),
+			AllowBodyAuthFallback:            man.getConfigBool("osquery.allow_body_auth_fallback"),
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: man.getConfigBool("activity.enable_audit_log"),
@@ -2310,15 +2349,16 @@ func TestConfig() FleetConfig {
 			Duration: 24 * 5 * time.Hour,
 		},
 		Osquery: OsqueryConfig{
-			NodeKeySize:          24,
-			HostIdentifier:       "instance",
-			EnrollCooldown:       42 * time.Minute,
-			StatusLogPlugin:      "filesystem",
-			ResultLogPlugin:      "filesystem",
-			LabelUpdateInterval:  1 * time.Hour,
-			PolicyUpdateInterval: 1 * time.Hour,
-			DetailUpdateInterval: 1 * time.Hour,
-			MaxJitterPercent:     0,
+			NodeKeySize:           24,
+			HostIdentifier:        "instance",
+			EnrollCooldown:        42 * time.Minute,
+			StatusLogPlugin:       "filesystem",
+			ResultLogPlugin:       "filesystem",
+			LabelUpdateInterval:   1 * time.Hour,
+			PolicyUpdateInterval:  1 * time.Hour,
+			DetailUpdateInterval:  1 * time.Hour,
+			MaxJitterPercent:      0,
+			AllowBodyAuthFallback: true,
 		},
 		Activity: ActivityConfig{
 			EnableAuditLog: true,

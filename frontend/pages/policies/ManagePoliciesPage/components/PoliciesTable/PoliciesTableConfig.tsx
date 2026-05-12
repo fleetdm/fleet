@@ -148,7 +148,11 @@ const generateTableHeaders = (
               </>
             }
             path={getPathWithQueryParams(PATHS.POLICY_DETAILS(id), {
-              fleet_id: team_id,
+              // Inherited policies show team_id === null; preserve the
+              // current team context so back nav returns to the same list
+              // instead of "All teams".
+              fleet_id:
+                team_id ?? (selectedTeamId !== -1 ? selectedTeamId : null),
             })}
           />
         );
@@ -283,6 +287,9 @@ const generateTableHeaders = (
   if (hasPermissionAndPoliciesToDelete) {
     tableHeaders.unshift({
       id: "selection",
+      // TODO: headerProps is `any` because local IHeaderProps is a simplified
+      // subset of react-table's HeaderProps. Fixing requires refactoring
+      // IDataColumn/IHeaderProps to align with react-table's actual types.
       Header: (headerProps: any) => {
         // When viewing team policies, the select all checkbox will ignore inherited policies
         const teamCheckboxProps = getConditionalSelectHeaderCheckboxProps({

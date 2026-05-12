@@ -135,7 +135,7 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 			_, err = svc.ListGlobalPolicies(ctx, fleet.ListOptions{}, "")
 			checkAuthErr(t, tt.shouldFailRead, err)
 
-			_, err = svc.GetPolicyByIDQueries(ctx, 1)
+			_, err = svc.GetPolicyByID(ctx, 1)
 			checkAuthErr(t, tt.shouldFailRead, err)
 
 			_, err = svc.ModifyGlobalPolicy(ctx, 1, fleet.ModifyPolicyPayload{})
@@ -151,6 +151,214 @@ func TestGlobalPoliciesAuth(t *testing.T) {
 				},
 			})
 			checkAuthErr(t, tt.shouldFailWrite, err)
+		})
+	}
+}
+
+// TestGetPolicyByIDCrossTeamAuth verifies that the global "get policy
+// by ID" endpoint refuses to return a team policy to a user who has no role
+// on that team. This guards against the regression described in the
+// "Cross-Team Policy Data Exposure" disclosure.
+func TestGetPolicyByIDCrossTeamAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// The fetched policy belongs to team 2.
+	const policyTeamID = uint(2)
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		teamID := policyTeamID
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:     id,
+				TeamID: &teamID,
+			},
+		}, nil
+	}
+
+	testCases := []struct {
+		name           string
+		user           *fleet.User
+		shouldFailRead bool
+	}{
+		{
+			"global admin can read any team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+		},
+		{
+			"global observer can read any team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+		},
+		{
+			"team observer of the policy's team can read it",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: policyTeamID}, Role: fleet.RoleObserver}}},
+			false,
+		},
+		{
+			"team gitops of the policy's team can read it",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: policyTeamID}, Role: fleet.RoleGitOps}}},
+			false,
+		},
+		{
+			"team observer of a different team cannot read it",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+		},
+		{
+			"team admin of a different team cannot read it",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+		},
+		{
+			"team gitops of a different team cannot read it",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			_, err := svc.GetPolicyByID(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
+		})
+	}
+}
+
+// TestGetPolicyByIDGlobalPolicyAuth verifies authorization for reading a
+// global policy (TeamID == nil) via the "get policy by ID" endpoint.
+func TestGetPolicyByIDGlobalPolicyAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// The fetched policy is global (TeamID is nil).
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:     id,
+				TeamID: nil,
+			},
+		}, nil
+	}
+
+	testCases := []struct {
+		name           string
+		user           *fleet.User
+		shouldFailRead bool
+	}{
+		{
+			"global admin can read a global policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+		},
+		{
+			"global maintainer can read a global policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+		},
+		{
+			"global observer can read a global policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+		},
+		{
+			"global gitops can read a global policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+		},
+		{
+			"team admin can read a global policy",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			false,
+		},
+		{
+			"team observer can read a global policy",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			false,
+		},
+		{
+			"team gitops cannot read a global policy",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			true,
+		},
+		{
+			"user with no role cannot read a global policy",
+			&fleet.User{ID: 999},
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			_, err := svc.GetPolicyByID(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
+		})
+	}
+}
+
+// TestGetPolicyByIDNoTeamPolicyAuth verifies authorization for reading a
+// "No team" policy (TeamID == 0) via the "get policy by ID" endpoint. Team-only
+// users without a role on team 0 must not be able to read it.
+func TestGetPolicyByIDNoTeamPolicyAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	// The fetched policy belongs to "No team" (TeamID == 0).
+	ds.PolicyFunc = func(ctx context.Context, id uint) (*fleet.Policy, error) {
+		return &fleet.Policy{
+			PolicyData: fleet.PolicyData{
+				ID:     id,
+				TeamID: ptr.Uint(0),
+			},
+		}, nil
+	}
+
+	testCases := []struct {
+		name           string
+		user           *fleet.User
+		shouldFailRead bool
+	}{
+		{
+			"global admin can read a no-team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+		},
+		{
+			"global maintainer can read a no-team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			false,
+		},
+		{
+			"global observer can read a no-team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			false,
+		},
+		{
+			"global gitops can read a no-team policy",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			false,
+		},
+		{
+			"team admin of a regular team cannot read a no-team policy",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+		},
+		{
+			"team observer of a regular team cannot read a no-team policy",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			true,
+		},
+		{
+			"user with no role cannot read a no-team policy",
+			&fleet.User{ID: 999},
+			true,
+		},
+	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+			_, err := svc.GetPolicyByID(ctx, 1)
+			checkAuthErr(t, tt.shouldFailRead, err)
 		})
 	}
 }

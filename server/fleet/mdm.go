@@ -87,12 +87,8 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// OneTimeChallengeTTL is the time to live for one-time challenges. The challenge is
-	// generated at profile-render time but consumed when the device makes its SCEP request,
-	// which can be hours or days later if the device is offline (asleep, on a plane, etc.).
-	// 7 days covers a typical absence without being unbounded; once consumed, the challenge
-	// is deleted immediately regardless of TTL. See issue #44111.
-	OneTimeChallengeTTL = 7 * 24 * time.Hour
+	// OneTimeChallengeTTL is the time to live for one-time challenges.
+	OneTimeChallengeTTL = 1 * time.Hour
 )
 
 // HasCAVariables returns true if any of the given Fleet variable names
@@ -422,6 +418,18 @@ type MDMCommandListOptions struct {
 	ListOptions
 	Filters MDMCommandFilters
 }
+
+// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
 
 type MDMCommandStatusFilter string
 
@@ -1118,6 +1126,12 @@ type VPPTokenData struct {
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
+
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// It comes from the same /client/config endpoint as Location. May be
+	// empty if the country lookup failed; the caller will lazy-backfill.
+	CountryCode string `json:"country_code"`
 }
 
 const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
@@ -1130,8 +1144,14 @@ type VPPTokenDB struct {
 	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token string      `db:"token" json:"-"`
-	Teams []TeamTuple `json:"teams" renameto:"fleets"`
+	Token string `db:"token" json:"-"`
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// Populated from Apple's /client/config endpoint when the token is
+	// uploaded; may be empty for tokens uploaded before this field was added,
+	// in which case it is lazily backfilled.
+	CountryCode string      `db:"country_code" json:"country_code"`
+	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }

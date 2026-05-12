@@ -247,7 +247,8 @@ const PoliciesTable = ({
         onQueryChange={onQueryChange}
         inputPlaceHolder="Search by name"
         searchable={searchable}
-        customControl={searchable ? combinedCustomControl : undefined}
+        disableTableHeader={!searchable}
+        customControl={combinedCustomControl}
         selectedDropdownFilter={platform}
       />
     </div>

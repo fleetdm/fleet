@@ -35,27 +35,49 @@ const baseClass = "software-app-store-vpp";
 
 interface IEnableVppMessage {
   onEnableVpp: () => void;
+  isGlobalAdmin?: boolean;
 }
 
-const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
+const EnableVppMessage = ({
+  onEnableVpp,
+  isGlobalAdmin,
+}: IEnableVppMessage) => (
   <EmptyState
     variant="list"
     header="Volume Purchasing Program (VPP) isn't enabled"
-    info="To add App Store apps, first enable VPP."
-    primaryButton={<Button onClick={onEnableVpp}>Enable VPP</Button>}
+    info={
+      isGlobalAdmin
+        ? "To add App Store apps, first enable VPP."
+        : "To add App Store apps, ask your admin to enable VPP."
+    }
+    primaryButton={
+      isGlobalAdmin ? (
+        <Button onClick={onEnableVpp}>Enable VPP</Button>
+      ) : undefined
+    }
   />
 );
 
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
+  isGlobalAdmin?: boolean;
 }
 
-const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
+const AddTeamToVppMessage = ({
+  onEditVpp,
+  isGlobalAdmin,
+}: IAddTeamToVppMessage) => (
   <EmptyState
     variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this fleet to VPP."
-    primaryButton={<Button onClick={onEditVpp}>Edit VPP</Button>}
+    info={
+      isGlobalAdmin
+        ? "To add App Store apps, first add this fleet to VPP."
+        : "To add App Store apps, ask your admin to add this fleet to VPP."
+    }
+    primaryButton={
+      isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+    }
   />
 );
 
@@ -88,7 +110,7 @@ const SoftwareAppStoreVpp = ({
   router,
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -148,13 +170,12 @@ const SoftwareAppStoreVpp = ({
     }
   );
 
-  const goBackToSoftwareTitles = (showAvailableForInstallOnly = false) => {
-    const queryParams = {
-      fleet_id: currentTeamId,
-      ...(showAvailableForInstallOnly && { available_for_install: true }),
-    };
-
-    router.push(getPathWithQueryParams(PATHS.SOFTWARE_TITLES, queryParams));
+  const goBackToSoftwareLibrary = () => {
+    router.push(
+      getPathWithQueryParams(PATHS.SOFTWARE_LIBRARY, {
+        fleet_id: currentTeamId,
+      })
+    );
   };
 
   const onClickPreviewEndUserExperience = (iosOrIpadosApp?: boolean) => {
@@ -184,6 +205,9 @@ const SoftwareAppStoreVpp = ({
 
       queryClient.invalidateQueries({
         queryKey: [{ scope: "software-titles" }],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [{ scope: "software-library" }],
       });
       queryClient.invalidateQueries({
         queryKey: ["vppSoftware", currentTeamId],
@@ -221,6 +245,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
@@ -229,6 +254,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
@@ -241,7 +267,7 @@ const SoftwareAppStoreVpp = ({
         <SoftwareVppForm
           labels={labels || []}
           onSubmit={onAddSoftware}
-          onCancel={goBackToSoftwareTitles}
+          onCancel={goBackToSoftwareLibrary}
           onClickPreviewEndUserExperience={onClickPreviewEndUserExperience}
           isLoading={isLoading}
           vppApps={vppApps}

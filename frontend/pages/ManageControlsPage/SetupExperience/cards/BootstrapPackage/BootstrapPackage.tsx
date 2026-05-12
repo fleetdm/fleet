@@ -24,6 +24,7 @@ import Spinner from "components/Spinner";
 import EmptyState from "components/EmptyState";
 import Button from "components/buttons/Button";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -179,23 +180,21 @@ const BootstrapPackage = ({
     );
 
     return (
-      <SetupExperienceContentContainer className={`${baseClass}__content`}>
-        <div className={`${baseClass}__uploader-container`}>
-          {bootstrapPackageView}
-          <BootstrapAdvancedOptions
-            currentTeamId={currentTeamId}
-            disableInstallManually={
-              noPackageUploaded ||
-              hasSetupExperienceInstallSoftware ||
-              hasSetupExperienceScript
-            }
-            selectManualAgentInstall={selectedManualAgentInstall}
-            onChange={(manualAgentInstall) => {
-              setSelectedManualAgentInstall(manualAgentInstall);
-            }}
-          />
-        </div>
-      </SetupExperienceContentContainer>
+      <>
+        {bootstrapPackageView}
+        <BootstrapAdvancedOptions
+          currentTeamId={currentTeamId}
+          disableInstallManually={
+            noPackageUploaded ||
+            hasSetupExperienceInstallSoftware ||
+            hasSetupExperienceScript
+          }
+          selectManualAgentInstall={selectedManualAgentInstall}
+          onChange={(manualAgentInstall) => {
+            setSelectedManualAgentInstall(manualAgentInstall);
+          }}
+        />
+      </>
     );
   };
 
@@ -210,12 +209,13 @@ const BootstrapPackage = ({
     if (isLoading) {
       return <Spinner />;
     }
-    if (
-      !(
-        globalConfig?.mdm.enabled_and_configured &&
-        globalConfig?.mdm.apple_bm_enabled_and_configured
-      )
-    ) {
+
+    const mdmNotConfigured = !(
+      globalConfig?.mdm.enabled_and_configured &&
+      globalConfig?.mdm.apple_bm_enabled_and_configured
+    );
+
+    if (mdmNotConfigured) {
       return (
         <EmptyState
           variant="form"
@@ -244,7 +244,13 @@ const BootstrapPackage = ({
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content="Upload a bootstrap package to install a configuration management tool (e.g. Munki, Chef, or Puppet) on macOS hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}
