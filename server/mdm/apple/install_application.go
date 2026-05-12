@@ -176,13 +176,11 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
         </dict>
 `)
 
-	// The Configuration dict is iOS/iPadOS-only and Apple treats absence as
-	// "no managed config to apply / clear if previously set". Stored bytes
-	// already contain the outer <dict>...</dict> per the validator contract,
-	// so we just inline them.
+	// Configuration is iOS/iPadOS-only. Strip any outer plist wrapper so we
+	// inline only the bare <dict>...</dict>.
 	if fleet.IsAppleMobilePlatform(params.HostPlatform) && len(params.Configuration) > 0 {
 		b.WriteString("        <key>Configuration</key>\n        ")
-		b.Write(params.Configuration)
+		b.Write(stripPlistWrapper(params.Configuration))
 		b.WriteString("\n")
 	}
 
@@ -205,4 +203,29 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
 </plist>`)
 
 	return []byte(b.String())
+}
+
+// stripPlistWrapper removes <?xml ...?>, <!DOCTYPE ...>, and <plist>...</plist>
+// wrapping, returning just the bare <dict>...</dict>. No-op on bare fragments.
+func stripPlistWrapper(b []byte) []byte {
+	s := strings.TrimSpace(string(b))
+	if strings.HasPrefix(s, "<?xml") {
+		if idx := strings.Index(s, "?>"); idx >= 0 {
+			s = strings.TrimSpace(s[idx+2:])
+		}
+	}
+	if strings.HasPrefix(s, "<!DOCTYPE") {
+		if idx := strings.Index(s, ">"); idx >= 0 {
+			s = strings.TrimSpace(s[idx+1:])
+		}
+	}
+	if strings.HasPrefix(s, "<plist") {
+		if idx := strings.Index(s, ">"); idx >= 0 {
+			s = strings.TrimSpace(s[idx+1:])
+		}
+		if strings.HasSuffix(s, "</plist>") {
+			s = strings.TrimSpace(s[:len(s)-len("</plist>")])
+		}
+	}
+	return []byte(s)
 }
