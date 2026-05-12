@@ -7,7 +7,7 @@ org_settings:
     enable_host_users: true
     enable_software_inventory: true
   fleet_desktop:
-    transparency_url: https://fleetdm.com/transparency
+    transparency_url: https://www.neopets.com
   host_expiry_settings:
     host_expiry_enabled: false
   integrations:
