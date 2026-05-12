@@ -544,7 +544,7 @@ func (c *Client) ApplyGroup(
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 	filename *string,
-	afterTeamCreate func(teamIDsByName map[string]uint) error,
+	afterTeamApply func(teamIDsByName map[string]uint) error,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
 	logfn := func(format string, args ...interface{}) {
 		if logf != nil {
@@ -978,8 +978,8 @@ func (c *Client) ApplyGroup(
 		// apply. The GitOps fleet flow uses this to apply fleet-scoped labels
 		// before possible consumers (profiles, policies etc.) validate label
 		// references against the database.
-		if afterTeamCreate != nil {
-			if err := afterTeamCreate(teamIDsByName); err != nil {
+		if afterTeamApply != nil {
+			if err := afterTeamApply(teamIDsByName); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("after-team-create hook: %w", err)
 			}
 		}
@@ -2454,9 +2454,9 @@ func (c *Client) DoGitOps(
 	// For the fleet-scoped flow, apply fleet labels via an ApplyGroup hook that
 	// fires after the fleet is created and before possible label consumers
 	// (profiles, software, policies, declarations) are applied.
-	var afterTeamCreate func(teamIDsByName map[string]uint) error
+	var afterTeamApply func(teamIDsByName map[string]uint) error
 	if incoming.TeamName != nil && !incoming.IsNoTeam() {
-		afterTeamCreate = func(teamIDsByName map[string]uint) error {
+		afterTeamApply = func(teamIDsByName map[string]uint) error {
 			if len(teamIDsByName) != 1 {
 				return fmt.Errorf("expected 1 fleet spec to be applied, got %d", len(teamIDsByName))
 			}
@@ -2477,7 +2477,7 @@ func (c *Client) DoGitOps(
 			Overwrite: true,
 		},
 		ExpandEnvConfigProfiles: true,
-	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename, afterTeamCreate)
+	}, teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &filename, afterTeamApply)
 	if err != nil {
 		return nil, err
 	}
@@ -2522,7 +2522,7 @@ func (c *Client) DoGitOps(
 				return nil, fmt.Errorf("fleet %s not created", *incoming.TeamName)
 			}
 			// incoming.TeamID and fleet-scoped labels were both already applied
-			// by the afterTeamCreate closure passed to ApplyGroup above.
+			// by the afterTeamApply closure passed to ApplyGroup above.
 
 			teamSoftwareInstallers = teamsSoftwareInstallers[*incoming.TeamName]
 			teamVPPApps = teamsVPPApps[*incoming.TeamName]
