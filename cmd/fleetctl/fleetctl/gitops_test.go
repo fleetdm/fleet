@@ -1709,7 +1709,7 @@ labels:
 	// DoGitOps' fleet branch fired before doGitOpsLabels could log anything.
 	labelIdx := strings.Index(dryRunOut, "would've created 1 label")
 	profileIdx := strings.Index(dryRunOut, "would've applied MDM profiles")
-	require.NotEqual(t, -1, labelIdx, "dry-run output should mention label apply (brand-new fleet behavior change); got: %s", dryRunOut)
+	require.NotEqual(t, -1, labelIdx, "dry-run output should mention label apply; got: %s", dryRunOut)
 	require.NotEqual(t, -1, profileIdx, "dry-run output should mention profile apply; got: %s", dryRunOut)
 	assert.Less(t, labelIdx, profileIdx, "label-apply log line should precede profile-apply log line in dry-run output")
 }
