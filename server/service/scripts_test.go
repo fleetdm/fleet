@@ -1041,3 +1041,6 @@ func TestWipeHostRequestDecodeBody(t *testing.T) {
 		})
 	}
 }
+
+func TestBatchScriptCancel(t *testing.T) {
+}

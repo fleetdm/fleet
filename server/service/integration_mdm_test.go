@@ -20368,11 +20368,12 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, testSAMLIDPBaseURL+"/simplesaml/"))
 
-	res = s.LoginMDMSSOUser("sso_user", "user123#")
+	res = s.LoginOTAEnrollSSOUser("sso_user", "user123#", "idp")
 	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	location = res.Header.Get("Location")
+	t.Logf("SSO login redirect location: %s", location)
 	require.NotEmpty(t, location)
-	require.True(t, strings.HasPrefix(location, "/mdm/sso/callback"))
+	require.True(t, strings.HasPrefix(location, "/enroll")) // expect to be redirect from /enroll page for BYOD
 
 	// requesting the /enroll page again and simulating the BYOD IdP cookie being set
 	// still redirects to the SSO login if the cookie value does not match the
