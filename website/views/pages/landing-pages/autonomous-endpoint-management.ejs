@@ -5,15 +5,17 @@
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
             <h4>Autonomous endpoint management</h4>
-            <h1>Patch faster than threats can spread</h1>
+            <h1>Patch at exploit speed</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Three years ago, exploits took 150 days. Now they take 1.3. Fleet patches faster, with humans still in the loop.</p>
+            <p>Auto patching at machine speed. Humans approve every change</p>
           </div>
+          <%/* Hero CTA buttons - hidden for now, may re-enable later
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" href="/contact?sendMessage" no-underline>Talk to us</a>
             <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action <span>3 mins</span></a>
           </div>
+          */%>
         </div>
       </div><%/* landing-page-hero */%>
 
@@ -155,6 +157,16 @@
       </div>
 
       <div purpose="landing-page-section">
+        <div purpose="section-quote">
+          <p purpose="quote-text">&ldquo;Patch policies are already transforming how we operate. Apps we'd skip patching due to maintenance overhead are now straightforward to configure, typically taking just five minutes. The ongoing maintenance burden is minimal, and I can set it up to update software automatically while still customizing every aspect of the end user experience.&rdquo;</p>
+          <div purpose="quote-author-info">
+            <p purpose="author-name">Principal endpoint engineer</p>
+            <p purpose="author-title">Leading consumer electronics company</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
         <div purpose="feature-with-image" class="reverse">
           <div purpose="feature-image">
             <img alt="A screenshot of Fleet's GitOps workflow showing a pull request reviewing a configuration change" src="/images/fleet-gitops-workflow-471x337@2x.png">
@@ -171,28 +183,15 @@
 
           </div>
         </div>
-        <h5>AI writes the policies. You approve them.</h5>
-        <p>AI can write the policies. Describe what you want in plain language: "keep all browsers up to date," "stay ISO compliant," "force install browser updates except for finance during tax season", and Fleet drafts the policy as a pull request. A human still reviews and approves. The pull request is what makes AI practical at this scale, because the approval layer never disappears.</p>
-      </div>
-
-      <div purpose="landing-page-section">
         <div purpose="section-quote">
-          <p purpose="quote-text">&ldquo;Now that auto-patching is becoming inevitable for every organization, auditability, undo-ability, and special exceptions are even more important, especially for large enterprises where you're managing tens of thousands of devices. You need humans in the loop to prevent costly mistakes and outages, and Fleet's implementation of autonomous endpoint management provides that middle ground.&rdquo;</p>
+          <p purpose="quote-text">&ldquo;Auto patching at scale is inevitable and therefore auditability, rollback, and exception handling are even more important when you're managing tens of thousands of devices. The human in the loop is what makes it safe.&rdquo;</p>
           <div purpose="quote-author-info">
             <p purpose="author-name">Mike McNeil</p>
             <p purpose="author-title">Cofounder and CEO, Fleet</p>
           </div>
         </div>
-      </div>
-
-      <div purpose="landing-page-section">
-        <div purpose="section-quote">
-          <p purpose="quote-text">&ldquo;Patch policies are already transforming how we operate. Apps we'd skip patching due to maintenance overhead are now straightforward to configure, typically taking just five minutes. The ongoing maintenance burden is minimal, and I can set it up to update software automatically while still customizing every aspect of the end user experience.&rdquo;</p>
-          <div purpose="quote-author-info">
-            <p purpose="author-name">Principal endpoint engineer</p>
-            <p purpose="author-title">Leading consumer electronics company</p>
-          </div>
-        </div>
+        <h5>AI writes the policies. You approve them.</h5>
+        <p>AI can write the policies. Describe what you want in plain language: "keep all browsers up to date," "stay ISO compliant," "force install browser updates except for finance during tax season", and Fleet drafts the policy as a pull request. A human still reviews and approves. The pull request is what makes AI practical at this scale, because the approval layer never disappears.</p>
       </div>
 
     </div>
@@ -216,8 +215,5 @@
   </div>
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
-  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
