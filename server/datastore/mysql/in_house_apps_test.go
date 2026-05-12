@@ -186,22 +186,33 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
 	require.True(t, newInstaller.SelfService)
 
-	// Configuration: non-empty = set on the targeted row only.
-	gotCfg, err := ds.GetInHouseAppConfiguration(ctx, installerID)
+	// Configuration: non-empty = set on both the iOS row and its iPadOS sibling.
+	var ipadInstallerID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadInstallerID,
+		`SELECT id FROM in_house_apps WHERE bundle_identifier = ? AND platform = 'ipados'`, payload.BundleIdentifier))
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, installerID)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
+	require.Equal(t, cfg, gotIOS)
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIPad)
 
-	// Configuration: nil = leave unchanged.
+	// Configuration: nil = leave unchanged on both rows.
 	updatePayload.Configuration = nil
 	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
-	gotCfg, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, installerID)
 	require.NoError(t, err)
-	require.Equal(t, cfg, gotCfg)
+	require.Equal(t, cfg, gotIOS)
+	gotIPad, err = ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIPad)
 
-	// Configuration: empty = clear.
+	// Configuration: empty = clear on both rows.
 	updatePayload.Configuration = []byte{}
 	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
 	_, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadInstallerID)
 	require.ErrorContains(t, err, "not found")
 
 	// Summary is unchanged?
