@@ -2035,14 +2035,28 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 	providerID := syncml.DocProvisioningAppProviderID
 
 	if device.HostUUID == "" {
-		// Orbit hasn't enrolled yet. Send hold commands to activate the ESP
-		// and block the device during OOBE. These must be sent immediately --
-		// if we wait for orbit, OOBE progresses past the ESP window.
+		// Orbit hasn't enrolled yet. Send DMClient FirstSyncStatus hold commands to
+		// activate the ESP and block the device during OOBE. These must be sent
+		// immediately -- if we wait for orbit, OOBE progresses past the ESP window.
 		svc.logger.DebugContext(ctx, "ESP: sending hold commands", "device_id", device.MDMDeviceID)
 		policyProviderURI := fmt.Sprintf("./Device/Vendor/MSFT/EnrollmentStatusTracking/DevicePreparation/PolicyProviders/%s", providerID)
 		holdCmds := []*mdm_types.SyncMLCmd{
-			// SkipDeviceStatusPage and SkipUserStatusPage are bool format per
-			// DMClient CSP spec. Both must be false for the ESP to stay visible.
+			// Create the user-scope DMClient Provider tree before any user-scope writes. Verified on Win11 26200
+			// in the Entra-join-during-OOBE flow without an Autopilot deployment profile: the user-scope
+			// Provider/Fleet node does not exist by default. The Add commands here create the user-scope Provider
+			// node and its FirstSyncStatus child so the release-phase ServerHasFinishedProvisioning=true write can
+			// land.
+			//
+			// Hold commands are sent on every management session during the Pending phase, so these Adds will
+			// repeat. The device returns SyncML status 418 ("Already Exists") on the second and later calls. That
+			// per-command status does not fail the SyncML session and does not affect the hold-cycle Replace
+			// commands that follow it; the Pending phase only lasts a few minutes (until orbit links and we
+			// transition to Active, after which hold commands stop). Net effect: a small amount of expected 418
+			// noise during OOBE in exchange for not having to track per-enrollment "have I sent the Add" state.
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s", providerID)),
+			newSyncMLCmdNode(fleet.CmdAdd, fmt.Sprintf("./User/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus", providerID)),
+			// SkipDeviceStatusPage and SkipUserStatusPage are both set to false so the ESP page is visible during
+			// OOBE.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipDeviceStatusPage", providerID), "false"),
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/SkipUserStatusPage", providerID), "false"),
 			// BlockInStatusPage=1: block user, show "Reset PC" button on failure.
@@ -2051,10 +2065,16 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/BlockInStatusPage", providerID), "1"),
 			// AllowCollectLogsButton: pre-configure Collect Logs button so it's visible on both progress and failure pages.
 			newSyncMLCmdBool(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/AllowCollectLogsButton", providerID), "true"),
+			// CustomErrorText: pre-configure with the timeout-flavored error so that if the OS-side ESP failure UI
+			// renders before Fleet's Active-phase finalize runs (e.g. when TimeOutUntilSyncFailure expires, or when the
+			// device is stuck in Pending and Windows itself fails the ESP), the user sees Fleet's text instead of
+			// Windows's default "We ran into a problem with one of the following setup steps" message. Active-phase
+			// finalize will Replace this with ESPSoftwareFailureErrorText if a software install actually failed; in the
+			// pure-timeout case the value here is already correct.
+			newSyncMLCmdText(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/CustomErrorText", providerID), microsoft_mdm.ESPTimeoutErrorText),
 			// TimeOutUntilSyncFailure is in minutes per DMClient CSP (range 60-1440).
 			newSyncMLCmdInt(fleet.CmdReplace, fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", providerID), fmt.Sprintf("%d", microsoft_mdm.ESPTimeoutSeconds/60)),
-			// PolicyProviders/{providerID} is a dynamic node -- must be created
-			// with Add before its children can be set with Replace.
+			// PolicyProviders/{providerID} is a dynamic node -- must be created with Add before its children can be set with Replace.
 			newSyncMLCmdNode(fleet.CmdAdd, policyProviderURI),
 			// DevicePreparation InstallationState=1 signals "installing" to hold ESP.
 			newSyncMLCmdInt(fleet.CmdReplace, policyProviderURI+"/InstallationState", "1"),
@@ -2065,7 +2085,8 @@ func (svc *Service) handleESPHoldOrTransition(ctx context.Context, device *fleet
 		return holdCmds, nil
 	}
 
-	// Orbit has linked the host UUID. Transition to Active.
+	// Orbit has linked the host UUID. Transition to Active so handleESPRelease
+	// can finalize and release the device.
 	svc.logger.DebugContext(ctx, "ESP: orbit linked, transitioning to active", "device_id", device.MDMDeviceID, "host_uuid", device.HostUUID)
 	transitioned, err := svc.ds.SetMDMWindowsAwaitingConfiguration(ctx, device.MDMDeviceID,
 		fleet.WindowsMDMAwaitingConfigurationPending, fleet.WindowsMDMAwaitingConfigurationActive)
@@ -2328,10 +2349,14 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 	// Cancel ordering: upcoming_activities first, then status table. If we crash mid-loop, the next retry sees the same
 	// status rows still pending, re-iterates, and will tolerate the now-deleted upcoming_activities row via IsNotFound.
 	//
-	// The canceled_setup_experience activity is already emitted by maybeCancelPendingSetupExperienceSteps in the
-	// software-install-result reporting path when require_all=true and a software install fails. Pure-timeout and
-	// require_all=false cancellations don't emit the activity at all (matching macOS, which only emits on the
-	// require_all=true software-failure case).
+	// The canceled_setup_experience activity is emitted at two points:
+	// - For software-failure with require_all=true: emitted by maybeCancelPendingSetupExperienceSteps in the
+	//   software-install-result reporting path, referencing the failed software item.
+	// - For pure-timeout (regardless of require_all): emitted below, referencing the first pending/running software
+	//   item if one exists (the item that was in flight when the timeout fired). This deviates from macOS, which
+	//   only emits on the require_all=true software-failure case, but matches the activity-feed expectation in
+	//   issue #38785's test plan: "Timeout cancellation: canceled_setup_experience activity emitted on the timeout
+	//   branch as well as the failure branch."
 	if timedOut || (hasSoftwareFailure && requireAll) {
 		seHostUUID, err := setupExperienceHostUUID()
 		if err != nil {
@@ -2375,6 +2400,40 @@ func (svc *Service) handleESPRelease(ctx context.Context, device *fleet.MDMWindo
 		// next session is safe.
 		if err := svc.ds.CancelPendingSetupExperienceSteps(ctx, seHostUUID); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "cancel pending setup experience steps")
+		}
+
+		// Emit the canceled_setup_experience activity for the timeout case. The software-failure-with-require_all=true
+		// case is already covered upstream by maybeCancelPendingSetupExperienceSteps (called from the software-install
+		// result reporter), which references the failed item; do not duplicate it here.
+		//
+		// For timeout, pick the first pending or running software item (the one that was in flight when the timeout
+		// fired) as the activity reference. If none was queued (orbit's setup_experience/init never ran, or the timeout
+		// fired before any software was scheduled), the activity is still emitted but with empty software fields so the
+		// host is still represented in the activity feed.
+		if timedOut && !hasSoftwareFailure {
+			host, err := loadHost()
+			if err != nil {
+				return nil, err
+			}
+			var softwareTitle string
+			var softwareTitleID uint
+			for _, s := range statuses {
+				if (s.Status == fleet.SetupExperienceStatusPending || s.Status == fleet.SetupExperienceStatusRunning) && s.IsForSoftware() {
+					softwareTitle = s.Name
+					if s.SoftwareTitleID != nil {
+						softwareTitleID = *s.SoftwareTitleID
+					}
+					break
+				}
+			}
+			if err := svc.NewActivity(ctx, nil, fleet.ActivityTypeCanceledSetupExperience{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+				SoftwareTitle:   softwareTitle,
+				SoftwareTitleID: softwareTitleID,
+			}); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "creating canceled setup experience activity on timeout")
+			}
 		}
 	}
 
@@ -2445,13 +2504,13 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 		// clamps to 60, the failure UI would take ~1 hour to appear instead of ~1 minute -- bad UX but the contract
 		// (eventual failure UI) still holds.
 		//
-		// TODO: replace this empirical hack with documented per-tracker InstallationState=4 once orbit reports
-		// setup-experience progress via the LocalMDM channel (subtask
-		// https://github.com/fleetdm/fleet/issues/43776). At that point each setup-experience software item becomes
-		// a TrackedResourceTypes/{tracker} on the device, a failed install reports InstallationError on its tracker,
-		// and the ESP renders the failure UI natively from per-tracker state -- no timeout trick required. Setting
-		// InstallationState=4 on the parent PolicyProviders node alone (as we tested) does NOT escalate the UI
-		// without trackers underneath, which is why we keep the timeout-based approach for now.
+		// We tried the alternative documented in the DMClient CSP -- setting WasDeviceSuccessfullyProvisioned=0
+		// followed by IsSyncDone=true, which the docs say should render the failure UI without any timeout. On
+		// Win11 26200 the device acks both Replaces with status 200, but the Account-setup page stays at "Working
+		// on it..." indefinitely (verified past 25 minutes). The OS-side ESP UI on this build appears to require
+		// per-software-item progress state that Fleet cannot populate today; until that gap is closed (documented in
+		// https://github.com/fleetdm/fleet/issues/43776), the timeout trigger above is the only mechanism that
+		// reliably surfaces the failure UI for these enrollments.
 		newSyncMLCmdInt(fleet.CmdReplace,
 			fmt.Sprintf("./Device/Vendor/MSFT/DMClient/Provider/%s/FirstSyncStatus/TimeOutUntilSyncFailure", provID),
 			"1"),
@@ -2462,9 +2521,9 @@ func buildESPBlockCommands(provID, errorText string) []*mdm_types.SyncMLCmd {
 	return cmds
 }
 
-// buildESPReleaseCommands builds SyncML commands that release the device
-// from the ESP. The release path advances DevicePreparation to "complete" and
-// signals ServerHasFinishedProvisioning so Windows proceeds to login.
+// buildESPReleaseCommands builds SyncML commands that release the device from the ESP. The release path advances
+// DevicePreparation to "complete" and signals ServerHasFinishedProvisioning at both Device and User scopes to
+// complete both the Device setup and Account setup phases of the ESP so Windows proceeds to login.
 func buildESPReleaseCommands(provID string) []*mdm_types.SyncMLCmd {
 	cmds := []*mdm_types.SyncMLCmd{
 		newSyncMLCmdInt(fleet.CmdReplace,
