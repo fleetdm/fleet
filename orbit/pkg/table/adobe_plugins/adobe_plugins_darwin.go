@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 func getScanPaths(level string) ([]scanPath, error) {
@@ -24,19 +26,20 @@ func getScanPaths(level string) ([]scanPath, error) {
 
 	// Per-user CEP and UXP extensions
 	users, err := listLocalUsers()
-	if err == nil {
-		for _, u := range users {
-			paths = append(paths, scanPath{
-				basePath:      filepath.Join(u.homeDir, "Library", "Application Support", "Adobe", "CEP", "extensions"),
-				extensionType: "CEP",
-				user:          u.name,
-			})
-			paths = append(paths, scanPath{
-				basePath:      filepath.Join(u.homeDir, "Library", "Application Support", "Adobe", "UXP", "extensions"),
-				extensionType: "UXP",
-				user:          u.name,
-			})
-		}
+	if err != nil {
+		log.Warn().Err(err).Msg("adobe_plugins: failed to enumerate local users, skipping per-user paths")
+	}
+	for _, u := range users {
+		paths = append(paths, scanPath{
+			basePath:      filepath.Join(u.homeDir, "Library", "Application Support", "Adobe", "CEP", "extensions"),
+			extensionType: "CEP",
+			user:          u.name,
+		})
+		paths = append(paths, scanPath{
+			basePath:      filepath.Join(u.homeDir, "Library", "Application Support", "Adobe", "UXP", "extensions"),
+			extensionType: "UXP",
+			user:          u.name,
+		})
 	}
 
 	if level == "deep" {
