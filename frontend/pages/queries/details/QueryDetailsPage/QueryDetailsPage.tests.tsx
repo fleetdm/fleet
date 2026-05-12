@@ -28,6 +28,7 @@ jest.mock("components/BackButton", () => ({
 
 const QUERY_ID = 1;
 const HOST_ID = 42;
+const FILTERED_QUERIES_PATH = "/queries/manage?fleet_id=1";
 
 const setupQueryHandlers = () => {
   mockServer.use(
@@ -66,67 +67,47 @@ const baseAppContext = {
   availableTeams: [],
 };
 
+const renderPage = (
+  appOverrides: { filteredQueriesPath?: string } = {},
+  hostId?: number
+) => {
+  const render = createCustomRenderer({
+    withBackendMock: true,
+    context: { app: { ...baseAppContext, ...appOverrides } },
+  });
+  render(<QueryDetailsPage {...(createProps(hostId) as any)} />);
+  return screen.findByTestId("back-button");
+};
+
 describe("QueryDetailsPage - back navigation", () => {
-  it("'Back to host details' returns to the host's details page even when filteredQueriesPath is set in AppContext", async () => {
-    setupQueryHandlers();
+  beforeEach(() => setupQueryHandlers());
 
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: {
-          ...baseAppContext,
-          // Simulates the user having visited the Queries (Reports) list earlier
-          // in the session, populating filteredQueriesPath on AppContext.
-          filteredQueriesPath: "/queries/manage?fleet_id=1",
-        },
-      },
-    });
-
-    render(<QueryDetailsPage {...(createProps(HOST_ID) as any)} />);
-
-    const backButton = await screen.findByTestId("back-button");
-
-    expect(backButton).toHaveTextContent("Back to host details");
-    expect(backButton.getAttribute("data-path")).toContain(
-      `/hosts/${HOST_ID}/details`
-    );
-    expect(backButton.getAttribute("data-path")).not.toBe(
-      "/queries/manage?fleet_id=1"
-    );
-  });
-
-  it("'Back to reports' returns to filteredQueriesPath when no hostId is present", async () => {
-    setupQueryHandlers();
-
-    const filteredPath = "/queries/manage?fleet_id=1";
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: {
-        app: { ...baseAppContext, filteredQueriesPath: filteredPath },
-      },
-    });
-
-    render(<QueryDetailsPage {...(createProps() as any)} />);
-
-    const backButton = await screen.findByTestId("back-button");
-
-    expect(backButton).toHaveTextContent("Back to reports");
-    expect(backButton.getAttribute("data-path")).toBe(filteredPath);
-  });
-
-  it("'Back to reports' falls back to the manage reports page when neither hostId nor filteredQueriesPath is set", async () => {
-    setupQueryHandlers();
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-      context: { app: baseAppContext },
-    });
-
-    render(<QueryDetailsPage {...(createProps() as any)} />);
-
-    const backButton = await screen.findByTestId("back-button");
-
-    expect(backButton).toHaveTextContent("Back to reports");
-    expect(backButton.getAttribute("data-path")).toContain("/reports/manage");
+  it.each([
+    {
+      name: "hostId wins over filteredQueriesPath",
+      app: { filteredQueriesPath: FILTERED_QUERIES_PATH },
+      hostId: HOST_ID,
+      expectText: "Back to host details",
+      expectPathContains: `/hosts/${HOST_ID}/details`,
+    },
+    {
+      name: "falls back to filteredQueriesPath when no hostId",
+      app: { filteredQueriesPath: FILTERED_QUERIES_PATH },
+      hostId: undefined,
+      expectText: "Back to reports",
+      expectPathContains: FILTERED_QUERIES_PATH,
+    },
+    {
+      name:
+        "falls back to manage reports when neither hostId nor filteredQueriesPath is set",
+      app: {},
+      hostId: undefined,
+      expectText: "Back to reports",
+      expectPathContains: "/reports/manage",
+    },
+  ])("$name", async ({ app, hostId, expectText, expectPathContains }) => {
+    const back = await renderPage(app, hostId);
+    expect(back).toHaveTextContent(expectText);
+    expect(back.getAttribute("data-path")).toContain(expectPathContains);
   });
 });
