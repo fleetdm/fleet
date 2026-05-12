@@ -519,7 +519,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny access to this computer from the network'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyAccessFromNetwork</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
@@ -595,7 +595,7 @@ spec:
     Ask your system administrator to establish the recommended configuration via GP, ensure that the following UI path includes 'Guests, Local account'
     'Computer Configuration\Policies\Windows Settings\Security Settings\Local Policies\User Rights Assignment\Deny log on through Remote Desktop Services'
   query: |
-    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null);
+    SELECT 1 FROM mdm_bridge where mdm_command_input = "<SyncBody><Get><CmdID>1</CmdID><Item><Target><LocURI>./Device/Vendor/MSFT/Policy/Result/UserRights/DenyRemoteDesktopServicesLogOn</LocURI></Target></Item></Get></SyncBody>" AND (regex_match(mdm_command_output,".*(Guest).*",0) is not null) AND (regex_match(mdm_command_output,".*(Local account).*",0) is not null);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, english-support-only
   contributors: marcosd4h
