@@ -43,10 +43,8 @@ func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStra
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
 func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
-	// TODO(iteration-2): once roaring-bitmap encoding lands, drop the
-	// TrackedCriticalCVEs scoping and pass nil to AffectedHostIDsByCVE so
-	// every CVE is collected again. See the iteration-2 TODO in
-	// server/chart/internal/mysql/charts.go.
+	// Only track the CVEs that the chart API currently returns.
+	// TODO: implement bitmap compression so we can track all CVEs.
 	tracked, err := store.TrackedCriticalCVEs(ctx)
 	if err != nil {
 		return err
