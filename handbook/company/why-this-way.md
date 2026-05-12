@@ -166,6 +166,11 @@ Additional infrastructure:
 9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
 
 
+## Why enforce a minimum release age for npm packages?
+
+Fleet configures `min-release-age` in `.npmrc` to reject any npm package published less than 30 minutes ago.  This is a supply-chain security measure.  When a popular package is compromised, the malicious version is almost always removed quickly — but the damage happens to anyone who installed it in those first few minutes.  A short delay gives the community time to detect and respond before Fleet's CI or any contributor pulls the poisoned release.  The same principle applies to other package managers (Go modules, C++/osquery dependencies), but npm is the highest priority since it has the largest attack surface.  The delay is intentionally short so it doesn't frustrate day-to-day development — if it's too long, people work around it, which defeats the purpose.  Fleet also requires npm v11.10.0+ (the first version to support `min-release-age`) and uses Fleet policies to verify compliance across contributor machines.
+
+
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
