@@ -81,7 +81,21 @@ jobs:
             --pkg-types=os,library \
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
-            fleetdm/bomutils
+            --format=json \
+            --output=trivy-results.json \
+            fleetdm/bomutils || trivy_exit_code=$?
+          # Print a human-readable table to the job log for debugging.
+          ./trivy convert --format table trivy-results.json
+          exit "${trivy_exit_code:-0}"
+
+      - name: Extract CVE list for Slack notification
+        id: extract_cves
+        if: failure()
+        run: |
+          if [ -f trivy-results.json ]; then
+            cve_list=$(jq -r '[.Results[]?.Vulnerabilities[]?.VulnerabilityID] | unique | map("• " + .) | join("\\n")' trivy-results.json)
+          fi
+          echo "cve_list=${cve_list:-(no CVE list available — check job logs)}" >> "$GITHUB_OUTPUT"
 
       - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
@@ -95,7 +109,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Build fleetdm/bomutils and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Build fleetdm/bomutils and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}\n\n*Detected CVEs:*\n${{ steps.extract_cves.outputs.cve_list }}"
                   }
                 }
               ]
