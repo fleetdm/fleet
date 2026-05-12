@@ -166,8 +166,11 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 	now := time.Now()
 	for _, row := range hostMDMManagedCerts {
 		hostMDMManagedCert := &row.MDMManagedCertificate
-		// DigiCert is populated server-side at issuance, not via osquery/MDM.
-		if !hostMDMManagedCert.Type.SupportsRenewalID() {
+		// Skip CA types that don't carry a renewal-ID marker — today only
+		// DigiCert, which is server-issued and managed without matching
+		// against ingested certs. Empty/NULL `Type` (rows created by the
+		// non-proxied insert path below) IS eligible.
+		if hostMDMManagedCert.Type != "" && !hostMDMManagedCert.Type.SupportsRenewalID() {
 			continue
 		}
 
@@ -223,6 +226,75 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		}
 	}
 
+	// Non-proxied insert path: for each profile installed on this host
+	// without an existing host_mdm_managed_certificates row, see if any
+	// incoming cert's Subject carries the `fleet-<profile_uuid>` marker.
+	// If so, create the row from the cert's metadata. This activates
+	// renewal for ACME / non-proxied SCEP flows where Fleet isn't in the
+	// issuance path so no row gets created at issuance time.
+	hostMDMManagedCertsToInsert := make([]*fleet.MDMManagedCertificate, 0, len(incomingBySHA1))
+	if len(incomingBySHA1) > 0 {
+		existingProfileUUIDs := make(map[string]struct{}, len(hostMDMManagedCerts))
+		for _, row := range hostMDMManagedCerts {
+			existingProfileUUIDs[row.ProfileUUID] = struct{}{}
+		}
+		var candidateProfileUUIDs []string
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &candidateProfileUUIDs, `
+			SELECT profile_uuid FROM host_mdm_apple_profiles
+			WHERE host_uuid = ? AND operation_type = ?
+			UNION
+			SELECT profile_uuid FROM host_mdm_windows_profiles
+			WHERE host_uuid = ? AND operation_type = ?`,
+			hostUUID, fleet.MDMOperationTypeInstall,
+			hostUUID, fleet.MDMOperationTypeInstall,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "list candidate profile UUIDs for managed cert insert")
+		}
+		for _, profileUUID := range candidateProfileUUIDs {
+			if _, exists := existingProfileUUIDs[profileUUID]; exists {
+				continue
+			}
+			renewalIDString := "fleet-" + profileUUID
+			var bestMatch *fleet.HostCertificateRecord
+			for _, cert := range incomingBySHA1 {
+				if !strings.Contains(cert.SubjectCommonName, renewalIDString) &&
+					!strings.Contains(cert.SubjectOrganizationalUnit, renewalIDString) {
+					continue
+				}
+				// Skip certs outside their validity window: a device may
+				// still be reporting a just-expired cert alongside its
+				// renewal, and latching onto it would seed the row with
+				// backward-pointing dates.
+				if cert.NotValidBefore.After(now) || cert.NotValidAfter.Before(now) {
+					continue
+				}
+				if bestMatch == nil || cert.NotValidBefore.After(bestMatch.NotValidBefore) {
+					bestMatch = cert
+				}
+			}
+			if bestMatch == nil {
+				continue
+			}
+			// Use a fixed sentinel for ca_name on non-proxied rows.
+			// Proxied flows set ca_name from Fleet-controlled CA
+			// registration (stable across renewals); deriving it from
+			// the cert's Issuer CN would drift if the upstream CA ever
+			// renames. The cert's actual issuer is available in
+			// host_certificates for support visibility.
+			// Type is written as NULL by insertHostMDMManagedCertDB —
+			// Fleet wasn't in the issuance path so it doesn't know the
+			// CA type. The struct's Type field is left unset.
+			hostMDMManagedCertsToInsert = append(hostMDMManagedCertsToInsert, &fleet.MDMManagedCertificate{
+				HostUUID:       hostUUID,
+				ProfileUUID:    profileUUID,
+				NotValidBefore: &bestMatch.NotValidBefore,
+				NotValidAfter:  &bestMatch.NotValidAfter,
+				CAName:         "non_proxied",
+				Serial:         ptr.String(fmt.Sprintf("%040s", bestMatch.Serial)),
+			})
+		}
+	}
+
 	toDelete := make([]uint, 0, len(existingBySHA1))
 	for sha1, existing := range existingBySHA1 {
 		if _, ok := incomingBySHA1[sha1]; !ok {
@@ -269,6 +341,10 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 
 		if err := updateHostMDMManagedCertDetailsDB(ctx, tx, hostMDMManagedCertsToUpdate); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host mdm managed cert details")
+		}
+
+		if err := insertHostMDMManagedCertDB(ctx, tx, hostMDMManagedCertsToInsert); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed cert rows")
 		}
 		return nil
 	})
@@ -604,6 +680,32 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "updating host mdm managed certificates")
+		}
+	}
+	return nil
+}
+
+// insertHostMDMManagedCertDB creates host_mdm_managed_certificates rows for
+// non-proxied SCEP/ACME flows discovered via cert ingestion. type is always
+// written as NULL because Fleet wasn't in the issuance path and doesn't know
+// the CA type. Uses INSERT IGNORE so a row created concurrently by another
+// transaction (e.g., a SCEP proxy issuance) doesn't cause a duplicate-key
+// error here — the matcher's UPDATE pass picks up that row on the next
+// ingestion call.
+func insertHostMDMManagedCertDB(ctx context.Context, tx sqlx.ExtContext, certs []*fleet.MDMManagedCertificate) error {
+	if len(certs) == 0 {
+		return nil
+	}
+	for _, c := range certs {
+		_, err := tx.ExecContext(ctx, `
+			INSERT IGNORE INTO host_mdm_managed_certificates
+				(host_uuid, profile_uuid, ca_name, type,
+				 not_valid_before, not_valid_after, serial)
+			VALUES (?, ?, ?, NULL, ?, ?, ?)`,
+			c.HostUUID, c.ProfileUUID, c.CAName,
+			c.NotValidBefore, c.NotValidAfter, c.Serial)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "insert host mdm managed certificate")
 		}
 	}
 	return nil

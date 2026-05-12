@@ -30,6 +30,7 @@ func TestHostCertificates(t *testing.T) {
 	}{
 		{"UpdateAndList", testUpdateAndListHostCertificates},
 		{"Update with host_mdm_managed_certificates to update", testUpdatingHostMDMManagedCertificates},
+		{"Insert host_mdm_managed_certificates from non-proxied ingestion", testInsertingHostMDMManagedCertificatesFromIngestion},
 		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
@@ -647,6 +648,224 @@ func testMatcherRecoversStuckHMMCRows(t *testing.T, ds *Datastore) {
 		require.NotNil(t, got.NotValidAfter)
 		assert.True(t, freshNotAfter.Equal(*got.NotValidAfter), "monotonic-forward must prevent regression")
 	})
+}
+
+// testInsertingHostMDMManagedCertificatesFromIngestion exercises the
+// non-proxied insert path: when a profile is installed on a host without an
+// existing host_mdm_managed_certificates row, an ingested cert whose Subject
+// carries the `fleet-<profile_uuid>` marker creates the row. Also validates
+// that the matcher's SupportsRenewalID() guard does NOT skip empty/NULL
+// Type rows on subsequent ingestion (Decision 2.2 knock-on).
+func testInsertingHostMDMManagedCertificatesFromIngestion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Three profiles installed on the host:
+	//   nonProxied — no existing hmmc row; ingestion will create one (NULL Type).
+	//   proxied    — existing hmmc row (custom_scep_proxy); matcher updates it.
+	//   noMatch    — no existing hmmc row; no incoming cert carries its marker.
+	cps := storeDummyConfigProfilesForTest(t, ds, 3)
+	nonProxiedProfileUUID := cps[0].ProfileUUID
+	proxiedProfileUUID := cps[1].ProfileUUID
+	noMatchProfileUUID := cps[2].ProfileUUID
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("ingest-host-osq"),
+		NodeKey:         ptr.String("ingest-host-nk"),
+		UUID:            "ingest-host-uuid",
+		Hostname:        "ingest-host",
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       nonProxiedProfileUUID,
+			ProfileIdentifier: cps[0].Identifier,
+			ProfileName:       cps[0].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-non-proxied",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       proxiedProfileUUID,
+			ProfileIdentifier: cps[1].Identifier,
+			ProfileName:       cps[1].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-proxied",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+		{
+			ProfileUUID:       noMatchProfileUUID,
+			ProfileIdentifier: cps[2].Identifier,
+			ProfileName:       cps[2].Name,
+			HostUUID:          host.UUID,
+			Status:            &fleet.MDMDeliveryPending,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			CommandUUID:       "cmd-no-match",
+			Checksum:          []byte("0123456789abcdef"),
+			Scope:             fleet.PayloadScopeSystem,
+		},
+	}))
+
+	// Pre-existing proxied hmmc row for proxiedProfileUUID.
+	require.NoError(t, ds.BulkUpsertMDMManagedCertificates(ctx, []*fleet.MDMManagedCertificate{
+		{
+			HostUUID:    host.UUID,
+			ProfileUUID: proxiedProfileUUID,
+			Type:        fleet.CAConfigCustomSCEPProxy,
+			CAName:      "custom-ca",
+		},
+	}))
+
+	// Build incoming certs:
+	//   certNonProxied — Subject CN carries marker for nonProxiedProfileUUID,
+	//                    issued by a parent so IssuerCommonName is preserved
+	//   certProxied    — Subject OU carries marker for proxiedProfileUUID
+	//   certUnrelated  — no Fleet marker
+	notBefore := time.Now().Add(-time.Hour).Truncate(time.Second).UTC()
+	notAfter := time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC()
+	customerCAParent := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "Customer Hydrant ACME",
+			Country:      []string{"US"},
+			Organization: []string{"Customer"},
+		},
+		SerialNumber:          big.NewInt(9000),
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+		NotBefore:             notBefore.Add(-time.Hour),
+		NotAfter:              notAfter.Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign,
+	}
+	certNonProxied := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "MAC-SERIAL fleet-" + nonProxiedProfileUUID,
+			Country:      []string{"US"},
+			Organization: []string{"Org Non-Proxied"},
+		},
+		SerialNumber:          big.NewInt(7001),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	certProxied := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:         "MAC-SERIAL Proxied",
+			Country:            []string{"US"},
+			Organization:       []string{"Org Proxied"},
+			OrganizationalUnit: []string{"fleet-" + proxiedProfileUUID},
+		},
+		Issuer: pkix.Name{
+			CommonName:   "Custom SCEP Issuer",
+			Country:      []string{"US"},
+			Organization: []string{"Custom"},
+		},
+		SerialNumber:          big.NewInt(7002),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	certUnrelated := x509.Certificate{
+		Subject: pkix.Name{
+			CommonName:   "Some Other Cert",
+			Country:      []string{"US"},
+			Organization: []string{"Unrelated"},
+		},
+		Issuer: pkix.Name{
+			CommonName:   "Other Issuer",
+			Country:      []string{"US"},
+			Organization: []string{"Other"},
+		},
+		SerialNumber:          big.NewInt(7003),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             notBefore,
+		NotAfter:              notAfter,
+		BasicConstraintsValid: true,
+	}
+	payload := []*fleet.HostCertificateRecord{
+		generateTestHostCertificateRecordWithParent(t, host.ID, &certNonProxied, &customerCAParent),
+		generateTestHostCertificateRecord(t, host.ID, &certProxied),
+		generateTestHostCertificateRecord(t, host.ID, &certUnrelated),
+	}
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, payload, fleet.HostCertificateOriginOsquery))
+
+	// nonProxiedProfileUUID — row was inserted with NULL Type, matching cert's metadata.
+	all, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	var nonProxiedRow, proxiedRow *fleet.MDMManagedCertificate
+	for _, r := range all {
+		switch r.ProfileUUID {
+		case nonProxiedProfileUUID:
+			nonProxiedRow = r
+		case proxiedProfileUUID:
+			proxiedRow = r
+		case noMatchProfileUUID:
+			t.Fatalf("noMatchProfileUUID should not have an hmmc row but does: %+v", r)
+		}
+	}
+	require.NotNil(t, nonProxiedRow, "non-proxied profile should have a created hmmc row")
+	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow.Type, "Type should be NULL/empty for non-proxied row")
+	assert.Equal(t, "non_proxied", nonProxiedRow.CAName, "CAName should be the fixed non-proxied sentinel, not derived from the cert")
+	require.NotNil(t, nonProxiedRow.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certNonProxied.SerialNumber.Text(16)), *nonProxiedRow.Serial)
+	require.NotNil(t, nonProxiedRow.NotValidAfter)
+	assert.Equal(t, notAfter, *nonProxiedRow.NotValidAfter)
+
+	// proxiedProfileUUID — existing row updated with cert's serial / dates by the matcher.
+	require.NotNil(t, proxiedRow)
+	assert.Equal(t, fleet.CAConfigCustomSCEPProxy, proxiedRow.Type, "Existing proxied Type preserved")
+	require.NotNil(t, proxiedRow.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certProxied.SerialNumber.Text(16)), *proxiedRow.Serial)
+
+	// Subsequent ingestion of a renewed cert for the non-proxied profile must
+	// advance not_valid_after — validates the matcher guard fix (Decision 2.2):
+	// without it, the SupportsRenewalID() skip silently excludes NULL-Type rows.
+	notAfter2 := notAfter.Add(48 * time.Hour)
+	certRenewed := certNonProxied
+	certRenewed.SerialNumber = big.NewInt(7011)
+	// NotBefore must remain in the past (matcher filters out future-valid certs)
+	// but later than the original so best-match-wins picks the renewed cert.
+	certRenewed.NotBefore = notBefore.Add(30 * time.Minute)
+	certRenewed.NotAfter = notAfter2
+	renewedPayload := []*fleet.HostCertificateRecord{
+		generateTestHostCertificateRecordWithParent(t, host.ID, &certRenewed, &customerCAParent),
+		generateTestHostCertificateRecord(t, host.ID, &certProxied),
+		generateTestHostCertificateRecord(t, host.ID, &certUnrelated),
+	}
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, renewedPayload, fleet.HostCertificateOriginOsquery))
+
+	all2, err := ds.ListHostMDMManagedCertificates(ctx, host.UUID)
+	require.NoError(t, err)
+	var nonProxiedRow2 *fleet.MDMManagedCertificate
+	for _, r := range all2 {
+		if r.ProfileUUID == nonProxiedProfileUUID {
+			nonProxiedRow2 = r
+		}
+	}
+	require.NotNil(t, nonProxiedRow2)
+	require.NotNil(t, nonProxiedRow2.NotValidAfter)
+	assert.Equal(t, notAfter2, *nonProxiedRow2.NotValidAfter, "matcher must advance not_valid_after on NULL-Type rows")
+	require.NotNil(t, nonProxiedRow2.Serial)
+	assert.Equal(t, fmt.Sprintf("%040s", certRenewed.SerialNumber.Text(16)), *nonProxiedRow2.Serial)
+	assert.Equal(t, fleet.CAConfigAssetType(""), nonProxiedRow2.Type, "Type should still be NULL/empty after update")
 }
 
 func generateTestHostCertificateRecord(t *testing.T, hostID uint, template *x509.Certificate) *fleet.HostCertificateRecord {
