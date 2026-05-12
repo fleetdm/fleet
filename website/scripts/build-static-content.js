@@ -498,7 +498,7 @@ module.exports = {
               // Rewrite YouTube embed src URLs to the privacy-enhanced (no-cookie) host so the embedded player doesn't set tracking cookies until the visitor presses play.
               // This allows us to show embeeded youtube videos to users who don't consent to the cookie banner on the website.
               htmlString = htmlString.replace(/(src="https?:\/\/(?:www\.)?youtube\.com\/embed\/[^"]*")/g, (srcString) => {
-                return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://youtube-nocookie.com/embed/$1');
+                return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
               });//∞
 
               // Modify images in the /articles folder
