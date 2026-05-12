@@ -735,9 +735,9 @@ type acmeProfileForValidation struct {
 }
 
 // additionalACMEValidation rejects profiles whose com.apple.security.acme
-// payload Subject lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID in CN or OU.
-// Without the marker the cert can't be linked back to its profile and
-// renewal won't fire.
+// payload Subject OU lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Without the
+// marker the cert can't be linked back to its profile and renewal won't
+// fire.
 func additionalACMEValidation(contents string) error {
 	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
 		return nil
@@ -753,28 +753,19 @@ func additionalACMEValidation(contents string) error {
 		if payload.PayloadType != mobileconfig.ACMEPayloadType {
 			continue
 		}
-		var commonName, orgUnit strings.Builder
+		var orgUnit strings.Builder
 		for _, rdn := range payload.Subject {
 			for _, kv := range rdn {
-				if len(kv) != 2 {
+				if len(kv) != 2 || kv[0] != "OU" {
 					continue
 				}
-				switch kv[0] {
-				case "CN":
-					if commonName.Len() > 0 {
-						commonName.WriteByte(',')
-					}
-					commonName.WriteString(kv[1])
-				case "OU":
-					if orgUnit.Len() > 0 {
-						orgUnit.WriteByte(',')
-					}
-					orgUnit.WriteString(kv[1])
+				if orgUnit.Len() > 0 {
+					orgUnit.WriteByte(',')
 				}
+				orgUnit.WriteString(kv[1])
 			}
 		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(commonName.String()) &&
-			!fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
+		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
 			return &fleet.BadRequestError{
 				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
 					" must be in the ACME certificate's organizational unit (OU).",

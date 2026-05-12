@@ -7370,6 +7370,49 @@ func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T)
 			"error message must not advertise the legacy variable name")
 	})
 
+	t.Run("ACME profile with renewal-ID in CN only is rejected", func(t *testing.T) {
+		// ACME is a net-new validation surface; the marker must live in
+		// OU. Accepting CN placement perpetuates the bug-shaped "validator
+		// says OU, code accepts either" inconsistency inherited from
+		// pre-existing SCEP validators.
+		const cnOnlyProfile = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key>
+			<string>com.test.acme</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>DirectoryURL</key>
+			<string>https://acme.example.com/directory</string>
+			<key>Subject</key>
+			<array>
+				<array><array><string>CN</string><string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string></array></array>
+				<array><array><string>OU</string><string>static-ou-value</string></array></array>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadIdentifier</key>
+	<string>com.test.profile</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`
+		_, err := validateConfigProfileFleetVariables(cnOnlyProfile, premiumLic, groupedCAs)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
+		require.Contains(t, err.Error(), "organizational unit (OU)")
+	})
+
 	t.Run("Non-ACME profile without Fleet vars is unaffected", func(t *testing.T) {
 		const wifiProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
