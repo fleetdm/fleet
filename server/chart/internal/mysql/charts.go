@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/chart/internal/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	platform_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
@@ -64,25 +65,24 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
-// "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
-// or host details/creation timestamps.
-func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
-	query := `
+// FindOnlineHostIDs returns host IDs that are "online" at `now` per the same
+// per-host predicate used by the hosts list status=online filter
+// (filterHostsByStatus in server/datastore/mysql/hosts.go): the host has a
+// host_seen_times row whose seen_time falls within the host's own check-in
+// interval (LEAST of distributed_interval and config_tls_refresh) plus the
+// OnlineIntervalBuffer grace period.
+//
+// Because host_seen_times is updated only by osquery check-ins, MDM-only
+// mobile devices (iOS, iPadOS, Android) are currently excluded by design.
+func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
+	query := fmt.Sprintf(`
 		SELECT h.id
 		FROM hosts h
-			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
-			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
-				AND ne.type IN ('Device', 'User Enrollment (Device)')
-		WHERE COALESCE(
-			GREATEST(
-				COALESCE(hst.seen_time, ne.last_seen_at),
-				COALESCE(ne.last_seen_at, hst.seen_time)
-			),
-			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
-			h.created_at
-		) >= ?`
-	args := []any{since.UTC()}
+		JOIN host_seen_times hst ON h.id = hst.host_id
+		WHERE DATE_ADD(hst.seen_time,
+			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+		) > ?`, fleet.OnlineIntervalBuffer)
+	args := []any{now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
 		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`
@@ -91,13 +91,13 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 
 	expanded, expandedArgs, err := sqlx.In(query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand recently-seen host args")
+		return nil, ctxerr.Wrap(ctx, err, "expand online host args")
 	}
 	expanded = ds.rebind(expanded)
 
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, expanded, expandedArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "find online host IDs")
 	}
 	return ids, nil
 }

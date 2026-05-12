@@ -9,11 +9,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestFindRecentlySeenHostIDs covers the disabledFleetIDs filter on the
-// recently-seen query: that NULL team_id hosts are always retained, that hosts
-// in disabled fleets are excluded, and that the activity-signal cutoff still
-// applies regardless of fleet membership.
-func TestFindRecentlySeenHostIDs(t *testing.T) {
+// TestFindOnlineHostIDs covers the per-host online predicate and the
+// disabledFleetIDs filter: NULL team_id hosts are always retained, hosts in
+// disabled fleets are excluded, hosts whose seen_time falls outside their own
+// check-in interval are excluded, and hosts without a host_seen_times row at
+// all (mobile devices) are excluded.
+func TestFindOnlineHostIDs(t *testing.T) {
 	tdb := testutils.SetupTestDB(t, "chart_mysql")
 	ds := NewDatastore(tdb.Conns(), tdb.Logger)
 
@@ -21,11 +22,12 @@ func TestFindRecentlySeenHostIDs(t *testing.T) {
 		name string
 		fn   func(t *testing.T, tdb *testutils.TestDB, ds *Datastore)
 	}{
-		{"NoFilter", testFindRecentEmptyDisabled},
-		{"SingleDisabledFleet", testFindRecentSingleDisabled},
-		{"MultipleDisabledFleets", testFindRecentMultipleDisabled},
-		{"NullTeamHostsAlwaysIncluded", testFindRecentNullTeamRetained},
-		{"OldHostsExcludedRegardlessOfFleet", testFindRecentOldHostsFiltered},
+		{"NoFilter", testFindOnlineEmptyDisabled},
+		{"SingleDisabledFleet", testFindOnlineSingleDisabled},
+		{"MultipleDisabledFleets", testFindOnlineMultipleDisabled},
+		{"NullTeamHostsAlwaysIncluded", testFindOnlineNullTeamRetained},
+		{"OfflineHostsExcluded", testFindOnlineOfflineExcluded},
+		{"MobileHostsWithoutSeenTimeExcluded", testFindOnlineMobileExcluded},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -35,8 +37,20 @@ func TestFindRecentlySeenHostIDs(t *testing.T) {
 	}
 }
 
-// seedHosts inserts a host per (teamID, lastSeen) entry and returns the
-// auto-assigned host ids in input order. teamID == 0 is treated as NULL.
+// hostSeed describes one row to insert into hosts (and optionally host_seen_times).
+// distributedInterval is in seconds; when 0, the table defaults apply (which means
+// the effective online window collapses to fleet.OnlineIntervalBuffer alone).
+// When omitSeenTime is true, no host_seen_times row is inserted — simulating an
+// MDM-only mobile device.
+type hostSeed struct {
+	teamID              uint // 0 means NULL
+	seenTime            time.Time
+	distributedInterval int
+	omitSeenTime        bool
+}
+
+// seedHosts inserts a host per entry and returns the auto-assigned host ids in
+// input order. teamID == 0 is treated as NULL.
 func seedHosts(t *testing.T, tdb *testutils.TestDB, entries []hostSeed) []uint {
 	t.Helper()
 	ctx := t.Context()
@@ -60,29 +74,26 @@ func seedHosts(t *testing.T, tdb *testutils.TestDB, entries []hostSeed) []uint {
 		if e.teamID != 0 {
 			teamArg = e.teamID
 		}
-		// detail_updated_at is set to the sentinel so the WHERE clause's
-		// COALESCE falls through to either host_seen_times or created_at.
+		// detail_updated_at is set to the sentinel so it never spuriously
+		// makes a host look freshly active to anyone reading from hosts.
 		res, err := tdb.DB.ExecContext(ctx, `
-			INSERT INTO hosts (osquery_host_id, node_key, uuid, hostname, detail_updated_at, created_at, team_id)
-			VALUES (?, ?, ?, ?, '2000-01-01 00:00:00', ?, ?)
+			INSERT INTO hosts (osquery_host_id, node_key, uuid, hostname, detail_updated_at, created_at, team_id, distributed_interval, config_tls_refresh)
+			VALUES (?, ?, ?, ?, '2000-01-01 00:00:00', ?, ?, ?, ?)
 		`, "ohid-"+itoa(uint(i+1)), "nk-"+itoa(uint(i+1)), "uuid-"+itoa(uint(i+1)),
-			"host-"+itoa(uint(i+1)), e.lastSeen, teamArg)
+			"host-"+itoa(uint(i+1)), e.seenTime, teamArg, e.distributedInterval, e.distributedInterval)
 		require.NoError(t, err)
 		raw, err := res.LastInsertId()
 		require.NoError(t, err)
 		hostID := uint(raw) //nolint:gosec // G115: AUTO_INCREMENT primary key
-		_, err = tdb.DB.ExecContext(ctx,
-			`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)`,
-			hostID, e.lastSeen)
-		require.NoError(t, err)
+		if !e.omitSeenTime {
+			_, err = tdb.DB.ExecContext(ctx,
+				`INSERT INTO host_seen_times (host_id, seen_time) VALUES (?, ?)`,
+				hostID, e.seenTime)
+			require.NoError(t, err)
+		}
 		ids = append(ids, hostID)
 	}
 	return ids
-}
-
-type hostSeed struct {
-	teamID   uint // 0 means NULL
-	lastSeen time.Time
 }
 
 func itoa(u uint) string {
@@ -100,74 +111,99 @@ func itoa(u uint) string {
 	return string(b[i:])
 }
 
-func testFindRecentEmptyDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+// onlineSeen is a seen_time recent enough that the host should be considered
+// online given the default test distributedInterval below.
+func onlineSeen(now time.Time) time.Time { return now.Add(-1 * time.Minute) }
+
+// defaultInterval gives every online test host a 10-minute check-in interval,
+// so the predicate's effective window is 10m + OnlineIntervalBuffer (60s).
+const defaultInterval = 600
+
+func testFindOnlineEmptyDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 1, lastSeen: now.Add(-1 * time.Hour)},
-		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)},
-		{teamID: 0, lastSeen: now.Add(-1 * time.Hour)},
+		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval},
+		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval},
+		{teamID: 0, seenTime: onlineSeen(now), distributedInterval: defaultInterval},
 	})
 
-	got, err := ds.FindRecentlySeenHostIDs(ctx, now.Add(-24*time.Hour), nil)
+	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
 	require.NoError(t, err)
-	assert.ElementsMatch(t, ids, got, "with no fleet filter all recently-seen hosts are returned")
+	assert.ElementsMatch(t, ids, got, "with no fleet filter all online hosts are returned")
 }
 
-func testFindRecentSingleDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+func testFindOnlineSingleDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 1, lastSeen: now.Add(-1 * time.Hour)}, // 0: excluded
-		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)}, // 1: kept
-		{teamID: 0, lastSeen: now.Add(-1 * time.Hour)}, // 2: kept (no team)
+		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 0: excluded
+		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 1: kept
+		{teamID: 0, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 2: kept (no team)
 	})
 
-	got, err := ds.FindRecentlySeenHostIDs(ctx, now.Add(-24*time.Hour), []uint{1})
+	got, err := ds.FindOnlineHostIDs(ctx, now, []uint{1})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{ids[1], ids[2]}, got)
 }
 
-func testFindRecentMultipleDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+func testFindOnlineMultipleDisabled(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 1, lastSeen: now.Add(-1 * time.Hour)}, // 0: excluded
-		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)}, // 1: excluded
-		{teamID: 3, lastSeen: now.Add(-1 * time.Hour)}, // 2: kept
-		{teamID: 0, lastSeen: now.Add(-1 * time.Hour)}, // 3: kept (no team)
+		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 0: excluded
+		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 1: excluded
+		{teamID: 3, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 2: kept
+		{teamID: 0, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 3: kept (no team)
 	})
 
-	got, err := ds.FindRecentlySeenHostIDs(ctx, now.Add(-24*time.Hour), []uint{1, 2})
+	got, err := ds.FindOnlineHostIDs(ctx, now, []uint{1, 2})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{ids[2], ids[3]}, got)
 }
 
-func testFindRecentNullTeamRetained(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+func testFindOnlineNullTeamRetained(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 0, lastSeen: now.Add(-1 * time.Hour)}, // 0: kept (NULL team)
-		{teamID: 1, lastSeen: now.Add(-1 * time.Hour)}, // 1: excluded
+		{teamID: 0, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 0: kept (NULL team)
+		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 1: excluded
 	})
 
 	// Disabling every fleet that exists must still return the NULL-team host.
-	got, err := ds.FindRecentlySeenHostIDs(ctx, now.Add(-24*time.Hour), []uint{1})
+	got, err := ds.FindOnlineHostIDs(ctx, now, []uint{1})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{ids[0]}, got)
 }
 
-func testFindRecentOldHostsFiltered(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+func testFindOnlineOfflineExcluded(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
 	ctx := t.Context()
 	now := time.Now().UTC().Truncate(time.Second)
+	// All three hosts have a 10-min check-in interval (effective online
+	// window: 660s). Only host 0 is within that window.
 	ids := seedHosts(t, tdb, []hostSeed{
-		{teamID: 2, lastSeen: now.Add(-1 * time.Hour)},  // 0: kept (recent, not disabled)
-		{teamID: 2, lastSeen: now.Add(-48 * time.Hour)}, // 1: excluded by recency
-		{teamID: 0, lastSeen: now.Add(-48 * time.Hour)}, // 2: excluded by recency (NULL team doesn't bypass `since`)
+		{teamID: 2, seenTime: onlineSeen(now), distributedInterval: defaultInterval},      // 0: online
+		{teamID: 2, seenTime: now.Add(-1 * time.Hour), distributedInterval: defaultInterval},  // 1: offline (well past its window)
+		{teamID: 0, seenTime: now.Add(-48 * time.Hour), distributedInterval: defaultInterval}, // 2: offline even though NULL team
 	})
-	_ = ids
 
-	got, err := ds.FindRecentlySeenHostIDs(ctx, now.Add(-24*time.Hour), []uint{1})
+	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []uint{ids[0]}, got)
+}
+
+func testFindOnlineMobileExcluded(t *testing.T, tdb *testutils.TestDB, ds *Datastore) {
+	ctx := t.Context()
+	now := time.Now().UTC().Truncate(time.Second)
+	// Host 0 is an osquery host, online. Host 1 has no host_seen_times row —
+	// representing an MDM-only mobile device — and must be excluded by the
+	// INNER JOIN regardless of how recently it might have checked in via MDM.
+	ids := seedHosts(t, tdb, []hostSeed{
+		{teamID: 1, seenTime: onlineSeen(now), distributedInterval: defaultInterval}, // 0: osquery online
+		{teamID: 1, seenTime: now, omitSeenTime: true},                                // 1: mobile (no hst row)
+	})
+
+	got, err := ds.FindOnlineHostIDs(ctx, now, nil)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []uint{ids[0]}, got)
 }
