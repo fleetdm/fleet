@@ -930,6 +930,10 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 		return &fleet.Team{}, nil
 	}
 
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
 	authorizer, err := authz.NewAuthorizer()
 	require.NoError(t, err)
 
