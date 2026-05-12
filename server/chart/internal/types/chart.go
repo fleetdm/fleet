@@ -34,11 +34,12 @@ type Datastore interface {
 	// recent host activity.
 	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
-	// underlying joins: a host's software/OS row transitions when it upgrades
-	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map. Unresolved-only is
+	// implicit in the underlying joins: a host's software/OS row transitions
+	// when it upgrades past the vulnerable version, so the join naturally
+	// stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
 
 	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
 	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software

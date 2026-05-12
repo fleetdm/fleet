@@ -102,11 +102,9 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 	return ids, nil
 }
 
-// TODO(iteration-2): the matcher list and TrackedCriticalCVEs exist only
-// until user-configurable CVE filtering ships on the dashboard. When that
-// lands, delete trackedCVESoftwareMatchers, TrackedCriticalCVEs, its entries
-// on the Datastore/DatasetStore interfaces, and the `if metric == "cve"`
-// branch in the chart service. See change `cve-chart-demo-filter`.
+// The matcher list and TrackedCriticalCVEs exist as performance optimizations.
+// TODO: implement bitmap compression so we can collect more CVE data.
+// TODO: implement more filtering options for users.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source.
@@ -148,12 +146,18 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{"kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE. It streams two joins
-// (software-level and OS-level vulnerabilities) and merges the results into a
-// single map. Duplicates across sources are harmless — the downstream
-// HostIDsToBlob setBit is idempotent.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
+// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+// cves set. It streams two joins (software-level and OS-level vulnerabilities)
+// and merges the results into a single map. Duplicates across sources are
+// harmless — the downstream HostIDsToBlob setBit is idempotent.
+//
+// nil or empty cves returns an empty map without running any query.
+// TODO: support `nil` meaning "all CVEs" once bitmap compression is implemented.
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
 	result := make(map[string][]uint)
+	if len(cves) == 0 {
+		return result, nil
+	}
 
 	// Both subqueries gain a hosts JOIN + WHERE only when there are fleets to
 	// exclude. Skipping the JOIN entirely when the slice is empty keeps the
@@ -167,18 +171,25 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 		FROM operating_system_vulnerabilities osv
 		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`
 
-	var swArgs, osArgs []any
+	swWhere := []string{"sc.cve IN (?)"}
+	osWhere := []string{"osv.cve IN (?)"}
+	swArgs := []any{cves}
+	osArgs := []any{cves}
+
 	if len(disabledFleetIDs) > 0 {
 		swQuery += `
-			JOIN hosts h ON h.id = hs.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		swArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hs.host_id`
+		swWhere = append(swWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		swArgs = append(swArgs, disabledFleetIDs)
 
 		osQuery += `
-			JOIN hosts h ON h.id = hos.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		osArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hos.host_id`
+		osWhere = append(osWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		osArgs = append(osArgs, disabledFleetIDs)
 	}
+
+	swQuery += " WHERE " + strings.Join(swWhere, " AND ")
+	osQuery += " WHERE " + strings.Join(osWhere, " AND ")
 
 	if err := ds.streamCVEHostPairs(ctx, swQuery, swArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
@@ -199,7 +210,7 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 // distinguish "filter resolved to empty" from "no filter requested" (nil).
 // See GetSCDData for how empty vs nil is interpreted at the query layer.
 //
-// TODO(iteration-2): replace with user-configurable filtering. See the
+// TODO: replace with user-configurable filtering. See the
 // matcher-list comment above.
 func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
 	const criticalCVSS = 9.0
