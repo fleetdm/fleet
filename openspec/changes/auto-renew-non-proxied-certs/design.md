@@ -148,6 +148,11 @@ Today (4.85 and earlier) the only valid name is `SCEP_RENEWAL_ID`. The rename is
 
 Substitution is unaffected by this distinction: both names continue to substitute identically across all platforms. The distinction is purely about what validation lets through at upload time.
 
+**Acceptance rule — CN vs OU placement of the marker:** the same pre-existing-vs-net-new distinction applies to *where* the marker is allowed in the cert Subject. Every validator's error message has always read "must be in the SCEP/ACME certificate's organizational unit (OU)" — but the proxy SCEP validators silently accepted the marker in CN as well, an inherited message/behavior mismatch.
+
+- **Pre-existing surfaces (proxy SCEP, Windows non-proxied SCEP)** — keep accepting the marker in CN or OU. The 4.85 test fixture `custom-scep-validation.mobileconfig` places `$FLEET_VAR_SCEP_RENEWAL_ID` in the CN (`WIFI $FLEET_VAR_SCEP_RENEWAL_ID`), proving real-world deployments authored against CN. Hard-rejecting CN would break those profiles on next upload/edit.
+- **Net-new surfaces (ACME PR 2.3, raw Apple SCEP PR 2.3b)** — require the marker in OU only. No deployed profiles to back-compat against on these surfaces. OU is the semantically appropriate field (CN typically encodes principal identity, not metadata) and the error message already says "must be in the OU" — tightening here aligns behavior with the long-standing message and the docs. The ingestion matcher (`host_certificates.go:195`) keeps its defensive CN-or-OU search; tightening validation doesn't loosen the matcher.
+
 **Why accept both rather than hard-rename:**
 - Customers running 4.85 likely have `$FLEET_VAR_SCEP_RENEWAL_ID` in deployed SCEP profile Subjects. Hard-renaming the substitution constant would break those profiles on the next upload/edit cycle (validation passes, but substitution leaves the literal `$FLEET_VAR_SCEP_RENEWAL_ID` string in the profile, which the device CA rejects).
 - Backwards-compat cost is small: one extra regex alternation, one extra constant. No new datastore work, no migration.
