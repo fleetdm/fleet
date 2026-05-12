@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/platform/endpointer"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +42,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true
 	dbConns := mysql.TestDBConnections(t, ds)
-	users, server := service.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
+	users, server := svctest.RunServerForTestsWithServiceWithDS(t, ctx, ds, fleetSvc, &service.TestServerOpts{
 		License: &fleet.LicenseInfo{
 			Tier: fleet.TierFree,
 		},

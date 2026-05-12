@@ -2854,6 +2854,22 @@ func (ds *Datastore) RetryVPPInstall(ctx context.Context, vppInstall *fleet.Host
 	})
 }
 
+// nanoEnqueueVPPInstall is the single fan-in point for every InstallApplication
+// command Fleet sends for a VPP iOS / iPadOS / macOS app. All of:
+//
+//   - manual install from host details > software > library
+//   - self-service install
+//   - VPP auto-install policy fulfillment
+//   - scheduled auto-update (newer App Store version)
+//   - setup experience / DEP first-install
+//   - retry-on-failure (RetryVPPInstall calls this directly)
+//   - admin reinstall
+//
+// land here via activateNextVPPAppInstallActivity. Configuration is fetched
+// and per-host $FLEET_VAR_* substitution is performed inside this function so
+// every send path inherits the latest stored config — including the case
+// where the app was installed without config and config is added later
+// (next activation picks up the change).
 func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	// sanity-check that there's something to activate
 	if len(execIDs) == 0 {
@@ -2862,16 +2878,17 @@ func (ds *Datastore) nanoEnqueueVPPInstall(ctx context.Context, tx sqlx.ExtConte
 
 	const getHostUUIDStmt = `
 SELECT
-	uuid, platform, team_id
+	uuid, platform, team_id, hardware_serial
 FROM
 	hosts
 WHERE
 	id = ?
 `
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		Platform string `db:"platform"`
-		TeamID   *uint  `db:"team_id"`
+		UUID           string `db:"uuid"`
+		Platform       string `db:"platform"`
+		TeamID         *uint  `db:"team_id"`
+		HardwareSerial string `db:"hardware_serial"`
 	}
 	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "get host info for vpp install")
@@ -2937,13 +2954,25 @@ WHERE
 	// Build the InstallApplication plist for each pending activation, then do
 	// one batch INSERT into nano_commands. Per-host, per-app build is required
 	// so the Configuration dict (which varies by team / adam_id) can be
-	// inlined.
+	// inlined and per-host $FLEET_VAR_* tokens can be substituted.
+	subHost := apple_mdm.AppConfigSubstitutionHost{
+		UUID:           hostData.UUID,
+		HardwareSerial: hostData.HardwareSerial,
+		Platform:       hostData.Platform,
+	}
 	insValues := make([]string, 0, len(pending))
 	insArgs := make([]any, 0, len(pending)*4)
 	for _, p := range pending {
 		var cfg []byte
 		if cfgs, ok := configsByPlatformAdamID[p.Platform]; ok {
 			cfg = cfgs[p.AdamID]
+		}
+		if len(cfg) > 0 {
+			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "substitute fleet variables in vpp app configuration")
+			}
+			cfg = substituted
 		}
 		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
 			CommandUUID:   p.ExecutionID,
