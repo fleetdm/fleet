@@ -1,0 +1,1 @@
+* Fixed custom org logo delete failing when the configured logo URL pointed at an external host.

@@ -239,12 +239,39 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 		return ctxerr.New(ctx, "org logo store not configured")
 	}
 
-	// Filter to modes that actually have something to delete.
-	// (The S3 store's Delete is silent on missing keys, so without this check
-	// we'd persist a "logo deleted" activity.)
+	// Read AppConfig up front so we can distinguish Fleet-hosted URLs (which
+	// also have a blob in the store) from external URLs (which don't). For
+	// external URLs there's nothing to delete from the store — we just clear
+	// the URL field. Bypass the cache so we see any concurrent write.
+	ctx = ctxdb.BypassCachedMysql(ctx, true)
+	ac, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "loading app config")
+	}
+
+	// toDelete: modes whose blob lives in the store and must be removed.
+	// toClear: modes whose URL field is non-empty and must be cleared.
+	// The two sets can diverge:
+	//   - External URL → toClear only (no blob backs an external URL).
+	//   - Empty URL + lingering blob → toDelete only. Happens in the
+	//     GitOps flow, which PATCHes the URL to "" before calling
+	//     DeleteOrgLogo to drop the blob (see doGitOpsOrgLogos).
+	//   - Fleet-hosted URL + blob → both.
 	modes := mode.Modes()
-	toDelete := modes[:0:0]
+	var toDelete, toClear []fleet.OrgLogoMode
 	for _, m := range modes {
+		currentURL := orgLogoURLForMode(&ac.OrgInfo, m)
+		if currentURL != "" {
+			toClear = append(toClear, m)
+		}
+		// External URLs never have a backing blob — skip the Exists check.
+		// For empty or Fleet-hosted URLs the blob may exist.
+		if currentURL != "" && !fleet.IsFleetHostedLogoURL(currentURL) {
+			continue
+		}
+		// The S3 store's Delete is silent on missing keys, so check Exists
+		// first — otherwise we'd persist a misleading "logo deleted" activity
+		// when there was nothing to delete.
 		exists, err := svc.orgLogoStore.Exists(ctx, m)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "checking org logo exists (%s)", m)
@@ -253,7 +280,7 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 			toDelete = append(toDelete, m)
 		}
 	}
-	if len(toDelete) == 0 {
+	if len(toClear) == 0 && len(toDelete) == 0 {
 		return &fleet.BadRequestError{Message: "no org logo to delete for the given mode"}
 	}
 
@@ -271,8 +298,12 @@ func (svc *Service) DeleteOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) e
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
-	if err := svc.updateOrgLogoURLs(ctx, toDelete, false); err != nil {
-		return err
+	// Skip the SaveAppConfig round-trip when there are no URLs to clear
+	// (e.g. the GitOps flow already PATCHed them to "" before calling us).
+	if len(toClear) > 0 {
+		if err := svc.updateOrgLogoURLs(ctx, toClear, false); err != nil {
+			return err
+		}
 	}
 
 	if vc, ok := viewer.FromContext(ctx); ok {
@@ -321,6 +352,26 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 // orgLogoServingURL builds the URL persisted in AppConfig after an upload. The `v` param is a cache-buster (ignored server-side; only `mode` is read).
 func orgLogoServingURL(mode fleet.OrgLogoMode) string {
 	return fmt.Sprintf("/api/latest/fleet/logo?mode=%s&v=%d", mode, time.Now().UnixNano())
+}
+
+// orgLogoURLForMode returns the currently-configured URL for the given mode,
+// preferring the new field but falling back to the deprecated one when only
+// the legacy field is populated (e.g. a value written directly to the DB
+// before NormalizeLogoFields could mirror it).
+func orgLogoURLForMode(o *fleet.OrgInfo, mode fleet.OrgLogoMode) string {
+	switch mode {
+	case fleet.OrgLogoModeLight:
+		if o.OrgLogoURLLightMode != "" {
+			return o.OrgLogoURLLightMode
+		}
+		return o.OrgLogoURLLightBackground
+	case fleet.OrgLogoModeDark:
+		if o.OrgLogoURLDarkMode != "" {
+			return o.OrgLogoURLDarkMode
+		}
+		return o.OrgLogoURL
+	}
+	return ""
 }
 
 // updateOrgLogoURLs sets (uploaded=true) or clears (uploaded=false) the

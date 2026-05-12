@@ -17022,4 +17022,28 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
 	require.NoError(t, res.Body.Close())
+
+	// 6. DELETE for an external URL: customer sets a logo URL pointing at
+	// an external host, then deletes via the UI. The endpoint must clear
+	// the URL field without touching any store (#45213).
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"org_info": {
+			"org_logo_url": "https://placehold.co/100",
+			"org_logo_url_light_mode": "https://placehold.co/200"
+		}
+	}`), http.StatusOK)
+
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
+
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	// 7. DELETE when no logo is set returns 400 (existing behavior preserved).
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusBadRequest, "mode", "dark")
 }
