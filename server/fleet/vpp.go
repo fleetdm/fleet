@@ -60,8 +60,8 @@ type VPPAppTeam struct {
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
-	// Configuration is the managed app configuration payload. JSON for Android,
-	// XML for iOS / iPadOS.
+	// Configuration is the managed app configuration payload.
+	// JSON for Android, XML for iOS / iPadOS.
 	Configuration       []byte  `json:"configuration,omitempty"`
 	AutoUpdateEnabled   *bool   `json:"-"`
 	AutoUpdateStartTime *string `json:"-"`
