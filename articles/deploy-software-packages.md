@@ -45,7 +45,7 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
-> Fleet regularly enhances metadata extraction logic. Changes in this logic may affect how Fleet matches packages to software, which may prevent updating the package to the newer version, resulting in this error: "The selected package is for different software." If you run into this, please delete and re-add the package.
+> Fleet regularly enhances its metadata extraction logic, which can change how packages are matched to software inventory. When this happens, you may see this error: "The selected package is for different software." To fix it, delete and re-add the package.
 
 ### Script-only packages
 
