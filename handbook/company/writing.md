@@ -64,6 +64,7 @@ We use `<meta>` tags in Markdown articles to set metadata information about the 
 - Optional meta tags:
     - `articleImageUrl`: A relative link to a cover image for the article used for social share previews. If provided, the image needs to live in the /website/assets/images/articles folder. 
     - `description`: A description of the article that will be visible in search results and social share previews. If provided, this value will override the generated meta description for this article. Otherwise, the description will default to `[articleTitle] by [authorFullName]`.
+    > **Note:** The description value must be less than 150 characters. Exceeding this limit will cause a build error.
 
 **Example meta tag section:**
 

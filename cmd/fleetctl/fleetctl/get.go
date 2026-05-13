@@ -92,6 +92,24 @@ func printYaml(spec interface{}, writer io.Writer) error {
 	return nil
 }
 
+// stripMismatchedLabelFields clears fields that are not meaningful for the
+// label's membership type so that exported YAML can be re-applied cleanly.
+func stripMismatchedLabelFields(label *fleet.LabelSpec) {
+	switch label.LabelMembershipType {
+	case fleet.LabelMembershipTypeManual:
+		label.Query = ""
+		label.Platform = ""
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeDynamic:
+		label.Hosts = nil
+		label.HostVitalsCriteria = nil
+	case fleet.LabelMembershipTypeHostVitals:
+		label.Query = ""
+		label.Platform = ""
+		label.Hosts = nil
+	}
+}
+
 func printLabel(c *cli.Context, label *fleet.LabelSpec) error {
 	spec := specGeneric{
 		Kind:    fleet.LabelKind,
@@ -211,13 +229,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team"`
+	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams"`
+	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -345,8 +363,13 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 	if len(query.LabelsIncludeAny) > 0 {
 		scheduleInfo += "\nlabels_include_any:"
-
 		for _, label := range query.LabelsIncludeAny {
+			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
+		}
+	}
+	if len(query.LabelsIncludeAll) > 0 {
+		scheduleInfo += "\nlabels_include_all:"
+		for _, label := range query.LabelsIncludeAll {
 			scheduleInfo += fmt.Sprintf("\n  - %s", label.LabelName)
 		}
 	}
@@ -479,10 +502,6 @@ func getReportsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, query := range queries {
-						labelsAny := []string{}
-						for _, label := range query.LabelsIncludeAny {
-							labelsAny = append(labelsAny, label.LabelName)
-						}
 						if err := printQuerySpec(c, &fleet.QuerySpec{
 							Name:        query.Name,
 							Description: query.Description,
@@ -496,7 +515,8 @@ func getReportsCommand() *cli.Command {
 							AutomationsEnabled: query.AutomationsEnabled,
 							Logging:            query.Logging,
 							DiscardData:        query.DiscardData,
-							LabelsIncludeAny:   labelsAny,
+							LabelsIncludeAny:   fleet.LabelIdentsToNames(query.LabelsIncludeAny),
+							LabelsIncludeAll:   fleet.LabelIdentsToNames(query.LabelsIncludeAll),
 						}); err != nil {
 							return fmt.Errorf("unable to print query: %w", err)
 						}
@@ -723,6 +743,7 @@ func getLabelsCommand() *cli.Command {
 
 				if c.Bool(yamlFlagName) || c.Bool(jsonFlagName) {
 					for _, label := range labels {
+						stripMismatchedLabelFields(label)
 						printLabel(c, label) //nolint:errcheck
 					}
 					return nil
@@ -759,6 +780,7 @@ func getLabelsCommand() *cli.Command {
 				return err
 			}
 
+			stripMismatchedLabelFields(label)
 			printLabel(c, label) //nolint:errcheck
 			return nil
 		},

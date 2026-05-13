@@ -420,6 +420,138 @@ func TestCarveCarveBlockGetCarveError(t *testing.T) {
 	assert.Contains(t, err.Error(), "ouch!")
 }
 
+// TestCarveBlockHostOwnershipMismatch verifies that when the HTTP pre-auth
+// has stashed an authenticated host in ctx, CarveBlock rejects the request
+// if the carve's HostId doesn't match.
+func TestCarveBlockHostOwnershipMismatch(t *testing.T) {
+	sessionId := "sess"
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     3,
+		BlockCount: 23,
+		BlockSize:  64,
+		CarveSize:  23 * 64,
+		RequestId:  "req",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
+		return metadata, nil
+	}
+
+	svcAuthz, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{carveStore: ms, authz: svcAuthz}
+
+	payload := fleet.CarveBlockPayload{
+		Data:      []byte("data"),
+		RequestId: "req",
+		SessionId: sessionId,
+		BlockId:   4,
+	}
+
+	// Host 999 is NOT the carve owner (carve.HostId == 3).
+	attackerHost := &fleet.Host{ID: 999}
+	ctx := hostctx.NewContext(context.Background(), attackerHost)
+
+	err = svc.CarveBlock(ctx, payload)
+	require.Error(t, err)
+	// Ownership failure must surface as a top-level *OsqueryError with
+	// 401 status — top-level (no ctxerr.Wrap) is required because
+	// FleetErrorEncoder uses a type switch on err that does not unwrap.
+	// Wrapping would cause the encoder to fall through to the generic
+	// JSON error shape instead of the osquery-style response.
+	ose, ok := err.(*OsqueryError)
+	require.True(t, ok, "ownership-failure must be returned as *OsqueryError directly, not wrapped via ctxerr.Wrap (else FleetErrorEncoder type switch can't see it)")
+	assert.Equal(t, http.StatusUnauthorized, ose.Status())
+	assert.False(t, ose.NodeInvalid(), "node_invalid must be false on ownership failure — the node_key is valid")
+	// The response body uses a generic message to avoid disclosing carve
+	// existence/ownership to callers; the specific reason is recorded in
+	// the server log via logging.WithExtras.
+	assert.Equal(t, "authentication error", ose.Error())
+	// NewBlock must NOT be called when ownership fails.
+	assert.False(t, ms.NewBlockFuncInvoked)
+}
+
+// TestCarveBlockHostOwnershipMatch verifies the happy path where the
+// pre-authed host in ctx matches the carve's HostId.
+func TestCarveBlockHostOwnershipMatch(t *testing.T) {
+	sessionId := "sess"
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     7,
+		BlockCount: 10,
+		BlockSize:  64,
+		CarveSize:  10 * 64,
+		RequestId:  "req",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
+		return metadata, nil
+	}
+	ms.NewBlockFunc = func(ctx context.Context, c *fleet.CarveMetadata, blockId int64, data []byte) error {
+		return nil
+	}
+
+	svcAuthz, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{carveStore: ms, authz: svcAuthz}
+
+	payload := fleet.CarveBlockPayload{
+		Data:      []byte("data"),
+		RequestId: "req",
+		SessionId: sessionId,
+		BlockId:   4,
+	}
+
+	ownerHost := &fleet.Host{ID: 7}
+	ctx := hostctx.NewContext(context.Background(), ownerHost)
+
+	err = svc.CarveBlock(ctx, payload)
+	require.NoError(t, err)
+	assert.True(t, ms.NewBlockFuncInvoked)
+}
+
+// TestCarveBlockNoHostInCtxSkipsOwnershipCheck verifies that when no host is
+// in ctx (header-absent path), CarveBlock does NOT perform the ownership
+// check — session_id + request_id alone is the auth.
+func TestCarveBlockNoHostInCtxSkipsOwnershipCheck(t *testing.T) {
+	sessionId := "sess"
+	metadata := &fleet.CarveMetadata{
+		ID:         2,
+		HostId:     7,
+		BlockCount: 10,
+		BlockSize:  64,
+		CarveSize:  10 * 64,
+		RequestId:  "req",
+		SessionId:  sessionId,
+		MaxBlock:   3,
+	}
+	ms := new(mock.Store)
+	ms.CarveBySessionIdFunc = func(ctx context.Context, sessionId string) (*fleet.CarveMetadata, error) {
+		return metadata, nil
+	}
+	ms.NewBlockFunc = func(ctx context.Context, c *fleet.CarveMetadata, blockId int64, data []byte) error {
+		return nil
+	}
+
+	svcAuthz, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	svc := &Service{carveStore: ms, authz: svcAuthz}
+
+	err = svc.CarveBlock(context.Background(), fleet.CarveBlockPayload{
+		Data:      []byte("data"),
+		RequestId: "req",
+		SessionId: sessionId,
+		BlockId:   4,
+	})
+	require.NoError(t, err)
+	assert.True(t, ms.NewBlockFuncInvoked)
+}
+
 func TestCarveCarveBlockRequestIdError(t *testing.T) {
 	sessionId := "foobar"
 	metadata := &fleet.CarveMetadata{

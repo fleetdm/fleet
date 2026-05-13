@@ -2,6 +2,8 @@ import React from "react";
 import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
+import mdmAPI from "services/entities/mdm";
+
 import UsersForm from "./UsersForm";
 
 describe("UsersForm", () => {
@@ -74,6 +76,52 @@ describe("UsersForm", () => {
     expect(screen.getByText("Lock end user info")).toBeInTheDocument();
   });
 
+  it("auto-checks lock end user info on EUA toggle when Apple MDM is configured", async () => {
+    const { user } = renderWithMdmEnabled(<UsersForm {...defaultProps} />);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "End user authentication" })
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "Lock end user info" })
+    ).toBeChecked();
+  });
+
+  it("does not auto-check lock end user info on EUA toggle when Apple MDM is not configured", async () => {
+    const { user } = renderWithMdmDisabled(<UsersForm {...defaultProps} />);
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "End user authentication" })
+    );
+
+    expect(
+      screen.getByRole("checkbox", { name: "Lock end user info" })
+    ).not.toBeChecked();
+  });
+
+  it("preserves the backend lock end user info value on EUA toggle when Apple MDM is not configured", async () => {
+    // Simulates: Apple MDM was previously on with lock_end_user_info=true, then
+    // Apple MDM was turned off. Toggling EUA must not clobber the saved value.
+    const { user } = renderWithMdmDisabled(
+      <UsersForm
+        {...defaultProps}
+        defaultLockEndUserInfo
+        defaultIsEndUserAuthEnabled
+      />
+    );
+
+    const eua = screen.getByRole("checkbox", {
+      name: "End user authentication",
+    });
+    await user.click(eua); // toggle EUA off
+    await user.click(eua); // toggle EUA back on
+
+    expect(
+      screen.getByRole("checkbox", { name: "Lock end user info" })
+    ).toBeChecked();
+  });
+
   it("renders managed local account checkbox as unchecked by default", () => {
     render(<UsersForm {...defaultProps} />);
     expect(
@@ -127,6 +175,24 @@ describe("UsersForm", () => {
       ).toHaveAttribute("aria-disabled", "true");
     });
 
+    it("disables lock end user info when Apple MDM is not configured", () => {
+      renderWithMdmDisabled(
+        <UsersForm {...defaultProps} defaultIsEndUserAuthEnabled />
+      );
+      expect(
+        screen.getByRole("checkbox", { name: "Lock end user info" })
+      ).toHaveAttribute("aria-disabled", "true");
+    });
+
+    it("enables lock end user info when Apple MDM is configured", () => {
+      renderWithMdmEnabled(
+        <UsersForm {...defaultProps} defaultIsEndUserAuthEnabled />
+      );
+      expect(
+        screen.getByRole("checkbox", { name: "Lock end user info" })
+      ).toHaveAttribute("aria-disabled", "false");
+    });
+
     it("does not allow toggling end user auth when IdP is not configured", async () => {
       const { user } = render(
         <UsersForm {...defaultProps} isIdPConfigured={false} />
@@ -163,6 +229,44 @@ describe("UsersForm", () => {
       await user.click(checkbox);
 
       expect(checkbox).not.toBeChecked();
+    });
+  });
+
+  describe("save payload", () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it("omits Apple-only fields when Apple MDM is not configured", async () => {
+      // The backend skips its EUA->Lock auto-sync when Apple MDM isn't configured, so the
+      // FE can safely omit lock_end_user_info; managed local account is rejected outright.
+      const updateSpy = jest
+        .spyOn(mdmAPI, "updateSetupExperienceSettings")
+        .mockResolvedValue({});
+
+      const { user } = renderWithMdmDisabled(<UsersForm {...defaultProps} />);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateSpy).toHaveBeenCalledWith({
+        fleet_id: 0,
+        enable_end_user_authentication: false,
+      });
+    });
+
+    it("includes Apple-only fields when Apple MDM is configured", async () => {
+      const updateSpy = jest
+        .spyOn(mdmAPI, "updateSetupExperienceSettings")
+        .mockResolvedValue({});
+
+      const { user } = renderWithMdmEnabled(<UsersForm {...defaultProps} />);
+      await user.click(screen.getByRole("button", { name: "Save" }));
+
+      expect(updateSpy).toHaveBeenCalledWith({
+        fleet_id: 0,
+        enable_end_user_authentication: false,
+        lock_end_user_info: false,
+        enable_managed_local_account: false,
+      });
     });
   });
 });

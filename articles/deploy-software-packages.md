@@ -45,6 +45,8 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
+> Fleet regularly enhances its metadata extraction logic, which can change how packages are matched to software inventory. When this happens, you may see this error: "The selected package is for different software." To fix it, delete and re-add the package.
+
 ### Script-only packages
 
 Script-only packages (`.sh` and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` files are supported for Linux hosts, and`.ps1` files for Windows hosts.

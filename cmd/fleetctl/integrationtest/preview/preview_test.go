@@ -1,6 +1,7 @@
 package preview
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -28,12 +29,17 @@ func TestIntegrationsPreview(t *testing.T) {
 		require.Equal(t, "", fleetctl.RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
+	fleetTag := os.Getenv("FLEET_PREVIEW_TAG")
+	if fleetTag == "" {
+		fleetTag = "main"
+	}
+
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
 		_, err := fleetctl.RunAppNoChecks([]string{
 			"preview",
 			"--config", configPath,
 			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
-			"--tag", "main",
+			"--tag", fleetTag,
 			"--disable-open-browser",
 		})
 		return err

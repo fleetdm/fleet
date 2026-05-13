@@ -1,0 +1,1 @@
+- Fixed SSO invite acceptance flow by resolving the email from the invite token.

@@ -72,6 +72,8 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         abortController.abort();
       };
     }
+
+    return undefined;
   }, [setupSse, router, renderFlash, handleSSE]);
 
   const onConnectMdm = async () => {

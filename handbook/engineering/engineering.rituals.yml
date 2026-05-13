@@ -186,5 +186,15 @@
   description: "Review the release planning project board to ensure issues are progressing appropriately towards the next release." 
   moreInfoUrl: "https://github.com/orgs/fleetdm/projects/87"
   dri: "lukeheath"
+-
+  task: "Respond to website code scanning alerts"
+  startedOn: "2024-05-04" 
+  frequency: "Weekly" 
+  description: "Respond to code scanning alerts for the website/ folder in the \"Security and quality\" tab of the Fleet repo" 
+  moreInfoUrl: "https://fleetdm.com/handbook/engineering/website#respond-to-website-code-scanning-alerts"
+  dri: "eashaw"
+  autoIssue:  
+    labels: [ "#g-website" ] 
+    repo: "fleet"
 
 

@@ -1,0 +1,1 @@
+* Improved Windows MDM profile removal performance by scoping the desired-state subquery.
