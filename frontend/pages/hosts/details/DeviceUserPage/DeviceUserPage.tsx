@@ -825,6 +825,7 @@ const DeviceUserPage = ({
                     isLoading={isLoadingDupDetails}
                     deviceUser
                     togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    closePolicyDetailsModal={onCancelPolicyDetailsModal}
                     hostPlatform={host?.platform || ""}
                     conditionalAccessEnabled={
                       globalConfig?.features?.enable_conditional_access
