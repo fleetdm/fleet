@@ -4,8 +4,8 @@
       <div purpose="landing-page-hero">
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
-            <h4>Linux Device Management</h4>
-            <h1>Linux device management for modern IT teams</h1>
+            <h4>Linux MDM</h4>
+            <h1>Open source Linux MDM and device management</h1>
           </div>
           <div purpose="page-hero-text">
             <p>Support developers’ choice of Linux without losing visibility or control. <br>Manage Linux, macOS, and Windows in one place.</p>
@@ -16,6 +16,11 @@
           </div>
         </div>
       </div><%/* landing-page-hero */%>
+      <div purpose="landing-page-section">
+        <div purpose="intro-definition">
+          <p><strong>Linux MDM</strong>, sometimes called Linux device management, is software that manages Linux desktops, laptops, and servers at scale. It covers patching, configuration, software inventory, compliance reporting, and remote scripting across distributions. Fleet is the open source platform for managing Linux alongside macOS, Windows, iOS, iPadOS, Android, and ChromeOS in one console.</p>
+        </div>
+      </div>
       <div purpose="landing-page-section">
         <div purpose="section-heading">
           <h3>Linux devices create blind spots for IT</h3>
@@ -36,7 +41,7 @@
           </div>
           <div purpose="feature-item">
             <h5>Fragmented workflows</h5>
-            <p>Linus often sits outside your macOS and Windows management process.</p>
+            <p>Linux often sits outside your macOS and Windows management process.</p>
           </div>
         </div>
       </div>
@@ -110,11 +115,132 @@
         </div>
       </div>
 
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h2>Linux distributions Fleet manages</h2>
+          <p>Manage Debian-based and RPM-based distributions side by side. Monitor any Linux device running osquery.</p>
+        </div>
+        <div purpose="distro-groups">
+          <div purpose="distro-group">
+            <h5>Debian-based</h5>
+            <p purpose="distro-format">.deb packages</p>
+            <ul purpose="distro-list">
+              <li>Ubuntu</li>
+              <li>Debian</li>
+              <li>Linux Mint</li>
+              <li>Pop!_OS</li>
+              <li>Kali Linux</li>
+              <li>KDE Neon</li>
+            </ul>
+          </div>
+          <div purpose="distro-group">
+            <h5>RPM-based</h5>
+            <p purpose="distro-format">.rpm packages</p>
+            <ul purpose="distro-list">
+              <li>Red Hat Enterprise Linux</li>
+              <li>Fedora</li>
+              <li>CentOS</li>
+              <li>Amazon Linux</li>
+              <li>openSUSE Leap</li>
+              <li>openSUSE Tumbleweed</li>
+              <li>SUSE Linux Enterprise</li>
+            </ul>
+          </div>
+          <div purpose="distro-group">
+            <h5>Other distributions</h5>
+            <p purpose="distro-format">Reporting and scripting</p>
+            <ul purpose="distro-list">
+              <li>Arch Linux</li>
+              <li>Manjaro</li>
+              <li>NixOS</li>
+              <li>Gentoo</li>
+              <li>Void Linux</li>
+              <li>Flatcar</li>
+              <li>CoreOS</li>
+            </ul>
+          </div>
+        </div>
+      </div>
 
-
-
-
-
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h4>How Fleet compares</h4>
+          <h2>Fleet vs. other tools used to manage Linux</h2>
+          <p>How Fleet stacks up against tools that IT and platform teams commonly use to manage Linux devices.</p>
+        </div>
+        <div purpose="comparison-table-section">
+          <div purpose="table-legend">
+            <div>
+              <img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+              Full support
+            </div>
+            <div>
+              <span purpose="tilde">~</span>
+              Limited
+            </div>
+            <div>
+              <img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">
+              No support
+            </div>
+          </div>
+          <div purpose="comparison-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Capability</th>
+                  <th>Fleet</th>
+                  <th>Microsoft Intune</th>
+                  <th>Ansible / Puppet</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Built for endpoint device management</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Yes</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span>Linux is a secondary platform</div></td>
+                  <td><div purpose="table-cell"><img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Built for server configuration</div></td>
+                </tr>
+                <tr>
+                  <td>Broad Linux distribution support</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Debian, RPM, and beyond</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span>Limited to specific Ubuntu and RHEL versions</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Any distro reachable over SSH</div></td>
+                </tr>
+                <tr>
+                  <td>Real-time inventory powered by osquery</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Live data on every host</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span>Periodic check-ins</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span>Snapshot via gather_facts or facter</div></td>
+                </tr>
+                <tr>
+                  <td>Open source and self-hostable</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">MIT licensed, self-host or Fleet-host</div></td>
+                  <td><div purpose="table-cell"><img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Proprietary, cloud-only</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Open source or open core</div></td>
+                </tr>
+                <tr>
+                  <td>GitOps for endpoint configuration</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">First-class, declarative</div></td>
+                  <td><div purpose="table-cell"><img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No native support</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Code-native by design</div></td>
+                </tr>
+                <tr>
+                  <td>Built-in vulnerability detection</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">CVE mapping, CIS benchmarks</div></td>
+                  <td><div purpose="table-cell"><span purpose="tilde">~</span>Requires Defender for Endpoint add-on</div></td>
+                  <td><div purpose="table-cell"><img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">No built-in CVE detection</div></td>
+                </tr>
+                <tr>
+                  <td>One console for macOS, Windows, iOS, Android</td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">All seven platforms in one place</div></td>
+                  <td><div purpose="table-cell"><img alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">Yes, with limits on Linux</div></td>
+                  <td><div purpose="table-cell"><img alt="❌" purpose="red-x" src="/images/icon-emoji-x-12x12@2x.png">Server-focused, not endpoint UX</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
     </div>
   </div>
@@ -129,7 +255,7 @@
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
         <h4>Linux Device Management</h4>
-        <h1>Support Linux without adding complexity</h1>
+        <h2>Support Linux without adding complexity</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="btn btn-primary" href="/whitepapers/it-leaders-guide-to-linux-device-management">Read the whitepaper</a>
         </div>
