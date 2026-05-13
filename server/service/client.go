@@ -2036,9 +2036,6 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
-		// historical_data sub-keys use preserve-on-omit semantics (see
-		// applyHistoricalDataOverwriteDefaults); the client only validates
-		// shape so malformed YAML fails loudly.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
 			return nil, fmt.Errorf("org_settings.%w", err)
 		}
@@ -3596,27 +3593,13 @@ func (c *Client) GetGitOpsSecrets(
 	return nil
 }
 
-// ensureHistoricalDataDefaults currently only rejects malformed
-// `features.historical_data` YAML (e.g. `historical_data: true` or a
-// list) so a typo fails the gitops run loudly instead of being silently
-// ignored on the server.
-//
-// SHORT-TERM CARVE-OUT — RESTORE WHEN BITMAP COMPRESSION SHIPS:
-//
-// The injection lines below are commented out. Normally this function
-// would inject uptime=true and vulnerabilities=true when the gitops
-// payload omits them — Fleet's standard "omission = default" pattern,
-// mirroring the carve-out for enable_software_inventory. While the
-// CVE chart ships disabled by default (load concern), both sub-keys
-// instead use "omission = preserve stored value" semantics at the
-// global scope so an admin UI toggle isn't silently flipped by a
-// gitops apply that doesn't pin the keys. The global preserve logic
-// lives in applyHistoricalDataOverwriteDefaults; team-level defaults
-// are applied server-side in unmarshalWithGlobalDefaults +
-// teamFeaturesDB. When bitmap compression ships, uncomment the
-// injection lines below and remove the per-scope server-side
-// carve-outs so historical_data rejoins the standard pattern.
+// ensureHistoricalDataDefaults ensures that, if omitted, the
+// historical_data features keys are set to the correct defaults.
 func ensureHistoricalDataDefaults(features map[string]any) error {
+	// Temporary measure to simply preserve existing settings
+	// if historical_data is omitted.
+	// TODO - revert in favor of commented-out code below
+	//        once bitmap compression is implemented.
 	raw, present := features["historical_data"]
 	if !present || raw == nil {
 		return nil
