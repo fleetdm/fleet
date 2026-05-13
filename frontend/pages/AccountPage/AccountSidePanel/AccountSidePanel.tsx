@@ -14,12 +14,7 @@ import CustomLink from "components/CustomLink";
 import Radio from "components/forms/fields/Radio";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-import {
-  generateRole,
-  generateTeam,
-  greyCell,
-  readableDate,
-} from "utilities/helpers";
+import { generateRole, generateTeam, readableDate } from "utilities/helpers";
 import { getThemeMode, setThemeMode, ThemeMode } from "utilities/theme";
 
 interface IAccountSidePanelProps {
@@ -116,20 +111,7 @@ const AccountSidePanel = ({
           onChange={onThemeSelect}
         />
       </div>
-      {isPremiumTier && (
-        <DataSet
-          title="Fleets"
-          value={
-            <span
-              className={`${
-                greyCell(teamsText) ? `${baseClass}__grey-text` : ""
-              }`}
-            >
-              {teamsText}
-            </span>
-          }
-        />
-      )}
+      {isPremiumTier && <DataSet title="Fleets" value={teamsText} />}
       <DataSet title="Role" value={roleText} />
       {isPremiumTier && config && (
         <DataSet
