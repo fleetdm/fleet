@@ -1975,24 +1975,13 @@ type gitopsHistoricalDataView struct {
 	} `json:"features"`
 }
 
-// applyHistoricalDataOverwriteDefaults fills in absent
-// features.historical_data sub-keys before the Overwrite branch stomps
-// the live Features struct. Without it, an older fleetctl that omits
-// historical_data would persist the sub-keys as false (Go zero value),
-// silently disabling collection.
-//
-// SHORT-TERM CARVE-OUT — REVERT WHEN BITMAP COMPRESSION SHIPS:
-//
-// While the CVE chart ships disabled by default (load concern), both
-// sub-keys use "omission = preserve stored value" semantics rather
-// than the documented-defaults injection (commented out below). This
-// keeps an admin's UI toggle from being silently flipped by a gitops
-// apply that doesn't pin the keys. When bitmap compression ships,
-// revert to the commented-out body: use Features.ApplyDefaults() for
-// the omission fallback and drop oldCfg from the signature (also drop
-// the matching team-level overrides in unmarshalWithGlobalDefaults +
-// teamFeaturesDB).
+// applyHistoricalDataOverwriteDefaults ensures that if historical_data
+// is absent from a payload, we set the keys to the appropriate defaults.
 func applyHistoricalDataOverwriteDefaults(p []byte, oldCfg, newCfg *fleet.AppConfig) {
+	// Temporary measure to simply preserve existing settings
+	// if historical_data is omitted.
+	// TODO - revert in favor of commented-out code below
+	//        once bitmap compression is implemented.
 	var view gitopsHistoricalDataView
 	if err := json.Unmarshal(p, &view); err != nil {
 		return // main decode path will surface the typed error

@@ -1293,9 +1293,12 @@ func (f *Features) ApplyDefaultsForNewInstalls() {
 func (f *Features) ApplyDefaults() {
 	f.EnableHostUsers = true
 	f.HistoricalData.Uptime = true
+	// f.HistoricalData.Vulnerabilities = true
+
 	// HistoricalData.Vulnerabilities defaults to false (Go zero value).
 	// CVE collection is opt-in due to load on large fleets; admins enable
 	// it explicitly via AppConfig or GitOps.
+	// TODO -- revert once bitmap compression is implemented.
 }
 
 // Clone implements cloner for Features.
