@@ -43,11 +43,6 @@
     display: flex;
     align-items: center;
     border-bottom: 1px solid $ui-fleet-black-10;
-    transition: border-color 100ms;
-
-    &:focus-within {
-      border-bottom-color: $ui-fleet-black-75;
-    }
   }
 
   &__input-icon {
@@ -74,9 +69,28 @@
     }
   }
 
+  &__pinned {
+    padding: $pad-xsmall $pad-small;
+    border-bottom: 1px solid $ui-fleet-black-10;
+
+    .command-palette__item {
+      width: 100%;
+      padding: $pad-small 20px $pad-small 6px;
+      border: none;
+      background: none;
+
+      &:focus-visible {
+        outline: 1px solid $ui-fleet-black-75;
+        outline-offset: -1px;
+        border-radius: $border-radius;
+      }
+    }
+  }
+
   &__list {
     // ~8 items visible before scrolling
     max-height: 320px;
+    overflow-x: hidden;
     overflow-y: auto;
     padding: $pad-small;
     border-radius: $border-radius $border-radius 0 0;
@@ -116,7 +130,7 @@
   }
 
   &__item {
-    padding: 10px $pad-small;
+    padding: 10px $pad-medium;
     font-size: $x-small;
     color: $core-fleet-black;
     background-color: transparent;
@@ -196,7 +210,7 @@
     flex-shrink: 0;
     margin-left: auto;
     padding-left: $pad-medium;
-    font-size: $xx-small;
+    font-size: $x-small;
     color: $ui-fleet-black-50;
     font-style: italic;
   }
