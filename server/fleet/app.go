@@ -173,8 +173,8 @@ type MDMAppleABMAssignmentInfo struct {
 	IpadOSTeam       string `json:"ipados_team" renameto:"ipados_fleet"`
 }
 
-// MDMAppleVolumePurchasingProgramInfo represents an user definition of the association
-// between a VPP token (via location) and the team associations.
+// MDMAppleVolumePurchasingProgramInfo represents a user definition of the association
+// between a VPP token (via organization unit, formerly "location") and the team associations.
 type MDMAppleVolumePurchasingProgramInfo struct {
 	Location string   `json:"location"`
 	Teams    []string `json:"teams" renameto:"fleets"`
