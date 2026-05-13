@@ -365,12 +365,13 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	if err := json.Unmarshal(rawOpts, &opts); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal agent options for enroll debug stamp")
 	}
-	if opts.Orbit == nil || opts.Orbit.DebugLoggingOnEnrollDuration.Duration <= 0 {
+	if opts.Orbit == nil || opts.Orbit.DebugLoggingOnEnrollDuration <= 0 {
 		return nil
 	}
 
 	// Defense in depth: validator already caps on write.
-	duration := min(opts.Orbit.DebugLoggingOnEnrollDuration.Duration, fleet.MaxOrbitDebugLoggingOnEnrollDuration)
+	seconds := min(opts.Orbit.DebugLoggingOnEnrollDuration, fleet.MaxOrbitDebugLoggingOnEnrollDurationSeconds)
+	duration := time.Duration(seconds) * time.Second
 
 	until := time.Now().Add(duration).UTC().Truncate(time.Second)
 	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {

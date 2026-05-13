@@ -35,13 +35,16 @@ type AgentOptions struct {
 }
 
 type OrbitAgentOptions struct {
-	// When > 0, every host enrolling under this scope is stamped with
-	// orbit_debug_until = now() + duration. Capped at
-	// MaxOrbitDebugLoggingOnEnrollDuration.
-	DebugLoggingOnEnrollDuration Duration `json:"debug_logging_on_enroll_duration"`
+	// DebugLoggingOnEnrollDuration is the number of seconds (0 to
+	// MaxOrbitDebugLoggingOnEnrollDurationSeconds) that every host enrolling
+	// under this scope is stamped with orbit_debug_until = now() + duration.
+	DebugLoggingOnEnrollDuration int `json:"debug_logging_on_enroll_duration"`
 }
 
-const MaxOrbitDebugLoggingOnEnrollDuration = 24 * time.Hour
+const (
+	MaxOrbitDebugLoggingOnEnrollDurationSeconds = 24 * 60 * 60 // 86400 = 24h
+	MaxOrbitDebugLoggingOnEnrollDuration        = MaxOrbitDebugLoggingOnEnrollDurationSeconds * time.Second
+)
 
 type AgentOptionsOverrides struct {
 	// Platforms is a map from platform name to the config override.
@@ -129,12 +132,12 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 	}
 
 	if opts.Orbit != nil {
-		if d := opts.Orbit.DebugLoggingOnEnrollDuration.Duration; d != 0 {
-			if d < 0 {
+		if s := opts.Orbit.DebugLoggingOnEnrollDuration; s != 0 {
+			if s < 0 {
 				return errors.New("orbit.debug_logging_on_enroll_duration must not be negative")
 			}
-			if d > MaxOrbitDebugLoggingOnEnrollDuration {
-				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %s", MaxOrbitDebugLoggingOnEnrollDuration)
+			if s > MaxOrbitDebugLoggingOnEnrollDurationSeconds {
+				return fmt.Errorf("orbit.debug_logging_on_enroll_duration must not exceed %d seconds", MaxOrbitDebugLoggingOnEnrollDurationSeconds)
 			}
 		}
 	}

@@ -17031,17 +17031,22 @@ func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
 	// Reject above cap.
 	var acResp appConfigResponse
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "25h"} }
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 86401} }
 	}`), http.StatusBadRequest, &acResp)
 
 	// Reject negative.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "-1h"} }
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": -1} }
 	}`), http.StatusBadRequest, &acResp)
 
-	// 1h global window.
+	// Reject duration string (must be seconds, integer).
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "1h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// 1h global window (3600 seconds).
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 3600} }
 	}`), http.StatusOK, &acResp)
 
 	secret := uuid.New().String()
@@ -17071,7 +17076,7 @@ func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
 
 	// Clearing the option stops stamping.
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "0s"} }
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 0} }
 	}`), http.StatusOK, &acResp)
 
 	var enrollResp2 enrollOrbitResponse

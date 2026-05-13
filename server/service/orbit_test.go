@@ -1237,7 +1237,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 		host := &fleet.Host{ID: 1}
 		appCfg := &fleet.AppConfig{
-			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "0s"}}`),
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 0}}`),
 		}
 
 		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
@@ -1250,7 +1250,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
 		host := &fleet.Host{ID: 42}
 		appCfg := &fleet.AppConfig{
-			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`),
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
 		}
 
 		var gotID uint
@@ -1276,12 +1276,12 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		host := &fleet.Host{ID: 99, TeamID: &teamID}
 		appCfg := &fleet.AppConfig{
 			// Team membership: team options win, global is ignored.
-			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "24h"}}`),
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 86400}}`),
 		}
 
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			require.Equal(t, teamID, id)
-			return rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "30m"}}`), nil
+			return rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 1800}}`), nil
 		}
 		var gotUntil time.Time
 		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
@@ -1303,7 +1303,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		teamID := uint(7)
 		host := &fleet.Host{ID: 99, TeamID: &teamID}
 		appCfg := &fleet.AppConfig{
-			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`),
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
 		}
 		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
 			return nil, nil
@@ -1321,7 +1321,7 @@ func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
 		host := &fleet.Host{ID: 1}
 		// Bypass the validator by stuffing a too-large value directly.
 		appCfg := &fleet.AppConfig{
-			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": "100h"}}`),
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 360000}}`),
 		}
 		var gotUntil time.Time
 		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
@@ -1364,7 +1364,7 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			name:      "unexpired override -> debug on, flags merged",
 			host:      &fleet.Host{OrbitDebugUntil: &future},
 			inFlags:   nil,
-			wantDebug: ptr.Bool(true),
+			wantDebug: new(true),
 			wantFlags: map[string]any{
 				"verbose": true,
 			},
@@ -1373,7 +1373,7 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			name:      "unexpired override with admin flags -> merged",
 			host:      &fleet.Host{OrbitDebugUntil: &future},
 			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
-			wantDebug: ptr.Bool(true),
+			wantDebug: new(true),
 			wantFlags: map[string]any{
 				"distributed_interval": float64(10),
 				"verbose":              true,
@@ -1383,7 +1383,7 @@ func TestResolveOrbitDebugLogging(t *testing.T) {
 			name:      "admin verbose:false wins over debug-on",
 			host:      &fleet.Host{OrbitDebugUntil: &future},
 			inFlags:   json.RawMessage(`{"verbose":false}`),
-			wantDebug: ptr.Bool(true),
+			wantDebug: new(true),
 			wantFlags: map[string]any{
 				"verbose": false,
 			},

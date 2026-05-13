@@ -199,12 +199,12 @@ func TestValidateAgentOptions(t *testing.T) {
 			}
 		}`, true, ``},
 
-		{"orbit debug_logging_on_enroll_duration valid", `{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`, true, ``},
-		{"orbit debug_logging_on_enroll_duration zero string", `{"orbit": {"debug_logging_on_enroll_duration": "0s"}}`, true, ``},
-		{"orbit debug_logging_on_enroll_duration max", `{"orbit": {"debug_logging_on_enroll_duration": "24h"}}`, true, ``},
-		{"orbit debug_logging_on_enroll_duration over max", `{"orbit": {"debug_logging_on_enroll_duration": "25h"}}`, true, `must not exceed 24h0m0s`},
-		{"orbit debug_logging_on_enroll_duration negative", `{"orbit": {"debug_logging_on_enroll_duration": "-1h"}}`, true, `must not be negative`},
-		{"orbit debug_logging_on_enroll_duration garbage", `{"orbit": {"debug_logging_on_enroll_duration": "not-a-duration"}}`, true, `time: invalid duration`},
+		{"orbit debug_logging_on_enroll_duration valid", `{"orbit": {"debug_logging_on_enroll_duration": 3600}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration zero", `{"orbit": {"debug_logging_on_enroll_duration": 0}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration max", `{"orbit": {"debug_logging_on_enroll_duration": 86400}}`, true, ``},
+		{"orbit debug_logging_on_enroll_duration over max", `{"orbit": {"debug_logging_on_enroll_duration": 86401}}`, true, `must not exceed 86400 seconds`},
+		{"orbit debug_logging_on_enroll_duration negative", `{"orbit": {"debug_logging_on_enroll_duration": -1}}`, true, `must not be negative`},
+		{"orbit debug_logging_on_enroll_duration string rejected", `{"orbit": {"debug_logging_on_enroll_duration": "1h"}}`, true, `cannot unmarshal string`},
 		{"orbit unknown subkey rejected", `{"orbit": {"foo": true}}`, true, `unknown field "foo"`},
 	}
 
