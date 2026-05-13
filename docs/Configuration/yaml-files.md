@@ -390,12 +390,6 @@ controls:
     # OR — Latest
     minimum_version: "latest"
     deadline_days: 14
-    # OR — Latest within major
-    minimum_version: "latest_major"
-    deadline_days: 14
-    # OR — Latest within minor
-    minimum_version: "latest_minor"
-    deadline_days: 14
     update_new_hosts: true
   ios_updates: # Available in Fleet Premium
     # Custom version
@@ -404,24 +398,12 @@ controls:
     # OR — Latest
     minimum_version: "latest"
     deadline_days: 14
-    # OR — Latest within major
-    minimum_version: "latest_major"
-    deadline_days: 14
-    # OR — Latest within minor
-    minimum_version: "latest_minor"
-    deadline_days: 14
   ipados_updates: # Available in Fleet Premium
     # Custom version
     minimum_version: "18.1"
     deadline: "2024-12-31"
     # OR — Latest
     minimum_version: "latest"
-    deadline_days: 14
-    # OR — Latest within major
-    minimum_version: "latest_major"
-    deadline_days: 14
-    # OR — Latest within minor
-    minimum_version: "latest_minor"
     deadline_days: 14
   windows_updates: # Available in Fleet Premium
     deadline_days: 5
