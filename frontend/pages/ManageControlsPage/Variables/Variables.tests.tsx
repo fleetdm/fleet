@@ -43,8 +43,10 @@ describe("Custom variables", () => {
       return HttpResponse.json({
         custom_variables: [],
         count: 0,
-        has_prev_results: false,
-        has_next_results: false,
+        meta: {
+          has_previous_results: false,
+          has_next_results: false,
+        },
       });
     });
 
@@ -117,8 +119,10 @@ describe("Custom variables", () => {
       return HttpResponse.json({
         custom_variables: secretsResponse.secrets,
         count: mockSecrets.length,
-        has_prev_results: false,
-        has_next_results: false,
+        meta: {
+          has_previous_results: false,
+          has_next_results: false,
+        },
       });
     });
     const addSecretHandler = http.post(
