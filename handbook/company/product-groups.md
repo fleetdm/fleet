@@ -846,7 +846,9 @@ We have certain design conventions that we include in Fleet. We will document mo
 
 ### Design system
 
-The 🧩 ["Design System"](https://www.figma.com/files/project/15701210) component library in Figma is the source of truth for components. Components in the product (documented in Storybook) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
+[Fleet's design system](https://www.figma.com/files/project/15701210) in Figma is the source of truth for UI design. Components in the product (documented in Storybook) should match the styles defined in Figma. If the frontend component is inconsistent with Figma, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). When new UI patterns are created, or existing components are updated, make sure updates are applied to both Figma and Storybook.
+
+To make changes to the design system (e.g. button border-radius, modal width, or a new UI component), [make a new request](https://fleetdm.com/handbook/company/product-groups#making-a-request). Changes to the design system are up to the [Head of Design](#team). Once approved, it's up to the Head of Design to post in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5) and @ mention all [Product Designers](#team) so they're aware.
 
 ### Table empty states
 
