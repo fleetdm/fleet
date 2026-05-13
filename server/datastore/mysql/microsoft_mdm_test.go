@@ -1658,6 +1658,14 @@ func testMDMWindowsBulkInsertCommands(t *testing.T, ds *Datastore) {
 		require.Len(t, hostProfiles, 1)
 		require.Equal(t, profUUID, hostProfiles[0].ProfileUUID)
 		require.Equal(t, cmdUUID, hostProfiles[0].CommandUUID)
+
+		// Verify the command was enqueued in the command queue
+		var queueCount int
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &queueCount,
+				`SELECT COUNT(*) FROM windows_mdm_command_queue WHERE command_uuid = ?`, cmdUUID)
+		})
+		require.Equal(t, 1, queueCount)
 	})
 }
 
