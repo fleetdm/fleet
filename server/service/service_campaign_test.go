@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -31,7 +32,11 @@ import (
 func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 	t.Skip("Seems to be a bit problematic in CI")
 
-	store := pubsub.SetupRedisForTest(t, false, false)
+	store := pubsub.NewRedisQueryResults(
+		redistest.SetupRedis(t, "zz", false, false, false),
+		false,
+		slog.New(slog.DiscardHandler),
+	)
 
 	mockClock := clock.NewMockClock()
 	ds := new(mock.Store)
