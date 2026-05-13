@@ -115,7 +115,7 @@ Items to cover in the section:
 
 ### Continuous flow
 
-Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. With AI-augmented engineering, well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, issues flow continuously across the working group's board from intake to release.
+Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, working groups use a continuous flow process. Well-drafted stories can often be implemented in a day or two, so batching work into 3-week sprints creates unnecessary latency. Instead, issues flow continuously across the working group's board from intake to release.
 
 #### What is the same
 
@@ -129,8 +129,8 @@ Working groups use the same [product group roles](#product-group-roles), with th
 |:---------------------|:----------------------------------|
 | Engineering Manager  | Runs the board and all rituals (standup, weekly planning, release demo, release retro). |
 | Product Designer     | Places new user stories on the board and is responsible for moving them to **Ready**. |
-| Tech Lead            | Owns architecture decisions. |
-| Software Engineer    | Implements issues assigned to them and moves them through the implementation columns. |
+| Tech Lead            | Provides technical guidance and helps shape architectural decisions. |
+| Software Engineer    | Picks up issues, ships them through review and QA, and pulls in the next available work. |
 | Quality Assurance    | Validates changes in **Awaiting QA**. |
 
 #### Item types
@@ -144,7 +144,7 @@ Each working group runs its own GitHub project board with the following columns,
 | Column | What it means |
 |:---|:---|
 | 📨 Inbox | Any issue labeled with the working group's `#g-*` label lands here. |
-| 🦢 Full draft | The HPD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the working group board until drafting is complete. |
+| 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the working group board until drafting is complete. |
 | 🪿 Fast draft | The PD and team are drafting in-place on the issue itself. |
 | 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
 | 🐣 In progress | An engineer is actively implementing the change. |
@@ -157,38 +157,38 @@ There are no formal WIP limits today, but the group should watch for buildup in 
 
 #### Drafting tracks: full draft vs. fast draft
 
-The HPD picks the lane. Default to **fast draft** and escalate to **full draft** only when there is genuine design ambiguity or customer-facing risk. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft** and escalate to **full draft** only when there is genuine design ambiguity or customer-facing risk. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
 
-**Full draft** is for significant new features, architectural changes, and customer deliverables. The HPD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist). When drafting is complete, the HPD removes the `:product` label, takes the issue off the drafting board, and brings it to the next planning meeting where it moves to **Ready**.
+**Full draft** is for significant new features, architectural changes, and customer deliverables. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next planning meeting where it moves to **Ready**.
 
 **Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. Fast draft items still receive review from the HPD and CTO before they ship, but review happens at the weekly planning session, after implementation.
 
 #### Estimation
 
-Continuous flow does not use story points or track velocity. At the weekly planning meeting, customer promises and activation blockers are [t-shirt sized](#t-shirt-sizing-capacity-planning) so the working group can plan releases weeks in advance.
+Continuous flow does not use story points or track velocity. Customer promises and activation blockers are [t-shirt sized](#t-shirt-sizing-capacity-planning) async so the working group can plan releases weeks in advance.
 
 #### How issues move
 
-- **Inbox → drafting**:
-  - Bugs are triaged at the daily standup.
+- **Inbox → Ready or drafting**:
+  - Bugs and any priority issues (P2 or greater) are triaged at the daily standup.
   - Stories are triaged at the weekly planning meeting.
-  - In both cases, the HPD picks a drafting lane (see above).
+  - If the issue can be sufficiently discussed during standup or weekly planning, it goes straight to **Ready**. Otherwise, the PD picks a drafting lane (see above).
 - **Ready → In progress → Ready for review → Awaiting QA → Ready for release**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 
 #### Working the board
 
-- **Multiple issues in flight is OK.** With AI-augmented engineering, contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
+- **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
 - **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
 - **Hit a blocker or have a question?** Move the issue back to **Fast draft** and raise it at the next standup, rather than blocking on async followup.
 
 #### Daily standup (30 minutes)
 
-By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup only for bugs.
+By-person updates first, then parking lot, then walk the board as time allows. The Inbox is reviewed during standup for bugs and any priority issues (P2 or greater).
 
 #### Weekly planning (1 hour, Monday)
 
-The working group and HPD walk the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged into a drafting lane during this meeting.
+The working group walks the board **right-to-left**, starting at "Ready for release" and moving back toward "Inbox". Stories in the Inbox are triaged during this meeting and either moved straight to **Ready** or assigned a drafting lane.
 
 #### Release demo (every 3 weeks)
 
@@ -249,7 +249,7 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 
 ### Apple @ Work group
 
-The goal of the Apple @ Work working group is to increase and exceed [Fleet's product maturity goals](https://fleetdm.com/device-management) for managing Apple devices at work.
+The goal of the Apple @ Work working group is to increase the number of Apple devices managed by Fleet.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -260,19 +260,19 @@ The goal of the Apple @ Work working group is to increase and exceed [Fleet's pr
 | Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) _([@MagnusHJensen](https://github.com/magnushjensen))_
 
 **Areas of expertise**:
-- MDM protocol & configuration
-- Configuration profiles
-- New device onboarding
-- Scripts
-- Setup experience
-- OS configuration & updates
+- Apple MDM protocol & configuration
+- Apple configuration profiles
+- Apple device onboarding (ADE/DEP)
+- Apple setup experience
+- macOS, iOS, and iPadOS configuration & updates
+- Scripts on Apple devices
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this working group is `#g-mdm`.
 
 
-### Auto Patches group
+### Auto Patching group
 
-The goal of the Auto Patches working group is to increase and exceed [Fleet's product maturity goals in the software management category](https://fleetdm.com/software-management).
+The goal of the Auto Patching working group is to reduce the amount of time before software is patched after vulnerabilities are discovered.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
@@ -295,7 +295,7 @@ The goal of the Auto Patches working group is to increase and exceed [Fleet's pr
 
 ### BYOD group
 
-The goal of the BYOD working group is to enable Fleet to manage personally-owned Android and iOS devices used at work.
+The goal of the BYOD working group is to enable Fleet to manage personally-owned Android devices used at work. This group also owns corporate-owned Android device management so that one team can ensure corporate-owned features are not applied to personal devices.
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
