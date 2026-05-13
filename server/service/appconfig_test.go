@@ -2152,7 +2152,10 @@ func TestModifyAppConfigGitOpsExceptionActivities(t *testing.T) {
 // where an older fleetctl (<=4.84) running gitops would wipe a deployment's
 // previously-persisted historical_data sub-keys to false because the field
 // was absent from its payload and the Overwrite branch couldn't tell
-// "absent" from "false". Per policy, absent must always mean true.
+// "absent" from "false". Per the current (short-term) policy, absent
+// sub-keys preserve the prior stored value rather than reverting to a
+// default — see applyHistoricalDataOverwriteDefaults for the rationale
+// and the revert plan when bitmap compression ships.
 func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 	admin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 
@@ -2171,11 +2174,22 @@ func TestModifyAppConfigGitOpsHistoricalDataDefaults(t *testing.T) {
 			expected:  fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
 		},
 		{
+			// Preserve-on-omit: prior false values are kept across the
+			// Overwrite stomp rather than being replaced by defaults.
 			name:      "overwrite: payload omits historical_data, prior values were false",
 			initial:   fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: false},
 			payload:   `{"features":{"enable_software_inventory":true}}`,
 			overwrite: true,
-			expected:  fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+			expected:  fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: false},
+		},
+		{
+			// Preserve-on-omit also handles the asymmetric case where
+			// the admin had different stored values for the two keys.
+			name:      "overwrite: payload omits historical_data, asymmetric prior values preserved",
+			initial:   fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
+			payload:   `{"features":{"enable_software_inventory":true}}`,
+			overwrite: true,
+			expected:  fleet.HistoricalDataSettings{Uptime: false, Vulnerabilities: true},
 		},
 		{
 			name:      "overwrite: payload sets historical_data to empty map",

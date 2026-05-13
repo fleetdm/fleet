@@ -1071,7 +1071,11 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	loadedCfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 	require.True(t, loadedCfg.Features.HistoricalData.Uptime, "pre-change row reads back as default true")
-	require.True(t, loadedCfg.Features.HistoricalData.Vulnerabilities, "pre-change row reads back as default true")
+	// Vulnerabilities reads back false: the global Features.ApplyDefaults
+	// currently sets vulnerabilities=false (CVE collection ships disabled
+	// by default — load concern). Once bitmap compression ships and the
+	// default flips back to true, this assertion goes back to require.True.
+	require.False(t, loadedCfg.Features.HistoricalData.Vulnerabilities, "pre-change row reads back as default false")
 }
 
 func (s *integrationTestSuite) TestUserRolesSpec() {
