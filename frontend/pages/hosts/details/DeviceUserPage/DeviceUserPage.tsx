@@ -476,9 +476,9 @@ const DeviceUserPage = ({
   }, [showOSSettingsModal, setShowOSSettingsModal]);
 
   const onCancelPolicyDetailsModal = useCallback(() => {
-    setShowPolicyDetailsModal(!showPolicyDetailsModal);
+    setShowPolicyDetailsModal(false);
     setSelectedPolicy(null);
-  }, [showPolicyDetailsModal, setShowPolicyDetailsModal, setSelectedPolicy]);
+  }, [setShowPolicyDetailsModal, setSelectedPolicy]);
 
   // User-initiated refetch always starts a new timer!
   const onRefetchHost = useCallback(async () => {
