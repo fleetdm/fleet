@@ -109,8 +109,9 @@ docker exec ejbca /opt/keyfactor/bin/ejbca.sh config scep updatealias fleetqa --
 
 ## Wire EJBCA into Fleet as a custom SCEP CA
 
-Fleet's `validateSCEPURL` does a real `GetCACert` probe and will reject EJBCA's self-signed
-HTTPS cert. Use the HTTP port (`8480` from the docker mapping) instead:
+When you register a SCEP CA, Fleet validates the URL by issuing a real `GetCACert` probe and
+will reject EJBCA's self-signed HTTPS cert. Use the HTTP port (`8480` from the docker mapping)
+instead:
 
 ```bash
 FLEET_TOKEN="$(awk '/^  qa:/,/^  [a-z]/' ~/.fleet/config | awk '/token:/ {print $2}')"
@@ -161,7 +162,7 @@ docker exec ejbca /opt/keyfactor/bin/ejbca.sh ra setendentitystatus --username t
 
 ## Create the Fleet certificate template
 
-Using the EJBCA CA's id returned from the create-CA call above:
+Using the Fleet CA record `id` returned by the create-CA call above:
 
 ```bash
 curl -sk -X POST -H "Authorization: Bearer $FLEET_TOKEN" -H "Content-Type: application/json" \
@@ -231,7 +232,7 @@ curl -sk -X DELETE -H "Authorization: Bearer $FLEET_TOKEN" \
 - **EJBCA-CE has no SCEP RA mode.** Each test cert template requires a pre-created end
   entity. If you're iterating on many templates, scripts that read template DNs and create
   matching end entities save time.
-- **EJBCA's self-signed TLS cert is for `ejbca.local`.** Fleet's `validateSCEPURL` and most
+- **EJBCA's self-signed TLS cert is for `ejbca.local`.** Fleet's SCEP URL validation and most
   HTTPS clients will reject it on `localhost`. Use the HTTP port for the Fleet→EJBCA leg.
 - **End-entity status doesn't reset automatically.** After an enrollment the status moves to
   `GENERATED`; subsequent SCEP requests for the same DN/username will fail until you reset
