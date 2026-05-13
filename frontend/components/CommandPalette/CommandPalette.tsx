@@ -31,7 +31,9 @@ const CommandPalette = (): JSX.Element | null => {
   const [page, setPage] = useState<Page>("root");
   const [search, setSearch] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [fleetDropdownOpen, setFleetDropdownOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fleetSwitcherRef = useRef<HTMLDivElement>(null);
 
   const {
     availableTeams,
@@ -103,6 +105,7 @@ const CommandPalette = (): JSX.Element | null => {
       setPage("root");
       setSearch("");
       setExpandedItems(new Set());
+      setFleetDropdownOpen(false);
     }
   }, [open]);
 
@@ -153,18 +156,20 @@ const CommandPalette = (): JSX.Element | null => {
         setCurrentTeam(selected);
       }
 
-      goBack();
+      setFleetDropdownOpen(false);
 
-      // Update the current URL's fleet_id param to reflect the switch
-      const { pathname, search: currentSearch } = window.location;
-      const params = new URLSearchParams(currentSearch);
-      if (fleetId === APP_CONTEXT_ALL_TEAMS_ID) {
-        params.delete("fleet_id");
+      if (fleetId === APP_CONTEXT_ALL_TEAMS_ID || fleetId === 0) {
+        // Some pages are team-scoped and don't support "All fleets"
+        // or "Unassigned", so redirect to the hosts page.
+        browserHistory.push(paths.MANAGE_HOSTS);
       } else {
+        // Update the current URL's fleet_id param to reflect the switch
+        const { pathname, search: currentSearch } = window.location;
+        const params = new URLSearchParams(currentSearch);
         params.set("fleet_id", String(fleetId));
+        const qs = params.toString();
+        browserHistory.push(qs ? `${pathname}?${qs}` : pathname);
       }
-      const qs = params.toString();
-      browserHistory.push(qs ? `${pathname}?${qs}` : pathname);
     },
     [availableTeams, setCurrentTeam]
   );
@@ -402,20 +407,6 @@ const CommandPalette = (): JSX.Element | null => {
     </>
   );
 
-  const renderSwitchFleetPage = () =>
-    availableTeams
-      ?.filter((fleet) => fleet.id !== currentTeam?.id)
-      .map((fleet) => (
-        <Command.Item
-          key={`fleet-${fleet.id}`}
-          value={fleet.name}
-          onSelect={() => handleSwitchFleet(fleet.id)}
-          className={`${baseClass}__item`}
-        >
-          <span className={`${baseClass}__item-label`}>{fleet.name}</span>
-        </Command.Item>
-      ));
-
   return (
     <Command.Dialog
       open={open}
@@ -446,45 +437,43 @@ const CommandPalette = (): JSX.Element | null => {
         <Command.Input
           ref={inputRef}
           className={`${baseClass}__input`}
-          placeholder={
-            page === "switch-fleet"
-              ? "Search fleets"
-              : "Search pages or actions"
-          }
+          placeholder="Search pages or actions"
           value={search}
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
         />
       </div>
       {isPremiumTier && availableTeams && availableTeams.length > 1 && (
-        <div className={`${baseClass}__pinned`}>
-          {page === "root" ? (
-            <button
-              type="button"
-              className={`${baseClass}__item`}
-              onClick={() => goToPage("switch-fleet")}
-            >
-              <span className={`${baseClass}__item-label`}>
-                <Icon name="chevron-down" color="ui-fleet-black-75" />
-                {currentTeam?.name || "All fleets"}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={`${baseClass}__item`}
-              onClick={goBack}
-            >
-              <span className={`${baseClass}__item-label`}>
-                <Icon name="chevron-left" color="ui-fleet-black-75" />
-                Back
-              </span>
-              {currentTeam?.name && (
-                <span className={`${baseClass}__item-team`}>
-                  {currentTeam.name}
-                </span>
-              )}
-            </button>
+        <div ref={fleetSwitcherRef} className={`${baseClass}__fleet-switcher-wrapper`}>
+          <button
+            type="button"
+            className={`${baseClass}__fleet-switcher`}
+            onClick={() => setFleetDropdownOpen((prev) => !prev)}
+          >
+            {currentTeam?.name || "All fleets"}
+            <Icon
+              name="chevron-down"
+              color="ui-fleet-black-75"
+              className={`${baseClass}__fleet-switcher-caret${
+                fleetDropdownOpen ? " rotated" : ""
+              }`}
+            />
+          </button>
+          {fleetDropdownOpen && (
+            <div className={`${baseClass}__fleet-dropdown`}>
+              {availableTeams
+                .filter((fleet) => fleet.id !== currentTeam?.id)
+                .map((fleet) => (
+                  <button
+                    key={`fleet-${fleet.id}`}
+                    type="button"
+                    className={`${baseClass}__fleet-dropdown-item`}
+                    onClick={() => handleSwitchFleet(fleet.id)}
+                  >
+                    {fleet.name}
+                  </button>
+                ))}
+            </div>
           )}
         </div>
       )}
@@ -493,7 +482,6 @@ const CommandPalette = (): JSX.Element | null => {
           No results found.
         </Command.Empty>
         {page === "root" && renderRootPage()}
-        {page === "switch-fleet" && renderSwitchFleetPage()}
       </Command.List>
     </Command.Dialog>
   );
