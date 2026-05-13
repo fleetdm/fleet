@@ -826,8 +826,8 @@ To get the best results for your logos (`org_logo_url` and `org_logo_url_light_b
 org_settings:
   org_info:
     org_name: Fleet
-    org_logo_url: https://example.com/logo.png
-    org_logo_url_light_background: https://example.com/logo-light.png
+    org_logo_url_dark_mode: https://example.com/logo.png
+    org_logo_url_light_mode: https://example.com/logo-light.png
     contact_url: https://fleetdm.com/company/contact
 ```
 
