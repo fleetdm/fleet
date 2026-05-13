@@ -38,25 +38,25 @@
 ### Bug fixes and improvements
 
 - Updated Go to 1.26.3.
-- Upgraded to TypeScript 6.0 for the app frontend.
 - Reduced MySQL writer load by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
 - Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
 - Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
-- Removed the unused `windows_updates` MySQL table and ingestion code.
 - Updated copy, show, and other action buttons app-wide for a more consistent style.
 - Improved button and link styling.
 - Improved the OS settings modal layout.
 - Improved host policy empty state.
-- Moved some core UI form components to TypeScript for better predictability and reliability.
 - Updated the enrollment page enroll button to render at full screen width for larger-resolution mobile devices.
 - Updated the error message returned when an invalid domain is supplied for MDM Apple CSR signing.
-- Improved documentation for MySQL read replica configuration, clarifying that all settings (including region for IAM authentication) must be explicitly set for the read replica.
-- Stopped turning on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
+- Updated EULA PDF upload size check to use the default max request body size.
 - Added activity when a Windows MDM wipe command fails.
+- Improved documentation for MySQL read replica configuration, clarifying that all settings (including region for IAM authentication) must be explicitly set for the read replica.
+- Upgraded to TypeScript 6.0 for the app frontend.
+- Moved some core UI form components to TypeScript for better predictability and reliability.
+- Removed the unused `windows_updates` MySQL table and ingestion code.
+- Implemented the chart bounded context and schema to support charting capabilities in Fleet.
 - Added `gitOpsModeEnabled` and `gitOpsModeExceptions` to the anonymous statistics payload.
 - Added startup validation that panics if any route declared in `service/api_endpoints.yml` is not registered in the router.
-- Updated EULA PDF upload size check to use the default max request body size.
-- Implemented the chart bounded context and schema to support charting capabilities in Fleet.
+- Stopped turning on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
 - Fixed a Windows BitLocker encrypt/decrypt loop on machines with secondary drives using auto-unlock. Fleet now detects disk encryption using `conversion_status` (not just `protection_status`), preventing the server from repeatedly requesting encryption when the disk is already encrypted. Added `bitlocker_protection_status` tracking so the UI shows "Action required" when BitLocker protection is off instead of misleadingly showing "Verified."
 - Fixed a race condition where a host could silently revert to its previous team after an admin team transfer.
 - Fixed an issue where trying to wipe a device after its certificate was renewed could fail due to a missing bootstrap token. _Note: The device might still have wiped._
@@ -74,13 +74,13 @@
 - Fixed an issue where Fleet would not remove the host OS setting entry if a `RemoveProfile` command failed with error code 89 (profile not found on device).
 - Fixed an issue where adding a custom icon for a script-only package was not allowed in GitOps.
 - Fixed an issue where duplicate Disk Encryption activity types showed up.
-- Fixed a nil pointer dereference in the contributor API spec/policies.
 - Fixed the host details activity feed showing the previously opened host's activities by including the host ID in the activity query cache keys.
 - Fixed navigation to the settings page for multi-team admin users.
 - Fixed software table page number to be bookmarkable.
 - Fixed an infinite page loop pagination bug on the software table page that occurred when viewing a subsequent page and then using the software filter dropdown.
 - Fixed styling bugs in GitOps mode UI.
 - Fixed padding between GitOps exceptions checkboxes.
+- Fixed a nil pointer dereference in the contributor API spec/policies.
 
 ## Fleet 4.84.3 (May 06, 2026)
 
