@@ -11668,7 +11668,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ```json
 {
-  "software_title_id": 123
+  "software_title_id": 123,
+  "name": "Xcode"
 }
 ```
 
@@ -11678,7 +11679,8 @@ Only one of `labels_include_all`, `labels_include_any` or `labels_exclude_any` c
 
 ```json
 {
-  "software_title_id": 456
+  "software_title_id": 456,
+  "name": "Slack"
 }
 ```
 
