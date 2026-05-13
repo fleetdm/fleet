@@ -35,7 +35,10 @@ import kotlinx.coroutines.withContext
 class ScepClientImpl : ScepClient {
 
     companion object {
-        private const val SCEP_PROFILE = "NDESCA" // Network Device Enrollment Service CA
+        // SCEP `message=` value (CA identifier) sent on GetCACaps and GetCACert. Per RFC 8894
+        // this is OPTIONAL and only meaningful when the endpoint represents multiple CAs.
+        // Sending null causes jScep to omit the parameter; the server returns its default CA.
+        private val SCEP_PROFILE: String? = null
         private const val SELF_SIGNED_CERT_VALIDITY_DAYS = 100L
 
         init {
