@@ -132,13 +132,6 @@ const generateTableHeaders = (
             </TooltipWrapper>
           );
         }
-        // "Various" indicates a user has different roles across fleets and is
-        // hoverable for more info — italics are the cue. Per design, only
-        // "Not supported" copy is greyed out; tooltip-bearing labels keep the
-        // default text color (so they stay readable in dark mode).
-        if (cellProps.cell.value === "Various") {
-          return <TextCell value={cellProps.cell.value} italic />;
-        }
         return (
           <TextCell
             value={cellProps.cell.value}
