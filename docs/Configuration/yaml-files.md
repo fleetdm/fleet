@@ -764,15 +764,17 @@ org_settings:
 ### org_info
 
 - `org_name` is the name of your organization (default: `""`)
-- `org_logo_url` is a public URL of the logo for your organization (default: Fleet logo).
-- `org_logo_url_light_background` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo).
+- `org_logo_path_dark_mode` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path_dark_mode` or `org_logo_url_dark_mode` may be specified. 
+- `org_logo_path_light_mode` is a path to an image file for your organization's logo (default: Fleet logo). Only one of `org_logo_path_light_mode` or `org_logo_url_light_mode` may be specified.
+- `org_logo_url_dark_mode` is a public URL of the logo for your organization (default: Fleet logo). Only one of `org_logo_path_dark_mode` or `org_logo_url_dark_mode` may be specified.
+- `org_logo_url_light_mode` is a public URL of the logo for your organization that can be used with light backgrounds (default: Fleet logo). Only one of `org_logo_path_light_mode` or `org_logo_url_light_mode` may be specified.
 - `contact_url` is a URL or [file URI](https://en.wikipedia.org/wiki/File_URI_scheme) that appears in error messages presented to end users (default: `"https://fleetdm.com/company/contact"`)
 
 Can only be configured for "All fleets" (`org_settings`).
 
-To get the best results for your logos (`org_logo_url` and `org_logo_url_light_background`), use the following sizes:
-- For square logos, use a PNG that's 256x256 pixels (px).
-- For rectangular logos (wordmark), use a PNG that's 516x256 pixels (px).
+To get the best results for your logos (`org_logo_url_dark_mode`/`org_logo_path_dark_mode` and `org_logo_url_light_mode`/`org_logo_path_light_mode`), use the following sizes:
+- For square logos, use a PNG, JPEG/JPG, WebP or SVGs that's 256x256 pixels (px).
+- For rectangular logos (wordmark), use a PNG, JPEG/JPG, WebP or SVGs that's 516x256 pixels (px).
 
 #### Example
 
@@ -780,8 +782,8 @@ To get the best results for your logos (`org_logo_url` and `org_logo_url_light_b
 org_settings:
   org_info:
     org_name: Fleet
-    org_logo_url: https://example.com/logo.png
-    org_logo_url_light_background: https://example.com/logo-light.png
+    org_logo_url_dark_mode: https://example.com/logo.png
+    org_logo_url_light_mode: https://example.com/logo-light.png
     contact_url: https://fleetdm.com/company/contact
 ```
 
