@@ -590,8 +590,8 @@ module.exports.routes = {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
       pageTitleForMeta: 'Autonomous endpoint management',
+      hideHeaderLinks: true,
       pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
-      currentSection: 'platform',
     }
   },
 
