@@ -11415,28 +11415,30 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 
-	// enroll with osquery using uuid identifier, team
+	// enroll with osquery using uuid identifier, team enroll secret
 	_, err = ds.EnrollOsquery(ctx,
 		fleet.WithEnrollOsqueryMDMEnabled(true),
 		fleet.WithEnrollOsqueryHostID("uuid"),
 		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
 		fleet.WithEnrollOsqueryHardwareSerial("different-serial"),
 		fleet.WithEnrollOsqueryNodeKey("osquery"),
-		fleet.WithEnrollOsqueryTeamID(&tm.ID),
+		fleet.WithEnrollOsqueryTeamID(&tm.ID), // use team enroll secret
 	)
 	require.NoError(t, err)
 	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")
 	require.NoError(t, err)
+
+	// New osquery node key is set.
+	require.NotNil(t, got.NodeKey)
+	require.Equal(t, "osquery", *got.NodeKey)
+
+	// Verify that the orbit enroll didn't override these values set by the previous orbit enroll.
 	require.Equal(t, h.ID, got.ID)
-	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
 	require.Equal(t, "uuid", got.UUID)
 	require.NotNil(t, got.OsqueryHostID)
 	require.Equal(t, "uuid", *got.OsqueryHostID)
-	require.NotNil(t, got.NodeKey)
-	require.Equal(t, "osquery", *got.NodeKey)
-	require.NotNil(t, got.TeamID)
-	require.Equal(t, tm.ID, *got.TeamID)
-	// Verify that the orbit enroll didn't override these values set by a previous osquery enroll.
+	require.Equal(t, "serial", got.HardwareSerial) // unchanged as it was already filled
+	require.Nil(t, got.TeamID)                     // team is sticky
 	require.Equal(t, "foobar", got.Hostname)
 	require.Equal(t, "darwin", got.Platform)
 }
