@@ -224,7 +224,6 @@
   .Select-menu {
     max-height: 182px; // Scrollable within .Select-menu-outer
     overflow-y: auto;
-    overflow-x: hidden; // Prevent first-paint focused-option highlight bleed (#45336)
   }
 
   .Select-noresults {
