@@ -247,6 +247,7 @@ import Windsurf from "./Windsurf";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import XCreds from "./XCreds";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
@@ -517,6 +518,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  xcreds: XCreds,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
