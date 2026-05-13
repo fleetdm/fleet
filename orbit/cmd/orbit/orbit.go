@@ -1251,10 +1251,15 @@ func orbitAction(c *cli.Context) error {
 		orbitClient.RegisterConfigReceiver(luks.New(orbitClient))
 	}
 
+	// Floor for server-driven debug toggling: --debug at startup pins debug on.
+	startedInDebug := c.Bool("debug")
+
 	flagUpdateReceiver := update.NewFlagReceiver(orbitClient.TriggerOrbitRestart, update.FlagUpdateOptions{
-		RootDir: c.String("root-dir"),
+		RootDir:        c.String("root-dir"),
+		StartedInDebug: startedInDebug,
 	})
 	orbitClient.RegisterConfigReceiver(flagUpdateReceiver)
+	orbitClient.RegisterConfigReceiver(update.NewDebugLogReceiver(startedInDebug))
 
 	if !c.Bool("disable-updates") {
 		serverOverridesReceiver := newServerOverridesReceiver(
