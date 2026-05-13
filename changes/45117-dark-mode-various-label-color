@@ -1,1 +1,0 @@
-- Fixed dark-mode contrast for hoverable tooltip labels: the "Various" role label on the Users page and the "Undetermined" performance impact label now render in the default text color with italics instead of grey.
