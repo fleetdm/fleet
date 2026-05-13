@@ -32,12 +32,6 @@
     overflow: hidden;
   }
 
-  &__back-button {
-    flex-shrink: 0;
-    margin-right: $pad-small;
-    white-space: nowrap;
-  }
-
   &__input-wrapper {
     position: relative;
     display: flex;
@@ -72,6 +66,14 @@
   &__pinned {
     padding: $pad-xsmall $pad-small;
     border-bottom: 1px solid $ui-fleet-black-10;
+
+    .command-palette__item-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: $bold;
+      color: $ui-fleet-black-75;
+    }
 
     .command-palette__item {
       width: 100%;
