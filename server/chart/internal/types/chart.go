@@ -29,10 +29,14 @@ type HostFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" per the
+	// product's standard online predicate: host_seen_times.seen_time falls
+	// within the host's own check-in interval (LEAST of distributed_interval
+	// and config_tls_refresh, plus a 60-second grace period that mirrors
+	// fleet.OnlineIntervalBuffer). Hosts without a host_seen_times row —
+	// iOS, iPadOS, and Android devices, which only check in via MDM — are
+	// excluded. Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
 	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
 	// cves set. nil or empty cves returns an empty map. Unresolved-only is
