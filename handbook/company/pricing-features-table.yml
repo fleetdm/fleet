@@ -71,9 +71,6 @@
   jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
-  waysToUse:
-    - description: Download a `fleetctl` installer for macOS or Windows from fleetdm.com/releases to install the binary in a familiar way and automatically add it to your PATH (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42972
 #
 #
 #   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ ██╗   ██╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
