@@ -93,6 +93,11 @@ describe("InstallSoftware", () => {
       expect(
         screen.getByText("Install software on hosts that enroll to Fleet.")
       ).toBeVisible();
+      expect(
+        screen.queryByText(
+          "Install software on hosts that automatically enroll to Fleet."
+        )
+      ).not.toBeInTheDocument();
     }
   );
 

@@ -291,10 +291,22 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	// which is the opposite of the require_all_software_windows setting's intent. The failing
 	// install still reports as Failed in host details; the other queued installs simply run
 	// independently, as they would with the setting off. The setting acts as an OOBE-gate only.
+	//
+	// The primary lookup matches on mdm_windows_enrollments.host_uuid (populated by osquery's
+	// directIngestMDMDeviceIDWindows). Fast-failing installs can race that ingest, so when the primary
+	// lookup misses we fall back to the most-recent enrollment with an empty host_uuid whose device_name
+	// matches host.ComputerName. Without the fallback a BYOD host that fails an install in the seconds
+	// before osquery links the enrollment would still trigger cancellation, contradicting the gate.
 	if host.Platform == "windows" {
 		device, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "load windows enrollment for byod check")
+		}
+		if device == nil && host.ComputerName != "" {
+			device, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for byod check")
+			}
 		}
 		if device != nil && device.MDMNotInOOBE {
 			return nil

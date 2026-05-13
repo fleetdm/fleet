@@ -132,12 +132,24 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 				}
 				// Secondary lookup: JOIN by device_name = computer_name. Only needed when the primary
 				// link is not yet populated, which is the BYOD-before-osquery-ingest case.
+				//
+				// Cross-host collision protection: also constrain on mwe.host_uuid so we reject rows
+				// already linked to a different host (e.g. another device on the network shares a Windows
+				// computer name and has finished osquery ingest). The remaining cases are mwe.host_uuid
+				// matching our host (would have been caught by the primary lookup; covered here for
+				// completeness) or mwe.host_uuid still empty (the fresh re-BYOD case we want). A residual
+				// edge case is two hosts sharing the same computer_name both freshly enrolling within the
+				// 5-minute window with neither linked yet -- a narrow collision we accept; the time
+				// window + ORDER BY DESC limits the blast radius to misattributing one bypass per pair.
 				if !found {
 					stmtByName := `
 					SELECT mwe.awaiting_configuration, mwe.created_at
 					FROM mdm_windows_enrollments mwe
 					JOIN hosts h ON mwe.device_name = h.computer_name
-					WHERE (h.osquery_host_id = ? OR h.uuid = ?) AND h.platform = 'windows' AND h.computer_name <> ''
+					WHERE (h.osquery_host_id = ? OR h.uuid = ?)
+					  AND h.platform = 'windows'
+					  AND h.computer_name <> ''
+					  AND (mwe.host_uuid = h.uuid OR mwe.host_uuid IS NULL OR mwe.host_uuid = '')
 					ORDER BY mwe.created_at DESC, mwe.id DESC
 					LIMIT 1
 					`

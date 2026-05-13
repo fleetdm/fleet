@@ -868,6 +868,72 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 			"BYOD short-circuit must early-return before listing setup-experience results")
 	})
 
+	t.Run("windows BYOD short-circuit falls back to device_name when host_uuid not yet linked", func(t *testing.T) {
+		// Race condition: orbit/enroll completes and immediately runs a fast-failing install before
+		// osquery's directIngestMDMDeviceIDWindows has linked mdm_windows_enrollments.host_uuid. In that
+		// window, MDMWindowsGetEnrolledDeviceWithHostUUID returns NotFound. The secondary lookup by
+		// device_name = host.ComputerName must catch the BYOD signal so cancellation is still skipped.
+		teamID := uint(1)
+		osqueryHostID := "windows-byod-osquery-id-race"
+		computerName := "DESKTOP-BYOD-RACE"
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return true, nil
+		}
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID: 5, UUID: hostUUID, Platform: "windows", ComputerName: computerName,
+				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftwareWindows: true,
+						},
+					},
+				},
+			}, nil
+		}
+		// Primary lookup misses (host_uuid not yet linked).
+		ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return nil, &notFoundError{}
+		}
+		// Secondary lookup by device_name finds the unlinked BYOD enrollment.
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFunc = func(ctx context.Context, deviceName string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			require.Equal(t, computerName, deviceName)
+			return &fleet.MDMWindowsEnrolledDevice{HostUUID: "", MDMNotInOOBE: true, MDMDeviceName: computerName}, nil
+		}
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.ListSetupExperienceResultsByHostUUIDFuncInvoked = false
+		ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked = false
+
+		var activityFnCalled bool
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityFnCalled = true
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated)
+		require.True(t, ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceNameFuncInvoked,
+			"secondary device_name lookup must run when host_uuid lookup misses")
+		require.False(t, activityFnCalled, "race-window BYOD must still NOT emit canceled_setup_experience")
+		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "race-window BYOD must NOT cancel")
+		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked, "race-window BYOD must NOT cancel upcoming activity")
+		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked, "race-window BYOD must early-return")
+	})
+
 	t.Run("software install failure with require_all=false does not emit activity or cancel", func(t *testing.T) {
 		// Spec invariant: when require_all_software (macOS) /
 		// require_all_software_windows (Windows) is false, a software
