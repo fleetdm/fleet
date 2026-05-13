@@ -47,6 +47,7 @@ func TestVPP(t *testing.T) {
 		{"AndroidAppConfigs", testAndroidAppConfigs},
 		{"VPPAppConfigCRUDFlow", testVPPAppConfigCRUDFlow},
 		{"VPPAppConfigHasChanged", testHasVPPAppConfigurationChanged},
+		{"VPPAppConfigDeletedOnTeamDelete", testVPPAppConfigDeletedOnTeamDelete},
 		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
 		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
@@ -3222,6 +3223,42 @@ func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
 	require.ErrorContains(t, err, "not found")
+}
+
+// testVPPAppConfigDeletedOnTeamDelete guards against the orphan-on-team-delete
+// scenario for vpp_app_configurations. The table has no FK to teams (only the
+// (application_id, platform) -> vpp_apps cascade), and the vpp_apps row
+// usually outlives a single team because multiple teams can share an app.
+// DeleteTeam must therefore clear the configuration rows explicitly via the
+// teamRefs cleanup pass.
+func testVPPAppConfigDeletedOnTeamDelete(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const adamID = "vppcfg-team-delete"
+	test.CreateInsertGlobalVPPToken(t, ds)
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "vpp-cfg-team-delete"})
+	require.NoError(t, err)
+
+	// Seed the configuration row for the team.
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx),
+		fleet.IOSPlatform, team.ID, adamID, []byte(`<dict/>`)))
+
+	// Sanity: row exists keyed on this team_id before delete.
+	var beforeCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &beforeCount,
+		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
+	require.Equal(t, 1, beforeCount, "expected exactly one seeded config row before DeleteTeam")
+
+	require.NoError(t, ds.DeleteTeam(ctx, team.ID))
+
+	// The cleanup must have removed the row. We query against the still-live
+	// vpp_apps row so failure here means the row is orphaned (dangling
+	// team_id), not that the parent cascade fired.
+	var afterCount int
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &afterCount,
+		`SELECT COUNT(*) FROM vpp_app_configurations WHERE team_id = ?`, team.ID))
+	require.Zero(t, afterCount, "vpp_app_configurations rows orphaned after DeleteTeam")
 }
 
 // testVPPInstallEnqueuesConfigurationDict exercises the fan-in point that
