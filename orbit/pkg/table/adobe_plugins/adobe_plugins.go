@@ -106,8 +106,8 @@ func Columns() []table.ColumnDefinition {
 		table.TextColumn(colExtensionType),
 		table.TextColumn(colUser),
 		table.TextColumn(colPlatform),
-		// scan_level is a WHERE-clause-only constraint that controls scan depth.
-		// It is not populated in results.
+		// scan_level controls scan depth. Populated in results so osquery's
+		// post-generate WHERE filter doesn't discard rows.
 		table.TextColumn(colScanLevel),
 	}
 }
@@ -170,6 +170,7 @@ func (t *adobePluginsTable) generate(ctx context.Context, queryContext table.Que
 
 				row := t.scanEntry(pluginPath, entry, sp)
 				if row != nil {
+					row[colScanLevel] = level
 					results = append(results, row)
 				}
 			}
