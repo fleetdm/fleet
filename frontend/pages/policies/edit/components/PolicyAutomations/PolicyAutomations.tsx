@@ -17,8 +17,10 @@ const baseClass = "policy-automations";
 interface IPolicyAutomationsProps {
   storedPolicy: IPolicy;
   currentAutomatedPolicies: number[];
+  /** Some users only have access to read-only view */
+  canEditPolicy: boolean;
   onAddAutomation: () => void;
-  isAddingAutomation: boolean;
+  isAddingAutomation?: boolean;
   gitOpsModeEnabled: boolean;
 }
 
@@ -35,6 +37,7 @@ interface IAutomationRow {
 const PolicyAutomations = ({
   storedPolicy,
   currentAutomatedPolicies,
+  canEditPolicy,
   onAddAutomation,
   isAddingAutomation,
   gitOpsModeEnabled,
@@ -43,7 +46,10 @@ const PolicyAutomations = ({
   const hasPatchSoftware = !!storedPolicy.patch_software;
   const hasSoftwareAutomation = !!storedPolicy.install_software;
   const showCtaCard =
-    isPatchPolicy && hasPatchSoftware && !hasSoftwareAutomation;
+    isPatchPolicy &&
+    hasPatchSoftware &&
+    !hasSoftwareAutomation &&
+    canEditPolicy;
 
   const automationRows: IAutomationRow[] = [];
 
