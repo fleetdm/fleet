@@ -586,6 +586,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /autonomous-endpoint-management': {
+    action: 'landing-pages/view-autonomous-endpoint-management',
+    locals: {
+      pageTitleForMeta: 'Autonomous endpoint management',
+      hideHeaderLinks: true,
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+    }
+  },
+
   'GET /on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
@@ -1219,6 +1228,7 @@ module.exports.routes = {
   'GET /learn-more-about/exe-install-scripts': '/guides/exe-install-scripts',
   'GET /learn-more-about/install-scripts': '/guides/deploy-software-packages#install-script',
   'GET /learn-more-about/uninstall-scripts': '/guides/deploy-software-packages#uninstall-script',
+  'GET /learn-more-about/batch-scripts': '/guides/scripts#batch-execute-scripts',
   'GET /learn-more-about/package-metadata-extraction': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/read-package-version': '/guides/deploy-software-packages#package-metadata-extraction',
   'GET /learn-more-about/fleetctl': '/guides/fleetctl',
@@ -1288,6 +1298,7 @@ module.exports.routes = {
   'GET /learn-more-about/enrollment-profiles': 'https://developer.apple.com/documentation/devicemanagement/profile?changes=l_11_5',
   'GET /learn-more-about/psso-local-account': '/guides/setup-experience#platform-sso',
   'GET /learn-more-about/deploy-fleet': '/docs/deploy/deploy-fleet',
+  'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
 
   // Sitemap
