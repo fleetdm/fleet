@@ -520,8 +520,6 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/42327
     - description: Use Fleet variables in declaration (DDM) profiles to dynamically insert host vitals like hardware serial number and IdP username into configuration profiles (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/42960
-    - description: Simplified OS settings modal makes it easier to quickly understand profile names and statuses at a glance (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40702
   productCategories: [Device management]
   pricingTableCategories: [Devices]
 #
