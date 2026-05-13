@@ -1175,32 +1175,30 @@ func TestResolvePolicySoftwareTitleID(t *testing.T) {
 	}
 }
 
-func TestEnsureHistoricalDataDefaults(t *testing.T) {
+func TestValidateHistoricalDataShape(t *testing.T) {
 	cases := []struct {
-		name      string
-		features  map[string]any
-		wantErr   string
-		wantValue map[string]any
+		name          string
+		features      map[string]any
+		wantErr       string
+		wantUnchanged bool
 	}{
 		{
-			name:      "missing key gets defaults",
-			features:  map[string]any{},
-			wantValue: map[string]any{"uptime": true, "vulnerabilities": false},
+			// No defaults are injected: both sub-keys use preserve-on-omit
+			// semantics at the global scope and team-level defaults are
+			// applied server-side (unmarshalWithGlobalDefaults).
+			name:          "missing key is left absent",
+			features:      map[string]any{},
+			wantUnchanged: true,
 		},
 		{
-			name:      "nil value gets defaults",
-			features:  map[string]any{"historical_data": nil},
-			wantValue: map[string]any{"uptime": true, "vulnerabilities": false},
+			name:          "nil value is left as-is",
+			features:      map[string]any{"historical_data": nil},
+			wantUnchanged: true,
 		},
 		{
-			name:      "partial map fills missing sub-keys",
-			features:  map[string]any{"historical_data": map[string]any{"uptime": false}},
-			wantValue: map[string]any{"uptime": false, "vulnerabilities": false},
-		},
-		{
-			name:      "explicit values are preserved",
-			features:  map[string]any{"historical_data": map[string]any{"uptime": false, "vulnerabilities": false}},
-			wantValue: map[string]any{"uptime": false, "vulnerabilities": false},
+			name:          "valid map is accepted unchanged",
+			features:      map[string]any{"historical_data": map[string]any{"uptime": false}},
+			wantUnchanged: true,
 		},
 		{
 			name:     "scalar value is rejected",
@@ -1215,13 +1213,16 @@ func TestEnsureHistoricalDataDefaults(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
+			before := tt.features["historical_data"]
 			err := ensureHistoricalDataDefaults(tt.features)
 			if tt.wantErr != "" {
 				require.EqualError(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
-			require.Equal(t, tt.wantValue, tt.features["historical_data"])
+			if tt.wantUnchanged {
+				require.Equal(t, before, tt.features["historical_data"])
+			}
 		})
 	}
 }

@@ -435,9 +435,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// predating the field) omit features.historical_data entirely.
 	// Without defaulting here, the Overwrite branch below would persist
 	// those sub-keys as false because Go's bool zero value is
-	// indistinguishable from "absent".
+	// indistinguishable from "absent". appConfig is the live config —
+	// passed in so vulnerabilities can be preserved on omission rather
+	// than defaulted (see function comment).
 	if applyOpts.Overwrite {
-		applyHistoricalDataOverwriteDefaults(p, &newAppConfig)
+		applyHistoricalDataOverwriteDefaults(p, appConfig, &newAppConfig)
 	}
 
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
@@ -2066,28 +2068,32 @@ type gitopsHistoricalDataView struct {
 	} `json:"features"`
 }
 
-// applyHistoricalDataOverwriteDefaults fills in absent
-// features.historical_data sub-keys with Features.ApplyDefaults()
-// values (uptime=true, vulnerabilities=false). Older clients won't
-// send these keys, so in Overwrite mode we apply the documented
-// defaults rather than Go's bool zero values across the board.
-func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
+// applyHistoricalDataOverwriteDefaults preserves the live
+// features.historical_data sub-keys before the Overwrite branch stomps
+// the entire Features struct. Without this, an older fleetctl that
+// omits historical_data entirely would persist the sub-keys as false
+// (Go zero value), silently disabling collection.
+//
+// Both sub-keys use "omission = preserve stored value" semantics —
+// a short-term deviation from Fleet's general gitops norm
+// ("omission = default") so an admin who toggles collection via UI
+// doesn't have it silently flipped by a gitops apply that simply
+// doesn't pin the keys. When bitmap compression ships and the chart
+// config rejoins the standard pattern, this whole function goes away.
+func applyHistoricalDataOverwriteDefaults(p []byte, oldCfg, newCfg *fleet.AppConfig) {
 	var view gitopsHistoricalDataView
 	if err := json.Unmarshal(p, &view); err != nil {
 		return // main decode path will surface the typed error
 	}
-	var defaults fleet.Features
-	defaults.ApplyDefaults()
-	// For each sub-key, check if the incoming data provided a value (true or false).
-	// If not, then set the config to the default value we want rather than
-	// the Go default for bools (false).
-	cfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+
+	newCfg.Features.HistoricalData.Uptime = oldCfg.Features.HistoricalData.Uptime
 	if v := view.Features.HistoricalData.Uptime; v != nil {
-		cfg.Features.HistoricalData.Uptime = *v
+		newCfg.Features.HistoricalData.Uptime = *v
 	}
-	cfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+
+	newCfg.Features.HistoricalData.Vulnerabilities = oldCfg.Features.HistoricalData.Vulnerabilities
 	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
-		cfg.Features.HistoricalData.Vulnerabilities = *v
+		newCfg.Features.HistoricalData.Vulnerabilities = *v
 	}
 }
 

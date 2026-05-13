@@ -2087,11 +2087,19 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 }
 
 // unmarshalWithGlobalDefaults unmarshals features from a team spec, and
-// assigns default values based on the global defaults for missing fields
+// assigns default values based on the global defaults for missing fields.
+// historical_data.vulnerabilities is team-specifically defaulted to true:
+// the global Features.ApplyDefaults sets it false (CVE collection is opt-
+// in due to load), but the team-level value is gated by the global value
+// at collection time, so an "on at team scope, off at global scope" team
+// is harmless when global is off and pre-enabled if global flips on.
+// When bitmap compression ships and the global default flips back to
+// true, this override goes away.
 func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	// build a default config with default values applied
 	defaults := &fleet.Features{}
 	defaults.ApplyDefaultsForNewInstalls()
+	defaults.HistoricalData.Vulnerabilities = true
 
 	// unmarshal the features from the spec into the defaults
 	if b != nil {
