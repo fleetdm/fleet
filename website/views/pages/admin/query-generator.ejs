@@ -12,7 +12,7 @@
             <textarea class="form-control" type="textarea" :disabled="showGeneratedQuery" id="instructions" placeholder="E.g., is Filevault enabled?" :class="[formErrors.naturalLanguageQuestion ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageQuestion"></textarea>
             <div class="invalid-feedback" v-if="formErrors.naturalLanguageQuestion" focus-first>Ask your question.</div>
           </div>
-          <cloud-error v-if="cloudError">An error occurred while generating your queries. Please <a href="/query-generator">reload this page and try again</a>.</cloud-error>
+          <cloud-error v-if="cloudError">An error occurred while generating your query. Please <a href="/query-generator">reload this page and try again</a>.</cloud-error>
 
           <div purpose="ai-note" v-if="!showGeneratedQuery">
             <p>Fleet’s public query robot uses Anthropic <a href="https://github.com/fleetdm/fleet/blob/main/website/api/helpers/ai/prompt.js" target="_blank">under the hood</a>. Think before entering sensitive or confidential data in your prompts, as some data may not fall under your organization’s specific AI or data governance policies.</p>

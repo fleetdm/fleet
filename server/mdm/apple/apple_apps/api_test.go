@@ -18,7 +18,7 @@ import (
 func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 	defer dev_mode.ClearAllOverrides()
 	t.Run("Default URL", func(t *testing.T) {
-		baseURL := getBaseURL(false)
+		baseURL := getBaseURL(false, "us")
 		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -27,11 +27,19 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
+	t.Run("Empty region falls back to us", func(t *testing.T) {
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/us?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, ""))
+	})
+
+	t.Run("Caller-supplied region", func(t *testing.T) {
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/de?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "de"))
+	})
+
 	t.Run("Custom URL", func(t *testing.T) {
 		customURL := "http://localhost:8000"
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", customURL, t)
-		require.Equal(t, customURL, getBaseURL(false))
-		require.Equal(t, customURL, getBaseURL(true)) // dev env var should override config param default behavior
+		require.Equal(t, customURL, getBaseURL(false, "us"))
+		require.Equal(t, customURL, getBaseURL(true, "us")) // dev env var should override config param default behavior
 
 		req, err := buildMetadataRequest(customURL, []string{"1"}, "this-is-a-token")
 		require.NoError(t, err)
@@ -39,16 +47,16 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 		require.Empty(t, req.Header.Get("Cookie"))
 	})
 
-	t.Run("Custom Region", func(t *testing.T) {
+	t.Run("FLEET_DEV_VPP_REGION overrides caller region", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false))
+		require.Equal(t, "https://fleetdm.com/api/vpp/v1/metadata/fr?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", getBaseURL(false, "us"))
 	})
 
 	t.Run("Direct to Apple via FLEET_DEV env var", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", "apple", t)
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "", t)
-		baseURL := getBaseURL(false)
+		baseURL := getBaseURL(false, "us")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -59,7 +67,7 @@ func TestGetBaseURLAndBuildMetadataRequest(t *testing.T) {
 
 	t.Run("Direct to Apple due to bearer token override", func(t *testing.T) {
 		dev_mode.SetOverride("FLEET_DEV_VPP_REGION", "fr", t)
-		baseURL := getBaseURL(true)
+		baseURL := getBaseURL(true, "us")
 		require.Equal(t, "https://api.ent.apple.com/v1/catalog/fr/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", baseURL)
 
 		req, err := buildMetadataRequest(baseURL, []string{"1"}, "this-is-a-token")
@@ -74,8 +82,8 @@ func setupFakeServer(t *testing.T, handler http.HandlerFunc) Config {
 	dev_mode.SetOverride("FLEET_DEV_STOKEN_AUTHENTICATED_APPS_URL", server.URL, t)
 	t.Cleanup(server.Close)
 	return Config{
-		baseURL:       server.URL,
-		authenticator: func(bool) (string, error) { return "bearer-token", nil },
+		baseURLForRegion: func(region string) string { return server.URL },
+		authenticator:    func(bool) (string, error) { return "bearer-token", nil },
 	}
 }
 
@@ -95,7 +103,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"123"}, "vppToken", config)
+		result, err := GetMetadata([]string{"123"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 1, callCount)
 		require.Len(t, result, 1)
@@ -120,7 +128,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"456"}, "vppToken", config)
+		result, err := GetMetadata([]string{"456"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Equal(t, 2, callCount)
 		require.Len(t, result, 1)
@@ -135,7 +143,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_, _ = w.Write([]byte("persistent server error"))
 		})
 
-		_, err := GetMetadata([]string{"789"}, "vppToken", config)
+		_, err := GetMetadata([]string{"789"}, "us", "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "retrieving asset metadata")
 		// Should have retried 3 times (max attempts)
@@ -150,7 +158,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_, _ = w.Write([]byte("unauthorized"))
 		})
 
-		_, err := GetMetadata([]string{"999"}, "vppToken", config)
+		_, err := GetMetadata([]string{"999"}, "us", "vppToken", config)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "auth")
 		// Should have called twice: initial + one retry with forceRenew, then bail
@@ -170,7 +178,7 @@ func TestGetMetadataRetries(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(resp)
 		})
 
-		result, err := GetMetadata([]string{"111", "222", "333"}, "vppToken", config)
+		result, err := GetMetadata([]string{"111", "222", "333"}, "us", "vppToken", config)
 		require.NoError(t, err)
 		require.Len(t, result, 3)
 		require.Equal(t, "App One", result["111"].Attributes.Name)
@@ -195,6 +203,10 @@ type mockDataStore struct {
 
 func (m *mockDataStore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
 	return m.appConfig, m.appConfigErr
+}
+
+func (m *mockDataStore) AppConfigUrls(ctx context.Context) (*fleet.AppConfigUrls, error) {
+	return nil, nil
 }
 
 func (m *mockDataStore) InsertMDMConfigAssets(ctx context.Context, assets []fleet.MDMConfigAsset, tx sqlx.ExtContext) error {
@@ -256,7 +268,7 @@ func TestConfig(t *testing.T) {
 		// Should not have accessed the datastore
 		require.False(t, ds.getAssetsByNameCalled)
 
-		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURL)
+		require.Equal(t, "https://api.ent.apple.com/v1/catalog/us/stoken-authenticated-apps?platform=iphone&additionalPlatforms=ipad,mac&extend[apps]=latestVersionInfo", config.baseURLForRegion("us"))
 	})
 }
 

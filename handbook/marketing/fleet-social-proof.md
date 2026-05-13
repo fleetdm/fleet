@@ -26,8 +26,10 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Fintech company strengthens infrastructure visibility with Fleet](https://fleetdm.com/articles/fintech-company-strengthens-infrastructure-visibility) | ✓ | ✓ | ✓ | 2026‑03‑14 |
 | [Financial data company scales endpoint visibility with Fleet](https://fleetdm.com/articles/financial-data-company) | ✓ | ✓ | ✓ | 2026‑03‑04 |
 | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | ✓ | ✓ |  | 2026‑02‑22 |
+| [Scaling financial security with GitOps and RBAC](https://fleetdm.com/announcements/scaling-financial-security-with-gitops) | ✓ | ✓ |  | 2026‑02‑23 |
 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | ✓ | ✓ |  | 2024‑12‑19 |
 | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | ✓ | ✓ | ✓ | 2024‑06‑01 |
+| [Digital bank centralizes compliance and improves audit readiness with Fleet](https://fleetdm.com/case-study/digital-bank-1) | ✓ | ✓ | ✓ | 2026‑04‑22 |
 
 ### Anonymous stories — technology & SaaS
 
@@ -39,10 +41,12 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Cloud-based data leader chooses Fleet for orchestration](https://fleetdm.com/case-study/cloud-data-platform) | ✓ | ✓ | ✓ | 2024‑12‑20 |
 | [How a global workforce management company achieved compliance and clarity with Fleet](https://fleetdm.com/case-study/global-workforce-management-company) | ✓ | ✓ | ✓ | 2024‑12‑17 |
 | [Global collaboration platform consolidates device management with Fleet](https://fleetdm.com/case-study/collaboration-platform) | ✓ | ✓ | ✓ | 2024‑06‑01 |
+| [Global technology company modernizes device management at scale with self-hosted Fleet](https://fleetdm.com/case-study/technology-company) | ✓ | ✓ | ✓ | 2024‑04‑22 |
 | [Design platform company adopts GitOps device management with Fleet](https://fleetdm.com/case-study/design-platform) | ✓ |  | ✓ | 2026‑04‑01 |
 | [Data platform company cuts $5–6M in hardware costs with API-driven device management](https://fleetdm.com/case-study/data-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [DevOps platform company consolidates endpoint management with Fleet](https://fleetdm.com/case-study/devops-platform) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Observability platform company consolidates device management with Fleet](https://fleetdm.com/case-study/observability-platform-company) | ✓ | ✓ | ✓ | 2026‑04‑01 |
+| [Observability software company improves endpoint security and visibility with Fleet](https://fleetdm.com/case-study/observability-software-company) |  | ✓ | ✓ | 2026‑04‑22 |
 | [Consumer electronics company simplifies cross-platform management with Fleet](https://fleetdm.com/case-study/consumer-electronics) | ✓ | ✓ | ✓ | 2026‑04‑01 |
 | [Technology platform](https://fleetdm.com/case-study/technology-platform) | Technology | ✓ |  |  | 2026‑03‑14 |
 | [Global technology platform](https://fleetdm.com/case-study/global-technology-platform) | Technology | ✓ | ✓ | ✓ | 2026‑03‑03 |
@@ -88,6 +92,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Financial technology company](https://fleetdm.com/case-study/fintech-company) | Financial and gaming payments infrastructure | ✓ | ✓ | ✓ | 2026‑03‑14 |
 | [Gaming platform](https://fleetdm.com/case-study/gaming-platform) | Gaming and technology | ✓ | ✓ | ✓ | 2026‑03‑04 |
 | [Global entertainment company](https://fleetdm.com/case-study/global-entertainment-company) | Technology and interactive entertainment | ✓ | ✓ | ✓ | 2026‑03‑14 |
+| [Global commerce company unifies device management and improves compliance with Fleet](https://fleetdm.com/case-study/commerce-company) | Technology and e-commerce   | ✓ |  | ✓ | 2026‑04‑22 |
 | [Identity platform](https://fleetdm.com/case-study/identity-platform) | Technology |  |  | ✓ | 2026‑03‑14 |
 | [Identity security company](https://fleetdm.com/case-study/identity-security-company) | Cybersecurity | ✓ | ✓ |  | 2026‑03‑14 |
 | [Medical research institution](https://fleetdm.com/case-study/medical-research-institution) | Higher education | ✓ | ✓ | ✓ | 2026‑03‑14 |

@@ -3,6 +3,7 @@ package apple_mdm
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
@@ -624,6 +625,65 @@ func TestMDMAppleCommanderSetRecoveryLock(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 }
 
+func TestMDMAppleCommanderSetAutoAdminPassword(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUID := "host-uuid-1"
+	guid := "AAAAAAAA-BBBB-CCCC-DDDD-000000000001"
+	cmdUUID := uuid.New().String()
+	hashPlist, err := GenerateSaltedSHA512PBKDF2Hash("test-password-1234")
+	require.NoError(t, err)
+	expectedB64 := base64.StdEncoding.EncodeToString(hashPlist)
+
+	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+		require.NotNil(t, cmd)
+		require.Equal(t, []string{hostUUID}, id)
+		require.Equal(t, "SetAutoAdminPassword", cmd.Command.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Contains(t, string(cmd.Raw), "<key>GUID</key>")
+		require.Contains(t, string(cmd.Raw), "<string>"+guid+"</string>")
+		require.Contains(t, string(cmd.Raw), "<key>passwordHash</key>")
+		require.Contains(t, string(cmd.Raw), "<data>"+expectedB64+"</data>")
+		return nil, nil
+	}
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
+		require.ElementsMatch(t, []string{hostUUID}, targetUUIDs)
+		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
+		for _, u := range targetUUIDs {
+			pushes[u] = &mdm.Push{
+				PushMagic: "magic" + u,
+				Token:     []byte("token" + u),
+				Topic:     "topic" + u,
+			}
+		}
+		return pushes, nil
+	}
+
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	err = cmdr.SetAutoAdminPassword(ctx, hostUUID, guid, hashPlist, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
+
 func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
@@ -672,6 +732,102 @@ func TestMDMAppleCommanderClearPasscode(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+}
+
+func TestAccountConfigurationWithAdminAccount(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	hostUUIDs := []string{"ABC"}
+	cmdUUID := uuid.New().String()
+
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+		pushes := make(map[string]*mdm.Push, len(targets))
+		for _, uuid := range targets {
+			pushes[uuid] = &mdm.Push{
+				PushMagic: "magic",
+				Token:     []byte("token"),
+				Topic:     "topic",
+			}
+		}
+		return pushes, nil
+	}
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
+		return &cert, "", err
+	}
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	t.Run("SSO only produces standard plist", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "AccountConfiguration")
+			require.Contains(t, raw, "<key>PrimaryAccountFullName</key>")
+			require.Contains(t, raw, "<string>Test User</string>")
+			require.Contains(t, raw, "<key>PrimaryAccountUserName</key>")
+			require.Contains(t, raw, "<string>testuser</string>")
+			require.NotContains(t, raw, "AutoSetupAdminAccounts")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "Test User", UserName: "testuser", LockPrimaryAccountInfo: true},
+			nil,
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("admin account adds AutoSetupAdminAccounts", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "AccountConfiguration")
+			require.Contains(t, raw, "<key>AutoSetupAdminAccounts</key>")
+			require.Contains(t, raw, "<string>_fleetadmin</string>")
+			require.Contains(t, raw, "<string>Fleet Admin</string>")
+			require.Contains(t, raw, "<key>hidden</key>")
+			require.Contains(t, raw, "<true />")
+			require.Contains(t, raw, "<key>passwordHash</key>")
+			require.NotContains(t, raw, "PrimaryAccountFullName")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			nil,
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
+
+	t.Run("SSO + admin combined", func(t *testing.T) {
+		mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error, error) {
+			raw := string(cmd.Raw)
+			require.Contains(t, raw, "PrimaryAccountFullName")
+			require.Contains(t, raw, "AutoSetupAdminAccounts")
+			return nil, nil
+		}
+		mdmStorage.EnqueueCommandFuncInvoked = false
+
+		err := cmdr.AccountConfiguration(ctx, hostUUIDs, cmdUUID,
+			&SSOAccountConfig{FullName: "SSO User", UserName: "ssouser", LockPrimaryAccountInfo: false},
+			&AdminAccountConfig{ShortName: "_fleetadmin", FullName: "Fleet Admin", PasswordHash: []byte("fake-hash"), Hidden: true},
+		)
+		require.NoError(t, err)
+		require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
+	})
 }
 
 func TestMDMAppleCommanderPassesCommandName(t *testing.T) {

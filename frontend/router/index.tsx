@@ -70,15 +70,16 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
-import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
+import Variables from "pages/ManageControlsPage/Variables/Variables";
 import WindowsEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
-import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareInventory from "pages/SoftwarePage/SoftwareInventory";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
+import SoftwareLibrary from "pages/SoftwarePage/SoftwareLibrary";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
@@ -228,10 +229,12 @@ const routes = (
             {/* This redirect is used to handle old apple automatic enrollments page */}
             <Redirect
               from="integrations/automatic-enrollment/apple"
-              to="integrations/mdm/abm"
+              to="integrations/mdm/ab"
             />
+            {/* Redirect old /abm URL to /ab */}
+            <Redirect from="integrations/mdm/abm" to="integrations/mdm/ab" />
             <Route
-              path="integrations/mdm/abm"
+              path="integrations/mdm/ab"
               component={AppleBusinessManagerPage}
             />
             <Route
@@ -277,15 +280,6 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageHostsPage} />
             <Route path="manage/labels/:label_id" component={ManageHostsPage} />
-            <Route path="manage/:active_label" component={ManageHostsPage} />
-            <Route
-              path="manage/labels/:label_id/:active_label"
-              component={ManageHostsPage}
-            />
-            <Route
-              path="manage/:active_label/labels/:label_id"
-              component={ManageHostsPage}
-            />
             <Route path=":host_id" component={HostDetailsPage}>
               <IndexRedirect to="details" />
               <Route path="details" component={HostDetailsPage} />
@@ -325,6 +319,10 @@ const routes = (
                 <Route path="os-settings/:section" component={OSSettings} />
 
                 <Route path="setup-experience" component={SetupExperience} />
+                <Redirect
+                  from="setup-experience/end-user-auth"
+                  to="setup-experience/users"
+                />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
@@ -338,7 +336,7 @@ const routes = (
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
-                <Route path="variables" component={Secrets} />
+                <Route path="variables" component={Variables} />
               </Route>
             </Route>
             <Route
@@ -347,9 +345,10 @@ const routes = (
             />
           </Route>
           <Route path="software">
-            <IndexRedirect to="titles" />
-            {/* we check the add route first otherwise a route like 'software/add' will be caught
-             * by the 'software/:id' redirect and be redirected to 'software/versions/add  */}
+            <IndexRedirect to="inventory" />
+            {/* Legacy route redirect */}
+            <Redirect from="titles" to="inventory" />
+            {/* Check the add route first so 'software/add' isn't caught by title/version detail routes */}
             <Route component={AuthAnyMaintainerAnyAdminRoutes}>
               <Route path="add" component={SoftwareAddPage}>
                 <IndexRedirect to="fleet-maintained" />
@@ -366,23 +365,24 @@ const routes = (
               />
             </Route>
             <Route component={SoftwarePage}>
-              <Route path="titles" component={SoftwareTitles} />
-              <Route path="versions" component={SoftwareTitles} />
+              <Route path="inventory" component={SoftwareInventory} />
+              <Route path="versions" component={SoftwareInventory} />
               <Route path="os" component={SoftwareOS} />
               <Route
                 path="vulnerabilities"
                 component={SoftwareVulnerabilities}
               />
-              {/* This redirect keeps the old software/:id working */}
+              <Route path="library" component={SoftwareLibrary} />
+              {/* Legacy redirect: keeps old /software/:id URLs working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
             <Route
               path="vulnerabilities/:cve"
               component={SoftwareVulnerabilityDetailsPage}
             />
-            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
-            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

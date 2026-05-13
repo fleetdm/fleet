@@ -185,7 +185,7 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - Ensure the wiring instructions for payment via SVB are listed in the invoice.
    - For deals that are not on an annual payment schedule, or multi-year deals with annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice, and update the ["Future invoices to be sent" spreadsheet (confidential doc)](https://docs.google.com/spreadsheets/d/11kQNw6oTkPe_FCuRItZ26zBCGFOyxpF86XCJ335slxU/edit?gid=0#gid=0).
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
@@ -366,7 +366,7 @@ No further action needs to be taken, the amount available for use will increase 
 
 ### Check franchise tax status
 
-No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
+No later than the second month of every quarter, we check [Delaware division of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
 - Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
 - If no outstanding amounts: the tax has been paid.
 - If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.

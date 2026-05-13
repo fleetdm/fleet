@@ -1,7 +1,7 @@
 import React from "react";
 
 import Button from "components/buttons/Button";
-import EmptyTable from "components/EmptyTable";
+import EmptyState from "components/EmptyState";
 import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -39,8 +39,7 @@ const EmptyTeamsTable = ({
   );
 
   return (
-    <EmptyTable
-      graphicName="empty-teams"
+    <EmptyState
       header="Set up fleet permissions"
       info="Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts."
       additionalInfo={

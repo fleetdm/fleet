@@ -3,6 +3,7 @@ import { noop } from "lodash";
 
 import { IPolicyHostResponse } from "interfaces/host";
 import TableContainer from "components/TableContainer";
+import EmptyState from "components/EmptyState";
 import {
   generateTableHeaders,
   generateDataSet,
@@ -41,11 +42,7 @@ const PolicyResultsTable = ({
           iconSvg: "trash",
           variant: "inverse",
         }}
-        emptyComponent={() => (
-          <div className="no-hosts__inner">
-            <p>No hosts are online.</p>
-          </div>
-        )}
+        emptyComponent={() => <EmptyState header="No hosts are online" />}
         onQueryChange={noop}
         disableCount
       />

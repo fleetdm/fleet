@@ -4452,6 +4452,71 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Profile is not compatible with host platform")
 
+	t.Run("team_transfer_removes_old_profiles_and_installs_new", func(t *testing.T) {
+		// Test transferring a host between teams with different profiles.
+		// Verifies that profiles from the old team are removed and profiles
+		// from the new team are installed. This is the scenario that exercises
+		// the remove query's desired-state subquery.
+
+		// At this point, host is in tm with teamProfiles (2 profiles) verified.
+		// Disable OS updates on tm to simplify profile counts.
+		tmResp := teamResponse{}
+		s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm.ID), json.RawMessage(`{"mdm": { "windows_updates": {"deadline_days": null, "grace_period_days": null} }}`), http.StatusOK, &tmResp)
+		// Drain any OS updates removal commands
+		s.awaitTriggerProfileSchedule(t)
+		cmds, err := mdmDevice.StartManagementSession()
+		require.NoError(t, err)
+		msgID, err := mdmDevice.GetCurrentMsgID()
+		require.NoError(t, err)
+		for _, c := range cmds {
+			cmdID := c.Cmd.CmdID
+			mdmDevice.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &cmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    ptr.String(syncml.CmdStatusOK),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		_, err = mdmDevice.SendResponse()
+		require.NoError(t, err)
+		verifyProfiles(mdmDevice, 0, false) // drain remaining
+
+		// Create a team with no profiles
+		tmEmpty, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_empty_team"})
+		require.NoError(t, err)
+
+		// Transfer host to team with no profiles — should remove old team's profiles
+		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tmEmpty.ID, []uint{host.ID}))
+		require.NoError(t, err)
+
+		// Each profile has 1 LocURI, so 2 profiles = 2 delete commands
+		verifyProfiles(mdmDevice, 0, false, 2)
+		checkHostsProfilesMatch(host, nil)
+
+		// Create a team with 3 different profiles
+		tmOther, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_other_team"})
+		require.NoError(t, err)
+		otherTeamProfiles := []string{
+			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+			mysql.InsertWindowsProfileForTest(t, s.ds, tmOther.ID),
+		}
+
+		// Transfer host from empty team to team with 3 profiles — should install 3
+		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tmOther.ID, []uint{host.ID}))
+		require.NoError(t, err)
+		verifyProfiles(mdmDevice, 3, false)
+		checkHostsProfilesMatch(host, otherTeamProfiles)
+
+		// Transfer host back to original team — should remove 3 and install 2
+		err = s.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{host.ID}))
+		require.NoError(t, err)
+		verifyProfiles(mdmDevice, 2, false, 3)
+		checkHostsProfilesMatch(host, teamProfiles)
+	})
+
 	t.Run("edit_profile_removes_locuri_sends_delete", func(t *testing.T) {
 		// Editing a profile to remove a LocURI should send a <Delete> for the removed LocURI.
 		// Create a profile with two LocURIs via batch-set, then edit it to have only one.
@@ -6409,6 +6474,19 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
 		require.NotContains(t, string(b), "idp_uuid=")
 		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
+
+	t.Run("returns 403 if no idp_uuid is set when required by config", func(t *testing.T) {
+		// update config to require idp_uuid
+		cfg.MDM.MacOSSetup.EnableEndUserAuthentication = true
+		err := s.ds.SaveAppConfig(ctx, cfg)
+		require.NoError(t, err)
+		t.Cleanup(func() {
+			cfg.MDM.MacOSSetup.EnableEndUserAuthentication = false
+			err := s.ds.SaveAppConfig(ctx, cfg)
+			require.NoError(t, err)
+		})
+		s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusForbidden, "enroll_secret", globalEnrollSec)
 	})
 }
 

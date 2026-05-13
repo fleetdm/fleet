@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "20.26.90.8546",
+      "version": "20.26.120.9484",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.' AND version_compare(version, '20.26.90.8546') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.' AND version_compare(version, '20.26.120.9484') < 0);"
       },
-      "installer_url": "https://binaries.twingate.com/client/windows/versions/2026.90.8546/TwingateWindowsInstaller.msi",
+      "installer_url": "https://binaries.twingate.com/client/windows/versions/2026.120.9484/TwingateWindowsInstaller.msi",
       "install_script_ref": "8959087b",
       "uninstall_script_ref": "72d99820",
-      "sha256": "18a24d6915c830a689d0eb6c4459946508b3bd4a74aa298142d78811be2b68b2",
+      "sha256": "910be7968824db00f772a433ec6b4f56d839e840127cbd6a2b191917b3f343e5",
       "default_categories": [
         "Productivity"
       ],

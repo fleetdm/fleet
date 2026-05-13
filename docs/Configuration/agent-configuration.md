@@ -6,7 +6,7 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 ## config 
 
-The `config` section allows you to update settings like performance and and how often the agent checks-in.
+The `config` section allows you to update settings like performance and how often the agent checks-in.
 
 #### Example
 
@@ -306,5 +306,42 @@ agent_options:
   script_execution_timeout: 600
 ```
 
+## orbit
+
+The `orbit` block configures the orbit agent itself (as opposed to osquery). It's kept separate from `command_line_flags` so orbit-specific settings don't need to satisfy the osquery flag schema.
+
+To learn where to find fleetd logs on each platform, see [Finding fleetd logs](https://fleetdm.com/guides/fleet-troubleshooting-for-it-admins#finding-fleetd-logs).
+
+### debug_logging (_Coming soon_)
+
+When `true`, orbit runs at debug log level and passes `--verbose` and `--tls_dump` to osqueryd on every host in the team (or globally, if set on no-team agent options). Unlike `command_line_flags`, toggling this does **not** require an orbit restart: the change is applied on each host's next config poll (up to 30 seconds). Default: `false`.
+
+Individual hosts can additionally be put into debug mode temporarily via the [`POST /api/v1/fleet/hosts/:id/debug-logging`](https://fleetdm.com/docs/rest-api/rest-api#set-host-orbit-debug-logging) endpoint or the **Enable debug logging** action on the host details page. Host-level overrides can only force debug on (they can't silence a host whose team default is on) and auto-expire after a configurable duration (default 24h, max 7d).
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging: true
+```
+
+### debug_logging_on_enroll_duration
+
+A Go duration number in seconds (e.g. `3600`, `14400`). When greater than zero, every host that orbit-enrolls (or re-enrolls) into this team — or no-team for global agent options — is automatically put into debug mode for the configured duration after *its* enrollment. The host then reverts to the team default. Default: unset (no auto-stamp). Maximum: `86400` (24 hours).
+
+Use this during a rollout to capture verbose Setup Experience logs from new hosts without having to flip debug per host afterward. Each host's debug expires `duration` after its own enrollment moment, not at a shared wall-clock time.
+
+There is **no global fallback**: a host that enrolls into a team uses that team's setting, regardless of what's on global agent options. To apply this option broadly, set it on each team (typically via gitops).
+
+#### Example
+
+```yaml
+agent_options:
+  orbit:
+    debug_logging_on_enroll_duration: 3600
+```
+
 <meta name="pageOrderInSection" value="300">
 <meta name="description" value="Learn how to use configuration files and the fleetctl command line tool to configure agent options.">
+<meta name="keywordsForDocsearch" value="command line flags, agent config file">

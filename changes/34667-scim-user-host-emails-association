@@ -1,1 +1,0 @@
-* Fixed SCIM user not associating with host when IdP username was set before the SCIM user was created.

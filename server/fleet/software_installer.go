@@ -95,7 +95,7 @@ type SoftwareInstaller struct {
 	// UninstallScriptContentID is the ID of the uninstall script content.
 	UninstallScriptContentID uint `json:"-" db:"uninstall_script_content_id"`
 	// PreInstallQuery is the query to run as a condition to installing the software package.
-	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"`
+	PreInstallQuery string `json:"pre_install_query" db:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	// PostInstallScript is the script to run after installing the software package.
 	PostInstallScript string `json:"post_install_script" db:"post_install_script"`
 	// UninstallScript is the script to run to uninstall the software package.
@@ -140,6 +140,9 @@ type SoftwareInstaller struct {
 	PatchPolicy *PatchPolicyData `json:"patch_policy"`
 	// PatchQuery is the query to use for creating a patch policy
 	PatchQuery string `json:"-" db:"patch_query"`
+
+	// Configuration is the in-house app's managed app configuration (iOS / iPadOS only) as returned in API responses: a JSON string of XML.
+	Configuration json.RawMessage `json:"configuration,omitempty" db:"-"`
 }
 
 // SoftwarePackageResponse is the response type used when applying software by batch.
@@ -266,6 +269,27 @@ func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []
 	for i := range vppApps {
 		software = append(software, vppApps[i])
 	}
+
+	// Dedup by title ID, preferring the row with a populated LocalIconHash.
+	// Otherwise an unmatched duplicate response row would append the title
+	// to TitleIDsToRemoveIconsFrom and race with the active row's planning.
+	seen := make(map[uint]int, len(software))
+	deduped := make([]CanHaveSoftwareIcon, 0, len(software))
+	for _, sw := range software {
+		titleID := sw.GetTitleID()
+		if titleID == nil {
+			continue
+		}
+		if idx, found := seen[*titleID]; found {
+			if deduped[idx].GetLocalIconHash() == "" && sw.GetLocalIconHash() != "" {
+				deduped[idx] = sw
+			}
+			continue
+		}
+		seen[*titleID] = len(deduped)
+		deduped = append(deduped, sw)
+	}
+	software = deduped
 
 	// don't (duplicate) upload (of) icons that we don't need to
 	for _, sw := range software {
@@ -402,7 +426,7 @@ type HostSoftwareInstallerResult struct {
 	// Output is the output of the software installer package on the host.
 	Output *string `json:"output" db:"install_script_output"`
 	// PreInstallQueryOutput is the output of the pre-install query on the host.
-	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"`
+	PreInstallQueryOutput *string `json:"pre_install_query_output" db:"pre_install_query_output"` //nolint:apiparamcheck // SQL precondition output
 	// PostInstallScriptOutput is the output of the post-install script on the host.
 	PostInstallScriptOutput *string `json:"post_install_script_output" db:"post_install_script_output"`
 	// CreatedAt is the time the software installer request was triggered.
@@ -442,6 +466,7 @@ Exit code: %d (Failed)
 %s
 `
 	SoftwareInstallerDownloadFailedCopy = "Installing software...\nError: Software installer download failed."
+	SoftwareInstallerNotFoundCopy       = "Installing software...\nError: The software installer no longer exists on the server. fleetd abandoned the install after retrying for 5 minutes."
 )
 
 // EnhanceOutputDetails is used to add extra boilerplate/information to the
@@ -471,6 +496,9 @@ func (h *HostSoftwareInstallerResult) EnhanceOutputDetails() {
 		return
 	case ExitCodeInstallerDownloadFailed:
 		*h.Output = SoftwareInstallerDownloadFailedCopy
+		return
+	case ExitCodeInstallerNotFound:
+		*h.Output = SoftwareInstallerNotFoundCopy
 		return
 	default:
 		h.Output = ptr.String(fmt.Sprintf(SoftwareInstallerInstallFailCopy, *h.Output))
@@ -549,6 +577,8 @@ type UploadSoftwareInstallerPayload struct {
 	// conditional GET requests when AlwaysDownload is false.
 	HTTPETag   *string
 	PatchQuery string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only).
+	Configuration []byte
 }
 
 func (p UploadSoftwareInstallerPayload) UniqueIdentifier() string {
@@ -582,19 +612,20 @@ func (p UploadSoftwareInstallerPayload) GetUpgradeCodeForDB() *string {
 }
 
 type ExistingSoftwareInstaller struct {
-	InstallerID      uint    `db:"installer_id"`
-	TeamID           *uint   `db:"team_id"`
-	Filename         string  `db:"filename"`
-	Extension        string  `db:"extension"`
-	Version          string  `db:"version"`
-	Platform         string  `db:"platform"`
-	Source           string  `db:"source"`
-	BundleIdentifier *string `db:"bundle_identifier"`
-	Title            string  `db:"title"`
-	PackageIDList    string  `db:"package_ids"`
-	PackageIDs       []string
-	StorageID        string  `db:"storage_id"`
-	HTTPETag         *string `db:"http_etag"`
+	InstallerID            uint    `db:"installer_id"`
+	TeamID                 *uint   `db:"team_id"`
+	Filename               string  `db:"filename"`
+	Extension              string  `db:"extension"`
+	Version                string  `db:"version"`
+	Platform               string  `db:"platform"`
+	Source                 string  `db:"source"`
+	BundleIdentifier       *string `db:"bundle_identifier"`
+	Title                  string  `db:"title"`
+	PackageIDList          string  `db:"package_ids"`
+	PackageIDs             []string
+	StorageID              string  `db:"storage_id"`
+	HTTPETag               *string `db:"http_etag"`
+	InstallScriptContentID uint    `db:"install_script_content_id"`
 }
 
 type UpdateSoftwareInstallerPayload struct {
@@ -630,13 +661,15 @@ type UpdateSoftwareInstallerPayload struct {
 	CategoryIDs     []uint
 	// DisplayName is an end-user friendly name.
 	DisplayName *string
+	// Configuration is the in-house app's managed app configuration as raw XML bytes (iOS / iPadOS only). nil means leave unchanged; explicit empty means clear.
+	Configuration []byte
 }
 
 func (u *UpdateSoftwareInstallerPayload) IsNoopPayload(existing *SoftwareTitle) bool {
 	return u.SelfService == nil && u.InstallerFile == nil && u.PreInstallQuery == nil &&
 		u.InstallScript == nil && u.PostInstallScript == nil && u.UninstallScript == nil &&
 		u.LabelsIncludeAny == nil && u.LabelsExcludeAny == nil && u.LabelsIncludeAll == nil &&
-		u.DisplayName == nil && u.CategoryIDs == nil
+		u.DisplayName == nil && u.CategoryIDs == nil && u.Configuration == nil
 }
 
 // DownloadSoftwareInstallerPayload is the payload for downloading a software installer.
@@ -799,7 +832,7 @@ func (s *SoftwarePackageOrApp) FullyQualifiedName() string {
 type SoftwarePackageSpec struct {
 	URL                string                `json:"url"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
@@ -808,6 +841,8 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAll   []string              `json:"labels_include_all"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 	Icon               TeamSpecSoftwareAsset `json:"icon"`
+	// Configuration is the managed app configuration file path; only meaningful for .ipa packages.
+	Configuration TeamSpecSoftwareAsset `json:"configuration"`
 
 	// FMA
 	Slug    *string `json:"slug"`
@@ -838,6 +873,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
 	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
+	spec.Configuration.Path = resolveApplyRelativePath(baseDir, spec.Configuration.Path)
 
 	return spec
 }
@@ -859,7 +895,7 @@ type MaintainedAppSpec struct {
 	Slug               string                `json:"slug"`
 	Version            string                `json:"version"`
 	SelfService        bool                  `json:"self_service"`
-	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"` //nolint:apiparamcheck // SQL precondition for install
 	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
 	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
 	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
@@ -1022,6 +1058,11 @@ const (
 	// ExitCodeInstallerDownloadFailed is a special exit code returned by fleetd in the
 	// HostSoftwareInstallResultPayload when fleetd failed to download the installer.
 	ExitCodeInstallerDownloadFailed = -3
+	// ExitCodeInstallerNotFound is a special exit code returned by fleetd in the
+	// HostSoftwareInstallResultPayload when fleetd has been unable to fetch installer
+	// details from the server for longer than the retry window (e.g. because the
+	// installer was deleted/replaced while a setup-experience install was in flight).
+	ExitCodeInstallerNotFound = -4
 )
 
 // SoftwareInstallerTokenMetadata is the metadata stored in Redis for a software installer token.

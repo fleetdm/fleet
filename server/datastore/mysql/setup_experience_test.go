@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -35,6 +36,7 @@ func TestSetupExperience(t *testing.T) {
 		{"TestEnqueueSetupExperienceItemsWindows", testEnqueueSetupExperienceItemsWindows},
 		{"EnqueueSetupExperienceItemsWithDisplayName", testEnqueueSetupExperienceItemsWithDisplayName},
 		{"UpdateStatusGuardsTerminalStates", testUpdateStatusGuardsTerminalStates},
+		{"SetSetupExperienceTitlesOnlyMarksActiveInstaller", testSetSetupExperienceTitlesOnlyMarksActiveInstaller},
 	}
 
 	for _, c := range cases {
@@ -328,6 +330,45 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host2UUID, team2.ID)
 	require.NoError(t, err)
 	require.False(t, anythingEnqueued)
+
+	// Re-Autopilot of an existing host: last_enrolled_at is >24h old (the
+	// pre-existing record predates this Autopilot cycle), but the host has
+	// just MDM-enrolled and is in awaiting_configuration=Pending.
+	host3UUID := "33333333-3333-3333-3333-333333333333"
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "windows-test-3-reautopilot",
+		OsqueryHostID:  ptr.String("osquery-windows-3"),
+		NodeKey:        ptr.String("node-key-windows-3"),
+		UUID:           host3UUID,
+		Platform:       "windows",
+		HardwareSerial: "654321c-3",
+	})
+	require.NoError(t, err)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host3UUID)
+		return err
+	})
+	// Insert a Windows MDM enrollment with awaiting_configuration=Pending,
+	// matching what a fresh Autopilot enrollment on the same host would create
+	// before last_enrolled_at gets refreshed.
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            "device-host3",
+		MDMHardwareID:          "hw-host3",
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          "DESKTOP-H3",
+		MDMEnrollType:          "ProgrammaticEnrollment",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           false,
+		HostUUID:               host3UUID,
+		AwaitingConfiguration:  fleet.WindowsMDMAwaitingConfigurationPending,
+	}))
+
+	anythingEnqueued, err = ds.EnqueueSetupExperienceItems(ctx, "windows", "windows", host3UUID, team1.ID)
+	require.NoError(t, err)
+	require.True(t, anythingEnqueued,
+		"re-Autopilot of an existing host (>24h old) with awaiting_configuration!=None must bypass the age guard")
 }
 
 func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
@@ -1997,4 +2038,99 @@ func testGetSetupExperienceScriptByID(t *testing.T, ds *Datastore) {
 	b, err := ds.GetAnyScriptContents(ctx, gotScript.ScriptContentID)
 	require.NoError(t, err)
 	require.Equal(t, script.ScriptContents, string(b))
+}
+
+func testSetSetupExperienceTitlesOnlyMarksActiveInstaller(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team_setup_exp_active"})
+	require.NoError(t, err)
+
+	fma, err := ds.UpsertMaintainedApp(ctx, &fleet.MaintainedApp{
+		Name:             "pkg_active",
+		Slug:             "pkg_active",
+		Platform:         "darwin",
+		UniqueIdentifier: "fleet.pkg_active",
+	})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("file contents"), t.TempDir)
+	require.NoError(t, err)
+
+	// Create two cached FMA versions via successive GitOps runs. v1.0 ends
+	// up inactive, v2.0 active.
+	for _, version := range []string{"1.0", "2.0"} {
+		err = ds.BatchSetSoftwareInstallers(ctx, &team.ID, []*fleet.UploadSoftwareInstallerPayload{
+			{
+				FleetMaintainedAppID: &fma.ID,
+				Title:                "pkg_active",
+				Source:               "apps",
+				Platform:             "darwin",
+				PreInstallQuery:      "SELECT 1",
+				InstallScript:        "echo install",
+				PostInstallScript:    "echo post install",
+				UninstallScript:      "echo uninstall",
+				InstallerFile:        tfr,
+				StorageID:            "storage_id",
+				Filename:             "pkg_active.pkg",
+				Version:              version,
+				UserID:               user.ID,
+				ValidatedLabels:      &fleet.LabelIdentsWithScope{},
+				InstallDuringSetup:   new(false),
+				SelfService:          false,
+				TeamID:               &team.ID,
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	// Grab the two installer IDs so we can assert per-row.
+	type row struct {
+		ID      uint `db:"id"`
+		Active  bool `db:"is_active"`
+		InSetup bool `db:"install_during_setup"`
+		TitleID uint `db:"title_id"`
+		Version string
+	}
+	var rows []row
+	tmFilter := fleet.TeamFilter{User: test.UserAdmin, TeamID: &team.ID}
+	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{TeamID: &team.ID, Platform: "darwin", AvailableForInstall: true}, tmFilter)
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	titleID := titles[0].ID
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &rows, `
+			SELECT id, is_active, install_during_setup, title_id, version
+			FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+			ORDER BY version ASC
+		`, team.ID, titleID)
+	})
+	require.Len(t, rows, 2, "expected 2 cached FMA versions")
+	require.False(t, rows[0].Active, "v1.0 should be inactive")
+	require.True(t, rows[1].Active, "v2.0 should be active")
+
+	// Sanity: neither row has install_during_setup set yet (BatchSet was
+	// called with InstallDuringSetup=false).
+	require.False(t, rows[0].InSetup)
+	require.False(t, rows[1].InSetup)
+
+	// Add the title to setup experience.
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team.ID, []uint{titleID})
+	require.NoError(t, err)
+
+	// Re-read: only the active (v2.0) row should have install_during_setup=true.
+	rows = nil
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, tx, &rows, `
+			SELECT id, is_active, install_during_setup, title_id, version
+			FROM software_installers
+			WHERE global_or_team_id = ? AND title_id = ?
+			ORDER BY version ASC
+		`, team.ID, titleID)
+	})
+	require.Len(t, rows, 2)
+	require.False(t, rows[0].InSetup, "cached inactive v1.0 must not be marked install_during_setup")
+	require.True(t, rows[1].InSetup, "active v2.0 should be marked install_during_setup")
 }

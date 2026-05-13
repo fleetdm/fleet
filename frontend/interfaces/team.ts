@@ -41,9 +41,7 @@ export interface ITeam extends ITeamSummary {
   count?: number;
   created_at?: string;
   features?: IConfigFeatures;
-  agent_options?: {
-    [key: string]: any;
-  };
+  agent_options?: Record<string, unknown>;
   user_count?: number;
   host_count?: number;
   secrets?: IEnrollSecret[];
@@ -66,7 +64,12 @@ export interface ITeam extends ITeamSummary {
       apple_enable_release_device_manually: boolean | null;
       macos_manual_agent_install: boolean | null;
       require_all_software_macos: boolean | null;
+      require_all_software_windows: boolean | null;
       lock_end_user_info: boolean | null;
+      enable_create_local_admin_account?: boolean;
+    };
+    macos_setup?: {
+      enable_managed_local_account?: boolean;
     };
     windows_updates: {
       deadline_days: number | null;

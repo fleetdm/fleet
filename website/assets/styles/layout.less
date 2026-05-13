@@ -46,8 +46,8 @@ html, body {
 
 // Styles for the page header
 [purpose='header-container'] {
-  box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.08);
-  border-bottom: 1px solid #FFFFFF;
+  // box-shadow: 0px 1px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid @core-fleet-black-5;
   // rules for sticky nav transitions
   left: 0;
   right: 0;
@@ -767,6 +767,15 @@ html, body {
     font-weight: 600;
     margin-right: 30px;
   }
+}
+
+[purpose='hp-input'] {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  height: 0;
+  width: 0;
+  overflow: hidden;
 }
 
 // Footer styles

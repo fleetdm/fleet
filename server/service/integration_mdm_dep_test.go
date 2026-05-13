@@ -32,6 +32,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	redigo "github.com/gomodule/redigo/redis"
 	"github.com/google/uuid"
@@ -984,7 +985,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.NotNil(t, pending[0].Args)
 		var gotArgs struct {
 			Task              string   `json:"task"`
-			TeamID            *uint    `json:"team_id,omitempty"`
+			TeamID            *uint    `json:"team_id,omitempty"` //nolint:apiparamcheck // matches worker job payload shape (see server/worker/macos_setup_assistant.go)
 			HostSerialNumbers []string `json:"host_serial_numbers,omitempty"`
 		}
 		require.NoError(t, json.Unmarshal(*pending[0].Args, &gotArgs))
@@ -3205,7 +3206,7 @@ func (s *integrationMDMTestSuite) TestSoftwareInventoryForADEMacOSAfterWipeAndRe
 	}, http.StatusNoContent)
 
 	// wipe the host
-	var wipeResp wipeHostResponse
+	var wipeResp fleet.WipeHostResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", h.ID), nil, http.StatusOK, &wipeResp)
 	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
 
@@ -3393,4 +3394,122 @@ func (s *integrationMDMTestSuite) TestDEPRequireACME() {
 
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", otaHostID), getHostRequest{}, http.StatusOK, &hostResp)
 	assert.False(t, hostResp.Host.MDMEnrollmentHardwareAttested)
+}
+
+func (s *integrationMDMTestSuite) TestGetDefaultDEPProfile() {
+	t := s.T()
+	s.enableABM(t.Name())
+	s.setSkipWorkerJobs(t)
+	depSvc := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
+
+	// First we clean up the table, to ensure we have a clean slate for the table
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM mdm_apple_enrollment_profiles WHERE type = ?`, fleet.MDMAppleEnrollmentTypeAutomatic)
+		return err
+	})
+
+	defaultProfile := depSvc.GetDefaultProfile()
+
+	t.Run("no default profile, returns in-code profile", func(t *testing.T) {
+		// Call the new endpoint, to get the default in code (no updated at) profile
+		var resp getDefaultMDMAppleSetupAssistantProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Profile)
+		require.Nil(t, resp.UpdatedAt)
+
+		require.NotNil(t, defaultProfile)
+		require.Equal(t, *defaultProfile, resp.Profile)
+	})
+
+	t.Run("with default profile, returns existing profile", func(t *testing.T) {
+		require.NoError(t, depSvc.RunAssigner(t.Context()))
+
+		var resp getDefaultMDMAppleSetupAssistantProfileResponse
+		s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Profile)
+		require.NotNil(t, resp.UpdatedAt)
+		require.Equal(t, *defaultProfile, resp.Profile)
+	})
+
+	t.Run("any user with permission to read enrollment profiles on any team can read default", func(t *testing.T) {
+		t.Run("global observer fails", func(t *testing.T) {
+			s.setTokenForTest(t, TestObserverUserEmail, test.GoodPassword)
+			var resp getDefaultMDMAppleSetupAssistantProfileResponse
+			s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusForbidden, &resp)
+		})
+
+		t.Run("global maintainer succeeds", func(t *testing.T) {
+			s.setTokenForTest(t, TestMaintainerUserEmail, test.GoodPassword)
+			var resp getDefaultMDMAppleSetupAssistantProfileResponse
+			s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
+		})
+
+		ensureTeamExists := func(teamName string) *fleet.Team {
+			team, err := s.ds.TeamByName(t.Context(), teamName)
+			if err == nil {
+				require.NoError(t, err)
+				return team
+			}
+
+			team, err = s.ds.NewTeam(t.Context(), &fleet.Team{Name: teamName})
+			require.NoError(t, err)
+			return team
+		}
+		extraTeamName := "extra-team"
+		extraTeam := ensureTeamExists(extraTeamName)
+		defaultDEPTeamName := "default-dep-profile"
+		defaultDEPTeam := ensureTeamExists(defaultDEPTeamName)
+
+		t.Run("team observer fails", func(t *testing.T) {
+			email := "team_observer@example.com"
+			password := test.GoodPassword
+			cur := createUserResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+				UserPayload: fleet.UserPayload{
+					Email:                    &email,
+					Password:                 &password,
+					Name:                     &email,
+					Teams:                    &[]fleet.UserTeam{{Team: fleet.Team{ID: defaultDEPTeam.ID}, Role: fleet.RoleObserver}},
+					AdminForcedPasswordReset: new(false),
+				},
+			}, http.StatusOK, &cur)
+			t.Cleanup(func() {
+				s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", cur.User.ID), nil, http.StatusOK)
+			})
+
+			s.setTokenForTest(t, email, password)
+			var resp getDefaultMDMAppleSetupAssistantProfileResponse
+			s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusForbidden, &resp)
+		})
+
+		t.Run("team maintainer succeeds", func(t *testing.T) {
+			email := "team_maintainer@example.com"
+			password := test.GoodPassword
+			cur := createUserResponse{}
+			s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+				UserPayload: fleet.UserPayload{
+					Email:    &email,
+					Password: &password,
+					Name:     &email,
+					Teams: &[]fleet.UserTeam{
+						{Team: fleet.Team{ID: extraTeam.ID}, Role: fleet.RoleObserver},
+						{Team: fleet.Team{ID: defaultDEPTeam.ID}, Role: fleet.RoleMaintainer},
+					},
+					AdminForcedPasswordReset: new(bool),
+				},
+			}, http.StatusOK, &cur)
+			t.Cleanup(func() {
+				s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/users/%d", cur.User.ID), nil, http.StatusOK)
+			})
+
+			s.setTokenForTest(t, email, password)
+			var resp getDefaultMDMAppleSetupAssistantProfileResponse
+			s.DoJSON("GET", "/api/latest/fleet/enrollment_profiles/automatic/default", nil, http.StatusOK, &resp)
+		})
+
+		t.Cleanup(func() {
+			require.NoError(t, s.ds.DeleteTeam(context.Background(), extraTeam.ID))
+			require.NoError(t, s.ds.DeleteTeam(context.Background(), defaultDEPTeam.ID))
+		})
+	})
 }

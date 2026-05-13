@@ -15,6 +15,28 @@ import { createMockMdmConfig } from "__mocks__/configMock";
 import RunScript from "./RunScript";
 
 describe("RunScript", () => {
+  it("should render the page description on the empty state when MDM isn't configured", async () => {
+    mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    mockServer.use(createGetTeamHandler({}));
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<RunScript router={createMockRouter()} currentTeamId={1} />);
+
+    expect(
+      await screen.findByText(/turn on automatic enrollment/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Upload a script to run on macOS hosts/)
+    ).toBeVisible();
+  });
+
   it("should render the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     mockServer.use(
@@ -28,15 +50,13 @@ describe("RunScript", () => {
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText(/turn on automatic enrollment/)
     ).not.toBeInTheDocument();
-    await waitFor(async () => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
-    });
     expect(
-      screen.getByText(/turn on automatic enrollment/)
+      await screen.findByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
 
@@ -57,15 +77,13 @@ describe("RunScript", () => {
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText(/turn on automatic enrollment/)
     ).not.toBeInTheDocument();
-    await waitFor(async () => {
-      expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
-    });
     expect(
-      screen.getByText(/turn on automatic enrollment/)
+      await screen.findByText(/turn on automatic enrollment/)
     ).toBeInTheDocument();
   });
 
@@ -78,7 +96,8 @@ describe("RunScript", () => {
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(screen.queryByLabelText("Upload")).not.toBeInTheDocument();
     await waitFor(async () => {
       expect(screen.queryByTestId("spinner")).not.toBeInTheDocument();
@@ -96,7 +115,8 @@ describe("RunScript", () => {
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
-    expect(screen.getByTestId("spinner")).toBeVisible();
+    // Spinner has a 250ms anti-flash delay; the mocked request resolves
+    // before that, so the spinner intentionally never renders here.
     expect(
       screen.queryByText("Script will run during setup:")
     ).not.toBeInTheDocument();

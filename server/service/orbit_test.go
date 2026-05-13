@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -660,6 +661,101 @@ func TestGetOrbitConfigNudge(t *testing.T) {
 	})
 }
 
+func TestGetOrbitConfigScriptTimeoutFallback(t *testing.T) {
+	setupCtx := func(teamAgentOpts, globalAgentOpts *json.RawMessage) (fleet.Service, context.Context, *mock.Store) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		team := fleet.Team{ID: 1}
+		ds.TeamMDMConfigFunc = func(ctx context.Context, teamID uint) (*fleet.TeamMDM, error) {
+			return &fleet.TeamMDM{}, nil
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return teamAgentOpts, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, host *fleet.Host) (bool, error) {
+			return false, nil
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return nil, sql.ErrNoRows
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+		appCfg := &fleet.AppConfig{AgentOptions: globalAgentOpts}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+
+		ctx = test.HostContext(ctx, &fleet.Host{
+			OsqueryHostID: ptr.String("test"),
+			ID:            1,
+			Platform:      "ubuntu",
+			TeamID:        new(team.ID),
+		})
+		return svc, ctx, ds
+	}
+
+	t.Run("team timeout set wins over global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 600}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 600, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout unset falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 1200}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 1200, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team timeout zero falls back to global", func(t *testing.T) {
+		team := new(json.RawMessage(`{"script_execution_timeout": 0}`))
+		global := new(json.RawMessage(`{"config": {}, "script_execution_timeout": 900}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 900, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("team and global both unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		global := new(json.RawMessage(`{"config": {}}`))
+		svc, ctx, _ := setupCtx(team, global)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+
+	t.Run("nil global agent options, team unset", func(t *testing.T) {
+		team := new(json.RawMessage(`{}`))
+		svc, ctx, _ := setupCtx(team, nil)
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		require.Equal(t, 0, cfg.ScriptExeTimeout)
+	})
+}
+
 func TestGetSoftwareInstallDetails(t *testing.T) {
 	t.Run("hosts can't get each others installers", func(t *testing.T) {
 		ds := new(mock.Store)
@@ -989,3 +1085,128 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+// TestGetOrbitConfigWindowsSetupExperience verifies that GetOrbitConfig sets
+// notifs.RunSetupExperience=true for Windows hosts whose MDM enrollment is
+// in awaiting_configuration Pending or Active, and false otherwise (None,
+// not-enrolled, non-Windows platforms).
+func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
+	setupSvc := func(t *testing.T) (*mock.Store, fleet.Service, context.Context, *fleet.Host) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{
+			ID:            1,
+			OsqueryHostID: ptr.String("test"),
+			UUID:          "host-uuid-1",
+			Platform:      "windows",
+		}
+
+		appCfg := &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return &fleet.OperatingSystem{Platform: "windows", Version: "10.0.19045"}, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		return ds, svc, ctx, host
+	}
+
+	t.Run("Windows host awaiting=Pending sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationPending, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+		assert.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked)
+	})
+
+	t.Run("Windows host awaiting=Active sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host awaiting=None does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationNone, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host not enrolled (NotFound) does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, &orbitTestNotFoundErr{}
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host with non-NotFound lookup error returns the error", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, errors.New("transient db error")
+		}
+
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+	})
+
+	t.Run("non-Windows host does not query awaiting_configuration", func(t *testing.T) {
+		ds, svc, ctx, host := setupSvc(t)
+		host.Platform = "darwin"
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+			"non-Windows hosts must not invoke the Windows lookup")
+	})
+}
+
+// orbitTestNotFoundErr is a minimal IsNotFound error type for orbit config tests.
+type orbitTestNotFoundErr struct{}
+
+func (e *orbitTestNotFoundErr) Error() string    { return "not found" }
+func (e *orbitTestNotFoundErr) IsNotFound() bool { return true }

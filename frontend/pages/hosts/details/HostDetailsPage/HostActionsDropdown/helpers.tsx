@@ -50,6 +50,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Show managed account",
+    value: "managedAccount",
+    disabled: false,
+  },
+  {
     label: "Turn off MDM",
     value: "mdmOff",
     disabled: false,
@@ -108,6 +113,9 @@ interface IHostActionConfigOptions {
   isRecoveryLockPasswordEnabled: boolean;
   diskEncryptionProfileStatus: string | undefined;
   recoveryLockPasswordAvailable: boolean;
+  isManagedLocalAccountEnabled: boolean;
+  managedAccountStatus: string | null | undefined;
+  managedAccountPasswordAvailable: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -300,6 +308,7 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
     hostPlatform,
     hostCpuType,
     isRecoveryLockPasswordEnabled,
+    recoveryLockPasswordAvailable,
   } = config;
   if (!isPremiumTier) {
     return false;
@@ -314,7 +323,32 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   if (!isConnectedToFleetMdm) {
     return false;
   }
-  return isRecoveryLockPasswordEnabled;
+  // A password may exist on a host whose current team has the setting
+  // disabled (e.g., the host was locked under a different team's policy).
+  // Don't hide an existing password just because the team setting flipped.
+  return isRecoveryLockPasswordEnabled || recoveryLockPasswordAvailable;
+};
+
+const canShowManagedAccount = (config: IHostActionConfigOptions) => {
+  const {
+    isPremiumTier,
+    isConnectedToFleetMdm,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamAdmin,
+    isTeamMaintainer,
+    hostPlatform,
+    hostMdmEnrollmentStatus,
+    isManagedLocalAccountEnabled,
+  } = config;
+  if (!isPremiumTier) return false;
+  if (hostPlatform !== "darwin") return false;
+  if (!isConnectedToFleetMdm) return false;
+  if (!isAutomaticDeviceEnrollment(hostMdmEnrollmentStatus)) return false;
+  if (!isManagedLocalAccountEnabled && !config.managedAccountStatus) {
+    return false;
+  }
+  return isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 };
 
 const canClearPasscode = (config: IHostActionConfigOptions) => {
@@ -396,6 +430,10 @@ const removeUnavailableOptions = (
     options = options.filter(
       (option) => option.value !== "recoveryLockPassword"
     );
+  }
+
+  if (!canShowManagedAccount(config)) {
+    options = options.filter((option) => option.value !== "managedAccount");
   }
 
   if (!canClearPasscode(config)) {
@@ -489,6 +527,8 @@ const modifyOptions = (
     scriptsGloballyDisabled,
     diskEncryptionProfileStatus,
     recoveryLockPasswordAvailable,
+    managedAccountStatus,
+    managedAccountPasswordAvailable,
   }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
@@ -595,6 +635,48 @@ const modifyOptions = (
           while pending or has failed.
         </>
       );
+    }
+  }
+
+  // Gate on password_available rather than status === "verified" — a row whose
+  // status is "pending" because of a recent view (or a deferred rotation
+  // waiting on UUID capture) still has a viewable password. Mirrors the
+  // backend gate in GetHostManagedAccountPassword.
+  if (!managedAccountPasswordAvailable) {
+    const managedAccountOption = options.find(
+      (option) => option.value === "managedAccount"
+    );
+    if (managedAccountOption) {
+      managedAccountOption.disabled = true;
+      if (managedAccountStatus === "pending") {
+        // No password yet — the AccountConfiguration command hasn't been acked.
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account is still being
+            <br />
+            created.
+          </>
+        );
+      } else if (managedAccountStatus === "failed") {
+        managedAccountOption.tooltipContent = (
+          <>
+            The managed account failed to be
+            <br />
+            created. It will retry at the next enrollment.
+          </>
+        );
+      } else {
+        // status is null/undefined — no record exists for this host
+        managedAccountOption.tooltipContent = (
+          <>
+            This host will receive a managed account
+            <br />
+            at the next enrollment. Already enrolled
+            <br />
+            hosts don&apos;t get a managed account.
+          </>
+        );
+      }
     }
   }
 

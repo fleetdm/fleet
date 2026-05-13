@@ -1,0 +1,22 @@
+- name: Collect connected USB devices
+  description: |-
+    USB devices currently attached to the host (useful for removable media and exfiltration visibility).
+
+    Note: `usb_devices` is available on macOS and Linux only in Fleet’s schema.
+  query: |-
+    SELECT
+      usb_address,
+      usb_port,
+      vendor,
+      vendor_id,
+      model,
+      model_id,
+      serial,
+      version
+    FROM usb_devices
+    WHERE vendor != '' OR model != '';
+  interval: 86400
+  observer_can_run: true
+  automations_enabled: false
+  logging: snapshot
+  platform: darwin,linux

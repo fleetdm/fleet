@@ -2,7 +2,6 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"testing"
 
@@ -74,8 +73,8 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 		return []string{"com.example.teamapp"}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
-		return map[string]json.RawMessage{}, nil
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+		return map[string][]byte{}, nil
 	}
 
 	var capturedAppPolicies []*androidmanagement.ApplicationPolicy
@@ -128,8 +127,8 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
-		return map[string]json.RawMessage{}, nil
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+		return map[string][]byte{}, nil
 	}
 
 	var capturedAppPolicies []*androidmanagement.ApplicationPolicy

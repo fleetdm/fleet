@@ -573,6 +573,88 @@ func (s *integrationMDMTestSuite) TestCertificateTemplateNoTeamWithIDPVariable()
 	s.verifyCertificateStatusWithSubject(t, host, orbitNodeKey, certificateTemplateID, certTemplateName, caID, fleet.CertificateTemplateFailed, "", subjectName)
 }
 
+// TestCertificateTemplateWithSANIDPVariable tests that subject_alternative_name supports the
+// same $FLEET_VAR_HOST_* expansion as subject_name, end to end:
+//  1. Premium tenant creates a cert template with subject_alternative_name containing
+//     $FLEET_VAR_HOST_END_USER_IDP_USERNAME.
+//  2. Android host with no team is enrolled and associated with an IdP account.
+//  3. The fleetd certificate API returns the rendered SAN with the IdP username substituted.
+func (s *integrationMDMTestSuite) TestCertificateTemplateWithSANIDPVariable() {
+	t := s.T()
+	ctx := t.Context()
+	enterpriseID := s.enableAndroidMDM(t)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+
+	// Insert an IdP account that the Android host will be associated with so the
+	// $FLEET_VAR_HOST_END_USER_IDP_USERNAME variable resolves at delivery time.
+	idpUsername := fmt.Sprintf("san.idp.%s@example.com", strings.ReplaceAll(uuid.NewString(), "-", ""))
+	require.NoError(t, s.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
+		Username: idpUsername,
+		Fullname: "SAN Test User",
+		Email:    idpUsername,
+	}))
+	insertedIdP, err := s.ds.GetMDMIdPAccountByEmail(ctx, idpUsername)
+	require.NoError(t, err)
+	require.NotNil(t, insertedIdP)
+
+	// Create the cert template with both subject_name and subject_alternative_name using the
+	// IdP-username variable. Both should expand at delivery time.
+	certTemplateName := strings.ReplaceAll(t.Name(), "/", "-") + "-CertTemplate"
+	subjectName := "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+	subjectAlternativeName := "DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME, EMAIL=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"
+
+	var createResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   certTemplateName,
+		TeamID:                 0,
+		CertificateAuthorityId: caID,
+		SubjectName:            subjectName,
+		SubjectAlternativeName: subjectAlternativeName,
+	}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.ID)
+	require.Equal(t, subjectAlternativeName, createResp.SubjectAlternativeName)
+	certificateTemplateID := createResp.ID
+
+	// Enroll an Android host with no team and link it to the IdP account.
+	host, orbitNodeKey := s.createEnrolledAndroidHost(t, ctx, enterpriseID, nil, "san")
+	require.NoError(t, s.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, insertedIdP.UUID))
+
+	// Create pending certificate templates for the host (simulating what the pubsub handler does
+	// during enrollment).
+	_, err = s.ds.CreatePendingCertificateTemplatesForNewHost(ctx, host.UUID, 0)
+	require.NoError(t, err)
+
+	// AMAPI mock succeeds.
+	s.androidAPIClient.EnterprisesPoliciesModifyPolicyApplicationsFunc = func(_ context.Context, _ string, _ []*androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
+	}
+
+	// Run the Android setup-experience worker so the template moves to delivered.
+	enterpriseName := "enterprises/" + enterpriseID
+	require.NoError(t, worker.QueueRunAndroidSetupExperience(ctx, s.ds, slog.New(slog.DiscardHandler), host.UUID, nil, enterpriseName))
+	s.runWorker()
+
+	// Fetch the certificate via the fleetd API. Both SN and SAN should have the IdP username
+	// substituted.
+	resp := s.DoRawWithHeaders("GET",
+		fmt.Sprintf("/api/fleetd/certificates/%d", certificateTemplateID),
+		nil,
+		http.StatusOK,
+		map[string]string{"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey)},
+	)
+	var getCertResp getDeviceCertificateTemplateResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	_ = resp.Body.Close()
+
+	require.NotNil(t, getCertResp.Certificate)
+	require.Equal(t, fleet.CertificateTemplateDelivered, getCertResp.Certificate.Status)
+	require.Equal(t, fmt.Sprintf("CN=%s", idpUsername), getCertResp.Certificate.SubjectName)
+	require.Equal(t,
+		fmt.Sprintf("DNS=wifi.example.com, UPN=%s, EMAIL=%s", idpUsername, idpUsername),
+		getCertResp.Certificate.SubjectAlternativeName)
+}
+
 // TestCertificateTemplateUnenrollReenroll tests:
 // 1. Host with existing certificate templates is unenrolled
 // 2. A new certificate template is added while host is unenrolled (should NOT be marked for this host)
@@ -1832,6 +1914,100 @@ func (s *integrationMDMTestSuite) TestONCProfileReleasedAfterCertTemplateDeleted
 	s.awaitTriggerAndroidProfileSchedule(t)
 
 	s.assertONCProfilesReleased(t, host.UUID, "cert template deleted")
+}
+
+// TestONCProfileDetailPreservedWhenAddingAnotherProfile guards against this
+// regression: once an ONC profile is withheld pending a cert install
+// ("Waiting for certificate ..."), adding any other Android configuration
+// profile to the same team must NOT wipe the withheld profile's `detail`.
+func (s *integrationMDMTestSuite) TestONCProfileDetailPreservedWhenAddingAnotherProfile() {
+	t := s.T()
+	ctx := t.Context()
+	s.enableAndroidMDM(t)
+	s.setSkipWorkerJobs(t)
+
+	const (
+		oncProfileName    = "onc-wifi"
+		cameraProfileName = "camera-policy"
+		certTemplateName  = "wifi-cert"
+	)
+	expectedDetailSubstr := fmt.Sprintf(`Waiting for certificate %q`, certTemplateName)
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name(), Secrets: []*fleet.EnrollSecret{
+		{Secret: "secret-" + t.Name()},
+	}})
+	require.NoError(t, err)
+
+	caID, _ := s.createTestCertificateAuthority(t, ctx)
+	var certTemplateResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{{
+			Name:                   certTemplateName,
+			Team:                   team.Name,
+			CertificateAuthorityId: caID,
+			SubjectName:            "CN=WiFi Cert",
+		}},
+	}, http.StatusOK, &certTemplateResp)
+
+	host, _, _ := s.createAndEnrollAndroidDevice(t, "onc-detail-test", &team.ID, true)
+
+	// Apply the initial profile set and reconcile once so the ONC profile is
+	// in the withheld state we want to defend.
+	oncProfileJSON, cameraProfileJSON := s.oncWithholdingProfiles()
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: oncProfileName, Contents: oncProfileJSON},
+		{Name: cameraProfileName, Contents: cameraProfileJSON},
+	}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+	s.awaitTriggerAndroidProfileSchedule(t)
+	s.assertONCProfileWithheld(t, host.UUID)
+
+	fetchONCProfileRow := func(t *testing.T) (status, detail *string) {
+		t.Helper()
+		var row struct {
+			Status *string `db:"status"`
+			Detail *string `db:"detail"`
+		}
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(t.Context(), q, &row,
+				"SELECT status, detail FROM host_mdm_android_profiles WHERE host_uuid = ? AND profile_name = ?",
+				host.UUID, oncProfileName)
+		})
+		return row.Status, row.Detail
+	}
+
+	requireDetailPreservedAndStatusReset := func(t *testing.T, trigger string) {
+		t.Helper()
+		status, detail := fetchONCProfileRow(t)
+		require.Nil(t, status, "%s: status should be reset to NULL", trigger)
+		require.NotNil(t, detail, "%s: detail must not be nil", trigger)
+		require.Contains(t, *detail, expectedDetailSubstr, "%s: detail must not be wiped", trigger)
+	}
+
+	t.Run("single-profile upload", func(t *testing.T) {
+		// POST /configuration_profiles
+		body, headers := generateNewProfileMultipartRequest(
+			t,
+			"extra-single.json",
+			[]byte(`{"cameraDisabled": false}`),
+			s.token,
+			map[string][]string{"team_id": {fmt.Sprint(team.ID)}},
+		)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
+		defer res.Body.Close()
+
+		requireDetailPreservedAndStatusReset(t, "POST /configuration_profiles")
+	})
+
+	t.Run("batch profile set", func(t *testing.T) {
+		// POST /mdm/profiles/batch
+		s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: oncProfileName, Contents: oncProfileJSON},
+			{Name: cameraProfileName, Contents: cameraProfileJSON},
+			{Name: "extra-batch", Contents: []byte(`{"cameraDisabled": false}`)},
+		}}, http.StatusNoContent, "team_id", fmt.Sprint(team.ID))
+
+		requireDetailPreservedAndStatusReset(t, "POST /mdm/profiles/batch")
+	})
 }
 
 // oncWithholdingProfiles returns ONC and camera profile JSON payloads for ONC
