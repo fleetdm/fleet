@@ -81,32 +81,78 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 		// If the host was enrolled more than 24 hours ago, don't enqueue any items.
 		// Note: if the last enroll date is our "zero date" (1/1/2000), treat it as if it's never enrolled.
 		if lastEnrolledAt.Valid && lastEnrolledAt.Time.Before(time.Now().Add(-24*time.Hour)) && lastEnrolledAt.Time.After(time.Date(2000, time.January, 1, 0, 0, 0, 0, time.UTC)) {
-			// On Windows, the 24h-old-host guard races with last_enrolled_at on re-Autopilot:
-			// orbit calls SetupExperienceInit before the new last_enrolled_at lands, so a
-			// previously-enrolled host that's mid-Autopilot-OOBE looks "old" and gets skipped
-			// even though it IS in ESP and we DO want setup-experience to run. Fall back to a
-			// direct check of mdm_windows_enrollments.awaiting_configuration: if the host is
-			// in Pending/Active, it's actively in ESP, bypass the age guard.
-			// mdm_windows_enrollments.host_uuid stores the Fleet host UUID (hosts.uuid), but the
-			// hostUUID parameter here comes from fleet.HostUUIDForSetupExperience, which on Windows
-			// resolves to OsqueryHostID. Resolve via JOIN and match either identifier so the lookup
-			// works regardless of how OsqueryHostID and the Fleet host UUID relate (this depends on
-			// the osquery host_identifier mode).
+			// On Windows, the 24h-old-host guard races with last_enrolled_at when a previously-enrolled
+			// device re-enrolls (Autopilot wipe, Entra OOBE on a recycled VM, BYOD reconnect, etc.). Orbit
+			// calls SetupExperienceInit shortly after orbit/enroll, before EnrollOrbit's last_enrolled_at
+			// update has committed, so the host's last_enrolled_at still reflects the prior enrollment and
+			// looks "old" even though this IS a fresh enrollment we want to run setup-experience for.
+			//
+			// Fall back to mdm_windows_enrollments to detect a genuine re-enrollment. Two signals work:
+			//   1. awaiting_configuration in Pending/Active: device is actively in ESP. Covers re-Autopilot
+			//      and re-Entra-OOBE.
+			//   2. mdm_windows_enrollments.created_at within the last few minutes: a fresh MDM enrollment
+			//      row was just inserted. Covers BYOD (which never enters awaiting_configuration) plus the
+			//      OOBE cases above as a belt-and-suspenders fallback.
+			//
+			// Two lookup strategies (we try them in order):
+			//   a. JOIN on mwe.host_uuid = hosts.uuid. Works once osquery's directIngestMDMDeviceIDWindows
+			//      has run, which links the two tables. For re-Autopilot/re-Entra-OOBE, this happens at
+			//      enrollment time via the EUA token path so the JOIN works at setup_experience/init time.
+			//   b. JOIN on mwe.device_name = hosts.computer_name (case-insensitive via default collation).
+			//      Works for BYOD where the host_uuid linkage hasn't been populated yet at init time:
+			//      mwe rows have device_name set by Windows during MDM enrollment, and hosts.computer_name
+			//      is set by orbit/enroll just before init runs.
+			//
+			// The original #35717 protection (skip setup-experience for a fleetd upgrade on a long-running
+			// host) is preserved: a fleetd MSI upgrade doesn't create a new mdm_windows_enrollments row, so
+			// neither lookup finds a fresh row.
+			//
+			// hostUUID here comes from fleet.HostUUIDForSetupExperience, which on Windows resolves to
+			// OsqueryHostID. Match either identifier on the hosts side so the lookup works regardless of
+			// the osquery host_identifier mode.
 			if hostPlatform == "windows" {
-				var awaiting fleet.WindowsMDMAwaitingConfiguration
-				stmtAwaiting := `
-				SELECT mwe.awaiting_configuration
+				var mdmState struct {
+					AwaitingConfiguration fleet.WindowsMDMAwaitingConfiguration `db:"awaiting_configuration"`
+					CreatedAt             time.Time                             `db:"created_at"`
+				}
+				// Primary lookup: JOIN by mwe.host_uuid (the populated link).
+				stmtByHostUUID := `
+				SELECT mwe.awaiting_configuration, mwe.created_at
 				FROM mdm_windows_enrollments mwe
 				JOIN hosts h ON mwe.host_uuid = h.uuid
 				WHERE (h.osquery_host_id = ? OR h.uuid = ?) AND h.platform = 'windows'
 				ORDER BY mwe.created_at DESC, mwe.id DESC
 				LIMIT 1
 				`
-				if err := sqlx.GetContext(ctx, ds.reader(ctx), &awaiting, stmtAwaiting, hostUUID, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
-					return false, ctxerr.Wrap(ctx, err, "checking windows awaiting_configuration for setup experience age guard")
-				} else if err == nil && awaiting != fleet.WindowsMDMAwaitingConfigurationNone {
-					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but is in awaiting_configuration; running setup experience for re-Autopilot",
-						"host_uuid", hostUUID, "awaiting_configuration", awaiting)
+				found := false
+				if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmState, stmtByHostUUID, hostUUID, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+					return false, ctxerr.Wrap(ctx, err, "checking windows mdm enrollment state by host_uuid for setup experience age guard")
+				} else if err == nil {
+					found = true
+				}
+				// Secondary lookup: JOIN by device_name = computer_name. Only needed when the primary
+				// link is not yet populated, which is the BYOD-before-osquery-ingest case.
+				if !found {
+					stmtByName := `
+					SELECT mwe.awaiting_configuration, mwe.created_at
+					FROM mdm_windows_enrollments mwe
+					JOIN hosts h ON mwe.device_name = h.computer_name
+					WHERE (h.osquery_host_id = ? OR h.uuid = ?) AND h.platform = 'windows' AND h.computer_name <> ''
+					ORDER BY mwe.created_at DESC, mwe.id DESC
+					LIMIT 1
+					`
+					if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmState, stmtByName, hostUUID, hostUUID); err != nil && !errors.Is(err, sql.ErrNoRows) {
+						return false, ctxerr.Wrap(ctx, err, "checking windows mdm enrollment state by device_name for setup experience age guard")
+					} else if err == nil {
+						found = true
+					}
+				}
+				freshEnrollmentWindow := 5 * time.Minute
+				if found && (mdmState.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone || time.Since(mdmState.CreatedAt) < freshEnrollmentWindow) {
+					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but has fresh MDM enrollment state; running setup experience for re-enrollment",
+						"host_uuid", hostUUID,
+						"awaiting_configuration", mdmState.AwaitingConfiguration,
+						"mdm_enrollment_created_at", mdmState.CreatedAt)
 					// fall through to enqueue
 				} else {
 					ds.logger.DebugContext(ctx, "Host enrolled more than 24 hours ago, skipping enqueueing setup experience items", "host_uuid", hostUUID, "platform_like", hostPlatformLike, "last_enrolled_at", lastEnrolledAt.Time)

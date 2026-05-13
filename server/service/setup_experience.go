@@ -282,6 +282,24 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	if !requireAllSoftware {
 		return nil
 	}
+
+	// Windows BYOD enrollments do not participate in the setup-experience cancel flow.
+	// The Enrollment Status Page (ESP) is the user-facing surface that motivates cancellation,
+	// and BYOD hosts (Settings > Accounts > Access work or school > Connect, persisted as
+	// mdm_windows_enrollments.not_in_oobe=1) never render the ESP. Without that UI, cancelling
+	// remaining steps just silently disrupts the install queue with no signal to the end user,
+	// which is the opposite of the require_all_software_windows setting's intent. The failing
+	// install still reports as Failed in host details; the other queued installs simply run
+	// independently, as they would with the setting off. The setting acts as an OOBE-gate only.
+	if host.Platform == "windows" {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load windows enrollment for byod check")
+		}
+		if device != nil && device.MDMNotInOOBE {
+			return nil
+		}
+	}
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")

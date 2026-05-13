@@ -741,6 +741,12 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 				},
 			}, nil
 		}
+		// Windows BYOD short-circuit: this test exercises the OOBE/Autopilot path,
+		// so MDMNotInOOBE=false. The BYOD case (NotInOobe=true → no cancel, no
+		// activity) is covered in its own subtest below.
+		ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hUUID, MDMNotInOOBE: false}, nil
+		}
 
 		installerID := uint(20)
 		ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hUUID string, tID uint) ([]*fleet.SetupExperienceStatusResult, error) {
@@ -802,6 +808,64 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 		require.Equal(t, uint(2), canceledActivity.HostID)
 		require.Equal(t, failedSoftwareName, canceledActivity.SoftwareTitle)
 		require.Equal(t, failedSoftwareTitleID, canceledActivity.SoftwareTitleID)
+	})
+
+	t.Run("windows BYOD software install failure with require_all_software_windows=true does NOT emit activity or cancel", func(t *testing.T) {
+		// Windows BYOD enrollments (mdm_windows_enrollments.not_in_oobe=1) never see the ESP, so
+		// the require_all_software_windows cancel behavior is gated to OOBE/Autopilot enrollments
+		// only. A software-install failure on a BYOD host must report as Failed in the install
+		// activity feed but must NOT trigger maybeCancelPendingSetupExperienceSteps' cancel +
+		// canceled_setup_experience emission.
+		teamID := uint(1)
+		osqueryHostID := "windows-byod-osquery-id"
+
+		ds.MaybeUpdateSetupExperienceSoftwareInstallStatusFunc = func(ctx context.Context, hUUID string, executionID string, status fleet.SetupExperienceStatusResultStatus) (bool, error) {
+			return true, nil
+		}
+		ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+			return &fleet.Host{
+				ID: 4, UUID: hostUUID, Platform: "windows",
+				TeamID: &teamID, OsqueryHostID: &osqueryHostID,
+			}, nil
+		}
+		ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+			return &fleet.TeamLite{
+				ID: teamID,
+				Config: fleet.TeamConfigLite{
+					MDM: fleet.TeamMDM{
+						MacOSSetup: fleet.MacOSSetup{
+							RequireAllSoftwareWindows: true,
+						},
+					},
+				},
+			}, nil
+		}
+		ds.MDMWindowsGetEnrolledDeviceWithHostUUIDFunc = func(ctx context.Context, hUUID string) (*fleet.MDMWindowsEnrolledDevice, error) {
+			return &fleet.MDMWindowsEnrolledDevice{HostUUID: hUUID, MDMNotInOOBE: true}, nil
+		}
+		ds.CancelHostUpcomingActivityFuncInvoked = false
+		ds.CancelPendingSetupExperienceStepsFuncInvoked = false
+		ds.ListSetupExperienceResultsByHostUUIDFuncInvoked = false
+
+		var activityFnCalled bool
+		activityFn := func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+			activityFnCalled = true
+			return nil
+		}
+
+		result := fleet.SetupExperienceSoftwareInstallResult{
+			HostUUID:        hostUUID,
+			ExecutionID:     softwareUUID,
+			InstallerStatus: fleet.SoftwareInstallFailed,
+		}
+		updated, err := maybeUpdateSetupExperienceStatus(ctx, ds, result, activityFn)
+		require.NoError(t, err)
+		require.True(t, updated, "installer status row must still be updated to failure on BYOD")
+		require.False(t, activityFnCalled, "BYOD must not emit canceled_setup_experience even with require_all=true")
+		require.False(t, ds.CancelPendingSetupExperienceStepsFuncInvoked, "BYOD must not cancel pending setup-experience steps")
+		require.False(t, ds.CancelHostUpcomingActivityFuncInvoked, "BYOD must not cancel upcoming activities")
+		require.False(t, ds.ListSetupExperienceResultsByHostUUIDFuncInvoked,
+			"BYOD short-circuit must early-return before listing setup-experience results")
 	})
 
 	t.Run("software install failure with require_all=false does not emit activity or cancel", func(t *testing.T) {
