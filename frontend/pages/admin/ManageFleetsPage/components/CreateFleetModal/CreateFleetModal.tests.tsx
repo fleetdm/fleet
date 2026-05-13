@@ -10,7 +10,7 @@ describe("CreateFleetModal", () => {
     onCancel: jest.fn(),
     onSubmit: jest.fn(),
     backendValidators: {},
-    isUpdatingTeams: false,
+    isUpdatingFleets: false,
   };
 
   const render = createCustomRenderer();

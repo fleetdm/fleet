@@ -516,7 +516,7 @@ const TeamDetailsWrapper = ({
             onCancel={toggleDeleteFleetModal}
             onSubmit={onDeleteSubmit}
             name={currentTeamDetails.name}
-            isUpdatingTeams={isUpdatingTeams}
+            isUpdatingFleets={isUpdatingTeams}
           />
         )}
         {showRenameFleetModal && (
@@ -525,7 +525,7 @@ const TeamDetailsWrapper = ({
             onSubmit={onEditSubmit}
             defaultName={currentTeamDetails.name}
             backendValidators={backendValidators}
-            isUpdatingTeams={isUpdatingTeams}
+            isUpdatingFleets={isUpdatingTeams}
           />
         )}
         <div key={location.pathname} className="tab-nav-routed-content">
