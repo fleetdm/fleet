@@ -511,10 +511,13 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
-	// Run before the fleetVars early-return: an ACME profile may carry
-	// no Fleet variables besides the renewal-ID marker and would otherwise
-	// skip this check.
+	// Run before the fleetVars early-return: ACME and raw-SCEP profiles
+	// may carry no Fleet variables besides the renewal-ID marker and would
+	// otherwise skip this check.
 	if err := additionalACMEValidation(contents); err != nil {
+		return nil, err
+	}
+	if err := additionalNonProxiedSCEPValidation(contents); err != nil {
 		return nil, err
 	}
 
@@ -735,9 +738,9 @@ type acmeProfileForValidation struct {
 }
 
 // additionalACMEValidation rejects profiles whose com.apple.security.acme
-// payload Subject lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID in CN or OU.
-// Without the marker the cert can't be linked back to its profile and
-// renewal won't fire.
+// payload Subject OU lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Without the
+// marker the cert can't be linked back to its profile and renewal won't
+// fire.
 func additionalACMEValidation(contents string) error {
 	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
 		return nil
@@ -753,31 +756,61 @@ func additionalACMEValidation(contents string) error {
 		if payload.PayloadType != mobileconfig.ACMEPayloadType {
 			continue
 		}
-		var commonName, orgUnit strings.Builder
+		var orgUnit strings.Builder
 		for _, rdn := range payload.Subject {
 			for _, kv := range rdn {
-				if len(kv) != 2 {
+				if len(kv) != 2 || kv[0] != "OU" {
 					continue
 				}
-				switch kv[0] {
-				case "CN":
-					if commonName.Len() > 0 {
-						commonName.WriteByte(',')
-					}
-					commonName.WriteString(kv[1])
-				case "OU":
-					if orgUnit.Len() > 0 {
-						orgUnit.WriteByte(',')
-					}
-					orgUnit.WriteString(kv[1])
+				if orgUnit.Len() > 0 {
+					orgUnit.WriteByte(',')
 				}
+				orgUnit.WriteString(kv[1])
 			}
 		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(commonName.String()) &&
-			!fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
+		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
 			return &fleet.BadRequestError{
 				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
 					" must be in the ACME certificate's organizational unit (OU).",
+			}
+		}
+	}
+	return nil
+}
+
+// additionalNonProxiedSCEPValidation rejects raw SCEP profiles (those not
+// using Fleet proxy CA variables) whose cert Subject OU lacks
+// $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Profiles that use Fleet proxy
+// variables (NDES, Custom SCEP, Smallstep) are deferred to the per-CA
+// validators downstream, which enforce the same OU requirement.
+func additionalNonProxiedSCEPValidation(contents string) error {
+	if !strings.Contains(contents, mobileconfig.SCEPPayloadType) {
+		return nil
+	}
+	// If the profile uses any Fleet proxy CA variable, the per-CA
+	// validators handle it downstream.
+	for _, v := range variables.Find(contents) {
+		if v == string(fleet.FleetVarNDESSCEPChallenge) ||
+			v == string(fleet.FleetVarNDESSCEPProxyURL) ||
+			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPChallengePrefix)) ||
+			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) ||
+			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) ||
+			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) {
+			return nil
+		}
+	}
+	scepProf, err := unmarshalSCEPProfile(contents)
+	if err != nil {
+		return err
+	}
+	for _, payload := range scepProf.PayloadContent {
+		if payload.PayloadType != mobileconfig.SCEPPayloadType {
+			continue
+		}
+		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(payload.PayloadContent.OrganizationalUnit) {
+			return &fleet.BadRequestError{
+				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
+					" must be in the SCEP certificate's organizational unit (OU).",
 			}
 		}
 	}

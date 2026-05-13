@@ -508,14 +508,20 @@ func validateProfileCertificateAuthorityVariables(profileContents string, lic *f
 		if smallstepVars.RenewalOnly() {
 			smallstepVars = nil
 		}
-		// ACME profiles legitimately have only the renewal-ID variable;
-		// bypass the SCEP-only "needs URL/Challenge" error for them.
-		// Non-mobileconfig content (Windows path) parses as no-ACME.
-		hasACMEPayload := false
-		if found, err := mobileconfig.Mobileconfig(profileContents).HasPayloadType(mobileconfig.ACMEPayloadType); err == nil {
-			hasACMEPayload = found
+		// ACME and raw-SCEP profiles legitimately have only the renewal-ID
+		// variable; bypass the "needs URL/Challenge" error for them. Marker
+		// presence is enforced upstream by additionalACMEValidation and
+		// additionalNonProxiedSCEPValidation. Non-mobileconfig content
+		// (Windows path) parses as no-payload, so the error fires normally.
+		hasRenewableCertPayload := false
+		mc := mobileconfig.Mobileconfig(profileContents)
+		for _, pt := range []string{mobileconfig.ACMEPayloadType, mobileconfig.SCEPPayloadType} {
+			if found, err := mc.HasPayloadType(pt); err == nil && found {
+				hasRenewableCertPayload = true
+				break
+			}
 		}
-		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil && !hasACMEPayload {
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil && !hasRenewableCertPayload {
 			return &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}

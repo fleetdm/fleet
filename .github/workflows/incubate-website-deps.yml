@@ -34,6 +34,9 @@ jobs:
       - name: Verify 72-hour incubation
         if: github.event_name == 'pull_request'
         shell: bash
+        env:
+          GITHUB_WORKFLOW_NAME: ${{ github.workflow }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin "${GITHUB_BASE_REF}"
@@ -50,9 +53,9 @@ jobs:
           # on this PR — unaffected by force-pushed commit timestamps.
           EARLIEST_RUN_TS=$(gh run list \
             --repo "${GITHUB_REPOSITORY}" \
-            --workflow "${{ github.workflow }}" \
+            --workflow "${GITHUB_WORKFLOW_NAME}" \
             --event pull_request \
-            --branch "${{ github.head_ref }}" \
+            --branch "${GITHUB_HEAD_REF}" \
             --limit 100 \
             --json databaseId,createdAt \
             --jq 'sort_by(.createdAt) | .[0].createdAt' )
@@ -69,6 +72,8 @@ jobs:
       - name: Re-run previously-failed PR checks (nightly)
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         shell: bash
+        env:
+          GITHUB_WORKFLOW_NAME: ${{ github.workflow }}
         run: |
           set -euo pipefail
           # Find recent failed runs of THIS workflow on pull_request events and re-trigger them.
@@ -76,7 +81,7 @@ jobs:
           # and the run passes — flipping the required check green without requiring a force-push.
           gh run list \
             --repo "${GITHUB_REPOSITORY}" \
-            --workflow "${{ github.workflow }}" \
+            --workflow "${GITHUB_WORKFLOW_NAME}" \
             --event pull_request \
             --status failure \
             --created ">$(date -u -d '7 days ago' '+%Y-%m-%dT%H:%M:%SZ')" \
