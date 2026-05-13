@@ -19,13 +19,13 @@ import Spinner from "components/Spinner";
 import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 import TableCount from "components/TableContainer/TableCount";
-import AddUserModal from "pages/admin/UserManagementPage/components/AddUserModal";
-import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
+import AddUserModal from "pages/admin/ManageUsersPage/components/AddUserModal";
+import EditUserModal from "../../../ManageUsersPage/components/EditUserModal";
 import {
   IUserFormData,
   NewUserType,
-} from "../../../UserManagementPage/components/UserForm/UserForm";
-import userManagementHelpers from "../../../UserManagementPage/helpers";
+} from "../../../ManageUsersPage/components/UserForm/UserForm";
+import userManagementHelpers from "../../../ManageUsersPage/helpers";
 import EmptyMembersTable from "./components/EmptyUsersTable";
 import AddUsersModal from "./components/AddUsersModal/AddUsersModal";
 import RemoveUserModal from "./components/RemoveUserModal/RemoveUserModal";

@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 
-import { ITeamFormData } from "services/entities/teams";
+import { ITeamFormData as IFleetFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
 import InputField from "components/forms/fields/InputField";
@@ -10,10 +10,10 @@ const baseClass = "rename-fleet-modal";
 
 interface IRenameFleetModalProps {
   onCancel: () => void;
-  onSubmit: (formData: ITeamFormData) => void;
+  onSubmit: (formData: IFleetFormData) => void;
   defaultName: string;
   backendValidators: { [key: string]: string };
-  isUpdatingTeams: boolean;
+  isUpdatingFleets: boolean;
 }
 
 const RenameFleetModal = ({
@@ -21,7 +21,7 @@ const RenameFleetModal = ({
   onSubmit,
   defaultName,
   backendValidators,
-  isUpdatingTeams,
+  isUpdatingFleets,
 }: IRenameFleetModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
@@ -70,7 +70,7 @@ const RenameFleetModal = ({
             type="submit"
             disabled={name.trim() === ""}
             className="save-loading"
-            isLoading={isUpdatingTeams}
+            isLoading={isUpdatingFleets}
           >
             Save
           </Button>

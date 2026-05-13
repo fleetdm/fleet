@@ -4,7 +4,7 @@ import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
+import AutocompleteDropdown from "pages/admin/ManageFleetsPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
 const baseClass = "add-user-modal";

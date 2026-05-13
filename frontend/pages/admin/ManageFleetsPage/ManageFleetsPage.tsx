@@ -7,12 +7,12 @@ import { getGitOpsModeTipContent } from "utilities/helpers";
 
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
-import { ITeam } from "interfaces/team";
+import { ITeam as IFleet } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import teamsAPI, {
   ILoadTeamsResponse,
-  ITeamFormData,
+  ITeamFormData as IFleetFormData,
 } from "services/entities/teams";
 
 import TableContainer from "components/TableContainer";
@@ -48,7 +48,7 @@ const ManageFleetsPage = (): JSX.Element => {
   const [showCreateFleetModal, setShowCreateFleetModal] = useState(false);
   const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
   const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
-  const [fleetEditing, setFleetEditing] = useState<ITeam>();
+  const [fleetEditing, setFleetEditing] = useState<IFleet>();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -68,7 +68,7 @@ const ManageFleetsPage = (): JSX.Element => {
     isFetching: isFetchingFleets,
     error: loadingFleetsError,
     refetch: refetchFleets,
-  } = useQuery<ILoadTeamsResponse, Error, ITeam[]>(
+  } = useQuery<ILoadTeamsResponse, Error, IFleet[]>(
     ["teams"],
     () => teamsAPI.loadAll(),
     {
@@ -87,7 +87,7 @@ const ManageFleetsPage = (): JSX.Element => {
   }, [showCreateFleetModal, setShowCreateFleetModal, setBackendValidators]);
 
   const toggleDeleteFleetModal = useCallback(
-    (fleet?: ITeam) => {
+    (fleet?: IFleet) => {
       setShowDeleteFleetModal(!showDeleteFleetModal);
       fleet ? setFleetEditing(fleet) : setFleetEditing(undefined);
     },
@@ -95,7 +95,7 @@ const ManageFleetsPage = (): JSX.Element => {
   );
 
   const toggleRenameFleetModal = useCallback(
-    (fleet?: ITeam) => {
+    (fleet?: IFleet) => {
       setShowRenameFleetModal(!showRenameFleetModal);
       setBackendValidators({});
       fleet ? setFleetEditing(fleet) : setFleetEditing(undefined);
@@ -109,7 +109,7 @@ const ManageFleetsPage = (): JSX.Element => {
   );
 
   const onCreateSubmit = useCallback(
-    (formData: ITeamFormData) => {
+    (formData: IFleetFormData) => {
       setIsUpdatingFleets(true);
       teamsAPI
         .create(formData)
@@ -185,7 +185,7 @@ const ManageFleetsPage = (): JSX.Element => {
   ]);
 
   const onRenameSubmit = useCallback(
-    (formData: ITeamFormData) => {
+    (formData: IFleetFormData) => {
       if (formData.name === fleetEditing?.name) {
         toggleRenameFleetModal();
       } else if (fleetEditing) {
@@ -241,7 +241,7 @@ const ManageFleetsPage = (): JSX.Element => {
   );
 
   const onActionSelection = useCallback(
-    (action: string, fleet: ITeam): void => {
+    (action: string, fleet: IFleet): void => {
       switch (action) {
         case "rename":
           toggleRenameFleetModal(fleet);

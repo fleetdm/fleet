@@ -4,13 +4,13 @@ import { InjectedRouter } from "react-router";
 import PageDescription from "components/PageDescription";
 import UsersTable from "./components/UsersTable";
 
-const baseClass = "user-management";
+const baseClass = "manage-users";
 
 interface IUserManagementProps {
   router: InjectedRouter; // v3
 }
 
-const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
+const ManageUsersPage = ({ router }: IUserManagementProps): JSX.Element => {
   return (
     <div className={`${baseClass}`}>
       <PageDescription content="Manage who can access Fleet and what they can do." />
@@ -19,4 +19,4 @@ const UserManagementPage = ({ router }: IUserManagementProps): JSX.Element => {
   );
 };
 
-export default UserManagementPage;
+export default ManageUsersPage;

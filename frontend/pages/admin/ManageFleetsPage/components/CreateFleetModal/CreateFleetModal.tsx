@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from "react";
 
-import { ITeamFormData } from "services/entities/teams";
+import { ITeamFormData as IFleetFormData } from "services/entities/teams";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -11,7 +11,7 @@ const baseClass = "create-fleet-modal";
 
 interface ICreateFleetModalProps {
   onCancel: () => void;
-  onSubmit: (formData: ITeamFormData) => void;
+  onSubmit: (formData: IFleetFormData) => void;
   backendValidators: { [key: string]: string };
   isUpdatingFleets: boolean;
 }

@@ -9,9 +9,9 @@ describe("RenameFleetModal", () => {
   const defaultProps = {
     onCancel: jest.fn(),
     onSubmit: jest.fn(),
-    defaultName: "Existing Team",
+    defaultName: "Existing Fleet Name",
     backendValidators: {},
-    isUpdatingTeams: false,
+    isUpdatingFleets: false,
   };
 
   const render = createCustomRenderer();

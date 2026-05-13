@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ITeam } from "interfaces/team";
+import { ITeam as IFleet } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 
@@ -18,7 +18,7 @@ interface IHeaderProps {
 
 interface IRowProps {
   row: {
-    original: ITeam;
+    original: IFleet;
   };
 }
 interface ICellProps extends IRowProps {
@@ -45,14 +45,14 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface IFleetTableData extends ITeam {
+interface IFleetTableData extends IFleet {
   actions: IDropdownOption[];
 }
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, team: ITeam) => void
+  actionSelectHandler: (value: string, fleet: IFleet) => void
 ): IDataColumn[] => {
   return [
     {
@@ -136,21 +136,21 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceFleetData = (teams: ITeam[]): IFleetTableData[] => {
-  return Object.values(teams).map((team) => {
+const enhanceFleetData = (fleets: IFleet[]): IFleetTableData[] => {
+  return Object.values(fleets).map((fleet) => {
     return {
-      description: team.description,
-      name: team.name,
-      host_count: team.host_count,
-      user_count: team.user_count,
+      description: fleet.description,
+      name: fleet.name,
+      host_count: fleet.host_count,
+      user_count: fleet.user_count,
       actions: generateActionDropdownOptions(),
-      id: team.id,
+      id: fleet.id,
     };
   });
 };
 
-const generateDataSet = (teams: ITeam[]): IFleetTableData[] => {
-  return [...enhanceFleetData(teams)];
+const generateDataSet = (fleets: IFleet[]): IFleetTableData[] => {
+  return [...enhanceFleetData(fleets)];
 };
 
 export { generateTableHeaders, generateDataSet };

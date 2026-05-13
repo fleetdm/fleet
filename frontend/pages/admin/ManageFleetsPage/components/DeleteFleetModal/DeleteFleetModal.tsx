@@ -7,14 +7,14 @@ const baseClass = "delete-fleet-modal";
 
 interface IDeleteFleetModalProps {
   name: string;
-  isUpdatingTeams: boolean;
+  isUpdatingFleets: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const DeleteFleetModal = ({
   name,
-  isUpdatingTeams,
+  isUpdatingFleets,
   onSubmit,
   onCancel,
 }: IDeleteFleetModalProps): JSX.Element => {
@@ -39,7 +39,7 @@ const DeleteFleetModal = ({
           onClick={onSubmit}
           variant="alert"
           className="delete-loading"
-          isLoading={isUpdatingTeams}
+          isLoading={isUpdatingFleets}
         >
           Delete
         </Button>
