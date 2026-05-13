@@ -167,7 +167,7 @@ Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, w
 
 #### What is the same
 
-- **3-week release cadence**: Planning is decoupled from the release boundary. We ship what is complete at each release. Some agent changes (e.g. fleetd, Orbit) follow their own cadence.
+- **3-week release cadence**: Planning is decoupled from the release boundary. We ship what is complete at each release. fleetd changes follow their own cadence.
 
 #### Roles
 
@@ -177,9 +177,11 @@ Working groups use the same [product group roles](#product-group-roles), with th
 |:---------------------|:----------------------------------|
 | Engineering Manager  | Runs the board and all rituals (standup, weekly planning, release demo, release retro). |
 | Product Designer     | Places new user stories on the board, picks the drafting lane, drafts the issue, and is responsible for moving it to **Ready**. |
-| Tech Lead            | Provides technical guidance and helps shape architectural decisions. |
-| Software Engineer    | Picks up issues, ships them through review and QA, and pulls in the next available work. |
-| Quality Assurance    | Validates changes in **Awaiting QA**. |
+| Tech Lead            | Provides technical guidance, helps shape architectural decisions, and provides product feedback. |
+| Software Engineer    | Picks up issues, ships them through review and QA, and pulls in the next available work. Also provides input on architecture and product decisions. |
+| Quality Assurance    | Acts as the team's quality partner from intake onward — helping draft and shape stories with a focus on quality, reliability, and stability — and validates changes in **Awaiting QA** before they reach **Ready for release**. |
+
+> While the PD is responsible for ensuring an issue reaches **Ready**, in practice the EM is most often the one physically moving the issue into the column during standup or weekly planning.
 
 #### Item types
 
@@ -210,7 +212,7 @@ The PD decides which stories go through full drafting and is responsible for dra
 
 **Full draft** is typically reserved for customer promises and activation blockers, where design ambiguity or customer-facing risk is highest. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist), including a [t-shirt size](#t-shirt-sizing-capacity-planning). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next standup or planning meeting where it moves to **Ready**.
 
-**Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. Fast draft items still receive review from the HPD and CTO before they ship, but review happens at the weekly planning session, after implementation. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
+**Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. The PD and EM are responsible for escalating to the HPD and/or CTO if needed. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
 
 #### Estimation
 
@@ -219,9 +221,10 @@ Continuous flow does not use story points or track velocity. [T-shirt sizing](#t
 #### How issues move
 
 - **Inbox → Fast draft or Full draft**: every issue moves into a drafting lane. The PD picks the lane (see above). Bugs and priority issues (P2 or greater) are triaged at the daily standup; stories are triaged at the weekly planning meeting.
-- **Fast draft → Ready**: an issue moves to **Ready** only after the team has looked at it together — either live during standup or async with an announcement in the group's Slack channel. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
+- **Fast draft → Ready**: stories move to **Ready** only during weekly planning, or during standup if they are a priority story (P2 or greater) or if there is nothing else for the group to work on. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
 - **Full draft → Ready**: when the PD completes drafting, they bring the issue to the next standup or planning meeting where it moves to **Ready**.
-- **Ready → In progress → Ready for review → Awaiting QA → Ready for release**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
+- **Ready → In progress → Ready for review → Awaiting QA**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
+- **Awaiting QA → Ready for release**: the QA Engineer is responsible for moving the issue from **Awaiting QA** to **Ready for release** once they have verified the change.
 
 #### Working the board
 
@@ -249,12 +252,14 @@ At the end of every three-week release cycle, the working group holds a 30-minut
 
 ### Working group rollout
 
-The transition to working groups happens over the next two release cycles:
+The transition to working groups happens over the next three release cycles, following a buffer cycle in 4.87.0 to give everyone time to absorb the handbook change before any team changes:
 
 | Release | Change |
 |:---|:---|
+| 4.87.0 | Handbook change published. No team changes this cycle (buffer/ramp-up). |
 | 4.88.0 | First Impressions pauses. Scott Gress joins Konstantin Sykulev on Power to the PC. |
 | 4.89.0 | Konstantin spins out to lead BYOD with Andrew Mellor. MDM becomes Apple @ Work. Software becomes Auto Patching. |
+| 4.90.0 | Orchestration product group becomes Digital Employee Experience (DEX). Security & Compliance product group becomes Supply Chain. Both become working groups. |
 
 > When an engineer moves into a new area of the code, allocate one release cycle for ramp-up. Reduced output during that cycle is expected and planned for.
 
@@ -369,6 +374,61 @@ The goal of the BYOD working group is to enable Fleet to manage personally-owned
 | Software Engineer                 | Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
 
 > Slack channel, kanban board, and GitHub label for this working group: TBD.
+-->
+
+
+<!--
+Planned for the 4.90.0 release cycle. See the working group rollout above. Inherits from the Orchestration product group.
+
+### Digital Employee Experience (DEX) group
+
+The goal of the Digital Employee Experience working group is to improve the day-to-day experience of end users by making the devices and tools they rely on at work more reliable, responsive, and easy to use.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
+| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
+| Tech Lead                         | [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_
+| Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
+| Software Engineer                 | [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_, [Nicolás Ulmete](https://www.linkedin.com/in/nicolasulmete/) _([@nulmete](https://github.com/nulmete))_
+
+**Areas of expertise**:
+- Fleetd
+- Authn / authz
+- Host data ingestion
+- Foreign vitals / IdP vitals
+- Automations
+- Policies
+- Queries
+- Labels
+- GitOps engine
+
+> The Slack channel ([TBD]), kanban board ([TBD]), and GitHub label for this working group is `#g-dex`.
+
+
+### Supply Chain group
+
+The goal of the Supply Chain working group is to help customers secure the software and dependencies running on their fleet — reducing exposure to vulnerabilities and ensuring compliance across the device lifecycle.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
+| Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
+| Tech Lead                         | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
+| Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Software Engineer                 | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
+
+**Areas of expertise**:
+- Software inventory ingestion
+- CVE/CPE ingestion & matching
+- Vulnerability reporting
+- Conditional access
+- Certificate Authorities (CAs)
+- Certificate delivery & renewal
+- Host disk encryption
+- CIS benchmarks
+
+> The Slack channel ([TBD]), kanban board ([TBD]), and GitHub label for this working group is `#g-supply-chain`.
 -->
 
 
