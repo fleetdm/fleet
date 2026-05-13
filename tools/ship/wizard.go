@@ -66,16 +66,26 @@ func (w wizardModel) update(msg tea.Msg) (wizardModel, tea.Cmd) {
 			return w.advance()
 		case "esc":
 			return w.back()
-		case "left", "h":
+		case "left":
 			if w.step == wizStepPremium {
 				w.premium = true
 			}
 			return w, nil
-		case "right", "l":
+		case "right":
 			if w.step == wizStepPremium {
 				w.premium = false
 			}
 			return w, nil
+		case "h":
+			if w.step == wizStepPremium {
+				w.premium = true
+				return w, nil
+			}
+		case "l":
+			if w.step == wizStepPremium {
+				w.premium = false
+				return w, nil
+			}
 		case " ":
 			// space toggles the premium choice — common ergonomic shortcut.
 			if w.step == wizStepPremium {
