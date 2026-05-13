@@ -12,7 +12,6 @@ import { browserHistory } from "react-router";
 import { AppContext } from "context/app";
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
 import Icon from "components/Icon";
-import Button from "components/buttons/Button";
 import { isDarkMode, setThemeMode } from "utilities/theme";
 import paths from "router/paths";
 
@@ -403,26 +402,19 @@ const CommandPalette = (): JSX.Element | null => {
     </>
   );
 
-  const renderSwitchFleetPage = () => (
-    <Command.Group heading="Switch fleet" className={`${baseClass}__group`}>
-      {availableTeams?.map((fleet) => {
-        const isActive = currentTeam?.id === fleet.id;
-        return (
-          <Command.Item
-            key={`fleet-${fleet.id}`}
-            value={fleet.name}
-            onSelect={() => handleSwitchFleet(fleet.id)}
-            className={`${baseClass}__item`}
-          >
-            <span className={`${baseClass}__item-label`}>{fleet.name}</span>
-            {isActive && (
-              <span className={`${baseClass}__item-team`}>Current</span>
-            )}
-          </Command.Item>
-        );
-      })}
-    </Command.Group>
-  );
+  const renderSwitchFleetPage = () =>
+    availableTeams
+      ?.filter((fleet) => fleet.id !== currentTeam?.id)
+      .map((fleet) => (
+        <Command.Item
+          key={`fleet-${fleet.id}`}
+          value={fleet.name}
+          onSelect={() => handleSwitchFleet(fleet.id)}
+          className={`${baseClass}__item`}
+        >
+          <span className={`${baseClass}__item-label`}>{fleet.name}</span>
+        </Command.Item>
+      ));
 
   return (
     <Command.Dialog
@@ -463,30 +455,29 @@ const CommandPalette = (): JSX.Element | null => {
           onValueChange={setSearch}
           onKeyDown={onKeyDown}
         />
-        {page !== "root" && (
-          <Button
-            variant="inverse"
-            size="small"
-            className={`${baseClass}__back-button`}
-            onClick={goBack}
-          >
-            <Icon name="chevron-left" color="ui-fleet-black-50" />
-            <span>Back</span>
-          </Button>
-        )}
       </div>
-      {page === "root" &&
-        isPremiumTier &&
-        availableTeams &&
-        availableTeams.length > 1 && (
-          <div className={`${baseClass}__pinned`}>
+      {isPremiumTier && availableTeams && availableTeams.length > 1 && (
+        <div className={`${baseClass}__pinned`}>
+          {page === "root" ? (
             <button
               type="button"
               className={`${baseClass}__item`}
               onClick={() => goToPage("switch-fleet")}
             >
               <span className={`${baseClass}__item-label`}>
-                Switch fleet...
+                <Icon name="chevron-down" color="ui-fleet-black-75" />
+                {currentTeam?.name || "All fleets"}
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={`${baseClass}__item`}
+              onClick={goBack}
+            >
+              <span className={`${baseClass}__item-label`}>
+                <Icon name="chevron-left" color="ui-fleet-black-75" />
+                Back
               </span>
               {currentTeam?.name && (
                 <span className={`${baseClass}__item-team`}>
@@ -494,8 +485,9 @@ const CommandPalette = (): JSX.Element | null => {
                 </span>
               )}
             </button>
-          </div>
-        )}
+          )}
+        </div>
+      )}
       <Command.List className={`${baseClass}__list`}>
         <Command.Empty className={`${baseClass}__empty`}>
           No results found.
