@@ -60,7 +60,7 @@ To replace the Fleet logo with your organization's logo:
 
 ### Cancel setup if software fails (Windows)
 
-For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure Fleet to stop setup and show a failure screen on the device when a setup-experience software install fails. Without this setting, Fleet lets the device continue past the Enrollment Status Page even if some installs fail, and the end user reaches the desktop with the failed install marked Failed in **My device**.
+For Windows hosts enrolling through Autopilot or Entra OOBE, you can configure Fleet to stop setup and show a failure screen on the device when a setup-experience software install fails. Without this setting, Fleet lets the device continue past the Enrollment Status Page even if some installs fail, and the end user reaches the desktop with the failed install marked **Failed** in **My device**.
 
 To enable for a team:
 
