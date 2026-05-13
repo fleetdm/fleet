@@ -206,20 +206,6 @@
   documentationUrl: https://fleetdm.com/transparency
   productCategories: [Endpoint operations]
   pricingTableCategories: [Configuration]
-#
-#  ╔╦╗╔═╗╦═╗╦╔═  ╔╦╗╦ ╦╔═╗╔╦╗╔═╗
-#   ║║╠═╣╠╦╝╠╩╗   ║ ╠═╣║╣ ║║║║╣
-#  ═╩╝╩ ╩╩╚═╩ ╩   ╩ ╩ ╩╚═╝╩ ╩╚═╝
-- industryName: Dark theme
-  friendlyName: Automatically use your OS light/dark mode preference
-  description: Fleet automatically detects and applies your operating system’s preferred light or dark theme so you can use the interface in the mode you’re most comfortable with (4.85.0).
-  moreInfoUrl: https://github.com/fleetdm/fleet/issues/42977
-  tier: Free
-  productCategories: [Endpoint operations,Device management,Vulnerability management]
-  pricingTableCategories: [Configuration]
-  usualDepartment: IT
-#
-#
 #  ██████╗ ███████╗██╗   ██╗██╗ ██████╗███████╗                                                
 #  ██╔══██╗██╔════╝██║   ██║██║██╔════╝██╔════╝                                                
 #  ██║  ██║█████╗  ██║   ██║██║██║     █████╗                                                  
