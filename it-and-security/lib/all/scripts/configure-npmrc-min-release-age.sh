@@ -13,12 +13,19 @@ process_npmrc() {
   local tmp homedir owner
   homedir="$(dirname "$npmrc")"
 
+  # Refuse to follow symlinks: as root, writing/chowning a symlinked ~/.npmrc
+  # would change ownership of whatever the link points to.
+  if [[ -L "$npmrc" ]]; then
+    printf 'skipping symlinked npmrc: %s\n' "$npmrc" >&2
+    return 0
+  fi
+
   if [[ ! -f "$npmrc" ]]; then
     printf '%s\n' "min-release-age=${MIN_VAL}" >"$npmrc"
     if owner="$(stat -f '%u:%g' "$homedir" 2>/dev/null)" || owner="$(stat -c '%u:%g' "$homedir" 2>/dev/null)"; then
       chown "$owner" "$npmrc" 2>/dev/null || true
     fi
-    chmod 644 "$npmrc" 2>/dev/null || true
+    chmod 600 "$npmrc" 2>/dev/null || true
     return 0
   fi
 
@@ -76,7 +83,7 @@ process_npmrc() {
   if owner="$(stat -f '%u:%g' "$homedir" 2>/dev/null)" || owner="$(stat -c '%u:%g' "$homedir" 2>/dev/null)"; then
     chown "$owner" "$npmrc" 2>/dev/null || true
   fi
-  chmod 644 "$npmrc" 2>/dev/null || true
+  chmod 600 "$npmrc" 2>/dev/null || true
 }
 
 # Pick the per-OS home-directory root.
