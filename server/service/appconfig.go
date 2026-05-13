@@ -1341,8 +1341,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
 			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
 
-		// Only create an activity if bypass is changed after otka has already been initially configured
-		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != newAppConfig.ConditionalAccess.BypassDisabled.Value
+		// Only create an activity if bypass is actually changed
+		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != appConfig.ConditionalAccess.BypassDisabled.Value
 	}
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {

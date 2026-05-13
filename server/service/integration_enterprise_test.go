@@ -166,6 +166,28 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
+// testOktaValidCert is a valid PEM-encoded x509 certificate used by tests that
+// configure Okta conditional access in AppConfig.
+const testOktaValidCert = `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
+
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.
 // This is useful for test cleanup to ensure tests don't interfere with each other.
 func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
@@ -25206,26 +25228,7 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 		return b
 	}
 
-	// Valid PEM certificate for testing (real Okta certificate)
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	// Test values
 	idp := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
@@ -25427,30 +25430,106 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 	)
 }
 
+// TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity verifies that
+// toggling GitOps mode while Okta conditional access is already configured
+// (with bypass_disabled=true) does not generate a spurious
+// update_conditional_access_bypass activity. The PATCH payload only touches
+// the gitops block, so the conditional-access bypass setting is unchanged.
+func (s *integrationEnterpriseTestSuite) TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity() {
+	t := s.T()
+	ctx := t.Context()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+		// Also reset gitops config to a clean state.
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "" }
+		}`), http.StatusOK)
+	})
+
+	validCert := testOktaValidCert
+
+	// Configure Okta conditional access with bypass_disabled=true. This puts
+	// the appconfig in the state required to trigger the buggy code path.
+	oktaBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     true,
+		},
+	}
+	oktaBodyBytes, err := json.Marshal(oktaBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaBodyBytes, http.StatusOK)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Value, "bypass_disabled must be true to reproduce the bug")
+
+	// Seed a host_conditional_access row. The buggy branch in ModifyAppConfig
+	// calls ConditionalAccessClearBypasses, which deletes every row in this
+	// table — so if the bug fires, this row disappears.
+	host := createHostAndDeviceToken(t, s.ds, fmt.Sprintf("bypass-row-%s", uuid.New().String()))
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+
+	// Toggle GitOps mode ON. The PATCH body intentionally omits
+	// conditional_access — this is exactly what the Change management page
+	// sends (frontend/pages/admin/IntegrationsPage/cards/ChangeManagement).
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	// The seeded bypass row must survive the toggle — if the buggy branch
+	// ran it would have called ConditionalAccessClearBypasses.
+	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	// The most recent activity must be enabled_gitops_mode — NOT
+	// update_conditional_access_bypass. The buggy code emits the bypass
+	// activity after the gitops one, so checking only the last activity
+	// is sufficient.
+	s.lastActivityMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Re-seed the bypass row and toggle GitOps mode OFF. Same assertions.
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": false, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	s.lastActivityMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Sanity check: a real change to bypass_disabled still emits the activity.
+	flipBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     false,
+		},
+	}
+	flipBodyBytes, err := json.Marshal(flipBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", flipBodyBytes, http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		`{"bypass_disabled": false}`,
+		0,
+	)
+}
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	t := s.T()
 	ctx := t.Context()
 
-	// Shared certificate for Okta configuration
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	t.Run("bypass succeeds when enabled", func(t *testing.T) {
 		// Create a unique host for this subtest
