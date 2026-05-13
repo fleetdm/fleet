@@ -586,6 +586,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /windows-management': {
+    action: 'landing-pages/view-windows-management',
+    locals: {
+      pageTitleForMeta: 'Windows device management',
+      pageDescriptionForMeta: 'Enroll, configure, patch, and secure Windows endpoints at enterprise scale. Fleet is the open MDM that manages Windows, macOS, Linux, iOS, iPadOS, Android, and ChromeOS from one platform.',
+      currentSection: 'platform',
+    }
+  },
+
   'GET /on-premise': {
     action: 'landing-pages/view-on-premise',
     locals: {
@@ -668,6 +677,7 @@ module.exports.routes = {
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
   'GET /jamf-alternative': '/replace-jamf',
+  'GET /windows-mdm': '/windows-management',
   'GET /customer-stories': '/customers',
   'GET /testimonials': '/customers',
   // 'GET /try': '/get-started',
