@@ -2,6 +2,7 @@
 
 ### IT Admins
 
+- Added a dark theme to the Fleet UI, selectable in account settings with light, dark, and system options.
 - Implemented Clear Passcode feature for iOS and iPadOS.
 - Added support for Fleet variables in Apple's declaration profiles (DDM).
 - Added support for passing end-user authentication context to the Fleet MSI installer during Windows MDM enrollment, so end users are not prompted to authenticate twice when EUA is enabled.
@@ -19,7 +20,8 @@
 - Added ability to save policies whose SQL is flagged as a syntax error.
 - Withheld Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) until the referenced certificate is installed or terminally failed on the device.
 - Updated the host OS settings detail column to show the reason when an Android profile is pending due to a certificate dependency.
-- Added "Hosts active" and "Hosts enrolled" charts to the dashboard.
+- Added "Hosts online", "Vulnerability exposure", and "Hosts enrolled" charts to the dashboard.
+- Added an admin setting to control retention of vulnerability-exposure data used by the dashboard chart.
 - Added new policy details page with a read-only view of policy information.
 - Updated edit policy page to redirect users with read-only access to the policy details page.
 - Added dedicated `/policies/:id/live` route for running policies.
