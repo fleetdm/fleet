@@ -7,9 +7,6 @@
 .data-table__pill {
   color: $core-fleet-black;
 
-  // "Undetermined" is hoverable for more info — italics are the cue. Per
-  // design, only "Not supported" copy is greyed out; tooltip-bearing labels
-  // keep the default text color (so they stay readable in dark mode).
   &--undetermined {
     font-style: italic;
   }
