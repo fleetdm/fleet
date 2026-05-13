@@ -1,4 +1,6 @@
-.team-management {
+.manage-fleets {
+  @include vertical-page-layout;
+
   .data-table-block {
     .data-table__table {
       thead {
@@ -35,7 +37,7 @@
         }
 
         .actions__cell {
-          .team-actions-wrapper {
+          .fleet-actions-wrapper {
             display: flex;
             align-items: center;
           }

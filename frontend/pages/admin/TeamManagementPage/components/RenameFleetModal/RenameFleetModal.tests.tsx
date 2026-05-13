@@ -3,9 +3,9 @@ import { screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import userEvent from "@testing-library/user-event";
 
-import RenameTeamModal from "./RenameTeamModal";
+import RenameFleetModal from "./RenameFleetModal";
 
-describe("RenameTeamModal", () => {
+describe("RenameFleetModal", () => {
   const defaultProps = {
     onCancel: jest.fn(),
     onSubmit: jest.fn(),
@@ -21,14 +21,14 @@ describe("RenameTeamModal", () => {
   });
 
   it("renders the modal with the save button enabled for the default name", () => {
-    render(<RenameTeamModal {...defaultProps} />);
+    render(<RenameFleetModal {...defaultProps} />);
 
     const saveButton = screen.getByRole("button", { name: "Save" });
     expect(saveButton).toBeEnabled();
   });
 
   it("disables the save button when the name is cleared", async () => {
-    render(<RenameTeamModal {...defaultProps} />);
+    render(<RenameFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.clear(nameInput);
@@ -38,7 +38,7 @@ describe("RenameTeamModal", () => {
   });
 
   it("disables the save button when only spaces are entered", async () => {
-    render(<RenameTeamModal {...defaultProps} />);
+    render(<RenameFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.clear(nameInput);
@@ -49,7 +49,7 @@ describe("RenameTeamModal", () => {
   });
 
   it("calls onSubmit with trimmed name", async () => {
-    render(<RenameTeamModal {...defaultProps} />);
+    render(<RenameFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.clear(nameInput);
@@ -62,7 +62,7 @@ describe("RenameTeamModal", () => {
   });
 
   it("does not call onSubmit when name is whitespace-only", async () => {
-    render(<RenameTeamModal {...defaultProps} />);
+    render(<RenameFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.clear(nameInput);

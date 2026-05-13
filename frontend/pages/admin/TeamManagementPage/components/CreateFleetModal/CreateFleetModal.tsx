@@ -7,21 +7,21 @@ import Button from "components/buttons/Button";
 
 import InputField from "components/forms/fields/InputField";
 
-const baseClass = "create-team-modal";
+const baseClass = "create-fleet-modal";
 
-interface ICreateTeamModalProps {
+interface ICreateFleetModalProps {
   onCancel: () => void;
   onSubmit: (formData: ITeamFormData) => void;
   backendValidators: { [key: string]: string };
-  isUpdatingTeams: boolean;
+  isUpdatingFleets: boolean;
 }
 
-const CreateTeamModal = ({
+const CreateFleetModal = ({
   onCancel,
   onSubmit,
   backendValidators,
-  isUpdatingTeams,
-}: ICreateTeamModalProps): JSX.Element => {
+  isUpdatingFleets,
+}: ICreateFleetModalProps): JSX.Element => {
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -74,7 +74,7 @@ const CreateTeamModal = ({
             type="submit"
             disabled={name.trim() === ""}
             className="create-loading"
-            isLoading={isUpdatingTeams}
+            isLoading={isUpdatingFleets}
           >
             Create
           </Button>
@@ -87,4 +87,4 @@ const CreateTeamModal = ({
   );
 };
 
-export default CreateTeamModal;
+export default CreateFleetModal;

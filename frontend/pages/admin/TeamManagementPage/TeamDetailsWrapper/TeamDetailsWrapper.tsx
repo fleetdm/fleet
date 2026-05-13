@@ -29,8 +29,8 @@ import TabText from "components/TabText";
 import BackButton from "components/BackButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
-import DeleteTeamModal from "../components/DeleteTeamModal";
-import RenameTeamModal from "../components/RenameTeamModal";
+import DeleteFleetModal from "../components/DeleteFleetModal";
+import RenameFleetModal from "../components/RenameFleetModal";
 import DeleteSecretModal from "../../../../components/EnrollSecrets/DeleteSecretModal";
 import SecretEditorModal from "../../../../components/EnrollSecrets/SecretEditorModal";
 import AddHostsModal from "../../../../components/AddHostsModal";
@@ -134,8 +134,8 @@ const TeamDetailsWrapper = ({
   const [showDeleteSecretModal, setShowDeleteSecretModal] = useState(false);
   const [showEnrollSecretModal, setShowEnrollSecretModal] = useState(false);
   const [showSecretEditorModal, setShowSecretEditorModal] = useState(false);
-  const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
-  const [showRenameTeamModal, setShowRenameTeamModal] = useState(false);
+  const [showDeleteFleetModal, setShowDeleteFleetModal] = useState(false);
+  const [showRenameFleetModal, setShowRenameFleetModal] = useState(false);
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -225,14 +225,14 @@ const TeamDetailsWrapper = ({
     showEnrollSecretModal,
   ]);
 
-  const toggleDeleteTeamModal = useCallback(() => {
-    setShowDeleteTeamModal(!showDeleteTeamModal);
-  }, [showDeleteTeamModal, setShowDeleteTeamModal]);
+  const toggleDeleteFleetModal = useCallback(() => {
+    setShowDeleteFleetModal(!showDeleteFleetModal);
+  }, [showDeleteFleetModal, setShowDeleteFleetModal]);
 
-  const toggleRenameTeamModal = useCallback(() => {
-    setShowRenameTeamModal(!showRenameTeamModal);
+  const toggleRenameFleetModal = useCallback(() => {
+    setShowRenameFleetModal(!showRenameFleetModal);
     setBackendValidators({});
-  }, [showRenameTeamModal, setShowRenameTeamModal, setBackendValidators]);
+  }, [showRenameFleetModal, setShowRenameFleetModal, setBackendValidators]);
 
   const onSaveSecret = async (enrollSecretString: string) => {
     // Creates new list of secrets removing selected secret and adding new secret
@@ -306,10 +306,10 @@ const TeamDetailsWrapper = ({
       renderFlash("error", "Something went wrong removing the fleet");
       console.error(response);
     } finally {
-      toggleDeleteTeamModal();
+      toggleDeleteFleetModal();
       setIsUpdatingTeams(false);
     }
-  }, [teamIdForApi, renderFlash, router, toggleDeleteTeamModal]);
+  }, [teamIdForApi, renderFlash, router, toggleDeleteFleetModal]);
 
   const onEditSubmit = useCallback(
     async (formData: ITeamFormData) => {
@@ -319,7 +319,7 @@ const TeamDetailsWrapper = ({
       const updatedAttrs = generateUpdateData(currentTeamDetails, formData);
       // no updates, so no need for a request.
       if (!updatedAttrs) {
-        toggleRenameTeamModal();
+        toggleRenameFleetModal();
         return;
       }
 
@@ -333,7 +333,7 @@ const TeamDetailsWrapper = ({
         setBackendValidators({});
         refetchTeams();
         refetchMe();
-        toggleRenameTeamModal();
+        toggleRenameFleetModal();
       } catch (response) {
         console.error(response);
         const errorObject = formatErrorResponse(response);
@@ -358,7 +358,7 @@ const TeamDetailsWrapper = ({
     },
     [
       currentTeamDetails,
-      toggleRenameTeamModal,
+      toggleRenameFleetModal,
       teamIdForApi,
       renderFlash,
       refetchTeams,
@@ -437,7 +437,7 @@ const TeamDetailsWrapper = ({
                 label: "Rename fleet",
                 buttonVariant: "inverse",
                 iconName: "pencil",
-                onClick: toggleRenameTeamModal,
+                onClick: toggleRenameFleetModal,
                 gitOpsModeCompatible: true,
               },
               {
@@ -446,7 +446,7 @@ const TeamDetailsWrapper = ({
                 buttonVariant: "inverse",
                 iconName: "trash",
                 hideAction: !isGlobalAdmin,
-                onClick: toggleDeleteTeamModal,
+                onClick: toggleDeleteFleetModal,
                 gitOpsModeCompatible: true,
               },
             ]}
@@ -511,17 +511,17 @@ const TeamDetailsWrapper = ({
             isUpdatingSecret={isUpdatingSecret}
           />
         )}
-        {showDeleteTeamModal && (
-          <DeleteTeamModal
-            onCancel={toggleDeleteTeamModal}
+        {showDeleteFleetModal && (
+          <DeleteFleetModal
+            onCancel={toggleDeleteFleetModal}
             onSubmit={onDeleteSubmit}
             name={currentTeamDetails.name}
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {showRenameTeamModal && (
-          <RenameTeamModal
-            onCancel={toggleRenameTeamModal}
+        {showRenameFleetModal && (
+          <RenameFleetModal
+            onCancel={toggleRenameFleetModal}
             onSubmit={onEditSubmit}
             defaultName={currentTeamDetails.name}
             backendValidators={backendValidators}

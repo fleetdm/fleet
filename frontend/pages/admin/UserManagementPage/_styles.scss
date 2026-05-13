@@ -1,4 +1,6 @@
 .user-management {
+  @include vertical-page-layout;
+
   .data-table-block {
     .data-table__table {
       thead {

@@ -13,7 +13,7 @@ import IntegrationForm from "../IntegrationForm";
 
 const baseClass = "add-integration-modal";
 
-interface IAddIntegrationModalProps {
+interface IAddTicketDestinationModalProps {
   onCancel: () => void;
   onSubmit: (
     integrationSubmitData: IIntegration[],
@@ -28,12 +28,12 @@ const destinationOptions = [
   { label: "Zendesk", value: "zendesk" },
 ];
 
-const AddIntegrationModal = ({
+const AddTicketDestinationModal = ({
   onCancel,
   onSubmit,
   integrations,
   testingConnection,
-}: IAddIntegrationModalProps): JSX.Element => {
+}: IAddTicketDestinationModalProps): JSX.Element => {
   const gitOpsModeEnabled = useContext(AppContext).config?.gitops
     .gitops_mode_enabled;
 
@@ -89,4 +89,4 @@ const AddIntegrationModal = ({
   );
 };
 
-export default AddIntegrationModal;
+export default AddTicketDestinationModal;

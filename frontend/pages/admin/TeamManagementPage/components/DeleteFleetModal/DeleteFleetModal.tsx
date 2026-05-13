@@ -3,21 +3,21 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
-const baseClass = "delete-team-modal";
+const baseClass = "delete-fleet-modal";
 
-interface IDeleteTeamModalProps {
+interface IDeleteFleetModalProps {
   name: string;
   isUpdatingTeams: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
-const DeleteTeamModal = ({
+const DeleteFleetModal = ({
   name,
   isUpdatingTeams,
   onSubmit,
   onCancel,
-}: IDeleteTeamModalProps): JSX.Element => {
+}: IDeleteFleetModalProps): JSX.Element => {
   return (
     <Modal
       title="Delete fleet"
@@ -51,4 +51,4 @@ const DeleteTeamModal = ({
   );
 };
 
-export default DeleteTeamModal;
+export default DeleteFleetModal;

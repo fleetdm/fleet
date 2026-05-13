@@ -6,9 +6,9 @@ import Modal from "components/Modal";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 
-const baseClass = "edit-team-modal";
+const baseClass = "rename-fleet-modal";
 
-interface IRenameTeamModalProps {
+interface IRenameFleetModalProps {
   onCancel: () => void;
   onSubmit: (formData: ITeamFormData) => void;
   defaultName: string;
@@ -16,13 +16,13 @@ interface IRenameTeamModalProps {
   isUpdatingTeams: boolean;
 }
 
-const RenameTeamModal = ({
+const RenameFleetModal = ({
   onCancel,
   onSubmit,
   defaultName,
   backendValidators,
   isUpdatingTeams,
-}: IRenameTeamModalProps): JSX.Element => {
+}: IRenameFleetModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -83,4 +83,4 @@ const RenameTeamModal = ({
   );
 };
 
-export default RenameTeamModal;
+export default RenameFleetModal;

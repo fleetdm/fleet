@@ -3,9 +3,9 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import userEvent from "@testing-library/user-event";
 
-import CreateTeamModal from "./CreateTeamModal";
+import CreateFleetModal from "./CreateFleetModal";
 
-describe("CreateTeamModal", () => {
+describe("CreateFleetModal", () => {
   const defaultProps = {
     onCancel: jest.fn(),
     onSubmit: jest.fn(),
@@ -20,14 +20,14 @@ describe("CreateTeamModal", () => {
   });
 
   it("renders the modal with the create button disabled initially", () => {
-    render(<CreateTeamModal {...defaultProps} />);
+    render(<CreateFleetModal {...defaultProps} />);
 
     const createButton = screen.getByRole("button", { name: "Create" });
     expect(createButton).toBeDisabled();
   });
 
   it("enables the create button when a valid name is entered", async () => {
-    render(<CreateTeamModal {...defaultProps} />);
+    render(<CreateFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.type(nameInput, "Engineering");
@@ -37,7 +37,7 @@ describe("CreateTeamModal", () => {
   });
 
   it("keeps the create button disabled when only spaces are entered", async () => {
-    render(<CreateTeamModal {...defaultProps} />);
+    render(<CreateFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.type(nameInput, "     ");
@@ -47,7 +47,7 @@ describe("CreateTeamModal", () => {
   });
 
   it("keeps the create button disabled when only tabs are entered", async () => {
-    render(<CreateTeamModal {...defaultProps} />);
+    render(<CreateFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.type(nameInput, "\t\t\t");
@@ -57,7 +57,7 @@ describe("CreateTeamModal", () => {
   });
 
   it("calls onSubmit with trimmed name when a valid name is submitted", async () => {
-    render(<CreateTeamModal {...defaultProps} />);
+    render(<CreateFleetModal {...defaultProps} />);
 
     const nameInput = screen.getByLabelText("Fleet name");
     await userEvent.type(nameInput, "  Engineering  ");
@@ -75,7 +75,7 @@ describe("CreateTeamModal", () => {
       ...defaultProps,
       backendValidators: { name: "Team name already exists" },
     };
-    render(<CreateTeamModal {...props} />);
+    render(<CreateFleetModal {...props} />);
 
     expect(screen.getByText("Team name already exists")).toBeInTheDocument();
   });
@@ -85,7 +85,7 @@ describe("CreateTeamModal", () => {
       ...defaultProps,
       backendValidators: { name: "Team name already exists" },
     };
-    render(<CreateTeamModal {...props} />);
+    render(<CreateFleetModal {...props} />);
 
     expect(screen.getByText("Team name already exists")).toBeInTheDocument();
 

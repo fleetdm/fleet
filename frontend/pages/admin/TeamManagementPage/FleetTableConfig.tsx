@@ -45,7 +45,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface ITeamTableData extends ITeam {
+interface IFleetTableData extends ITeam {
   actions: IDropdownOption[];
 }
 
@@ -99,8 +99,8 @@ const generateTableHeaders = (
             <div
               className={
                 disableChildren
-                  ? "disabled-by-gitops-mode team-actions-wrapper"
-                  : "team-actions-wrapper"
+                  ? "disabled-by-gitops-mode fleet-actions-wrapper"
+                  : "fleet-actions-wrapper"
               }
             >
               <ActionsDropdown
@@ -136,7 +136,7 @@ const generateActionDropdownOptions = (): IDropdownOption[] => {
   ];
 };
 
-const enhanceTeamData = (teams: ITeam[]): ITeamTableData[] => {
+const enhanceFleetData = (teams: ITeam[]): IFleetTableData[] => {
   return Object.values(teams).map((team) => {
     return {
       description: team.description,
@@ -149,8 +149,8 @@ const enhanceTeamData = (teams: ITeam[]): ITeamTableData[] => {
   });
 };
 
-const generateDataSet = (teams: ITeam[]): ITeamTableData[] => {
-  return [...enhanceTeamData(teams)];
+const generateDataSet = (teams: ITeam[]): IFleetTableData[] => {
+  return [...enhanceFleetData(teams)];
 };
 
 export { generateTableHeaders, generateDataSet };

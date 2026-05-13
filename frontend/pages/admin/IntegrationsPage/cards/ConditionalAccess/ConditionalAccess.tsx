@@ -30,6 +30,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import { IConfig, isOktaConditionalAccessConfigured } from "interfaces/config";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
+import EmptyState from "components/EmptyState";
+
 import SectionCard from "../MdmSettings/components/SectionCard";
 import EntraConditionalAccessModal from "./components/EntraConditionalAccessModal";
 import OktaConditionalAccessModal from "./components/OktaConditionalAccessModal";
@@ -376,37 +378,38 @@ const ConditionalAccess = () => {
   // RENDER
 
   const renderOktaContent = () => {
+    if (!oktaConfigured) {
+      return (
+        <EmptyState
+          header="Okta"
+          info="Connect Okta to enable conditional access."
+          primaryButton={<Button onClick={toggleOktaModal}>Connect</Button>}
+        />
+      );
+    }
+
     return (
       <SectionCard
-        header={oktaConfigured ? undefined : "Okta"}
-        iconName={oktaConfigured ? "success" : undefined}
+        iconName="success"
         cta={
-          oktaConfigured ? (
-            <Button variant="text-icon" onClick={handleOktaDelete}>
-              Delete
-              <Icon name="trash" color="ui-fleet-black-75" />
-            </Button>
-          ) : (
-            <Button onClick={toggleOktaModal}>Connect</Button>
-          )
+          <Button variant="text-icon" onClick={handleOktaDelete}>
+            Delete
+            <Icon name="trash" color="ui-fleet-black-75" />
+          </Button>
         }
       >
-        {oktaConfigured ? (
-          <span>
-            <TooltipWrapper
-              tipContent={
-                <>
-                  <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
-                </>
-              }
-            >
-              Okta
-            </TooltipWrapper>{" "}
-            conditional access connected.
-          </span>
-        ) : (
-          "Connect Okta to enable conditional access."
-        )}
+        <span>
+          <TooltipWrapper
+            tipContent={
+              <>
+                <b>IdP ID:</b> {config?.conditional_access?.okta_idp_id}
+              </>
+            }
+          >
+            Okta
+          </TooltipWrapper>{" "}
+          conditional access connected.
+        </span>
       </SectionCard>
     );
   };

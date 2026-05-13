@@ -14,19 +14,22 @@ import { IApiError } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
 
+import Button from "components/buttons/Button";
+import CustomLink from "components/CustomLink";
+import EmptyState from "components/EmptyState";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
 import SettingsSection from "pages/admin/components/SettingsSection";
 import PageDescription from "components/PageDescription";
-import AddIntegrationModal from "./components/AddIntegrationModal";
+import AddTicketDestinationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
-import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
 
 import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
@@ -38,10 +41,13 @@ const BAD_REQUEST_ERROR =
 const UNKNOWN_ERROR =
   "We experienced an error when attempting to connect. Please try again later.";
 
-const Integrations = (): JSX.Element => {
+const TicketDestinations = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
-  const [showAddIntegrationModal, setShowAddIntegrationModal] = useState(false);
+  const [
+    showAddTicketDestinationModal,
+    setShowAddTicketDestinationModal,
+  ] = useState(false);
   const [showDeleteIntegrationModal, setShowDeleteIntegrationModal] = useState(
     false
   );
@@ -80,12 +86,12 @@ const Integrations = (): JSX.Element => {
   );
 
   // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
-  // `setShowAddIntegrationModal((prevState) => !prevState)`, instead of including state
+  // `setShowAddTicketDestinationModal((prevState) => !prevState)`, instead of including state
   // variables as dependencies for toggles, etc.
 
-  const toggleAddIntegrationModal = useCallback(() => {
-    setShowAddIntegrationModal(!showAddIntegrationModal);
-  }, [showAddIntegrationModal, setShowAddIntegrationModal]);
+  const toggleAddTicketDestinationModal = useCallback(() => {
+    setShowAddTicketDestinationModal(!showAddTicketDestinationModal);
+  }, [showAddTicketDestinationModal, setShowAddTicketDestinationModal]);
 
   const toggleDeleteIntegrationModal = useCallback(
     (integration?: IIntegrationTableData) => {
@@ -134,7 +140,7 @@ const Integrations = (): JSX.Element => {
               </b>
             </>
           );
-          toggleAddIntegrationModal();
+          toggleAddTicketDestinationModal();
           refetchIntegrations();
         })
         .catch((addError: { data: IApiError }) => {
@@ -186,7 +192,7 @@ const Integrations = (): JSX.Element => {
           setTestingConnection(false);
         });
     },
-    [toggleAddIntegrationModal]
+    [toggleAddTicketDestinationModal]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -286,14 +292,19 @@ const Integrations = (): JSX.Element => {
           name: "add integration",
           buttonText: "Add integration",
           variant: "default",
-          onClick: toggleAddIntegrationModal,
+          onClick: toggleAddTicketDestinationModal,
           hideButton: !tableData?.length,
         }}
         resultsTitle="integrations"
         emptyComponent={() => (
-          <EmptyIntegrationsTable
-            className={noIntegrationsClass}
-            onActionButtonClick={toggleAddIntegrationModal}
+          <EmptyState
+            header="No ticket destinations"
+            info="Create tickets whenever Fleet detects vulnerabilities or failing policies."
+            primaryButton={
+              <Button onClick={toggleAddTicketDestinationModal}>
+                Add ticket destination
+              </Button>
+            }
           />
         )}
         showMarkAllPages={false}
@@ -306,14 +317,23 @@ const Integrations = (): JSX.Element => {
   return (
     <SettingsSection title="Ticket destinations" className={baseClass}>
       <PageDescription
-        content="Add or edit integrations to create tickets when Fleet detects new
-        vulnerabilities."
+        content={
+          <>
+            Add or edit integrations to create tickets when Fleet detects new
+            vulnerabilities.{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/policy-automations`}
+              text="Learn more"
+              newTab
+            />
+          </>
+        }
         variant="right-panel"
       />
       {renderTable()}
-      {showAddIntegrationModal && (
-        <AddIntegrationModal
-          onCancel={toggleAddIntegrationModal}
+      {showAddTicketDestinationModal && (
+        <AddTicketDestinationModal
+          onCancel={toggleAddTicketDestinationModal}
           onSubmit={onAddSubmit}
           integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
@@ -336,4 +356,4 @@ const Integrations = (): JSX.Element => {
   );
 };
 
-export default Integrations;
+export default TicketDestinations;
