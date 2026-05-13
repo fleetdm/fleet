@@ -407,7 +407,7 @@ func TestDuplicateJSONKeysWithEncoder(t *testing.T) {
 	}
 
 	type response struct {
-		TeamID int    `json:"team_id"`
+		TeamID int    `json:"team_id"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 		Name   string `json:"name"`
 	}
 

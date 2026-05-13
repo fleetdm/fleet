@@ -1316,11 +1316,11 @@ The minimum time difference between the software's "last opened at" timestamp re
 
 ### osquery_max_log_write_body_size
 
-> `osquery_max_log_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+Maximum HTTP request body size accepted by `/api/osquery/log`. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (10MiB).
 
-Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase this if osquery agents are submitting log batches that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
 
-- Default value: `10MiB`
+- Default value: `0` (use built-in default of 10MiB)
 - Environment variable: `FLEET_OSQUERY_MAX_LOG_WRITE_BODY_SIZE`
 - Config file format:
   ```yaml
@@ -1330,16 +1330,32 @@ Maximum HTTP request body size accepted by the `osquery/log` endpoint. Increase 
 
 ### osquery_max_distributed_write_body_size
 
-> `osquery_max_distributed_write_body_size` config value is deprecated as of Fleet 4.84. It is maintained for backwards compatibility. Please use the new `server_endpoint_request_size_overrides` for more granular control.
+Maximum HTTP request body size accepted by `/api/osquery/distributed/write`. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default (5MiB).
 
-Maximum HTTP request body size accepted by the `osquery/distributed/write` endpoint. Increase this if osquery agents are submitting distributed query results that exceed the default limit. Accepts a byte size with a unit suffix (e.g. `10MiB`, `500KiB`). A value of `0` uses the built-in default. Values smaller than the server-wide minimum request body size are silently raised to that minimum.
+This setting only applies in legacy body-auth mode (`osquery_allow_body_auth_fallback: true`). In header-auth mode (`false`) the route is not subject to any body size limit and this value is ignored.
 
-- Default value: `5MiB`
+- Default value: `0` (use built-in default of 5MiB)
 - Environment variable: `FLEET_OSQUERY_MAX_DISTRIBUTED_WRITE_BODY_SIZE`
 - Config file format:
   ```yaml
   osquery:
     max_distributed_write_body_size: 10MiB
+  ```
+
+### osquery_allow_body_auth_fallback
+
+Selects how osquery requests are authenticated.
+
+When `true` (default), the `Authorization: NodeKey` header is ignored entirely and only body-based `node_key` auth is used.
+
+When `false`, the `Authorization: NodeKey` header is required and the body's `node_key` field is not consulted. The HTTP-level pre-auth middleware rejects requests with absent or invalid headers BEFORE the request body is read. On `/api/osquery/carve/block` the same pre-auth additionally enforces that the carve's `host_id` matches the authenticated host.
+
+- Default value: `true`
+- Environment variable: `FLEET_OSQUERY_ALLOW_BODY_AUTH_FALLBACK`
+- Config file format:
+  ```yaml
+  osquery:
+    allow_body_auth_fallback: false
   ```
 
 ## External activity audit logging
@@ -3363,7 +3379,7 @@ The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
 
-The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
+The best practice is to set this to 3x the number of employees onboarding simultaneously (e.g., 300 for 100 end users). This gives breathing room to prevent issues from multiple setup requests while limiting exposure to unauthorized access attempts.
 
 - Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`

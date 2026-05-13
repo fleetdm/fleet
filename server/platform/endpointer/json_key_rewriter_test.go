@@ -336,7 +336,7 @@ func TestJSONKeyRewriteReader_WithJSONDecoderOldKey(t *testing.T) {
 	rewriter := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
 
 	type request struct {
-		TeamID int    `json:"team_id"`
+		TeamID int    `json:"team_id"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 		Name   string `json:"name"`
 	}
 	var req request
@@ -356,7 +356,7 @@ func TestJSONKeyRewriteReader_WithJSONDecoderNewKey(t *testing.T) {
 	rewriter := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
 
 	type request struct {
-		TeamID int    `json:"team_id"`
+		TeamID int    `json:"team_id"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 		Name   string `json:"name"`
 	}
 	var req request
@@ -374,7 +374,7 @@ func TestJSONKeyRewriteReader_AliasConflictWithJSONDecoder(t *testing.T) {
 	rewriter := NewJSONKeyRewriteReader(strings.NewReader(input), rules)
 
 	type request struct {
-		TeamID int `json:"team_id"`
+		TeamID int `json:"team_id"` //nolint:apiparamcheck // rename handled centrally by spec.DeprecatedGitOpsKeyMappings
 	}
 	var req request
 	err := json.NewDecoder(rewriter).Decode(&req)

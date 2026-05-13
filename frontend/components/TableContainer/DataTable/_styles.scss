@@ -279,7 +279,7 @@ $shadow-transition-width: 16px;
           cursor: pointer;
         }
         &:active {
-          background-color: $ui-vibrant-blue-10-opaque; // opaque needed for horizontal scroll shadow
+          background-color: $ui-vibrant-blue-10;
         }
       }
 
@@ -453,7 +453,7 @@ $shadow-transition-width: 16px;
           }
         }
         .grey-cell {
-          color: $ui-fleet-black-50;
+          color: $ui-fleet-black-75;
         }
       }
 

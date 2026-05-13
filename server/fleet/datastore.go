@@ -676,7 +676,13 @@ type Datastore interface {
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
+	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
+	// matching the given OS version.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
+	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
+	// filtered by source. Queries software_cve directly without joining through host_software.
+	ListSoftwareVulnerabilitiesBySoftwareIDs(ctx context.Context, softwareIDs []uint, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
 	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
@@ -1646,8 +1652,11 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
-	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when the password is viewed and returns the scheduled rotation time.
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
+	// the host's install-state recovery lock row and returns the scheduled
+	// rotation time. If the row is missing or in a state where rotation does
+	// not apply (e.g., operation_type='remove'), returns a zero time and no
+	// error so callers that have already retrieved the password do not 404.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
@@ -2848,20 +2857,32 @@ type Datastore interface {
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
+	// VPP App Configuration (iOS/iPadOS)
+	GetVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+	BulkGetVPPAppConfigurations(ctx context.Context, platform InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
+
+	// In-House App Configuration (iOS/iPadOS).
+	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
+	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -3119,6 +3140,12 @@ type Datastore interface {
 	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
 	// Host activities will not be cleared if preserveHostActivities is true
 	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
+	// VerifyAppleConfigProfileScopesDoNotConflict checks scopes against existing profiles across the entire DB
+	// to ensure there are no conflicts where an existing profile with the same identifier
+	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
+	// to allow for scope changes when a host switches teams or when a profile is updated.
+	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 }
 
 type AndroidDatastore interface {

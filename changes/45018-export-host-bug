@@ -1,0 +1,1 @@
+- Fleet UI: Export hosts button now always reflects the current sort, search, and filter state instead of potentially using stale values.

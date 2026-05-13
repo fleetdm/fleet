@@ -35,6 +35,9 @@ func TestInHouseApps(t *testing.T) {
 		{"Categories", testInHouseAppsCategories},
 		{"SoftwareTitleDisplayName", testSoftwareTitleDisplayNameInHouse},
 		{"InHouseAppsCancelledOnUnenroll", testInHouseAppsCancelledOnUnenroll},
+		{"InHouseAppConfigCRUDFlow", testInHouseAppConfigCRUDFlow},
+		{"InHouseAppConfigSiblingRows", testInHouseAppConfigSiblingRows},
+		{"InHouseAppConfigHasChanged", testHasInHouseAppConfigurationChanged},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -158,6 +161,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 				LabelName: label.Name,
 			},
 		}}
+	cfg := []byte(`<dict><key>k</key><string>v1</string></dict>`)
 	updatePayload := fleet.UpdateSoftwareInstallerPayload{
 		TeamID:          &team.ID,
 		TitleID:         titleID,
@@ -166,6 +170,7 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 		StorageID:       "new_storage_id",
 		ValidatedLabels: &validatedLabels,
 		SelfService:     ptr.Bool(true),
+		Configuration:   cfg,
 	}
 
 	err = ds.SaveInHouseAppUpdates(ctx, &updatePayload)
@@ -180,6 +185,24 @@ func testInHouseAppsCrud(t *testing.T, ds *Datastore) {
 	require.Equal(t, "new_storage_id", newInstaller.StorageID)
 	require.Equal(t, expectedLabels, newInstaller.LabelsIncludeAny)
 	require.True(t, newInstaller.SelfService)
+
+	// Configuration: non-empty = set on the targeted row only.
+	gotCfg, err := ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+
+	// Configuration: nil = leave unchanged.
+	updatePayload.Configuration = nil
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
+	gotCfg, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotCfg)
+
+	// Configuration: empty = clear.
+	updatePayload.Configuration = []byte{}
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &updatePayload))
+	_, err = ds.GetInHouseAppConfiguration(ctx, installerID)
+	require.ErrorContains(t, err, "not found")
 
 	// Summary is unchanged?
 	summary2, err := ds.GetSummaryHostInHouseAppInstalls(ctx, &team.ID, installerID)
@@ -1833,4 +1856,168 @@ func testInHouseAppsCancelledOnUnenroll(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.VPPAppStatusSummary{Installed: 0, Pending: 0, Failed: 1}, *summary)
 
+}
+
+// setupTestInHouseApp inserts both iOS and iPadOS rows for the given filename
+// (insertInHouseApp creates them as a pair) and returns both IDs.
+func setupTestInHouseApp(t *testing.T, ds *Datastore, filename string) (iosID, ipadID uint) {
+	iosID, _, err := ds.insertInHouseApp(testCtx(), &fleet.InHouseAppPayload{
+		Title:           filename,
+		Filename:        filename,
+		BundleID:        "com.example." + filename,
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.IOSPlatform),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	err = sqlx.GetContext(testCtx(), ds.reader(testCtx()), &ipadID,
+		`SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ipados'`, filename)
+	require.NoError(t, err)
+	return iosID, ipadID
+}
+
+func testInHouseAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	iosID, ipadID := setupTestInHouseApp(t, ds, "test.ipa")
+
+	// NotFound on empty table.
+	_, err := ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.ErrorContains(t, err, "not found")
+	err = ds.DeleteInHouseAppConfiguration(ctx, iosID)
+	require.ErrorContains(t, err, "not found")
+
+	// BulkGet: empty input returns nil map without a query.
+	got, err := ds.BulkGetInHouseAppConfigurations(ctx, nil)
+	require.NoError(t, err)
+	require.Nil(t, got)
+
+	// Insert: one row per in_house_app_id (parent already pins team and platform).
+	iosCfg := []byte(testIOSPlist)
+	ipadCfg := []byte(`<dict><key>p</key><string>ipados</string></dict>`)
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, iosCfg))
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), ipadID, ipadCfg))
+
+	// Get: byte-for-byte round-trip.
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, iosCfg, gotIOS)
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err)
+	require.Equal(t, ipadCfg, gotIPad)
+
+	// BulkGet: returns matched rows, ignores unknown ids.
+	bulk, err := ds.BulkGetInHouseAppConfigurations(ctx, []uint{iosID, 999999})
+	require.NoError(t, err)
+	require.Len(t, bulk, 1)
+	require.Equal(t, iosCfg, bulk[iosID])
+
+	// Update: upsert overwrites.
+	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(ctx, ds.writer(ctx), iosID, updated))
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIOS)
+
+	// Delete iOS only — iPadOS row survives.
+	require.NoError(t, ds.DeleteInHouseAppConfiguration(ctx, iosID))
+	_, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err)
+
+	// Cascade: dropping the parent in_house_apps row removes the config row.
+	require.NoError(t, ds.DeleteInHouseApp(ctx, ipadID))
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.ErrorContains(t, err, "not found")
+}
+
+func testInHouseAppConfigSiblingRows(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+
+	// Upload an .ipa with a configuration. insertInHouseApp creates two rows
+	// (ios + ipados) for the same bundle; both rows must end up with the
+	// configuration so platform-specific installer-ID lookups don't return
+	// "not found" on iPadOS (the bug this guards against).
+	cfg := []byte(`<dict><key>K</key><string>v</string></dict>`)
+	iosID, _, err := ds.insertInHouseApp(ctx, &fleet.InHouseAppPayload{
+		Title:           "siblings.ipa",
+		Filename:        "siblings.ipa",
+		BundleID:        "com.example.siblings",
+		StorageID:       uuid.NewString(),
+		Platform:        string(fleet.IOSPlatform),
+		Configuration:   cfg,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	var ipadID uint
+	require.NoError(t, sqlx.GetContext(ctx, ds.reader(ctx), &ipadID,
+		`SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ipados'`, "siblings.ipa"))
+
+	gotIOS, err := ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, cfg, gotIOS)
+
+	gotIPad, err := ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err, "iPadOS row must also have the configuration set at upload time")
+	require.Equal(t, cfg, gotIPad)
+
+	// SaveInHouseAppUpdates with a new config (called against the iOS row's id)
+	// must propagate to the iPadOS sibling.
+	updated := []byte(`<dict><key>K</key><string>v2</string></dict>`)
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		InstallerID:   iosID,
+		Configuration: updated,
+		// Required passthrough fields for the UPDATE statement.
+		StorageID: uuid.NewString(),
+		Filename:  "siblings.ipa",
+		Version:   "1.0",
+	}))
+	gotIOS, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIOS)
+	gotIPad, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIPad)
+
+	// Clear (empty bytes) must propagate to both rows.
+	require.NoError(t, ds.SaveInHouseAppUpdates(ctx, &fleet.UpdateSoftwareInstallerPayload{
+		InstallerID:   iosID,
+		Configuration: []byte{},
+		StorageID:     uuid.NewString(),
+		Filename:      "siblings.ipa",
+		Version:       "1.0",
+	}))
+	_, err = ds.GetInHouseAppConfiguration(ctx, iosID)
+	require.True(t, fleet.IsNotFound(err))
+	_, err = ds.GetInHouseAppConfiguration(ctx, ipadID)
+	require.True(t, fleet.IsNotFound(err), "iPadOS sibling row must also be cleared")
+}
+
+func testHasInHouseAppConfigurationChanged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	appID, _ := setupTestInHouseApp(t, ds, "test.ipa")
+
+	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
+	require.NoError(t, ds.updateInHouseAppConfigurationTx(testCtx(), ds.writer(testCtx()), appID, stored))
+
+	cases := []struct {
+		desc      string
+		incoming  []byte
+		compareID uint
+		want      bool
+	}{
+		{"identical", stored, appID, false},
+		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), appID, true},
+		{"empty incoming against existing means delete", nil, appID, true},
+		{"empty incoming against non-existing", nil, 999999, false},
+		{"non-empty against non-existing", stored, 999999, true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := ds.HasInHouseAppConfigurationChanged(ctx, c.compareID, c.incoming)
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
 }

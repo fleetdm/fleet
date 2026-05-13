@@ -43,7 +43,7 @@ jobs:
     # Don't cancel other jobs if one test suite fails. Since our product teams are tightly coupled, we never want to see our tests fail due
     # to an unrelated issue in another product area.
     continue-on-error: true
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16core
 
     env:
       RACE_ENABLED: false
