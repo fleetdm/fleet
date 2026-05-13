@@ -11322,6 +11322,44 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "pending", status)
 	})
 
+	t.Run("clears stale auto_rotate_at when flipping to remove", func(t *testing.T) {
+		team := createTeamWithRecoveryLock(t, "stale-rotation-team", true)
+		host := test.NewHost(t, ds, "stale-rotation-host", "1.2.6.7", "stalerotkey", "stalerotuuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Simulate the user viewing the password under the install-state row,
+		// which schedules a rotation.
+		priorRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		require.False(t, priorRotateAt.IsZero())
+
+		// Disabling the team's setting and running the clear claim must wipe
+		// the stale view-deadline — auto_rotate_at is meaningful only for
+		// install-state rows, and leaving it would cause a subsequent view to
+		// return a rotation time the cron will never honor.
+		team.Config.MDM.EnableRecoveryLockPassword = false
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		uuids, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+		require.NoError(t, err)
+		require.Contains(t, uuids, host.UUID)
+
+		var autoRotateAt *time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &autoRotateAt,
+			`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, autoRotateAt, "auto_rotate_at should be cleared when flipping operation_type to remove")
+	})
+
 	t.Run("returns pending when operation_type is install and status is NULL", func(t *testing.T) {
 		host := test.NewHost(t, ds, "install-null-host", "1.2.6.5", "installnullkey", "installnulluuid", time.Now())
 
@@ -12239,26 +12277,48 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		assert.True(t, pw.AutoRotateAt.After(firstRotateAt), "persisted auto_rotate_at should be after first rotation time")
 	})
 
-	t.Run("MarkRecoveryLockPasswordViewed fails for non-existent host", func(t *testing.T) {
-		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
-		require.Error(t, err)
-		assert.True(t, fleet.IsNotFound(err))
+	t.Run("MarkRecoveryLockPasswordViewed returns zero time for non-existent host", func(t *testing.T) {
+		// Callers are expected to verify existence via GetHostRecoveryLockPassword
+		// before scheduling rotation, so a missing row here is treated the same
+		// as a non-install-state row: skip scheduling without erroring.
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero())
 	})
 
-	t.Run("MarkRecoveryLockPasswordViewed fails for remove operation", func(t *testing.T) {
-		host := setupHostWithVerifiedPassword(t, "view-host3", "viewuuid0003")
+	t.Run("MarkRecoveryLockPasswordViewed returns zero time for remove operation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host-remove", "viewuuidremove1")
 
-		// Change to remove operation type
-		_, err := ds.writer(ctx).ExecContext(ctx, `
+		// Realistic sequence: password is viewed under install state (sets
+		// auto_rotate_at), then the row is flipped to remove by the cleanup
+		// path. A second view must not fail and must not (re-)schedule a
+		// rotation that the auto-rotation cron won't honor.
+		priorRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		require.False(t, priorRotateAt.IsZero(), "view under install state should schedule rotation")
+
+		_, err = ds.writer(ctx).ExecContext(ctx, `
 			UPDATE host_recovery_key_passwords
 			SET operation_type = 'remove'
 			WHERE host_uuid = ?`, host.UUID)
 		require.NoError(t, err)
 
-		// Should fail because operation_type is not 'install'
-		_, err = ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
-		require.Error(t, err)
-		assert.True(t, fleet.IsNotFound(err))
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero(), "expected zero rotateAt for remove-state row")
+
+		// MarkRecoveryLockPasswordViewed itself must not touch a remove-state
+		// row's auto_rotate_at — clearing that stale deadline is the
+		// responsibility of ClaimHostsForRecoveryLockClear (covered in
+		// testClaimHostsForRecoveryLockClear) so this assertion pins the
+		// no-op contract.
+		var autoRotateAt *time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &autoRotateAt,
+			`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, autoRotateAt)
+		assert.WithinDuration(t, priorRotateAt, *autoRotateAt, time.Second,
+			"MarkRecoveryLockPasswordViewed must not modify auto_rotate_at on a remove-state row")
 	})
 
 	// Helper to check if a host UUID is in the rotation info list

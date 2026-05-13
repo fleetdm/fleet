@@ -628,6 +628,8 @@ type SoftwareInstallerPayload struct {
 	IconHash string `json:"-"`
 	// AlwaysDownload disables conditional HTTP downloads using ETag headers.
 	AlwaysDownload bool `json:"always_download"`
+	// Configuration is the managed app configuration as raw XML bytes (iOS / iPadOS in-house apps only).
+	Configuration []byte `json:"configuration,omitempty"`
 }
 
 type HostLockWipeStatus struct {
