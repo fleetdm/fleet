@@ -605,6 +605,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /lp/patch-faster': {
+    action: 'landing-pages/view-patch-faster',
+    locals: {
+      currentSection: 'platform',
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
+    }
+  },
+
   'GET /replace-jamf': {
     action: 'landing-pages/view-replace-jamf',
     locals: {
