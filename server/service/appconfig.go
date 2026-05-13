@@ -2066,12 +2066,11 @@ type gitopsHistoricalDataView struct {
 	} `json:"features"`
 }
 
-// applyHistoricalDataOverwriteDefaults defaults absent
-// features.historical_data sub-keys to true.
-// Older clients will not send values for these keys,
-// and in Overwrite mode we want to preserve the default
-// "enabled" state so that we don't disable data collection
-// and wipe data incorrectly.
+// applyHistoricalDataOverwriteDefaults fills in absent
+// features.historical_data sub-keys with Features.ApplyDefaults()
+// values (uptime=true, vulnerabilities=false). Older clients won't
+// send these keys, so in Overwrite mode we apply the documented
+// defaults rather than Go's bool zero values across the board.
 func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
 	var view gitopsHistoricalDataView
 	if err := json.Unmarshal(p, &view); err != nil {

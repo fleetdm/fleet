@@ -3598,12 +3598,16 @@ func (c *Client) GetGitOpsSecrets(
 	return nil
 }
 
-// ensureHistoricalDataDefaults injects default `true` values for any
+// ensureHistoricalDataDefaults injects default values for any
 // `historical_data` sub-key not explicitly specified in the gitops payload.
 // Called for both global and team-spec gitops applies so a deployment that
-// doesn't pin `historical_data` in YAML keeps the upgrade-friendly default
-// of dashboard collection enabled. Mirrors the existing carve-out for
+// doesn't pin `historical_data` in YAML lands on a deterministic state
+// rather than the Go zero value. Mirrors the existing carve-out for
 // `enable_software_inventory`.
+//
+// Defaults: uptime=true (cheap to collect), vulnerabilities=false (CVE
+// collection is opt-in due to load on large fleets — admins enable it
+// explicitly in YAML).
 //
 // Returns an error if `historical_data` is present but is not a map (e.g.
 // `historical_data: true` or a list), so a malformed YAML fails the gitops
@@ -3622,7 +3626,7 @@ func ensureHistoricalDataDefaults(features map[string]any) error {
 		historicalData["uptime"] = true
 	}
 	if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
-		historicalData["vulnerabilities"] = true
+		historicalData["vulnerabilities"] = false
 	}
 	return nil
 }

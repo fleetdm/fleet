@@ -1185,17 +1185,17 @@ func TestEnsureHistoricalDataDefaults(t *testing.T) {
 		{
 			name:      "missing key gets defaults",
 			features:  map[string]any{},
-			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": false},
 		},
 		{
 			name:      "nil value gets defaults",
 			features:  map[string]any{"historical_data": nil},
-			wantValue: map[string]any{"uptime": true, "vulnerabilities": true},
+			wantValue: map[string]any{"uptime": true, "vulnerabilities": false},
 		},
 		{
 			name:      "partial map fills missing sub-keys",
 			features:  map[string]any{"historical_data": map[string]any{"uptime": false}},
-			wantValue: map[string]any{"uptime": false, "vulnerabilities": true},
+			wantValue: map[string]any{"uptime": false, "vulnerabilities": false},
 		},
 		{
 			name:      "explicit values are preserved",

@@ -338,19 +338,19 @@ func TestFeaturesCopy(t *testing.T) {
 }
 
 func TestFeaturesApplyDefaults(t *testing.T) {
-	t.Run("ApplyDefaults sets historical_data sub-fields true", func(t *testing.T) {
+	t.Run("ApplyDefaults sets historical_data sub-fields to documented defaults", func(t *testing.T) {
 		var f Features
 		f.ApplyDefaults()
 		require.True(t, f.HistoricalData.Uptime)
-		require.True(t, f.HistoricalData.Vulnerabilities)
+		require.False(t, f.HistoricalData.Vulnerabilities)
 		require.True(t, f.EnableHostUsers)
 	})
 
-	t.Run("ApplyDefaultsForNewInstalls sets historical_data sub-fields true", func(t *testing.T) {
+	t.Run("ApplyDefaultsForNewInstalls sets historical_data sub-fields to documented defaults", func(t *testing.T) {
 		var f Features
 		f.ApplyDefaultsForNewInstalls()
 		require.True(t, f.HistoricalData.Uptime)
-		require.True(t, f.HistoricalData.Vulnerabilities)
+		require.False(t, f.HistoricalData.Vulnerabilities)
 		require.True(t, f.EnableHostUsers)
 		require.True(t, f.EnableSoftwareInventory)
 	})
