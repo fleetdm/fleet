@@ -46,7 +46,7 @@ const HistoricalDataTeamControls = ({
                   )
             }
           >
-            Disable hosts online
+            Disable hosts online historical reporting
           </Checkbox>
         )}
       />
@@ -72,7 +72,7 @@ const HistoricalDataTeamControls = ({
                   )
             }
           >
-            Disable vulnerabilities
+            Disable vulnerability exposure historical reporting
           </Checkbox>
         )}
       />

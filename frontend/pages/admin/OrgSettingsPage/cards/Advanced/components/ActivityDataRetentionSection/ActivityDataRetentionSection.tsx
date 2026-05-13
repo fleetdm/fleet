@@ -177,7 +177,7 @@ const ActivityDataRetentionSection = ({
               )
             }
           >
-            Disable hosts online
+            Disable hosts online historical reporting
           </Checkbox>
         )}
       />
@@ -203,7 +203,7 @@ const ActivityDataRetentionSection = ({
               )
             }
           >
-            Disable vulnerabilities
+            Disable vulnerability exposure historical reporting
           </Checkbox>
         )}
       />
