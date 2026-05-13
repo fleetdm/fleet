@@ -401,7 +401,7 @@ func testPoliciesListOptions(t *testing.T, ds *Datastore) {
 
 func testPoliciesPlatformFilter(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Cross-platform policy (empty platform string targets all platforms)
 	_, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
