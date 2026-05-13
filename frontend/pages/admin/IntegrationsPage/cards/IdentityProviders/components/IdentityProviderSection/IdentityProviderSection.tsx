@@ -29,7 +29,7 @@ const AddEndUserInfoCard = () => {
       header="No IdP connected"
       info={
         <CustomLink
-          text="Learn more"
+          text="Learn how to connect your IdP"
           newTab
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/connect-idp`}
         />
