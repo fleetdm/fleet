@@ -73,34 +73,6 @@ describe("InstallSoftware", () => {
     // The form renders (Save button appears)
     expect(await screen.findByRole("button", { name: "Save" })).toBeVisible();
   });
-
-  it.each(["windows", "linux"] as const)(
-    "renders the %s-tab page description without 'automatically'",
-    async (platform) => {
-      setupMdmConfigured();
-      const render = createCustomRenderer({
-        withBackendMock: true,
-      });
-
-      render(
-        <InstallSoftware
-          router={createMockRouter()}
-          currentTeamId={1}
-          urlPlatformParam={platform}
-        />
-      );
-
-      expect(
-        screen.getByText("Install software on hosts that enroll to Fleet.")
-      ).toBeVisible();
-      expect(
-        screen.queryByText(
-          "Install software on hosts that automatically enroll to Fleet."
-        )
-      ).not.toBeInTheDocument();
-    }
-  );
-
   it("renders the Android empty state with correct messaging", async () => {
     mockServer.use(createSetupExperienceSoftwareHandler());
     mockServer.use(

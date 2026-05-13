@@ -374,15 +374,7 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	// enters awaiting_configuration (not_in_oobe=1). The freshly-created mdm_windows_enrollments row
 	// is the signal that this IS a real re-enrollment we want setup-experience for.
 	host4UUID := "44444444-4444-4444-4444-444444444444"
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "windows-test-4-rebyod",
-		OsqueryHostID:  ptr.String("osquery-windows-4"),
-		NodeKey:        ptr.String("node-key-windows-4"),
-		UUID:           host4UUID,
-		Platform:       "windows",
-		HardwareSerial: "654321d-4",
-	})
-	require.NoError(t, err)
+	test.NewHost(t, ds, "windows-test-4-rebyod", "", "node-key-windows-4", host4UUID, time.Now(), test.WithPlatform("windows"))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host4UUID)
 		return err
@@ -410,15 +402,7 @@ func testEnqueueSetupExperienceItemsWindows(t *testing.T, ds *Datastore) {
 	// mdm_windows_enrollments row, so the existing one is also old. Both fallback signals must miss,
 	// and the age guard must still skip enqueueing.
 	host5UUID := "55555555-5555-5555-5555-555555555555"
-	_, err = ds.NewHost(ctx, &fleet.Host{
-		Hostname:       "windows-test-5-fleetd-upgrade",
-		OsqueryHostID:  ptr.String("osquery-windows-5"),
-		NodeKey:        ptr.String("node-key-windows-5"),
-		UUID:           host5UUID,
-		Platform:       "windows",
-		HardwareSerial: "654321e-5",
-	})
-	require.NoError(t, err)
+	test.NewHost(t, ds, "windows-test-5-fleetd-upgrade", "", "node-key-windows-5", host5UUID, time.Now(), test.WithPlatform("windows"))
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE hosts SET last_enrolled_at = ? WHERE uuid = ?", time.Now().Add(-25*time.Hour), host5UUID)
 		return err

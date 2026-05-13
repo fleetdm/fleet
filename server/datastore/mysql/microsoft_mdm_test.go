@@ -67,6 +67,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestMDMWindowsProfilesToRemoveSkipsOrphanedHosts", testMDMWindowsProfilesToRemoveSkipsOrphanedHosts},
 		{"TestMDMWindowsInsertCommandSkipsUnenrolledHosts", testMDMWindowsInsertCommandSkipsUnenrolledHosts},
 		{"TestCleanupWindowsMDMCommandQueue", testCleanupWindowsMDMCommandQueue},
+		{"TestMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName", testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName},
 	}
 
 	for _, c := range cases {
@@ -6076,4 +6077,71 @@ func testMDMWindowsHasSetupExperienceItems(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.False(t, hasItemsB, "team-A installer must not appear for team-B")
 	})
+}
+
+func testMDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// 1. Empty device name → NotFound.
+	_, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err), "empty device name should return NotFound")
+
+	// 2. No matching row → NotFound.
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, "DESKTOP-NONE")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
+
+	// 3. Insert an unlinked enrollment (host_uuid="") with a known device_name; method returns it.
+	deviceName := "DESKTOP-RACE-1"
+	unlinked := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          deviceName,
+		MDMEnrollType:          "AzureADJoin",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               "",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, unlinked))
+
+	got, err := ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID)
+	require.Empty(t, got.HostUUID)
+	require.True(t, got.MDMNotInOOBE)
+
+	// 4. Linked enrollment with the same name (host_uuid populated) must be excluded.
+	linked := &fleet.MDMWindowsEnrolledDevice{
+		MDMDeviceID:            uuid.New().String(),
+		MDMHardwareID:          uuid.New().String() + uuid.New().String(),
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
+		MDMDeviceType:          "CIMClient_Windows",
+		MDMDeviceName:          deviceName,
+		MDMEnrollType:          "AzureADJoin",
+		MDMEnrollProtoVersion:  "5.0",
+		MDMEnrollClientVersion: "10.0.19045.2965",
+		MDMNotInOOBE:           true,
+		HostUUID:               "11111111-1111-1111-1111-111111111111",
+	}
+	require.NoError(t, ds.MDMWindowsInsertEnrolledDevice(ctx, linked))
+
+	got, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.NoError(t, err)
+	require.Equal(t, unlinked.MDMDeviceID, got.MDMDeviceID,
+		"must return the unlinked row even when another row with the same device_name is linked")
+
+	// 5. After linking the original row too, no unlinked row remains → NotFound.
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`UPDATE mdm_windows_enrollments SET host_uuid = ? WHERE mdm_device_id = ?`,
+		"22222222-2222-2222-2222-222222222222", unlinked.MDMDeviceID)
+	require.NoError(t, err)
+
+	_, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, deviceName)
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err),
+		"all matching rows now linked; method must return NotFound")
 }

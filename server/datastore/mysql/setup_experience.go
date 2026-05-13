@@ -94,15 +94,6 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 			//      row was just inserted. Covers BYOD (which never enters awaiting_configuration) plus the
 			//      OOBE cases above as a belt-and-suspenders fallback.
 			//
-			// Two lookup strategies (we try them in order):
-			//   a. JOIN on mwe.host_uuid = hosts.uuid. Works once osquery's directIngestMDMDeviceIDWindows
-			//      has run, which links the two tables. For re-Autopilot/re-Entra-OOBE, this happens at
-			//      enrollment time via the EUA token path so the JOIN works at setup_experience/init time.
-			//   b. JOIN on mwe.device_name = hosts.computer_name (case-insensitive via default collation).
-			//      Works for BYOD where the host_uuid linkage hasn't been populated yet at init time:
-			//      mwe rows have device_name set by Windows during MDM enrollment, and hosts.computer_name
-			//      is set by orbit/enroll just before init runs.
-			//
 			// The original #35717 protection (skip setup-experience for a fleetd upgrade on a long-running
 			// host) is preserved: a fleetd MSI upgrade doesn't create a new mdm_windows_enrollments row, so
 			// neither lookup finds a fresh row.
@@ -135,12 +126,9 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 				//
 				// Cross-host collision protection: also constrain on mwe.host_uuid so we reject rows
 				// already linked to a different host (e.g. another device on the network shares a Windows
-				// computer name and has finished osquery ingest). The remaining cases are mwe.host_uuid
-				// matching our host (would have been caught by the primary lookup; covered here for
-				// completeness) or mwe.host_uuid still empty (the fresh re-BYOD case we want). A residual
+				// computer name and has finished osquery ingest). A residual
 				// edge case is two hosts sharing the same computer_name both freshly enrolling within the
-				// 5-minute window with neither linked yet -- a narrow collision we accept; the time
-				// window + ORDER BY DESC limits the blast radius to misattributing one bypass per pair.
+				// 5-minute window with neither linked yet. Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
 				if !found {
 					stmtByName := `
 					SELECT mwe.awaiting_configuration, mwe.created_at
