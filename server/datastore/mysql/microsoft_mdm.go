@@ -361,8 +361,9 @@ func (ds *Datastore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*f
 	}
 
 	stmt := fmt.Sprintf(`
-		INSERT IGNORE INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
-		VALUES %s`, sb.String())
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid`, sb.String())
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk inserting MDMWindowsCommands")
 	}
@@ -382,8 +383,9 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 
 	// Insert the command once, outside of the batched transactions.
 	cmdStmt := `
-		INSERT IGNORE INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
 		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, cmdStmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
