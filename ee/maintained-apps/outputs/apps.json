@@ -1325,6 +1325,13 @@
       "description": "OneDrive is Microsoft's cloud storage client."
     },
     {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.openvpn.client.app",
+      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
+    },
+    {
       "name": "Opera",
       "slug": "opera/darwin",
       "platform": "darwin",

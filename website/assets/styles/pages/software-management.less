@@ -29,6 +29,7 @@
     font-size: 16px;
     line-height: @text-lineheight;
     color: @core-fleet-black-75;
+
   }
 
 
@@ -183,6 +184,9 @@
   [purpose='checklist'] {
     .checklist();
     margin-top: 8px;
+    p {
+      margin-bottom: 24px;
+    }
   }
   [purpose='feature-link'] {
     padding-top: 32px;
@@ -261,6 +265,15 @@
         font-size: 24px;
         font-weight: 800;
         line-height: @heading-lineheight; /* 120% */
+        margin-bottom: 0px;
+      }
+      p {
+        margin-bottom: 0px;
+      }
+      [purpose='checklist'] {
+        p {
+          margin-bottom: 24px;
+        }
       }
     }
   }

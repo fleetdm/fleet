@@ -24,6 +24,7 @@ import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
+import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -430,6 +431,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,

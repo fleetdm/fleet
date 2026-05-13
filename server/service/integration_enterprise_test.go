@@ -166,6 +166,28 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	s.withServer.commonTearDownTest(s.T())
 }
 
+// testOktaValidCert is a valid PEM-encoded x509 certificate used by tests that
+// configure Okta conditional access in AppConfig.
+const testOktaValidCert = `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
+
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.
 // This is useful for test cleanup to ensure tests don't interfere with each other.
 func (s *integrationEnterpriseTestSuite) clearOktaConditionalAccess() {
@@ -3008,7 +3030,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -3042,7 +3064,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -3131,7 +3153,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Configure webhook for "No Team" - only include pol1 and pol2
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3169,7 +3191,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Test that we can configure and retrieve the "No Team" webhook settings
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -18469,7 +18491,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18479,7 +18501,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18494,7 +18516,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			`SELECT count(1) FROM activity_past`,
 		)
 	})
-	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
+	require.Equal(t, activityCount+2, activityNewCount, "an activity should be created for each failed install attempt (including retries)")
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.
@@ -18677,7 +18699,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Queued retry (attempt_number is NULL until result is submitted)
 	require.Nil(t, results[1].InstallScriptExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18700,7 +18723,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18721,9 +18744,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].InstallScriptExitCode, "final attempt should be completed")
 
-	// Activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// No more retries, max reached
@@ -20208,7 +20231,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	// Note: attempt_number is only calculated when the result is submitted, not when queued, so it will be NULL
 	require.Nil(t, results[1].ExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20231,7 +20255,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20252,9 +20276,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].ExitCode, "final attempt should be completed")
 
-	// activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// no more retries, max reached
@@ -25204,26 +25228,7 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 		return b
 	}
 
-	// Valid PEM certificate for testing (real Okta certificate)
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	// Test values
 	idp := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
@@ -25425,30 +25430,106 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 	)
 }
 
+// TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity verifies that
+// toggling GitOps mode while Okta conditional access is already configured
+// (with bypass_disabled=true) does not generate a spurious
+// update_conditional_access_bypass activity. The PATCH payload only touches
+// the gitops block, so the conditional-access bypass setting is unchanged.
+func (s *integrationEnterpriseTestSuite) TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity() {
+	t := s.T()
+	ctx := t.Context()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+		// Also reset gitops config to a clean state.
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "" }
+		}`), http.StatusOK)
+	})
+
+	validCert := testOktaValidCert
+
+	// Configure Okta conditional access with bypass_disabled=true. This puts
+	// the appconfig in the state required to trigger the buggy code path.
+	oktaBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     true,
+		},
+	}
+	oktaBodyBytes, err := json.Marshal(oktaBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaBodyBytes, http.StatusOK)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Value, "bypass_disabled must be true to reproduce the bug")
+
+	// Seed a host_conditional_access row. The buggy branch in ModifyAppConfig
+	// calls ConditionalAccessClearBypasses, which deletes every row in this
+	// table — so if the bug fires, this row disappears.
+	host := createHostAndDeviceToken(t, s.ds, fmt.Sprintf("bypass-row-%s", uuid.New().String()))
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+
+	// Toggle GitOps mode ON. The PATCH body intentionally omits
+	// conditional_access — this is exactly what the Change management page
+	// sends (frontend/pages/admin/IntegrationsPage/cards/ChangeManagement).
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	// The seeded bypass row must survive the toggle — if the buggy branch
+	// ran it would have called ConditionalAccessClearBypasses.
+	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	// The most recent activity must be enabled_gitops_mode — NOT
+	// update_conditional_access_bypass. The buggy code emits the bypass
+	// activity after the gitops one, so checking only the last activity
+	// is sufficient.
+	s.lastActivityMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Re-seed the bypass row and toggle GitOps mode OFF. Same assertions.
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": false, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	s.lastActivityMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Sanity check: a real change to bypass_disabled still emits the activity.
+	flipBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     false,
+		},
+	}
+	flipBodyBytes, err := json.Marshal(flipBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", flipBodyBytes, http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		`{"bypass_disabled": false}`,
+		0,
+	)
+}
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	t := s.T()
 	ctx := t.Context()
 
-	// Shared certificate for Okta configuration
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	t.Run("bypass succeeds when enabled", func(t *testing.T) {
 		// Create a unique host for this subtest
@@ -26268,6 +26349,91 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+
+	t.Run("managed app configuration", func(t *testing.T) {
+		var teamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
+
+		const validPlist = `<dict><key>K</key><string>v</string></dict>`
+		const validPlist2 = `<dict><key>K2</key><string>v2</string></dict>`
+
+		// Upload .ipa with configuration.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte(validPlist),
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID, installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			return nil
+		})
+
+		// Stored configuration matches what was sent.
+		storedCfg, err := s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist), storedCfg)
+
+		// Update with a new configuration.
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {validPlist2},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		storedCfg, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist2), storedCfg)
+
+		// GET title returns the iOS configuration as a JSON string of plist; unmarshal to recover.
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			&getSoftwareTitleRequest{ID: titleID, TeamID: &teamResp.Team.ID},
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		var gotPlist string
+		require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.SoftwarePackage.Configuration, &gotPlist))
+		require.Equal(t, validPlist2, gotPlist)
+
+		// Update with empty configuration → cleared.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {""},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		_, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.True(t, fleet.IsNotFound(err), "expected configuration cleared, got %v", err)
+
+		// Update with invalid plist → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {"not actually a plist"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Update with disallowed Fleet variable → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Upload with invalid plist → 422.
+		invalidPayload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte("not actually a plist"),
+		}
+		s.uploadSoftwareInstaller(t, invalidPayload, http.StatusUnprocessableEntity, "invalid plist")
 	})
 }
 
@@ -28672,7 +28838,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
-func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesObsoletePatchPolicy() {
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObsoletePatchPolicy() {
 	t := s.T()
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
@@ -28729,8 +28895,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
 
-	// Batch set only zoom/windows — should not fail and should delete the obsolete patch policy.
+	// Batch set only zoom/windows — should not fail and should unset the obsolete patch policy's
+	// patch_software_title_id without deleting the policy. Gitops then deletes it via the policy
+	// delete API so the deletion produces a deleted_policy activity.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
@@ -28738,10 +28907,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
-	// Verify the patch policy was deleted.
+	// Verify the patch policy still exists but no longer references a software title.
 	listPolResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-	require.Empty(t, listPolResp.Policies)
+	require.Len(t, listPolResp.Policies, 1)
+	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.Nil(t, listPolResp.Policies[0].PatchSoftware)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
@@ -28829,7 +29000,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"`
+			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -29004,7 +29175,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"`
+			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}

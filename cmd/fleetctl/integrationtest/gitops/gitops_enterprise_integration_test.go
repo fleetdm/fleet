@@ -39,6 +39,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
 	"github.com/google/uuid"
@@ -129,7 +130,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		serverConfig.Logger = slog.New(slog.DiscardHandler)
 	}
-	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	users, server := svctest.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
 	s.activityMock = serverConfig.ActivityMock
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.Server = server
@@ -3808,6 +3809,196 @@ labels:
 	require.Contains(t, deletedNames, "lbl-global")
 	require.Contains(t, deletedNames, "lbl-team")
 	require.Contains(t, deletedNames, "lbl-host-vitals")
+}
+
+// captureDeletedPolicyActivities replaces the suite's activity mock with a
+// recorder for deleted_policy activities. It returns a function that returns
+// and resets the captured activities. Cleanup restores the previous
+// NewActivityFunc.
+func (s *enterpriseIntegrationGitopsTestSuite) captureDeletedPolicyActivities(t *testing.T) func() []fleet.ActivityTypeDeletedPolicy {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []fleet.ActivityTypeDeletedPolicy
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
+			mu.Lock()
+			captured = append(captured, d)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []fleet.ActivityTypeDeletedPolicy {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+// setupDarwinFMA inserts a darwin FMA record and starts a per-FMA installer
+// server. Returns the slug and the installer server URL. The caller is
+// responsible for wiring a manifest server (FLEET_DEV_MAINTAINED_APPS_BASE_URL)
+// that serves a manifest for /<slug>.json — calling this helper twice within
+// the same test requires a single combined manifest server because
+// dev_mode.SetOverride only supports one base URL at a time.
+func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slug, installerURL string) {
+	t.Helper()
+	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")
+	slug = fmt.Sprintf("foo%s/darwin", suffix)
+	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			 VALUES (?, ?, 'darwin', ?)`, "foo"+suffix, slug, "com.example.foo"+suffix)
+		return err
+	})
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("foo"))
+	}))
+	t.Cleanup(installerServer.Close)
+	return slug, installerServer.URL
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	sharedSlug, sharedInstaller := s.setupDarwinFMA(t)
+	patchAndInstallSlug, patchAndInstallInstaller := s.setupDarwinFMA(t)
+	teamName := uuid.NewString()
+
+	manifestFor := func(installerURL string) ma.FMAManifestFile {
+		return ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerURL + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check", // See ma.noCheckHash
+			}},
+			Refs: map[string]string{"fooscript": "echo hello"},
+		}
+	}
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var installerURL string
+		switch r.URL.Path {
+		case "/" + sharedSlug + ".json":
+			installerURL = sharedInstaller
+		case "/" + patchAndInstallSlug + ".json":
+			installerURL = patchAndInstallInstaller
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(manifestFor(installerURL))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	const globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+	teamWithFMAAndPolicies := fmt.Sprintf(`
+controls:
+software:
+  fleet_maintained_apps:
+    - slug: %s
+    - slug: %s
+policies:
+  - name: install-policy
+    query: SELECT 1
+    install_software:
+      fleet_maintained_app_slug: %s
+  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+  - name: patch-and-install-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    install_software:
+      fleet_maintained_app_slug: %s
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, sharedSlug, patchAndInstallSlug, sharedSlug, sharedSlug, patchAndInstallSlug, patchAndInstallSlug, teamName)
+	teamEmpty := fmt.Sprintf(`
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, teamName)
+
+	globalFile := filepath.Join(t.TempDir(), "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+	teamFile := filepath.Join(t.TempDir(), "team.yml")
+
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamWithFMAAndPolicies), 0o644))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	}))
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, pols, 3)
+	policyIDsByName := map[string]uint{}
+	for _, p := range pols {
+		policyIDsByName[p.Name] = p.ID
+	}
+	require.Contains(t, policyIDsByName, "install-policy")
+	require.Contains(t, policyIDsByName, "patch-policy")
+	require.Contains(t, policyIDsByName, "patch-and-install-policy")
+
+	flush := s.captureDeletedPolicyActivities(t)
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamEmpty), 0o644))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	}))
+
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
+
+	deletedIDs := map[uint]bool{}
+	for _, d := range flush() {
+		deletedIDs[d.ID] = true
+	}
+	for _, name := range []string{"install-policy", "patch-policy", "patch-and-install-policy"} {
+		require.True(t, deletedIDs[policyIDsByName[name]],
+			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
+			name, policyIDsByName[name], deletedIDs)
+	}
 }
 
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)

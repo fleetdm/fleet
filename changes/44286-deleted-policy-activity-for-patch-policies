@@ -1,0 +1,1 @@
+* Fixed missing `deleted_policy` activity when a patch policy is removed by gitops as a result of its underlying Fleet-maintained app installer being removed from the YAML.

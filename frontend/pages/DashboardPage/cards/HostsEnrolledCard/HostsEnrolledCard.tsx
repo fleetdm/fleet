@@ -216,9 +216,14 @@ const HostsEnrolledCard = ({
             margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
             barCategoryGap="25%"
           >
-            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+            <CartesianGrid
+              horizontal={false}
+              strokeDasharray="3 3"
+              stroke="var(--ui-fleet-black-10)"
+            />
             <CartesianGrid
               vertical={false}
+              stroke="var(--ui-fleet-black-10)"
               horizontalCoordinatesGenerator={({ offset }) => {
                 const { top, height } = offset;
                 const bandHeight = height / data.length;

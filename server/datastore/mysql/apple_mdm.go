@@ -64,11 +64,13 @@ func isAppleHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext, 
 	return true, nil
 }
 
-// Checks scopes against existing profiles across the entire DB to ensure there are no conflicts
-// where an existing profile with the same identifier has a different scope than the incoming
-// profile. If we don't do this we must implement some sort of "move" semantics to allow for scope
-// changes when a host switches teams or when a profile is updated.
-func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, tx sqlx.ExtContext, cps []*fleet.MDMAppleConfigProfile) error {
+func (ds *Datastore) VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+	return ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		return ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, cps)
+	})
+}
+
+func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflictDB(ctx context.Context, tx sqlx.QueryerContext, cps []*fleet.MDMAppleConfigProfile) error {
 	if len(cps) == 0 {
 		return nil
 	}
@@ -208,7 +210,7 @@ INSERT INTO
 
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
+		err := ds.verifyAppleConfigProfileScopesDoNotConflictDB(ctx, tx, []*fleet.MDMAppleConfigProfile{&cp})
 		if err != nil {
 			return err
 		}
@@ -2421,10 +2423,7 @@ ON DUPLICATE KEY UPDATE
 		profTeamID = *tmID
 	}
 
-	err = ds.verifyAppleConfigProfileScopesDoNotConflict(ctx, tx, profiles)
-	if err != nil {
-		return false, err
-	}
+	// We don't verify profile scopes conflict, as we have already done it at the service level
 
 	// build a list of identifiers for the incoming profiles, will keep the
 	// existing ones if there's a match and no change
@@ -7970,9 +7969,13 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
 
 	// Update all claimed hosts to remove/pending
+	// auto_rotate_at is also nulled: it's meaningful only for install-state
+	// rows (see GetHostsForAutoRotation), so leaving a stale view-deadline on
+	// a row pending removal would cause the read API to report a rotation
+	// time that auto-rotation will never honor.
 	updateStmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET operation_type = '%s', status = '%s'
+		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL
 		WHERE host_uuid IN (?)
 	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -8292,9 +8295,19 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	return hasPending, nil
 }
 
+// MarkRecoveryLockPasswordViewed schedules auto-rotation by setting
+// auto_rotate_at to 1 hour from now on the host's install-state recovery lock
+// row, overwriting any prior deadline. Returns the scheduled rotation time.
+//
+// If the row is missing or not in install state (e.g.,
+// ClaimHostsForRecoveryLockClear has flipped it to operation_type='remove'
+// because the host's current team has the feature disabled), returns a zero
+// time and no error: the password is still readable until the device confirms
+// ClearRecoveryLock, but auto-rotation does not apply and would be undone by
+// the clear anyway. Callers should treat zero as "no rotation scheduled" and
+// omit auto_rotate_at from the response rather than reporting a deadline the
+// auto-rotation cron (filtered on operation_type='install') will never honor.
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
-	// Set auto_rotate_at to 1 hour from now when password is viewed.
-	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
 	rotateAt := time.Now().Add(1 * time.Hour)
 
 	stmt := fmt.Sprintf(`
@@ -8312,8 +8325,7 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		return time.Time{}, nil
 	}
 
 	return rotateAt, nil

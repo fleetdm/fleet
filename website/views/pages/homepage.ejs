@@ -14,17 +14,7 @@
             <h1>
               Manage, update, and secure all your devices like it's 2026
             </h1>
-            <p purpose="hero-subtitle">Open MDM + patching + vuln management for every OS.</p>
-            <div purpose="hero-quote-author" class="d-flex flex-row align-items-center">
-              <div purpose="hero-quote-profile-image">
-                <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
-              </div>
-              <div purpose="quote-author-info">
-                <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
-                <p purpose="quote-author-name">Wes Whetstone</p>
-                <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
-              </div>
-            </div>
+            <p purpose="hero-subtitle">Open MDM, patching, and vuln management for every OS.</p>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/register">Try it yourself</a>
               <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
@@ -38,38 +28,52 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
   </div>
-  <a purpose="statistics" class="d-flex" href="/customers" no-underline>
-    <div purpose="statistics-column">
-      <div purpose="customers" class="d-none d-sm-block">
-        <h4>1,300+</h4>
-        <p>organizations</p>
-      </div>
-      <div purpose="countries" class="d-block d-sm-none">
-        <h4>90+</h4>
-        <p>countries</p>
-      </div>
-      <div purpose="devices">
-        <h4>2,000,000+</h4>
-        <p>computing devices</p>
-      </div>
-    </div>
-    <div purpose="statistics-column">
-      <div purpose="countries" class="d-none d-sm-block">
-        <h4>90+</h4>
-        <p>countries</p>
-      </div>
-      <div purpose="customers" class="d-block d-sm-none">
-        <h4>1,300+</h4>
-        <p>organizations</p>
-      </div>
-      <div purpose="response-time">
-        <h4>21 minutes</h4>
-        <p>avg support response time</p>
-      </div>
-    </div>
-  </a>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
+    <div purpose="page-section">
+    <div purpose="quote-and-statistics">
+      <div purpose="hero-quote" >
+        <div purpose="hero-quote-profile-image">
+          <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
+        </div>
+        <div purpose="quote-author-info">
+          <p purpose="quote-text">“I just moved 10,000 Macs to Fleet”</p>
+          <p purpose="quote-author-name">Wes Whetstone</p>
+          <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
+        </div>
+      </div>
+      <a purpose="statistics" class="d-flex" href="/customers" no-underline>
+        <div purpose="statistics-column">
+          <div purpose="customers" class="d-none d-sm-block">
+            <h4>1,300+</h4>
+            <p>organizations</p>
+          </div>
+          <div purpose="countries" class="d-block d-sm-none">
+            <h4>90+</h4>
+            <p>countries</p>
+          </div>
+          <div purpose="devices">
+            <h4>2,000,000+</h4>
+            <p>computing devices</p>
+          </div>
+        </div>
+        <div purpose="statistics-column">
+          <div purpose="countries" class="d-none d-sm-block">
+            <h4>90+</h4>
+            <p>countries</p>
+          </div>
+          <div purpose="customers" class="d-block d-sm-none">
+            <h4>1,300+</h4>
+            <p>organizations</p>
+          </div>
+          <div purpose="response-time">
+            <h4>21 minutes</h4>
+            <p>avg support response time</p>
+          </div>
+        </div>
+      </a>
+    </div>
+    </div>
     <div purpose="page-section" class="mb-0">
       <div purpose="homepage-text-block">
         <h2>Freedom at every level</h2>
@@ -79,20 +83,23 @@
         <div purpose="feature-image">
           <video autoplay loop playsinline muted purpose="calendar-video"><source src="/videos/features-loop.mp4" type="video/mp4"></video>
         </div>
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>One platform for every OS — even Linux</h5>
-            <p>Manage macOS, Linux, Windows, iOS, and Android from a single console, without compromising management and security.</p>
+        <div purpose="feature-list">
+
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <h5>One platform for every OS — even Linux</h5>
+              <p>Manage macOS, Linux, Windows, iOS, and Android from a single console, without compromising management and security.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>UI, API, or infrastructure as code</h5>
+              <p>Work in the UI, automate with the API, or manage settings as code.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>All features, flexible deployment</h5>
+              <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
+            </div>
           </div>
-          <div purpose="feature-block">
-            <h5>UI, API, or infrastructure as code</h5>
-            <p>Work in the UI, automate with the API, or manage settings as code.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>All features, flexible deployment</h5>
-            <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
-          </div>
-          <!-- <a purpose="cta-button" href="/device-management">Explore device management</a> -->
+          <a purpose="platform-button" href="/device-management">Explore device management</a>
         </div>
       </div>
       <div purpose="homepage-text-block">
@@ -103,50 +110,54 @@
         <div purpose="feature-image">
           <img alt="See reality clearly" src="/images/see-reality-clearly-688x516@2x.png">
         </div>
-        <div purpose="feature-text">
-          <div purpose="feature-block">
-            <h5>Cut the busywork</h5>
-            <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+        <div purpose="feature-list">
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <h5>Cut the busywork</h5>
+              <p>Get answers instantly with live reports. No waiting hours for scripts or manual data collection.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>Enroll any device</h5>
+              <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
+            </div>
+            <div purpose="feature-block">
+              <h5>Tell your story</h5>
+              <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
+            </div>
           </div>
-          <div purpose="feature-block">
-            <h5>Enroll any device</h5>
-            <p>Get instant visibility into devices from subsidiaries, partners, or acquisitions. Enroll endpoints without forcing teams to migrate tools.</p>
-          </div>
-          <div purpose="feature-block">
-            <h5>Tell your story</h5>
-            <p>Track AI usage, shadow IT, vulnerabilities, patch SLAs, and security posture with clear reports.</p>
-          </div>
-          <!-- <a purpose="cta-button" href="/orchestration">More about visibility</a> -->
+          <a purpose="platform-button" href="/orchestration">More about visibility</a>
         </div>
       </div>
       <div purpose="homepage-text-block">
         <h2>Get things done faster</h2>
         <p>The world is changing rapidly, and traditional device management systems were built for computer labs.  In Fleet, you can become a power user in the UI, manage infrastructure as code, or adopt new ways of working.  For example:</p>
       </div>
-      <div purpose="feature-with-image">
+      <div purpose="feature-with-image" class="reverse">
         <div purpose="feature-image">
           <img alt="Modern change management" src="/images/mdm-modern-change-management-600x435@2x.png">
         </div>
-        <div purpose="feature-text">
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Propose a change</h5>
-              <p>Describe a configuration change, CVE fix, or other improvement in natural language using your existing AI.</p>
+        <div purpose="feature-list">
+          <div purpose="feature-text">
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Propose a change</h5>
+                <p>Describe a configuration change, CVE fix, or other improvement in natural language using your existing AI.</p>
+              </div>
+            </div>
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Human review</h5>
+                <p>Review changes from your team (or your bots) before they reach your devices. Inspect the configuration, make edits if needed, then approve it.</p>
+              </div>
+            </div>
+            <div purpose="feature-block">
+              <div purpose="feature-text-content">
+                <h5>Apply across your fleet</h5>
+                <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
+              </div>
             </div>
           </div>
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Human review</h5>
-              <p>Review changes from your team (or your bots) before they reach your devices. Inspect the configuration, make edits if needed, then approve it.</p>
-            </div>
-          </div>
-          <div purpose="feature-list-block">
-            <div purpose="feature-text-content">
-              <h5>Apply across your fleet</h5>
-              <p>Merge the change and let Fleet apply it across your devices. Roll back instantly if needed.</p>
-            </div>
-          </div>
-          <!-- <a purpose="cta-button" href="/infrastructure-as-code">Manage devices as code</a> -->
+          <a purpose="platform-button" href="/infrastructure-as-code">Manage devices as code</a>
         </div>
       </div>
       <div purpose="testimonials-header">
@@ -1535,18 +1546,6 @@
   </div>
   <modal v-if="modal === 'unsubscribed'" @close="closeModal()">
     <p class="mb-0">Your email preferences have been updated.</p>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'nick-fohs'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/fs5ULAR4e4A?si=pChZBt_sSNj13goP&amp;rel=0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'calendar'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/nhufmzGUeNk?si=rtAF6sFZuA7PhYRS&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-  </modal>
-  <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
   <p style="opacity: 0; line-height: 0px; font-size: 0px; margin: 0;">537c652d-cb1a-440e-ae35-0f0bf5743e75</p>
 </div>

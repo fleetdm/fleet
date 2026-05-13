@@ -495,6 +495,12 @@ module.exports = {
 
               });//∞
 
+              // Rewrite YouTube embed src URLs to the privacy-enhanced (no-cookie) host so the embedded player doesn't set tracking cookies until the visitor presses play.
+              // This allows us to show embedded youtube videos to users who don't consent to the cookie banner on the website.
+              htmlString = htmlString.replace(/(src="https?:\/\/(?:www\.)?youtube\.com\/embed\/[^"]*")/g, (srcString) => {
+                return srcString.replace(/https?:\/\/(?:www\.)?youtube\.com\/embed\/([^"]*)/, 'https://www.youtube-nocookie.com/embed/$1');
+              });//∞
+
               // Modify images in the /articles folder
               if (sectionRepoPath === 'articles/') {
                 // modifying relative links e.g. `../website/assets/images/articles/foo-200x300@2x.png`
@@ -579,7 +585,7 @@ module.exports = {
                   },
                   headers: baseHeadersForGithubRequests,
                 }).intercept((err)=>{
-                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured.`, err);
+                  return new Error(`When getting the commit history for ${path.join(sectionRepoPath, pageRelSourcePath)} to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
                 });
                 // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
                 let mostRecentCommitToThisFile = responseData[0];
@@ -864,7 +870,7 @@ module.exports = {
             },
             headers: baseHeadersForGithubRequests,
           }).intercept((err)=>{
-            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured.`, err);
+            return new Error(`When getting the commit history for the open positions YAML to get a lastModifiedAt timestamp, an error occured. ${util.inspect(err)}`);
           });
           // The value we'll use for the lastModifiedAt timestamp will be date value of the `commiter` property of the `commit` we got in the API response from github.
           let mostRecentCommitToThisFile = responseData[0];
@@ -1137,14 +1143,14 @@ module.exports = {
         let VALID_PRICING_TABLE_CATEGORIES = ['Support', 'Deployment', 'Integrations', 'Configuration', 'Devices', 'Vulnerability management'];
         let VALID_PRICING_TABLE_KEYS = ['industryName', 'description', 'documentationUrl', 'tier', 'jamfProHasFeature', 'jamfProtectHasFeature', 'usualDepartment', 'productCategories', 'pricingTableCategories', 'waysToUse', 'buzzwords', 'demos', 'dri', 'friendlyName', 'moreInfoUrl', 'comingSoonOn', 'screenshotSrc', 'isExperimental'];
         for(let feature of pricingTableFeatures){
+          if(feature.name) {// Compatibility check
+            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${util.inspect(feature)}`);
+          }
           // Throw an error if a feature contains an unrecognized key.
           for(let key of _.keys(feature)){
             if(!VALID_PRICING_TABLE_KEYS.includes(key)){
               throw new Error(`Unrecognized key. Could not build pricing table config from pricing-features-table.yml. The "${feature.industryName}" feature contains an unrecognized key (${key}). To resolve, fix any typos or remove this key and try running this script again.`);
             }
-          }
-          if(feature.name) {// Compatibility check
-            throw new Error(`Could not build pricing table config from pricing-features-table.yml. A feature has a "name" (${feature.name}) which is no longer supported. To resolve, add a "industryName" to this feature: ${util.inspect(feature)}`);
           }
           if(feature.industryName !== undefined) {
             if(!feature.industryName || typeof feature.industryName !== 'string') {

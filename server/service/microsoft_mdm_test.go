@@ -1332,7 +1332,9 @@ func TestGetESPCommands(t *testing.T) {
 		ds.CancelHostUpcomingActivityFunc = func(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 			return nil, nil
 		}
-		return ds, &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc := &Service{ds: ds, logger: testutils.TestLogger(t)}
+		svc.SetActivityService(&mock.MockActivityService{})
+		return ds, svc
 	}
 
 	// newActiveDevice returns the most common device fixture used by these tests: AwaitingConfiguration=Active
@@ -1384,9 +1386,15 @@ func TestGetESPCommands(t *testing.T) {
 			return true, nil
 		}
 
+		// At orbit-link transition, handleESPHoldOrTransition flips awaiting_configuration to Active and
+		// returns a single DevicePreparation/InstallationState=3 command to advance the ESP from the
+		// Device-setup phase to the Account-setup phase. ESP release itself is signaled later via
+		// ServerHasFinishedProvisioning from buildESPReleaseCommands.
 		cmds, err := svc.getESPCommands(t.Context(), device)
 		require.NoError(t, err)
-		require.NotEmpty(t, cmds, "should return DevicePreparation completed command")
+		require.Len(t, cmds, 1)
+		assert.Contains(t, cmds[0].GetTargetURI(), "DevicePreparation/PolicyProviders/")
+		assert.Contains(t, cmds[0].GetTargetURI(), "/InstallationState")
 		assert.True(t, transitioned)
 	})
 

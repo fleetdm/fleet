@@ -48,6 +48,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
 		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
+		{"TestVerifyAppleConfigProfileScopesDoNotConflict", testVerifyAppleConfigProfileScopesDoNotConflict},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileWithPendingInstalls", testDeleteMDMAppleConfigProfileWithPendingInstalls},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -303,6 +304,193 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	require.Len(t, prof.LabelsIncludeAll, 1)
 	require.Equal(t, lbl.Name, prof.LabelsIncludeAll[0].LabelName)
 	require.True(t, prof.LabelsIncludeAll[0].Broken)
+}
+
+func testVerifyAppleConfigProfileScopesDoNotConflict(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Build a mobileconfig with an explicit PayloadScope key, so that the
+	// "implicit scope change" detection (which compares the parsed XML scope to
+	// the DB scope) can be exercised in both directions.
+	mcWithScope := func(name, identifier, uuid string, scope fleet.PayloadScope) []byte {
+		return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>%s</string>
+	<key>PayloadIdentifier</key>
+	<string>%s</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>%s</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadScope</key>
+	<string>%s</string>
+</dict>
+</plist>
+`, name, identifier, uuid, scope)
+	}
+
+	t.Run("empty input returns nil", func(t *testing.T) {
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, nil))
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{}))
+	})
+
+	t.Run("no existing profile with matching identifier returns nil", func(t *testing.T) {
+		cp := &fleet.MDMAppleConfigProfile{
+			Name:         "no-match",
+			Identifier:   "id-no-match",
+			Mobileconfig: configProfileBytesForTest("no-match", "id-no-match", "u-no-match"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{cp}))
+	})
+
+	t.Run("same identifier same scope across teams returns nil", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "same-scope",
+			Identifier:   "id-same-scope",
+			TeamID:       new(uint(1)),
+			Mobileconfig: configProfileBytesForTest("same-scope", "id-same-scope", "u-same-scope"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming profile for a different team with the same scope: no conflict.
+		incoming := existing
+		incoming.TeamID = new(uint(2))
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{&incoming}))
+	})
+
+	t.Run("edit within same team with same scope returns nil", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "edit-same-scope",
+			Identifier:   "id-edit-same-scope",
+			Mobileconfig: configProfileBytesForTest("edit-same-scope", "id-edit-same-scope", "u-edit-same-scope"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Re-submitting the same profile (no-team -> no-team) with the same scope is not a conflict.
+		incoming := existing
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{&incoming}))
+	})
+
+	t.Run("add conflict: same identifier different team different scope", func(t *testing.T) {
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "add-conflict",
+			Identifier:   "id-add-conflict",
+			TeamID:       new(uint(10)),
+			Mobileconfig: configProfileBytesForTest("add-conflict", "id-add-conflict", "u-add-conflict"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Adding the same identifier under a different team with a different scope is a conflict.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "add-conflict",
+			Identifier:   "id-add-conflict",
+			TeamID:       new(uint(11)),
+			Mobileconfig: configProfileBytesForTest("add-conflict", "id-add-conflict", "u-add-conflict-different"),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't add configuration profile`)
+		require.Contains(t, bre.Message, `same "PayloadIdentifier" but a different "PayloadScope"`)
+	})
+
+	t.Run("edit conflict: same team scope change", func(t *testing.T) {
+		// Existing profile has an explicit XML PayloadScope=System matching its DB scope,
+		// so the conflict path should not be classified as an "implicit" scope change.
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "edit-conflict",
+			Identifier:   "id-edit-conflict",
+			TeamID:       new(uint(20)),
+			Mobileconfig: mcWithScope("edit-conflict", "id-edit-conflict", "u-edit-conflict", fleet.PayloadScopeSystem),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Same team, different scope, different mobileconfig contents (so the legacy-migration shortcut does not apply).
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "edit-conflict",
+			Identifier:   "id-edit-conflict",
+			TeamID:       new(uint(20)),
+			Mobileconfig: mcWithScope("edit-conflict", "id-edit-conflict", "u-edit-conflict-new", fleet.PayloadScopeUser),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't edit configuration profile (id-edit-conflict)`)
+		require.Contains(t, bre.Message, `the profile's "PayloadScope" has changed`)
+	})
+
+	t.Run("edit conflict: implicit scope change", func(t *testing.T) {
+		// The existing profile's XML has no PayloadScope (parses as "System"), but its DB scope is User.
+		// This simulates a profile uploaded before user-channel support was added and then migrated.
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "implicit-scope-change",
+			Identifier:   "id-implicit-scope-change",
+			TeamID:       new(uint(30)),
+			Mobileconfig: configProfileBytesForTest("implicit-scope-change", "id-implicit-scope-change", "u-implicit"),
+			Scope:        fleet.PayloadScopeUser,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming has a different scope and different content, so the legacy-migration shortcut does not apply.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "implicit-scope-change",
+			Identifier:   "id-implicit-scope-change",
+			TeamID:       new(uint(30)),
+			Mobileconfig: configProfileBytesForTest("implicit-scope-change", "id-implicit-scope-change", "u-implicit-different"),
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		err = ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming})
+		require.Error(t, err)
+		var bre *fleet.BadRequestError
+		require.ErrorAs(t, err, &bre)
+		require.Contains(t, bre.Message, `Couldn't edit configuration profile (id-implicit-scope-change)`)
+		require.Contains(t, bre.Message, `previously delivered to some hosts on the device channel`)
+	})
+
+	t.Run("legacy migration: System existing with matching checksum coerces incoming User to System", func(t *testing.T) {
+		mc := configProfileBytesForTest("legacy", "id-legacy", "u-legacy")
+		existing := fleet.MDMAppleConfigProfile{
+			Name:         "legacy",
+			Identifier:   "id-legacy",
+			Mobileconfig: mc,
+			Scope:        fleet.PayloadScopeSystem,
+		}
+		_, err := ds.NewMDMAppleConfigProfile(ctx, existing, nil)
+		require.NoError(t, err)
+
+		// Incoming uses the exact same mobileconfig bytes but declares User scope; this is the
+		// pre-user-channel compatibility case and must not error. The verifier coerces cp.Scope
+		// back to System so the caller writes the same scope as the existing row.
+		incoming := &fleet.MDMAppleConfigProfile{
+			Name:         "legacy",
+			Identifier:   "id-legacy",
+			Mobileconfig: mc,
+			Scope:        fleet.PayloadScopeUser,
+		}
+		require.NoError(t, ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, []*fleet.MDMAppleConfigProfile{incoming}))
+		require.Equal(t, fleet.PayloadScopeSystem, incoming.Scope)
+	})
 }
 
 func generateAppleCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
@@ -11134,6 +11322,44 @@ func testClaimHostsForRecoveryLockClear(t *testing.T, ds *Datastore) {
 		assert.Equal(t, "pending", status)
 	})
 
+	t.Run("clears stale auto_rotate_at when flipping to remove", func(t *testing.T) {
+		team := createTeamWithRecoveryLock(t, "stale-rotation-team", true)
+		host := test.NewHost(t, ds, "stale-rotation-host", "1.2.6.7", "stalerotkey", "stalerotuuid", time.Now(),
+			test.WithPlatform("darwin"), test.WithTeamID(team.ID))
+		setHostCPUType(t, host.ID, "arm64")
+		nanoEnrollAndSetHostMDMData(t, ds, host, false)
+
+		pw := apple_mdm.GenerateRecoveryLockPassword()
+		err := ds.SetHostsRecoveryLockPasswords(ctx, []fleet.HostRecoveryLockPasswordPayload{{HostUUID: host.UUID, Password: pw}})
+		require.NoError(t, err)
+		err = ds.SetRecoveryLockVerified(ctx, host.UUID)
+		require.NoError(t, err)
+
+		// Simulate the user viewing the password under the install-state row,
+		// which schedules a rotation.
+		priorRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		require.False(t, priorRotateAt.IsZero())
+
+		// Disabling the team's setting and running the clear claim must wipe
+		// the stale view-deadline — auto_rotate_at is meaningful only for
+		// install-state rows, and leaving it would cause a subsequent view to
+		// return a rotation time the cron will never honor.
+		team.Config.MDM.EnableRecoveryLockPassword = false
+		_, err = ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+
+		uuids, err := ds.ClaimHostsForRecoveryLockClear(ctx)
+		require.NoError(t, err)
+		require.Contains(t, uuids, host.UUID)
+
+		var autoRotateAt *time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &autoRotateAt,
+			`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		assert.Nil(t, autoRotateAt, "auto_rotate_at should be cleared when flipping operation_type to remove")
+	})
+
 	t.Run("returns pending when operation_type is install and status is NULL", func(t *testing.T) {
 		host := test.NewHost(t, ds, "install-null-host", "1.2.6.5", "installnullkey", "installnulluuid", time.Now())
 
@@ -12051,26 +12277,48 @@ func testRecoveryLockAutoRotation(t *testing.T, ds *Datastore) {
 		assert.True(t, pw.AutoRotateAt.After(firstRotateAt), "persisted auto_rotate_at should be after first rotation time")
 	})
 
-	t.Run("MarkRecoveryLockPasswordViewed fails for non-existent host", func(t *testing.T) {
-		_, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
-		require.Error(t, err)
-		assert.True(t, fleet.IsNotFound(err))
+	t.Run("MarkRecoveryLockPasswordViewed returns zero time for non-existent host", func(t *testing.T) {
+		// Callers are expected to verify existence via GetHostRecoveryLockPassword
+		// before scheduling rotation, so a missing row here is treated the same
+		// as a non-install-state row: skip scheduling without erroring.
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, "non-existent-uuid")
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero())
 	})
 
-	t.Run("MarkRecoveryLockPasswordViewed fails for remove operation", func(t *testing.T) {
-		host := setupHostWithVerifiedPassword(t, "view-host3", "viewuuid0003")
+	t.Run("MarkRecoveryLockPasswordViewed returns zero time for remove operation", func(t *testing.T) {
+		host := setupHostWithVerifiedPassword(t, "view-host-remove", "viewuuidremove1")
 
-		// Change to remove operation type
-		_, err := ds.writer(ctx).ExecContext(ctx, `
+		// Realistic sequence: password is viewed under install state (sets
+		// auto_rotate_at), then the row is flipped to remove by the cleanup
+		// path. A second view must not fail and must not (re-)schedule a
+		// rotation that the auto-rotation cron won't honor.
+		priorRotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		require.False(t, priorRotateAt.IsZero(), "view under install state should schedule rotation")
+
+		_, err = ds.writer(ctx).ExecContext(ctx, `
 			UPDATE host_recovery_key_passwords
 			SET operation_type = 'remove'
 			WHERE host_uuid = ?`, host.UUID)
 		require.NoError(t, err)
 
-		// Should fail because operation_type is not 'install'
-		_, err = ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
-		require.Error(t, err)
-		assert.True(t, fleet.IsNotFound(err))
+		rotateAt, err := ds.MarkRecoveryLockPasswordViewed(ctx, host.UUID)
+		require.NoError(t, err)
+		assert.True(t, rotateAt.IsZero(), "expected zero rotateAt for remove-state row")
+
+		// MarkRecoveryLockPasswordViewed itself must not touch a remove-state
+		// row's auto_rotate_at — clearing that stale deadline is the
+		// responsibility of ClaimHostsForRecoveryLockClear (covered in
+		// testClaimHostsForRecoveryLockClear) so this assertion pins the
+		// no-op contract.
+		var autoRotateAt *time.Time
+		err = sqlx.GetContext(ctx, ds.reader(ctx), &autoRotateAt,
+			`SELECT auto_rotate_at FROM host_recovery_key_passwords WHERE host_uuid = ?`, host.UUID)
+		require.NoError(t, err)
+		require.NotNil(t, autoRotateAt)
+		assert.WithinDuration(t, priorRotateAt, *autoRotateAt, time.Second,
+			"MarkRecoveryLockPasswordViewed must not modify auto_rotate_at on a remove-state row")
 	})
 
 	// Helper to check if a host UUID is in the rotation info list
