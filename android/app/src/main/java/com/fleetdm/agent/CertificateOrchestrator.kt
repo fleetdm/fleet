@@ -628,7 +628,7 @@ class CertificateOrchestrator(
                 operationType = operationType,
                 notAfter = state.notAfter?.let { parseISO8601(it) },
                 notBefore = state.notBefore?.let { parseISO8601(it) },
-                serialNumber = state.serialNumber?.let { BigInteger(it) },
+                serialNumber = state.serialNumber?.let { BigInteger(it, 16) },
             )
 
             if (result.isSuccess) {
@@ -751,7 +751,7 @@ class CertificateOrchestrator(
                 // Convert certificate metadata to ISO8601 for storage
                 val notAfterStr = result.notAfter?.toISO8601String()
                 val notBeforeStr = result.notBefore?.toISO8601String()
-                val serialNumberStr = result.serialNumber?.toString()
+                val serialNumberStr = result.serialNumber?.toString(16) // hex
 
                 // First, mark as unreported (persisted before network call)
                 markCertificateUnreported(
