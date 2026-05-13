@@ -20,9 +20,9 @@
 - Withheld Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) until the referenced certificate is installed or terminally failed on the device.
 - Updated the host OS settings detail column to show the reason when an Android profile is pending due to a certificate dependency.
 - Added "Hosts active" and "Hosts enrolled" charts to the dashboard.
-- Fleet UI: Added new policy details page with a read-only view of policy information.
-- Fleet UI: Updated edit policy page to redirect users with read-only access to the policy details page.
-- Fleet UI: Added dedicated `/policies/:id/live` route for running policies.
+- Added new policy details page with a read-only view of policy information.
+- Updated edit policy page to redirect users with read-only access to the policy details page.
+- Added dedicated `/policies/:id/live` route for running policies.
 
 ### Security Engineers
 
@@ -37,16 +37,16 @@
 
 ### Bug fixes and improvements
 
-- Updated Go to 1.26.2.
+- Updated Go to 1.26.3.
 - Upgraded to TypeScript 6.0 for the app frontend.
 - Reduced MySQL writer load by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
 - Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
 - Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
 - Removed the unused `windows_updates` MySQL table and ingestion code.
 - Updated copy, show, and other action buttons app-wide for a more consistent style.
-- Fleet UI: Improved button and link styling.
+- Improved button and link styling.
 - Improved the OS settings modal layout.
-- Fleet UI: Improved host policy empty state.
+- Improved host policy empty state.
 - Moved some core UI form components to TypeScript for better predictability and reliability.
 - Updated the enrollment page enroll button to render at full screen width for larger-resolution mobile devices.
 - Updated the error message returned when an invalid domain is supplied for MDM Apple CSR signing.
@@ -77,9 +77,9 @@
 - Fixed a nil pointer dereference in the contributor API spec/policies.
 - Fixed the host details activity feed showing the previously opened host's activities by including the host ID in the activity query cache keys.
 - Fixed navigation to the settings page for multi-team admin users.
-- Fleet UI: Fixed software table page number to be bookmarkable.
-- Fleet UI: Fixed an infinite page loop pagination bug on the software table page that occurred when viewing a subsequent page and then using the software filter dropdown.
-- Fleet UI: Fixed styling bugs in GitOps mode UI.
+- Fixed software table page number to be bookmarkable.
+- Fixed an infinite page loop pagination bug on the software table page that occurred when viewing a subsequent page and then using the software filter dropdown.
+- Fixed styling bugs in GitOps mode UI.
 - Fixed padding between GitOps exceptions checkboxes.
 
 ## Fleet 4.84.3 (May 06, 2026)
