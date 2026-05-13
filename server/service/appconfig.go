@@ -1975,18 +1975,23 @@ type gitopsHistoricalDataView struct {
 	} `json:"features"`
 }
 
-// applyHistoricalDataOverwriteDefaults preserves the live
+// applyHistoricalDataOverwriteDefaults fills in absent
 // features.historical_data sub-keys before the Overwrite branch stomps
-// the entire Features struct. Without this, an older fleetctl that
-// omits historical_data entirely would persist the sub-keys as false
-// (Go zero value), silently disabling collection.
+// the live Features struct. Without it, an older fleetctl that omits
+// historical_data would persist the sub-keys as false (Go zero value),
+// silently disabling collection.
 //
-// Both sub-keys use "omission = preserve stored value" semantics —
-// a short-term deviation from Fleet's general gitops norm
-// ("omission = default") so an admin who toggles collection via UI
-// doesn't have it silently flipped by a gitops apply that simply
-// doesn't pin the keys. When bitmap compression ships and the chart
-// config rejoins the standard pattern, this whole function goes away.
+// SHORT-TERM CARVE-OUT — REVERT WHEN BITMAP COMPRESSION SHIPS:
+//
+// While the CVE chart ships disabled by default (load concern), both
+// sub-keys use "omission = preserve stored value" semantics rather
+// than the documented-defaults injection (commented out below). This
+// keeps an admin's UI toggle from being silently flipped by a gitops
+// apply that doesn't pin the keys. When bitmap compression ships,
+// revert to the commented-out body: use Features.ApplyDefaults() for
+// the omission fallback and drop oldCfg from the signature (also drop
+// the matching team-level overrides in unmarshalWithGlobalDefaults +
+// teamFeaturesDB).
 func applyHistoricalDataOverwriteDefaults(p []byte, oldCfg, newCfg *fleet.AppConfig) {
 	var view gitopsHistoricalDataView
 	if err := json.Unmarshal(p, &view); err != nil {
@@ -2002,6 +2007,17 @@ func applyHistoricalDataOverwriteDefaults(p []byte, oldCfg, newCfg *fleet.AppCon
 	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
 		newCfg.Features.HistoricalData.Vulnerabilities = *v
 	}
+
+	// var defaults fleet.Features
+	// defaults.ApplyDefaults()
+	// newCfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+	// if v := view.Features.HistoricalData.Uptime; v != nil {
+	// 	newCfg.Features.HistoricalData.Uptime = *v
+	// }
+	// newCfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+	// if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
+	// 	newCfg.Features.HistoricalData.Vulnerabilities = *v
+	// }
 }
 
 // //////////////////////////////////////////////////////////////////////////////
