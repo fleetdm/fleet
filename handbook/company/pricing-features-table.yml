@@ -70,7 +70,7 @@
   jamfProHasFeature: no
   jamfProtectHasFeature: no
   productCategories: [Endpoint operations]
-  pricingTableCategories: [Deployment]
+  pricingTableCategories: [Deployment] 
 #
 #
 #   ██████╗ ██████╗ ███╗   ██╗███████╗██╗ ██████╗ ██╗   ██╗██████╗  █████╗ ████████╗██╗ ██████╗ ███╗   ██╗
