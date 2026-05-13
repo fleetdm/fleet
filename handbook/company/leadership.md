@@ -314,7 +314,7 @@ The CEO shadow program is a three-day temporary assignment (usually completed du
 
 > **AEs**: Account Executives (AEs) complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.
  
-> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determining factor for a promotion or raise. 
 
 As a CEO shadow, you will be attending both internal and external meetings regarding various areas of the company. In order to make the most of your time as a shadow:
 - **Be on time**: Your time is priceless, your time as a CEO shadow is short! Join each meeting on time, this limits the distraction for other attendees and gives the CEO the opportunity to introduce you to other folks on the call without interrupting the meeting.
@@ -450,6 +450,7 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
+
 ## Executive bios
 
 Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
@@ -458,7 +459,10 @@ Certain members of the executive team are asked for press involvement from time 
 |:---------------------|:-------------|:------|
 | Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
 | Ashish Kuthiala          | <img width="800" height="800" alt="AshishBIoPic" src="https://github.com/user-attachments/assets/19498baf-e96c-48af-876a-3d9ec20e5f21" /> | Chief Marketing Officer at Fleet Device Management. Before Fleet, Ashish served as CMO at BlinkOps and Traceable AI (acquired by Harness IO). As Senior Director of strategic marketing at GitLab, he helped GitLab establish brand leadership in the DevOps automation category and contributed to growing the company's valuation from $200M to over $6B in three years. Earlier in his career, Ashish held leadership roles in marketing, product, and R&D at Hewlett Packard Enterprise, Electric Cloud (acquired by CloudBees), and AccelOps (acquired by Fortinet). |
-
+| Luke Heath          | <img alt="Luke Heath bio photo" width="460" height="459" src="https://github.com/user-attachments/assets/24afb40f-d33c-4e05-9672-e64dd03761a5" /> | Chief Technology Officer at Fleet Device Management. Luke spends a lot of time thinking about people and computers, and how the two can best get along. He joined Fleet in 2021 and was named CTO in March 2024. Before Fleet, Luke founded Heath Software, an Austin-based agency providing design and development services to startups and Fortune 500 companies including TIAA. Earlier in his career, he led engineering at TreeHouse and worked as an independent consultant for clients including Microsoft, Reuters, Samsung, SanDisk, and Paramount. Luke got his start in IT in 1998, providing technical support at AOL. |
+| Tina Ong                 | <img width="800" height="800" alt="TinaOngBioPic" src="https://avatars.githubusercontent.com/u/13412903?v=4" /> | Chief Financial Officer at Fleet Device Management. Before Fleet, Tina served as CFO at Nucleus Security. As CFO at Signal Sciences (acquired by Fastly for $775M in 2020), she helped guide the web application security company through its acquisition and subsequently served as Head of Security Finance at Fastly. Earlier in her career, Tina held finance and business operations leadership roles at TeleSign and the Singapore Economic Development Board. |
+| Alex Mitchell            | <img width="800" height="800" alt="AlexMitchellBioPic" src="https://fleetdm.com/images/alex-mitchell-800x800@2x.png" /> | Head of Strategic Growth at Fleet Device Management. An engineer‑turned‑operator, Alex has held strategy, product, and go‑to‑market leadership roles at Planview, uStudio, Sprint, and Alcatel‑Lucent's Motive division, working across enterprise SaaS, telecom, and connected‑device software. He holds an MBA from Northwestern University's Kellogg School of Management and BS Electrical Engineering from the University of Kansas. |
+| Isabell Reedy | <img alt="Isabell Reedy bio photo" width="460" height="460" src="https://github.com/user-attachments/assets/b7d699e4-7bab-4aee-bb95-0735fce096c1" /> | Head of People at Fleet Device Management. Isabell joined Fleet in 2023 as a Business Operations Engineer before moving into Finance Strategy, where she co-led the work behind Fleet's $27M Series B. She was named Head of People in 2025, where she owns people strategy, culture, and Fleet's digital workspace. Before Fleet, Isabell spent nearly five years at the Australian Embassy in Washington D.C. supporting strategic security engagements between Australia and the US, building on earlier roles across the Australian government and defence sector. |
 
 
 #### Stubs

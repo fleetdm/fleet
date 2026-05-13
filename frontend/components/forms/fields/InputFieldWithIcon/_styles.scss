@@ -70,6 +70,16 @@
     }
   }
 
+  &__input-wrapper--disabled {
+    .input-icon-field__icon {
+      color: $ui-fleet-black-50;
+
+      svg path {
+        fill: $ui-fleet-black-50;
+      }
+    }
+  }
+
   &__input-wrapper:not(&__input-wrapper--disabled) {
     .input-icon-field__input:hover {
       border: 1px solid $ui-fleet-black-50;

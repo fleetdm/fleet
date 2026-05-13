@@ -119,6 +119,15 @@ func (r getOrgLogoResponse) HijackRender(_ context.Context, w http.ResponseWrite
 	w.Header().Set("Content-Type", contentType)
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(r.Body)))
 	w.Header().Set("Cache-Control", "no-store")
+	// nosniff: stops the browser from MIME-sniffing the body as HTML
+	// (XSS vector) if upstream Content-Type ever drifts.
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// CSP keeps the direct-URL view inert (where SVG loads as a
+		// document, not <img>). 'unsafe-inline' allows the inline
+		// <style> blocks most SVGs include.
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+	}
 	_, _ = w.Write(r.Body)
 }
 
@@ -301,8 +310,10 @@ func (svc *Service) GetOrgLogo(ctx context.Context, mode fleet.OrgLogoMode) ([]b
 	if int64(len(body)) > orgLogoMaxFileSize {
 		return nil, 0, ctxerr.New(ctx, "stored org logo exceeds max size")
 	}
-	if fleet.ContentTypeForOrgLogo(body) == "" {
-		return nil, 0, ctxerr.New(ctx, "stored org logo is not a recognized image format")
+	// Re-validate on read so a blob planted directly in the object store
+	// (bypassing the upload API) is still rejected.
+	if err := fleet.ValidateOrgLogoBytes(body); err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "stored org logo failed validation")
 	}
 	return body, int64(len(body)), nil
 }

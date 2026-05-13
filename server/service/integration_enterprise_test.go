@@ -3008,7 +3008,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 	// Test that we can configure webhooks for "No Team" (team ID 0)
 	// Use a generic response that will work with DefaultTeam
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 
 	// First clear any existing webhook configuration for "No Team"
@@ -3042,7 +3042,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
 
 	// Get the config again to verify it persisted
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -3131,7 +3131,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Configure webhook for "No Team" - only include pol1 and pol2
 	var defaultTeamResp struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}
 	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
 		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
@@ -3169,7 +3169,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 
 	// Test that we can configure and retrieve the "No Team" webhook settings
 	defaultTeamResp = struct {
-		Team *fleet.DefaultTeam `json:"team"`
+		Team *fleet.DefaultTeam `json:"team"` //nolint:apiparamcheck // test helper; matches server response shape
 	}{}
 	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
 	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
@@ -18469,7 +18469,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18479,7 +18479,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18494,7 +18494,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			`SELECT count(1) FROM activity_past`,
 		)
 	})
-	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
+	require.Equal(t, activityCount+2, activityNewCount, "an activity should be created for each failed install attempt (including retries)")
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.
@@ -18677,7 +18677,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Queued retry (attempt_number is NULL until result is submitted)
 	require.Nil(t, results[1].InstallScriptExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18700,7 +18701,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18721,9 +18722,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].InstallScriptExitCode, "final attempt should be completed")
 
-	// Activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// No more retries, max reached
@@ -20208,7 +20209,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	// Note: attempt_number is only calculated when the result is submitted, not when queued, so it will be NULL
 	require.Nil(t, results[1].ExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20231,7 +20233,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20252,9 +20254,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].ExitCode, "final attempt should be completed")
 
-	// activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// no more retries, max reached
@@ -26269,6 +26271,91 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 	})
+
+	t.Run("managed app configuration", func(t *testing.T) {
+		var teamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
+
+		const validPlist = `<dict><key>K</key><string>v</string></dict>`
+		const validPlist2 = `<dict><key>K2</key><string>v2</string></dict>`
+
+		// Upload .ipa with configuration.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte(validPlist),
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID, installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			return nil
+		})
+
+		// Stored configuration matches what was sent.
+		storedCfg, err := s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist), storedCfg)
+
+		// Update with a new configuration.
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {validPlist2},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		storedCfg, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist2), storedCfg)
+
+		// GET title returns the iOS configuration as a JSON string of plist; unmarshal to recover.
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			&getSoftwareTitleRequest{ID: titleID, TeamID: &teamResp.Team.ID},
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		var gotPlist string
+		require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.SoftwarePackage.Configuration, &gotPlist))
+		require.Equal(t, validPlist2, gotPlist)
+
+		// Update with empty configuration → cleared.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {""},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		_, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.True(t, fleet.IsNotFound(err), "expected configuration cleared, got %v", err)
+
+		// Update with invalid plist → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {"not actually a plist"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Update with disallowed Fleet variable → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Upload with invalid plist → 422.
+		invalidPayload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte("not actually a plist"),
+		}
+		s.uploadSoftwareInstaller(t, invalidPayload, http.StatusUnprocessableEntity, "invalid plist")
+	})
 }
 
 func genDistributedReqWithLabelResults(host *fleet.Host, labelResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
@@ -28672,7 +28759,7 @@ func (s *integrationEnterpriseTestSuite) TestPinMajorVersion() {
 	})
 }
 
-func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesObsoletePatchPolicy() {
+func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersUnsetsObsoletePatchPolicy() {
 	t := s.T()
 
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team_" + t.Name()})
@@ -28729,8 +28816,11 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
 	require.Len(t, listPolResp.Policies, 1)
 	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.NotNil(t, listPolResp.Policies[0].PatchSoftware)
 
-	// Batch set only zoom/windows — should not fail and should delete the obsolete patch policy.
+	// Batch set only zoom/windows — should not fail and should unset the obsolete patch policy's
+	// patch_software_title_id without deleting the policy. Gitops then deletes it via the policy
+	// delete API so the deletion produces a deleted_policy activity.
 	s.DoJSON("POST", "/api/latest/fleet/software/batch",
 		batchSetSoftwareInstallersRequest{Software: []*fleet.SoftwareInstallerPayload{{Slug: ptr.String("zoom/windows")}}, TeamName: team.Name},
 		http.StatusAccepted, &resp,
@@ -28738,10 +28828,12 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallersDeletesOb
 	)
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, team.Name, resp.RequestUUID)
 
-	// Verify the patch policy was deleted.
+	// Verify the patch policy still exists but no longer references a software title.
 	listPolResp = fleet.ListTeamPoliciesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/fleets/%d/policies", team.ID), fleet.ListTeamPoliciesRequest{}, http.StatusOK, &listPolResp, "page", "0")
-	require.Empty(t, listPolResp.Policies)
+	require.Len(t, listPolResp.Policies, 1)
+	require.Equal(t, fleet.PolicyTypePatch, listPolResp.Policies[0].Type)
+	require.Nil(t, listPolResp.Policies[0].PatchSoftware)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListAPIEndpoints() {
@@ -28829,7 +28921,7 @@ func (s *integrationEnterpriseTestSuite) TestCreateAPIOnlyUserPremium() {
 			APIOnly      bool          `json:"api_only"`
 			GlobalRole   *string       `json:"global_role"`
 			APIEndpoints []apiEndpoint `json:"api_endpoints"`
-			Teams        []teamEntry   `json:"teams"`
+			Teams        []teamEntry   `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Token  string              `json:"token"`
 		Err    string              `json:"error,omitempty"`
@@ -29004,7 +29096,7 @@ func (s *integrationEnterpriseTestSuite) TestModifyAPIOnlyUserPremium() {
 			Teams []struct {
 				ID   uint   `json:"id"`
 				Role string `json:"role"`
-			} `json:"teams"`
+			} `json:"teams"` //nolint:apiparamcheck // test helper; matches server response shape
 		} `json:"user"`
 		Err string `json:"error,omitempty"`
 	}
@@ -29709,6 +29801,430 @@ func (s *integrationEnterpriseTestSuite) TestQueryLabelsIncludeAll() {
 	require.False(t, hasQueryFor(hostNone.ID), "host with no labels should not match include_all query")
 	require.False(t, hasQueryFor(hostA.ID), "host with one of two required labels should not match include_all query")
 	require.True(t, hasQueryFor(hostBoth.ID), "host with both required labels should match include_all query")
+}
+
+func (s *integrationEnterpriseTestSuite) TestCertificatesSpecs() {
+	t := s.T()
+	ctx := context.Background()
+
+	// findCertID returns the ID of the cert with the given name, or fails the test. Using
+	// name-based lookup instead of list-position keeps the test robust against any order
+	// changes in GetCertificateTemplatesByTeamID / the list endpoint.
+	findCertID := func(certs []*fleet.CertificateTemplateResponseSummary, name string) uint {
+		t.Helper()
+		for _, c := range certs {
+			if c.Name == name {
+				return c.ID
+			}
+		}
+		require.FailNowf(t, "certificate not found", "expected certificate %q in list of %d", name, len(certs))
+		return 0
+	}
+
+	// create team
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
+	require.NoError(t, err)
+
+	// Create a test certificate authority
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Name:      ptr.String("Test SCEP CA"),
+		URL:       ptr.String("http://localhost:8080/scep"),
+		Challenge: ptr.String("test-challenge"),
+	})
+	require.NoError(t, err)
+
+	// invalid Fleet variable in subject name
+	var applyResp applyCertificateTemplateSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Template",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusBadRequest, &applyResp)
+
+	// test with non-existent team name
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Invalid Team Template",
+				Team:                   "NonExistentTeam",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusNotFound, &applyResp)
+
+	activitiesBeforeInsert := s.listActivities()
+
+	// valid templates - test team name (not team ID)
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// Only one activity per team
+	activitiesAfterInsert := s.listActivities()
+	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		0,
+	)
+
+	// list specs
+	var listCertifcatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Len(t, listCertifcatesResp.Certificates, 2)
+	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
+
+	lastActivityID := s.lastActivityMatches("", "", 0)
+
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "Template 1",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name:                   "Template 2",
+				Team:                   team.Name,
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// No new activities created
+	currentActivityID := s.lastActivityMatches("", "", 0)
+	assert.Equal(t, lastActivityID, currentActivityID, "no new activity should be created when re-applying same certificates")
+
+	// Create a host to get certificate get by id endpoint
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-node-key"),
+		UUID:            "test-uuid-12345",
+		Hostname:        "test-cert-host.local",
+		HardwareSerial:  "TEST-SERIAL-67890",
+		TeamID:          &team.ID,
+	})
+	require.NoError(t, err)
+
+	orbitNodeKey := uuid.New().String()
+	host.OrbitNodeKey = &orbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, host))
+
+	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	certID := findCertID(savedCertificateTemplates, "Template 1")
+
+	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
+	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              host.UUID,
+			CertificateTemplateID: certID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
+	var getCertResp getDeviceCertificateTemplateResponse
+
+	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed) // failed because no IDP user to replace variables
+
+	// Add an IDP user for the host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: host.ID,
+			Email:  "test.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	// Get certificate without node_key
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
+	require.NoError(t, resp.Body.Close())
+
+	// Get certificate with node_key (should return replaced variables)
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
+
+	// Get certificate without host_uuid (should return subject with variables)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
+	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
+
+	// batch delete certificate templates
+	var delBatchResp deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
+		"team_id": team.ID,
+	}, http.StatusOK, &delBatchResp)
+
+	// Verify activity was created for deleting certificates
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
+		0,
+	)
+
+	// list specs
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
+	require.Empty(t, listCertifcatesResp.Certificates)
+
+	activitiesBeforeNoTeam := s.listActivities()
+
+	// certificate templates for "No team"
+	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
+		Specs: []*fleet.CertificateRequestSpec{
+			{
+				Name:                   "No Team Template 1",
+				Team:                   "No team",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
+			},
+			{
+				Name:                   "No Team Template 2",
+				Team:                   "",
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
+			},
+			{
+				Name: "No Team Template 3",
+				// No Team field, should default to empty string
+				CertificateAuthorityId: ca.ID,
+				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+			},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// Only one activity was created for "No team"
+	activitiesAfterNoTeam := s.listActivities()
+	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
+	s.lastActivityMatches(
+		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
+		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
+		0,
+	)
+
+	// list specs for "no team" (team_id 0)
+	var noTeamCertificatesResp listCertificateTemplatesResponse
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 3)
+	certNames := []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name, noTeamCertificatesResp.Certificates[2].Name}
+	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2", "No Team Template 3"}, certNames)
+
+	// Create a host
+	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("test-cert-no-team-node-key"),
+		UUID:            "test-no-team-uuid-12345",
+		Hostname:        "test-cert-no-team-host.local",
+		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
+		TeamID:          nil, // No team
+	})
+	require.NoError(t, err)
+
+	noTeamOrbitNodeKey := uuid.New().String()
+	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
+	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
+
+	// Add an IDP user for host
+	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
+		{
+			HostID: noTeamHost.ID,
+			Email:  "no.team.user@example.com",
+			Source: fleet.DeviceMappingMDMIdpAccounts,
+		},
+	}, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+
+	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
+	require.NoError(t, err)
+	require.Len(t, savedNoTeamCertTemplates, 3)
+	noTeamCertID := findCertID(savedNoTeamCertTemplates, "No Team Template 1")
+
+	// Create a host_certificate_templates record for this no-team host
+	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
+		{
+			HostUUID:              noTeamHost.UUID,
+			CertificateTemplateID: noTeamCertID,
+			Status:                fleet.CertificateTemplateDelivered,
+			OperationType:         fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
+	// Get certificate with orbit node_key (should return replaced variables)
+	var getNoTeamCertResp getDeviceCertificateTemplateResponse
+	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
+		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
+	})
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
+	require.NoError(t, resp.Body.Close())
+	require.NotNil(t, getNoTeamCertResp.Certificate)
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
+	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
+
+	var profilesSummaryResp getMDMProfilesSummaryResponse
+	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", nil, http.StatusOK, &profilesSummaryResp)
+	require.NotNil(t, profilesSummaryResp)
+	require.Equal(t, uint(0), profilesSummaryResp.Verified)
+	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
+	require.Equal(t, uint(0), profilesSummaryResp.Failed)
+	require.Equal(t, uint(0), profilesSummaryResp.Pending)
+
+	// creating a certificate
+	var createCertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]any{
+		"name":                     "POST No Team Cert",
+		"certificate_authority_id": ca.ID,
+		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &createCertResp)
+	require.NotZero(t, createCertResp.ID)
+	require.Equal(t, "POST No Team Cert", createCertResp.Name)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
+	require.NotNil(t, getCertResp.Certificate)
+
+	// Delete is authorized properly
+	observerEmail := "observer-cert-test@fleetdm.com"
+	observerPwd := test.GoodPassword
+	observerUser := &fleet.User{
+		Name:       "Observer User",
+		Email:      observerEmail,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
+	_, err = s.ds.NewUser(ctx, observerUser)
+	require.NoError(t, err)
+
+	// Switch to observer user
+	s.token = s.getCachedUserToken(observerEmail, observerPwd)
+	// just in case test fails, restore to admin
+	defer func() { s.token = s.getTestAdminToken() }()
+
+	observerTargetCertID := findCertID(savedNoTeamCertTemplates, "No Team Template 1")
+	// Delete with observer
+	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{observerTargetCertID},
+		"team_id": uint(0), // "No team"
+	}, http.StatusForbidden)
+	resp.Body.Close()
+
+	// Switch back to admin
+	s.token = s.getTestAdminToken()
+
+	// Verify the certificate still exists (wasn't deleted by observer)
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	found := false
+	for _, cert := range noTeamCertificatesResp.Certificates {
+		if cert.ID == observerTargetCertID {
+			found = true
+			break
+		}
+	}
+	require.True(t, found, "Certificate should not be deleted by observer user")
+
+	// Cannot delete certificates from a different team
+	// Create team 2
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
+	require.NoError(t, err)
+	team2ID := team2.ID
+	// Create a certificate in team2
+	var team2CertResp createCertificateTemplateResponse
+	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
+		Name:                   "Team 2 Cert",
+		TeamID:                 team2ID,
+		CertificateAuthorityId: ca.ID,
+		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
+	}, http.StatusOK, &team2CertResp)
+	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
+	// Delete with team 1 id and certificate from team 2
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids":     []uint{team2CertResp.ID},
+		"team_id": team.ID,
+	}, http.StatusForbidden, &forbiddenDelResp)
+	var listTeam2Resp listCertificateTemplatesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
+		nil, http.StatusOK, &listTeam2Resp)
+	require.Len(t, listTeam2Resp.Certificates, 1)
+	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
+
+	var delResp deleteCertificateTemplateResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
+
+	// Refresh the no-team list so we don't pick a stale entry from a snapshot taken before the
+	// preceding single-cert delete. Then pick a known cert by name.
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	deletedNoTeamCertID := findCertID(noTeamCertificatesResp.Certificates, "No Team Template 1")
+	var delBatchResp2 deleteCertificateTemplateSpecsResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids": []uint{deletedNoTeamCertID},
+		// team_id intentionally omitted - should default to 0
+	}, http.StatusOK, &delBatchResp2)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Len(t, noTeamCertificatesResp.Certificates, 2)
+	for _, cert := range noTeamCertificatesResp.Certificates {
+		require.NotEqual(t, deletedNoTeamCertID, cert.ID, "deleted certificate should not appear in list")
+	}
+
+	// Delete the two remaining no-team templates by name lookup, not list-position.
+	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
+		"ids": []uint{
+			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 2"),
+			findCertID(noTeamCertificatesResp.Certificates, "No Team Template 3"),
+		},
+		"team_id": uint(0),
+	}, http.StatusOK, &delBatchResp)
+
+	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
+	require.Empty(t, noTeamCertificatesResp.Certificates)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrgLogoUploadGitOpsAuth() {
