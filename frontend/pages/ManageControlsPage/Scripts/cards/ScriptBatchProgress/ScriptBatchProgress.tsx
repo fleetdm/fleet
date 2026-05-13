@@ -36,7 +36,7 @@ const STATUS_BY_INDEX: ScriptBatchStatus[] = [
   "finished",
 ];
 
-export const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, JSX.Element> = {
+const EMPTY_STATE_DETAILS: Record<ScriptBatchStatus, JSX.Element> = {
   started: (
     <>
       Scripts running on multiple hosts will appear here. <br />

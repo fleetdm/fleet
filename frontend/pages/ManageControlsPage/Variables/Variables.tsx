@@ -265,7 +265,6 @@ const Variables = () => {
         data={data?.custom_variables || []}
         currentPage={pageNumber}
         onChangePage={setPageNumber}
-        onClickRow={(variable) => variable}
         heading={
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>

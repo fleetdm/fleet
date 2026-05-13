@@ -24,8 +24,8 @@ const AddCustomVariableModal = ({
   onCancel,
   onSave,
 }: AddCustomVariableModalProps) => {
-  const [secretName, setSecretName] = useState("");
-  const [secretValue, setSecretValue] = useState("");
+  const [variableName, setVariableName] = useState("");
+  const [variableValue, setVariableValue] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -34,22 +34,22 @@ const AddCustomVariableModal = ({
     formValidation,
     setFormValidation,
   ] = useState<IAddCustomVariableFormValidation>(() =>
-    validateFormData({ name: secretName, value: secretValue })
+    validateFormData({ name: variableName, value: variableValue })
   );
 
   const onInputChange = (update: { name: string; value: string }) => {
     const name = update.name;
     let value = update.value;
     if (name === "name") {
-      value = value.trimRight().toUpperCase();
-      setSecretName(value);
+      value = value.trimEnd().toUpperCase();
+      setVariableName(value);
     } else if (name === "value") {
-      setSecretValue(value);
+      setVariableValue(value);
     }
     setFormValidation(
       validateFormData({
-        name: secretName,
-        value: secretValue,
+        name: variableName,
+        value: variableValue,
         [update.name]: value,
       })
     );
@@ -60,8 +60,8 @@ const AddCustomVariableModal = ({
     if (validation.isValid) {
       setIsSaving(true);
       const newVariable: IVariablePayload = {
-        name: secretName,
-        value: secretValue,
+        name: variableName,
+        value: variableValue,
       };
       try {
         await variablesAPI.addVariable(newVariable);
@@ -89,21 +89,21 @@ const AddCustomVariableModal = ({
       <form className={`${baseClass}__add-variable-form`}>
         <InputField
           onChange={onInputChange}
-          value={secretName}
+          value={variableName}
           label="Name"
           name="name"
           parseTarget
           helpText={
             <span>
               You can use this in your script or configuration profile as
-              &ldquo;$FLEET_SECRET_{secretName}&rdquo;.
+              &ldquo;$FLEET_SECRET_{variableName}&rdquo;.
             </span>
           }
           error={formValidation.name?.message}
         />
         <InputField
           onChange={onInputChange}
-          value={secretValue}
+          value={variableValue}
           label="Value"
           name="value"
           parseTarget
@@ -112,7 +112,7 @@ const AddCustomVariableModal = ({
         <div className="modal-cta-wrap">
           <Button
             onClick={() => {
-              onClickSave(secretName, secretValue);
+              onClickSave(variableName, variableValue);
             }}
             disabled={!formValidation.isValid || isSaving}
             isLoading={isSaving}

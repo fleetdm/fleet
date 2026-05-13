@@ -39,7 +39,7 @@ describe("Custom variables", () => {
     },
   });
   describe("empty state", () => {
-    const emptySecretsHandler = http.get(baseUrl("/custom_variables"), () => {
+    const emptyVariablesHandler = http.get(baseUrl("/custom_variables"), () => {
       return HttpResponse.json({
         custom_variables: [],
         count: 0,
@@ -54,7 +54,7 @@ describe("Custom variables", () => {
       mockServer.resetHandlers();
     });
     it("renders with Add CTA and edit info when user can edit", async () => {
-      mockServer.use(emptySecretsHandler);
+      mockServer.use(emptyVariablesHandler);
 
       render(<Variables />);
       await waitFor(() => {
@@ -71,7 +71,7 @@ describe("Custom variables", () => {
     });
 
     it("renders without Add CTA and with read-only info when user cannot edit", async () => {
-      mockServer.use(emptySecretsHandler);
+      mockServer.use(emptyVariablesHandler);
 
       const renderReadOnly = createCustomRenderer({
         withBackendMock: true,
@@ -99,7 +99,7 @@ describe("Custom variables", () => {
   });
 
   describe("non-empty state", () => {
-    const mockSecrets: IVariable[] = [
+    const mockVariables: IVariable[] = [
       {
         name: "SECRET_UNO",
         id: 1,
@@ -113,19 +113,19 @@ describe("Custom variables", () => {
         updated_at: new Date().toISOString(),
       },
     ];
-    const secretsResponse: { secrets: IVariable[] } = { secrets: [] };
-    // Mock the scripts endpoint to return our two test scripts.
-    const secretsHandler = http.get(baseUrl("/custom_variables"), () => {
+    const variablesResponse: { variables: IVariable[] } = { variables: [] };
+    // Mock the variables endpoint to return our two test variables.
+    const variablesHandler = http.get(baseUrl("/custom_variables"), () => {
       return HttpResponse.json({
-        custom_variables: secretsResponse.secrets,
-        count: mockSecrets.length,
+        custom_variables: variablesResponse.variables,
+        count: variablesResponse.variables.length,
         meta: {
           has_previous_results: false,
           has_next_results: false,
         },
       });
     });
-    const addSecretHandler = http.post(
+    const addVariableHandler = http.post(
       baseUrl("/custom_variables"),
       async ({ request }) => {
         const { name, value } = (await request.json()) as {
@@ -134,26 +134,26 @@ describe("Custom variables", () => {
         };
         // const name = formData.get("name");
         // const value = formData.get("value");
-        const newSecret = {
-          id: mockSecrets.length + 1,
+        const newVariable = {
+          id: mockVariables.length + 1,
           name,
           value,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         } as IVariable;
-        secretsResponse.secrets.push(newSecret);
-        return HttpResponse.json(newSecret);
+        variablesResponse.variables.push(newVariable);
+        return HttpResponse.json(newVariable);
       }
     );
-    const deleteSecretHandler = http.delete(
+    const deleteVariableHandler = http.delete(
       baseUrl("/custom_variables/:id"),
       async ({ request }) => {
         const id = request.url.split("/").pop();
         if (!id) {
-          throw new Error("Secret ID not found in request URL");
+          throw new Error("Variable ID not found in request URL");
         }
-        secretsResponse.secrets = secretsResponse.secrets.filter(
-          (secret) => secret.id !== parseInt(id, 10)
+        variablesResponse.variables = variablesResponse.variables.filter(
+          (variable) => variable.id !== parseInt(id, 10)
         );
         return HttpResponse.json({ success: true });
       }
@@ -161,13 +161,13 @@ describe("Custom variables", () => {
     beforeEach(async () => {
       // Wait for the query stale timer to expire.
       await new Promise((resolve) => setTimeout(resolve, 250));
-      mockServer.use(secretsHandler);
-      mockServer.use(addSecretHandler);
-      mockServer.use(deleteSecretHandler);
-      secretsResponse.secrets = [...mockSecrets];
+      mockServer.use(variablesHandler);
+      mockServer.use(addVariableHandler);
+      mockServer.use(deleteVariableHandler);
+      variablesResponse.variables = [...mockVariables];
     });
 
-    it("renders when secrets are saved", async () => {
+    it("renders when variables are saved", async () => {
       render(<Variables />);
       await waitFor(
         () => {
@@ -184,48 +184,48 @@ describe("Custom variables", () => {
       it("renders the add button disabled in GitOps mode", async () => {
         renderInGOM(<Variables />);
 
-        let addSecretButton;
+        let addVariableButton;
         await waitFor(() => {
-          addSecretButton = screen.getByRole("button", {
+          addVariableButton = screen.getByRole("button", {
             name: /Add custom variable/,
           });
 
-          expect(addSecretButton).toBeInTheDocument();
+          expect(addVariableButton).toBeInTheDocument();
         });
-        if (!addSecretButton) {
+        if (!addVariableButton) {
           throw new Error("Add custom variable button not found");
         }
 
-        expect(addSecretButton).toHaveAttribute("disabled");
-        expect(addSecretButton).toHaveClass("button--disabled");
+        expect(addVariableButton).toHaveAttribute("disabled");
+        expect(addVariableButton).toHaveClass("button--disabled");
 
         // Tooltip behavior covered in GitOpsModeWrapper.tests.tsx; omitted here due to flakiness
       });
 
-      it("deleting a secret is successful in GitOps mode", async () => {
+      it("deleting a variable is successful in GitOps mode", async () => {
         const { user } = renderInGOM(<Variables />);
         await waitFor(() => {
           expect(screen.getByText("Add custom variable")).toBeInTheDocument();
         });
         // Get the element with SECRET_UNO in it.
-        let secretUno: HTMLElement | null = null;
+        let variableUno: HTMLElement | null = null;
         await waitFor(() => {
-          secretUno = screen.getByText("SECRET_UNO");
-          expect(secretUno).toBeInTheDocument();
+          variableUno = screen.getByText("SECRET_UNO");
+          expect(variableUno).toBeInTheDocument();
         });
-        if (secretUno === null) {
-          throw new Error("Secret not found");
+        if (variableUno === null) {
+          throw new Error("Variable not found");
         }
         // Find the element with .paginated-list__row class that is ancestor to that element.
-        const secretUnoRow = (secretUno as HTMLElement).closest(
+        const variableUnoRow = (variableUno as HTMLElement).closest(
           ".paginated-list__row"
         );
-        expect(secretUnoRow).toBeInTheDocument();
-        if (!secretUnoRow) {
-          throw new Error("Secret row not found");
+        expect(variableUnoRow).toBeInTheDocument();
+        if (!variableUnoRow) {
+          throw new Error("Variable row not found");
         }
         // Find the element with data-id="trash-icon"
-        const trashIcon = secretUnoRow.querySelector(
+        const trashIcon = variableUnoRow.querySelector(
           "[data-testid='trash-icon']"
         );
         expect(trashIcon).toBeInTheDocument();
@@ -253,8 +253,8 @@ describe("Custom variables", () => {
       });
     });
 
-    describe("adding a new secret", () => {
-      const getAddSecretUI = async () => {
+    describe("adding a new variable", () => {
+      const getAddVariableUI = async () => {
         let nameInput;
         let valueInput;
         let saveButton;
@@ -275,20 +275,20 @@ describe("Custom variables", () => {
       let user: UserEvent;
       beforeEach(async () => {
         ({ user } = render(<Variables />));
-        let addSecretButton;
+        let addVariableButton;
         await waitFor(() => {
-          addSecretButton = screen.getByRole("button", {
+          addVariableButton = screen.getByRole("button", {
             name: /Add custom variable/,
           });
-          expect(addSecretButton).toBeInTheDocument();
+          expect(addVariableButton).toBeInTheDocument();
         });
-        if (!addSecretButton) {
+        if (!addVariableButton) {
           throw new Error("Add custom variable button not found");
         }
-        await user.click(addSecretButton);
+        await user.click(addVariableButton);
       });
       it("is successful with valid name and value", async () => {
-        const { nameInput, valueInput, saveButton } = await getAddSecretUI();
+        const { nameInput, valueInput, saveButton } = await getAddVariableUI();
         await user.type(nameInput, "New_Secret");
         await user.type(valueInput, "Secret Value");
         await user.click(saveButton);
@@ -299,7 +299,7 @@ describe("Custom variables", () => {
         });
       });
       it("does not allow saving without name", async () => {
-        const { valueInput, saveButton } = await getAddSecretUI();
+        const { valueInput, saveButton } = await getAddVariableUI();
         await user.type(valueInput, "Secret Value");
         await user.click(saveButton);
         await waitFor(() => {
@@ -308,7 +308,7 @@ describe("Custom variables", () => {
         });
       });
       it("does not allow saving without value", async () => {
-        const { nameInput, saveButton } = await getAddSecretUI();
+        const { nameInput, saveButton } = await getAddVariableUI();
         await user.type(nameInput, "Secret Name");
         await user.click(saveButton);
         await waitFor(() => {
@@ -317,7 +317,7 @@ describe("Custom variables", () => {
         });
       });
       it("does not allow saving with invalid name", async () => {
-        const { nameInput, valueInput, saveButton } = await getAddSecretUI();
+        const { nameInput, valueInput, saveButton } = await getAddVariableUI();
         await user.type(nameInput, "COOL!"); // Invalid name
         await user.type(valueInput, "Secret Value");
         await user.click(saveButton);
@@ -331,7 +331,7 @@ describe("Custom variables", () => {
         });
       });
       it("does not allow saving very long name", async () => {
-        const { nameInput, valueInput, saveButton } = await getAddSecretUI();
+        const { nameInput, valueInput, saveButton } = await getAddVariableUI();
         await user.type(nameInput, new Array(256).fill("A").join("")); // Invalid name
         await user.type(valueInput, "a value");
         await user.click(saveButton);
@@ -344,30 +344,30 @@ describe("Custom variables", () => {
       });
     });
 
-    it("deleting a secret is successful", async () => {
+    it("deleting a variable is successful", async () => {
       const { user } = render(<Variables />);
       await waitFor(() => {
         expect(screen.getByText("Add custom variable")).toBeInTheDocument();
       });
       // Get the element with SECRET_UNO in it.
-      let secretUno: HTMLElement | null = null;
+      let variableUno: HTMLElement | null = null;
       await waitFor(() => {
-        secretUno = screen.getByText("SECRET_UNO");
-        expect(secretUno).toBeInTheDocument();
+        variableUno = screen.getByText("SECRET_UNO");
+        expect(variableUno).toBeInTheDocument();
       });
-      if (secretUno === null) {
-        throw new Error("Secret not found");
+      if (variableUno === null) {
+        throw new Error("Variable not found");
       }
       // Find the element with .paginated-list__row class that is ancestor to that element.
-      const secretUnoRow = (secretUno as HTMLElement).closest(
+      const variableUnoRow = (variableUno as HTMLElement).closest(
         ".paginated-list__row"
       );
-      expect(secretUnoRow).toBeInTheDocument();
-      if (!secretUnoRow) {
-        throw new Error("Secret row not found");
+      expect(variableUnoRow).toBeInTheDocument();
+      if (!variableUnoRow) {
+        throw new Error("Variable row not found");
       }
       // Find the element with data-id="trash-icon"
-      const trashIcon = secretUnoRow.querySelector(
+      const trashIcon = variableUnoRow.querySelector(
         "[data-testid='trash-icon']"
       );
       expect(trashIcon).toBeInTheDocument();

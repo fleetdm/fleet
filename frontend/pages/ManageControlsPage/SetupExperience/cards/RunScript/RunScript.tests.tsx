@@ -30,7 +30,7 @@ describe("RunScript", () => {
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(
-      await screen.findByText(/turn on automatic enrollment/)
+      await screen.findByText(/Turn on MDM and automatic enrollment/i)
     ).toBeInTheDocument();
     expect(
       screen.getByText(/Upload a script to run on macOS hosts/)
