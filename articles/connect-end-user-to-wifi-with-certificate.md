@@ -854,7 +854,7 @@ How to deploy SCEP certificates to Android hosts:
 6. In **SubjSubject alternative name (SAN)**, enter the certificate's SAN. Separate SAN fields with a comma (`,`). Each field is a key-value pair. See [supported keys](https://fleetdm.com/docs/configuration/yaml-files#android-settings-certificates).
 7. Select **Save**. Fleet will deploy the certificate to your Android hosts.
 
-You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) in **Subject name** and **Subject alternative name** to make the certificate unique to each host.
+You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in **Subject name** and **Subject alternative name** to make the certificate unique to each host.
 
 If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
