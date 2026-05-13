@@ -9,8 +9,7 @@ package mysqltest
 
 import (
 	"bytes"
-	"context"
-	"crypto/md5" // nolint:gosec // this is a test package
+	"context" // nolint:gosec // this is a test package
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -595,17 +594,6 @@ func InsertWindowsProfileForTest(t *testing.T, ds *mysql.Datastore, teamID uint)
 	return profUUID
 }
 
-// generateDummyWindowsProfileContents is unused outside the package today but
-// is kept here to match the API previously exported from mysql.
-func generateDummyWindowsProfileContents(uuidStr string) fleet.MDMWindowsProfileContents {
-	syncML := generateDummyWindowsProfile(uuidStr)
-	checksum := md5.Sum(syncML) // nolint:gosec // this is a test package
-	return fleet.MDMWindowsProfileContents{
-		SyncML:   syncML,
-		Checksum: checksum[:],
-	}
-}
-
 // GetAggregatedStats retrieves aggregated stats for the given query.
 func GetAggregatedStats(ctx context.Context, ds *mysql.Datastore, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error) {
 	result := fleet.AggregatedStats{}
@@ -939,7 +927,3 @@ func ListActivitiesAPI(t testing.TB, ctx context.Context, svc activity_api.Servi
 	require.NoError(t, err)
 	return activities
 }
-
-// Suppress unused-function warning for parity helpers not yet referenced from
-// other packages.
-var _ = generateDummyWindowsProfileContents
