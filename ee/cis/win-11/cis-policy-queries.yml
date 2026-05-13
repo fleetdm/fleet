@@ -11214,7 +11214,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11233,7 +11233,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\DisableIPSourceRouting' AND CAST(data AS INTEGER) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS_group_policy_template_required
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11251,7 +11251,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\AuditInsecureGuestLogon' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11269,7 +11269,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Bowser\EnableMailslots' AND data = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11288,7 +11288,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanServer\MinSmb2Dialect' AND CAST(data AS INTEGER) = 785;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11306,7 +11306,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\AuditInsecureGuestLogon' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11324,7 +11324,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\EnableMailslots' AND data = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11343,7 +11343,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\LanmanWorkstation\MinSmb2Dialect' AND CAST(data AS INTEGER) = 785;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11362,7 +11362,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy\fMinimizeConnections' AND CAST(data AS INTEGER) = 3;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11380,7 +11380,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy\fBlockNonDomain' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11398,7 +11398,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\WcmSvc\wifinetworkmanager\config\AutoConnectAllowedOEM' AND data = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11417,7 +11417,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\ForceKerberosForRpc' AND (data = 0 OR data = 1);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11436,7 +11436,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows NT\Printers\RPC\RpcTcpPort' AND data = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11454,7 +11454,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Policies\ClfsAuthenticationChecking' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11472,7 +11472,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\AllowRecallEnablement' AND data = 0;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11491,7 +11491,7 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\WinHttp\DisableWpad' AND data = 1;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
 ---
 apiVersion: v1
 kind: policy
@@ -11510,4 +11510,4 @@ spec:
     SELECT 1 FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings\DisableProxyAuthenticationSchemes' AND (data = 256 OR data = 287);
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: fleet
+  contributors: sharon-fdm
