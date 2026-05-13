@@ -8,6 +8,12 @@
     align-self: center;
   }
 
+  // Push the animated underline below text descenders (e.g. "g" in "Verifying")
+  .button--link::before,
+  .button--link::after {
+    bottom: -2px;
+  }
+
   .__react_component_tooltip {
     white-space: normal;
   }
