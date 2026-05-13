@@ -358,7 +358,7 @@ object ApiClient : CertificateApiClient {
                 detail = detail,
                 notAfter = notAfter?.toISO8601String(),
                 notBefore = notBefore?.toISO8601String(),
-                serialNumber = serialNumber?.toString(),
+                serialNumber = serialNumber?.toString(16), // hex
             ),
             bodySerializer = UpdateCertificateStatusRequest.serializer(),
             responseSerializer = UpdateCertificateStatusResponse.serializer(),
