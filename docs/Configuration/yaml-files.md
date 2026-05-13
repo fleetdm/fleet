@@ -816,9 +816,9 @@ org_settings:
 
 Can only be configured for "All fleets" (`org_settings`).
 
-To get the best results for your logos (`org_logo_url` and `org_logo_url_light_background`), use the following sizes:
-- For square logos, use a PNG that's 256x256 pixels (px).
-- For rectangular logos (wordmark), use a PNG that's 516x256 pixels (px).
+To get the best results for your logos (`org_logo_url_dark_mode`/`org_logo_path_dark_mode` and `org_logo_url_light_mode`/`org_logo_path_light_mode`), use the following sizes:
+- For square logos, use a PNG, JPEG/JPG, WebP or SVGs that's 256x256 pixels (px).
+- For rectangular logos (wordmark), use a PNG, JPEG/JPG, WebP or SVGs that's 516x256 pixels (px).
 
 #### Example
 
