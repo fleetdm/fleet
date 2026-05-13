@@ -365,15 +365,17 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		return id
 	}
 
-	// drainVerifyCmds acks any pending InstalledApplicationList commands as "installed".
-	drainVerifyCmds := func(t *testing.T, dev *mdmtest.TestAppleMDMClient, installed fleet.Software) {
+	// installAndCaptureCmd triggers an install and returns the InstallApplication bytes,
+	// then completes the verification so the host is ready for another install.
+	installAndCaptureCmd := func(t *testing.T, host *fleet.Host, dev *mdmtest.TestAppleMDMClient, titleID uint, installed fleet.Software) []byte {
 		t.Helper()
 		installed.Installed = true
+		// Drain any pending verification commands from prior installs.
 		for {
 			cmd, err := dev.Idle()
 			require.NoError(t, err)
 			if cmd == nil {
-				return
+				break
 			}
 			require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType,
 				"unexpected pending command %q while draining verifications", cmd.Command.RequestType)
@@ -381,13 +383,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 				[]fleet.Software{installed})
 			require.NoError(t, err)
 		}
-	}
-
-	// installAndCaptureCmd triggers an install and returns the InstallApplication bytes,
-	// then completes the verification so the host is ready for another install.
-	installAndCaptureCmd := func(t *testing.T, host *fleet.Host, dev *mdmtest.TestAppleMDMClient, titleID uint, installed fleet.Software) []byte {
-		t.Helper()
-		drainVerifyCmds(t, dev, installed)
 
 		var installResp installSoftwareResponse
 		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", host.ID, titleID),
@@ -608,8 +603,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		headers := map[string]string{
 			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
 		}
-
-		drainVerifyCmds(t, ssDev, app2Installed)
 
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
