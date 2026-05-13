@@ -437,22 +437,22 @@ controls:
 
 ### macos_updates
 
-- `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or one of the following automatic options: `"latest"` (latest macOS version available for the host's hardware), `"latest_major"` (latest version within the host's current major release), or `"latest_minor"` (latest patch within the host's current minor release). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`, `"latest_major"`, or `"latest_minor"`. (default: `""`).
-- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest", "latest_major", or "latest_minor". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
+- `minimum_version` specifies the minimum required macOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest macOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time for hosts on macOS 14 and above, 20:00 UTC for hosts on older macOS versions. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest". (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 - `update_new_hosts` - macOS hosts that automatically enroll (ADE) are updated to [Apple's latest version](https://fleetdm.com/guides/enforce-os-updates) during macOS Setup Assistant. For backwards compatibility, if not specified, and `deadline` and `minimum_version` are set, `update_new_hosts` is set to `true`. Otherwise, `update_new_hosts` defaults to `false`.
 
 ### ios_updates
 
-- `minimum_version` specifies the minimum required iOS version. Accepts a specific version number (e.g., `"15.4.1"`) or one of the following automatic options: `"latest"` (latest iOS version available for the host's hardware), `"latest_major"` (latest version within the host's current major release), or `"latest_minor"` (latest patch within the host's current minor release). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`, `"latest_major"`, or `"latest_minor"`. (default: `""`).
-- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest", "latest_major", or "latest_minor". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
+- `minimum_version` specifies the minimum required iOS version. Accepts a specific version number (e.g., `"15.4.1"`) or `"latest"` (latest iOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### ipados_updates
 
-- `minimum_version` specifies the minimum required iPadOS version. Accepts a specific version number (e.g., `"15.4.1"`) or one of the following automatic options: `"latest"` (latest iPadOS version available for the host's hardware), `"latest_major"` (latest version within the host's current major release), or `"latest_minor"` (latest patch within the host's current minor release). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
-- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`, `"latest_major"`, or `"latest_minor"`. (default: `""`).
-- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest", "latest_major", or "latest_minor". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
+- `minimum_version` specifies the minimum required iPadOS version. Accepts a specific version number (e.g., `"15.4.1"`) `"latest"` (latest iPadOS version available for the host's hardware). Must be paired with `deadline` when set to a version number, or `deadline_days` when set to an automatic option. (default: `""`).
+- `deadline` specifies the deadline in `YYYY-MM-DD` format. The exact deadline is set to noon local time. Required when `minimum_version` is a specific version number. Cannot be used when `minimum_version` is set to `"latest"`. (default: `""`).
+- `deadline_days` specifies the number of days after Apple releases an update before hosts are required to install it. Required when `minimum_version` is set to "latest". Cannot be used when `minimum_version` is a specific version number. (default: `null`).
 
 ### windows_updates
 
