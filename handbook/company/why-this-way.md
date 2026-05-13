@@ -426,33 +426,6 @@ Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration 
 
 By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
-## Why not mention the CEO in Slack threads?
-
-> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
-
-<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
-Thank you so much!" 🙇
-</blockquote> 
--->
 
 ## Why "multi-platform" instead of "cross-platform"?
 
