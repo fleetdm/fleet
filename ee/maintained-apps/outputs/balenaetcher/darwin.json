@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "2.1.4",
+      "version": "2.1.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher' AND version_compare(bundle_short_version, '2.1.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.balena.etcher' AND version_compare(bundle_short_version, '2.1.6') < 0);"
       },
-      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.4/balenaEtcher-2.1.4-arm64.dmg",
+      "installer_url": "https://github.com/balena-io/etcher/releases/download/v2.1.6/balenaEtcher-2.1.6-arm64.dmg",
       "install_script_ref": "2e2f21f8",
       "uninstall_script_ref": "17689283",
-      "sha256": "6196813482f3fe8c329002a46610c7623a7ab8d0e48cdeca21d9dc05eb668dc9",
+      "sha256": "ecf71fb5e74803ea8d7d16c54378a6a8d964e9808594b867c088222a8cfe3d2b",
       "default_categories": [
         "Developer tools"
       ]
