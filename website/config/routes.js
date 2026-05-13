@@ -134,7 +134,6 @@ module.exports.routes = {
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
-      showSearchInMobileMenu: true,
     }
   },
 
