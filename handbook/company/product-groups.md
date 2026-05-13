@@ -167,7 +167,7 @@ Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, w
 
 #### What is the same
 
-- **3-week release cadence**: Planning is decoupled from the release boundary. Most changes ship at the next release. Some agent changes (e.g. fleetd, Orbit) follow their own cadence.
+- **3-week release cadence**: Planning is decoupled from the release boundary. We ship what is complete at each release. Some agent changes (e.g. fleetd, Orbit) follow their own cadence.
 
 #### Roles
 
@@ -193,35 +193,34 @@ Each working group runs its own GitHub project board with the following columns,
 |:---|:---|
 | 📨 Inbox | Any issue labeled with the working group's `#g-*` label lands here. |
 | 🦢 Full draft | The PD is drafting the issue on the formal [drafting board](https://github.com/orgs/fleetdm/projects/67). The issue stays in this column on the working group board until drafting is complete. |
-| 🪿 Fast draft | The PD and team are drafting in-place on the issue itself. |
+| 🪿 Fast draft | The team hasn't looked at the issue together yet. Drafting happens in-place on the issue, often during standup or async in the group's Slack channel. |
+| 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Try to resolve async first; otherwise raise at the next standup. |
 | 🥚 Ready | The issue has enough detail to start implementation, though not always enough to finish. |
 | 🐣 In progress | An engineer is actively implementing the change. |
 | 🐥 Ready for review | A pull request is open and awaiting code review. |
 | ✔️ Awaiting QA | The change is merged and waiting for QA verification. |
 | ✅ Ready for release | QA has verified the change. Held until the next release boundary. |
-| 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Raise at the next standup. |
 | Done | Released. |
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
 
 #### Drafting tracks: full draft vs. fast draft
 
-The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft** and escalate to **full draft** only when there is genuine design ambiguity or customer-facing risk. Lower-stakes issues are a good opportunity for Product Designers to develop decision-making capabilities as that becomes a scarce resource.
+The PD decides which stories go through full drafting and is responsible for drafting them. Default to **fast draft**; reserve **full draft** for the highest-risk work. Keeping the full-draft queue small protects PD bandwidth and is a chance for Product Designers to grow their decision-making.
 
-**Full draft** is for significant new features, architectural changes, and customer deliverables. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next planning meeting where it moves to **Ready**.
+**Full draft** is typically reserved for customer promises and activation blockers, where design ambiguity or customer-facing risk is highest. The PD assigns themselves, adds the `:product` label, and tracks the issue on the [drafting board](https://github.com/orgs/fleetdm/projects/67) through the full [drafting process](#drafting) (product checklist, user story review, engineering checklist), including a [t-shirt size](#t-shirt-sizing-capacity-planning). When drafting is complete, the PD removes the `:product` label, takes the issue off the drafting board, and brings it to the next standup or planning meeting where it moves to **Ready**.
 
-**Fast draft** is for bug fixes, improvements, well-understood patterns, and internal tooling. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. Fast draft items still receive review from the HPD and CTO before they ship, but review happens at the weekly planning session, after implementation.
+**Fast draft** is the default for everything else: bug fixes, improvements, well-understood patterns, internal tooling, and most new work. The PD collaborates with the team on what guidance is needed to implement the change. This may be a Figma wireframe, a quick sketch, a bulleted list of changes, or a prototype built directly into the product to choose between options. Fast draft items still receive review from the HPD and CTO before they ship, but review happens at the weekly planning session, after implementation. If a customer promise or activation blocker is fast-drafted, it should still be t-shirt sized to reduce risk to the customer.
 
 #### Estimation
 
-Continuous flow does not use story points or track velocity. Customer promises and activation blockers are [t-shirt sized](#t-shirt-sizing-capacity-planning) async so the working group can plan releases weeks in advance.
+Continuous flow does not use story points or track velocity. [T-shirt sizing](#t-shirt-sizing-capacity-planning) is part of **full draft** and happens async, with anything unresolved discussed at standup. The goal is to minimize the number of stories that require sizing — full draft (and the estimation that comes with it) is reserved for customer promises, activation blockers, and other high-risk work.
 
 #### How issues move
 
-- **Inbox → Ready or drafting**:
-  - Bugs and any priority issues (P2 or greater) are triaged at the daily standup.
-  - Stories are triaged at the weekly planning meeting.
-  - If the issue can be sufficiently discussed during standup or weekly planning, it goes straight to **Ready**. Otherwise, the PD picks a drafting lane (see above).
+- **Inbox → Fast draft or Full draft**: every issue moves into a drafting lane. The PD picks the lane (see above). Bugs and priority issues (P2 or greater) are triaged at the daily standup; stories are triaged at the weekly planning meeting.
+- **Fast draft → Ready**: an issue moves to **Ready** only after the team has looked at it together — either live during standup or async with an announcement in the group's Slack channel. The team should review fast-draft bugs at standup but may defer them when more pressing items exist.
+- **Full draft → Ready**: when the PD completes drafting, they bring the issue to the next standup or planning meeting where it moves to **Ready**.
 - **Ready → In progress → Ready for review → Awaiting QA → Ready for release**: the assigned engineer is responsible for moving the issue through these columns as work progresses.
 
 #### Working the board
@@ -229,7 +228,7 @@ Continuous flow does not use story points or track velocity. Customer promises a
 - **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
 - **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
-- **Hit a blocker or have a question?** Move the issue to **Blocked** and raise it at the next standup, rather than blocking on async followup.
+- **Hit a blocker or have a question?** It's okay — blockers happen. Move the issue to **Blocked** and try to resolve it async (in the group's Slack channel, with the relevant collaborator, etc.) rather than waiting for standup. If it isn't resolved async, the next standup is the latest it should go without being addressed.
 
 #### Daily standup (30 minutes)
 
@@ -256,6 +255,8 @@ The transition to working groups happens over the next two release cycles:
 |:---|:---|
 | 4.88.0 | First Impressions pauses. Scott Gress joins Konstantin Sykulev on Power to the PC. |
 | 4.89.0 | Konstantin spins out to lead BYOD with Andrew Mellor. MDM becomes Apple @ Work. Software becomes Auto Patching. |
+
+> When an engineer moves into a new area of the code, allocate one release cycle for ramp-up. Reduced output during that cycle is expected and planned for.
 
 
 ### Website group
