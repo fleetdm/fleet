@@ -802,7 +802,14 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	assert.Len(t, team.Secrets, 1) // secret gets created automatically for a new team when none is supplied.
 	require.NotNil(t, team.Config.AgentOptions)
 	require.JSONEq(t, defaultOpts, string(*team.Config.AgentOptions))
-	require.Equal(t, appConfig.Features, team.Config.Features)
+	// Short-term carve-out: a newly created team inherits global Features
+	// except that vulnerabilities is forced to true at the team scope
+	// even when the global default is false. Mirrors the override in
+	// createTeamFromSpec + NewTeam. When bitmap compression ships,
+	// simplify back to require.Equal(t, appConfig.Features, ...).
+	expectedFeatures := appConfig.Features
+	expectedFeatures.HistoricalData.Vulnerabilities = true
+	require.Equal(t, expectedFeatures, team.Config.Features)
 
 	// an activity was created for the newly created team via the applied spec
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}], "fleets": [{"id": %d, "name": %q}]}`, team.ID, team.Name, team.ID, team.Name), 0)
@@ -9946,12 +9953,20 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigHistoricalDataGitOps() {
 	require.True(t, team.Config.Features.HistoricalData.Uptime)
 	require.False(t, team.Config.Features.HistoricalData.Vulnerabilities)
 
-	// applyTeamSpec uses the spec/teams endpoint, not gitops, so the
-	// client-side default-injection only happens via fleetctl's gitops
-	// pathway (exercised in cmd/fleetctl/fleetctl/gitops_test.go's
-	// TestGitOpsBasicTeam-style flows). Here we just confirm explicit
-	// values round-trip via the spec/teams path; the gitops-specific
-	// default-injection contract is tested in fleetctl's test suite.
+	// Re-apply a spec that omits historical_data entirely. Per the
+	// short-term carve-out, the stored vulnerabilities=false from the
+	// prior apply MUST be preserved — admin's UI/spec toggle must not
+	// be silently re-enabled by a gitops apply that omits the key.
+	specWithoutHistoricalData := fmt.Appendf(nil, `
+  name: %s
+`, teamName)
+	s.applyTeamSpec(specWithoutHistoricalData)
+	team, err = s.ds.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	require.True(t, team.Config.Features.HistoricalData.Uptime,
+		"omitted uptime preserves stored value")
+	require.False(t, team.Config.Features.HistoricalData.Vulnerabilities,
+		"omitted vulnerabilities preserves stored value (must not silently re-enable)")
 }
 
 func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {

@@ -81,6 +81,13 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 			Features:     globalConfig.Features,
 		},
 	}
+	// Short-term carve-out: team-level vulnerabilities defaults to true
+	// even though the inherited global value is false (CVE collection is
+	// opt-in due to load). Mirrors the override in
+	// unmarshalWithGlobalDefaults + teamFeaturesDB. When bitmap
+	// compression ships and the chart config rejoins the standard
+	// pattern, drop this line.
+	team.Config.Features.HistoricalData.Vulnerabilities = true
 
 	if p.Name == nil {
 		return nil, fleet.NewInvalidArgumentError("name", "missing required argument")
@@ -1347,6 +1354,10 @@ func (svc *Service) createTeamFromSpec(
 	// build a new config from the spec with default values applied.
 	var err error
 	features := appCfg.Features
+	// Short-term carve-out: team-level vulnerabilities defaults to true
+	// even though the inherited global value is false. See NewTeam and
+	// unmarshalWithGlobalDefaults for matching overrides.
+	features.HistoricalData.Vulnerabilities = true
 	if spec.Features != nil {
 		features, err = unmarshalWithGlobalDefaults(spec.Features)
 		if err != nil {
@@ -1573,6 +1584,31 @@ func (svc *Service) editTeamFromSpec(
 	features, err := unmarshalWithGlobalDefaults(spec.Features)
 	if err != nil {
 		return err
+	}
+	// Short-term carve-out: at the team scope, historical_data sub-keys
+	// use "omission = preserve stored value" rather than "omission =
+	// default". This keeps an admin's UI toggle from being silently
+	// flipped by a gitops apply that doesn't pin the keys. Mirrors the
+	// global preserve logic in applyHistoricalDataOverwriteDefaults.
+	// Re-parse spec.Features into a tri-state view because
+	// unmarshalWithGlobalDefaults loses absent-vs-false distinction.
+	if spec.Features != nil {
+		var specView struct {
+			HistoricalData *struct {
+				Uptime          *bool `json:"uptime"`
+				Vulnerabilities *bool `json:"vulnerabilities"`
+			} `json:"historical_data"`
+		}
+		if jerr := json.Unmarshal(*spec.Features, &specView); jerr == nil {
+			if specView.HistoricalData == nil || specView.HistoricalData.Uptime == nil {
+				features.HistoricalData.Uptime = oldHistoricalData.Uptime
+			}
+			if specView.HistoricalData == nil || specView.HistoricalData.Vulnerabilities == nil {
+				features.HistoricalData.Vulnerabilities = oldHistoricalData.Vulnerabilities
+			}
+		}
+	} else {
+		features.HistoricalData = oldHistoricalData
 	}
 	team.Config.Features = features
 

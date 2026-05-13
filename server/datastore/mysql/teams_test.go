@@ -660,6 +660,13 @@ func testTeamsDeleteIntegrationsFromTeams(t *testing.T, ds *Datastore) {
 func testTeamsFeatures(t *testing.T, ds *Datastore) {
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
+	// Short-term carve-out: team-level vulnerabilities defaults to true
+	// even though the global Features.ApplyDefaults sets it false.
+	// Mirrors the override in teamFeaturesDB (mysql/teams.go) and
+	// unmarshalWithGlobalDefaults (ee/server/service/teams.go). When
+	// bitmap compression ships and the chart config rejoins the
+	// standard pattern, drop this line.
+	defaultFeatures.HistoricalData.Vulnerabilities = true
 	ctx := context.Background()
 
 	t.Run("NULL config in the database", func(t *testing.T) {
