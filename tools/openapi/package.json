@@ -1,0 +1,22 @@
+{
+  "name": "fleet-openapi-generator",
+  "version": "0.0.1",
+  "private": true,
+  "description": "PoC: Generate an OpenAPI 3.1 spec from Fleet's canonical REST API Markdown reference.",
+  "license": "MIT",
+  "type": "commonjs",
+  "bin": {
+    "fleet-openapi": "src/index.js"
+  },
+  "scripts": {
+    "generate": "node src/index.js",
+    "generate:stdout": "node src/index.js --stdout"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@readme/openapi-parser": "^2.7.0",
+    "yaml": "^2.6.1"
+  }
+}
