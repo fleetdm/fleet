@@ -1976,9 +1976,6 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
-		// historical_data sub-keys default to true on every gitops apply so a
-		// deployment that doesn't pin them in YAML keeps dashboard collection
-		// enabled. Mirrors the enable_software_inventory carve-out above.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
 			return nil, fmt.Errorf("org_settings.%w", err)
 		}
@@ -2233,8 +2230,6 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
-		// historical_data sub-keys default to true on every gitops apply.
-		// See ensureHistoricalDataDefaults for the rationale.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
 			return nil, fmt.Errorf("Team %s %w", *incoming.TeamName, err)
 		}
@@ -3465,31 +3460,33 @@ func (c *Client) GetGitOpsSecrets(
 	return nil
 }
 
-// ensureHistoricalDataDefaults injects default `true` values for any
-// `historical_data` sub-key not explicitly specified in the gitops payload.
-// Called for both global and team-spec gitops applies so a deployment that
-// doesn't pin `historical_data` in YAML keeps the upgrade-friendly default
-// of dashboard collection enabled. Mirrors the existing carve-out for
-// `enable_software_inventory`.
-//
-// Returns an error if `historical_data` is present but is not a map (e.g.
-// `historical_data: true` or a list), so a malformed YAML fails the gitops
-// run loudly instead of being silently replaced with defaults.
+// ensureHistoricalDataDefaults ensures that, if omitted, the
+// historical_data features keys are set to the correct defaults.
 func ensureHistoricalDataDefaults(features map[string]any) error {
+	// Temporary measure to simply preserve existing settings
+	// if historical_data is omitted.
+	// TODO - revert in favor of commented-out code below
+	//        once bitmap compression is implemented.
 	raw, present := features["historical_data"]
-	historicalData, ok := raw.(map[string]any)
-	switch {
-	case !present || raw == nil:
-		historicalData = map[string]any{}
-		features["historical_data"] = historicalData
-	case !ok:
+	if !present || raw == nil {
+		return nil
+	}
+	if _, ok := raw.(map[string]any); !ok {
 		return fmt.Errorf("features.historical_data must be a map, got %T", raw)
 	}
-	if v, ok := historicalData["uptime"]; !ok || v == nil {
-		historicalData["uptime"] = true
-	}
-	if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
-		historicalData["vulnerabilities"] = true
-	}
+	// historicalData, ok := raw.(map[string]any)
+	// switch {
+	// case !present || raw == nil:
+	// 	historicalData = map[string]any{}
+	// 	features["historical_data"] = historicalData
+	// case !ok:
+	// 	return fmt.Errorf("features.historical_data must be a map, got %T", raw)
+	// }
+	// if v, ok := historicalData["uptime"]; !ok || v == nil {
+	// 	historicalData["uptime"] = true
+	// }
+	// if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
+	// 	historicalData["vulnerabilities"] = true
+	// }
 	return nil
 }

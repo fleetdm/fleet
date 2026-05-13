@@ -16,11 +16,11 @@ import (
 	"time"
 
 	"github.com/cenkalti/backoff"
-	dockerclient "github.com/moby/moby/client"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/service"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
+	dockerclient "github.com/moby/moby/client"
 )
 
 func init() {

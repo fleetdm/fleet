@@ -20,7 +20,7 @@ func TestUp_20260423161823(t *testing.T) {
 
 	applyNext(t, db)
 
-	// AppConfig backfill: features.historical_data.{uptime,vulnerabilities} = true.
+	// AppConfig backfill: features.historical_data.uptime=true, vulnerabilities=false.
 	var raw json.RawMessage
 	require.NoError(t, sqlx.Get(db, &raw, `SELECT json_value FROM app_config_json LIMIT 1;`))
 
@@ -31,7 +31,7 @@ func TestUp_20260423161823(t *testing.T) {
 	hd, ok := features["historical_data"].(map[string]any)
 	require.True(t, ok, "AppConfig features.historical_data present")
 	require.Equal(t, true, hd["uptime"], "AppConfig uptime defaulted true")
-	require.Equal(t, true, hd["vulnerabilities"], "AppConfig vulnerabilities defaulted true")
+	require.Equal(t, false, hd["vulnerabilities"], "AppConfig vulnerabilities defaulted false")
 
 	// Team config backfill: same path under teams.config.
 	var teamRaw json.RawMessage

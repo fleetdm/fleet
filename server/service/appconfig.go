@@ -401,9 +401,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// predating the field) omit features.historical_data entirely.
 	// Without defaulting here, the Overwrite branch below would persist
 	// those sub-keys as false because Go's bool zero value is
-	// indistinguishable from "absent".
+	// indistinguishable from "absent". appConfig is the live config —
+	// passed in so vulnerabilities can be preserved on omission rather
+	// than defaulted (see function comment).
 	if applyOpts.Overwrite {
-		applyHistoricalDataOverwriteDefaults(p, &newAppConfig)
+		applyHistoricalDataOverwriteDefaults(p, appConfig, &newAppConfig)
 	}
 
 	fleetDesktopSettingsInvalidErr := validateFleetDesktopSettings(newAppConfig, lic)
@@ -1973,30 +1975,38 @@ type gitopsHistoricalDataView struct {
 	} `json:"features"`
 }
 
-// applyHistoricalDataOverwriteDefaults defaults absent
-// features.historical_data sub-keys to true.
-// Older clients will not send values for these keys,
-// and in Overwrite mode we want to preserve the default
-// "enabled" state so that we don't disable data collection
-// and wipe data incorrectly.
-func applyHistoricalDataOverwriteDefaults(p []byte, cfg *fleet.AppConfig) {
+// applyHistoricalDataOverwriteDefaults ensures that if historical_data
+// is absent from a payload, we set the keys to the appropriate defaults.
+func applyHistoricalDataOverwriteDefaults(p []byte, oldCfg, newCfg *fleet.AppConfig) {
+	// Temporary measure to simply preserve existing settings
+	// if historical_data is omitted.
+	// TODO - revert in favor of commented-out code below
+	//        once bitmap compression is implemented.
 	var view gitopsHistoricalDataView
 	if err := json.Unmarshal(p, &view); err != nil {
 		return // main decode path will surface the typed error
 	}
-	var defaults fleet.Features
-	defaults.ApplyDefaults()
-	// For each sub-key, check if the incoming data provided a value (true or false).
-	// If not, then set the config to the default value we want rather than
-	// the Go default for bools (false).
-	cfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+
+	newCfg.Features.HistoricalData.Uptime = oldCfg.Features.HistoricalData.Uptime
 	if v := view.Features.HistoricalData.Uptime; v != nil {
-		cfg.Features.HistoricalData.Uptime = *v
+		newCfg.Features.HistoricalData.Uptime = *v
 	}
-	cfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+
+	newCfg.Features.HistoricalData.Vulnerabilities = oldCfg.Features.HistoricalData.Vulnerabilities
 	if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
-		cfg.Features.HistoricalData.Vulnerabilities = *v
+		newCfg.Features.HistoricalData.Vulnerabilities = *v
 	}
+
+	// var defaults fleet.Features
+	// defaults.ApplyDefaults()
+	// newCfg.Features.HistoricalData.Uptime = defaults.HistoricalData.Uptime
+	// if v := view.Features.HistoricalData.Uptime; v != nil {
+	// 	newCfg.Features.HistoricalData.Uptime = *v
+	// }
+	// newCfg.Features.HistoricalData.Vulnerabilities = defaults.HistoricalData.Vulnerabilities
+	// if v := view.Features.HistoricalData.Vulnerabilities; v != nil {
+	// 	newCfg.Features.HistoricalData.Vulnerabilities = *v
+	// }
 }
 
 // //////////////////////////////////////////////////////////////////////////////

@@ -42,18 +42,21 @@ func Up_20260423161823(tx *sql.Tx) error {
 		return fmt.Errorf("create host_scd_data table: %w", err)
 	}
 
-	// Backfill historical_data sub-keys to true on AppConfig and every team
-	// config. The new Features.HistoricalData field defaults to true on
-	// upgrade per the chart-disabling-gitops-api spec, but the existing
-	// updateAppConfigJSON / inline TeamConfig round-trip pattern in earlier
-	// migrations re-marshaled the whole struct and stamped zero values
-	// (false) into stored JSON the moment the field appeared in Go. This
-	// migration restores the documented upgrade default before any
-	// deployment that exposes the toggle to admins ships, so the false
-	// values produced by the round-trip never reach production.
+	// Backfill historical_data sub-keys on AppConfig and every team config.
+	// Defaults differ by scope: at the global (AppConfig) level
+	// vulnerabilities=false because CVE collection is opt-in due to load
+	// on large fleets; at the team level vulnerabilities=true because
+	// the team value is gated by the global value at collection time
+	// (an "on at team scope" team is harmless when global is off and
+	// pre-enabled if global flips on). Uptime is true at both scopes.
+	// Without this backfill the existing updateAppConfigJSON / inline
+	// TeamConfig round-trip pattern in earlier migrations would
+	// re-marshal the whole struct and stamp Go zero values (false) into
+	// both sub-keys the moment the field appeared in Go, silently
+	// disabling uptime collection too.
 	if err := updateAppConfigJSON(tx, func(config *fleet.AppConfig) error {
 		config.Features.HistoricalData.Uptime = true
-		config.Features.HistoricalData.Vulnerabilities = true
+		config.Features.HistoricalData.Vulnerabilities = false
 		return nil
 	}); err != nil {
 		return fmt.Errorf("set historical_data defaults in AppConfig: %w", err)
