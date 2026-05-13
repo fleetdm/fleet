@@ -1968,6 +1968,12 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumErrored, uint(3))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
+
+	// Get summary for non existent execution ID
+	summary, err = ds.BatchExecuteSummary(ctx, "fake-bogus-id")
+	require.Nil(t, summary)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
@@ -2184,6 +2190,14 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, *summary.NumCanceled, uint(7))
 	require.Equal(t, *summary.NumIncompatible, uint(8))
 	require.Equal(t, *summary.NumTargeted, uint(9))
+
+	// Get summary for non existent execution ID
+	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: ptr.String("fake-bogus-id"),
+	})
+	require.Nil(t, summaryList)
+	require.True(t, fleet.IsNotFound(err))
+	require.ErrorContains(t, err, "fake-bogus-id")
 }
 
 func testBatchScriptSchedule(t *testing.T, ds *Datastore) {

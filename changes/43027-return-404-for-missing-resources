@@ -1,0 +1,1 @@
+- Fixed an issue of not returning a 404 not found, for the following endpoints `/api/v1/fleet/scripts/batch/:id`, `/api/v1/fleet/scripts/batch/summary/:id`, and `/api/v1/fleet/scripts/batch/:id/cancel`
