@@ -97,6 +97,20 @@ const EditTeamsAbmModal = ({
       }));
   }, [availableTeams]);
 
+  // If the incoming value is not present in the constructed options list (e.g.
+  // a fresh ABM token returns "All fleets", which getOptions filters out),
+  // pass `undefined` to the Dropdown instead of the missing value. Otherwise
+  // react-select v1 skips its scroll-to-focused-option pass on first paint,
+  // which causes the focused-option background highlight to bleed past the
+  // menu's padded content area (visible in dark mode where the menu and
+  // option-hover colors are very close). See issue #45336.
+  const getDropdownValue = useCallback(
+    (value: string) => {
+      return options?.some((o) => o.value === value) ? value : undefined;
+    },
+    [options]
+  );
+
   const onSave = useCallback(
     async (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
@@ -142,7 +156,7 @@ const EditTeamsAbmModal = ({
           onChange={(value: string) => {
             setSelectedTeamNames((prev) => ({ ...prev, macos_team: value }));
           }}
-          value={selectedTeamNames.macos_team}
+          value={getDropdownValue(selectedTeamNames.macos_team)}
           label="macOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--macos`}
           tooltip={
@@ -160,7 +174,7 @@ const EditTeamsAbmModal = ({
           onChange={(value: string) => {
             setSelectedTeamNames((prev) => ({ ...prev, ios_team: value }));
           }}
-          value={selectedTeamNames.ios_team}
+          value={getDropdownValue(selectedTeamNames.ios_team)}
           label="iOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--ios`}
           tooltip={
@@ -178,7 +192,7 @@ const EditTeamsAbmModal = ({
           onChange={(value: string) =>
             setSelectedTeamNames((prev) => ({ ...prev, ipados_team: value }))
           }
-          value={selectedTeamNames.ipados_team}
+          value={getDropdownValue(selectedTeamNames.ipados_team)}
           label="iPadOS fleet"
           wrapperClassName={`${baseClass}__form-field form-field--ipados`}
           tooltip={
