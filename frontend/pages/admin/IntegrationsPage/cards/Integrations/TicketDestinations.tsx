@@ -14,6 +14,7 @@ import { IApiError } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
 
+import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import EmptyState from "components/EmptyState";
@@ -29,10 +30,8 @@ import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 const baseClass = "integrations-management";
-const noIntegrationsClass = "no-integrations";
 
 const VALIDATION_FAILED_ERROR =
   "There was a problem with the information you provided.";
