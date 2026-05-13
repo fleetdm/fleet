@@ -1278,7 +1278,6 @@ module.exports.routes = {
   'GET /learn-more-about/alternative-browser-host': '/guides/enroll-hosts#alternative-browser-host',
   'GET /learn-more-about/deploy-self-service-to-ios': '/guides/software-self-service#deploy-self-service-on-ios-and-ipados',
   'GET /learn-more-about/android-software-managed-configuration': '/guides/install-app-store-apps#configuration',
-  'GET /learn-more-about/ios-software-managed-configuration': '/guides/install-app-store-apps#configuration',
   'GET /learn-more-about/microsoft-entra-tenant-id': 'https://entra.microsoft.com/#home',
   'GET /learn-more-about/recovery-lock-passwords': 'https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command',
   'GET /learn-more-about/startup-security-macos': 'https://support.apple.com/guide/deployment/startup-security-dep5810e849c',
