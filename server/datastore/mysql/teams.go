@@ -532,6 +532,11 @@ func teamFeaturesDB(ctx context.Context, q sqlx.QueryerContext, tid uint) (*flee
 
 	var features fleet.Features
 	features.ApplyDefaultsForNewInstalls()
+	// Team-level historical_data.vulnerabilities defaults to true even
+	// though the global Features.ApplyDefaults sets it false. See
+	// unmarshalWithGlobalDefaults in ee/server/service/teams.go for the
+	// rationale.
+	features.HistoricalData.Vulnerabilities = true
 	if raw != nil {
 		if err := json.Unmarshal(*raw, &features); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unmarshal team config features")

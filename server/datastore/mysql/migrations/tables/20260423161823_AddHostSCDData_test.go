@@ -44,7 +44,7 @@ func TestUp_20260423161823(t *testing.T) {
 	teamHD, ok := teamFeatures["historical_data"].(map[string]any)
 	require.True(t, ok, "team features.historical_data present after backfill")
 	require.Equal(t, true, teamHD["uptime"], "team uptime defaulted true")
-	require.Equal(t, false, teamHD["vulnerabilities"], "team vulnerabilities defaulted false")
+	require.Equal(t, true, teamHD["vulnerabilities"], "team vulnerabilities defaulted true")
 
 	// Pre-existing fields under features.* SHALL be preserved by JSON_MERGE_PATCH.
 	require.Equal(t, true, teamFeatures["enable_host_users"], "JSON_MERGE_PATCH preserved enable_host_users")

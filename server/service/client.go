@@ -1976,9 +1976,9 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
-		// historical_data sub-keys default to true on every gitops apply so a
-		// deployment that doesn't pin them in YAML keeps dashboard collection
-		// enabled. Mirrors the enable_software_inventory carve-out above.
+		// historical_data sub-keys use preserve-on-omit semantics (see
+		// applyHistoricalDataOverwriteDefaults); the client only validates
+		// shape so malformed YAML fails loudly.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
 			return nil, fmt.Errorf("org_settings.%w", err)
 		}
@@ -2233,8 +2233,6 @@ func (c *Client) DoGitOps(
 		if enableSoftwareInventory, ok := features.(map[string]any)["enable_software_inventory"]; !ok || enableSoftwareInventory == nil {
 			features.(map[string]any)["enable_software_inventory"] = true
 		}
-		// historical_data sub-keys default to true on every gitops apply.
-		// See ensureHistoricalDataDefaults for the rationale.
 		if err := ensureHistoricalDataDefaults(features.(map[string]any)); err != nil {
 			return nil, fmt.Errorf("Team %s %w", *incoming.TeamName, err)
 		}
@@ -3465,35 +3463,26 @@ func (c *Client) GetGitOpsSecrets(
 	return nil
 }
 
-// ensureHistoricalDataDefaults injects default values for any
-// `historical_data` sub-key not explicitly specified in the gitops payload.
-// Called for both global and team-spec gitops applies so a deployment that
-// doesn't pin `historical_data` in YAML lands on a deterministic state
-// rather than the Go zero value. Mirrors the existing carve-out for
-// `enable_software_inventory`.
+// ensureHistoricalDataDefaults rejects malformed `features.historical_data`
+// YAML (e.g. `historical_data: true` or a list) so a typo fails the
+// gitops run loudly instead of being silently ignored on the server.
 //
-// Defaults: uptime=true (cheap to collect), vulnerabilities=false (CVE
-// collection is opt-in due to load on large fleets — admins enable it
-// explicitly in YAML).
-//
-// Returns an error if `historical_data` is present but is not a map (e.g.
-// `historical_data: true` or a list), so a malformed YAML fails the gitops
-// run loudly instead of being silently replaced with defaults.
+// No defaults are injected for `historical_data` sub-keys: both
+// `uptime` and `vulnerabilities` use "omission = preserve stored
+// value" semantics at the global scope (see
+// applyHistoricalDataOverwriteDefaults), and team-level defaults are
+// applied server-side in unmarshalWithGlobalDefaults. This is a
+// short-term deviation from Fleet's general gitops norm
+// ("omission = default") so admin UI toggles aren't silently flipped
+// by a gitops apply that doesn't pin the keys. Goes away when bitmap
+// compression ships and the chart config rejoins the standard pattern.
 func ensureHistoricalDataDefaults(features map[string]any) error {
 	raw, present := features["historical_data"]
-	historicalData, ok := raw.(map[string]any)
-	switch {
-	case !present || raw == nil:
-		historicalData = map[string]any{}
-		features["historical_data"] = historicalData
-	case !ok:
+	if !present || raw == nil {
+		return nil
+	}
+	if _, ok := raw.(map[string]any); !ok {
 		return fmt.Errorf("features.historical_data must be a map, got %T", raw)
-	}
-	if v, ok := historicalData["uptime"]; !ok || v == nil {
-		historicalData["uptime"] = true
-	}
-	if v, ok := historicalData["vulnerabilities"]; !ok || v == nil {
-		historicalData["vulnerabilities"] = false
 	}
 	return nil
 }
