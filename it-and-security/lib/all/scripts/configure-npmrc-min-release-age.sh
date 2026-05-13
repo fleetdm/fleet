@@ -79,7 +79,14 @@ process_npmrc() {
   chmod 644 "$npmrc" 2>/dev/null || true
 }
 
-for base in /Users/* /home/*; do
+# Pick the per-OS home-directory root.
+case "$(uname -s)" in
+  Darwin) bases=(/Users/*) ;;
+  Linux)  bases=(/home/*)  ;;
+  *)      bases=()         ;;
+esac
+
+for base in "${bases[@]}"; do
   [[ -d "$base" ]] || continue
   name="${base##*/}"
   case "$name" in
