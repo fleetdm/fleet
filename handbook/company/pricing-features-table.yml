@@ -793,10 +793,6 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/40187
     - description: Query Go binaries installed via go install using the go_binaries table to detect software not tracked in Fleet's software inventory (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/40138
-    - description: Save reports even when Fleet flags the SQL as potentially invalid, so custom osquery queries are never blocked by the SQL parser (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/38348
-    - description: SQL editor is less prominent on the edit policy and report pages so admins can focus on intent without feeling they need to be a SQL expert (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/41753
   demos:
     - description: A top financial services company needed to set up rolling deployments for changes to osquery agents running on their production servers.
       moreInfoUrl: https://docs.google.com/document/d/1UdzZMyBLbs9SUXfSXN2x2wZQCbjZZUetYlNWH6-ryqQ/edit#heading=h.2lh6ehprpvl6
