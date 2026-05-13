@@ -41,7 +41,7 @@
 
   &__input-icon {
     position: absolute;
-    left: 12px;
+    left: $pad-medium;
     pointer-events: none;
     display: flex;
     align-items: center;
@@ -63,29 +63,84 @@
     }
   }
 
-  &__pinned {
+  &__fleet-switcher-wrapper {
+    position: relative;
+    z-index: 10;
     padding: $pad-xsmall $pad-small;
     border-bottom: 1px solid $ui-fleet-black-10;
+  }
 
-    .command-palette__item-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: $bold;
-      color: $ui-fleet-black-75;
+  &__fleet-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: $pad-xsmall $pad-small;
+    border: none;
+    background: none;
+    font-size: $x-small;
+    font-weight: $bold;
+    color: $ui-fleet-black-75;
+    cursor: pointer;
+    white-space: nowrap;
+    border-radius: $border-radius;
+
+    &:hover {
+      background-color: $ui-fleet-black-5;
     }
 
-    .command-palette__item {
-      width: 100%;
-      padding: $pad-small 20px $pad-small 6px;
-      border: none;
-      background: none;
+    &:focus-visible {
+      outline: 1px solid $ui-fleet-black-75;
+      outline-offset: -1px;
+    }
+  }
 
-      &:focus-visible {
-        outline: 1px solid $ui-fleet-black-75;
-        outline-offset: -1px;
-        border-radius: $border-radius;
-      }
+  &__fleet-switcher-caret {
+    transition: transform 150ms ease;
+
+    &.rotated {
+      transform: rotate(180deg);
+    }
+  }
+
+  &__fleet-dropdown {
+    position: absolute;
+    top: 100%;
+    left: $pad-small;
+    z-index: 10;
+    min-width: 300px;
+    max-height: 200px;
+    overflow-y: auto;
+    background-color: $core-fleet-white;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: $border-radius;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    padding: $pad-xsmall;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $ui-fleet-black-25;
+      border-radius: 3px;
+    }
+  }
+
+  &__fleet-dropdown-item {
+    display: block;
+    width: 100%;
+    padding: $pad-small $pad-medium;
+    border: none;
+    background: none;
+    font-size: $x-small;
+    color: $core-fleet-black;
+    text-align: left;
+    cursor: pointer;
+    border-radius: $border-radius;
+    white-space: nowrap;
+
+    &:hover {
+      background-color: $ui-fleet-black-5;
     }
   }
 
