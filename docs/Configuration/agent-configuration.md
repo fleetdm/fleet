@@ -6,7 +6,7 @@ You can modify agent options in **Settings > Organization settings > Agent optio
 
 ## config 
 
-The `config` section allows you to update settings like performance and and how often the agent checks-in.
+The `config` section allows you to update settings like performance and how often the agent checks-in.
 
 #### Example
 

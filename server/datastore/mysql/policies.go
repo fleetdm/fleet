@@ -1619,6 +1619,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 					PolicyData: fleet.PolicyData{
 						ID:               policyID,
 						LabelsIncludeAny: fleet.LabelNamesToIdents(spec.LabelsIncludeAny),
+						LabelsIncludeAll: fleet.LabelNamesToIdents(spec.LabelsIncludeAll),
 						LabelsExcludeAny: fleet.LabelNamesToIdents(spec.LabelsExcludeAny),
 					},
 				})

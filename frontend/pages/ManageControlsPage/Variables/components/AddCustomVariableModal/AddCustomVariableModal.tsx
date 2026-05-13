@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ISecretPayload } from "interfaces/secrets";
+import { hasStatusKey } from "interfaces/errors";
 import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
 import InputField from "components/forms/fields/InputField";
@@ -66,8 +67,8 @@ const AddCustomVariableModal = ({
         await secretsAPI.addSecret(newSecret);
         renderFlash("success", "Variable created.");
         onSave();
-      } catch (error: any) {
-        if (error.status === 409) {
+      } catch (error) {
+        if (hasStatusKey(error) && error.status === 409) {
           renderFlash("error", "A secret with this name already exists.");
         } else {
           renderFlash(

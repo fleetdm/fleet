@@ -89,11 +89,15 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	Name	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	CertificateAuthorityName	string
 github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectName	string
+github.com/fleetdm/fleet/v4/server/fleet/CertificateTemplateSpec	SubjectAlternativeName	string
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Features	fleet.Features
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableHostUsers	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	EnableSoftwareInventory	bool
 github.com/fleetdm/fleet/v4/server/fleet/Features	AdditionalQueries	*json.RawMessage
 github.com/fleetdm/fleet/v4/server/fleet/Features	DetailQueryOverrides	map[string]*string
+github.com/fleetdm/fleet/v4/server/fleet/Features	HistoricalData	fleet.HistoricalDataSettings
+github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Uptime	bool
+github.com/fleetdm/fleet/v4/server/fleet/HistoricalDataSettings	Vulnerabilities	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
@@ -115,6 +119,7 @@ github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsExcludeAny	[]
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	LabelsIncludeAll	[]string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	InstallDuringSetup	optjson.Bool
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Icon	fleet.TeamSpecSoftwareAsset
+github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Configuration	fleet.TeamSpecSoftwareAsset
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Slug	*string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	Version	string
 github.com/fleetdm/fleet/v4/server/fleet/SoftwarePackageSpec	ReferencedYamlPath	string

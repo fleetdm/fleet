@@ -63,6 +63,8 @@
     "org_name": "Fleet",
     "org_logo_url": "http://some-org-logo-url.com",
     "org_logo_url_light_background": "http://some-org-logo-url-light-background.com",
+    "org_logo_url_dark_mode": "http://some-org-logo-url.com",
+    "org_logo_url_light_mode": "http://some-org-logo-url-light-background.com",
     "contact_url": "https://fleetdm.com/company/contact"
   },
   "server_settings": {
@@ -113,6 +115,10 @@
     "detail_query_overrides": {
       "users": null,
       "mdm": "SELECT enrolled, server_url, installed_from_dep, payload_identifier FROM mdm;"
+    },
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": true
     }
   },
   "agent_options": {

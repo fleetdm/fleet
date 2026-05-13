@@ -345,6 +345,13 @@
       "description": "Canva is a popular online graphic design tool."
     },
     {
+      "name": "Cavalry",
+      "slug": "cavalry/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.scenegroup.cavalry",
+      "description": "Cavalry is a motion design and animation app."
+    },
+    {
       "name": "Charles",
       "slug": "charles/darwin",
       "platform": "darwin",
@@ -1316,6 +1323,13 @@
       "platform": "darwin",
       "unique_identifier": "com.microsoft.OneDrive",
       "description": "OneDrive is Microsoft's cloud storage client."
+    },
+    {
+      "name": "OpenVPN Connect",
+      "slug": "openvpn-connect/darwin",
+      "platform": "darwin",
+      "unique_identifier": "org.openvpn.client.app",
+      "description": "OpenVPN Connect is a VPN client that provides secure remote access to networks and services."
     },
     {
       "name": "Opera",

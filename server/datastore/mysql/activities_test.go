@@ -535,6 +535,11 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListHostUpcomingActivities(ctx, h1.ID, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testCleanupExpiredLiveQueries(t *testing.T, ds *Datastore) {

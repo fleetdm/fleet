@@ -155,7 +155,7 @@ org_settings:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "'org_settings' is required")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
@@ -1475,6 +1475,12 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
+	// historical_data sub-keys default to true on team gitops applies that
+	// don't pin them — same carve-out as enable_software_inventory above.
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"team gitops defaults historical_data.uptime to true")
+	assert.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"team gitops defaults historical_data.vulnerabilities to true")
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
@@ -1491,6 +1497,221 @@ software:
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.Len(t, enrolledTeamSecrets, 1)
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
+}
+
+// TestGitOpsTeamLabelAndProfileSameApply verifies issue #44046: a single
+// `fleetctl gitops` run can declare a new fleet-scoped label AND a profile
+// referencing that label by name. Before the fix, `fleetctl gitops` applied
+// fleet profiles inside `ApplyGroup` before applying fleet-scoped labels, so
+// the server-side label-existence validator rejected the profile apply with
+// "Couldn't update. Label %q doesn't exist."
+//
+// The mocked `LabelIDsByName` here only resolves a label name once
+// `ApplyLabelSpecsWithAuthor` has been called for it, which mirrors the
+// real DB behavior and would fail the test without the ordering fix.
+func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../../server/service/testdata")
+
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:          license,
+			MDMStorage:       new(mdmmock.MDMAppleStore),
+			MDMPusher:        testing_utils.MockPusher{},
+			FleetConfig:      &fleetCfg,
+			NoCacheDatastore: true,
+			KeyValueStore:    testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{EnabledAndConfigured: true},
+		}, nil
+	}
+
+	// Track which labels exist "in the database." A label is considered to
+	// exist only after ApplyLabelSpecsWithAuthor has been called for it.
+	// This mirrors real DB behavior and exercises the ordering requirement
+	// that motivated the fix.
+	var (
+		mu                sync.Mutex
+		appliedLabels     = map[string]struct{}{}
+		applyOrder        int
+		applyLabelOrder   int
+		batchProfileOrder int
+	)
+
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		mu.Lock()
+		defer mu.Unlock()
+		applyOrder++
+		if applyLabelOrder == 0 {
+			applyLabelOrder = applyOrder
+		}
+		for _, s := range specs {
+			appliedLabels[s.Name] = struct{}{}
+		}
+		return nil
+	}
+	labelExists := func(name string) bool {
+		// builtin labels are always "in the DB"; mocked manual labels are
+		// only present after ApplyLabelSpecsWithAuthor has been called for them
+		if _, ok := appliedLabels[name]; ok {
+			return true
+		}
+		return name == fleet.BuiltinLabelMacOS14Plus ||
+			name == fleet.BuiltinLabelIOS ||
+			name == fleet.BuiltinLabelIPadOS
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out := map[string]uint{}
+		for i, name := range names {
+			if labelExists(name) {
+				out[name] = uint(100 + i)
+			}
+		}
+		return out, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out := map[string]*fleet.Label{}
+		for i, name := range names {
+			if labelExists(name) {
+				out[name] = &fleet.Label{ID: uint(100 + i), Name: name}
+			}
+		}
+		return out, nil
+	}
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (fleet.MDMProfilesUpdates, error) {
+		mu.Lock()
+		applyOrder++
+		if batchProfileOrder == 0 {
+			batchProfileOrder = applyOrder
+		}
+		mu.Unlock()
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+		return &profile, nil
+	}
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Name == name {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if savedTeam != nil && tid == savedTeam.ID {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if savedTeam != nil && tid == savedTeam.ID {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+
+	// Write a minimal mobileconfig fixture and a team YAML referencing it.
+	tmpDir := t.TempDir()
+	mobileConfigPath := filepath.Join(tmpDir, "test-profile.mobileconfig")
+	mobileConfigContent, err := os.ReadFile("./testdata/gitops/lib/macos-password.mobileconfig")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(mobileConfigPath, mobileConfigContent, 0o600))
+
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
+name: "Test Label Order Team"
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+policies:
+agent_options:
+software:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+        labels_include_any:
+          - new-team-label
+labels:
+  - name: new-team-label
+    label_membership_type: manual
+    hosts: []
+`, mobileConfigPath), 0o600))
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err, "fleetctl gitops should succeed when a new label and a profile referencing it are declared in the same fleet YAML (issue #44046)")
+
+	require.NotNil(t, savedTeam, "fleet should have been created")
+	assert.Equal(t, "Test Label Order Team", savedTeam.Name)
+
+	mu.Lock()
+	require.NotZero(t, applyLabelOrder, "ApplyLabelSpecsWithAuthor should have been called")
+	require.NotZero(t, batchProfileOrder, "BatchSetMDMProfiles should have been called")
+	assert.Less(t, applyLabelOrder, batchProfileOrder,
+		"labels must apply before profiles for label-references in profiles to validate")
+	mu.Unlock()
+
+	// Dry-run against the same fleet/YAML must also succeed (would error if
+	// label resolution happened too early in dry-run output paths) and the
+	// label-apply log line must appear before the profile-apply log line.
+	mu.Lock()
+	applyLabelOrder = 0
+	batchProfileOrder = 0
+	applyOrder = 0
+	mu.Unlock()
+	dryRunBuf, err := RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath, "--dry-run"})
+	require.NoError(t, err, "fleetctl gitops --dry-run should succeed with new label and profile in same fleet YAML")
+	dryRunOut := dryRunBuf.String()
+
+	// In dry-run for a brand-new fleet, the labels log line must appear and
+	// must precede the profile log line. Pre-fix, the early return in
+	// DoGitOps' fleet branch fired before doGitOpsLabels could log anything.
+	labelIdx := strings.Index(dryRunOut, "would've created 1 label")
+	profileIdx := strings.Index(dryRunOut, "would've applied MDM profiles")
+	require.NotEqual(t, -1, labelIdx, "dry-run output should mention label apply; got: %s", dryRunOut)
+	require.NotEqual(t, -1, profileIdx, "dry-run output should mention profile apply; got: %s", dryRunOut)
+	assert.Less(t, labelIdx, profileIdx, "label-apply log line should precede profile-apply log line in dry-run output")
 }
 
 func TestGitOpsFullGlobal(t *testing.T) {
@@ -2337,14 +2558,16 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return team, nil
 	}
 	vppToken := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Foobar",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token",
+		Location:    "Foobar",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token",
+		CountryCode: "us",
 	}
 	vppToken2 := &fleet.VPPTokenDB{ //nolint:gosec // G101 not a real token
-		Location:  "Gadzooks",
-		RenewDate: time.Now().Add(24 * 365 * time.Hour),
-		Token:     "vpp-token2",
+		Location:    "Gadzooks",
+		RenewDate:   time.Now().Add(24 * 365 * time.Hour),
+		Token:       "vpp-token2",
+		CountryCode: "us",
 	}
 	ds.ListVPPTokensFunc = func(ctx context.Context) ([]*fleet.VPPTokenDB, error) {
 		return []*fleet.VPPTokenDB{vppToken, vppToken2}, nil
@@ -3819,6 +4042,9 @@ software:
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
 			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
+			}
 
 			args := []string{"gitops"}
 			for _, cfg := range tt.cfgs {
@@ -4311,6 +4537,190 @@ software:
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
+}
+
+func TestGitOpsHistoricalData(t *testing.T) {
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Start with both sub-keys disabled to verify the GitOps apply flips them.
+	appConfig := fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{
+				Uptime:          false,
+				Vulnerabilities: false,
+			},
+		},
+	}
+
+	globalFileWithHistoricalData, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithHistoricalData.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: true
+      vulnerabilities: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		appConfig = *config
+		return nil
+	}
+
+	// Apply explicit historical_data values via GitOps and verify they're applied.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithHistoricalData.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime)
+	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
+
+	// Apply a YAML that omits historical_data entirely and verify that values revert
+	// to defaults (true).
+	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
+	require.NoError(t, err)
+	require.True(t, appConfig.Features.HistoricalData.Uptime,
+		"omitted historical_data defaults uptime to true")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted historical_data defaults vulnerabilities to true")
+
+	// Apply a YAML with historical_data.uptime: false but no vulnerabilities
+	// key, and verify that uptime is set to false but vulnerabilities remains true.
+	globalFileWithUptimeOnly, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFileWithUptimeOnly.WriteString(fmt.Sprintf(
+		`
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  features:
+    historical_data:
+      uptime: false
+  server_settings:
+    server_url: %s
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: %s
+  secrets:
+    - secret: globalSecret
+software:
+`, fleetServerURL, orgName),
+	)
+	require.NoError(t, err)
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileWithUptimeOnly.Name()})
+	require.NoError(t, err)
+	require.False(t, appConfig.Features.HistoricalData.Uptime,
+		"explicit uptime: false is honored")
+	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted vulnerabilities sub-key defaults to true")
+}
+
+func TestGitOpsTeamHistoricalDataActivity(t *testing.T) {
+	// Test that fleet GitOps properly applies historical_data changes via editTeamFromSpec.
+	// This verifies the code path that was fixed to call OnHistoricalDataChanged and
+	// emit activities. The activity emission itself is tested in integration tests
+	// (see TestModifyTeamHistoricalData in server/service/integration_enterprise_test.go).
+
+	appConfig := &fleet.AppConfig{
+		Features: fleet.Features{
+			HistoricalData: fleet.HistoricalDataSettings{Uptime: true, Vulnerabilities: true},
+		},
+	}
+
+	tmpDir := t.TempDir()
+
+	// Create a team YAML with historical_data.uptime flipped to false.
+	teamFile, err := os.CreateTemp(tmpDir, "*.yml")
+	require.NoError(t, err)
+	_, err = teamFile.WriteString(`name: Test Team
+settings:
+  features:
+    historical_data:
+      uptime: false
+      vulnerabilities: true
+`)
+	require.NoError(t, err)
+
+	// Use the SetupFullGitOpsPremiumServer which provides comprehensive mocking
+	// and will actually call the service methods including editTeamFromSpec.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if name == "Test Team" && savedTeam != nil {
+			return savedTeam, nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		team.ID = 1
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+
+	ds.ListTeamsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.ListOptions) ([]*fleet.Team, error) {
+		if savedTeam != nil {
+			return []*fleet.Team{savedTeam}, nil
+		}
+		return nil, nil
+	}
+
+	ds.TeamLiteFunc = func(ctx context.Context, id uint) (*fleet.TeamLite, error) {
+		if savedTeam != nil && savedTeam.ID == id {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, &gitopsTestNotFoundError{}
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	setupDefaultTeamConfigMocks(ds)
+
+	// Create a global file for the gitops run.
+	globalFile := createGlobalFileBasic(t, fleetServerURL, orgName)
+
+	// Apply the GitOps YAMLs. This will call editTeamFromSpec which should now
+	// emit activities via OnHistoricalDataChanged.
+	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFile.Name(), "-f", teamFile.Name()})
+	require.NoError(t, err)
+
+	// Verify the team was created/updated with the correct historical_data settings.
+	require.NotNil(t, savedTeam, "team should have been created or modified")
+	require.False(t, savedTeam.Config.Features.HistoricalData.Uptime,
+		"historical_data.uptime should be false from GitOps")
+	require.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"historical_data.vulnerabilities should be true from GitOps")
 }
 
 func TestGitOpsSSOSettings(t *testing.T) {
@@ -5906,11 +6316,12 @@ func TestGitOpsAppStoreAppAutoUpdate(t *testing.T) {
 	}
 	ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 		return &fleet.VPPTokenDB{
-			ID:        1,
-			OrgName:   "fleet",
-			Location:  "ca",
-			RenewDate: tokExpire,
-			Token:     string(token),
+			ID:          1,
+			OrgName:     "fleet",
+			Location:    "ca",
+			RenewDate:   tokExpire,
+			Token:       string(token),
+			CountryCode: "us",
 		}, nil
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
@@ -6608,4 +7019,214 @@ software:
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "macos_manual_agent_install")
 	})
+}
+
+func TestGitOpsQueryLabelsMutexRejection(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: lbl-b
+    description: B
+    label_membership_type: dynamic
+    query: SELECT 2
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+queries:
+  - name: bad-query
+    description: invalid mutex
+    query: SELECT 1
+    labels_include_any:
+      - lbl-a
+    labels_include_all:
+      - lbl-b
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "bad-query")
+	require.ErrorContains(t, err, "labels_include_any")
+	require.ErrorContains(t, err, "labels_include_all")
+}
+
+func TestGitOpsQueryLabelsIncludeAllUnknownLabel(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+policies:
+agent_options:
+labels:
+  - name: known-label
+    description: known
+    label_membership_type: dynamic
+    query: SELECT 1
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+queries:
+  - name: refs-missing
+    description: references undefined label
+    query: SELECT 1
+    labels_include_all:
+      - does-not-exist
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "missing labels")
+}
+
+func TestGitOpsPolicyLabelsIncludeAllMutexRejection(t *testing.T) {
+	// Cannot run t.Parallel() because it sets environment variables
+
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{License: license})
+	setupEmptyGitOpsMocks(ds)
+
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = tmpFile.WriteString(`
+controls:
+queries:
+agent_options:
+labels:
+  - name: lbl-a
+    description: A
+    label_membership_type: dynamic
+    query: SELECT 1
+  - name: lbl-b
+    description: B
+    label_membership_type: dynamic
+    query: SELECT 2
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: GitOps Test
+  secrets:
+policies:
+  - name: bad-policy
+    description: invalid mutex
+    query: SELECT 1
+    resolution: ""
+    platform: linux
+    labels_include_all:
+      - lbl-a
+    labels_exclude_any:
+      - lbl-b
+`)
+	require.NoError(t, err)
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name()})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "bad-policy")
+	require.ErrorContains(t, err, "labels_include_all")
+	require.ErrorContains(t, err, "labels_exclude_any")
+}
+
+func TestGitOpsScriptsLogging(t *testing.T) {
+	// Cannot run t.Parallel() because SetupFullGitOpsPremiumServer sets env vars.
+	ds, _, _ := testing_utils.SetupFullGitOpsPremiumServer(t)
+
+	// Echo back a ScriptResponse for each input script so the real-run no-team
+	// log line reflects the count of scripts sent to the server. (In dry-run,
+	// the service short-circuits before reaching this mock.)
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) ([]fleet.ScriptResponse, error) {
+		responses := make([]fleet.ScriptResponse, len(scripts))
+		for i, s := range scripts {
+			responses[i] = fleet.ScriptResponse{ID: uint(i + 1), Name: s.Name, TeamID: s.TeamID} //nolint:gosec // dismiss G115
+		}
+		return responses, nil
+	}
+
+	// No labels — keep the test focused on scripts.
+	ds.GetLabelSpecsFunc = func(ctx context.Context, filter fleet.TeamFilter) ([]*fleet.LabelSpec, error) {
+		return nil, nil
+	}
+
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join(tmpDir, "script.sh")
+	require.NoError(t, os.WriteFile(scriptPath, []byte(`echo "hello"`), 0o644))
+
+	globalPath := filepath.Join(tmpDir, "global.yml")
+	require.NoError(t, os.WriteFile(globalPath, []byte(`
+controls:
+  scripts:
+    - path: ./script.sh
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: $ORG_NAME
+  secrets:
+    - secret: globalSecret
+software:
+`), 0o644))
+
+	teamPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamPath, []byte(`
+name: $TEST_TEAM_NAME
+team_settings:
+  secrets:
+    - secret: team-secret
+agent_options:
+controls:
+  scripts:
+    - path: ./script.sh
+policies:
+queries:
+software:
+`), 0o644))
+
+	// Dry run.
+	logs := RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath, "--dry-run"})
+	assert.Contains(t, logs, "[+] would've applied 1 script\n")
+	assert.Contains(t, logs, fmt.Sprintf("[+] would've applied 1 script for fleet %s\n", teamName))
+
+	// Real run.
+	logs = RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
+	assert.Contains(t, logs, "[+] applied 1 script\n")
+	assert.Contains(t, logs, fmt.Sprintf("[+] applied 1 script for fleet %s\n", teamName))
 }

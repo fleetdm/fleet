@@ -76,6 +76,7 @@ go.mod @fleetdm/go
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
 /articles/what-api-endpoints-to-expose-to-the-public-internet.md @rfairburn @BCTBB # « Infra: active notification of changes to IP Allowlists
+/openspec                                               @lukeheath
 
 ################################################################################################
 #  ╔═╗┬ ┬┌┐┌┌─┐┌┬┐  ┌┐ ┬ ┬  ┌─┐┬─┐┌─┐┌┬┐┬ ┬┌─┐┌┬┐  ┌─┐┬─┐┌─┐┬ ┬┌─┐┌─┐

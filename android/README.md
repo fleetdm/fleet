@@ -109,49 +109,61 @@ Copy the fingerprint for use in the `mdm.android_agent.signing_sha256` config op
 
 ## Deploying via Android MDM (development)
 
-This feature requires setting the Android agent package config. Requires `FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS` to be set in your workarea to get the Google Play URL.
+For development, each developer publishes a private build of the agent under a unique package name (e.g. `com.fleetdm.agent.private.<yourname>`) via the [Google Play Console](https://play.google.com/console) and distributes it to the target Fleet Android enterprise by Organization ID.
 
-1. **Configure your Fleet server with the Android agent settings:**
+**Who owns the app:** Ask a Fleet admin to create the Play Console app `com.fleetdm.agent.private.<yourname>` and grant you the **Admin** role on it. That gives you upload + release access without needing your own paid developer account.
 
-Using environment variables:
-```bash
-export FLEET_MDM_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
-export FLEET_MDM_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
-```
+1. **Configure Fleet with your agent package and signing fingerprint:**
 
-Or in your Fleet config file:
-```yaml
-mdm:
-  android_agent:
-    package: com.fleetdm.agent.private.<yourname>
-    signing_sha256: <SHA256 fingerprint>
-```
+   Environment variables:
+   ```bash
+   export FLEET_MDM_ANDROID_AGENT_PACKAGE=com.fleetdm.agent.private.<yourname>
+   export FLEET_MDM_ANDROID_AGENT_SIGNING_SHA256=<SHA256 fingerprint>
+   ```
 
-2. **Change the `applicationId` in `app/build.gradle.kts`:**
+   Or in your Fleet config file:
+   ```yaml
+   mdm:
+     android_agent:
+       package: com.fleetdm.agent.private.<yourname>
+       signing_sha256: <SHA256 fingerprint>
+   ```
 
-```kotlin
-defaultConfig {
-    applicationId = "com.fleetdm.agent.private.<yourname>"
-    // ...
-}
-```
+   Use the SHA-256 of your upload keystore (see "Getting the SHA256 fingerprint" above for the keytool + base64 conversion).
+
+2. **Set `applicationId` in `app/build.gradle.kts`:**
+
+   ```kotlin
+   defaultConfig {
+       applicationId = "com.fleetdm.agent.private.<yourname>"
+       // ...
+   }
+   ```
 
 3. **Build a signed release** (AAB) using the instructions above.
 
-4. **Get the Google Play URL:**
+4. **Find the Organization ID** for your target Fleet Android enterprise:
 
-```bash
-# Run from top-level directory of the working tree
-go run tools/android/android.go --command enterprises.webTokens.create --enterprise_id '<your-enterprise-id>'
-```
+   This is the same as the Android Enterprise ID that Fleet uses for AMAPI calls (format like `LCxxxxxxxx`). You can find it in the Fleet UI under MDM Android settings, or in the `enterprise_id` column of the `android_enterprises` table in Fleet's DB.
 
-5. **Upload your signed app** in the Private apps tab using the URL from the previous step.
+5. **Upload the AAB in Play Console:**
 
-6. **Wait ~10 minutes** for Google Play to process the upload.
+   - Open `https://play.google.com/console` and pick the developer account that owns `com.fleetdm.agent.private.<yourname>` (the one the Fleet admin granted you Admin on).
+   - Go to the app → **Test and release** → pick a track (Internal/Closed/Production) → create a release → upload your AAB → save and review.
 
-7. **Enroll your Android device.**
+6. **Distribute to your Fleet enterprise:**
 
-The agent should start installing shortly. Check Google Play in your Work profile. If it shows as pending, try restarting the device.
+   - In the same app, go to **Test and release** → **Advanced settings** → **Managed Google Play**.
+   - Add the **Organization ID** you copied in step 4 to the list of organizations allowed to install the app.
+   - Save.
+
+7. **Roll out the release** (publish it on the chosen track). Wait ~10 minutes for Play to propagate.
+
+8. **Enroll your Android device** in Fleet. The agent should appear in your Work profile shortly after. If it's stuck pending, restart the device or check the device's `nonComplianceDetails` via `tools/android/android.go -command devices.list ...`.
+
+### Re-using an existing private app
+
+If your Play Console app already exists and you only need to grant access to a new Fleet enterprise, repeat **steps 4 and 6** for the new Organization ID. No new upload is required.
 
 ## How the app starts
 

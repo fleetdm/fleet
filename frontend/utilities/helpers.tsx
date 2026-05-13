@@ -58,7 +58,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import type { IRegistrationFormData } from "interfaces/registration_form_data";
 import CustomLink from "components/CustomLink";
 
-const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
+const ORG_INFO_ATTRS = ["org_name"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
 export const addGravatarUrlToResource = (resource: any): any => {
@@ -523,10 +523,7 @@ const setupData = (formData: IRegistrationFormData) => {
 
   return {
     server_url: formData.server_url,
-    org_info: {
-      ...orgInfo,
-      org_logo_url_light_background: orgInfo.org_logo_url || "",
-    },
+    org_info: orgInfo,
     admin: {
       admin: true,
       ...adminInfo,
