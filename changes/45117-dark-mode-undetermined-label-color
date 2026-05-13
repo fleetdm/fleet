@@ -1,1 +1,0 @@
-- Fixed dark-mode contrast for the "Undetermined" performance impact label in the reports table; it now renders in the default text color with italics instead of low-contrast grey. The tooltip on hover is unchanged.
