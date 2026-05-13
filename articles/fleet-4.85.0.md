@@ -15,7 +15,9 @@ Fleet 4.85.0 is now available. See the complete [changelog](https://github.com/f
 ### Vulnerability exposure dashboard
 
 Fleet now includes a vulnerability exposure report that tracks your organization's [patching progress](https://fleetdm.com/articles/how-to-use-policies-for-patch-management-in-fleet) over time. The chart covers critical vulnerabilities in major browsers, Microsoft Office, operating systems, and Adobe Reader. The report joins Fleet's growing dashboard alongside new "Hosts online" and "Hosts enrolled" reports also added in 4.85.
-> The vulnerability exposure report is disabled by default (feature flag) because Fleet saw performance issues on instances with >1,000 hosts. Fleet is already using it internally, and it's a great time to start experimenting. For larger deployments, we recommend enabling it on a test fleet first before rolling out more broadly. Performance improvements are coming soon.  Note that leaving it out of a GitOps config (YAML) is a no-op for now (won't auto-enable or disable). 
+
+> The vulnerability exposure report is disabled by default (feature flag) because Fleet saw performance issues on instances with >1,000 hosts. Fleet is already using it internally, and it's a great time to start experimenting. For larger deployments, we recommend enabling it on a test fleet first before rolling out more broadly. Performance improvements are coming soon.  Note that leaving it out of a GitOps config (YAML) is a no-op for now (won't auto-enable or disable).
+
 GitHub issue: [#43769](https://github.com/fleetdm/fleet/issues/43769)
 
 ### More accurate vulnerability data
