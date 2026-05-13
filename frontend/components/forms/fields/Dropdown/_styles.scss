@@ -214,6 +214,7 @@
     box-shadow: 0 0 0 1px $ui-fleet-black-10;
     z-index: 6;
     overflow: hidden;
+    isolation: isolate;
     max-height: 198px; // Fits 4 options without scrolling
     border: 0;
     margin: 1px 0 0;
