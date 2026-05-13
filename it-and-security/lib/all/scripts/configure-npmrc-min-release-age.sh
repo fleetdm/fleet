@@ -20,70 +20,82 @@ process_npmrc() {
     return 0
   fi
 
+  # Stage every write in a fresh temp file inside $homedir
+  tmp="$(mktemp "$homedir/.npmrc.fleet.XXXXXX")" || return 0
+
   if [[ ! -f "$npmrc" ]]; then
-    printf '%s\n' "min-release-age=${MIN_VAL}" >"$npmrc"
-    if owner="$(stat -f '%u:%g' "$homedir" 2>/dev/null)" || owner="$(stat -c '%u:%g' "$homedir" 2>/dev/null)"; then
-      chown "$owner" "$npmrc" 2>/dev/null || true
+    printf '%s\n' "min-release-age=${MIN_VAL}" >"$tmp"
+  else
+    awk -v MIN="$MIN_VAL" '
+      function trim(s) {
+        sub(/^[ \t\r]+/, "", s)
+        sub(/[ \t\r]+$/, "", s)
+        return s
+      }
+      /^[ \t]*#/ {
+        print
+        next
+      }
+      {
+        line = $0
+        eq = index(line, "=")
+        if (eq == 0) {
+          print
+          next
+        }
+        left = trim(substr(line, 1, eq - 1))
+        right = substr(line, eq + 1)
+        if (tolower(left) != "min-release-age") {
+          print
+          next
+        }
+        match(line, /^[ \t]*/)
+        indent = substr(line, RSTART, RLENGTH)
+        val = trim(right)
+        sub(/#.*$/, "", val)
+        val = trim(val)
+        v = val + 0
+        if (v >= MIN) {
+          print line
+          kept = 1
+        } else {
+          print indent "min-release-age=" MIN
+          kept = 1
+        }
+        next
+      }
+      END {
+        if (!kept) {
+          print "min-release-age=" MIN
+        }
+      }
+    ' "$npmrc" >"$tmp"
+
+    if cmp -s "$npmrc" "$tmp"; then
+      rm -f "$tmp"
+      return 0
     fi
-    chmod 600 "$npmrc" 2>/dev/null || true
-    return 0
   fi
 
-  tmp="$(mktemp "${TMPDIR:-/tmp}/fleet-npmrc.XXXXXX")"
-
-  awk -v MIN="$MIN_VAL" '
-    function trim(s) {
-      sub(/^[ \t\r]+/, "", s)
-      sub(/[ \t\r]+$/, "", s)
-      return s
-    }
-    /^[ \t]*#/ {
-      print
-      next
-    }
-    {
-      line = $0
-      eq = index(line, "=")
-      if (eq == 0) {
-        print
-        next
-      }
-      left = trim(substr(line, 1, eq - 1))
-      right = substr(line, eq + 1)
-      if (tolower(left) != "min-release-age") {
-        print
-        next
-      }
-      match(line, /^[ \t]*/)
-      indent = substr(line, RSTART, RLENGTH)
-      val = trim(right)
-      sub(/#.*$/, "", val)
-      val = trim(val)
-      v = val + 0
-      if (v >= MIN) {
-        print line
-        kept = 1
-      } else {
-        print indent "min-release-age=" MIN
-        kept = 1
-      }
-      next
-    }
-    END {
-      if (!kept) {
-        print "min-release-age=" MIN
-      }
-    }
-  ' "$npmrc" >"$tmp"
-
-  if ! cmp -s "$npmrc" "$tmp"; then
-    cat "$tmp" >"$npmrc"
-  fi
-  rm -f "$tmp"
+  chmod 600 "$tmp" 2>/dev/null || true
   if owner="$(stat -f '%u:%g' "$homedir" 2>/dev/null)" || owner="$(stat -c '%u:%g' "$homedir" 2>/dev/null)"; then
-    chown "$owner" "$npmrc" 2>/dev/null || true
+    # -h: act on the link, never follow it (defense in depth in case $tmp was
+    # swapped between mktemp and now).
+    chown -h "$owner" "$tmp" 2>/dev/null || true
   fi
-  chmod 600 "$npmrc" 2>/dev/null || true
+
+  if ! mv -f "$tmp" "$npmrc" 2>/dev/null; then
+    rm -f "$tmp"
+    return 1
+  fi
+
+  # Detect a post-rename symlink swap. The data we wrote is safe at our inode,
+  # but the directory entry could have been re-pointed, so refuse to claim
+  # success.
+  if [[ -L "$npmrc" ]]; then
+    printf 'detected symlink swap on %s after write\n' "$npmrc" >&2
+    return 1
+  fi
 }
 
 # Pick the per-OS home-directory root.
