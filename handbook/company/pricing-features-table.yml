@@ -776,10 +776,6 @@
     - description: View host activity and hosts enrolled widgets to understand fleet uptime and host distribution at a glance (4.84.0).
     - description: View a vulnerability exposure widget on the Fleet dashboard to quickly understand your organization's overall CVE exposure across all hosts (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/43769
-    - description: Toggle host activity chart on or off at the fleet level to customize dashboard visibility per device group (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42812
-    - description: Host activity chart shows data collected hourly for a more recognizable and accurate shape (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/45241
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
 #  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
