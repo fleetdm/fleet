@@ -104,6 +104,9 @@ controls:
       - path: ../lib/macos/configuration-profiles/ensure-show-status-bar-is-enabled.mobileconfig
       - path: ../lib/macos/declaration-profiles/Passcode settings.json
       - path: ../lib/macos/declaration-profiles/Software Update settings.json
+      - path: ../lib/macos/declaration-profiles/Disk management settings.json
+        labels_exclude_any:
+          - "Macs excluded from external storage restrictions"
       - path: ../lib/macos/configuration-profiles/fleet-okta-conditional-access.mobileconfig
         labels_include_any:
           - "Department: Information Technology"
@@ -140,6 +143,9 @@ controls:
         labels_exclude_any:
           - Windows screen lock exclusions
       - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
+      - path: ../lib/windows/configuration-profiles/Removable storage read-only.xml
+        labels_exclude_any:
+          - "Windows hosts excluded from external storage restrictions"
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -153,6 +159,7 @@ controls:
     - path: ../lib/macos/scripts/nudge-postinstall.sh
     - path: ../lib/macos/scripts/load-santa-system-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/linux/scripts/install-readonly-removable-storage.sh
 policies:
   # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
@@ -189,6 +196,7 @@ policies:
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/disk-space-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
+  - path: ../lib/linux/policies/removable-storage-read-only.yml
   - path: ../lib/linux/policies/sshd-permitrootlogin-restricted.yml
 reports:
   - path: ../lib/macos/reports/detect-apple-intelligence.yml

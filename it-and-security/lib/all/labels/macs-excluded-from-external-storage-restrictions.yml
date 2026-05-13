@@ -1,0 +1,5 @@
+- name: Macs excluded from external storage restrictions
+  description: Macs that should NOT receive the read-only external storage DDM profile. Add a host to this manual label to allow read-write external storage on that Mac.
+  label_membership_type: manual
+  platform: darwin
+  hosts: []

@@ -118,3 +118,6 @@ labels:
   - path: ./lib/all/labels/windows-with-fleet-maintained-apps-installed.yml
   - path: ./lib/all/labels/departments.yml
   - path: ./lib/all/labels/idp-group-saml-aws-vpn.yml
+  - path: ./lib/all/labels/macs-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/windows-excluded-from-external-storage-restrictions.yml
+  - path: ./lib/all/labels/linux-excluded-from-external-storage-restrictions.yml
