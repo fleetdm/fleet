@@ -211,7 +211,7 @@ describe("validateXml", () => {
     const error = validateXml(
       "<plist><array><string>hi</string></array></plist>"
     );
-    expect(error).toMatch(/root element must be <dict>/i);
+    expect(error).toMatch(/must contain a <dict>/i);
   });
 
   it("returns error when root element is <string>", () => {

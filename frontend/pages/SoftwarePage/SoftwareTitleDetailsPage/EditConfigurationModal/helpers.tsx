@@ -85,6 +85,10 @@ export const validateXml = (value: string): string | null => {
     return null;
   }
 
+  if (root.tagName === "plist") {
+    return "<plist> root must contain a <dict> element.";
+  }
+
   return "Root element must be <dict>. Apple managed app configurations require a <dict> root element.";
 };
 
