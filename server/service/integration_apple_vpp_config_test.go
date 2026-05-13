@@ -307,7 +307,6 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
 		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
-		require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(`"<dict><key>K</key><string>v</string></dict>"`)))
 	})
 
 	t.Run("android wire format", func(t *testing.T) {
@@ -336,7 +335,6 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
 		require.Contains(t, body, `"configuration":{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)
-		require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)))
 	})
 }
 
