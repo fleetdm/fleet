@@ -76,7 +76,7 @@ The setting only applies to Autopilot and Entra-join-during-OOBE enrollments. On
 - Posts a `canceled_setup_experience` activity to the activity feed, referencing the first failed install. The activity reads: "Fleet canceled setup experience on \<host\> because \<software\> failed to install. End user was asked to restart."
 - Sends the Enrollment Status Page failure screen described below.
 
-On BYOD enrollments (**Settings** > **Accounts** > **Access work or school** > **Connect**), the Enrollment Status Page is never shown, and the **Cancel setup if software fails** setting is ignored. A failing install just shows as Failed in **My device** and host details; other queued installs and scripts run independently. No `canceled_setup_experience` activity is emitted. Because the end user is not notified on the device, plan to surface the failure through host details or the activity feed.
+On BYOD enrollments (**Settings** > **Accounts** > **Access work or school** > **Connect**), the Enrollment Status Page is never shown, and the **Cancel setup if software fails** setting is ignored. A failing install just shows as **Failed** in **My device** and host details; other queued installs and scripts run independently. No `canceled_setup_experience` activity is emitted. Because the end user is not notified on the device, plan to surface the failure through host details or the activity feed.
 
 Profile failures alone do not trigger cancellation, even when **Cancel setup if software fails** is on. Only software install failures (including a 3-hour setup-experience timeout) cause the device to block.
 
