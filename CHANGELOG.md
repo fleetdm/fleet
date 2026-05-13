@@ -38,8 +38,8 @@
 ### Bug fixes and improvements
 
 - Updated Go to 1.26.3.
-- Reduced MySQL writer load by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
-- Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
+- Improved MySQL writer performance by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
+- Improved Fleet-maintained apps (FMA) sync performance by adding an index on `software.bundle_identifier` that eliminates a full table scan during the hourly sync, reducing writer CPU load on large deployments.
 - Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
 - Updated copy, show, and other action buttons app-wide for a more consistent style.
 - Improved button and link styling.
