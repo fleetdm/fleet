@@ -1,10 +1,11 @@
-import React from "react";
-import { screen } from "@testing-library/react";
+import React, { useCallback, useState } from "react";
+import { fireEvent, screen } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 import { noop } from "lodash";
 import { IHostPolicy } from "interfaces/policy";
 
 import HostPolicies from "./HostPolicies";
+import PolicyDetailsModal from "./HostPoliciesTable/PolicyDetailsModal";
 
 const createMockHostPolicy = (
   overrides?: Partial<IHostPolicy>
@@ -33,6 +34,7 @@ const baseProps = {
   policies: [] as IHostPolicy[],
   isLoading: false,
   togglePolicyDetailsModal: noop,
+  closePolicyDetailsModal: noop,
   hostPlatform: "darwin",
 };
 
@@ -116,5 +118,57 @@ describe("HostPolicies", () => {
       screen.getByText(/policies are not supported for this host/i)
     ).toBeInTheDocument();
     expect(screen.queryByText("No policies checked")).not.toBeInTheDocument();
+  });
+
+  it("closes the policy details modal when HostPolicies unmounts", () => {
+    // Simulates the policies tab unmounting (e.g. the user presses the
+    // browser back button from /hosts/:id/policies to /hosts/:id, or
+    // switches to a different host details tab). The modal state lives
+    // in the parent (HostDetailsPage / DeviceUserPage), so the parent owns it here too.
+    const policy = createMockHostPolicy({ name: "Failing policy" });
+
+    const Wrapper = ({ showPolicies }: { showPolicies: boolean }) => {
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
+        null
+      );
+
+      const openModal = useCallback((p: IHostPolicy) => {
+        setSelectedPolicy(p);
+        setIsModalOpen(true);
+      }, []);
+
+      const closeModal = useCallback(() => {
+        setSelectedPolicy(null);
+        setIsModalOpen(false);
+      }, []);
+
+      return (
+        <>
+          <button type="button" onClick={() => openModal(policy)}>
+            open modal
+          </button>
+          {showPolicies && (
+            <HostPolicies
+              {...baseProps}
+              policies={[policy]}
+              togglePolicyDetailsModal={openModal}
+              closePolicyDetailsModal={closeModal}
+            />
+          )}
+          {isModalOpen && selectedPolicy && (
+            <PolicyDetailsModal onCancel={closeModal} policy={selectedPolicy} />
+          )}
+        </>
+      );
+    };
+
+    const { rerender } = createCustomRenderer()(<Wrapper showPolicies />);
+
+    fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
+    // "Resolve:" only renders inside PolicyDetailsModal.
+    expect(screen.getByText("Resolve:")).toBeInTheDocument();
+    rerender(<Wrapper showPolicies={false} />);
+    expect(screen.queryByText("Resolve:")).not.toBeInTheDocument();
   });
 });
