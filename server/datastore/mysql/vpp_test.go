@@ -45,6 +45,10 @@ func TestVPP(t *testing.T) {
 		{"AndroidVPPAppStatus", testAndroidVPPAppStatus},
 		{"GetVPPAppInstallStatusByCommandUUID", testGetVPPAppInstallStatusByCommandUUID},
 		{"AndroidAppConfigs", testAndroidAppConfigs},
+		{"VPPAppConfigCRUDFlow", testVPPAppConfigCRUDFlow},
+		{"VPPAppConfigHasChanged", testHasVPPAppConfigurationChanged},
+		{"VPPInstallEnqueuesConfigurationDict", testVPPInstallEnqueuesConfigurationDict},
+		{"VPPInstallOmitsConfigurationOnMacOS", testVPPInstallOmitsConfigurationOnMacOS},
 		{"MapAdamIDsPendingInstallVerification", testMapAdamIDsPendingInstallVerification},
 		{"MapAdamIDsRecentInstalls", testMapAdamIDsRecentInstalls},
 		{"GetHostVPPInstallByCommandUUID", testGetHostVPPInstallByCommandUUID},
@@ -2608,7 +2612,7 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		config, err := ds.GetAndroidAppConfiguration(ctx, a.AdamID, team.ID)
 		require.True(t, err == nil || fleet.IsNotFound(err))
 		if config != nil {
-			a.Configuration = *config
+			a.Configuration = config
 			assigned[a.VPPAppID] = a
 		}
 	}
@@ -2636,11 +2640,11 @@ func testAndroidAppConfigs(t *testing.T, ds *Datastore) {
 		byAppTeamIdConfig, byAppTeamIdErr := ds.GetAndroidAppConfigurationByAppTeamID(ctx, a.AppTeamID)
 
 		if config != nil {
-			a.Configuration = *config
+			a.Configuration = config
 			assigned[a.VPPAppID] = a
 
 			require.NoError(t, byAppTeamIdErr)
-			require.JSONEq(t, string(*config), string(*byAppTeamIdConfig))
+			require.JSONEq(t, string(config), string(byAppTeamIdConfig))
 		} else {
 			require.Nil(t, byAppTeamIdConfig)
 			require.True(t, fleet.IsNotFound(byAppTeamIdErr))
@@ -3117,6 +3121,244 @@ func testRetryVPPAppInstallForHost(t *testing.T, ds *Datastore) {
 		require.Equal(t, 1, queueCommandCount)
 		return nil
 	})
+}
+
+// setupTestVPPApp creates a VPP app for use in datastore tests. Caller is
+// responsible for creating the global VPP token first (test.CreateInsertGlobalVPPToken).
+func setupTestVPPApp(t *testing.T, ds *Datastore, adamID string, platform fleet.InstallableDevicePlatform) {
+	_, err := ds.InsertVPPAppWithTeam(testCtx(), &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: platform,
+			},
+			ValidatedLabels: &fleet.LabelIdentsWithScope{},
+		},
+		BundleIdentifier: "com.example." + adamID,
+		Name:             "Test App",
+		LatestVersion:    "1.0",
+	}, nil)
+	require.NoError(t, err)
+}
+
+const testIOSPlist = `<dict>
+	<key>ServerURL</key>
+	<string>https://example.com</string>
+	<key>EnableTelemetry</key>
+	<true/>
+</dict>`
+
+func testVPPAppConfigCRUDFlow(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	const adamID = "1234567890"
+	test.CreateInsertGlobalVPPToken(t, ds)
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	setupTestVPPApp(t, ds, adamID, fleet.IPadOSPlatform)
+	teamID := setupTestTeam(t, ds)
+
+	// NotFound on empty table.
+	_, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+	err = ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+
+	// BulkGet: empty input returns nil map without a query.
+	got, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, nil, teamID)
+	require.NoError(t, err)
+	require.Nil(t, got)
+
+	// Insert: same adam_id, separate config per platform.
+	iosCfg := []byte(testIOSPlist)
+	ipadCfg := []byte(`<dict><key>p</key><string>ipados</string></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, iosCfg))
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IPadOSPlatform, teamID, adamID, ipadCfg))
+
+	// Get: per-platform isolation, byte-for-byte round-trip including newlines.
+	gotIOS, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, iosCfg, gotIOS)
+	gotIPad, err := ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, ipadCfg, gotIPad)
+
+	// BulkGet: returns matched rows, ignores unknown adam_ids.
+	bulk, err := ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID, "9999999999"}, teamID)
+	require.NoError(t, err)
+	require.Len(t, bulk, 1)
+	require.Equal(t, iosCfg, bulk[adamID])
+
+	// Cross-team isolation: same (adamID, platform) on a different team is independent.
+	otherTeamID := teamID + 1
+	otherTeamCfg := []byte(`<dict><key>team</key><string>other</string></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, otherTeamID, adamID, otherTeamCfg))
+	gotOther, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, otherTeamID)
+	require.NoError(t, err)
+	require.Equal(t, otherTeamCfg, gotOther)
+	// The original team's row was not touched.
+	gotOriginal, err := ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, iosCfg, gotOriginal)
+	// BulkGet against the other team only returns its row.
+	bulk, err = ds.BulkGetVPPAppConfigurations(ctx, fleet.IOSPlatform, []string{adamID}, otherTeamID)
+	require.NoError(t, err)
+	require.Equal(t, otherTeamCfg, bulk[adamID])
+
+	// Update: upsert overwrites.
+	updated := []byte(`<dict><key>v</key><integer>2</integer></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, teamID, adamID, updated))
+	gotIOS, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+	require.Equal(t, updated, gotIOS)
+
+	// Delete iOS only — iPadOS row survives.
+	require.NoError(t, ds.DeleteVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID))
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.NoError(t, err)
+
+	// Cascade: dropping the parent vpp_apps row removes the config row.
+	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, fleet.IPadOSPlatform)
+	require.NoError(t, err)
+	_, err = ds.GetVPPAppConfiguration(ctx, fleet.IPadOSPlatform, adamID, teamID)
+	require.ErrorContains(t, err, "not found")
+}
+
+// testVPPInstallEnqueuesConfigurationDict exercises the fan-in point that
+// every VPP InstallApplication enqueue path lands on (nanoEnqueueVPPInstall):
+//   - first install (manual / self-service / policy auto-install fulfillment)
+//   - scheduled auto-update
+//   - setup experience
+//   - admin reinstall
+//   - retry
+//
+// They all funnel through InsertHostVPPSoftwareInstall → activateNextUpcomingActivity
+// → activateNextVPPAppInstallActivity → nanoEnqueueVPPInstall, so verifying
+// that one path produces a command with the Configuration dict (and
+// substituted host UUID) covers all of them by construction.
+func testVPPInstallEnqueuesConfigurationDict(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "iosmac-host",
+		UUID:           "test-host-uuid-9001",
+		Platform:       string(fleet.IOSPlatform),
+		HardwareSerial: "ABC-SERIAL",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "55556666"
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	vpp := &fleet.VPPApp{
+		Name: "ConfigApp",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   adamID,
+				Platform: fleet.IOSPlatform,
+			},
+		},
+		BundleIdentifier: adamID,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	// Configuration that exercises both static plist content and a
+	// $FLEET_VAR_HOST_UUID substitution. global_or_team_id = 0 for "no team".
+	const cfg = `<dict><key>S</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.IOSPlatform, 0, adamID, []byte(cfg)))
+
+	const cmdUUID = "iosmac-cmd-1"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-1", fleet.HostSoftwareInstallOptions{}))
+
+	var commandXML string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &commandXML, "SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+	})
+
+	require.Contains(t, commandXML, "<key>Configuration</key>", "Configuration dict missing from InstallApplication command")
+	require.Contains(t, commandXML, "test-host-uuid-9001", "$FLEET_VAR_HOST_UUID was not substituted")
+	require.NotContains(t, commandXML, "$FLEET_VAR_HOST_UUID", "raw token leaked into device-bound XML")
+	require.Contains(t, commandXML, "<key>iTunesStoreID</key>")
+	require.Contains(t, commandXML, "<integer>"+adamID+"</integer>")
+}
+
+// testVPPInstallOmitsConfigurationOnMacOS confirms that when the configuration
+// is set up under iOS but a macOS install runs, the macOS InstallApplication
+// command does not carry a Configuration dict. Apple's MDM does not accept
+// the same Configuration shape on macOS, so this is both a correctness and a
+// safety check.
+func testVPPInstallOmitsConfigurationOnMacOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.CreateInsertGlobalVPPToken(t, ds)
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "macos-host",
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: uuid.NewString(),
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	const adamID = "macos-app-1"
+	setupTestVPPApp(t, ds, adamID, fleet.MacOSPlatform)
+	vpp := &fleet.VPPApp{
+		Name: "MacApp",
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.MacOSPlatform},
+		},
+		BundleIdentifier: adamID,
+	}
+	_, err = ds.InsertVPPAppWithTeam(ctx, vpp, nil)
+	require.NoError(t, err)
+
+	// Seed a config row so we actually exercise the macOS guard, not just the
+	// trivial "no config → no dict" case.
+	const cfg = `<dict><key>S</key><string>$FLEET_VAR_HOST_UUID</string></dict>`
+	require.NoError(t, ds.updateVPPAppConfigurationTx(ctx, ds.writer(ctx), fleet.MacOSPlatform, 0, adamID, []byte(cfg)))
+
+	const cmdUUID = "macos-cmd-1"
+	require.NoError(t, ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vpp.VPPAppID, cmdUUID, "evt-mac", fleet.HostSoftwareInstallOptions{}))
+
+	var commandXML string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &commandXML, "SELECT command FROM nano_commands WHERE command_uuid = ?", cmdUUID)
+	})
+	require.NotContains(t, commandXML, "<key>Configuration</key>", "macOS VPP install must not carry Configuration dict even when config row exists")
+	require.Contains(t, commandXML, "<key>iTunesStoreID</key>")
+}
+
+func testHasVPPAppConfigurationChanged(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	const adamID = "1234567890"
+	test.CreateInsertGlobalVPPToken(t, ds)
+	setupTestVPPApp(t, ds, adamID, fleet.IOSPlatform)
+	teamID := setupTestTeam(t, ds)
+
+	stored := []byte(`<dict><key>v</key><integer>1</integer></dict>`)
+	require.NoError(t, ds.updateVPPAppConfigurationTx(testCtx(), ds.writer(testCtx()), fleet.IOSPlatform, teamID, adamID, stored))
+
+	cases := []struct {
+		desc      string
+		incoming  []byte
+		compareID string
+		want      bool
+	}{
+		{"identical", stored, adamID, false},
+		{"different content", []byte(`<dict><key>v</key><integer>2</integer></dict>`), adamID, true},
+		{"empty incoming against existing means delete", nil, adamID, true},
+		{"empty incoming against non-existing", nil, "9999999999", false},
+		{"non-empty against non-existing", stored, "9999999999", true},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got, err := ds.HasVPPAppConfigurationChanged(ctx, fleet.IOSPlatform, c.compareID, teamID, c.incoming)
+			require.NoError(t, err)
+			require.Equal(t, c.want, got)
+		})
+	}
 }
 
 // testBackfillVPPAppCountriesLowestIDWins guards the deterministic

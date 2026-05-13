@@ -881,6 +881,9 @@ func (ts *withServer) uploadSoftwareInstallerWithErrorNameReason(
 	if payload.AutomaticInstall {
 		require.NoError(t, w.WriteField("automatic_install", "true"))
 	}
+	if payload.Configuration != nil {
+		require.NoError(t, w.WriteField("configuration", string(payload.Configuration)))
+	}
 
 	w.Close()
 

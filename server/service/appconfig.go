@@ -554,9 +554,11 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = oldAppConfig.MDM.MacOSSetup.LockEndUserInfo
 	}
 
-	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	// Also sync when EUA was just disabled so the Lock-requires-EUA invariant stays satisfied.
 	if oldAppConfig.MDM.MacOSSetup.EnableEndUserAuthentication != appConfig.MDM.MacOSSetup.EnableEndUserAuthentication &&
-		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid {
+		!newAppConfig.MDM.MacOSSetup.LockEndUserInfo.Valid &&
+		(oldAppConfig.MDM.EnabledAndConfigured || !appConfig.MDM.MacOSSetup.EnableEndUserAuthentication) {
 		appConfig.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(appConfig.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
@@ -923,6 +925,31 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 
 	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
+	}
+
+	// Best-effort: drop orphan blobs whose URL was just replaced with an
+	// external or empty value. Mirrors the explicit DELETE /logo endpoint's
+	// audit signal by emitting a deleted_org_logo activity per mode that
+	// actually had a blob removed.
+	if svc.orgLogoStore != nil {
+		for _, m := range []fleet.OrgLogoMode{fleet.OrgLogoModeLight, fleet.OrgLogoModeDark} {
+			oldURL := getOrgLogoURL(&oldAppConfig.OrgInfo, m)
+			newURL := getOrgLogoURL(&appConfig.OrgInfo, m)
+			if !fleet.IsFleetHostedLogoURL(oldURL) || fleet.IsFleetHostedLogoURL(newURL) {
+				continue
+			}
+			if err := svc.orgLogoStore.Delete(ctx, m); err != nil {
+				svc.logger.WarnContext(ctx, "failed to delete orphan org logo blob",
+					"mode", string(m), "err", err.Error())
+				continue
+			}
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeDeletedOrgLogo{
+				Mode: string(m),
+			}); err != nil {
+				svc.logger.WarnContext(ctx, "failed to create deleted_org_logo activity for auto-cleanup",
+					"mode", string(m), "err", err.Error())
+			}
+		}
 	}
 
 	oldExceptions := oldAppConfig.GitOpsConfig.Exceptions
@@ -1339,8 +1366,8 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			oldAppConfig.ConditionalAccess.OktaAudienceURI.Value != appConfig.ConditionalAccess.OktaAudienceURI.Value ||
 			oldAppConfig.ConditionalAccess.OktaCertificate.Value != appConfig.ConditionalAccess.OktaCertificate.Value
 
-		// Only create an activity if bypass is changed after otka has already been initially configured
-		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != newAppConfig.ConditionalAccess.BypassDisabled.Value
+		// Only create an activity if bypass is actually changed
+		oktaBypassChanged = oldAppConfig.ConditionalAccess.BypassDisabled.Value != appConfig.ConditionalAccess.BypassDisabled.Value
 	}
 
 	if (!oldOktaConfigured && newOktaConfigured) || oktaConfigChanged {
@@ -1955,7 +1982,7 @@ func (svc *Service) validateVPPAssignments(
 
 		loc := norm.NFC.String(vpp.Location)
 		if _, ok := tokensByLocation[loc]; !ok {
-			invalid.Appendf("mdm.volume_purchasing_program", "token with location %s doesn't exist", vpp.Location)
+			invalid.Appendf("mdm.volume_purchasing_program", "token with organization unit %s doesn't exist", vpp.Location)
 			return nil, nil
 		}
 
