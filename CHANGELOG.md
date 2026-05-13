@@ -1,80 +1,86 @@
 ## Fleet 4.85.0 (Apr 27, 2026)
 
-### Bug fixes
+### IT Admins
 
-* Fleet UI: Fixed software table page number to be bookmarkable
-* Fixed navigation to settings page on multi-team admin users.
-* Reduced MySQL writer load by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
 - Added conditional HTTP downloads using ETag headers for software in GitOps, skipping re-download when content hasn't changed.
 - Added `always_download` option for software in GitOps to bypass the new conditional download feature.
-* Updated copy, show and other action buttons app wide for a more consistent style.
-- Fixed an issue where adding a custom icon for a script-only package was not allowed in GitOps.
-- Fixed a server panic (502) when an Android pubsub status report arrived for a host that had been deleted from Fleet.
 - Added ability to save policies whose SQL is flagged as a syntax error.
-- Enabled renewing and deleting AB tokens in the UI in gitops mode.
-* Implemented Clear Passcode feature for iOS and iPadOS.
-- Fixed a Windows BitLocker encrypt/decrypt loop on machines with secondary drives using auto-unlock. Fleet now detects disk encryption using `conversion_status` (not just `protection_status`), preventing the server from repeatedly requesting encryption when the disk is already encrypted. Added `bitlocker_protection_status` tracking so the UI shows "Action required" when BitLocker protection is off instead of misleadingly showing "Verified."
-- Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.
+- Enabled renewing and deleting AB tokens in the UI in GitOps mode.
+- Implemented Clear Passcode feature for iOS and iPadOS.
 - Made fleet name uniqueness rules consistent across the UI, API, and GitOps paths. Fleet names must now differ by more than letter case, and conflicts return a 409 error on all code paths.
-- Fixed padding between GitOps exceptions checkboxes
-- Fixed a race condition where a host could silently revert to its previous team after an admin team transfer.
 - Changed the team's `script_execution_timeout` in agent options to default to the global agent options value when unset.
-- Added POST /users/api_only endpoint for creating API-only users.
-- Added PATCH /users/api_only/{id} for updating existing API-only users.
-- Updated GET /users/{id} response to include the new `api_endpoints` field for API-only users.
-- Updated `fleetctl user create --api-only` removing email/password field requirements.
-* Updated go to 1.26.2
-* Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
 - Withheld Android Wi-Fi configuration profiles (`openNetworkConfiguration` with `ClientCertKeyPairAlias`) until the referenced certificate is installed or terminally failed on the device.
 - Updated the host OS settings detail column to show the reason when an Android profile is pending due to a certificate dependency.
 - Updated `fleetctl gitops` to process Android certificates before Android profiles.
-- Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
-- Fleet UI: Added new policy details page with read-only view of policy information
-- Fleet UI: Updated edit policy page to redirect users with read-only access to policy details page.
-- Fleet UI: Added dedicated `/policies/:id/live` route for running policies
-- Added new middleware (APIOnlyEndpointCheck) that enforces 403 for API-only users whose request either isn't in the API endpoint catalog or falls outside their configured per-user endpoint restrictions.
-* Fixed an issue where we would send an AccountConfiguration command to iOS and iPadOS devices when end user authentication was enabled; AccountConfiguration is macOS-only.
-- Fleet UI: Improved host policy empty state.
-* Moved some core UI form components from TypeScript for better predictability/reliability
-- Updated macOS 15 CIS benchmark to include v2.0.0 changes
-- Stopped turning on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
-- Updated to default max request body size for eula pdf upload size check
-- Fleet UI: Fixed styling bugs in GitOps mode UI
-- Updated error message returned when an invalid domain is supplied for MDM Apple CSR signing
-* Added a new premium GET /api/_version_/fleet/rest_api endpoint that returns the contents of the embedded `api_endpoints.yml` artifact.
-- Updated the macOS 14 (Sonoma) CIS policy set to benchmark v3.0.0
-- Fixed an issue where sending a different cased display name for a DDM profile via the batch endpoint, would result in recreating the DDM profile triggering a resend.
+- Fleet UI: Added new policy details page with a read-only view of policy information.
+- Fleet UI: Updated edit policy page to redirect users with read-only access to the policy details page.
+- Fleet UI: Added dedicated `/policies/:id/live` route for running policies.
+- Updated macOS 15 CIS benchmark to include v2.0.0 changes.
+- Updated the macOS 14 (Sonoma) CIS policy set to benchmark v3.0.0.
 - Added automatic escaping of JSON special characters in GitOps variables used in `.json` configuration profiles (Apple DDM declarations and Android profiles).
-- Generated an activity when a Windows MDM wipe command failed.
-* Fixed a bug where pending MDM profile rows persisted in the database after Apple or Windows MDM was turned off, causing stale profiles to reappear when MDM was re-enabled. Also fixed cleanup of pending Windows profile rows when a device unenrolls from MDM.
-* Fixed an issue where duplicate Disk Encryption activity types showed up.
 - Added support for Fleet variables in Apple's declaration profiles (DDM).
-- Fixed bug where renaming a patch policy in a GitOps file caused it to be deleted initially.
-- Fixed a nil pointer dereference in the contributor api spec/policies.
-* Fixed an issue, where Fleet would not remove the host OS setting entry if a RemoveProfile command failed with error code 89 (Profile not found on device).
-* Fixed a bug where host environment variables in script-only packages would cause gitops to fail
-* Fixed the host details activity feed showing the previously opened host's activities by including the host ID in the activity query cache keys.
-- Added "Hosts active" and "Hosts enrolled" charts to dashboard.
-* Removed unused `windows_updates` MySQL table and ingestion code.
-* Fixed an issue where trying to wipe a device after its certificate was renewed could fail due to a missing bootstrap token. _Note: The device might still have wiped_
-* Added UI pages for creating and editing API-only users with support for fleet assignment, role selection, and API endpoint access control.
-* Upgraded to TypeScript 6.0 for the app frontend.
-- Enrolment page enroll button updated to render full screen width for larger resolution mobile devices
-- Fleet UI: Improved button and link styling
-* Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If this site is inaccessible, Fleet will fall back to the previous GitHub-hosted copies of manifest files.
+- Added "Hosts active" and "Hosts enrolled" charts to the dashboard.
+- Switched Fleet-maintained apps serving location from GitHub to https://maintained-apps.fleetdm.com/manifests. If this site is inaccessible, Fleet will fall back to the previous GitHub-hosted copies of manifest files.
 - Switched to Docker as the default WiX runtime on macOS (including Apple Silicon) when generating `.msi` packages via `fleetctl package`. Wine is no longer required on macOS for the default path.
-* Added user_api_endpoints table to track per-user API endpoint permissions.                         
-* Added startup validation that panics if any route declared in service/api_endpoints.yml is not registered in the router.
-* Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.
-* Improved the OS settings modal layout.
-* Added support for passing end-user authentication context to the Fleet MSI installer during Windows MDM enrollment, so end users are not prompted to authenticate twice when EUA is enabled.
-* Improved documentation for MySQL read replica configuration, clarifying that all settings (including region for IAM authentication) must be explicitly set for the read replica.
+- Added support for passing end-user authentication context to the Fleet MSI installer during Windows MDM enrollment, so end users are not prompted to authenticate twice when EUA is enabled.
+
+### Security Engineers
+
+- Added `POST /users/api_only` endpoint for creating API-only users.
+- Added `PATCH /users/api_only/{id}` endpoint for updating existing API-only users.
+- Updated `GET /users/{id}` response to include the new `api_endpoints` field for API-only users.
+- Updated `fleetctl user create --api-only` to remove email and password field requirements.
+- Added new middleware (`APIOnlyEndpointCheck`) that enforces a 403 response for API-only users whose request either isn't in the API endpoint catalog or falls outside their configured per-user endpoint restrictions.
+- Added a new premium `GET /api/_version_/fleet/rest_api` endpoint that returns the contents of the embedded `api_endpoints.yml` artifact.
+- Added UI pages for creating and editing API-only users with support for fleet assignment, role selection, and API endpoint access control.
+- Added `user_api_endpoints` table to track per-user API endpoint permissions.
+
+### Bug fixes and improvements
+
+- Fleet UI: Fixed software table page number to be bookmarkable.
+- Fixed navigation to the settings page for multi-team admin users.
+- Reduced MySQL writer load by skipping no-op `UPDATE host_orbit_info` and `UPDATE host_disks` writes when the stored values already match the incoming ingest values from osquery, cutting these writes to near zero at steady state.
+- Updated copy, show, and other action buttons app-wide for a more consistent style.
+- Fixed an issue where adding a custom icon for a script-only package was not allowed in GitOps.
+- Fixed a server panic (502) when an Android pubsub status report arrived for a host that had been deleted from Fleet.
+- Fixed a Windows BitLocker encrypt/decrypt loop on machines with secondary drives using auto-unlock. Fleet now detects disk encryption using `conversion_status` (not just `protection_status`), preventing the server from repeatedly requesting encryption when the disk is already encrypted. Added `bitlocker_protection_status` tracking so the UI shows "Action required" when BitLocker protection is off instead of misleadingly showing "Verified."
+- Fixed a bug where custom package installers were not removed when adding an FMA for the same title via GitOps, which caused setup experience to install duplicate software.
+- Fixed padding between GitOps exceptions checkboxes.
+- Fixed a race condition where a host could silently revert to its previous team after an admin team transfer.
+- Updated Go to 1.26.2.
+- Improved the performance of deleting Windows MDM configuration profiles at scale by collapsing the per-profile update loop into a single batched statement that spans multiple profiles per chunk.
+- Added an index on `software.bundle_identifier` to eliminate a full table scan performed by the hourly Fleet-maintained apps (FMA) sync, reducing writer CPU load on large deployments.
+- Fixed an issue where Fleet would send an `AccountConfiguration` command to iOS and iPadOS devices when end user authentication was enabled; `AccountConfiguration` is macOS-only.
+- Fleet UI: Improved host policy empty state.
+- Moved some core UI form components to TypeScript for better predictability and reliability.
+- Stopped turning on Prometheus serving by default with a hard-coded username and password when the server is started with `--dev`.
+- Updated EULA PDF upload size check to use the default max request body size.
+- Fleet UI: Fixed styling bugs in GitOps mode UI.
+- Updated the error message returned when an invalid domain is supplied for MDM Apple CSR signing.
+- Fixed an issue where sending a differently cased display name for a DDM profile via the batch endpoint would result in recreating the DDM profile and triggering a resend.
+- Added activity when a Windows MDM wipe command fails.
+- Fixed a bug where pending MDM profile rows persisted in the database after Apple or Windows MDM was turned off, causing stale profiles to reappear when MDM was re-enabled. Also fixed cleanup of pending Windows profile rows when a device unenrolls from MDM.
+- Fixed an issue where duplicate Disk Encryption activity types showed up.
+- Fixed a bug where renaming a patch policy in a GitOps file caused it to be deleted initially.
+- Fixed a nil pointer dereference in the contributor API spec/policies.
+- Fixed an issue where Fleet would not remove the host OS setting entry if a `RemoveProfile` command failed with error code 89 (profile not found on device).
+- Fixed a bug where host environment variables in script-only packages would cause GitOps to fail.
+- Fixed the host details activity feed showing the previously opened host's activities by including the host ID in the activity query cache keys.
+- Removed the unused `windows_updates` MySQL table and ingestion code.
+- Fixed an issue where trying to wipe a device after its certificate was renewed could fail due to a missing bootstrap token. _Note: The device might still have wiped._
+- Upgraded to TypeScript 6.0 for the app frontend.
+- Updated the enrollment page enroll button to render at full screen width for larger-resolution mobile devices.
+- Fleet UI: Improved button and link styling.
+- Added startup validation that panics if any route declared in `service/api_endpoints.yml` is not registered in the router.
+- Fixed a server panic when an Apple MDM `DeviceInformation` refetch response omitted `DeviceName` or other expected fields.
+- Improved the OS settings modal layout.
+- Improved documentation for MySQL read replica configuration, clarifying that all settings (including region for IAM authentication) must be explicitly set for the read replica.
 - Fixed an issue where the DDM reconciler would not self-heal for stuck remove/pending profiles due to resend with update.
 - Fixed an issue where a host DDM cleanup function was not executed for stale remove/pending profiles that weren't reported by the device.
 - Fixed an issue where batch processing many DDM profile changes would result in stuck remove/pending profiles.
-* Added `gitOpsModeEnabled` and `gitOpsModeExceptions` to the anonymous statistics payload.
-- Implemented the chart bounded context and schema to support charting capabilities in Fleet
-- Fleet UI: Fixed infinite page loop pagination bug on software table page happening when viewing a subsequent page and then using the software filter dropdown to filter.
+- Added `gitOpsModeEnabled` and `gitOpsModeExceptions` to the anonymous statistics payload.
+- Implemented the chart bounded context and schema to support charting capabilities in Fleet.
+- Fleet UI: Fixed an infinite page loop pagination bug on the software table page that occurred when viewing a subsequent page and then using the software filter dropdown.
 
 ## Fleet 4.84.3 (May 06, 2026)
 
