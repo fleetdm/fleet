@@ -199,6 +199,17 @@ On the last day of each three-week release cycle, working groups demo shipped ch
 At the end of every three-week release cycle, the working group holds a 30-minute retro. Action items are created as [`~timebox`](https://github.com/fleetdm/fleet/labels/~timebox) issues, added to the board, and assigned to the EM for the next release cycle.
 
 
+### Working group rollout
+
+The transition to working groups happens over three release cycles:
+
+| Release | Change |
+|:---|:---|
+| 4.87.0 | First Impressions continues for one more release cycle. |
+| 4.88.0 | First Impressions pauses. Scott Gress joins Konstantin Sykulev on Power to the PC. |
+| 4.89.0 | Konstantin spins out to lead BYOD with Andrew Mellor. MDM becomes Apple @ Work. Software becomes Auto Patching. |
+
+
 ### Website group
 
 The goal of the website group is to increase and exceed Fleet's product maturity goals for fleetdm.com.
