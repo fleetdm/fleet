@@ -39,6 +39,9 @@ describe("SetupAssistant", () => {
     mockServer.use(
       http.get(enrollmentProfileUrl, () => {
         return new HttpResponse("Not found", { status: 404 });
+      }),
+      http.get(defaultEnrollmentProfileUrl, () => {
+        return HttpResponse.json({});
       })
     );
     const render = createCustomRenderer({
