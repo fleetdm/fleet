@@ -1,10 +1,12 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -12,7 +14,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
@@ -255,5 +259,112 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 		require.NoError(t, err)
 		require.Equal(t, macosAdamID, macMeta.AdamID)
 		requireNoStoredConfig(fleet.MacOSPlatform, macosAdamID, batchTeam.ID)
+	})
+}
+
+// TestManagedAppConfigurationWireFormat builds request bodies by hand and
+// inspects raw HTTP response bytes — no Go struct marshalling — to lock in the
+// on-the-wire shape of VPPAppStoreApp.Configuration after the switch from
+// []byte (base64-encoded by encoding/json) to json.RawMessage (passed through
+// as raw JSON). iOS / iPadOS configurations are sent and returned as a
+// JSON-encoded string of XML; Android configurations are sent and returned as
+// a raw JSON object.
+func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// VPP setup.
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-android-wire-team"})
+	require.NoError(t, err)
+
+	orgName := "Fleet Device Management Inc."
+	token := "applewiretoken"
+	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
+	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
+
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
+		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	var getVPPTokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
+
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID),
+		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
+
+	// readBody reads the response body and compacts it (collapses the
+	// pretty-printing the server applies) so assertions can be written against
+	// the unindented wire bytes.
+	readBody := func(resp *http.Response) string {
+		t.Helper()
+		raw, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		var compact bytes.Buffer
+		require.NoError(t, json.Compact(&compact, raw))
+		return compact.String()
+	}
+
+	t.Run("vpp ios wire format", func(t *testing.T) {
+		// Adam ID "2" is pre-registered as an iOS app by the mock VPP server.
+		const iosAdamID = "2"
+		// Hand-built JSON body. The configuration value is a JSON-encoded
+		// string whose content is XML.
+		reqBody := fmt.Appendf(nil,
+			`{"fleet_id":%d,"app_store_id":%q,"platform":"ios","configuration":"<dict><key>K</key><string>v</string></dict>"}`,
+			team.ID, iosAdamID)
+		resp := s.DoRaw("POST", "/api/latest/fleet/software/app_store_apps", reqBody, http.StatusOK)
+		var addResp addAppStoreAppResponse
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&addResp))
+		require.NoError(t, resp.Body.Close())
+		require.NotZero(t, addResp.TitleID)
+
+		// Stored config is the raw XML (the JSON-string was unwrapped server-side).
+		stored, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, iosAdamID, team.ID)
+		require.NoError(t, err)
+		require.Equal(t, `<dict><key>K</key><string>v</string></dict>`, string(stored))
+
+		// GET response — wire shape is a JSON-encoded string of XML (no base64).
+		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
+		body := readBody(resp)
+		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
+		// Confirm the value is not base64-encoded (which is what a []byte field would do).
+		require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(`"<dict><key>K</key><string>v</string></dict>"`)))
+	})
+
+	t.Run("android wire format", func(t *testing.T) {
+		s.enableAndroidMDM(t)
+		const androidAdamID = "com.test.wireformat"
+		s.androidAPIClient.EnterprisesApplicationsFunc = func(_ context.Context, _, _ string) (*androidmanagement.Application, error) {
+			return &androidmanagement.Application{IconUrl: "https://example.com/icon.png", Title: "WireApp"}, nil
+		}
+		s.androidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, _ string, policy *androidmanagement.Policy, _ androidmgmt.PoliciesPatchOpts) (*androidmanagement.Policy, error) {
+			return policy, nil
+		}
+
+		// Configuration is sent as a raw JSON object — not a JSON-encoded string.
+		reqBody := fmt.Appendf(nil,
+			`{"fleet_id":%d,"app_store_id":%q,"platform":"android","configuration":{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}}`,
+			team.ID, androidAdamID)
+		resp := s.DoRaw("POST", "/api/latest/fleet/software/app_store_apps", reqBody, http.StatusOK)
+		var addResp addAppStoreAppResponse
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&addResp))
+		require.NoError(t, resp.Body.Close())
+		require.NotZero(t, addResp.TitleID)
+
+		// Stored config is the raw JSON object.
+		stored, err := s.ds.GetAndroidAppConfiguration(ctxdb.RequirePrimary(ctx, true), androidAdamID, team.ID)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`, string(stored))
+
+		// GET response — Android emits the configuration as a raw JSON object,
+		// passed through unchanged from storage (no base64, no JSON-string wrap).
+		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
+		body := readBody(resp)
+		require.Contains(t, body, `"configuration":{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)
+		require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(`{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)))
 	})
 }

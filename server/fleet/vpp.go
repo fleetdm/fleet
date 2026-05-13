@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"time"
@@ -140,7 +141,7 @@ type VPPAppStoreApp struct {
 	DisplayName string   `json:"display_name"`
 	// Configuration is the managed app configuration payload. JSON for Android,
 	// XML for iOS / iPadOS.
-	Configuration []byte `json:"configuration,omitempty"`
+	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
 // VPPAppStatusSummary represents aggregated status metrics for a VPP app.
