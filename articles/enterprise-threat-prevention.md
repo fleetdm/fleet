@@ -114,8 +114,8 @@ Signature-based prevention cannot stop attacks using unknown malware. However, b
 Query your fleet to check that prevention agents are installed, running, and configured correctly. Test prevention controls periodically by attempting to execute known-blocked content in controlled environments. Continuous verification matters more than point-in-time checks, since prevention controls can silently fail after OS updates or configuration changes. Fleet automates this with continuous device-state queries; [talk to Fleet](https://fleetdm.com/contact) about mapping these checks to your environment.
 
 <meta name="articleTitle" value="Threat prevention: a guide for multi-platform fleets">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-05-13">
 <meta name="description" value="Learn how threat prevention protects device fleets, supports compliance, and keeps controls aligned across platforms.">
