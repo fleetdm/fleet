@@ -277,7 +277,7 @@ const ManageFleetsPage = (): JSX.Element => {
   })();
 
   return (
-    <div className={`${baseClass}`}>
+    <div className={baseClass}>
       <PageDescription
         content={
           <>

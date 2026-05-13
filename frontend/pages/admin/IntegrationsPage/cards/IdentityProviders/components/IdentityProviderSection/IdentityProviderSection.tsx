@@ -31,7 +31,7 @@ const AddEndUserInfoCard = () => {
         <CustomLink
           text="Learn more"
           newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}connect-idp`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/connect-idp`}
         />
       }
     />
@@ -52,7 +52,7 @@ const ReceivedEndUserInfoCard = ({
         <CustomLink
           text="Learn more"
           newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}troubleshoot-idp-connection`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-idp-connection`}
         />
       }
     >
@@ -89,7 +89,7 @@ const FailedEndUserInfoCard = ({
         <CustomLink
           text="Learn more"
           newTab
-          url={`${LEARN_MORE_ABOUT_BASE_LINK}troubleshoot-idp-connection`}
+          url={`${LEARN_MORE_ABOUT_BASE_LINK}/troubleshoot-idp-connection`}
         />
       }
     >
