@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "7.205.0",
+      "version": "7.205.1",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.205.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Granola %' AND publisher = 'Granola' AND version_compare(version, '7.205.1') < 0);"
       },
-      "installer_url": "https://api.granola.ai/v1/check-for-update/Granola-7.205.0-win-x64.exe",
+      "installer_url": "https://api.granola.ai/v1/check-for-update/Granola-7.205.1-win-x64.exe",
       "install_script_ref": "3f66ac53",
       "uninstall_script_ref": "a4fab3f5",
-      "sha256": "a96f138911def94d8eb49e67107e03ae17a5973cb8055f348c9d287edcf437b4",
+      "sha256": "c1b34c35fe83cc5852a2bdc9f079029368ed19be49ebffff2a7c965523ebe9cd",
       "default_categories": [
         "Productivity"
       ]
