@@ -224,6 +224,13 @@
   .Select-menu {
     max-height: 182px; // Scrollable within .Select-menu-outer
     overflow-y: auto;
+    // When a dropdown's `value` doesn't match any option (e.g. the
+    // ABM Edit fleets modal on first open after adding a token), react-select v1
+    // skips its scroll-to-focused-option pass and the focused option's
+    // background highlight can render past the menu's padded content area —
+    // bleeding outside the dropdown borders in dark mode where the menu and
+    // highlight colors are very close. Clip horizontally to keep it contained.
+    overflow-x: hidden;
   }
 
   .Select-noresults {
