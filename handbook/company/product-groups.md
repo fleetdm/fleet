@@ -183,6 +183,43 @@ Working groups use the same [product group roles](#product-group-roles), with th
 
 > While the PD is responsible for ensuring an issue reaches **Ready**, in practice the EM is most often the one physically moving the issue into the column during standup or weekly planning.
 
+#### DRI areas
+
+The Roles table covers day-to-day responsibilities. Use this section to determine who owns a given decision within the working group. When two roles overlap, the named DRI has the final call; collaboration is still expected.
+
+**Engineering Manager**
+- Cadence and health of all rituals (standup, weekly planning, release demo, release retro).
+- Whether a story is ready to discuss at standup or weekly planning.
+- Staffing and swap-ins when an engineer is on-call, out, or stuck.
+- When to escalate a blocker outside the group, and to whom.
+- Whether to spin up a [working group](#working-groups) or wind one down.
+
+**Product Designer**
+- Whether a new issue takes the **full draft** or **fast draft** lane.
+- Whether a story has enough definition to move to **Ready**.
+- Product scope of a story: what is in, what is out, and what is deferred.
+- When to escalate to the [Head of Product Design](https://fleetdm.com/handbook/product-design) or CTO on product or design ambiguity.
+- Whether a customer promise or activation blocker needs [t-shirt sizing](#t-shirt-sizing-capacity-planning) even when fast-drafted (shared with EM).
+
+**Tech Lead**
+- Architectural direction and technical scope of a story.
+- Technical feasibility of a proposed change and whether it should be split, deferred, or reshaped.
+- Review priority across open pull requests in the group.
+- When to escalate to the CTO on technical risk or cross-group impact.
+- Whether a [sub-task](#sub-tasks) should be created versus folded into the parent story.
+
+**Software Engineer**
+- Implementation approach within a story, including libraries, patterns, and test coverage.
+- When a pull request is ready for review and who to request it from.
+- When to move an issue to **Blocked** and what to try async before raising it at standup.
+- When to pull in the TL or PD for clarification rather than guess.
+
+**Quality Assurance**
+- Acceptance criteria and test plan for a story, including edge cases and platforms covered.
+- Whether a change can move from **Awaiting QA** to **Ready for release**.
+- When to push back on a story for testability before it leaves drafting.
+- Whether a regression warrants a [release-blocker](#all-bugs) call, in coordination with the EM.
+
 #### Item types
 
 Working groups use the same six [scrum items](#scrum-items) as product groups: user stories, sub-tasks, timeboxes, bugs, quick wins, and reliability issues.
