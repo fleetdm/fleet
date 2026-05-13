@@ -176,7 +176,7 @@ Working groups use the same [product group roles](#product-group-roles), with th
 | Role                 | Responsibility in continuous flow |
 |:---------------------|:----------------------------------|
 | Engineering Manager  | Runs the board and all rituals (standup, weekly planning, release demo, release retro). |
-| Product Designer     | Places new user stories on the board and is responsible for moving them to **Ready**. |
+| Product Designer     | Places new user stories on the board, picks the drafting lane, drafts the issue, and is responsible for moving it to **Ready**. |
 | Tech Lead            | Provides technical guidance and helps shape architectural decisions. |
 | Software Engineer    | Picks up issues, ships them through review and QA, and pulls in the next available work. |
 | Quality Assurance    | Validates changes in **Awaiting QA**. |
@@ -199,6 +199,7 @@ Each working group runs its own GitHub project board with the following columns,
 | 🐥 Ready for review | A pull request is open and awaiting code review. |
 | ✔️ Awaiting QA | The change is merged and waiting for QA verification. |
 | ✅ Ready for release | QA has verified the change. Held until the next release boundary. |
+| 🚧 Blocked | The issue is stuck and needs discussion before it can move forward. Raise at the next standup. |
 | Done | Released. |
 
 There are no formal WIP limits today, but the group should watch for buildup in any one column.
@@ -228,7 +229,7 @@ Continuous flow does not use story points or track velocity. Customer promises a
 - **Multiple issues in flight is OK.** Contributors can run several agents in parallel and have many issues open at once. Use judgment; don't start more than you can shepherd through review.
 - **Pick up unassigned work as you finish in-flight items.** When an issue moves to the next column (e.g. Ready for review), pick the next unassigned item from **Ready**. For bugs, use the standard [bug prioritization order](#bug-prioritization).
 - **Help finish in-flight work when nothing in Ready is available.** Assist with code review, QA, or sub-issues for active stories.
-- **Hit a blocker or have a question?** Move the issue back to **Fast draft** and raise it at the next standup, rather than blocking on async followup.
+- **Hit a blocker or have a question?** Move the issue to **Blocked** and raise it at the next standup, rather than blocking on async followup.
 
 #### Daily standup (30 minutes)
 
@@ -249,11 +250,10 @@ At the end of every three-week release cycle, the working group holds a 30-minut
 
 ### Working group rollout
 
-The transition to working groups happens over three release cycles:
+The transition to working groups happens over the next two release cycles:
 
 | Release | Change |
 |:---|:---|
-| 4.87.0 | First Impressions continues for one more release cycle. |
 | 4.88.0 | First Impressions pauses. Scott Gress joins Konstantin Sykulev on Power to the PC. |
 | 4.89.0 | Konstantin spins out to lead BYOD with Andrew Mellor. MDM becomes Apple @ Work. Software becomes Auto Patching. |
 
@@ -1237,7 +1237,7 @@ Sprints are numbered according to the release version. For example, for the spri
 
 See the [rituals contributor docs](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/rituals) for detailed instructions on running each ceremony.
 
-Each sprint is marked by five essential ceremonies:
+Each release cycle is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
 2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
