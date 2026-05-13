@@ -497,32 +497,34 @@ const Advanced = ({
               </Checkbox>
             )}
           />
-          <GitOpsModeTooltipWrapper
-            position="left"
-            renderChildren={(disableChildren) => (
-              <Checkbox
-                disabled={disableChildren}
-                onChange={onInputChange}
-                name="disableVulnerabilities"
-                value={disableVulnerabilities}
-                parseTarget
-                labelTooltipContent={
-                  !disableChildren && (
-                    <>
-                      When enabled, Fleet stops collecting historical
-                      <br />
-                      vulnerability-exposure data used by the dashboard chart.{" "}
-                      <em>
-                        (Default: <strong>Off</strong>)
-                      </em>
-                    </>
-                  )
-                }
-              >
-                Disable vulnerabilities
-              </Checkbox>
-            )}
-          />
+          {isPremiumTier(appConfig) && (
+            <GitOpsModeTooltipWrapper
+              position="left"
+              renderChildren={(disableChildren) => (
+                <Checkbox
+                  disabled={disableChildren}
+                  onChange={onInputChange}
+                  name="disableVulnerabilities"
+                  value={disableVulnerabilities}
+                  parseTarget
+                  labelTooltipContent={
+                    !disableChildren && (
+                      <>
+                        When enabled, Fleet stops collecting historical
+                        <br />
+                        vulnerability-exposure data used by the dashboard chart.{" "}
+                        <em>
+                          (Default: <strong>Off</strong>)
+                        </em>
+                      </>
+                    )
+                  }
+                >
+                  Disable vulnerabilities
+                </Checkbox>
+              )}
+            />
+          )}
           <GitOpsModeTooltipWrapper
             position="left"
             renderChildren={(disableChildren) => (
