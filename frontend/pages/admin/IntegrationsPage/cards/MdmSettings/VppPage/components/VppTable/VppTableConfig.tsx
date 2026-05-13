@@ -87,7 +87,7 @@ export const generateTableConfig = (
     },
     {
       accessor: "location",
-      Header: "Location",
+      Header: "Organization unit",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => (
         <TextCell value={cellProps.cell.value} />

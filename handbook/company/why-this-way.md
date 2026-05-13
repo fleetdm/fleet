@@ -481,6 +481,11 @@ Instead, the invited attendees on a calendar event are the people who are mandat
 Every internal meeting is inherently "optional" in the sense that if it's not a good use of time to [help the company](https://fleetdm.com/handbook/company#results), people should focus on results instead.
 
 
+## Why think like a historian?
+
+When choosing a title for Google docs at Fleet, include enough context that someone in the future can understand not just _what_ is being discussed, but _why_ it matters and how it fits in.  This is especially important for meeting agendas.  A bare Google Doc title like "Write up scavenger hunt" is hard to find in search and can be difficult for other people to learn from or contribute to.  Compare that with "Write up scavenger hunt for SF party on May 12 celebrating announcement" — now anyone who finds the doc later knows the purpose of the meeting, without needing to ask.  This makes the Google doc more discoverable in search, more accessible, and more useful for everyone at the company — now and in the future.
+
+
 #### Stubs
 
 The following stubs are included only so that old links continue to work (for backwards compatibility.)

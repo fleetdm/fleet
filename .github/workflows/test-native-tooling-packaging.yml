@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-4core]
         # build_type == 'remote' means this job will test the fleetdm/fleetctl:latest from Docker Hub.
         # build_type == 'local' means this job will build the the image locally.
         #

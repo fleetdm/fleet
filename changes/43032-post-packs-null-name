@@ -1,0 +1,1 @@
+- Fixed an issue where `POST /packs` with a JSON null name silently created a pack with an empty name; the endpoint now returns a 400 Bad Request, matching the behavior for an empty-string name.

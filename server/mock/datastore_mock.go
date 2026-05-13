@@ -1771,19 +1771,35 @@ type ListAndroidEnrolledDevicesForReconcileFunc func(ctx context.Context) ([]*an
 
 type InsertAndroidSetupExperienceSoftwareInstallFunc func(ctx context.Context, payload *fleet.HostAndroidVPPSoftwareInstall) error
 
-type GetAndroidAppConfigurationFunc func(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
+type GetAndroidAppConfigurationFunc func(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
 
-type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
+type GetAndroidAppConfigurationByAppTeamIDFunc func(ctx context.Context, vppAppTeamID uint) ([]byte, error)
 
-type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+type HasAndroidAppConfigurationChangedFunc func(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 type SetAndroidAppInstallPendingApplyConfigFunc func(ctx context.Context, hostUUID string, applicationID string, policyVersion int64) error
 
-type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+type BulkGetAndroidAppConfigurationsFunc func(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 type DeleteAndroidAppConfigurationFunc func(ctx context.Context, adamID string, teamID uint) error
 
 type ListMDMAndroidUUIDsToHostIDsFunc func(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
+type GetVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+
+type HasVPPAppConfigurationChangedFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+
+type BulkGetVPPAppConfigurationsFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+
+type DeleteVPPAppConfigurationFunc func(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error
+
+type GetInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) ([]byte, error)
+
+type HasInHouseAppConfigurationChangedFunc func(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+
+type BulkGetInHouseAppConfigurationsFunc func(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+
+type DeleteInHouseAppConfigurationFunc func(ctx context.Context, inHouseAppID uint) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -4594,6 +4610,30 @@ type DataStore struct {
 
 	ListMDMAndroidUUIDsToHostIDsFunc        ListMDMAndroidUUIDsToHostIDsFunc
 	ListMDMAndroidUUIDsToHostIDsFuncInvoked bool
+
+	GetVPPAppConfigurationFunc        GetVPPAppConfigurationFunc
+	GetVPPAppConfigurationFuncInvoked bool
+
+	HasVPPAppConfigurationChangedFunc        HasVPPAppConfigurationChangedFunc
+	HasVPPAppConfigurationChangedFuncInvoked bool
+
+	BulkGetVPPAppConfigurationsFunc        BulkGetVPPAppConfigurationsFunc
+	BulkGetVPPAppConfigurationsFuncInvoked bool
+
+	DeleteVPPAppConfigurationFunc        DeleteVPPAppConfigurationFunc
+	DeleteVPPAppConfigurationFuncInvoked bool
+
+	GetInHouseAppConfigurationFunc        GetInHouseAppConfigurationFunc
+	GetInHouseAppConfigurationFuncInvoked bool
+
+	HasInHouseAppConfigurationChangedFunc        HasInHouseAppConfigurationChangedFunc
+	HasInHouseAppConfigurationChangedFuncInvoked bool
+
+	BulkGetInHouseAppConfigurationsFunc        BulkGetInHouseAppConfigurationsFunc
+	BulkGetInHouseAppConfigurationsFuncInvoked bool
+
+	DeleteInHouseAppConfigurationFunc        DeleteInHouseAppConfigurationFunc
+	DeleteInHouseAppConfigurationFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -10965,21 +11005,21 @@ func (s *DataStore) InsertAndroidSetupExperienceSoftwareInstall(ctx context.Cont
 	return s.InsertAndroidSetupExperienceSoftwareInstallFunc(ctx, payload)
 }
 
-func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+func (s *DataStore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetAndroidAppConfigurationFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppConfigurationFunc(ctx, applicationID, teamID)
 }
 
-func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
+func (s *DataStore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	s.mu.Lock()
 	s.GetAndroidAppConfigurationByAppTeamIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetAndroidAppConfigurationByAppTeamIDFunc(ctx, vppAppTeamID)
 }
 
-func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
+func (s *DataStore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
 	s.mu.Lock()
 	s.HasAndroidAppConfigurationChangedFuncInvoked = true
 	s.mu.Unlock()
@@ -10993,7 +11033,7 @@ func (s *DataStore) SetAndroidAppInstallPendingApplyConfig(ctx context.Context, 
 	return s.SetAndroidAppInstallPendingApplyConfigFunc(ctx, hostUUID, applicationID, policyVersion)
 }
 
-func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
+func (s *DataStore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
 	s.mu.Lock()
 	s.BulkGetAndroidAppConfigurationsFuncInvoked = true
 	s.mu.Unlock()
@@ -11012,6 +11052,62 @@ func (s *DataStore) ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []
 	s.ListMDMAndroidUUIDsToHostIDsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAndroidUUIDsToHostIDsFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) GetVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetVPPAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
+}
+
+func (s *DataStore) HasVPPAppConfigurationChanged(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error) {
+	s.mu.Lock()
+	s.HasVPPAppConfigurationChangedFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasVPPAppConfigurationChangedFunc(ctx, platform, adamID, teamID, newConfig)
+}
+
+func (s *DataStore) BulkGetVPPAppConfigurations(ctx context.Context, platform fleet.InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error) {
+	s.mu.Lock()
+	s.BulkGetVPPAppConfigurationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetVPPAppConfigurationsFunc(ctx, platform, adamIDs, teamID)
+}
+
+func (s *DataStore) DeleteVPPAppConfiguration(ctx context.Context, platform fleet.InstallableDevicePlatform, adamID string, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteVPPAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteVPPAppConfigurationFunc(ctx, platform, adamID, teamID)
+}
+
+func (s *DataStore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+	s.mu.Lock()
+	s.GetInHouseAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetInHouseAppConfigurationFunc(ctx, inHouseAppID)
+}
+
+func (s *DataStore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
+	s.mu.Lock()
+	s.HasInHouseAppConfigurationChangedFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasInHouseAppConfigurationChangedFunc(ctx, inHouseAppID, newConfig)
+}
+
+func (s *DataStore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	s.mu.Lock()
+	s.BulkGetInHouseAppConfigurationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkGetInHouseAppConfigurationsFunc(ctx, inHouseAppIDs)
+}
+
+func (s *DataStore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
+	s.mu.Lock()
+	s.DeleteInHouseAppConfigurationFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteInHouseAppConfigurationFunc(ctx, inHouseAppID)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

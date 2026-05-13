@@ -24,6 +24,10 @@ defaults:
 permissions:
   contents: read
 
+env:
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
+
 jobs:
   build:
     if: ${{ github.repository == 'fleetdm/fleet' }}

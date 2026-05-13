@@ -125,6 +125,17 @@ jobs:
           exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
+          # Skip private keys used only for local testing, not production:
+          # - tools/osquery/in-a-box/osquery/fleet.key: TLS key for the "Fleet in a box" demo
+          # - tools/osquery/fleet.key: TLS key for the standalone osquery dev sandbox
+          # - orbit/pkg/insecure/proxy.go: TLS key used when running orbit with `--insecure` mode for development/testing.
+          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key only used for osquery to orbit _local_ communication 
+          #   (for injection of HTTP signatures for the TPM-backed feature in Linux).
+          skip-files: |
+            tools/osquery/in-a-box/osquery/fleet.key
+            tools/osquery/fleet.key
+            orbit/pkg/insecure/proxy.go
+            ee/orbit/pkg/httpsigproxy/httpsigproxy.go
 
       - name: Upload Trivy scan results to GitHub Security tab
         # Only upload on schedule/manual runs. PR/push uploads register
