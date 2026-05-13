@@ -1,9 +1,5 @@
 # Fleet 4.85.0 | Vulnerability exposure dashboard, local admin accounts, dark mode, and more...
 
-<div purpose="embedded-content">
-   <iframe src="TODO" title="0" allowfullscreen></iframe>
-</div>
-
 Fleet 4.85.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.85.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
 
 ## Highlights
