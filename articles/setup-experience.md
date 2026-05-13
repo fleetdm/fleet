@@ -36,6 +36,10 @@ You can enforce end user authentication during automatic enrollment (ADE) for Ap
 > (SSO)](https://fleetdm.com/docs/deploy/single-sign-on-sso) in Fleet, you still want to create a
 > new SAML app for end user authentication. This way, only Fleet users can log in to Fleet.
 
+## Platform SSO
+
+Fleet supports configuring Platform SSO (PSSO) for macOS hosts with the option to create a local user account during enrollment. If you use Okta, see [Deploying Okta Platform SSO with Fleet](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet) for setup instructions. PSSO can be used with or without [end user authentication](#end-user-authentication) enabled.
+
 ## End user license agreement (EULA)
 
 To require a EULA, in Fleet, head to **Settings > Integrations > MDM > End user license agreement (EULA)** or use the [Fleet API](https://fleetdm.com/docs/rest-api/rest-api#upload-an-eula-file).
@@ -63,8 +67,11 @@ The following are examples of what some organizations deploy using a bootstrap p
 To add a bootstrap package to Fleet, we will do the following steps:
 
 1. Download or generate a package
+
 2. Sign the package
+
 3. Upload the package to Fleet
+
 4. Confirm package is uploaded
 
 ### Step 1: Download or generate a package
@@ -101,6 +108,7 @@ Verify that the package is a distribution package:
 To sign the package we need a valid Developer ID Installer certificate:
 
 1. Login to your [Apple Developer account](https://developer.apple.com/account).
+
 2. Follow [Apple's instructions to create a Developer ID Installer certificate](https://developer.apple.com/help/account/create-certificates/create-developer-id-certificates).
 
   > During step 3 in Apple's instructions, make sure you choose "Developer ID Installer." You'll need this kind of certificate to sign the package.
