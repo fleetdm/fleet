@@ -373,7 +373,7 @@ func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, ho
 	seconds := min(opts.Orbit.DebugLoggingOnEnrollDuration, fleet.MaxOrbitDebugLoggingOnEnrollDurationSeconds)
 	duration := time.Duration(seconds) * time.Second
 
-	until := time.Now().Add(duration).UTC().Truncate(time.Second)
+	until := svc.clock.Now().Add(duration).UTC().Truncate(time.Second)
 	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {
 		return ctxerr.Wrap(ctx, err, "set orbit_debug_until on enroll")
 	}
