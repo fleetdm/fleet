@@ -21,7 +21,7 @@ To deploy certificates on a self-hosted Fleet instance, you'll need to configure
 
 The following steps show how to deploy SCEP certificates from Okta's certificate authority (CA). 
 
-We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/enable-okta-verify-on-macos-with-configuration-profile).
+We'll deploy a certificate with a dynamic SCEP challenge. To deploy certificates with a static challenge, follow this [separate guide](https://fleetdm.com/guides/deploying-okta-platform-sso-with-fleet#option-2-static-scep-challenge).
 
 ### Step 1: Get Okta credentials
 
