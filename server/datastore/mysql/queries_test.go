@@ -325,15 +325,18 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 
 	// Add query stats
 	hostIDs := []uint{10, 20}
+	lastExecuted := time.Now().Add(-time.Hour).Round(time.Second)
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q1.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 			{
-				HostID:     hostIDs[1],
-				Executions: 1,
+				HostID:       hostIDs[1],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)
@@ -341,8 +344,9 @@ func testQueriesDeleteMany(t *testing.T, ds *Datastore) {
 	err = ds.UpdateLiveQueryStats(
 		context.Background(), q3.ID, []*fleet.LiveQueryStats{
 			{
-				HostID:     hostIDs[0],
-				Executions: 1,
+				HostID:       hostIDs[0],
+				Executions:   1,
+				LastExecuted: lastExecuted,
 			},
 		},
 	)

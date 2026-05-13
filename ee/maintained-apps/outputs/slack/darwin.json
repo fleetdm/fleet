@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "4.49.89",
+      "version": "4.50.121",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap' AND version_compare(bundle_short_version, '4.49.89') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyspeck.slackmacgap' AND version_compare(bundle_short_version, '4.50.121') < 0);"
       },
       "installer_url": "https://slack.com/api/desktop.latestRelease?redirect=1&variant=pkg&arch=universal",
       "install_script_ref": "6025885d",

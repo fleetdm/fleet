@@ -53,7 +53,7 @@ jobs:
         #   - Linux Docker containers are not supported in Windows.
         #   - Unattended installation of Docker on macOS fails. (see
         #   https://github.com/docker/for-mac/issues/6450)
-        os: [ubuntu-latest]
+        os: [ubuntu-4core]
     runs-on: ${{ matrix.os }}
     steps:
 

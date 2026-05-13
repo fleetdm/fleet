@@ -8082,6 +8082,52 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			// TODO – add checks for specific errors
 		})
 	}
+
+	for _, tc := range []struct {
+		tname string
+		body  string
+	}{
+		{
+			tname: "null name",
+			body:  `{"name": null, "query": "SELECT 1;"}`,
+		},
+		{
+			tname: "null query",
+			body:  `{"name": "Test", "query": null}`,
+		},
+		{
+			tname: "null name and query",
+			body:  `{"name": null, "query": null}`,
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			resp := s.DoRaw("POST", "/api/latest/fleet/queries", []byte(tc.body), http.StatusBadRequest)
+			resp.Body.Close()
+		})
+	}
+
+	for _, tc := range []struct {
+		tname string
+		body  string
+	}{
+		{
+			tname: "spec null name",
+			body:  `{"specs": [{"name": null, "query": "SELECT 1;"}]}`,
+		},
+		{
+			tname: "spec null query",
+			body:  `{"specs": [{"name": "Test", "query": null}]}`,
+		},
+		{
+			tname: "spec null name and query",
+			body:  `{"specs": [{"name": null, "query": null}]}`,
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			resp := s.DoRaw("POST", "/api/latest/fleet/spec/queries", []byte(tc.body), http.StatusBadRequest)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestPacksBadRequests() {
@@ -8117,6 +8163,11 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
 		})
 	}
+
+	t.Run("null name on create", func(t *testing.T) {
+		res := s.Do("POST", "/api/latest/fleet/packs", json.RawMessage(`{"name": null}`), http.StatusBadRequest)
+		assertBodyContains(t, res, "pack name cannot be empty")
+	})
 }
 
 func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
@@ -17022,4 +17073,64 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
 	require.NoError(t, res.Body.Close())
+
+	// 6. DELETE is idempotent — a second DELETE for the same mode (now
+	// empty) returns 200 with no error.
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
+
+	// 7. DELETE on an external URL (no blob) clears the URL field.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"org_info": {
+			"org_logo_url": "https://placehold.co/100",
+			"org_logo_url_dark_mode": "https://placehold.co/100",
+			"org_logo_url_light_background": "https://placehold.co/200",
+			"org_logo_url_light_mode": "https://placehold.co/200"
+		}
+	}`), http.StatusOK)
+
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	// 8. PATCH transitioning a Fleet-hosted URL to an external URL must
+	// preserve the external URL and delete the previously-stored blob.
+	body, headers = buildLogoBody("light2.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusOK, headers)
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"org_info": {
+			"org_logo_url_light_mode": "https://placehold.co/300",
+			"org_logo_url_light_background": "https://placehold.co/300"
+		}
+	}`), http.StatusOK)
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
+	require.NoError(t, res.Body.Close())
+
+	// And the cleanup recorded a deleted_org_logo activity.
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	var sawAutoCleanupActivity bool
+	for _, a := range activities.Activities {
+		if a.Type != "deleted_org_logo" || a.Details == nil {
+			continue
+		}
+		var d struct {
+			Mode string `json:"mode"`
+		}
+		if err := json.Unmarshal(*a.Details, &d); err == nil && d.Mode == string(fleet.OrgLogoModeLight) {
+			sawAutoCleanupActivity = true
+			break
+		}
+	}
+	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
 }
