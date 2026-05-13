@@ -182,7 +182,7 @@
   description: >-
     Flags hosts that have one or more npm package/version pairs matching a curated list of known-malicious npm releases (as of May 12, 2026). The policy passes when none of these name/version combinations appear in the osquery npm_packages table.
   resolution: >-
-    "If you are failing this policy, drop a note in #help-it. Then, attempt to identify affected projects on the host, remove the compromised package versions from node_modules and lockfiles, reinstall known-good releases from the legitimate maintainer, invalidate and rotate npm tokens and any other credentials that could have been exposed while the malicious package was present, and review CI and developer machines for further tampering."
+    If you are failing this policy, drop a note in #help-it. Then, attempt to identify affected projects on the host, remove the compromised package versions from node_modules and lockfiles, reinstall known-good releases from the legitimate maintainer, invalidate and rotate npm tokens and any other credentials that could have been exposed while the malicious package was present, and review CI and developer machines for further tampering.
   platform: darwin,linux,windows
   labels_include_any:
     - Hosts with npm package inventory
