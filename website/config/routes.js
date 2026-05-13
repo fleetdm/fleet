@@ -590,7 +590,7 @@ module.exports.routes = {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
       pageTitleForMeta: 'Autonomous endpoint management',
-      pageDescriptionForMeta: 'Patch faster than threats can spread. Fleet\'s autonomous endpoint management cuts patch cycles from 55 to 94 days down to under two weeks across every major OS, with humans still in the loop.',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
       currentSection: 'platform',
     }
   },
