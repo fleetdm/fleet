@@ -7849,6 +7849,14 @@ None.
     "ipados_fleet": {
       "name": "🔳🏢 Company-owned iPads",
       "id": 3
+    },
+    "byo_team": {
+      "name": "📱 BYO iPhones",
+      "id": 4
+    },
+    "byo_fleet": {
+      "name": "📱 BYO iPhones",
+      "id": 4
     }
   }
 ]
