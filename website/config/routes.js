@@ -594,6 +594,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /open-source': {
+    action: 'landing-pages/view-open-source',
+    locals: {
+      pageTitleForMeta: 'Open source MDM',
+      pageDescriptionForMeta: 'Fleet is open source. Every line of code is public. Inspect how your devices are managed, contribute improvements, and avoid vendor lock-in.',
+      currentSection: 'platform',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
