@@ -82,7 +82,7 @@ Profile failures alone do not trigger cancellation, even when **Cancel setup if 
 
 #### What end users see when setup is cancelled
 
-On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a minute after the failing install reports back to Fleet, then transitions to a failure screen with the configured error text and a **Reset device** button. A **Collect logs** button may also appear, but Windows does not always render it. **Reset device** wipes the device and re-enters OOBE; if the failing software is still configured for the team, the device will hit the same failure again on the next enrollment. Use the recovery procedure below to log in to the device without wiping it.
+On Autopilot or Entra-OOBE, the device shows "Working on it..." for roughly a minute after the failing install reports back to Fleet, then transitions to a failure screen with the configured error text and a **Reset device** button. A **Collect logs** button may also appear, but Windows does not always render it. **Reset device** wipes the device and re-enters OOBE; if the failing software is still configured for the team, the device will hit the same failure again on the next enrollment. Use the recovery procedure below to log into the device without wiping it.
 
 ### Add software
 
