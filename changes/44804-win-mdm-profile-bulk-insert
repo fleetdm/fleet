@@ -1,0 +1,1 @@
+* Reduced Windows MDM profile command inserts from N per-profile to a single bulk insert.
