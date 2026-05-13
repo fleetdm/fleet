@@ -456,6 +456,8 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: json.RawMessage(`null`)},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
+		s.lastActivityMatches(fleet.ActivityEditedAppStoreApp{}.ActivityName(), "", 0)
+
 		_, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, adamMulti, team.ID)
 		require.True(t, fleet.IsNotFound(err), "expected config row deleted")
 
@@ -565,6 +567,35 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			"updated install should still carry a Configuration dict")
 		require.Contains(t, raw, "<string>updated</string>",
 			"updated install must carry the latest stored config bytes")
+
+		// Updating to a config that references an IDP variable the host hasn't
+		// been linked to → install POST fails 400 with a user-facing message
+		// (substitution error surfaces in the response because
+		// activateNextUpcomingActivity runs in-tx with the upcoming-activity insert).
+		s.DoJSON("PATCH",
+			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
+			&updateAppStoreAppRequest{TeamID: &team.ID,
+				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)},
+			http.StatusOK, &updateAppStoreAppResponse{})
+
+		var uaBefore int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uaBefore,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
+		})
+
+		res := s.Do("POST",
+			fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", iosHost.ID, titleID),
+			&installSoftwareRequest{}, http.StatusBadRequest)
+		require.Contains(t, extractServerErrorText(res.Body),
+			"managed app configuration references Fleet variables that can't be resolved")
+
+		var uaAfter int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uaAfter,
+				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
+		})
+		require.Equal(t, uaBefore, uaAfter, "failed install must not leave a zombie upcoming_activity row")
 	})
 
 	t.Run("self-service install carries Configuration with $FLEET_VAR_HOST_UUID resolved", func(t *testing.T) {
