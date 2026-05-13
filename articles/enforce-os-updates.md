@@ -21,7 +21,7 @@ You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best prac
 
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
-4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using the automatic enforcement option (Latest version).
+4. *macOS only*: check "Update new hosts to latest" if you would like hosts to automatically update to the latest OS version during automatic (ADE) enrollment, regardless of the minimum version and deadline settings. This is implicitly enabled when using the automatic enforcement option (latest version).
 
 Use the [modify fleet endpoint](https://fleetdm.com/docs/rest-api/rest-api#modify-team) to turn on minimum OS version enforcement. The relevant payload keys in the `mdm` object are:
 + `macos_updates`
