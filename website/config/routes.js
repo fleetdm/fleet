@@ -597,8 +597,8 @@ module.exports.routes = {
   'GET /open-source': {
     action: 'landing-pages/view-open-source',
     locals: {
-      pageTitleForMeta: 'Open source MDM',
-      pageDescriptionForMeta: 'Fleet is open source. Every line of code is public. Inspect how your devices are managed, contribute improvements, and avoid vendor lock-in.',
+      pageTitleForMeta: 'Open source MDM | Self-hosted device management',
+      pageDescriptionForMeta: 'Fleet is open-source MDM for macOS, Windows, Linux, iOS, and Android. Self-hosted endpoint management with every line of code public on GitHub.',
       currentSection: 'platform',
     }
   },

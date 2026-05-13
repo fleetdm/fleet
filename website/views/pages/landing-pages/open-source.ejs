@@ -6,11 +6,11 @@
       <div purpose="landing-page-hero">
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
-            <h4>Open source MDM</h4>
-            <h1>Open source. Open company. Open to everyone.</h1>
+            <h4>Public by default</h4>
+            <h1>The open-source MDM</h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Every line of Fleet is public. Our handbook is public. Our roadmap is public. Transparency makes better software, and it builds better trust with the people who use it.</p>
+            <p>Every line of code, our handbook, and our roadmap are public. Transparency makes better software, and builds better trust.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" class="btn btn-primary" href="https://github.com/fleetdm/fleet" target="_blank" no-icon>View on GitHub</a>
@@ -56,7 +56,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">No vendor lock-in</p>
-              <p>Your device configuration lives in Git, not a proprietary database. If you ever leave Fleet, your data and configuration come with you.</p>
+              <p>Your device configuration lives in Git, not a proprietary database. Run it as a <a href="/on-premise">self-hosted MDM</a> or let us host it. Either way, your data and configuration come with you.</p>
             </div>
             <div purpose="card-footer">
               <p>YAML in your repo, not our cloud</p>
@@ -92,7 +92,7 @@
           <div purpose="feature-card">
             <div purpose="card-body">
               <p purpose="card-title">Proven at scale</p>
-              <p>Fleet runs in production at companies managing hundreds of thousands of endpoints. Open source doesn't mean hobbyist. It means software that earns trust through transparency.</p>
+              <p>Fleet runs in production at companies managing hundreds of thousands of endpoints across macOS, Windows, and <a href="/linux-management">Linux</a>. Open source doesn't mean hobbyist. It means software that earns trust through transparency.</p>
             </div>
             <div purpose="card-footer">
               <p>Used by Stripe, Fastly, Gusto, and more</p>
@@ -124,8 +124,8 @@
 
       <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h3>What's public at Fleet</h3>
-          <p>We don't just open source our code. We open source how we run the company.</p>
+          <h3>What's open in Fleet's open-source MDM</h3>
+          <p>We don't just open source the code. We open source how we run the company.</p>
         </div>
         <div purpose="open-grid">
           <a purpose="open-card" href="https://github.com/fleetdm/fleet" target="_blank">
@@ -158,6 +158,43 @@
             <p>Deployment guides, REST API reference, configuration reference, and integration guides. Written in the open.</p>
             <span purpose="open-card-link">fleetdm.com/docs</span>
           </a>
+        </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Self-hosted by design</h3>
+          <p>Open-source MDM means you choose where it runs. Deploy Fleet on your own infrastructure, run it across every operating system, or let us host it.</p>
+        </div>
+        <div purpose="feature-cards">
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Self-hosted MDM</p>
+              <p>Run Fleet on AWS, GCP, Azure, bare metal, or in air-gapped networks. Every feature ships to self-hosted on the same day as cloud, no tier lock.</p>
+            </div>
+            <div purpose="card-footer">
+              <p><a href="/on-premise">On-premise deployment</a></p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Open-source Linux MDM</p>
+              <p>Manage Linux alongside macOS and Windows. Run scripts, enforce policies, monitor compliance, and track vulnerabilities across every distribution.</p>
+            </div>
+            <div purpose="card-footer">
+              <p><a href="/linux-management">Linux device management</a></p>
+            </div>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="card-body">
+              <p purpose="card-title">Open-source endpoint management</p>
+              <p>Inventory, policies, software, vulnerability data, and MDM in one platform. Auditable code from the agent to the dashboard.</p>
+            </div>
+            <div purpose="card-footer">
+              <p><a href="/device-management">Explore device management</a></p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -209,6 +246,166 @@
             </div>
           </div>
         </div>
+      </div>
+
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h3>Frequently asked questions</h3>
+        </div>
+        <div purpose="faq" class="d-flex flex-column">
+          <div purpose="accordion" class="d-flex flex-column justify-content-start">
+            <div purpose="accordion-body">
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header1" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body1" aria-controls="os-faq__body1">
+                  What is open-source MDM?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body1" class="collapse" aria-labelledby="os-faq__header1">
+                  Open-source mobile device management (MDM) is endpoint management software whose source code is publicly available to inspect, modify, and contribute to. Unlike proprietary MDM platforms, organizations can review exactly how their devices are managed, host the software themselves, and adapt it to their needs.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header2" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body2" aria-controls="os-faq__body2">
+                  Is Fleet truly open source?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body2" class="collapse" aria-labelledby="os-faq__header2">
+                  Yes. The majority of Fleet is released under the MIT license, and all of Fleet's source code is public on GitHub at <a href="https://github.com/fleetdm/fleet" target="_blank">github.com/fleetdm/fleet</a>. Documentation lives under a Creative Commons (CC BY-SA 4.0) license. A separate set of paid features lives in an <code>/ee</code> directory under a commercial license.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header3" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body3" aria-controls="os-faq__body3">
+                  How does open-source endpoint management compare to traditional MDM?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body3" class="collapse" aria-labelledby="os-faq__header3">
+                  Traditional MDM platforms are proprietary, cloud-only, and built primarily for one OS family. Open-source endpoint management like Fleet is multi-platform, API-first, manageable as code through GitOps, and inspectable by IT, security, and end users. Fleet has no vendor lock-in: teams can self-host, switch to managed cloud, or move data between environments without rebuilding their stack.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header4" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body4" aria-controls="os-faq__body4">
+                  Which operating systems does Fleet support?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body4" class="collapse" aria-labelledby="os-faq__header4">
+                  Fleet is a single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Mixed Apple, Windows, Linux, and Android fleets are managed from one console, with the same UI, API, and infrastructure-as-code workflows for every platform.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header5" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body5" aria-controls="os-faq__body5">
+                  Does Fleet's open-source MDM work on Linux?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body5" class="collapse" aria-labelledby="os-faq__header5">
+                  Yes. Fleet provides full <a href="/linux-management">Linux device management</a>, including remote scripting, software install and patch automation, configuration management, and real-time visibility. Supported distributions include Ubuntu, Debian, Fedora, Amazon Linux, CentOS, Red Hat Enterprise Linux (RHEL), openSUSE, and Arch Linux. Fleet handles both Debian-based (.deb) and RPM-based (.rpm) packages, and Fleet Desktop runs on GNOME and KDE Plasma.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header6" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body6" aria-controls="os-faq__body6">
+                  Can Fleet be self-hosted?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body6" class="collapse" aria-labelledby="os-faq__header6">
+                  Yes. Fleet can be deployed <a href="/on-premise">on-premises</a>, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same experience either way.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header7" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body7" aria-controls="os-faq__body7">
+                  What infrastructure does a self-hosted Fleet deployment need?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body7" class="collapse" aria-labelledby="os-faq__header7">
+                  Fleet has three infrastructure dependencies: a MySQL database, a Redis-compatible cache (Redis or Valkey), and a TLS certificate. A single Fleet server can handle tens of thousands of hosts, and deployments scale horizontally to hundreds of thousands of devices behind a load balancer.
+                </p>
+              </div>
+              <div purpose="accordion-item">
+                <p purpose="accordion-header" id="os-faq__header8" style="cursor: pointer;" class="accordion" data-toggle="collapse" data-target="#os-faq__body8" aria-controls="os-faq__body8">
+                  What is the difference between Fleet free and Fleet Premium?
+                  <span class="fa fa-angle-down"></span>
+                </p>
+                <p purpose="faq-answer" id="os-faq__body8" class="collapse" aria-labelledby="os-faq__header8">
+                  Both are open source and available on GitHub. The free version, under the MIT license, includes core open-source MDM, osquery management, and infrastructure-as-code workflows, and it can be downloaded without leaving an email address. Fleet Premium adds paid features (under a separate license in the <code>/ee</code> directory) and includes professional support with a guaranteed response time.
+                </p>
+              </div>
+            </div>
+            <div class="d-flex flex-row justify-content-start">
+              <p purpose="contact-note">Have another question? <a href="/docs/get-started/faq">Read the full FAQ</a> or <a href="/contact">talk to an engineer</a>.</p>
+            </div>
+          </div>
+        </div>
+        <script type="application/ld+json">
+        {
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is open-source MDM?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Open-source mobile device management (MDM) is endpoint management software whose source code is publicly available to inspect, modify, and contribute to. Unlike proprietary MDM platforms, organizations can review exactly how their devices are managed, host the software themselves, and adapt it to their needs."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is Fleet truly open source?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. The majority of Fleet is released under the MIT license, and all of Fleet's source code is public on GitHub at github.com/fleetdm/fleet. Documentation lives under a Creative Commons (CC BY-SA 4.0) license. A separate set of paid features lives in an /ee directory under a commercial license."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does open-source endpoint management compare to traditional MDM?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Traditional MDM platforms are proprietary, cloud-only, and built primarily for one OS family. Open-source endpoint management like Fleet is multi-platform, API-first, manageable as code through GitOps, and inspectable by IT, security, and end users. Fleet has no vendor lock-in: teams can self-host, switch to managed cloud, or move data between environments without rebuilding their stack."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Which operating systems does Fleet support?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet is a single endpoint management platform for macOS, iOS, Android, Windows, Linux, ChromeOS, and cloud infrastructure. Mixed Apple, Windows, Linux, and Android fleets are managed from one console, with the same UI, API, and infrastructure-as-code workflows for every platform."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Does Fleet's open-source MDM work on Linux?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet provides full Linux device management, including remote scripting, software install and patch automation, configuration management, and real-time visibility. Supported distributions include Ubuntu, Debian, Fedora, Amazon Linux, CentOS, Red Hat Enterprise Linux (RHEL), openSUSE, and Arch Linux. Fleet handles both Debian-based (.deb) and RPM-based (.rpm) packages, and Fleet Desktop runs on GNOME and KDE Plasma."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Can Fleet be self-hosted?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. Fleet can be deployed on-premises, in any major cloud (AWS, Azure, GCP, DigitalOcean), in containers (Docker, or Kubernetes via Helm or Terraform), or in air-gapped environments. Teams that prefer a managed option can choose Fleet Cloud and get the same experience either way."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What infrastructure does a self-hosted Fleet deployment need?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Fleet has three infrastructure dependencies: a MySQL database, a Redis-compatible cache (Redis or Valkey), and a TLS certificate. A single Fleet server can handle tens of thousands of hosts, and deployments scale horizontally to hundreds of thousands of devices behind a load balancer."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What is the difference between Fleet free and Fleet Premium?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Both are open source and available on GitHub. The free version, under the MIT license, includes core open-source MDM, osquery management, and infrastructure-as-code workflows, and it can be downloaded without leaving an email address. Fleet Premium adds paid features (under a separate license in the /ee directory) and includes professional support with a guaranteed response time."
+              }
+            }
+          ]
+        }
+        </script>
       </div>
 
 
