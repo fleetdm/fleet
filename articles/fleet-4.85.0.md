@@ -9,11 +9,11 @@ Fleet 4.85.0 is now available. See the complete [changelog](https://github.com/f
 ## Highlights
 
 - [Vulnerability exposure dashboard](#vulnerability-exposure-dashboard)
-- [More accurate RHEL vulnerability data](#more-accurate-rhel-vulnerability-data)
+- [More accurate vulnerability data](#more-accurate-vulnerability-data)
+- [Pin Fleet-maintained apps to a major version](#pin-fleet-maintained-apps-to-a-major-version)
 - [Create a local admin account during macOS setup](#create-a-local-admin-account-during-macos-setup)
 - [Scoped API-only users](#scoped-api-only-users)
-- [Pin Fleet-maintained apps to a major version](#pin-fleet-maintained-apps-to-a-major-version)
-- [Dark theme](#dark-theme)
+- [Dark mode](#dark-mode)
 
 
 ### Vulnerability exposure dashboard
@@ -47,7 +47,7 @@ Fleet Premium now supports scoped API-only users, letting us restrict a token to
 GitHub issue: [#38044](https://github.com/fleetdm/fleet/issues/38044)
 
 
-### Dark theme
+### Dark mode
 
 Fleet now ships with a dark theme. Now, by default, Fleet automatically follows your OS light/dark mode preference. If you want to choose, you can pick between modes on your **My account** page. Whether you're working in the dark or just prefer dark mode on principle, Fleet now looks the part.
 
@@ -64,6 +64,6 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="category" value="releases">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
-<meta name="publishedOn" value="2026-05-22">
-<meta name="articleTitle" value="Fleet 4.85.0 | Vulnerability exposure dashboard, local admin accounts, dark theme, and more...">
+<meta name="publishedOn" value="2026-05-13">
+<meta name="articleTitle" value="Fleet 4.85.0 | Vulnerability exposure dashboard, local admin accounts, dark mode, and more...">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.85.0-1600x900@2x.png">
