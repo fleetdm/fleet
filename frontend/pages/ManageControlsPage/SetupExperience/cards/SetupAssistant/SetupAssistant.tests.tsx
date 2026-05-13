@@ -41,7 +41,9 @@ describe("SetupAssistant", () => {
         return new HttpResponse("Not found", { status: 404 });
       }),
       http.get(defaultEnrollmentProfileUrl, () => {
-        return HttpResponse.json({});
+        return HttpResponse.json({
+          enrollment_profile: {},
+        });
       })
     );
     const render = createCustomRenderer({
