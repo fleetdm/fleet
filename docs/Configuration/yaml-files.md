@@ -503,7 +503,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
   Example: `"DNS=wifi.example.com, UPN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME"`.
 
-You can use [Fleet's host variables](https://fleetdm.com/docs/configuration/yaml-files#variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
+You can use [Fleet's host variables](https://fleetdm.com/guides/fleet-variables) in `subject_name` and `subject_alternative_name` to make the certificate unique to each host.
 
 #### Variables
 
