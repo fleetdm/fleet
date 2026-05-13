@@ -5,7 +5,7 @@ set -euo pipefail
 script_dir=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")
 cd "$script_dir"
 
-echo "Building fleetd deb package..."
+echo "Building fleetd deb (amd64) package..."
 fleetctl package --type=deb \
 	--enable-scripts \
 	--fleet-url=https://host.docker.internal:8080 \
@@ -13,9 +13,13 @@ fleetctl package --type=deb \
 	--fleet-certificate=../osquery/fleet.crt \
 	--disable-open-folder \
 	--outfile=fleet-osquery_amd64.deb \
+    ${UPDATE_URL:+--update-url=$UPDATE_URL} \
+    ${ORBIT_CHANNEL:+--orbit-channel=$ORBIT_CHANNEL} \
+    ${DESKTOP_CHANNEL:+--desktop-channel=$DESKTOP_CHANNEL} \
+    ${OSQUERYD_CHANNEL:+--osqueryd-channel=$OSQUERYD_CHANNEL} \
 	--debug
 
-echo "Building fleetd rpm package..."
+echo "Building fleetd rpm (amd64) package..."
 fleetctl package --type=rpm \
 	--enable-scripts \
 	--fleet-url=https://host.docker.internal:8080 \
@@ -23,6 +27,10 @@ fleetctl package --type=rpm \
 	--fleet-certificate=../osquery/fleet.crt \
 	--disable-open-folder \
 	--outfile=fleet-osquery_amd64.rpm \
+    ${UPDATE_URL:+--update-url=$UPDATE_URL} \
+    ${ORBIT_CHANNEL:+--orbit-channel=$ORBIT_CHANNEL} \
+    ${DESKTOP_CHANNEL:+--desktop-channel=$DESKTOP_CHANNEL} \
+    ${OSQUERYD_CHANNEL:+--osqueryd-channel=$OSQUERYD_CHANNEL} \
 	--debug
 
 echo "Building docker images..."

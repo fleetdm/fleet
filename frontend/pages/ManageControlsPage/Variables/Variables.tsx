@@ -38,7 +38,9 @@ const Variables = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [pageNumber, setPageNumber] = useState(0);
 
-  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer, isPremiumTier } = useContext(
+    AppContext
+  );
 
   const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
@@ -166,8 +168,9 @@ const Variables = () => {
       variant="tab-panel"
       content={
         <>
-          Manage custom variables that will be available in scripts and
-          profiles.{" "}
+          {isPremiumTier
+            ? "Manage custom variables that will be available in scripts and profiles across all fleets."
+            : "Manage custom variables that will be available in scripts and profiles."}{" "}
           <CustomLink
             text="Learn more"
             url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
