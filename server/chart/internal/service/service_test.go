@@ -56,21 +56,21 @@ func globalViewer() *mockViewerProvider { return &mockViewerProvider{isGlobal: t
 
 // mockDatastore implements types.Datastore for unit tests.
 type mockDatastore struct {
-	getSCDDataFunc            func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
-	getHostIDsForFilterFunc   func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
-	findRecentlySeenHostIDsFn func(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
-	affectedHostIDsByCVEFn    func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
-	trackedCriticalCVEsFn     func(ctx context.Context) ([]string, error)
-	recordBucketDataFn        func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
-	recordBucketDataInvoked   bool
-	deleteAllForDatasetFn     func(ctx context.Context, dataset string, batchSize int) error
-	hostIDsInFleetsFn         func(ctx context.Context, fleetIDs []uint) ([]uint, error)
-	applyScrubMaskFn          func(ctx context.Context, dataset string, mask []byte, batchSize int) error
+	getSCDDataFunc          func(ctx context.Context, dataset string, startDate, endDate time.Time, bucketSize time.Duration, strategy api.SampleStrategy, filterMask []byte, entityIDs []string) ([]api.DataPoint, error)
+	getHostIDsForFilterFunc func(ctx context.Context, hostFilter *types.HostFilter) ([]uint, error)
+	findOnlineHostIDsFn     func(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
+	affectedHostIDsByCVEFn  func(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+	trackedCriticalCVEsFn   func(ctx context.Context) ([]string, error)
+	recordBucketDataFn      func(ctx context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error
+	recordBucketDataInvoked bool
+	deleteAllForDatasetFn   func(ctx context.Context, dataset string, batchSize int) error
+	hostIDsInFleetsFn       func(ctx context.Context, fleetIDs []uint) ([]uint, error)
+	applyScrubMaskFn        func(ctx context.Context, dataset string, mask []byte, batchSize int) error
 }
 
-func (m *mockDatastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
-	if m.findRecentlySeenHostIDsFn != nil {
-		return m.findRecentlySeenHostIDsFn(ctx, since, disabledFleetIDs)
+func (m *mockDatastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
+	if m.findOnlineHostIDsFn != nil {
+		return m.findOnlineHostIDsFn(ctx, now, disabledFleetIDs)
 	}
 	return nil, nil
 }
@@ -565,8 +565,8 @@ func TestCollectDatasetsUptime(t *testing.T) {
 	now := time.Date(2026, 4, 8, 14, 37, 0, 0, time.UTC)
 	wantBucketStart := time.Date(2026, 4, 8, 14, 0, 0, 0, time.UTC)
 
-	ds.findRecentlySeenHostIDsFn = func(_ context.Context, since time.Time, _ []uint) ([]uint, error) {
-		assert.Equal(t, now.Add(-10*time.Minute), since)
+	ds.findOnlineHostIDsFn = func(_ context.Context, gotNow time.Time, _ []uint) ([]uint, error) {
+		assert.Equal(t, now, gotNow)
 		return []uint{1, 2, 3}, nil
 	}
 	ds.recordBucketDataFn = func(_ context.Context, dataset string, bucketStart time.Time, bucketSize time.Duration, strategy api.SampleStrategy, entityBitmaps map[string][]byte) error {
@@ -661,8 +661,8 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 		ds := &mockDatastore{}
 		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
-		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, _ []uint) ([]uint, error) {
-			t.Fatal("FindRecentlySeenHostIDs should not have been called when scope returned skip=true")
+		ds.findOnlineHostIDsFn = func(_ context.Context, _ time.Time, _ []uint) ([]uint, error) {
+			t.Fatal("FindOnlineHostIDs should not have been called when scope returned skip=true")
 			return nil, nil
 		}
 		err := svc.CollectDatasets(t.Context(), now, func(name string) (bool, []uint) {
@@ -673,13 +673,13 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 		assert.False(t, ds.recordBucketDataInvoked)
 	})
 
-	t.Run("disabledFleetIDs forwarded to FindRecentlySeenHostIDs", func(t *testing.T) {
+	t.Run("disabledFleetIDs forwarded to FindOnlineHostIDs", func(t *testing.T) {
 		ds := &mockDatastore{}
 		svc := NewService(&mockAuthorizer{}, ds, globalViewer(), nil)
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		var gotDisabled []uint
-		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
+		ds.findOnlineHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
 			gotDisabled = disabled
 			return []uint{1}, nil
 		}
@@ -722,7 +722,7 @@ func TestCollectDatasetsForwardsScope(t *testing.T) {
 		svc.RegisterDataset(&chart.UptimeDataset{})
 
 		gotDisabled := []uint{0xDEADBEEF} // sentinel — should be replaced with nil
-		ds.findRecentlySeenHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
+		ds.findOnlineHostIDsFn = func(_ context.Context, _ time.Time, disabled []uint) ([]uint, error) {
 			gotDisabled = disabled
 			return []uint{1}, nil
 		}
