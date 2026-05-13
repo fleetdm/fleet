@@ -1091,8 +1091,6 @@
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
     - description: Vulnerability detection for Ubuntu and RHEL uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/39900
-    - description: Vulnerability detection for RHEL uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.85.0).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40056
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
