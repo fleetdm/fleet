@@ -187,9 +187,29 @@ describe("validateXml", () => {
     expect(error).toMatch(/root element must be <dict>/i);
   });
 
-  it("returns error when root element is <plist>", () => {
+  it("returns null for plist-wrapped dict", () => {
+    expect(
+      validateXml("<plist><dict><key>k</key><string>v</string></dict></plist>")
+    ).toBeNull();
+  });
+
+  it("returns null for full plist with XML declaration and DOCTYPE", () => {
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+      '<plist version="1.0">',
+      "<dict>",
+      "  <key>ForceLoginWithSSO</key>",
+      "  <true/>",
+      "</dict>",
+      "</plist>",
+    ].join("\n");
+    expect(validateXml(xml)).toBeNull();
+  });
+
+  it("returns error when plist root value is not <dict>", () => {
     const error = validateXml(
-      "<plist><dict><key>k</key><string>v</string></dict></plist>"
+      "<plist><array><string>hi</string></array></plist>"
     );
     expect(error).toMatch(/root element must be <dict>/i);
   });

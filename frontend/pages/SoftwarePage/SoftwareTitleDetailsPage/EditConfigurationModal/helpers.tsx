@@ -73,12 +73,19 @@ export const validateXml = (value: string): string | null => {
     return "Invalid XML";
   }
 
-  // Verify root element is <dict> (Apple plist requirement)
-  if (doc.documentElement.tagName !== "dict") {
-    return "Root element must be <dict>. Apple managed app configurations require a <dict> root element.";
+  const root = doc.documentElement;
+
+  // Accept <dict> directly
+  if (root.tagName === "dict") {
+    return null;
   }
 
-  return null;
+  // Accept <plist>-wrapped configs when the plist's root value is a <dict>
+  if (root.tagName === "plist" && root.firstElementChild?.tagName === "dict") {
+    return null;
+  }
+
+  return "Root element must be <dict>. Apple managed app configurations require a <dict> root element.";
 };
 
 /** Returns display label for a platform value. */

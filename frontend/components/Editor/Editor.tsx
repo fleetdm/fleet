@@ -51,8 +51,6 @@ interface IEditorProps {
    * @default true
    */
   isFormField?: boolean;
-  /** Placeholder text shown when the editor is empty. */
-  placeholder?: string;
   maxLines?: number;
   className?: string;
   onChange?: (value: string, event?: Ace.Delta) => void;
@@ -82,7 +80,6 @@ const Editor = ({
   name = "editor",
   mode,
   isFormField = true,
-  placeholder,
   maxLines = 20,
   className,
   onChange,
@@ -193,7 +190,6 @@ const Editor = ({
         editorProps={{ $blockScrolling: Infinity }}
         value={value}
         defaultValue={defaultValue}
-        placeholder={placeholder}
         tabSize={2}
         focus={focus}
         onChange={onChange}

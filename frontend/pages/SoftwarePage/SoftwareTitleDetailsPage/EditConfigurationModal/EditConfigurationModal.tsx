@@ -89,7 +89,12 @@ const EditConfigurationModal = ({
   const [isUpdatingConfiguration, setIsUpdatingConfiguration] = useState(false);
   const [canSaveForm, setCanSaveForm] = useState(!validateForm(initialValue));
   const [formData, setFormData] = useState<string>(initialValue);
-  const [formError, setFormError] = useState<string | null>(null);
+  // Seed from validateForm so the error is visible on open if the stored config
+  // is somehow invalid (unlikely — the backend validates on save, but guards
+  // against older data that predates current validation rules).
+  const [formError, setFormError] = useState<string | null>(() =>
+    validateForm(initialValue)
+  );
 
   const buildSubmitPayload = (): ISoftwareConfigurationFormData => {
     if (isApplePlatform) {
