@@ -190,9 +190,6 @@ class ScepClientImpl : ScepClient {
         csrBuilder.addAttribute(PKCSObjectIdentifiers.pkcs_9_at_challengePassword, passwordAttr)
 
         // Add Subject Alternative Name extension if a non-empty SAN string was provided.
-        // The SAN extension is always non-critical: subject DN is non-empty (validated above
-        // when we parsed it as X500Name), so RFC 5280 §4.2.1.6 SHOULD non-critical applies,
-        // and modern supplicants honor SAN regardless of the critical bit.
         val generalNames = try {
             SubjectAlternativeNameParser.parse(subjectAlternativeName)
         } catch (e: IllegalArgumentException) {

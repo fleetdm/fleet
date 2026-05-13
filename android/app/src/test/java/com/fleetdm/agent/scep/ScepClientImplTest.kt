@@ -86,9 +86,6 @@ class ScepClientImplTest {
     @Test
     fun `buildCsr emits a non-critical SAN extension when SAN string is present`() {
         // Per-KEY encoding correctness is covered by SubjectAlternativeNameParserTest.
-        // Here we only verify the buildCsr-owned plumbing: GeneralNames produced by the
-        // parser end up wrapped in a non-critical Extension under the extensionRequest
-        // attribute, in a form a SCEP CA can read back.
         val csr = buildTestCsr(subjectAlternativeName = "DNS=example.com")
         val ext = extractSanExtension(csr)
         assertNotNull(ext)

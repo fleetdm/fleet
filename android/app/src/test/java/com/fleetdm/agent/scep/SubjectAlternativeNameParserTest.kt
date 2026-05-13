@@ -108,6 +108,13 @@ class SubjectAlternativeNameParserTest {
     }
 
     @Test
+    fun `URI value with percent-encoded comma passes through verbatim`() {
+        val name = parseSingle("URI=https://example.com/a%2Cb?x=1")
+        assertEquals(GeneralName.uniformResourceIdentifier, name.tagNo)
+        assertEquals("https://example.com/a%2Cb?x=1", (name.name as DERIA5String).string)
+    }
+
+    @Test
     fun `IP addresses encode to canonical raw octets`() {
         // Two cases pin the BC integration: we route IP through BouncyCastle and BC
         // produces the RFC 5280 §4.2.1.6 raw octet form (4 bytes for IPv4, 16 for IPv6).

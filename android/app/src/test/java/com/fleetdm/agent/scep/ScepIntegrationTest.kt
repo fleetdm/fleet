@@ -135,9 +135,7 @@ class ScepIntegrationTest {
     @Test
     fun `SAN entries on the certificate template appear on the issued certificate`() = runTest {
         // End-to-end check that the SAN extension we put on the CSR is accepted by the
-        // SCEP CA and copied verbatim to the issued certificate. Two entries per type
-        // exercise the repeated-key path and confirm the CA does not deduplicate.
-        // Unique values per run avoid duplicate-cert collisions on CAs that enforce it.
+        // SCEP CA and copied verbatim to the issued certificate.
         //
         // UPN (otherName) is intentionally not asserted here: the reference CA used in
         // CI (micromdm/scep) only copies DNS/Email/IP/URI from the CSR to the issued

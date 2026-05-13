@@ -26,6 +26,11 @@ import java.util.Locale
  * Returns null for null / empty / blank input so the caller can skip adding the extension.
  * Throws IllegalArgumentException for unknown KEYs, malformed tokens, empty values, or
  * unparseable IP literals.
+ *
+ * Reserved characters in values: a literal `,` would split the token, so values that need
+ * one (most commonly URI paths/queries) must be percent-encoded per RFC 3986 — `%2C`. The
+ * encoded form is preserved verbatim on the issued cert, which is the canonical wire form
+ * per RFC 5280 §4.2.1.6. This mirrors OpenSSL's `openssl.cnf` SAN syntax.
  */
 object SubjectAlternativeNameParser {
 

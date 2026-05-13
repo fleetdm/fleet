@@ -171,18 +171,14 @@ class CertificateEnrollmentHandlerTest {
     fun `handler forwards subjectAlternativeName to SCEP client`() = runTest {
         val san = "DNS=host.example.com, UPN=marko@corp.example.com"
         val template = TestCertificateTemplateFactory.create(subjectAlternativeName = san)
-
         handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
-
         assertEquals(san, mockScepClient.capturedConfig?.subjectAlternativeName)
     }
 
     @Test
     fun `handler forwards null subjectAlternativeName when absent`() = runTest {
         val template = TestCertificateTemplateFactory.create()
-
         handler.handleEnrollment(template, TestCertificateTemplateFactory.DEFAULT_SCEP_URL)
-
         assertNotNull(mockScepClient.capturedConfig)
         assertNull(mockScepClient.capturedConfig?.subjectAlternativeName)
     }
