@@ -138,7 +138,21 @@ func backfillHourly(db *sql.DB, dataset string, days int, start time.Time, hostI
 func backfillDailyRealistic(db *sql.DB, dataset string, days int, start time.Time, hostIDs []uint, trackedCVECount int) int {
 	rng := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 0)) //nolint:gosec // dev data generator, not crypto
 
-	plans := planCVECatalog(rng, trackedCVECount, days, hostIDs)
+	realCVEs, err := queryTrackedCVEIDs(db)
+	if err != nil {
+		log.Fatalf("query tracked CVE IDs: %v", err)
+	}
+	catalog, fromRealSet := pickCatalog(rng, realCVEs, trackedCVECount)
+	switch {
+	case !fromRealSet:
+		log.Printf("  WARNING: no tracked CVEs found in DB — using %d synthetic IDs. These rows will exist in host_scd_data but the chart will NOT display them (the chart's read path filters by TrackedCriticalCVEs).", len(catalog))
+	case len(realCVEs) <= trackedCVECount:
+		log.Printf("  using all %d tracked CVEs found in DB (--tracked_cve_count=%d requested)", len(realCVEs), trackedCVECount)
+	default:
+		log.Printf("  sampled %d of %d tracked CVEs", len(catalog), len(realCVEs))
+	}
+
+	plans := planCVECatalog(rng, catalog, days, hostIDs)
 	spikeDays := pickSpikeDays(rng, days)
 	injectSpikes(rng, plans, spikeDays, hostIDs)
 	rows := plansToRows(plans, days)

@@ -1,9 +1,11 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
 	"math/rand/v2"
 	"sort"
+	"strings"
 )
 
 // Churn profile names.
@@ -172,6 +174,20 @@ func evolveSet(rng *rand.Rand, current []uint, allHosts []uint, deltaSize int) [
 			delete(inSet, removed)
 		}
 	}
+	// Per-iteration boundary checks can still leave the set empty if the
+	// last action removed the only remaining host. host_bitmap is NOT NULL,
+	// and HostIDsToBlob returns nil for empty input, so force a single add
+	// to guarantee a non-empty result.
+	if len(out) == 0 {
+		for range 50 {
+			h := allHosts[rng.IntN(len(allHosts))]
+			if !inSet[h] {
+				out = append(out, h)
+				inSet[h] = true
+				break
+			}
+		}
+	}
 	return out
 }
 
@@ -199,17 +215,17 @@ func pickFlipDays(rng *rand.Rand, days, count int) []int {
 	return out
 }
 
-// planCVECatalog generates `cveCount` CVE plans evolving over `days` days,
-// before spike injection.
-func planCVECatalog(rng *rand.Rand, cveCount, days int, hostIDs []uint) []*cvePlan {
-	plans := make([]*cvePlan, 0, cveCount)
-	for i := range cveCount {
+// planCVECatalog generates one CVE plan per entityID evolving over `days`
+// days, before spike injection.
+func planCVECatalog(rng *rand.Rand, entityIDs []string, days int, hostIDs []uint) []*cvePlan {
+	plans := make([]*cvePlan, 0, len(entityIDs))
+	for _, id := range entityIDs {
 		profile := pickProfile(rng)
 		band := pickHostBand(rng)
 		initial := initialHostSet(rng, hostIDs, bandFraction(rng, band))
 
 		plan := &cvePlan{
-			entityID: fmt.Sprintf("CVE-2024-%05d", i+1),
+			entityID: id,
 			profile:  profile,
 			band:     band,
 			events:   []scdEvent{{dayOffset: 0, hostSet: initial}},
@@ -324,6 +340,126 @@ func injectSpikes(rng *rand.Rand, plans []*cvePlan, spikeDays []int, hostIDs []u
 			p.spiked = true
 		}
 	}
+}
+
+// trackedCVESoftwareMatcher mirrors the curated list in
+// server/chart/internal/mysql/charts.go. Kept here to avoid a heavy import.
+type trackedCVESoftwareMatcher struct {
+	Pattern string
+	Sources []string // empty means any source
+}
+
+// trackedCVESoftwareMatchers is the matcher list duplicated from
+// server/chart/internal/mysql/charts.go. Keep these in sync — load tests
+// generate data for the same curated set the chart reads.
+var trackedCVESoftwareMatchers = []trackedCVESoftwareMatcher{
+	{"Google Chrome%", nil},
+	{"Firefox%", nil},
+	{"Mozilla Firefox%", nil},
+	{"Brave Browser%", nil},
+	{"Safari%", []string{"apps"}},
+	{"Opera%", nil},
+	{"Microsoft Word%", nil},
+	{"Microsoft Excel%", nil},
+	{"Microsoft PowerPoint%", nil},
+	{"Microsoft Outlook%", nil},
+	{"Microsoft Office%", nil},
+	{"Adobe Flash%", nil},
+	{"Shockwave Flash%", nil},
+	{"Adobe Acrobat%", nil},
+	{"linux-image-%", []string{"deb_packages"}},
+	{"linux-signed-image-%", []string{"deb_packages"}},
+	{"kernel-%", []string{"rpm_packages"}},
+}
+
+// queryTrackedCVEIDs returns the deduplicated set of CVE IDs the chart
+// currently considers "tracked" (matching curated software list with CVSS
+// >= 9.0, plus all OS-vuln CVEs at the same threshold). Mirrors the query
+// in server/chart/internal/mysql/charts.go TrackedCriticalCVEs.
+func queryTrackedCVEIDs(db *sql.DB) ([]string, error) {
+	const criticalCVSS = 9.0
+	set := make(map[string]struct{})
+
+	args := []any{criticalCVSS}
+	clauses := make([]string, 0, len(trackedCVESoftwareMatchers))
+	for _, m := range trackedCVESoftwareMatchers {
+		if len(m.Sources) == 0 {
+			clauses = append(clauses, "s.name LIKE ?")
+			args = append(args, m.Pattern)
+		} else {
+			placeholders := strings.TrimRight(strings.Repeat("?,", len(m.Sources)), ",")
+			clauses = append(clauses, fmt.Sprintf("(s.name LIKE ? AND s.source IN (%s))", placeholders))
+			args = append(args, m.Pattern)
+			for _, src := range m.Sources {
+				args = append(args, src)
+			}
+		}
+	}
+	softwareQuery := `
+		SELECT DISTINCT sc.cve
+		FROM software_cve sc
+		JOIN software s  ON s.id = sc.software_id
+		JOIN cve_meta cm ON cm.cve = sc.cve
+		WHERE cm.cvss_score >= ?
+		  AND (` + strings.Join(clauses, " OR ") + `)`
+	if err := streamCVEs(db, softwareQuery, args, set); err != nil {
+		return nil, fmt.Errorf("query software-side tracked CVEs: %w", err)
+	}
+
+	const osQuery = `
+		SELECT DISTINCT osv.cve
+		FROM operating_system_vulnerabilities osv
+		JOIN cve_meta cm ON cm.cve = osv.cve
+		WHERE cm.cvss_score >= ?`
+	if err := streamCVEs(db, osQuery, []any{criticalCVSS}, set); err != nil {
+		return nil, fmt.Errorf("query os-side tracked CVEs: %w", err)
+	}
+
+	out := make([]string, 0, len(set))
+	for cve := range set {
+		out = append(out, cve)
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func streamCVEs(db *sql.DB, query string, args []any, out map[string]struct{}) error {
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var cve string
+		if err := rows.Scan(&cve); err != nil {
+			return err
+		}
+		out[cve] = struct{}{}
+	}
+	return rows.Err()
+}
+
+// pickCatalog selects up to `want` entity IDs for the realistic catalog.
+// If real tracked CVEs are available, samples from those; otherwise falls
+// back to synthetic IDs (which won't appear in the chart but allow the
+// tool to run on a fresh DB without crashing).
+func pickCatalog(rng *rand.Rand, realCVEs []string, want int) ([]string, bool) {
+	if len(realCVEs) == 0 {
+		out := make([]string, want)
+		for i := range out {
+			out[i] = fmt.Sprintf("CVE-2024-%05d", i+1)
+		}
+		return out, false
+	}
+	if len(realCVEs) <= want {
+		// Use everything we have. Return a shuffled copy for stable iteration.
+		out := append([]string(nil), realCVEs...)
+		rng.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+		return out, true
+	}
+	// Sample `want` from realCVEs.
+	rng.Shuffle(len(realCVEs), func(i, j int) { realCVEs[i], realCVEs[j] = realCVEs[j], realCVEs[i] })
+	return append([]string(nil), realCVEs[:want]...), true
 }
 
 // plansToRows converts the per-CVE event lists into closed-form scdRow values

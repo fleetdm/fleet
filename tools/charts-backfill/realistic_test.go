@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math/rand/v2"
 	"testing"
 
@@ -22,6 +23,15 @@ func fleet(n int) []uint {
 	return out
 }
 
+// syntheticCVEs returns n made-up CVE IDs for tests.
+func syntheticCVEs(n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = fmt.Sprintf("CVE-2024-%05d", i+1)
+	}
+	return out
+}
+
 func TestPlanCVECatalog_RowCountsPerProfile(t *testing.T) {
 	const (
 		cveCount = 1000
@@ -29,7 +39,7 @@ func TestPlanCVECatalog_RowCountsPerProfile(t *testing.T) {
 		hosts    = 200
 	)
 	rng := newTestRNG(1)
-	plans := planCVECatalog(rng, cveCount, days, fleet(hosts))
+	plans := planCVECatalog(rng, syntheticCVEs(cveCount), days, fleet(hosts))
 	require.Len(t, plans, cveCount)
 
 	var stable, single, active int
@@ -70,14 +80,18 @@ func TestPlanCVECatalog_OutputMagnitude(t *testing.T) {
 		hosts    = 200
 	)
 	rng := newTestRNG(2)
-	plans := planCVECatalog(rng, cveCount, days, fleet(hosts))
+	plans := planCVECatalog(rng, syntheticCVEs(cveCount), days, fleet(hosts))
 	spikeDays := pickSpikeDays(rng, days)
 	injectSpikes(rng, plans, spikeDays, fleet(hosts))
 	rows := plansToRows(plans, days)
 
-	// Design target: 6-9k rows for 1k CVEs over 30 days. Allow some slack on
-	// either side because spike count varies per seed.
-	assert.GreaterOrEqual(t, len(rows), 5000, "row count below expected band")
+	// 1k CVEs over 30 days, profile mix 20/40/40:
+	//   stable      200 × 1     = 200 rows
+	//   single_flip 400 × 2     = 800 rows
+	//   active      400 × ~8    = ~3200 rows (3-14, mean ~8)
+	//   spike adds  ~600                    (~10 spikes × ~30% of eligible)
+	// → ~4800 rows. Use a loose band to absorb run-to-run variance.
+	assert.GreaterOrEqual(t, len(rows), 4000, "row count below expected band")
 	assert.LessOrEqual(t, len(rows), 11000, "row count above expected band")
 }
 
@@ -106,7 +120,7 @@ func TestPickSpikeDays_WeeklyCadence(t *testing.T) {
 func TestInjectSpikes_PromotesEligible(t *testing.T) {
 	rng := newTestRNG(4)
 	hosts := fleet(200)
-	plans := planCVECatalog(rng, 500, 30, hosts)
+	plans := planCVECatalog(rng, syntheticCVEs(500), 30, hosts)
 
 	// Count pre-spike profile distribution.
 	preActive := 0
@@ -140,7 +154,7 @@ func TestInjectSpikes_PromotesEligible(t *testing.T) {
 func TestInjectSpikes_PromoteCountInBand(t *testing.T) {
 	rng := newTestRNG(5)
 	hosts := fleet(200)
-	plans := planCVECatalog(rng, 2000, 30, hosts)
+	plans := planCVECatalog(rng, syntheticCVEs(2000), 30, hosts)
 
 	// Pick a single spike day so we can isolate per-spike promotion count.
 	spikeDays := []int{15}
@@ -194,6 +208,17 @@ func TestEvolveSet_FullForcesRemove(t *testing.T) {
 	assert.Len(t, out, len(hosts)-1, "full input + delta=1 should remove exactly 1 host")
 }
 
+func TestEvolveSet_NeverReturnsEmpty(t *testing.T) {
+	// Single-host start with delta=1 can pick "remove" and end empty without
+	// the post-loop guard. Run many trials to flush out the failure case.
+	rng := newTestRNG(20)
+	hosts := fleet(100)
+	for range 200 {
+		out := evolveSet(rng, []uint{42}, hosts, 1)
+		assert.NotEmpty(t, out, "evolveSet returned an empty set")
+	}
+}
+
 func TestEvolveSet_NarrowBandDoesNotDriftToEmpty(t *testing.T) {
 	// Many iterations on a narrow-band CVE should not collapse the set to
 	// empty: the empty-boundary force-add saves it whenever it does briefly
@@ -226,6 +251,35 @@ func TestEvolveSet_DeltaSize(t *testing.T) {
 	diff := len(out) - len(current)
 	assert.LessOrEqual(t, diff, 4)
 	assert.GreaterOrEqual(t, diff, -4)
+}
+
+func TestPickCatalog_UsesAllWhenWantExceedsReal(t *testing.T) {
+	rng := newTestRNG(30)
+	real := []string{"CVE-2024-A", "CVE-2024-B", "CVE-2024-C"}
+	out, fromReal := pickCatalog(rng, real, 10)
+	assert.True(t, fromReal)
+	assert.Len(t, out, 3)
+}
+
+func TestPickCatalog_SamplesWhenWantBelowReal(t *testing.T) {
+	rng := newTestRNG(31)
+	real := make([]string, 100)
+	for i := range real {
+		real[i] = fmt.Sprintf("CVE-%d", i)
+	}
+	out, fromReal := pickCatalog(rng, real, 25)
+	assert.True(t, fromReal)
+	assert.Len(t, out, 25)
+}
+
+func TestPickCatalog_FallsBackToSyntheticOnEmpty(t *testing.T) {
+	rng := newTestRNG(32)
+	out, fromReal := pickCatalog(rng, nil, 10)
+	assert.False(t, fromReal)
+	assert.Len(t, out, 10)
+	for _, s := range out {
+		assert.Contains(t, s, "CVE-2024-")
+	}
 }
 
 func TestPlansToRows_StableSingleRow(t *testing.T) {
