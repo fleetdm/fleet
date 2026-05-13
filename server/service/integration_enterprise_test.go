@@ -18469,7 +18469,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		)
 	})
 	// host2Team1 posts the installation result for ruby.deb (first attempt).
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18479,7 +18479,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		}`, *host2Team1.OrbitNodeKey, host2LastInstall.ExecutionID)), http.StatusNoContent)
 
 	// host3Team2 posts the installation result for fleet-osquery.msi.
-	// No activity should be created for the first failed attempt
+	// An activity is created for every failed attempt, including retries.
 	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(fmt.Sprintf(`{
 			"orbit_node_key": %q,
 			"install_uuid": %q,
@@ -18494,7 +18494,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			`SELECT count(1) FROM activity_past`,
 		)
 	})
-	require.Equal(t, activityCount, activityNewCount, "no new activity should be created for first failed install attempts")
+	require.Equal(t, activityCount+2, activityNewCount, "an activity should be created for each failed install attempt (including retries)")
 
 	// hostVanillaOsquery5Team1 sends policy results with failed policies with associated installers.
 	// Fleet should not queue an install for vanilla osquery hosts.
@@ -18677,7 +18677,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	// Queued retry (attempt_number is NULL until result is submitted)
 	require.Nil(t, results[1].InstallScriptExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18700,7 +18701,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -18721,9 +18722,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].InstallScriptExitCode, "final attempt should be completed")
 
-	// Activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// No more retries, max reached
@@ -20208,7 +20209,8 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	// Note: attempt_number is only calculated when the result is submitted, not when queued, so it will be NULL
 	require.Nil(t, results[1].ExitCode)
 	require.Nil(t, results[1].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	// Activity is created for every attempt (including retries), not only the final one.
+	require.Equal(t, 1, countActivities())
 
 	// Get pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20231,7 +20233,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.NotNil(t, results[1].AttemptNumber)
 	require.Equal(t, 2, *results[1].AttemptNumber)
 	require.Nil(t, results[2].AttemptNumber)
-	require.Equal(t, 0, countActivities())
+	require.Equal(t, 2, countActivities())
 
 	// Get second pending retry
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
@@ -20252,9 +20254,9 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	require.Equal(t, 3, *results[2].AttemptNumber)
 	require.NotNil(t, results[2].ExitCode, "final attempt should be completed")
 
-	// activity created after final attempt
+	// One activity per attempt — three failed attempts produce three activities.
 	require.EventuallyWithT(t, func(t *assert.CollectT) {
-		assert.Equal(t, 1, countActivities(), "activity should be created for final attempt")
+		assert.Equal(t, 3, countActivities(), "activity should be created for each retry attempt")
 	}, 5*time.Second, 100*time.Millisecond)
 
 	// no more retries, max reached
@@ -26268,6 +26270,91 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
+	})
+
+	t.Run("managed app configuration", func(t *testing.T) {
+		var teamResp teamResponse
+		s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{Name: t.Name()}, http.StatusOK, &teamResp)
+
+		const validPlist = `<dict><key>K</key><string>v</string></dict>`
+		const validPlist2 = `<dict><key>K2</key><string>v2</string></dict>`
+
+		// Upload .ipa with configuration.
+		payload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte(validPlist),
+		}
+		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
+
+		var titleID, installerID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
+			return nil
+		})
+
+		// Stored configuration matches what was sent.
+		storedCfg, err := s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist), storedCfg)
+
+		// Update with a new configuration.
+		body, headers := generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {validPlist2},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		storedCfg, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, []byte(validPlist2), storedCfg)
+
+		// GET title returns the iOS configuration as a JSON string of plist; unmarshal to recover.
+		var titleResp getSoftwareTitleResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleID),
+			&getSoftwareTitleRequest{ID: titleID, TeamID: &teamResp.Team.ID},
+			http.StatusOK, &titleResp, "fleet_id", fmt.Sprint(teamResp.Team.ID))
+		require.NotNil(t, titleResp.SoftwareTitle.SoftwarePackage)
+		var gotPlist string
+		require.NoError(t, json.Unmarshal(titleResp.SoftwareTitle.SoftwarePackage.Configuration, &gotPlist))
+		require.Equal(t, validPlist2, gotPlist)
+
+		// Update with empty configuration → cleared.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {""},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
+
+		_, err = s.ds.GetInHouseAppConfiguration(ctx, installerID)
+		require.True(t, fleet.IsNotFound(err), "expected configuration cleared, got %v", err)
+
+		// Update with invalid plist → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {"not actually a plist"},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Update with disallowed Fleet variable → 422.
+		body, headers = generateMultipartRequest(t, "", "", nil, s.token, map[string][]string{
+			"team_id":       {fmt.Sprintf("%d", teamResp.Team.ID)},
+			"configuration": {`<dict><key>K</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string></dict>`},
+		})
+		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusUnprocessableEntity, headers)
+
+		// Upload with invalid plist → 422.
+		invalidPayload := &fleet.UploadSoftwareInstallerPayload{
+			TeamID:        &teamResp.Team.ID,
+			Filename:      "ipa_test2.ipa",
+			Version:       "1.0.0",
+			StorageID:     uuid.New().String(),
+			Configuration: []byte("not actually a plist"),
+		}
+		s.uploadSoftwareInstaller(t, invalidPayload, http.StatusUnprocessableEntity, "invalid plist")
 	})
 }
 

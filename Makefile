@@ -58,7 +58,9 @@ ifdef CIRCLE_TAG
 	DOCKER_IMAGE_TAG = ${CIRCLE_TAG}
 endif
 
+# -s and -w reduce binary size by stripping debug symbols.
 LDFLAGS_VERSION_RAW = \
+	-s -w \
 	-X github.com/fleetdm/fleet/v4/server/version.appName=${APP_NAME} \
 	-X github.com/fleetdm/fleet/v4/server/version.version=${VERSION} \
 	-X github.com/fleetdm/fleet/v4/server/version.branch=${BRANCH} \

@@ -1,15 +1,15 @@
 {
   "versions": [
     {
-      "version": "6.4.2",
+      "version": "6.4.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App' AND version_compare(bundle_short_version, '6.4.2') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.lemonmojo.RoyalTSX.App' AND version_compare(bundle_short_version, '6.4.3') < 0);"
       },
-      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.4.2.1000.dmg",
+      "installer_url": "https://royaltsx-v6.royalapps.com/updates/royaltsx_6.4.3.1000.dmg",
       "install_script_ref": "8a40c4cb",
       "uninstall_script_ref": "56f7cc97",
-      "sha256": "ebb86257e41684f35f8cb2d2d8d779920ae379073e004b1281740a5c465f276b",
+      "sha256": "bf0c1bebfc3aed2e67c1fe9cf5e4b06be5d07cc6d916d61185f5818fd79af482",
       "default_categories": [
         "Productivity"
       ]

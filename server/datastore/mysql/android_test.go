@@ -2574,19 +2574,19 @@ func testInsertAndGetAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
 	require.NotNil(t, retrieved)
-	require.JSONEq(t, string(configuration), string(*retrieved))
+	require.JSONEq(t, string(configuration), string(retrieved))
 
 	// test bulk-get configuration
 	configsByAppID, err := ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
+	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 
 	// bulk-get configuration returns any known app config, ignores others
 	configsByAppID, err = ds.BulkGetAndroidAppConfigurations(testCtx(), []string{appID, "no-such-app"}, 0)
 	require.NoError(t, err)
 	require.Len(t, configsByAppID, 1)
-	require.Equal(t, string(*retrieved), string(configsByAppID[appID]))
+	require.Equal(t, string(retrieved), string(configsByAppID[appID]))
 }
 
 func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2605,7 +2605,7 @@ func testUpdateAndroidAppConfiguration(t *testing.T, ds *Datastore) {
 	// Verify update
 	retrieved, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, string(newConfig), string(*retrieved))
+	require.JSONEq(t, string(newConfig), string(retrieved))
 }
 
 func testDeleteAndroidAppConfiguration(t *testing.T, ds *Datastore) {
@@ -2683,12 +2683,12 @@ func testAndroidAppConfigurationGlobalVsTeam(t *testing.T, ds *Datastore) {
 	// Verify global configuration
 	retrievedGlobal, err := ds.GetAndroidAppConfiguration(testCtx(), appID, 0)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(*retrievedGlobal))
+	require.JSONEq(t, `{"managedConfiguration": {"env": "global"}}`, string(retrievedGlobal))
 
 	// Verify team configuration
 	retrievedTeam, err := ds.GetAndroidAppConfiguration(testCtx(), appID, teamID)
 	require.NoError(t, err)
-	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(*retrievedTeam))
+	require.JSONEq(t, `{"managedConfiguration": {"env": "team"}}`, string(retrievedTeam))
 }
 
 func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
@@ -2699,7 +2699,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 
 	test.CreateInsertGlobalVPPToken(t, ds)
 
-	testConfig := json.RawMessage(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
+	testConfig := []byte(`{"ManagedConfiguration": {"DisableShareScreen": true, "DisableComputerAudio": true}}`)
 	// Create android and VPP apps
 	app1, err := ds.InsertVPPAppWithTeam(ctx, &fleet.VPPApp{
 		Name: "android1", BundleIdentifier: "android1",
@@ -2714,7 +2714,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 		Name: "vpp1", BundleIdentifier: "com.app.vpp1",
 		VPPAppTeam: fleet.VPPAppTeam{
 			VPPAppID:      fleet.VPPAppID{AdamID: "adam_vpp_app_forapple_1", Platform: fleet.IOSPlatform},
-			Configuration: json.RawMessage(`{"ManagedConfiguration": {"ios app shouldn't have configuration": true}}`),
+			Configuration: []byte(`<dict><key>FromIOSTest</key><true/></dict>`),
 		},
 	}, &team1.ID)
 	require.NoError(t, err)
@@ -2730,7 +2730,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta.VPPAppsTeamsID)
 	require.NotZero(t, meta.Configuration)
 	require.Equal(t, "android1", meta.BundleIdentifier)
-	require.Equal(t, testConfig, meta.Configuration)
+	require.JSONEq(t, string(testConfig), string(meta.Configuration))
 
 	// Get ios app
 	meta2, err := ds.GetVPPAppMetadataByTeamAndTitleID(ctx, nil, app2.TitleID)
@@ -2738,7 +2738,7 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	require.NotZero(t, meta2.VPPAppsTeamsID)
 
 	// Edit android app
-	newConfig := json.RawMessage(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
+	newConfig := []byte(`{"workProfileWidgets": "WORK_PROFILE_WIDGETS_ALLOWED"}`)
 	app1.VPPAppTeam.Configuration = newConfig
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.NoError(t, err)
@@ -2747,10 +2747,10 @@ func testAddDeleteAndroidAppWithConfiguration(t *testing.T, ds *Datastore) {
 	meta, err = ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &team1.ID, app1.TitleID)
 	require.NoError(t, err)
 	require.NotZero(t, meta.VPPAppsTeamsID)
-	require.Equal(t, newConfig, meta.Configuration)
+	require.JSONEq(t, string(newConfig), string(meta.Configuration))
 
 	// Add invalid configuration
-	badConfig := json.RawMessage(`"-": "-"`)
+	badConfig := []byte(`"-": "-"`)
 	app1.VPPAppTeam.Configuration = badConfig
 	_, err = ds.InsertVPPAppWithTeam(ctx, app1, &team1.ID)
 	require.Error(t, err)

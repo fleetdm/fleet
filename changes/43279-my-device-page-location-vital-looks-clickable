@@ -1,0 +1,1 @@
+- Fleet UI: Fixed the Location and MDM status vitals on the My device page rendering as clickable links even though they had no associated modal, by rendering them as plain text in read-only contexts.

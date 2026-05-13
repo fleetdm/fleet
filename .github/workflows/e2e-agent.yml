@@ -67,7 +67,7 @@ jobs:
 
   run-server:
     timeout-minutes: 240
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     needs: gen
     steps:
     - name: Harden Runner
