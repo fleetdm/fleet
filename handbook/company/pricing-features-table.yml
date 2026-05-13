@@ -149,7 +149,6 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
     - description: Opt in to managing software, labels, and/or secrets outside of git (via the UI or API) while still using GitOps for other Fleet configuration, enabling gradual adoption of GitOps workflows (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/40171
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42675
 #
 #  ╔╦╗╦ ╦╔═╗   ╔═╗╔═╗╔═╗╔╦╗╔═╗╦═╗  ╔═╗╦ ╦╔╦╗╦ ╦╔═╗╔╗╔╔╦╗╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ║║║║ ║───╠╣ ╠═╣║   ║ ║ ║╠╦╝  ╠═╣║ ║ ║ ╠═╣║╣ ║║║ ║ ║║  ╠═╣ ║ ║║ ║║║║
