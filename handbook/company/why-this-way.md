@@ -315,7 +315,7 @@ AI can't take responsibility. Only humans can. If your name is on the commit, th
 
 The problem with this change that was made is it’s not happening.  I've been in LinkedIn ads 5x a day recently, every day, including over the weekends.  I've seen so many comments that were abandoned and never responded to.  And some were spam and needed to be deleted by the OP.
 
-The original process was devised such that LinkedIn comments go to unthread and can be monitored and responded to, not abandoned in a slack channel where they are ignored. The boring solution I see here is to revert to the original process: send to unthread.  Ie route this inbound to the team with the system for accountability and repeatable success in responding to things like this, who has an inherent reminder system as they manage tickets.
+The original process was devised such that LinkedIn comments go to unthread and can be monitored and responded to, not abandoned in a slack channel where they are ignored. The boring solution I see here is to revert to the original process: send to unthread.  I.e., route this inbound to the team with the system for accountability and repeatable success in responding to things like this, who has an inherent reminder system as they manage tickets.
 
 Versus what we've shifted to now, where the ceo just finds and hopefully catches and deletes/responds to/finds a responder for every comment personally by hand and the raw posts are dumped to a slack channel that is only periodically glanced at.
 
