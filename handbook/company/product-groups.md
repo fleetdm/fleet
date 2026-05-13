@@ -35,10 +35,58 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                                         | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
+| [MDM](#mdm-group)                                     | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 60       |
+| [Software](#software-group)                           | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 60       |
 | [Orchestration](#orchestration-group)                 | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 60       |
 | [Security & Compliance](#security-compliance-group)   | Increase and exceed maturity in the security and compliance product category.                                          | 38       |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/product-groups#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
+
+
+### MDM group
+
+The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://fleetdm.com/device-management) in the "MDM" product category.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mel Pike](https://www.linkedin.com/in/melpike/) _([@melpike](https://github.com/melpike))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Quality Assurance                 | [Christopher Noel](https://www.linkedin.com/in/chrstphr/) _([@chrstphr84](https://github.com/chrstphr84))_
+| Software Engineer                 | [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
+
+**Areas of expertise**:
+- MDM protocol & configuration
+- Configuration profiles
+- New device onboarding
+- Scripts
+- Setup experience
+- OS configuration & updates
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
+
+
+### Software group
+
+The goal of the software group is to increase and exceed [Fleet's product maturity goals in the software management category](https://fleetdm.com/software-management).
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
+| Tech Lead                         | [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
+| Quality Assurance                 | [Brayan Jimenez](https://www.linkedin.com/in/brayan-jimenez-19742b286/) _([@Brajim20](https://github.com/Brajim20))_
+| Software Engineer                 | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Jonathan Katz](https://www.linkedin.com/in/jonathan-katz-494362237/) _([@jkatz01](https://github.com/jkatz01))_, [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_
+
+**Areas of expertise**:
+- Software Install / uninstall / patch
+- Fleet-maintained apps (FMAs)
+- Apple Volume Purchasing Program (VPP) apps
+- Google Play apps
+- In-house apps (IPAs) 
+- End user self-service
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
 
 
 ### Orchestration group
@@ -253,10 +301,13 @@ The goal of the Power to the PC working group is to empower Windows users to ful
 | Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Tech Lead                         | [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Software Engineer                 | [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_
+| Software Engineer                 | [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C0AQY8D7FM4), [kanban board](https://github.com/orgs/fleetdm/projects/106/), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-power-to-pc) for this working group is `#g-power-to-pc`.
 
+
+<!--
+Planned for the 4.89.0 release cycle. See the working group rollout above.
 
 ### Apple @ Work group
 
@@ -317,6 +368,8 @@ The goal of the BYOD working group is to enable Fleet to manage personally-owned
 | Software Engineer                 | Andrew Mellor _([@andymFleet](https://github.com/andymFleet))_
 
 > Slack channel, kanban board, and GitHub label for this working group: TBD.
+-->
+
 
 <!--
 Example working group section
