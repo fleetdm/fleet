@@ -1445,12 +1445,13 @@ software:
 	assert.Equal(t, teamName, savedTeam.Name)
 	assert.Empty(t, enrolledTeamSecrets)
 	assert.True(t, savedTeam.Config.Features.EnableSoftwareInventory)
-	// historical_data sub-keys default to true on team gitops applies that
-	// don't pin them — same carve-out as enable_software_inventory above.
+	// historical_data sub-keys get documented defaults on team gitops
+	// applies that don't pin them — uptime=true (cheap), vulnerabilities=false
+	// (opt-in due to load).
 	assert.True(t, savedTeam.Config.Features.HistoricalData.Uptime,
 		"team gitops defaults historical_data.uptime to true")
-	assert.True(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
-		"team gitops defaults historical_data.vulnerabilities to true")
+	assert.False(t, savedTeam.Config.Features.HistoricalData.Vulnerabilities,
+		"team gitops defaults historical_data.vulnerabilities to false")
 
 	assert.Equal(t, "2025-10-10", savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
 	assert.Equal(t, "14.6.1", savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
@@ -4310,15 +4311,15 @@ software:
 	require.True(t, appConfig.Features.HistoricalData.Uptime)
 	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities)
 
-	// Apply a YAML that omits historical_data entirely and verify that values revert
-	// to defaults (true).
+	// Apply a YAML that omits historical_data entirely and verify that values
+	// land on documented defaults: uptime=true, vulnerabilities=false (opt-in).
 	globalFileBasic := createGlobalFileBasic(t, fleetServerURL, orgName)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 	require.True(t, appConfig.Features.HistoricalData.Uptime,
 		"omitted historical_data defaults uptime to true")
-	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
-		"omitted historical_data defaults vulnerabilities to true")
+	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted historical_data defaults vulnerabilities to false")
 
 	// Apply a YAML with historical_data.uptime: false but no vulnerabilities
 	// key, and verify that uptime is set to false but vulnerabilities remains true.
@@ -4351,8 +4352,8 @@ software:
 	require.NoError(t, err)
 	require.False(t, appConfig.Features.HistoricalData.Uptime,
 		"explicit uptime: false is honored")
-	require.True(t, appConfig.Features.HistoricalData.Vulnerabilities,
-		"omitted vulnerabilities sub-key defaults to true")
+	require.False(t, appConfig.Features.HistoricalData.Vulnerabilities,
+		"omitted vulnerabilities sub-key defaults to false")
 }
 
 func TestGitOpsTeamHistoricalDataActivity(t *testing.T) {
