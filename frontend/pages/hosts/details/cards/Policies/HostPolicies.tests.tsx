@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
-import { fireEvent, screen } from "@testing-library/react";
-import { createCustomRenderer } from "test/test-utils";
+import { screen } from "@testing-library/react";
+import { createCustomRenderer, renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 import { IHostPolicy } from "interfaces/policy";
 
@@ -120,7 +120,7 @@ describe("HostPolicies", () => {
     expect(screen.queryByText("No policies checked")).not.toBeInTheDocument();
   });
 
-  it("closes the policy details modal when HostPolicies unmounts", () => {
+  it("closes the policy details modal when HostPolicies unmounts", async () => {
     // Simulates the policies tab unmounting (e.g. the user presses the
     // browser back button from /hosts/:id/policies to /hosts/:id, or
     // switches to a different host details tab). The modal state lives
@@ -163,9 +163,9 @@ describe("HostPolicies", () => {
       );
     };
 
-    const { rerender } = createCustomRenderer()(<Wrapper showPolicies />);
+    const { user, rerender } = renderWithSetup(<Wrapper showPolicies />);
 
-    fireEvent.click(screen.getByRole("button", { name: /open modal/i }));
+    await user.click(screen.getByRole("button", { name: /open modal/i }));
     // "Resolve:" only renders inside PolicyDetailsModal.
     expect(screen.getByText("Resolve:")).toBeInTheDocument();
     rerender(<Wrapper showPolicies={false} />);
