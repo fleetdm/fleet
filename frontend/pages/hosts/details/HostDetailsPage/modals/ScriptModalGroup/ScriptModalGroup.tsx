@@ -148,6 +148,24 @@ const ScriptModalGroup = ({
     [currentModal]
   );
 
+  const onClickViewScript = useCallback(
+    (script: IHostScript) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewScriptDetails);
+      setSelectedScript(script);
+    },
+    [currentModal]
+  );
+
+  const onClickRunDetails = useCallback(
+    (scriptExecutionId: string) => {
+      setPreviousModal(currentModal);
+      setCurrentModal(ModalGroupOption.ViewRunDetails);
+      setSelectedExecutionId(scriptExecutionId);
+    },
+    [currentModal]
+  );
+
   return (
     <>
       <RunScriptModal
@@ -155,16 +173,8 @@ const ScriptModalGroup = ({
         hostTeamId={host.team_id}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
-        onClickViewScript={(script: IHostScript) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewScriptDetails);
-          setSelectedScript(script);
-        }}
-        onClickRunDetails={(scriptExecutionId: string) => {
-          setPreviousModal(currentModal);
-          setCurrentModal(ModalGroupOption.ViewRunDetails);
-          setSelectedExecutionId(scriptExecutionId);
-        }}
+        onClickViewScript={onClickViewScript}
+        onClickRunDetails={onClickRunDetails}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
         hostScriptResponse={runScriptTableResponse}
