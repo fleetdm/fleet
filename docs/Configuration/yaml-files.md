@@ -192,6 +192,7 @@ policies:
   description: This policy checks that Firefox is installed.
   resolution: Install Firefox app if not installed.
   query: "SELECT 1 FROM apps WHERE bundle_identifier = 'org.mozilla.firefox'"
+  continuous_automations_enabled: true
   install_software:
     package_path: ./firefox.package.yml
 - name: macOS - Logic Pro installed
@@ -215,6 +216,7 @@ policies:
   resolution: Install the latest version from self-service.
   type: patch
   fleet_maintained_app_slug: zoom/darwin
+  continuous_automations_enabled: true
   install_software: true
 ```
 
