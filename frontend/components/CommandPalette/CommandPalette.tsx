@@ -1,6 +1,7 @@
 import React, {
   useContext,
   useEffect,
+  useMemo,
   useState,
   useCallback,
   useRef,
@@ -126,11 +127,13 @@ const CommandPalette = (): JSX.Element | null => {
   const goToPage = useCallback((newPage: Page) => {
     setSearch("");
     setPage(newPage);
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
   const goBack = useCallback(() => {
     setSearch("");
     setPage("root");
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, []);
 
   // Backspace on empty input returns to root page
@@ -150,7 +153,8 @@ const CommandPalette = (): JSX.Element | null => {
       if (selected) {
         setCurrentTeam(selected);
       }
-      setOpen(false);
+
+      goBack();
 
       // Update the current URL's fleet_id param to reflect the switch
       const { pathname, search: currentSearch } = window.location;
@@ -185,6 +189,7 @@ const CommandPalette = (): JSX.Element | null => {
   const items = buildCommandItems({
     search,
     currentTeam,
+    availableTeams,
     config,
     canAccessControls,
     canWrite,
@@ -219,6 +224,40 @@ const CommandPalette = (): JSX.Element | null => {
   const isSearching = search.length > 0;
   const searchLower = search.toLowerCase().trim();
 
+  const getItemValue = (item: ICommandItem) => {
+    const parts = [item.label, ...(item.keywords ?? [])];
+    item.subItems?.forEach((sub) => {
+      parts.push(sub.label, ...(sub.keywords ?? []));
+    });
+    return parts.join(" ");
+  };
+
+  // Map cmdk values (normalized) to parent item IDs for auto-expand on keyboard nav
+  const valueToParentId = useMemo(() => {
+    const map = new Map<string, string>();
+    items.forEach((item) => {
+      if (item.subItems?.length) {
+        map.set(getItemValue(item).toLowerCase().trim(), item.id);
+        item.subItems.forEach((sub) => {
+          const subValue =
+            `${sub.label} ${sub.keywords?.join(" ") ?? ""}`.toLowerCase().trim();
+          map.set(subValue, item.id);
+        });
+      }
+    });
+    return map;
+  }, [items]);
+
+  // Auto expand/collapse sub-items as the user arrows through items
+  const handleHighlightChange = useCallback(
+    (value: string) => {
+      if (isSearching) return;
+      const parentId = valueToParentId.get(value);
+      setExpandedItems(parentId ? new Set([parentId]) : new Set());
+    },
+    [valueToParentId, isSearching]
+  );
+
   // Find exact match — an item or sub-item whose label exactly matches the search
   const exactMatchIds = isSearching
     ? new Set(
@@ -233,14 +272,6 @@ const CommandPalette = (): JSX.Element | null => {
         }, [])
       )
     : new Set<string>();
-
-  const getItemValue = (item: ICommandItem) => {
-    const parts = [item.label, ...(item.keywords ?? [])];
-    item.subItems?.forEach((sub) => {
-      parts.push(sub.label, ...(sub.keywords ?? []));
-    });
-    return parts.join(" ");
-  };
 
   const renderItem = (item: ICommandItem) => {
     const isExpanded = expandedItems.has(item.id);
@@ -260,6 +291,7 @@ const CommandPalette = (): JSX.Element | null => {
             {hasSubItems && !isSearching && (
               <button
                 type="button"
+                tabIndex={-1}
                 className={`${baseClass}__item-more ${
                   isExpanded ? `${baseClass}__item-more--expanded` : ""
                 }`}
@@ -293,11 +325,6 @@ const CommandPalette = (): JSX.Element | null => {
               className={`${baseClass}__item ${baseClass}__item--sub`}
             >
               <span className={`${baseClass}__item-label`}>{sub.label}</span>
-              {item.teamName && (
-                <span className={`${baseClass}__item-team`}>
-                  {item.teamName}
-                </span>
-              )}
             </Command.Item>
           ))}
       </React.Fragment>
@@ -341,11 +368,6 @@ const CommandPalette = (): JSX.Element | null => {
                   <span className={`${baseClass}__item-label`}>
                     {target.label}
                   </span>
-                  {"teamName" in item && item.teamName && (
-                    <span className={`${baseClass}__item-team`}>
-                      {item.teamName}
-                    </span>
-                  )}
                 </Command.Item>
               );
             })}
@@ -368,22 +390,8 @@ const CommandPalette = (): JSX.Element | null => {
           </Command.Group>
         );
       })}
-      {/* Navigate group — switch fleet + sign out */}
+      {/* Sign out at the bottom */}
       <Command.Group heading="Navigate" className={`${baseClass}__group`}>
-        {isPremiumTier && availableTeams && availableTeams.length > 1 && (
-          <Command.Item
-            value="Switch fleet team change"
-            onSelect={() => goToPage("switch-fleet")}
-            className={`${baseClass}__item`}
-          >
-            <span className={`${baseClass}__item-label`}>Switch fleet...</span>
-            {currentTeam?.name && (
-              <span className={`${baseClass}__item-team`}>
-                {currentTeam.name}
-              </span>
-            )}
-          </Command.Item>
-        )}
         <Command.Item
           value="Sign out logout log out"
           onSelect={() => navigate(paths.LOGOUT)}
@@ -420,6 +428,7 @@ const CommandPalette = (): JSX.Element | null => {
     <Command.Dialog
       open={open}
       onOpenChange={setOpen}
+      onValueChange={handleHighlightChange}
       label="Command palette"
       className={baseClass}
       overlayClassName={`${baseClass}__overlay`}
@@ -466,6 +475,27 @@ const CommandPalette = (): JSX.Element | null => {
           </Button>
         )}
       </div>
+      {page === "root" &&
+        isPremiumTier &&
+        availableTeams &&
+        availableTeams.length > 1 && (
+          <div className={`${baseClass}__pinned`}>
+            <button
+              type="button"
+              className={`${baseClass}__item`}
+              onClick={() => goToPage("switch-fleet")}
+            >
+              <span className={`${baseClass}__item-label`}>
+                Switch fleet...
+              </span>
+              {currentTeam?.name && (
+                <span className={`${baseClass}__item-team`}>
+                  {currentTeam.name}
+                </span>
+              )}
+            </button>
+          </div>
+        )}
       <Command.List className={`${baseClass}__list`}>
         <Command.Empty className={`${baseClass}__empty`}>
           No results found.

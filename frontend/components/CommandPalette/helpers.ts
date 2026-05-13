@@ -16,7 +16,7 @@ export interface ICommandItem {
   group: string;
   path?: string;
   keywords?: string[];
-  /** When set, displays the team/fleet name right-aligned in the item row */
+  /** Displayed on the right when navigating would switch your team context */
   teamName?: string;
   /** Nested items shown when the parent is expanded via chevron */
   subItems?: ICommandSubItem[];
@@ -27,6 +27,7 @@ export interface ICommandItem {
 export interface ICommandPaletteContext {
   search: string;
   currentTeam?: ITeamSummary;
+  availableTeams?: ITeamSummary[];
   config: IConfig | null;
   canAccessControls?: boolean;
   canWrite?: boolean;
@@ -60,6 +61,7 @@ export const buildCommandItems = (
   const {
     search,
     currentTeam,
+    availableTeams,
     config,
     canAccessControls,
     canWrite,
@@ -79,20 +81,28 @@ export const buildCommandItems = (
 
   const isAbmConfigured = config?.mdm?.apple_bm_enabled_and_configured ?? false;
 
-  // Compute teamName from currentTeam — single source of truth
   const isUnassigned = currentTeam?.id === 0;
-  // eslint-disable-next-line no-nested-ternary
-  const teamName = hasTeamSelected
-    ? currentTeam?.name
-    : isUnassigned
-    ? "Unassigned"
-    : "All fleets";
-
-  // Actions that target the unassigned team when no team is selected
-  const teamOrUnassigned = hasTeamSelected ? teamName : "Unassigned";
 
   // Whether a specific team OR unassigned is selected (not "All fleets")
   const hasTeamOrUnassigned = hasTeamSelected || isUnassigned;
+
+  // Show destination team name only when navigating would switch your context.
+  // Pages with includeNoTeam: false redirect Unassigned → All fleets.
+  const switchesFromUnassigned = isUnassigned ? "All fleets" : undefined;
+
+  // Pages with includeAllTeams: false (e.g. Controls) redirect All fleets
+  // to the default team. Replicate useTeamIdParam's preferredOrLowestIdFleet logic.
+  const getDefaultTeamName = () => {
+    if (hasTeamOrUnassigned) return undefined;
+    const realFleets = availableTeams?.filter((t) => t.id > 0) ?? [];
+    if (!realFleets.length) return undefined;
+    const workstations = realFleets.find((t) => {
+      const lower = t.name.toLowerCase();
+      return lower === "workstations" || lower === "\u{1F4BB} workstations";
+    });
+    return (workstations ?? realFleets.sort((a, b) => a.id - b.id)[0])?.name;
+  };
+  const switchesFromAllFleets = getDefaultTeamName();
 
   return [
     // Pages — always visible
@@ -101,6 +111,7 @@ export const buildCommandItems = (
       label: "Dashboard",
       group: "Pages",
       path: withTeamId(paths.DASHBOARD),
+      teamName: switchesFromUnassigned,
       keywords: ["home", "hosts", "activity", "platform"],
     },
     {
@@ -110,7 +121,7 @@ export const buildCommandItems = (
       path: withTeamId(paths.MANAGE_HOSTS),
       keywords: ["devices", "hostname", "serial number", "manage"],
     },
-    ...(canAccessControls && hasTeamOrUnassigned
+    ...(canAccessControls
       ? [
           {
             id: "controls-page",
@@ -118,6 +129,7 @@ export const buildCommandItems = (
             group: "Pages",
             path: withTeamId(paths.CONTROLS),
             keywords: ["mdm", "os settings", "os updates"],
+            teamName: switchesFromAllFleets,
           },
         ]
       : []),
@@ -134,6 +146,7 @@ export const buildCommandItems = (
       group: "Pages",
       path: withTeamId(paths.MANAGE_REPORTS),
       keywords: ["report", "sql", "gather data", "live query"],
+      teamName: switchesFromUnassigned,
     },
     {
       id: "policies",
@@ -419,7 +432,6 @@ export const buildCommandItems = (
               "self-service",
               "library",
             ],
-            teamName,
           },
         ]
       : []),
@@ -643,7 +655,6 @@ export const buildCommandItems = (
             group: "Actions",
             path: withTeamId(`${paths.MANAGE_HOSTS}?add_hosts=1`),
             keywords: ["enroll", "install", "fleetd", "device"],
-            teamName: teamOrUnassigned,
           },
           {
             id: "add-report",
@@ -651,7 +662,7 @@ export const buildCommandItems = (
             group: "Actions",
             path: withTeamId(paths.NEW_REPORT),
             keywords: ["create report", "new report", "sql"],
-            teamName,
+            teamName: switchesFromUnassigned,
           },
           {
             id: "add-policy",
@@ -664,7 +675,6 @@ export const buildCommandItems = (
               "compliance",
               "device health",
             ],
-            teamName,
           },
           // Software add actions require a team or unassigned (not "All fleets")
           ...(hasTeamOrUnassigned
@@ -681,8 +691,7 @@ export const buildCommandItems = (
                     "fma",
                     "add app",
                   ],
-                  teamName,
-                },
+                      },
                 {
                   id: "add-vpp-app",
                   label: "Add VPP app",
@@ -699,8 +708,7 @@ export const buildCommandItems = (
                     "macos",
                     "add app",
                   ],
-                  teamName,
-                },
+                      },
                 {
                   id: "add-android-app-store-app",
                   label: "Add Android app store app",
@@ -709,8 +717,7 @@ export const buildCommandItems = (
                     `${paths.SOFTWARE_ADD_APP_STORE}?platform=android`
                   ),
                   keywords: ["google play", "android", "play store", "add app"],
-                  teamName,
-                },
+                      },
                 {
                   id: "add-custom-package",
                   label: "Add custom package",
@@ -732,8 +739,7 @@ export const buildCommandItems = (
                     "tarballs",
                     "sh",
                   ],
-                  teamName,
-                },
+                      },
               ]
             : []),
           // Script and variable actions require a team or unassigned (not "All fleets")
@@ -751,8 +757,7 @@ export const buildCommandItems = (
                     "ps1",
                     "create script",
                   ],
-                  teamName: teamOrUnassigned,
-                },
+                      },
                 {
                   id: "add-custom-variable",
                   label: "Add custom variable",
@@ -767,8 +772,7 @@ export const buildCommandItems = (
                     "add variable",
                     "create variable",
                   ],
-                  teamName: teamOrUnassigned,
-                },
+                      },
               ]
             : []),
           {
@@ -777,7 +781,6 @@ export const buildCommandItems = (
             group: "Actions",
             path: withTeamId(`${paths.MANAGE_HOSTS}?manage_enroll_secrets=1`),
             keywords: ["enrollment", "token", "fleetd", "enroll secret"],
-            teamName: teamOrUnassigned,
           },
           {
             id: "run-live-report",
@@ -792,7 +795,7 @@ export const buildCommandItems = (
               "query",
               "run report",
             ],
-            teamName,
+            teamName: switchesFromUnassigned,
           },
           {
             id: "run-live-policy",
@@ -800,7 +803,6 @@ export const buildCommandItems = (
             group: "Actions",
             path: withTeamId(paths.NEW_POLICY),
             keywords: ["check", "compliance", "live", "ad hoc", "run policy"],
-            teamName,
           },
           {
             id: "add-label",
@@ -818,6 +820,34 @@ export const buildCommandItems = (
           },
           ...(canAccessSettings
             ? [
+                {
+                  id: "add-user",
+                  label: "Add user",
+                  group: "Actions",
+                  path: paths.ADMIN_USERS_NEW_HUMAN,
+                  keywords: [
+                    "new user",
+                    "create user",
+                    "invite",
+                    "account",
+                    "human user",
+                  ],
+                },
+                {
+                  id: "add-api-only-user",
+                  label: "Add API-only user",
+                  group: "Actions",
+                  path: paths.ADMIN_USERS_NEW_API,
+                  keywords: [
+                    "api user",
+                    "service account",
+                    "token",
+                    "create api user",
+                    "gitops user",
+                    "add user",
+                    "create user",
+                  ],
+                },
                 {
                   id: "create-fleet",
                   label: "Create fleet",
@@ -936,10 +966,8 @@ export const buildCommandItems = (
         ]
       : []),
 
-    // Manage automations — software (global admin, all fleets only).
-    // Hardcoded "All fleets" because software automations are global-only
-    // and don't use the team-scoped teamName.
-    ...(canManageSoftwareAutomations
+    // Manage automations — software (global admin, all fleets view only)
+    ...(canManageSoftwareAutomations && !hasTeamSelected && !isUnassigned
       ? [
           {
             id: "manage-software-automations",
@@ -947,7 +975,6 @@ export const buildCommandItems = (
             group: "Automations",
             path: `${paths.SOFTWARE_INVENTORY}?manage_automations=1`,
             keywords: ["vulnerability", "webhook", "jira", "zendesk"],
-            teamName: "All fleets",
           },
         ]
       : []),
@@ -974,7 +1001,7 @@ export const buildCommandItems = (
             group: "Automations",
             path: withTeamId(`${paths.MANAGE_REPORTS}?manage_automations=1`),
             keywords: ["report", "logging", "destination"],
-            teamName,
+            teamName: switchesFromUnassigned,
           },
         ]
       : []),
@@ -988,7 +1015,6 @@ export const buildCommandItems = (
             group: "Automations",
             path: withTeamId(paths.MANAGE_POLICIES),
             keywords: ["failing", "webhook", "jira", "zendesk"],
-            teamName,
             subItems: [
               {
                 id: "manage-policy-automations-webhooks",
