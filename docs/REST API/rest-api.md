@@ -4530,7 +4530,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
 }
 ```
 
-### Get host's My device page URL
+### Get host's device page URL
 
 Retrieves the end user url for the host's **My device** page.
 
