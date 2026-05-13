@@ -8624,6 +8624,12 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 	// has host_id as the PK, so a raw re-INSERT would fail.
 	err = ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, nil, idpUUID, deviceInfo)
 	require.NoError(t, err)
+	var hostCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &hostCount,
+			"SELECT COUNT(*) FROM hosts WHERE uuid = ?", host.UUID)
+	})
+	require.Equal(t, 1, hostCount)
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &mappingCount,
 			"SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?", host.ID)
@@ -8677,6 +8683,12 @@ func testIngestMDMAppleDeviceFromOTAEnrollmentSCIMMapping(t *testing.T, ds *Data
 			"SELECT COUNT(*) FROM host_scim_user WHERE host_id = ?", emptyIdpHost.ID)
 	})
 	require.Equal(t, 0, mappingCount)
+	var idpLinkCount int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(ctx, q, &idpLinkCount,
+			"SELECT COUNT(*) FROM host_mdm_idp_accounts WHERE host_uuid = ?", emptyIdpHost.UUID)
+	})
+	require.Equal(t, 0, idpLinkCount)
 }
 
 func TestGetMDMAppleOSUpdatesSettingsByHostSerial(t *testing.T) {
