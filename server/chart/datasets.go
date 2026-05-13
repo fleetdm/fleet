@@ -43,7 +43,14 @@ func (c *CVEDataset) SampleStrategy() api.SampleStrategy { return api.SampleStra
 func (c *CVEDataset) DefaultVisualization() string       { return "line" }
 
 func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now time.Time, disabledFleetIDs []uint) error {
-	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs)
+	// Only track the CVEs that the chart API currently returns.
+	// TODO: implement bitmap compression so we can track all CVEs.
+	tracked, err := store.TrackedCriticalCVEs(ctx)
+	if err != nil {
+		return err
+	}
+
+	hostIDsByCVE, err := store.AffectedHostIDsByCVE(ctx, disabledFleetIDs, tracked)
 	if err != nil {
 		return err
 	}
@@ -52,5 +59,8 @@ func (c *CVEDataset) Collect(ctx context.Context, store api.DatasetStore, now ti
 		bitmaps[cve] = HostIDsToBlob(hostIDs)
 	}
 	bucketStart := now.UTC().Truncate(time.Hour)
+	// Always call RecordBucketData, even when bitmaps is empty: snapshot
+	// semantics use an empty input to close any open rows for entities no
+	// longer in the tracked set (recordSnapshot's "absent entities" branch).
 	return store.RecordBucketData(ctx, c.Name(), bucketStart, time.Hour, c.SampleStrategy(), bitmaps)
 }
