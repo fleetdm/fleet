@@ -128,7 +128,7 @@ const SetupAssistant = ({
         <EmptyState
           variant="form"
           header="Additional configuration required"
-          info="To customize, first turn on automatic enrollment."
+          info="Supported on macOS. Turn on MDM and automatic enrollment to customize."
           primaryButton={
             <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
               Turn on
