@@ -2028,6 +2028,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// modify a team with a NULL config
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
+	// Short-term carve-out: team-level vulnerabilities defaults to true
+	// even though the global Features.ApplyDefaults sets it false. Mirrors
+	// the override in unmarshalWithGlobalDefaults + teamFeaturesDB. When
+	// bitmap compression ships and the chart config rejoins the standard
+	// pattern, drop this line.
+	defaultFeatures.HistoricalData.Vulnerabilities = true
 	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, tm1ID)
 		return err
