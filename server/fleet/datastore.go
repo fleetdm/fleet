@@ -1652,8 +1652,11 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
-	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when the password is viewed and returns the scheduled rotation time.
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
+	// the host's install-state recovery lock row and returns the scheduled
+	// rotation time. If the row is missing or in a state where rotation does
+	// not apply (e.g., operation_type='remove'), returns a zero time and no
+	// error so callers that have already retrieved the password do not 404.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
