@@ -109,8 +109,8 @@ Privilege escalation is an active attack technique where someone exploits a vuln
 Track the percentage of users with standing admin rights over time, the average duration of elevated sessions, how many exceptions exist and whether they have expiration dates, and how quickly access is revoked after role changes. These metrics tell you whether privilege is shrinking or only being discussed. Fleet gives you queryable visibility into admin group membership and device configurations across your fleet, so you can measure these baselines before and after rollout. [Schedule a demo](https://fleetdm.com/contact) to see how Fleet surfaces this data.
 
 <meta name="articleTitle" value="What is the principle of least privilege for device management?">
-<meta name="authorFullName" value="Ashish Kuthiala">
-<meta name="authorGitHubUsername" value="akuthiala">
+<meta name="authorFullName" value="Dan Gordon">
+<meta name="authorGitHubUsername" value="danbgordon">
 <meta name="category" value="articles">
-<meta name="publishedOn" value="2026-05-08">
+<meta name="publishedOn" value="2026-05-13">
 <meta name="description" value="Enforce the principle of least privilege on macOS, Windows, and Linux to help satisfy access minimization requirements in frameworks.">
