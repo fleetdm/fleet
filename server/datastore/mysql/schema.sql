@@ -1347,7 +1347,7 @@ CREATE TABLE `hosts` (
   `refetch_critical_queries_until` timestamp NULL DEFAULT NULL,
   `last_restarted_at` datetime(6) DEFAULT '0001-01-01 00:00:00.000000',
   `timezone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `orbit_debug_until` timestamp NULL DEFAULT NULL,
+  `orbit_debug_until` timestamp(6) NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_osquery_host_id` (`osquery_host_id`),
   UNIQUE KEY `idx_host_unique_nodekey` (`node_key`),
