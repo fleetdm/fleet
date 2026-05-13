@@ -265,42 +265,19 @@ func (s *integrationMDMTestSuite) TestVPPAppleManagedAppConfiguration() {
 	})
 }
 
-// TestManagedAppConfigurationWireFormat builds request bodies by hand and
-// inspects raw HTTP response bytes — no Go struct marshalling — to lock in the
-// on-the-wire shape of VPPAppStoreApp.Configuration after the switch from
-// []byte (base64-encoded by encoding/json) to json.RawMessage (passed through
-// as raw JSON). iOS / iPadOS configurations are sent and returned as a
-// JSON-encoded string of XML; Android configurations are sent and returned as
-// a raw JSON object.
+// TestManagedAppConfigurationWireFormat asserts the on-the-wire shape of
+// VPPAppStoreApp.Configuration using hand-built request bodies and raw
+// response bytes (no Go struct marshalling on either side).
 func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
 	ctx := context.Background()
 
-	// VPP setup.
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-android-wire-team"})
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-config-wire-team"})
 	require.NoError(t, err)
+	s.setVPPTokenForTeam(team.ID)
 
-	orgName := "Fleet Device Management Inc."
-	token := "applewiretoken"
-	expDate := time.Now().Add(200 * time.Hour).UTC().Round(time.Second).Format(fleet.VPPTimeFormat)
-	tokenJSON := fmt.Sprintf(`{"expDate":%q,"token":%q,"orgName":%q}`, expDate, token, orgName)
-	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
-
-	var validToken uploadVPPTokenResponse
-	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken",
-		[]byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
-
-	var getVPPTokenResp getVPPTokensResponse
-	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &getVPPTokenResp)
-
-	var resPatchVPP patchVPPTokensTeamsResponse
-	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", getVPPTokenResp.Tokens[0].ID),
-		patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID}}, http.StatusOK, &resPatchVPP)
-
-	// readBody reads the response body and compacts it (collapses the
-	// pretty-printing the server applies) so assertions can be written against
-	// the unindented wire bytes.
+	// readBody compacts the pretty-printed JSON so assertions can match unindented wire bytes.
 	readBody := func(resp *http.Response) string {
 		t.Helper()
 		raw, err := io.ReadAll(resp.Body)
@@ -314,8 +291,6 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 	t.Run("vpp ios wire format", func(t *testing.T) {
 		// Adam ID "2" is pre-registered as an iOS app by the mock VPP server.
 		const iosAdamID = "2"
-		// Hand-built JSON body. The configuration value is a JSON-encoded
-		// string whose content is XML.
 		reqBody := fmt.Appendf(nil,
 			`{"fleet_id":%d,"app_store_id":%q,"platform":"ios","configuration":"<dict><key>K</key><string>v</string></dict>"}`,
 			team.ID, iosAdamID)
@@ -325,16 +300,13 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		require.NoError(t, resp.Body.Close())
 		require.NotZero(t, addResp.TitleID)
 
-		// Stored config is the raw XML (the JSON-string was unwrapped server-side).
 		stored, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, iosAdamID, team.ID)
 		require.NoError(t, err)
 		require.Equal(t, `<dict><key>K</key><string>v</string></dict>`, string(stored))
 
-		// GET response — wire shape is a JSON-encoded string of XML (no base64).
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
 		require.Contains(t, body, `"configuration":"<dict><key>K</key><string>v</string></dict>"`)
-		// Confirm the value is not base64-encoded (which is what a []byte field would do).
 		require.NotContains(t, body, base64.StdEncoding.EncodeToString([]byte(`"<dict><key>K</key><string>v</string></dict>"`)))
 	})
 
@@ -348,7 +320,6 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 			return policy, nil
 		}
 
-		// Configuration is sent as a raw JSON object — not a JSON-encoded string.
 		reqBody := fmt.Appendf(nil,
 			`{"fleet_id":%d,"app_store_id":%q,"platform":"android","configuration":{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}}`,
 			team.ID, androidAdamID)
@@ -358,13 +329,10 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 		require.NoError(t, resp.Body.Close())
 		require.NotZero(t, addResp.TitleID)
 
-		// Stored config is the raw JSON object.
 		stored, err := s.ds.GetAndroidAppConfiguration(ctxdb.RequirePrimary(ctx, true), androidAdamID, team.ID)
 		require.NoError(t, err)
 		require.JSONEq(t, `{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`, string(stored))
 
-		// GET response — Android emits the configuration as a raw JSON object,
-		// passed through unchanged from storage (no base64, no JSON-string wrap).
 		resp = s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", addResp.TitleID), nil, http.StatusOK, "fleet_id", fmt.Sprint(team.ID))
 		body := readBody(resp)
 		require.Contains(t, body, `"configuration":{"workProfileWidgets":"WORK_PROFILE_WIDGETS_ALLOWED"}`)
@@ -372,13 +340,8 @@ func (s *integrationMDMTestSuite) TestManagedAppConfigurationWireFormat() {
 	})
 }
 
-// TestVPPManagedConfigurationOnInstallCommand drives the MDM-side
-// coverage from issue #43973: when a VPP app has a managed configuration,
-// the InstallApplication command sent to the device must include the
-// Configuration dict (with $FLEET_VAR_HOST_UUID substituted), macOS installs
-// must drop it, clearing the configuration must remove it from the next
-// install, per-host substitution must use each host's own UUID, and the
-// iOS / iPadOS rows of the same adam_id must keep their configs isolated.
+// TestVPPManagedConfigurationOnInstallCommand asserts the InstallApplication
+// MDM command bytes for the VPP managed-configuration paths.
 func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() {
 	t := s.T()
 	s.setSkipWorkerJobs(t)
@@ -387,7 +350,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-managedcfg-install-team"})
 	require.NoError(t, err)
 	s.setVPPTokenForTeam(team.ID)
-	dev_mode.SetOverride("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL, t)
 
 	asJSONString := func(s string) json.RawMessage {
 		b, err := json.Marshal(s)
@@ -405,10 +367,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		return id
 	}
 
-	// drainVerifyCmds acks any InstalledApplicationList verification commands
-	// pending on the device queue (from prior install cycles) as "app
-	// installed" so the next install_application sits at the head of the
-	// queue. Returns when Idle reports no command.
+	// drainVerifyCmds acks any pending InstalledApplicationList commands as "installed".
 	drainVerifyCmds := func(t *testing.T, dev *mdmtest.TestAppleMDMClient, installed fleet.Software) {
 		t.Helper()
 		installed.Installed = true
@@ -426,17 +385,10 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		}
 	}
 
-	// installAndCaptureCmd drives a complete install cycle on host: triggers
-	// the install, returns the raw bytes of the InstallApplication command,
-	// then acks the follow-up InstalledApplicationList verification with the
-	// app reported as installed. Completing the verification leaves the host
-	// in a clean state so a subsequent install on the same host queues
-	// immediately instead of waiting behind a pending activity.
+	// installAndCaptureCmd triggers an install and returns the InstallApplication bytes,
+	// then completes the verification so the host is ready for another install.
 	installAndCaptureCmd := func(t *testing.T, host *fleet.Host, dev *mdmtest.TestAppleMDMClient, titleID uint, installed fleet.Software) []byte {
 		t.Helper()
-		// Drain any leftover verification commands from earlier installs so
-		// the next Idle after the install POST reliably returns the new
-		// InstallApplication.
 		drainVerifyCmds(t, dev, installed)
 
 		var installResp installSoftwareResponse
@@ -453,8 +405,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		_, err = dev.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 
-		// Complete the verification step so the activity transitions to
-		// Installed; otherwise a follow-up install on this host stays queued.
 		s.runWorker()
 		cmd, err = dev.Idle()
 		require.NoError(t, err)
@@ -472,14 +422,12 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	// Adam ID "1" is macOS-only.
 	const adamMac = "1"
 
-	// Enroll an iOS host and add it to the team.
 	iosHost, iosDev := s.createAppleMobileHostThenEnrollMDM("ios")
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosDev.SerialNumber)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
 		&addHostsToTeamRequest{HostIDs: []uint{iosHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
-	// App-2 metadata as the mock proxy reports it for ios / ipados (same name,
-	// bundle and version for both Apple-mobile platforms in the default proxy).
+	// App-2 metadata as the mock proxy reports it for ios / ipados.
 	app2Installed := fleet.Software{Name: "App 2", BundleIdentifier: "b-2", Version: "2.0.0"}
 
 	t.Run("iOS install carries Configuration and resolves $FLEET_VAR_HOST_UUID", func(t *testing.T) {
@@ -490,40 +438,33 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			Configuration: asJSONString(plistXML),
 		}, http.StatusOK, &addResp)
 
-		raw := installAndCaptureCmd(t, iosHost, iosDev, titleIDFor(adamMulti, fleet.IOSPlatform), app2Installed)
-		s := string(raw)
-		require.Contains(t, s, "<key>Configuration</key>",
+		raw := string(installAndCaptureCmd(t, iosHost, iosDev, titleIDFor(adamMulti, fleet.IOSPlatform), app2Installed))
+		require.Contains(t, raw, "<key>Configuration</key>",
 			"InstallApplication should include Configuration dict for iOS")
-		require.Contains(t, s, "<key>K</key>")
-		require.Contains(t, s, "<string>v</string>")
-		require.NotContains(t, s, "$FLEET_VAR_HOST_UUID",
+		require.Contains(t, raw, "<key>K</key>")
+		require.Contains(t, raw, "<string>v</string>")
+		require.NotContains(t, raw, "$FLEET_VAR_HOST_UUID",
 			"Fleet variable must be resolved before sending to device")
-		require.Contains(t, s, fmt.Sprintf("<string>%s</string>", iosHost.UUID),
+		require.Contains(t, raw, fmt.Sprintf("<string>%s</string>", iosHost.UUID),
 			"Resolved value should be the iOS host's own UUID")
 	})
 
 	t.Run("clearing configuration drops Configuration from the next install", func(t *testing.T) {
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
-		// PATCH with configuration:null deletes the stored row.
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: json.RawMessage(`null`)},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
-		// Sanity: row gone.
 		_, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true), fleet.IOSPlatform, adamMulti, team.ID)
 		require.True(t, fleet.IsNotFound(err), "expected config row deleted")
 
-		// Reuse the same iOS host — the previous subtest completed its install
-		// cycle (verification acked) so this host is ready for a fresh install.
 		raw := string(installAndCaptureCmd(t, iosHost, iosDev, titleID, app2Installed))
 		require.NotContains(t, raw, "<key>Configuration</key>",
 			"InstallApplication should not include Configuration after clearing the stored config")
 	})
 
 	t.Run("second iOS host gets its own UUID substituted (per-host resolution)", func(t *testing.T) {
-		// Re-set a config that references HOST_UUID, then install on a SECOND
-		// host to confirm the substitution is per-host (no caching across hosts).
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
@@ -545,8 +486,6 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	})
 
 	t.Run("macOS install drops Configuration even when one was sent on add", func(t *testing.T) {
-		// Configuration is sent on the add — service-layer policy must silently
-		// drop it for macOS so the device-bound command has no Configuration key.
 		plistXML := `<dict><key>K</key><string>v</string></dict>`
 		var addResp addAppStoreAppResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
@@ -554,14 +493,13 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			Configuration: asJSONString(plistXML),
 		}, http.StatusOK, &addResp)
 
-		// Enroll a macOS host (needs fleetd for the install path), add to team.
+		// macOS install path requires fleetd enrollment.
 		macHost, macDev := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 		setOrbitEnrollment(t, macHost, s.ds)
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, macHost.HardwareSerial)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{macHost.ID}, TeamID: &team.ID}, http.StatusOK)
-		// Drain the InstallFleetd command that enrollment queues so subsequent
-		// installs see InstallApplication at the head of the queue.
+		// Drain the InstallFleetd command queued by enrollment.
 		s.awaitRunAppleMDMWorkerSchedule()
 		s.runWorker()
 		checkInstallFleetdCommandSent(t, macDev, true)
@@ -574,28 +512,21 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	})
 
 	t.Run("same adam_id on iOS and iPadOS keep configs isolated", func(t *testing.T) {
-		// adamMulti ("2") is registered for both iOS and iPadOS in the mock
-		// proxy. Add it under both platforms with DIFFERENT configs and
-		// confirm each platform's stored bytes are independent and that the
-		// device install carries the platform-scoped bytes.
 		const iosCfg = `<dict><key>side</key><string>ios</string></dict>`
 		const ipadCfg = `<dict><key>side</key><string>ipados</string></dict>`
 
-		// Update the existing iOS row (configured a few subtests up) to a known value.
 		iosTitle := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", iosTitle),
 			&updateAppStoreAppRequest{TeamID: &team.ID, Configuration: asJSONString(iosCfg)},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
-		// Add the iPadOS row with its own distinct config.
 		var addResp addAppStoreAppResponse
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
 			TeamID: &team.ID, AppStoreID: adamMulti, Platform: fleet.IPadOSPlatform,
 			Configuration: asJSONString(ipadCfg),
 		}, http.StatusOK, &addResp)
 
-		// Stored configs must be platform-scoped — same adam_id, different bytes.
 		storedIOS, err := s.ds.GetVPPAppConfiguration(ctxdb.RequirePrimary(ctx, true),
 			fleet.IOSPlatform, adamMulti, team.ID)
 		require.NoError(t, err)
@@ -604,10 +535,8 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			fleet.IPadOSPlatform, adamMulti, team.ID)
 		require.NoError(t, err)
 		require.Equal(t, ipadCfg, string(storedIPad))
-		require.NotEqual(t, string(storedIOS), string(storedIPad),
-			"same adam_id should be able to hold per-platform configs")
+		require.NotEqual(t, string(storedIOS), string(storedIPad))
 
-		// And the iPadOS install carries the iPadOS bytes (not the iOS ones).
 		ipadHost, ipadDev := s.createAppleMobileHostThenEnrollMDM("ipados")
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ipadDev.SerialNumber)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
@@ -621,12 +550,9 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			"iPadOS install must not leak the iOS-scoped config bytes")
 	})
 
-	t.Run("updating configuration → next install carries the new bytes (auto-update guarantee proxy)", func(t *testing.T) {
-		// Per nanoEnqueueVPPInstall, every install path — manual reinstall,
-		// self-service, scheduled auto-update — re-reads the latest stored
-		// configuration at enqueue time. Editing the config between two
-		// installs on the same host is enough to prove the freshness
-		// guarantee without driving the proxy version-bump dance.
+	t.Run("updating configuration → next install carries the new bytes", func(t *testing.T) {
+		// Every install path re-reads the stored config at enqueue time
+		// (nanoEnqueueVPPInstall), so this also exercises the auto-update freshness path.
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		const updatedCfg = `<dict><key>K</key><string>updated</string></dict>`
 		s.DoJSON("PATCH",
@@ -642,37 +568,27 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	})
 
 	t.Run("self-service install carries Configuration with $FLEET_VAR_HOST_UUID resolved", func(t *testing.T) {
-		// Self-service install hits a different entry endpoint
-		// (/api/latest/fleet/device/{uuid}/software/install/{title_id}) but
-		// goes through the same nanoEnqueueVPPInstall path, so the on-the-
-		// wire bytes should match the admin-install path.
-		// Add a fresh app marked self_service:true with a config that uses
-		// $FLEET_VAR_HOST_UUID; install on a host via the device endpoint.
 		ssHost, ssDev := s.createAppleMobileHostThenEnrollMDM("ios")
 		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, ssDev.SerialNumber)
 		s.Do("POST", "/api/latest/fleet/hosts/transfer",
 			&addHostsToTeamRequest{HostIDs: []uint{ssHost.ID}, TeamID: &team.ID}, http.StatusOK)
 
-		// Mint an identity cert so the device endpoint accepts the request.
+		// Self-service device endpoint requires cert auth.
 		const certSerial = uint64(987654321)
 		s.addHostIdentityCertificate(ssHost.UUID, certSerial)
 		headers := map[string]string{
 			"X-Client-Cert-Serial": fmt.Sprintf("%d", certSerial),
 		}
 
-		// Drain any leftover verification commands so the new
-		// InstallApplication sits at the head of the device queue.
 		drainVerifyCmds(t, ssDev, app2Installed)
 
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
-		// Make sure the app is marked self_service AND has a known config.
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
 			&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true),
 				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`)},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
-		// Trigger self-service install via the device endpoint.
 		s.DoRawWithHeaders("POST",
 			fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", ssHost.UUID, titleID),
 			nil, http.StatusAccepted, headers)
