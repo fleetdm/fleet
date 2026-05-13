@@ -79,12 +79,12 @@ func TestQueryResultsStoreErrors(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		store := SetupRedisForTest(t, false, false)
+		store := setupRedisForTest(t, false, false)
 		runTest(t, store)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		store := SetupRedisForTest(t, true, true)
+		store := setupRedisForTest(t, true, true)
 		runTest(t, store)
 	})
 }
@@ -205,12 +205,12 @@ func TestQueryResultsStore(t *testing.T) {
 	}
 
 	t.Run("standalone", func(t *testing.T) {
-		store := SetupRedisForTest(t, false, false)
+		store := setupRedisForTest(t, false, false)
 		runTest(t, store)
 	})
 
 	t.Run("cluster", func(t *testing.T) {
-		store := SetupRedisForTest(t, true, true)
+		store := setupRedisForTest(t, true, true)
 		runTest(t, store)
 	})
 }

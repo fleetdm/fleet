@@ -308,6 +308,7 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
     hostPlatform,
     hostCpuType,
     isRecoveryLockPasswordEnabled,
+    recoveryLockPasswordAvailable,
   } = config;
   if (!isPremiumTier) {
     return false;
@@ -322,7 +323,10 @@ const canShowRecoveryLockPassword = (config: IHostActionConfigOptions) => {
   if (!isConnectedToFleetMdm) {
     return false;
   }
-  return isRecoveryLockPasswordEnabled;
+  // A password may exist on a host whose current team has the setting
+  // disabled (e.g., the host was locked under a different team's policy).
+  // Don't hide an existing password just because the team setting flipped.
+  return isRecoveryLockPasswordEnabled || recoveryLockPasswordAvailable;
 };
 
 const canShowManagedAccount = (config: IHostActionConfigOptions) => {
