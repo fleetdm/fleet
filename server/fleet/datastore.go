@@ -676,7 +676,13 @@ type Datastore interface {
 	// ListSoftwareForVulnDetection returns all software for the given hostID with only the fields
 	// used for vulnerability detection populated (id, name, version, cpe_id, cpe)
 	ListSoftwareForVulnDetection(ctx context.Context, filter VulnSoftwareFilter) ([]Software, error)
+	// ListSoftwareForVulnDetectionByOSVersion returns all distinct software installed on hosts
+	// matching the given OS version.
+	ListSoftwareForVulnDetectionByOSVersion(ctx context.Context, osVer OSVersion) ([]Software, error)
 	ListSoftwareVulnerabilitiesByHostIDsSource(ctx context.Context, hostIDs []uint, source VulnerabilitySource) (map[uint][]SoftwareVulnerability, error)
+	// ListSoftwareVulnerabilitiesBySoftwareIDs returns vulnerabilities for the given software IDs
+	// filtered by source. Queries software_cve directly without joining through host_software.
+	ListSoftwareVulnerabilitiesBySoftwareIDs(ctx context.Context, softwareIDs []uint, source VulnerabilitySource) ([]SoftwareVulnerability, error)
 	LoadHostSoftware(ctx context.Context, host *Host, includeCVEScores bool) error
 
 	AllSoftwareIterator(ctx context.Context, query SoftwareIterQueryOptions) (SoftwareIterator, error)
@@ -1253,6 +1259,13 @@ type Datastore interface {
 	// GetJob returns a job from the database
 	GetJob(ctx context.Context, jobID uint) (*Job, error)
 
+	// HasQueuedJobWithArgs reports whether a job with the given name and
+	// args (compared as JSON values) currently exists in the jobs table in
+	// state JobStateQueued. Used by callers that need at-most-one pending
+	// job per (name, args) tuple — e.g. dedup of historical-data scrub
+	// enqueues across rapid disable/enable toggles.
+	HasQueuedJobWithArgs(ctx context.Context, name string, args json.RawMessage) (bool, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Debug
 
@@ -1639,8 +1652,11 @@ type Datastore interface {
 	// This is used when a clear command fails with a transient error (not password mismatch).
 	ResetRecoveryLockForRetry(ctx context.Context, hostUUID string) error
 
-	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now.
-	// Called when the password is viewed and returns the scheduled rotation time.
+	// MarkRecoveryLockPasswordViewed sets auto_rotate_at to 1 hour from now on
+	// the host's install-state recovery lock row and returns the scheduled
+	// rotation time. If the row is missing or in a state where rotation does
+	// not apply (e.g., operation_type='remove'), returns a zero time and no
+	// error so callers that have already retrieved the password do not 404.
 	MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error)
 
 	// GetHostsForAutoRotation returns hosts where auto_rotate_at <= now
@@ -1691,6 +1707,57 @@ type Datastore interface {
 	// managed_local_account row. No-op if the row doesn't exist or account_uuid is already set
 	// to the specified UUID.
 	SetManagedLocalAccountUUID(ctx context.Context, hostUUID, accountUUID string) error
+
+	// MarkManagedLocalAccountPasswordViewed records that the managed local account password
+	// was viewed by a user (UI or API). On first view it sets status='pending',
+	// auto_rotate_at = NOW(6) + 65 minutes, and initiated_by_fleet=1. Subsequent views
+	// inside the window do NOT extend auto_rotate_at; the existing value is returned.
+	// Returns notFound if the row doesn't exist, encrypted_password IS NULL, status='failed',
+	// or a rotation is already pending.
+	MarkManagedLocalAccountPasswordViewed(ctx context.Context, hostUUID string) (rotateAt time.Time, err error)
+
+	// InitiateManagedLocalAccountRotation stores the (datastore-encrypted) pending
+	// password and pending_command_uuid for an in-flight SetAutoAdminPassword command.
+	// Eligibility: row exists, encrypted_password IS NOT NULL, status != 'failed',
+	// account_uuid IS NOT NULL, pending_encrypted_password IS NULL. Does NOT modify
+	// initiated_by_fleet — that flag is owned by the view path (sets to 1) and the
+	// deferred-manual path (sets to 0). Returns ErrManagedLocalAccountRotationPending
+	// or ErrManagedLocalAccountNotEligible when ineligible, or notFound when the row
+	// is missing.
+	InitiateManagedLocalAccountRotation(ctx context.Context, hostUUID, pendingPlaintextPassword, cmdUUID string) error
+
+	// MarkManagedLocalAccountRotationDeferred records a manual rotation that the service
+	// could not enqueue immediately because account_uuid is missing. Sets status='pending',
+	// auto_rotate_at=NOW(6) (so the cron picks it up as soon as the UUID lands), and
+	// initiated_by_fleet=0 so the cron skips re-logging the activity. Idempotent.
+	MarkManagedLocalAccountRotationDeferred(ctx context.Context, hostUUID string) error
+
+	// ClearManagedLocalAccountRotation unwinds pending rotation columns (used when the
+	// commander returned a non-APNs persistence error after InitiateManagedLocalAccountRotation
+	// already populated them).
+	ClearManagedLocalAccountRotation(ctx context.Context, hostUUID string) error
+
+	// CompleteManagedLocalAccountRotation finalizes a successful rotation acknowledgment.
+	// Validates pending_command_uuid matches the acked command, swaps pending password into
+	// encrypted_password, clears pending_*/auto_rotate_at, sets status='verified', and
+	// resets initiated_by_fleet=0. Returns notFound when the command UUID does not match
+	// the row's pending one.
+	CompleteManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID string) error
+
+	// FailManagedLocalAccountRotation marks the row's status='failed' and clears pending
+	// columns; encrypted_password (the previous-known-good password) is left intact so
+	// the password remains usable.
+	FailManagedLocalAccountRotation(ctx context.Context, hostUUID, cmdUUID, errorMessage string) error
+
+	// GetManagedLocalAccountsForAutoRotation returns up to 100 rows whose auto_rotate_at
+	// has elapsed and which are eligible for an enqueue: account_uuid IS NOT NULL,
+	// encrypted_password IS NOT NULL, pending_encrypted_password IS NULL, status != 'failed'.
+	// status='pending' is intentionally allowed (a viewed row sits in pending while waiting).
+	GetManagedLocalAccountsForAutoRotation(ctx context.Context) ([]HostManagedLocalAccountAutoRotationInfo, error)
+
+	// GetManagedLocalAccountByPendingCommandUUID resolves a SetAutoAdminPassword ack back
+	// to its host via pending_command_uuid. Returns notFound when no row matches.
+	GetManagedLocalAccountByPendingCommandUUID(ctx context.Context, commandUUID string) (host *Host, err error)
 
 	// InsertMDMAppleBootstrapPackage insterts a new bootstrap package in the
 	// database (or S3 if configured).
@@ -1863,6 +1930,30 @@ type Datastore interface {
 	// apps-team associations using this token
 	UpdateVPPTokenTeams(ctx context.Context, id uint, teams []uint) (*VPPTokenDB, error)
 	UpdateVPPToken(ctx context.Context, id uint, tok *VPPTokenData) (*VPPTokenDB, error)
+	// UpdateVPPTokenCountryCode persists the lowercase ISO country code for a
+	// VPP token. Used to lazy-backfill the column for tokens uploaded before
+	// the country_code column existed.
+	UpdateVPPTokenCountryCode(ctx context.Context, tokenID uint, countryCode string) error
+	// UpdateVPPAppCountryCode persists the anchored storefront country for a
+	// (adam_id, platform) row in vpp_apps. Used by the re-anchor self-heal
+	// path when the original anchored country has no Fleet-known token left.
+	UpdateVPPAppCountryCode(ctx context.Context, adamID string, platform InstallableDevicePlatform, countryCode string) error
+	// BackfillVPPAppCountriesFromTokens populates `vpp_apps.country_code` for
+	// any rows that are still NULL, by joining through `vpp_apps_teams` to
+	// the `vpp_tokens` row whose `country_code` is set. Returns the number of
+	// rows updated. Used by the one-shot legacy backfill that runs at server
+	// startup. Becomes a no-op once all rows are populated.
+	BackfillVPPAppCountriesFromTokens(ctx context.Context) (int64, error)
+	// GetVPPAppByAdamIDPlatform returns the vpp_apps row for the given
+	// (adam_id, platform), or a NotFound error if no row exists. Used by the
+	// anchoring logic to decide whether the next add is a first-add or a
+	// subsequent add.
+	GetVPPAppByAdamIDPlatform(ctx context.Context, adamID string, platform InstallableDevicePlatform) (*VPPApp, error)
+	// GetVPPTokenOwningAppInCountry returns a VPP token whose country_code
+	// matches the given country and which owns the (adam_id, platform) app
+	// via vpp_apps_teams. Returns NotFound when no eligible token exists —
+	// callers may treat this as a re-anchor signal.
+	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
@@ -1962,6 +2053,11 @@ type Datastore interface {
 	// for each device.
 	MDMWindowsInsertCommandForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand) error
 
+	// MDMWindowsInsertCommandsForHost atomically inserts a batch of Windows MDM commands targeting a single host
+	// (identified by host UUID or MDM device ID). All commands succeed or none do, in one transaction. Used by
+	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
+	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
@@ -1982,6 +2078,18 @@ type Datastore interface {
 	// preventing races between concurrent management checkins. Returns true if the
 	// transition occurred.
 	SetMDMWindowsAwaitingConfiguration(ctx context.Context, mdmDeviceID string, expectFrom, to WindowsMDMAwaitingConfiguration) (bool, error)
+
+	// GetMDMWindowsAwaitingConfigurationByHostUUID returns the awaiting
+	// configuration value for the Windows MDM enrollment of the given host.
+	// This is a lightweight read for the orbit config polling path.
+	GetMDMWindowsAwaitingConfigurationByHostUUID(ctx context.Context, hostUUID string) (WindowsMDMAwaitingConfiguration, error)
+
+	// HasWindowsSetupExperienceItemsForTeam returns true if any active Windows setup-experience software
+	// installers (with install_during_setup) are configured for the given team. teamID=0 means "no team /
+	// global". Used by the ESP release gate to disambiguate between "no setup configured" (safe to release)
+	// and "setup configured but orbit hasn't initialized yet" (must wait) when
+	// setup_experience_status_results is empty.
+	HasWindowsSetupExperienceItemsForTeam(ctx context.Context, teamID uint) (bool, error)
 
 	// GetMDMWindowsConfigProfile returns the Windows MDM profile corresponding
 	// to the specified profile uuid.
@@ -2749,20 +2857,32 @@ type Datastore interface {
 	InsertAndroidSetupExperienceSoftwareInstall(ctx context.Context, payload *HostAndroidVPPSoftwareInstall) error
 
 	// GetAndroidAppConfiguration retrieves the configuration for an Android app by application ID and team
-	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error)
-	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error)
-	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error)
+	GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error)
+	GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error)
+	HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error)
 
 	SetAndroidAppInstallPendingApplyConfig(ctx context.Context, hostUUID, applicationID string, policyVersion int64) error
 
 	// BulkGetAndroidAppConfigurations retrieves Android app configurations for
 	// all provided apps and returns them indexed by the app id.
-	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error)
+	BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error)
 
 	// DeleteAndroidAppConfiguration removes an Android app configuration.
 	DeleteAndroidAppConfiguration(ctx context.Context, adamID string, teamID uint) error
 
 	ListMDMAndroidUUIDsToHostIDs(ctx context.Context, hostIDs []uint) (map[string]uint, error)
+
+	// VPP App Configuration (iOS/iPadOS)
+	GetVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) ([]byte, error)
+	HasVPPAppConfigurationChanged(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint, newConfig []byte) (bool, error)
+	BulkGetVPPAppConfigurations(ctx context.Context, platform InstallableDevicePlatform, adamIDs []string, teamID uint) (map[string][]byte, error)
+	DeleteVPPAppConfiguration(ctx context.Context, platform InstallableDevicePlatform, adamID string, teamID uint) error
+
+	// In-House App Configuration (iOS/iPadOS).
+	GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error)
+	HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error)
+	BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error)
+	DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -3015,6 +3135,17 @@ type Datastore interface {
 
 	// IsAppleEnrollmentRenewalCommand checks if the given command UUID corresponds to an Apple enrollment renewal command (SCEP/ACME) for the host with the given UUID.
 	IsAppleEnrollmentRenewalCommand(ctx context.Context, commandUUID, hostUUID string) (bool, error)
+
+	// MDMAppleResetOnReenrollment performs necessary datastore operations to reset the state of a host that is re-enrolling in MDM,
+	// resetting label membership, other host data, and optionally host activities (activities and mdm command queue).
+	// Host activities will not be cleared if preserveHostActivities is true
+	MDMAppleResetOnReenrollment(ctx context.Context, hostUUID string, preserveHostActivities bool) error
+
+	// VerifyAppleConfigProfileScopesDoNotConflict checks scopes against existing profiles across the entire DB
+	// to ensure there are no conflicts where an existing profile with the same identifier
+	// has a different scope than the incoming profile. If we don't do this we must implement some sort of "move" semantics
+	// to allow for scope changes when a host switches teams or when a profile is updated.
+	VerifyAppleConfigProfileScopesDoNotConflict(ctx context.Context, cps []*MDMAppleConfigProfile) error
 }
 
 type AndroidDatastore interface {

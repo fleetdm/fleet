@@ -19,9 +19,9 @@ type StatisticsPayload struct {
 	NumHostSoftwareInstalledPaths  int    `json:"numHostSoftwareInstalledPaths"`
 	NumSoftwareCPEs                int    `json:"numSoftwareCPEs"`
 	NumSoftwareCVEs                int    `json:"numSoftwareCVEs"`
-	NumTeams                       int    `json:"numTeams"`
+	NumTeams                       int    `json:"numTeams"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumPolicies                    int    `json:"numPolicies"`
-	NumQueries                     int    `json:"numQueries"`
+	NumQueries                     int    `json:"numQueries"` //nolint:apiparamcheck // don't want to break analytics ingestion
 	NumLabels                      int    `json:"numLabels"`
 	SoftwareInventoryEnabled       bool   `json:"softwareInventoryEnabled"`
 	VulnDetectionEnabled           bool   `json:"vulnDetectionEnabled"`
@@ -31,7 +31,7 @@ type StatisticsPayload struct {
 	HostExpiryEnabled              bool   `json:"hostExpiryEnabled"`
 	MDMWindowsEnabled              bool   `json:"mdmWindowsEnabled"`
 	MDMRecoveryLockPasswordEnabled bool   `json:"mdmRecoveryLockPasswordEnabled"`
-	LiveQueryDisabled              bool   `json:"liveQueryDisabled"`
+	LiveQueryDisabled              bool   `json:"liveQueryDisabled"` //nolint:apiparamcheck // osquery live-query feature
 	NumWeeklyActiveUsers           int    `json:"numWeeklyActiveUsers"`
 	// NumWeeklyPolicyViolationDaysActual is an aggregate count of actual policy violation days. One
 	// policy violation day is added for each policy that a host is failing as of the time the count

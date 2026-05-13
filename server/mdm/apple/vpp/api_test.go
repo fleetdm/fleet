@@ -27,17 +27,36 @@ func TestGetConfig(t *testing.T) {
 		token          string
 		handler        http.HandlerFunc
 		wantName       string
+		wantCountry    string
 		expectedErrMsg string
+		expectMinCalls int
+		expectMaxCalls int
 	}{
 		{
-			name:  "valid token",
+			name:  "valid token US",
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				fmt.Fprintln(w, `{"locationName": "Test Location"}`)
+				fmt.Fprintln(w, `{"locationName": "Test Location", "countryISO2ACode": "US"}`)
 			},
 			wantName:       "Test Location",
+			wantCountry:    "us",
 			expectedErrMsg: "",
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
+		},
+		{
+			name:  "valid token DE lowercased",
+			token: "valid_token",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprintln(w, `{"locationName": "DE Org", "countryISO2ACode": "DE"}`)
+			},
+			wantName:       "DE Org",
+			wantCountry:    "de",
+			expectedErrMsg: "",
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
 		},
 		{
 			name:  "invalid token",
@@ -47,34 +66,70 @@ func TestGetConfig(t *testing.T) {
 				fmt.Fprintln(w, `{"errorNumber": 9622}`)
 			},
 			wantName:       "",
+			wantCountry:    "",
 			expectedErrMsg: "making request to Apple VPP endpoint: Apple VPP endpoint returned error:  (error number: 9622)",
+			// Apple application errors should not be retried.
+			expectMinCalls: 1,
+			expectMaxCalls: 1,
 		},
 		{
-			name:  "server error",
+			name:  "server error retries up to 3 times",
 			token: "valid_token",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
 				fmt.Fprintln(w, `Internal Server Error`)
 			},
 			wantName:       "",
+			wantCountry:    "",
 			expectedErrMsg: "calling Apple VPP endpoint failed with status 500: Internal Server Error\n",
+			expectMinCalls: 3,
+			expectMaxCalls: 3,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setupFakeServer(t, tt.handler)
+			var calls int
+			setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+				calls++
+				tt.handler(w, r)
+			})
 
-			name, err := GetConfig(tt.token)
+			cfg, err := GetConfig(t.Context(), tt.token)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, tt.wantName, name)
+			require.Equal(t, tt.wantName, cfg.LocationName)
+			require.Equal(t, tt.wantCountry, cfg.CountryCode)
+			if tt.expectMinCalls > 0 {
+				require.GreaterOrEqual(t, calls, tt.expectMinCalls)
+				require.LessOrEqual(t, calls, tt.expectMaxCalls)
+			}
 		})
 	}
+
+	t.Run("transient failure then success", func(t *testing.T) {
+		var calls int
+		setupFakeServer(t, func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			if calls < 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+				fmt.Fprintln(w, `Internal Server Error`)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintln(w, `{"locationName": "Recovered", "countryISO2ACode": "FR"}`)
+		})
+
+		cfg, err := GetConfig(t.Context(), "token")
+		require.NoError(t, err)
+		require.Equal(t, "Recovered", cfg.LocationName)
+		require.Equal(t, "fr", cfg.CountryCode)
+		require.Equal(t, 2, calls)
+	})
 }
 
 func TestAssociateAssets(t *testing.T) {

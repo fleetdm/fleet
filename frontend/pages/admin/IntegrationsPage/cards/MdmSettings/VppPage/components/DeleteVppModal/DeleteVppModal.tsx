@@ -47,9 +47,9 @@ const DeleteVppModal = ({
       isContentDisabled={isDeleting}
     >
       <p>
-        Apps purchased for the <b>{orgName}</b> location won&apos;t appear in
-        Fleet, and policies that trigger automatic install of these apps will be
-        deleted. Apps won&apos;t be uninstalled from hosts.
+        Apps purchased for the <b>{orgName}</b> organization unit won&apos;t
+        appear in Fleet, and policies that trigger automatic install of these
+        apps will be deleted. Apps won&apos;t be uninstalled from hosts.
       </p>
       <p>
         If you want to enable VPP integration again, you&apos;ll have to upload

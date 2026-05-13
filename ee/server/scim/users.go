@@ -664,11 +664,17 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 	// Store previous active state before applying patches
 	previousActive := user.Active
 
+	allUnknown := true
 	for _, op := range operations {
 		if op.Op != scim.PatchOperationAdd && op.Op != scim.PatchOperationReplace && op.Op != scim.PatchOperationRemove {
 			u.logger.InfoContext(ctx, "unsupported patch operation", "op", op.Op)
 			return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 		}
+
+		// pathRecognized starts true for explicit-path operations (the default branch
+		// flips it to false for unknown paths) and false for op.Path == nil ops, where
+		// recognition is delegated to the inner-loop's keyRecognized flag instead.
+		pathRecognized := op.Path != nil
 		switch {
 		// If path is not specified, we look for the path in the value attribute.
 		case op.Path == nil:
@@ -682,104 +688,69 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
 			for k, v := range newValues {
+				keyRecognized := true
 				switch k {
 				case externalIdAttr:
 					err = u.patchExternalId(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case userNameAttr:
 					err = u.patchUserName(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case activeAttr:
 					err = u.patchActive(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case nameAttr + "." + givenNameAttr:
 					err = u.patchGivenName(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case nameAttr + "." + familyNameAttr:
 					err = u.patchFamilyName(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case nameAttr:
 					err = u.patchName(ctx, v, op, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case emailsAttr:
 					err = u.patchEmails(ctx, v, op, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				case extensionEnterpriseUserAttributes + ":" + departmentAttr:
 					err = u.patchDepartment(ctx, op.Op, v, user)
-					if err != nil {
-						return scim.Resource{}, err
-					}
 				default:
+					keyRecognized = false
 					u.logger.InfoContext(ctx, "unsupported patch value field", "field", k)
-					return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+				}
+				if err != nil {
+					return scim.Resource{}, err
+				}
+				if keyRecognized {
+					allUnknown = false
 				}
 			}
 		case op.Path.String() == externalIdAttr:
 			err = u.patchExternalId(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == userNameAttr:
 			err = u.patchUserName(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == activeAttr:
 			err = u.patchActive(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == nameAttr+"."+givenNameAttr:
 			err = u.patchGivenName(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == nameAttr+"."+familyNameAttr:
 			err = u.patchFamilyName(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == nameAttr:
 			err = u.patchName(ctx, op.Value, op, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.String() == emailsAttr:
 			err = u.patchEmails(ctx, op.Value, op, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.AttributePath.String() == emailsAttr:
 			err = u.patchEmailsWithPathFiltering(ctx, op, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		case op.Path.AttributePath.String() == extensionEnterpriseUserAttributes+":"+departmentAttr:
 			err = u.patchDepartment(ctx, op.Op, op.Value, user)
-			if err != nil {
-				return scim.Resource{}, err
-			}
 		default:
+			pathRecognized = false
 			u.logger.InfoContext(ctx, "unsupported patch path", "path", op.Path)
-			return scim.Resource{}, scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+		}
+		if err != nil {
+			return scim.Resource{}, err
+		}
+		// For op.Path == nil, the inner loop already updated allUnknown via
+		// keyRecognized, and pathRecognized stays false by design here — do NOT
+		// also flip allUnknown based on pathRecognized for the no-path branch.
+		if pathRecognized {
+			allUnknown = false
 		}
 	}
 
-	if len(operations) != 0 {
+	if !allUnknown {
 		err = u.ds.ReplaceScimUser(ctx, user)
 		switch {
 		case fleet.IsNotFound(err):
@@ -794,7 +765,10 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 			return scim.Resource{}, err
 		}
 
-		// Check if user was deactivated and delete matching Fleet user if so
+		// Check if user was deactivated and delete matching Fleet user if so.
+		// This sits inside `if !allUnknown` because patchActive only runs when at
+		// least one recognized op was applied; if every op was unrecognized,
+		// user.Active equals previousActive and no deactivation can have occurred.
 		if wasDeactivated(previousActive, user.Active) {
 			if err := u.deleteMatchingFleetUser(ctx, user); err != nil {
 				u.logger.ErrorContext(ctx, "failed to delete fleet user on deactivation", "err", err)
@@ -1207,8 +1181,7 @@ func (u *UserHandler) patchName(ctx context.Context, v any, op scim.PatchOperati
 			}
 			user.FamilyName = &familyName
 		default:
-			u.logger.InfoContext(ctx, "unsupported patch value field", "field", nameAttr+"."+nameKey)
-			return scimerrors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
+			u.logger.InfoContext(ctx, "unsupported name subattribute", "field", nameAttr+"."+nameKey)
 		}
 	}
 	return nil

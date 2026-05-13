@@ -1604,7 +1604,7 @@ describe("Host Actions Dropdown", () => {
       ).toBeInTheDocument();
     });
 
-    it("hides the action when recovery lock is not enabled", async () => {
+    it("hides the action when recovery lock is not enabled and no password is available", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -1626,6 +1626,7 @@ describe("Host Actions Dropdown", () => {
           isConnectedToFleetMdm
           hostPlatform="darwin"
           isRecoveryLockPasswordEnabled={false}
+          recoveryLockPasswordAvailable={false}
         />
       );
 
@@ -1634,6 +1635,39 @@ describe("Host Actions Dropdown", () => {
       expect(
         screen.queryByText("Show Recovery Lock password")
       ).not.toBeInTheDocument();
+    });
+
+    it("renders the action when a recovery lock password is available even if the team setting is disabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isRecoveryLockPasswordEnabled={false}
+          recoveryLockPasswordAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show Recovery Lock password");
+      expect(option).toBeInTheDocument();
+      expect(option).not.toHaveAttribute("aria-disabled", "true");
     });
 
     it("hides the action for non-macOS hosts", async () => {
@@ -2049,6 +2083,40 @@ describe("Host Actions Dropdown", () => {
       await waitFor(() => {
         expect(screen.getByText(/at the next enrollment/i)).toBeInTheDocument();
       });
+    });
+
+    it("enables the action when status is pending but password is available (e.g. viewed-and-waiting)", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isGlobalAdmin: true,
+            isPremiumTier: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
+          hostScriptsEnabled
+          isConnectedToFleetMdm
+          hostPlatform="darwin"
+          isManagedLocalAccountEnabled
+          managedAccountStatus="pending"
+          managedAccountPasswordAvailable
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      const option = screen.getByText("Show managed account");
+      expect(option).toBeInTheDocument();
+      expect(option).not.toHaveAttribute("aria-disabled", "true");
     });
 
     it("renders the action for company-owned ADE enrollment status", async () => {

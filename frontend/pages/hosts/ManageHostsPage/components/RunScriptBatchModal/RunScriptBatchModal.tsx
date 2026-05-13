@@ -228,21 +228,23 @@ const RunScriptBatchModal = ({
       return <Spinner />;
     }
     if (!scripts.length) {
+      // No permission gate needed on the "Add a script" link — only
+      // admin/maintainer roles can open this modal (canRunScriptBatch),
+      // and those roles also have permission to add scripts.
       return (
         <EmptyState
           variant="header-list"
-          header="No scripts available for this fleet"
+          header="No scripts available"
           info={
             <>
-              You can add saved scripts{" "}
               <CustomLink
                 url={getPathWithQueryParams(
                   PATHS.CONTROLS_SCRIPTS,
                   !isFreeTier ? { fleet_id: teamId } : undefined
                 )}
-                text="here"
-              />
-              .
+                text="Add a script"
+              />{" "}
+              to this fleet.
             </>
           }
         />

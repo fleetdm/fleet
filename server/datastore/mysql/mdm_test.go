@@ -7686,6 +7686,163 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			expectLabels(t, uuid, platform, nil)
 		})
+
+		t.Run("broken label association is cleared on upsert "+platform, func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/42637.
+			startingLabel := &fleet.Label{
+				Name:  "broken-label-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			startingLabel, err := ds.NewLabel(ctx, startingLabel)
+			require.NoError(t, err)
+
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: startingLabel.Name, LabelID: startingLabel.ID, Exclude: true},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Simulate the label being deleted: NULL the label_id directly. This is
+			// what FK ON DELETE SET NULL does when the underlying label row is gone.
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx,
+					fmt.Sprintf(`UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE %s_profile_uuid = ? AND label_name = ?`, p),
+					uuid, startingLabel.Name)
+				return err
+			})
+
+			// Sanity: broken row exists.
+			var brokenCount int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenCount,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 1, brokenCount, "expected broken row to exist before re-upsert")
+
+			// Re-apply with a different label, mimicking gitops switching from
+			// labels_exclude_any: [startingLabel] to labels_include_any: [switchTarget].
+			switchTarget := &fleet.Label{
+				Name:  "switch-target-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			switchTarget, err = ds.NewLabel(ctx, switchTarget)
+			require.NoError(t, err)
+
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: switchTarget.Name, LabelID: switchTarget.ID, Exclude: false},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+
+			// The broken row must be gone
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenCount,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 0, brokenCount, "broken (NULL label_id) row should have been cleared")
+
+			// Only switchTarget should remain.
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Other profiles must remain untouched.
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+		})
+
+		t.Run("same label name recreated after deletion "+platform, func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/44950.
+			// Reproduces: global label referenced by a profile is deleted (label_id
+			// becomes NULL via ON DELETE SET NULL), then a fleet-level label with
+			// the SAME name is created and re-applied. The SELECT in
+			// batchSetProfileLabelAssociationsDB used to fail with
+			// "converting NULL to uint is unsupported" because it selected the
+			// broken row's NULL label_id into a uint field.
+			origLabel := &fleet.Label{
+				Name:  "gitops-label-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			origLabel, err := ds.NewLabel(ctx, origLabel)
+			require.NoError(t, err)
+
+			// Associate profile with original label
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: origLabel.Name, LabelID: origLabel.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+
+			// Delete the label — the FK ON DELETE SET NULL sets label_id to NULL
+			// in the mdm_configuration_profile_labels row.
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, origLabel.ID)
+				return err
+			})
+
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+
+			// Sanity check: the broken (NULL) row exists.
+			var brokenBefore int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenBefore,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 1, brokenBefore, "expected broken row after label deletion")
+
+			// Create a new label with the SAME name (simulates moving from global to fleet scope)
+			newLabel := &fleet.Label{
+				Name:  origLabel.Name,
+				Query: "select 1 from osquery_info;",
+			}
+			newLabel, err = ds.NewLabel(ctx, newLabel)
+			require.NoError(t, err)
+
+			// Re-apply with the new label ID but same name — this is the
+			// call that used to fail with "converting NULL to uint".
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err, "batchSetProfileLabelAssociationsDB should not fail when a broken row exists with the same label name")
+
+			// Verify only the new label association exists (no broken row)
+			var brokenAfter int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenAfter,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 0, brokenAfter, "broken (NULL label_id) row should have been cleaned up")
+
+			// Verify the correct label association exists with the new label ID.
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Other profiles must remain untouched.
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+		})
 	}
 
 	t.Run("unsupported platform", func(t *testing.T) {
