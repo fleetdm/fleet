@@ -1441,6 +1441,27 @@ func TestGetTLSConfig(t *testing.T) {
 	})
 }
 
+// TestGetTLSConfigInvalidProfile covers the default case of getTLSConfig,
+// which calls initFatal. Not run in parallel because the test mutates the
+// package-level initFatal var.
+func TestGetTLSConfigInvalidProfile(t *testing.T) {
+	var capturedErr error
+	var capturedMsg string
+	orig := initFatal
+	initFatal = func(err error, msg string) {
+		capturedErr = err
+		capturedMsg = msg
+	}
+	t.Cleanup(func() { initFatal = orig })
+
+	getTLSConfig("not-a-real-profile")
+
+	require.Error(t, capturedErr)
+	require.Contains(t, capturedErr.Error(), "not-a-real-profile")
+	require.Contains(t, capturedErr.Error(), "is invalid")
+	require.Equal(t, "set TLS profile", capturedMsg)
+}
+
 func TestInitLicense(t *testing.T) {
 	t.Parallel()
 	t.Run("dev license", func(t *testing.T) {
