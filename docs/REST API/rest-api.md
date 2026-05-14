@@ -1118,7 +1118,9 @@ Deletes the certificate template added to Fleet. When a certificate template is 
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) certificate authorities (CAs). DigiCert, NDES, and custom SCEP coming soon.
+Requests a certificate from a certificate authority (CA). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) CAs. DigiCert, NDES, and custom SCEP coming soon.
+
+By default, the `certificate` field in the response is a PEM-encoded PKCS7 envelope (`-----BEGIN PKCS7-----`/`-----END PKCS7-----`). Set `return_pem_certificate` to `true` to receive a standard PEM `CERTIFICATE` block instead.
 
 As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
 
@@ -1133,6 +1135,7 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was issued from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| return_pem_certificate | boolean | body | If `true`, the issued certificate is returned as a PEM-encoded `CERTIFICATE` block instead of the default PEM-encoded PKCS7 envelope. Defaults to `false`. |
 
 #### Example
 
@@ -1155,7 +1158,28 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 
 ```json
 {
-  "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
+  "certificate": "-----BEGIN PKCS7-----\nMIIGmAYJKoZIhvcNAQcCoIIGiTCCBoUCAQExADALBgkqhkiG9w0BBwGgggZtMIIG\naTCCBVGgAwIBAgITHQAAAAQszG7Pr1bRVwABAAAABDANBgkqhkiG9w0BAQsFADBd\nMRMwEQYKCZImiZPyLGQBGRYDY29tMRcwFQYKCZImiZPyLGQBGRYHZXhhbXBsZTEt\nMCsGA1UEAxMkRXhhbXBsZSBJc3N1aW5nIENBIDEgLSBDQSBDb21wYXJ0bWVudDAe\nFw0yNjA0MzAxNjMwMDBaFw0yNjA3MjkxNjMwMDBaMBcxFTATBgNVBAMMDGZsZWV0\naWUtdXNlcjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALMrkHOVZWVG\nv9PqU20NgpWed9MdRtMc8406GGWQJ3Rj9/8Jcy8LOx1d5/XWLKK5VbN2c1hD/a26\nqkgHtDMfzRXnv5oFybkhaI5tlc9yhQmJVFI2RIBsSkZvIlX+SNWV2RuiyVHyGbjh\nzi3wZen1s0aOeXMMHdD5FVEngX4Fz3TuTb/Z8romrsSmWb32fQyQxola9/xe0IAn\nXZocrxi4xPjNKQbEN/2+gQ/MRJx+c+xnV3MVIrXn+8Av8MMBsXhCDlmT2QrpRezN\nAwWwRni9yKOb0sZMtTDrsCOgAmWsj0Qxf/ASMPh7xbozXK4ubf5ombYxEdwGgYl/\nIKQUKvBKYMMCAwEAAaA=\n-----END PKCS7-----\n"
+}
+```
+
+#### Example (return PEM-encoded certificate)
+
+##### Request body
+
+```json
+{
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\n...\n-----END CERTIFICATE REQUEST-----",
+  "return_pem_certificate": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
 }
 ```
 
@@ -1176,7 +1200,8 @@ Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest"
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
   "idp_oauth_url": "https://idp.oauth.com/introspection",
   "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046",
-  "idp_client_id": "1o2czkDnUVwTqSOc747"
+  "idp_client_id": "1o2czkDnUVwTqSOc747",
+  "return_pem_certificate": true
 }
 ```
 
@@ -1616,7 +1641,9 @@ None.
       "enable_end_user_authentication": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
-      "manual_agent_install": false
+      "manual_agent_install": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin",
     },
     "setup_experience": {
       "bootstrap_package": "",
@@ -1972,6 +1999,8 @@ Modifies the Fleet's configuration with the supplied information.
     "macos_setup": {
       "bootstrap_package": "",
       "enable_end_user_authentication": false,
+      "enable_managed_local_account": false,
+      "end_user_local_account_type": "admin",
       "lock_end_user_info": true,
       "macos_setup_assistant": "path/to/config.json"
     },
@@ -2606,6 +2635,8 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/guides/setup-experience#end-user-authentication). |
+| enable_managed_local_account     | boolean | _Available in Fleet Premium._ During Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | _Available in Fleet Premium._ Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 | lock_end_user_info                | boolean | If set to true, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`) |
 
 <br/>
@@ -2711,6 +2742,19 @@ _Available in Fleet Premium._
 | enable_host_users                 | boolean | Whether to enable the users feature in Fleet. (Default: `true`)                                                                          |
 | enable_software_inventory         | boolean | Whether to enable the software inventory feature in Fleet. (Default: `true`)                                                             |
 | additional_queries                | object | `additional_queries` adds extra host details. This information will be updated at the same time as other host details and is returned by the API when host objects are returned. (Default: `null`)                                                                         |
+| historical_data                   | object | Per-dataset toggles for historical data collection used by the dashboard charts. See [Historical data](#historical-data) below.        |
+
+##### Historical data
+
+`features.historical_data` controls whether each dashboard chart's
+historical data is collected. Both sub-keys default to `true`. A dataset
+is collected for a given host only when both the global sub-key AND the
+host's fleet sub-key are `true`.
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host activity samples. (Default: `true`)      |
+| vulnerabilities   | boolean | Whether to collect per-host software vulnerability data. (Default: `true`)    |
 
 <br/>
 
@@ -2724,6 +2768,10 @@ _Available in Fleet Premium._
     "additional_queries": {
       "time": "SELECT * FROM time",
       "macs": "SELECT mac FROM interface_details"
+    },
+    "historical_data": {
+      "uptime": true,
+      "vulnerabilities": false
     }
   }
 }
@@ -3000,6 +3048,7 @@ None.
 - [Run live query on host (ad hoc)](#run-live-query-on-host-ad-hoc)
 - [Run live query on host by identifier (ad hoc)](#run-live-query-on-host-by-identifier-ad-hoc)
 - [Bypass host's conditional access](#bypass-hosts-conditional-access)
+- [Get host's managed account password](#get-hosts-managed-account-password)
 
 
 #### About host timestamps
@@ -5762,6 +5811,70 @@ Grant a blocked host access for a single login. Requires Okta conditional access
 
 `Status: 200` 
 
+## Clear iOS/iPadOS host passcode
+
+_Available in Fleet Premium._
+
+Remotely clear the passcode on an iOS/iPadOS host. Requires the host to have sent its unlock token during MDM check-in.
+
+`POST /api/v1/fleet/hosts/:id/clear_passcode`
+
+#### Parameters
+
+| Name        | Type   | In   | Description                                                                                    |
+| ----------- | ------ | ---- | ---------------------------------------------------------------------------------------------- |
+| id          | number | path | **Required.** The Fleet host ID of the ADE-enrolled iOS/iPadOS host to clear the passcode for. |
+
+
+#### Example 
+
+`POST /api/v1/fleet/hosts/123/clear_passcode`
+
+#### Default response 
+
+`Status: 200` 
+
+```json
+{
+  "command_uuid": "84F7F777-803E-40BB-8B47-2C0DC8B0118A",
+  "request_type": "ClearPasscode",
+  "platform": "ios"
+}
+```
+
+## Get host's managed account password
+
+Retrieves the managed account password for a host.
+
+The host will only return a password if its managed account password status is "Verified".
+
+`GET /api/v1/fleet/hosts/:id/managed_account_password`
+
+#### Parameters
+
+| Name | Type    | In   | Description                                                              |
+| ---- | ------- | ---- | ------------------------------------------------------------------------ |
+| id   | integer | path | **Required** The ID of the host to get the managed account password for. |
+
+
+#### Example
+
+`GET /api/v1/fleet/hosts/8/managed_account_password`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "managed_account_password": {
+    "password": "test-123",
+    "updated_at": "2026-02-01T05:31:43Z"
+  }
+}
+```
+
 ---
 
 
@@ -6852,6 +6965,7 @@ Get status counts of a single OS settings (configuration profile) enforced on ho
 - [Create setup experience script](#create-setup-experience-script)
 - [Get or download setup experience script](#get-or-download-setup-experience-script)
 - [Delete setup experience script](#delete-setup-experience-script)
+- [Update managed local account](#update-managed-local-account)
 
 
 
@@ -7228,8 +7342,11 @@ _Available in Fleet Premium_
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
 | lock_end_user_info | boolean | body  | When enabled, end user can't edit the local account's Account Name and Full Name in macOS Setup Assistant. These fields will be locked to values from your IdP. (Default: `true`)  |
 | require_all_software_macos | boolean | body | If set to `true`, setup will be canceled on macOS hosts if any software installs fail. |
+| require_all_software_windows | boolean | body | If set to `true`, setup will be canceled on Windows hosts if any software installs fail. |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stuck in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
+| enable_managed_local_account     | boolean | During the Setup experience, a managed local account will be created on macOS hosts if set to true. |
+| end_user_local_account_type     | string | Specifies the type of local end user account created. (Default: `"admin"`) `enable_managed_local_account` must be true. |
 
 #### Example
 
@@ -7582,6 +7699,36 @@ Delete a script that will automatically run during macOS setup.
 ##### Default response
 
 `Status: 200`
+
+### Update managed local account
+
+_Available in Fleet Premium_
+
+Edit managed local account enforcement settings for eligible macOS hosts.
+
+`POST /api/v1/fleet/managed_local_account`
+
+#### Parameters
+
+| Name                         | Type    | In    | Description                                                                          |
+| ---------------------------- | ------  | ----  | -------------------------------------------------------------------------------------|
+| fleet_id                      | integer | body  | The fleet ID to apply the settings to. If omitted, settings apply to unassigned hosts.|
+| enable_managed_local_account | boolean | body  | Whether to enforce creating managed local accounts on eligible hosts.                |
+
+#### Example
+
+`POST /api/v1/fleet/managed_local_account`
+
+##### Default response
+
+`204`
+
+```json
+{
+  "fleet_id": 3,
+  "enable_managed_local_account": true
+}
+```
 
 ---
 
@@ -8445,10 +8592,12 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any, specified by label name, label in the array. |
+| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
+
+Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -8522,12 +8671,15 @@ The semantics for creating a fleet policy are the same as for global policies, s
 | patch_software_title_id | integer | body | _Available in Fleet Premium_. ID of the software title (Fleet-maintained only) to create a patch policy for. Required if `type` is `patch`. |
 | software_title_id | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. If `software_title_id` is specified and the software has `labels_include_any` or `labels_exclude_any` defined, the policy will inherit this target in addition to specified `platform`.                                                                     |
 | script_id         | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails.                                                                 |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
 Either `query` or `query_id` must be provided.
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
+Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
+
+
 
 #### Example
 
@@ -8672,10 +8824,11 @@ _Available in Fleet Premium_
 | resolution  | string  | body | The resolution steps for the policy. |
 | platform    | string  | body | Comma-separated target platforms, currently supported values are "windows", "linux", "darwin". The default, an empty string means target all platforms. |
 | critical    | boolean | body | _Available in Fleet Premium_. Mark policy as critical/high impact. |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
+Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -8747,10 +8900,13 @@ _Available in Fleet Premium_
 | conditional_access_enabled | boolean | body | _Available in Fleet Premium_. Whether to block single sign-on for end users whose hosts fail this policy.                                              |
 | software_title_id       | integer | body | _Available in Fleet Premium_. ID of software title to install if the policy fails. Set to `null` to remove the automation.                              |
 | script_id               | integer | body | _Available in Fleet Premium_. ID of script to run if the policy fails. Set to `null` to remove the automation.                                          |
-| labels_include_any      | array     | form | _Available in Fleet Premium_. Target hosts that have any label, specified by label name, in the array. |
-| labels_exclude_any | array | form | _Available in Fleet Premium_. Target hosts that that don’t have any label, specified by label name, in the array. |
+| labels_include_any      | array     | form | Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **any of these** labels. |
+| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **all of these** labels. |
+| labels_exclude_any | array | form | _Available in Fleet Premium_. Labels, specified by label name, to target with this policy. If specified, the policy will run on hosts that match **none of these** labels. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither is set, all hosts on the specified `platform` are targeted.
+Either `query` or `query_id` must be provided.
+
+Only one of `labels_include_any`, `labels_include_all`, or `labels_exclude_any` can be specified. If none is set, all hosts on the specified `platform` are targeted.
 
 #### Example
 
@@ -9335,14 +9491,17 @@ Creates a global report or fleet report.
 | query                           | string  | body | **Required**. The SQL query for collecting report data.                                                                                                             |
 | description                     | string  | body | The query's description.                                                                                                                               |
 | observer_can_run                | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any report and is not limited by this flag. |
-| fleet_id                         | integer | body | _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.                                           |
+| fleet_id                        | integer | body | _Available in Fleet Premium_. The fleet to which the new report should be added. If omitted, the report will be global.                                           |
 | interval                        | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
-| labels_include_any              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
+| labels_include_any              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
+| labels_include_all              | array   | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging                         | string  | body | The type of log output for this report. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data                    | boolean | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. Default: `false`. |
+
+Only one of  `labels_include_any` or `labels_include_all` can be specified. If none are specified, all hosts are targeted.
 
 
 #### Example
@@ -9440,13 +9599,16 @@ Modifies the report specified by ID.
 | query                       | string  | body | The report's SQL query.                                                                                                                               |
 | description                 | string  | body | The report's description.                                                                                                                               |
 | observer_can_run            | boolean | body | Whether or not users with the `observer` role can run the report as a live report. This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag. |
-| interval                   | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
+| interval                    | integer | body | The amount of time, in seconds, the report waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                    | string  | body | The OS platforms where this report will run (other platforms ignored). Comma-separated string. If set to "", runs on all compatible platforms.                    |
 | labels_include_any          | list    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **any of these** labels. |
+| labels_include_all              | array    | body | _Available in Fleet Premium_. Labels, specified by label name, to target with this report. If specified, the report will run on hosts that match **all of these** labels. |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
 | automations_enabled             | boolean | body | Whether to send data to the configured log destination according to the report's `interval`. |
 | logging             | string  | body | The type of log output for this query. Valid values: `"snapshot"`(default), `"differential"`, or `"differential_ignore_removals"`.                        |
 | discard_data        | boolean  | body | Whether to skip saving the latest results for each host. If set to `true`, data is still sent to the configured log destination if `automations_enabled`. |
+
+Only one of  `labels_include_any` or `labels_include_all` can be specified. If none are specified, all hosts are targeted.
 
 > Note that any of the following conditions will cause the existing report's data to be discarded:
 > - Updating the `query` (SQL) field
@@ -12652,6 +12814,31 @@ _Available in Fleet Premium_
 | integrations                                            | object  | body | Integrations settings for the fleet. See [integrations](#integrations3) for details. Note that integrations referenced here must already exist globally, created by a call to [Modify configuration](#modify-configuration).                               |
 | mdm                                                     | object  | body | MDM settings for the fleet. See [mdm](#mdm2) for details.                                                                                                                                                                                |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the fleet. See [host_expiry_settings](#host-expiry-settings2) for details.   |
+| features                                                | object  | body | Per-fleet feature toggles. v1 accepts only the `historical_data` sub-field; other `features` sub-fields are writable per-fleet only via GitOps. See [features.historical_data](#features-historical-data) below. |
+
+##### features.historical_data
+
+Sub-keys mirror the global `features.historical_data` shape and default to
+`true`. A dataset is collected for a host in this fleet only when both the
+global sub-key AND this fleet's sub-key are `true`. Sub-keys omitted from
+the PATCH body retain their current stored value.
+
+| Name              | Type    | Description                                                                                                |
+| ----------------- | ------- | ---------------------------------------------------------------------------------------------------------- |
+| uptime            | boolean | Whether to collect host-uptime samples for hosts in this fleet. (Default: `true`)                          |
+| vulnerabilities   | boolean | Whether to collect CVE samples for hosts in this fleet. (Default: `true`)                                  |
+
+###### Example request body
+
+```json
+{
+  "features": {
+    "historical_data": {
+      "vulnerabilities": false
+    }
+  }
+}
+```
 
 #### Example (transfer hosts to a fleet)
 
@@ -13411,6 +13598,8 @@ Transforms a host name into a host id. For example, the Fleet UI uses this endpo
 - [Delete invite](#delete-invite)
 - [Verify invite](#verify-invite)
 - [Update invite](#update-invite)
+- [Create API-only user](#create-api-only-user)
+- [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions)
 
 The Fleet server exposes API endpoints that handles common user management operations, including managing emailed invites to new users. All of these endpoints require prior authentication, so you'll need to log in before calling any of the endpoints documented below.
 
@@ -14276,6 +14465,128 @@ Verify the specified invite.
   }
 }
 ```
+
+### Create API-only user
+
+Creates an API-only user that does not have access to the UI.
+
+`POST /api/v1/fleet/users/api_only`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| name    | string  | body | The display name for the API-only user. |                                         
+| global_role | string | body | The role assigned to the user. If `global_role` is specified, `fleets` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| fleets      | array   | body | _Available in Fleet Premium_. The fleets and respective roles assigned to the user. Should contain an array of objects in which each object includes the fleet's `id` and the user's `role` on each fleet. If `fleets` is specified, `global_role` cannot be specified. For more information, see [manage access](https://fleetdm.com/docs/using-fleet/manage-access). |
+| api_endpoints | array   | body | _Available in Fleet Premium_. A list of `id`s of API endpoints this user will have access to. For available endpoints, see [List API endpoints for API-only user permissions](#list-api-endpoints-for-api-only-user-permissions). |
+
+If `api_endpoints` is specified, these do not grant additional permissions otherwise forbidden by the user's `role`.
+
+
+#### Example
+
+`POST /api/v1/fleet/users/api_only`
+
+##### Request body
+
+```json
+{
+  "name": "Jane Doe",
+  "fleets": [
+    {
+      "id": 2,
+      "role": "observer"
+    },
+    {
+      "id": 3,
+      "role": "maintainer"
+    }
+  ], 
+  "api_endpoints": [1,5,7,32]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "user": {
+    "created_at": "0001-01-01T00:00:00Z",
+    "updated_at": "0001-01-01T00:00:00Z",
+    "id": 5,
+    "name": "Jane Doe",
+    "email": "janedoe+randomlygeneratedstring@example.com",
+    "enabled": true,
+    "force_password_reset": false,
+    "gravatar_url": "",
+    "sso_enabled": false,
+    "mfa_enabled": false,
+    "api_only": true,
+    "global_role": null,
+    "fleets": [
+      {
+        "id": 2,
+        "role": "observer"
+      },
+      {
+        "id": 3,
+        "role": "maintainer"
+      }
+    ], 
+    "api_endpoints": [1,5,7,32]
+  },
+  "token": "{API key}"
+}
+```
+
+
+### List API endpoints for API-only user permissions
+
+ _Available in Fleet Premium._
+
+Lists Fleet REST API endpoints that an API-only user can be granted access to.
+
+`GET /api/v1/fleet/rest_api`
+
+| Name                    | Type    | In    | Description |
+| :---------------------- | :------ | :---- | :---------- |
+| query                   | string  | query | Search query keywords. Searchable fields include `display_name` and `path`. |
+
+Searching by path ignores the naming of path parameters that are specified with `:` , e.g. `:id`. So searching `/hosts/:id/report` is the same as searching `/hosts/:host_id/report`.
+
+Experimental endpoints are excluded from the results, since they are not for use in automated workflows.
+
+#### Example
+
+`GET /api/v1/fleet/rest_api?query=get%20host%20by%20identifier`
+or
+`GET /api/v1/fleet/rest_api?query=%2Fapi%2Fv1%2Ffleet%2Fhosts%2Fidentifier%2F%3Ahost_identifier`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "api_endpoints": [
+    {
+      "id": 123,
+      "display_name": "Get host by identifier",
+      "method": "GET",
+      "path": "/api/v1/fleet/hosts/identifier/:identifier",
+      "deprecated": false
+    }
+  ],
+  "meta": {
+    "has_next_results": true,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+---
 
 ## Debug
 
