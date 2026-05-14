@@ -29,9 +29,6 @@ const (
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
-	StickyMDMEnrollmentTTL       = 30 * time.Minute
-
 	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
 	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
