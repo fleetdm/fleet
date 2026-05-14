@@ -3405,6 +3405,11 @@ func TestGetMDMCommands(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, `Required flag "host" not set`)
 
+	// --host="" is rejected before any API call
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", ""})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "No host targeted. Please provide --host.")
+
 	expectIdentifier = true
 	listErr = io.ErrUnexpectedEOF
 	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})

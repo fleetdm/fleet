@@ -1645,6 +1645,11 @@ func getMDMCommandsCommand() *cli.Command {
 			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+			if hostIdent == "" {
+				return errors.New("No host targeted. Please provide --host.")
+			}
+
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
@@ -1664,7 +1669,7 @@ func getMDMCommandsCommand() *cli.Command {
 
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier:  c.String("host"),
+					HostIdentifier:  hostIdent,
 					RequestType:     c.String("type"),
 					CommandStatuses: commandStatuses,
 				},
