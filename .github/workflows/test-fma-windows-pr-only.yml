@@ -27,7 +27,99 @@ permissions:
   contents: read
 
 jobs:
+  detect:
+    # Runs on Linux so we don't pay for a Windows runner when no Windows apps changed.
+    runs-on: ubuntu-latest
+    outputs:
+      has_windows_apps: ${{ steps.check-windows-apps.outputs.has_windows_apps }}
+      has_google_chrome: ${{ steps.check-windows-apps.outputs.has_google_chrome }}
+      has_7zip: ${{ steps.check-windows-apps.outputs.has_7zip }}
+      has_firefox: ${{ steps.check-windows-apps.outputs.has_firefox }}
+      changed_apps: ${{ steps.detect-changed.outputs.CHANGED_APPS }}
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          fetch-depth: 0 # Need full history to compare with base branch
+          ref: ${{ github.ref }}
+
+      - name: Fetch base branch
+        run: |
+          BASE_BRANCH="${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
+          echo "Fetching base branch: $BASE_BRANCH"
+          git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || true
+        shell: bash
+
+      - name: Detect changed apps
+        id: detect-changed
+        env:
+          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
+        run: |
+          export GITHUB_WORKSPACE="$PWD"
+          .github/scripts/detect-new-fmas-in-pr.sh
+        shell: bash
+
+      - name: Check if there are Windows apps
+        id: check-windows-apps
+        run: |
+          HAS_CHANGES="${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if [ "$HAS_CHANGES" != "true" ]; then
+            echo "has_windows_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            echo "has_7zip=false" >> $GITHUB_OUTPUT
+            echo "has_firefox=false" >> $GITHUB_OUTPUT
+            echo "No changed apps detected, skipping Windows workflow"
+            exit 0
+          fi
+
+          # Filter changed apps to only include windows platform
+          WINDOWS_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/windows"))')
+
+          if [ -z "$WINDOWS_SLUGS" ]; then
+            echo "has_windows_apps=false" >> $GITHUB_OUTPUT
+            echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            echo "has_7zip=false" >> $GITHUB_OUTPUT
+            echo "has_firefox=false" >> $GITHUB_OUTPUT
+            echo "No windows apps changed, skipping Windows workflow"
+          else
+            echo "has_windows_apps=true" >> $GITHUB_OUTPUT
+            echo "Windows apps detected:"
+            echo "$WINDOWS_SLUGS" | while read -r slug; do
+              echo "  - $slug"
+            done
+
+            if echo "$WINDOWS_SLUGS" | grep -q "^google-chrome/windows$"; then
+              echo "has_google_chrome=true" >> $GITHUB_OUTPUT
+              echo "Google Chrome detected in changed apps"
+            else
+              echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$WINDOWS_SLUGS" | grep -q "^7-zip/windows$"; then
+              echo "has_7zip=true" >> $GITHUB_OUTPUT
+              echo "7-zip detected in changed apps"
+            else
+              echo "has_7zip=false" >> $GITHUB_OUTPUT
+            fi
+
+            if echo "$WINDOWS_SLUGS" | grep -qE "^(firefox|firefox@esr)/windows$"; then
+              echo "has_firefox=true" >> $GITHUB_OUTPUT
+              echo "Firefox detected in changed apps"
+            else
+              echo "has_firefox=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+        shell: bash
+
   test-fma-pr-only:
+    needs: detect
+    if: needs.detect.outputs.has_windows_apps == 'true'
     env:
       LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
     runs-on: windows-latest
@@ -42,7 +134,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: fleetdm/fleet
-          fetch-depth: 0 # Need full history to compare with base branch
           ref: ${{ github.ref }}
           path: fleet
 
@@ -51,99 +142,7 @@ jobs:
         with:
           go-version-file: "fleet/go.mod"
 
-      - name: Setup Git for base branch comparison
-        run: |
-          cd fleet
-          git config --global --add safe.directory $PWD
-        shell: pwsh
-
-      - name: Fetch base branch
-        run: |
-          cd fleet
-          $baseBranch = "${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
-          Write-Host "Fetching base branch: $baseBranch"
-          git fetch origin "$baseBranch`:$baseBranch" || exit 0
-        shell: pwsh
-
-      - name: Detect changed apps
-        id: detect-changed
-        env:
-          GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
-        run: |
-          cd fleet
-          $env:GITHUB_WORKSPACE = (Get-Location).Path
-          bash .github/scripts/detect-new-fmas-in-pr.sh
-        shell: pwsh
-
-      - name: Check if there are changes
-        id: check-changes
-        run: |
-          # Default to no changes if detection step failed or didn't set output
-          $hasChanges = "${{ steps.detect-changed.outputs.HAS_CHANGES }}"
-          if ($hasChanges -eq "true") {
-            "has_changes=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            Write-Host "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
-          } else {
-            "has_changes=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            Write-Host "No changed apps detected, skipping validation"
-          }
-        shell: pwsh
-
-      - name: Check if there are Windows apps
-        id: check-windows-apps
-        run: |
-          if ("${{ steps.check-changes.outputs.has_changes }}" -ne "true") {
-            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_firefox=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            exit 0
-          }
-
-          # Filter changed apps to only include windows platform
-          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
-          $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
-
-          if ($null -eq $windowsSlugs -or $windowsSlugs.Count -eq 0) {
-            "has_windows_apps=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "has_firefox=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            Write-Host "No windows apps changed, skipping Windows workflow"
-          } else {
-            "has_windows_apps=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            Write-Host "Windows apps detected:"
-            $windowsSlugs | ForEach-Object { Write-Host "  - $_" }
-
-            # Check if google-chrome/windows is in the changed apps
-            # Use -in operator which works for both arrays and single values
-            if ("google-chrome/windows" -in $windowsSlugs) {
-              "has_google_chrome=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-              Write-Host "Google Chrome detected in changed apps"
-            } else {
-              "has_google_chrome=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            }
-
-            # Check if 7-zip/windows is in the changed apps
-            if ("7-zip/windows" -in $windowsSlugs) {
-              "has_7zip=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-              Write-Host "7-zip detected in changed apps"
-            } else {
-              "has_7zip=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            }
-
-            # Check if firefox/windows or firefox@esr/windows is in the changed apps
-            if (("firefox/windows" -in $windowsSlugs) -or ("firefox@esr/windows" -in $windowsSlugs)) {
-              "has_firefox=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-              Write-Host "Firefox detected in changed apps"
-            } else {
-              "has_firefox=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            }
-          }
-        shell: pwsh
-
       - name: Install osquery windows
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           Write-Host "Runner architecture: $env:PROCESSOR_ARCHITECTURE"
           curl -L -o osquery.zip "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1.windows_x86_64.zip"
@@ -155,7 +154,7 @@ jobs:
         shell: pwsh
 
       - name: Remove pre-installed google chrome
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_google_chrome == 'true'
+        if: needs.detect.outputs.has_google_chrome == 'true'
         run: |
           Write-Host "Listing all installed packages containing 'Chrome':"
           Get-Package | Where-Object { $_.Name -like "*Chrome*" } | ForEach-Object {
@@ -179,7 +178,7 @@ jobs:
         shell: pwsh
 
       - name: Remove pre-installed 7-zip
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_7zip == 'true'
+        if: needs.detect.outputs.has_7zip == 'true'
         run: |
           Write-Host "Listing all installed packages containing '7-Zip':"
           Get-Package | Where-Object { $_.Name -like "*7-Zip*" } | ForEach-Object {
@@ -243,7 +242,7 @@ jobs:
         shell: pwsh
 
       - name: Remove pre-installed Firefox
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true' && steps.check-windows-apps.outputs.has_firefox == 'true'
+        if: needs.detect.outputs.has_firefox == 'true'
         run: |
           Write-Host "Listing all installed packages containing 'Firefox':"
           Get-Package | Where-Object { $_.Name -like "*Firefox*" } | ForEach-Object {
@@ -327,14 +326,13 @@ jobs:
         shell: pwsh
 
       - name: Filter apps.json and verify changed apps
-        if: steps.check-windows-apps.outputs.has_windows_apps == 'true'
         run: |
           cd fleet
           # Set GITHUB_WORKSPACE to current directory so scripts can find files
           $env:GITHUB_WORKSPACE = (Get-Location).Path
 
           # Filter changed apps to only include windows platform
-          $changedAppsJson = '${{ steps.detect-changed.outputs.CHANGED_APPS }}'
+          $changedAppsJson = '${{ needs.detect.outputs.changed_apps }}'
           $windowsSlugs = ($changedAppsJson | ConvertFrom-Json | Where-Object { $_ -like "*/windows" })
           $windowsSlugsJson = ($windowsSlugs | ConvertTo-Json -Compress)
           Write-Host "Filtering apps.json for slugs: $windowsSlugsJson"

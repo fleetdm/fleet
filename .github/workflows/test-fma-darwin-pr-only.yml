@@ -27,11 +27,14 @@ permissions:
   contents: read
 
 jobs:
-  test-fma-pr-only:
-    env:
-      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
-    runs-on: macos-latest
-
+  detect:
+    # Runs on Linux so we don't pay for a macOS runner when no Darwin apps changed.
+    runs-on: ubuntu-latest
+    outputs:
+      has_darwin_apps: ${{ steps.check-darwin-apps.outputs.has_darwin_apps }}
+      has_google_chrome: ${{ steps.check-darwin-apps.outputs.has_google_chrome }}
+      has_fleet_desktop: ${{ steps.check-darwin-apps.outputs.has_fleet_desktop }}
+      changed_apps: ${{ steps.detect-changed.outputs.CHANGED_APPS }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
@@ -44,16 +47,9 @@ jobs:
           repository: fleetdm/fleet
           fetch-depth: 0 # Need full history to compare with base branch
           ref: ${{ github.ref }}
-          path: fleet
-
-      - name: Setup Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
-        with:
-          go-version-file: "fleet/go.mod"
 
       - name: Fetch base branch
         run: |
-          cd fleet
           BASE_BRANCH="${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}"
           echo "Fetching base branch: $BASE_BRANCH"
           git fetch origin "$BASE_BRANCH:$BASE_BRANCH" || true
@@ -64,30 +60,19 @@ jobs:
         env:
           GITHUB_BASE_REF: ${{ github.event.pull_request.base.ref || github.base_ref || 'main' }}
         run: |
-          cd fleet
           export GITHUB_WORKSPACE="$PWD"
           .github/scripts/detect-new-fmas-in-pr.sh
         shell: bash
 
-      - name: Check if there are changes
-        id: check-changes
-        run: |
-          # Default to no changes if detection step failed or didn't set output
-          HAS_CHANGES="${{ steps.detect-changed.outputs.HAS_CHANGES }}"
-          if [ "$HAS_CHANGES" == "true" ]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changed apps detected: ${{ steps.detect-changed.outputs.CHANGED_APPS }}"
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No changed apps detected, skipping validation"
-          fi
-
       - name: Check if there are Darwin apps
         id: check-darwin-apps
         run: |
-          if [ "${{ steps.check-changes.outputs.has_changes }}" != "true" ]; then
+          HAS_CHANGES="${{ steps.detect-changed.outputs.HAS_CHANGES }}"
+          if [ "$HAS_CHANGES" != "true" ]; then
             echo "has_darwin_apps=false" >> $GITHUB_OUTPUT
             echo "has_google_chrome=false" >> $GITHUB_OUTPUT
+            echo "has_fleet_desktop=false" >> $GITHUB_OUTPUT
+            echo "No changed apps detected, skipping Darwin workflow"
             exit 0
           fi
 
@@ -124,8 +109,32 @@ jobs:
           fi
         shell: bash
 
+  test-fma-pr-only:
+    needs: detect
+    if: needs.detect.outputs.has_darwin_apps == 'true'
+    env:
+      LOG_LEVEL: ${{ github.event.inputs.log_level || 'info' }}
+    runs-on: macos-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout Fleet
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: fleetdm/fleet
+          ref: ${{ github.ref }}
+          path: fleet
+
+      - name: Setup Go
+        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        with:
+          go-version-file: "fleet/go.mod"
+
       - name: Install osquery mac
-        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         run: |
           echo "Runner architecture: $(uname -m)"
           curl -L -o osquery.tar.gz "https://github.com/osquery/osquery/releases/download/5.18.1/osquery-5.18.1_1.macos_arm64.tar.gz"
@@ -136,7 +145,7 @@ jobs:
           sudo ln -sf /opt/osquery/lib/osquery.app/Contents/Resources/osqueryctl /usr/local/bin/osqueryctl
 
       - name: Remove pre-installed google chrome mac
-        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true' && steps.check-darwin-apps.outputs.has_google_chrome == 'true'
+        if: needs.detect.outputs.has_google_chrome == 'true'
         run: |
           ls /Applications | grep -i "Chrome"
           find /Applications -name "*Chrome*.app" -type d | while read app;
@@ -152,7 +161,7 @@ jobs:
       # install script succeeds. This only runs when fleet-desktop/darwin
       # is actually being validated in this PR.
       - name: Create Fleet Desktop MDM config stub (CI-only)
-        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true' && steps.check-darwin-apps.outputs.has_fleet_desktop == 'true'
+        if: needs.detect.outputs.has_fleet_desktop == 'true'
         run: |
           sudo mkdir -p "/Library/Managed Preferences"
           sudo tee "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist" > /dev/null <<'PLIST'
@@ -171,14 +180,13 @@ jobs:
           ls -l "/Library/Managed Preferences/com.fleetdm.fleetd.config.plist"
 
       - name: Filter apps.json and verify changed apps
-        if: steps.check-darwin-apps.outputs.has_darwin_apps == 'true'
         run: |
           cd fleet
           # Set GITHUB_WORKSPACE to current directory so scripts can find files
           export GITHUB_WORKSPACE="$PWD"
 
           # Filter changed apps to only include darwin platform
-          DARWIN_SLUGS=$(echo '${{ steps.detect-changed.outputs.CHANGED_APPS }}' | jq -r '.[] | select(endswith("/darwin"))')
+          DARWIN_SLUGS=$(echo '${{ needs.detect.outputs.changed_apps }}' | jq -r '.[] | select(endswith("/darwin"))')
           DARWIN_SLUGS_JSON=$(echo "$DARWIN_SLUGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
 
           # Backup original apps.json
