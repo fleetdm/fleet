@@ -4,19 +4,25 @@
 $exeFilePath = "${env:INSTALLER_PATH}"
 
 try {
-    # Docker Desktop's installer self-elevates (winget manifest declares
-    # ElevationRequirement: elevatesSelf). Start-Process -Wait is unreliable
-    # against that pattern because the initial PID may detach while a handle
-    # to a child stays open. Launch without -Wait and explicitly wait on the
-    # installer process tree by name, per SilentInstallHQ's Docker Desktop
-    # PowerShell guide.
+    # Docker Desktop's installer runs for 5+ minutes (extracts files, configures
+    # service, sets up WSL2 backend). The app becomes registered well before the
+    # installer process exits. Kick off the install and poll for the Uninstall
+    # registry entry the installer writes when the core install completes; this
+    # is what osquery's programs table reads to detect Docker Desktop.
     Start-Process -FilePath "$exeFilePath" -ArgumentList "install","--accept-license","--quiet"
 
-    Start-Sleep -Seconds 5
-    Get-Process -Name "Docker Desktop Installer" -ErrorAction SilentlyContinue | Wait-Process
+    $registryKey = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Docker Desktop"
+    $deadline = (Get-Date).AddMinutes(4)
+    while ((Get-Date) -lt $deadline) {
+        if (Get-ItemProperty -Path $registryKey -ErrorAction SilentlyContinue) {
+            Write-Host "Docker Desktop registered in HKLM."
+            Exit 0
+        }
+        Start-Sleep -Seconds 10
+    }
 
-    Write-Host "Docker Desktop install complete."
-    Exit 0
+    Write-Host "Docker Desktop did not register within timeout."
+    Exit 1
 } catch {
     Write-Host "Error: $_"
     Exit 1
