@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "202026.1.0",
+      "version": "2026.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia' AND version_compare(bundle_short_version, '202026.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.techsmith.camtasia' AND version_compare(bundle_short_version, '2026.1.0') < 0);"
       },
       "installer_url": "https://download.techsmith.com/camtasiamac/releases/2026.1.0/Camtasia.dmg",
       "install_script_ref": "2fda011f",
