@@ -42,7 +42,7 @@ The `--type` flag is used to specify the fleetd installer type.
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: `msi`
   - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
-  - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
+  - Generating a .msi on Apple Silicon Macs requires [Docker](https://docs.docker.com/get-docker) to be installed. If you need to continue using Wine, see [WineHQ wiki](https://gitlab.winehq.org/wine/wine/-/wikis/MacOS).
 - Linux: `deb`, `rpm`, or `pkg.tar.zst`
   - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
   - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
