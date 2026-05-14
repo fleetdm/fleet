@@ -734,6 +734,26 @@ org_settings:
     alternative_browser_host: fleet-desktop.example.com
 ```
 
+### gitops
+
+The `gitops` section allows configuring [GitOps mode](https://fleetdm.com/learn-more-about/ui-gitops-mode) in the Fleet UI. When GitOps mode is enabled, many UI features become read-only to ensure that configuration changes are made only via GitOps.
+
+- `gitops_mode_enabled` — when `true`, Fleet's UI shows GitOps-managed sections as read-only with a tooltip pointing to the repository URL. Requires Fleet Premium.
+- `repository_url` (default: `""`) — the URL of the GitOps repository that manages this Fleet. Must be a valid `http://` or `https://` URL. Required when `gitops_mode_enabled: true`.
+
+Can only be configured for "All fleets" (`org_settings`).
+
+> If `gitops:` is not provided in your YAML file, any existing GitOps mode settings will be preserved.
+
+#### Example
+
+```yaml
+org_settings:
+  gitops:
+    gitops_mode_enabled: true
+    repository_url: https://github.com/example/fleet-config
+```
+
 ### host_expiry_settings
 
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
