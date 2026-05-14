@@ -4446,6 +4446,8 @@ _Available in Fleet Premium_
 
 Turns off MDM for the specified macOS, iOS, iPadOS, or Android host.
 
+> On personal Android hosts (work profile), Fleet sends a On personal Android hosts (work profile), Fleet sends a [wipe command](https://developers.google.com/android/management/deprovision-device#wipe_command) via the Android Management API, because the unenroll command is retired if the host is offline for more than 30 days.
+
 `DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters

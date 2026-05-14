@@ -64,6 +64,9 @@ For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [defa
 
 Wipe is available for fully managed Android hosts. To remove Fleet from a BYO Android host, unenroll it instead.
 
+On personal Android hosts (work profile), Fleet sends a On personal Android hosts (work profile), Fleet sends a [wipe command](https://developers.google.com/android/management/deprovision-device#wipe_command) via the Android Management API, because the unenroll command is retired if the host is offline for more than 30 days.
+
+
 ## Unlock a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to unlock. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
