@@ -1,0 +1,221 @@
+name: Close stale Fleetie-initiated issues
+
+# Marks open issues authored by current or former Fleeties as stale after 2 years of no activity, then
+# closes them 14 days after being marked stale. Issues with the `bug`, `:product`, or any `customer-*`
+# label are exempt. Activity is `updated_at`, so comments and label changes reset the clock.
+#
+# Initial rollout: workflow_dispatch only, dry_run defaults to true. After the dry-run output has been
+# reviewed, switch dry_run to false and add a schedule trigger in a follow-up PR.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'If true, log candidates without writing labels, comments, or closing issues.'
+        type: boolean
+        default: true
+      max_operations:
+        description: 'Maximum stale-label + close write operations per run.'
+        type: number
+        default: 200
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  close-stale-fleetie-issues:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repo
+        uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+        with:
+          fetch-depth: 0
+
+      - name: Build Fleetie handle list
+        env:
+          READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+          FLEETIE_HANDLES_OUT: ${{ runner.temp }}/fleeties.txt
+        run: node .github/scripts/build-fleetie-handles.js
+
+      - name: Stale and close Fleetie-authored issues
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          FLEETIE_HANDLES_FILE: ${{ runner.temp }}/fleeties.txt
+          DRY_RUN: ${{ inputs.dry_run }}
+          MAX_OPERATIONS: ${{ inputs.max_operations }}
+        with:
+          script: |
+            const fs = require('node:fs');
+
+            const handles = new Set(
+              fs.readFileSync(process.env.FLEETIE_HANDLES_FILE, 'utf8')
+                .split('\n')
+                .map((s) => s.trim().toLowerCase())
+                .filter(Boolean),
+            );
+
+            const dryRun = String(process.env.DRY_RUN).toLowerCase() === 'true';
+            const maxOps = parseInt(process.env.MAX_OPERATIONS, 10) || 200;
+
+            const STALE_DAYS = 730;
+            const CLOSE_DAYS = 14;
+            const STALE_LABEL = 'stale';
+            const STALE_MSG =
+              'This issue is stale because it was opened by a current or former Fleetie and has had ' +
+              'no activity for 2 years. Please update the issue if it is still relevant; otherwise it ' +
+              'will be closed in 14 days.';
+            const CLOSE_MSG =
+              'This issue was closed because it has been inactive for 14 days since being marked as stale.';
+
+            const isExempt = (name) => {
+              const lower = (name || '').toLowerCase();
+              return lower === 'bug' || lower === ':product' || lower.startsWith('customer-');
+            };
+
+            const now = Date.now();
+            const daysSince = (iso) => (now - new Date(iso).getTime()) / (1000 * 60 * 60 * 24);
+
+            core.info(`Loaded ${handles.size} Fleetie handles. dry_run=${dryRun}, max_operations=${maxOps}`);
+
+            // Collect candidates first (no writes during iteration) so page boundaries are stable.
+            // Sort oldest-updated first; stop as soon as we see an issue younger than CLOSE_DAYS.
+            const candidates = [];
+            const iterator = github.paginate.iterator(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              sort: 'updated',
+              direction: 'asc',
+              per_page: 100,
+            });
+            let reachedYounger = false;
+            for await (const { data } of iterator) {
+              for (const issue of data) {
+                if (issue.pull_request) continue;
+                if (daysSince(issue.updated_at) < CLOSE_DAYS) {
+                  reachedYounger = true;
+                  break;
+                }
+                candidates.push(issue);
+              }
+              if (reachedYounger) break;
+            }
+            core.info(`Collected ${candidates.length} open issues idle for at least ${CLOSE_DAYS} days`);
+
+            const staled = [];
+            const closed = [];
+            let skippedNonFleetie = 0;
+            let skippedExempt = 0;
+            let skippedNotStaleYet = 0;
+            let writes = 0;
+
+            for (const issue of candidates) {
+              const author = (issue.user && issue.user.login ? issue.user.login : '').toLowerCase();
+              if (!handles.has(author)) {
+                skippedNonFleetie++;
+                continue;
+              }
+
+              const labelNames = (issue.labels || []).map((l) => (typeof l === 'string' ? l : l.name) || '');
+              if (labelNames.some(isExempt)) {
+                skippedExempt++;
+                continue;
+              }
+
+              const idleDays = daysSince(issue.updated_at);
+              const alreadyStale = labelNames.some((n) => n.toLowerCase() === STALE_LABEL);
+
+              if (alreadyStale) {
+                // Close phase: stale label present + at least CLOSE_DAYS idle since it was applied.
+                const entry = { number: issue.number, url: issue.html_url, author, idleDays };
+                closed.push(entry);
+                core.info(`close: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`);
+                if (!dryRun) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: CLOSE_MSG,
+                  });
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    state: 'closed',
+                    state_reason: 'not_planned',
+                  });
+                  writes++;
+                }
+              } else if (idleDays >= STALE_DAYS) {
+                // Stale phase.
+                const entry = { number: issue.number, url: issue.html_url, author, idleDays };
+                staled.push(entry);
+                core.info(`stale: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`);
+                if (!dryRun) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: STALE_MSG,
+                  });
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    labels: [STALE_LABEL],
+                  });
+                  writes++;
+                }
+              } else {
+                skippedNotStaleYet++;
+              }
+
+              if (!dryRun && writes >= maxOps) {
+                core.warning(`Reached max_operations=${maxOps}; stopping.`);
+                break;
+              }
+            }
+
+            const fmt = (list) =>
+              list.length
+                ? list
+                    .map((e) => `- [#${e.number}](${e.url}) by @${e.author} (idle ${e.idleDays.toFixed(1)}d)`)
+                    .join('\n')
+                : '_none_';
+
+            await core.summary
+              .addHeading('Fleetie stale-issue closer')
+              .addRaw(`Mode: **${dryRun ? 'dry-run' : 'live'}**`)
+              .addBreak()
+              .addRaw(`Fleetie handles loaded: **${handles.size}**`)
+              .addBreak()
+              .addRaw(`Open issues considered: **${candidates.length}**`)
+              .addList([
+                `Skipped (non-Fleetie author): ${skippedNonFleetie}`,
+                `Skipped (exempt label: bug, :product, customer-*): ${skippedExempt}`,
+                `Skipped (Fleetie-authored but younger than ${STALE_DAYS} days): ${skippedNotStaleYet}`,
+                `Marked stale this run: ${staled.length}`,
+                `Closed this run: ${closed.length}`,
+              ])
+              .addHeading('Marked stale', 3)
+              .addRaw(fmt(staled))
+              .addBreak()
+              .addHeading('Closed', 3)
+              .addRaw(fmt(closed))
+              .write();
