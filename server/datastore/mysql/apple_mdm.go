@@ -3424,21 +3424,134 @@ func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context)
 	var profilesToRemove []*fleet.MDMAppleProfilePayload
 	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
 		var err error
-		profilesToInstall, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, "")
-		if err != nil {
-			return err
-		}
-		profilesToRemove, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
-		if err != nil {
-			return err
-		}
-		return nil
+		profilesToInstall, profilesToRemove, err = ds.listMDMAppleProfilesToInstallAndRemoveTransaction(ctx, tx)
+		return err
 	})
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple profiles to install and remove")
 	}
 
 	return profilesToInstall, profilesToRemove, nil
+}
+
+// listMDMAppleProfilesToInstallAndRemoveTransaction issues a single combined
+// query returning both "to install" and "to remove" rows. The desired-state
+// computation (a 4-way UNION over mdm_apple_configuration_profiles × hosts ×
+// nano_enrollments × nano_devices, plus the label-membership joins) is the
+// dominant cost on a tick, and running the install and remove queries
+// separately makes the planner evaluate it twice. Here it is lifted into a
+// CTE that both halves reference, with a NO_MERGE hint so MySQL 8
+// materializes once instead of inlining the derived table at each
+// reference. Rows are discriminated by a literal `op` column ('install' or
+// 'remove') and split into the two return slices.
+//
+// The WHERE-clause shapes for each half match the install/remove queries in
+// generateEntitiesToInstallQuery/generateEntitiesToRemoveQuery for entity
+// type "profile" with no host filter (the cron path); the SELECT lists
+// align column-by-column for UNION ALL by filling in defaults ('' / NULL)
+// on the side that doesn't carry a value.
+func (ds *Datastore) listMDMAppleProfilesToInstallAndRemoveTransaction(ctx context.Context, tx common_mysql.DBReadTx) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+	desiredState := fmt.Sprintf(generateDesiredStateQuery("profile"), "TRUE", "TRUE", "TRUE", "TRUE")
+
+	query := fmt.Sprintf(`
+	WITH ds AS (
+		%s
+	)
+	SELECT /*+ NO_MERGE(ds) */
+		'install' AS op,
+		ds.profile_uuid AS profile_uuid,
+		ds.host_uuid AS host_uuid,
+		ds.host_platform AS host_platform,
+		ds.profile_identifier AS profile_identifier,
+		ds.profile_name AS profile_name,
+		ds.checksum AS checksum,
+		ds.secrets_updated_at AS secrets_updated_at,
+		ds.scope AS scope,
+		ds.device_enrolled_at AS device_enrolled_at,
+		'' AS operation_type,
+		'' AS detail,
+		NULL AS status,
+		'' AS command_uuid
+	FROM ds
+		LEFT JOIN host_mdm_apple_profiles hmae
+			ON hmae.profile_uuid = ds.profile_uuid AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- profile or secret variables have been updated
+		( hmae.checksum != ds.checksum ) OR IFNULL(hmae.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+		-- entity in A but not in B
+		( hmae.profile_uuid IS NULL AND hmae.host_uuid IS NULL ) OR
+		-- entities in A and B but with operation type "remove"
+		( hmae.host_uuid IS NOT NULL AND ( hmae.operation_type = ? OR hmae.operation_type IS NULL ) ) OR
+		-- entities in A and B with operation type "install" and NULL status
+		( hmae.host_uuid IS NOT NULL AND hmae.operation_type = ? AND hmae.status IS NULL )
+
+	UNION ALL
+
+	SELECT /*+ NO_MERGE(ds) */
+		'remove' AS op,
+		hmae.profile_uuid AS profile_uuid,
+		hmae.host_uuid AS host_uuid,
+		'' AS host_platform,
+		hmae.profile_identifier AS profile_identifier,
+		hmae.profile_name AS profile_name,
+		hmae.checksum AS checksum,
+		hmae.secrets_updated_at AS secrets_updated_at,
+		hmae.scope AS scope,
+		NULL AS device_enrolled_at,
+		hmae.operation_type AS operation_type,
+		COALESCE(hmae.detail, '') AS detail,
+		hmae.status AS status,
+		hmae.command_uuid AS command_uuid
+	FROM ds
+		RIGHT JOIN host_mdm_apple_profiles hmae
+			ON hmae.profile_uuid = ds.profile_uuid AND hmae.host_uuid = ds.host_uuid
+	WHERE
+		-- entities that are in B but not in A
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- except "remove" operations in a terminal state or already pending
+		( hmae.operation_type IS NULL OR hmae.operation_type != ? OR hmae.status IS NULL ) AND
+		-- except "would be removed" entities if they are a broken label-based entity
+		-- (regardless of if it is an include-all or exclude-any label)
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.apple_profile_uuid = hmae.profile_uuid AND
+				mcpl.label_id IS NULL
+		)
+`, desiredState)
+
+	args := []any{
+		fleet.MDMOperationTypeRemove,  // install half: "operation_type = remove" filter
+		fleet.MDMOperationTypeInstall, // install half: "operation_type = install AND status IS NULL" filter
+		fleet.MDMOperationTypeRemove,  // remove half: excludes non-NULL remove ops
+	}
+
+	// Embedded MDMAppleProfilePayload lets sqlx scan the SELECT columns
+	// straight into the same struct shape both callers already consume,
+	// with an extra `op` discriminator we strip when splitting.
+	type combinedRow struct {
+		Op string `db:"op"`
+		fleet.MDMAppleProfilePayload
+	}
+
+	var rows []combinedRow
+	if err := sqlx.SelectContext(ctx, tx, &rows, query, args...); err != nil {
+		return nil, nil, err
+	}
+
+	toInstall := make([]*fleet.MDMAppleProfilePayload, 0, len(rows))
+	toRemove := make([]*fleet.MDMAppleProfilePayload, 0)
+	for i := range rows {
+		p := rows[i].MDMAppleProfilePayload
+		switch rows[i].Op {
+		case "install":
+			toInstall = append(toInstall, &p)
+		case "remove":
+			toRemove = append(toRemove, &p)
+		}
+	}
+	return toInstall, toRemove, nil
 }
 
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
