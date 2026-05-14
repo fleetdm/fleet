@@ -6,14 +6,14 @@
         <p>CLI (command line interface) tool for managing Fleet. Manage hosts, apply configurations, run reports, and interact with the Fleet API from your terminal.</p>
         <div purpose="download-buttons">
           <div purpose="button-row">
-            <a href="<%- macOsDownloadUrl %>"  purpose="download-button"><img alt="Apple logo" src="/images/os-macos-dark-24x24@2x.png"> macOS</a>
-            <a href="<%- windowsDownloadUrl %>"  purpose="download-button"><img alt="Windows logo" src="/images/os-windows-dark-24x24@2x.png">Windows</a>
-            <a href="<%- windowsArmDownloadUrl %>"  purpose="download-button"><img alt="Windows logo" src="/images/os-windows-dark-24x24@2x.png">Windows (arm 64)</a>
+            <a href="<%= macOsDownloadUrl %>"  purpose="download-button"><img alt="Apple logo" src="/images/os-macos-dark-24x24@2x.png"> macOS</a>
+            <a href="<%= windowsDownloadUrl %>"  purpose="download-button"><img alt="Windows logo" src="/images/os-windows-dark-24x24@2x.png">Windows</a>
+            <a href="<%= windowsArmDownloadUrl %>"  purpose="download-button"><img alt="Windows logo" src="/images/os-windows-dark-24x24@2x.png">Windows (arm 64)</a>
           </div>
           <div purpose="linux-instructions">
             <p><strong>Install on Linux</strong></p>
             <div  purpose="codeblock">
-              <div purpose="copy-button"></div>
+              <button type="button" purpose="copy-button" aria-label="Copy command"></button>
               <pre><code>curl -sSL https://fleetdm.com/resources/install-fleetctl.sh | bash</code></pre>
             </div>
           </div>
@@ -51,7 +51,7 @@
               <div purpose="accordion-answer" id="accordion__body-faq-3" class="collapse" aria-labelledby="accordion__header-faq-3">
                 <p>Set your Fleet server address, then log in:</p>
                 <div  purpose="codeblock">
-                  <div purpose="copy-button"></div>
+                  <button type="button" purpose="copy-button" aria-label="Copy command"></button>
                   <pre><code>fleetctl config set --address 'https://fleet.example.com'
 fleetctl login</code></pre>
                 </div>
@@ -65,7 +65,7 @@ fleetctl login</code></pre>
               <div purpose="accordion-answer" id="accordion__body-faq-4" class="collapse" aria-labelledby="accordion__header-faq-4">
                 <p>Yes. Instead of using fleetctl login, get your API token from My account in the Fleet UI and set your Fleet server token:</p>
                 <div  purpose="codeblock">
-                  <div purpose="copy-button"></div>
+                  <button type="button" purpose="copy-button" aria-label="Copy command"></button>
                   <pre><code>fleetctl config set --token YOUR_API_TOKEN</code></pre>
                 </div>
               </div>

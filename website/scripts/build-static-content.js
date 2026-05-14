@@ -1646,7 +1646,7 @@ module.exports = {
           url: 'https://api.github.com/repos/fleetdm/fleet/releases/latest',
           headers: baseHeadersForGithubRequests,
         }).intercept((err) =>{
-          return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occured. Full error: ${util.inspect(err)}`);
+          return new Error(`When sending a request to the GitHub API to get links for the latest released fleetctl installers, an error occurred. Full error: ${util.inspect(err)}`);
         });
         let downloadAssets = latestFleetReleaseDetails.assets;
         let macOsInstaller = _.find(downloadAssets, (asset)=> { return  _.endsWith(asset.browser_download_url, '_mac.pkg');});
