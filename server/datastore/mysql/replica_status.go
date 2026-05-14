@@ -24,7 +24,7 @@ func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (Mas
 		stmt = "SHOW MASTER STATUS"
 	}
 
-	rows, err := ds.writer(ctx).Query(stmt)
+	rows, err := ds.writer(ctx).QueryContext(ctx, stmt)
 	if err != nil {
 		return MasterStatus{}, ctxerr.Wrap(ctx, err, stmt)
 	}

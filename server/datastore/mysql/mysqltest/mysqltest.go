@@ -150,13 +150,10 @@ func setupDummyReplica(t testing.TB, testName string, ds *mysql.Datastore, opts 
 	t.Helper()
 
 	// create the context that will cancel the replication goroutine on test exit
-	var cancel func()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	if tt, ok := t.(*testing.T); ok {
 		if dl, ok := tt.Deadline(); ok {
 			ctx, cancel = context.WithDeadline(ctx, dl)
-		} else {
-			ctx, cancel = context.WithCancel(ctx)
 		}
 	}
 	t.Cleanup(cancel)
@@ -440,6 +437,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *testing_utils.DatastoreTestOpt
 			if lastErr, ok := status["Last_Error"]; ok && lastErr != "" {
 				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
 			}
+			ds.Close()
 			continue
 		}
 		break

@@ -46,12 +46,6 @@ func (ds *Datastore) TestLogger() *slog.Logger {
 	return ds.logger
 }
 
-// TestServerPrivateKey returns the server private key string used for
-// encryption. It must not be used from production code.
-func (ds *Datastore) TestServerPrivateKey() string {
-	return ds.serverPrivateKey
-}
-
 // TestWriter returns the writer DB for use by test helpers.
 func (ds *Datastore) TestWriter(ctx context.Context) *sqlx.DB {
 	return ds.writer(ctx)
