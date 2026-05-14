@@ -577,6 +577,19 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: false,
 		},
+		{
+			// Guards the encoding used for multiset keys against control-byte
+			// collisions: a label list ["a","b"] must not collapse to the
+			// same key as a single label "a\x01b".
+			name: "Control Byte Labels Not Collapsed",
+			a: []fleet.MDMProfileSpec{
+				{Path: "/a", LabelsIncludeAll: []string{"a", "b"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "/a", LabelsIncludeAll: []string{"a\x01b"}},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -587,7 +600,7 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 	}
 }
 
-// TestMDMProfileSpecsMatchProperties uses property-based testing to verify
+// TestPBT_MDMProfileSpecsMatch uses property-based testing to verify
 // the contract documented on MDMProfileSpecsMatch ("contain the same spec
 // elements, regardless of order") via invariants that don't depend on a
 // reference implementation:
@@ -601,7 +614,7 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 //
 // Generators use narrow pools so duplicate Paths and duplicate labels are
 // likely, which is where the multiset semantics matter most.
-func TestMDMProfileSpecsMatchProperties(t *testing.T) {
+func TestPBT_MDMProfileSpecsMatch(t *testing.T) {
 	labelGen := rapid.SliceOfN(rapid.SampledFrom([]string{"x", "y", "z"}), 0, 3)
 	pathGen := rapid.SampledFrom([]string{"/a", "/b"})
 	specGen := rapid.Custom(func(t *rapid.T) fleet.MDMProfileSpec {

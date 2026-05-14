@@ -3,6 +3,7 @@ package fleet
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -863,8 +864,9 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 // mdmProfileSpecKey returns a canonical string representation of an
 // MDMProfileSpec used for multiset equality. Labels are sorted so the order
 // in the slice does not matter; duplicates within a labels list are
-// preserved so the labels themselves are also compared as multisets. NUL
-// separators are used to avoid collisions between fields.
+// preserved so the labels themselves are also compared as multisets. Each
+// field is length-prefixed with a varint so the encoding is collision-free
+// regardless of which bytes paths or label names contain.
 func mdmProfileSpecKey(s MDMProfileSpec) string {
 	// the deprecated Labels field is only relevant if LabelsIncludeAll is empty
 	include := s.LabelsIncludeAll
@@ -873,29 +875,32 @@ func mdmProfileSpecKey(s MDMProfileSpec) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(s.Path)
-	sb.WriteByte(0)
+	writeLengthPrefixed(&sb, s.Path)
 	writeSortedLabels(&sb, include)
-	sb.WriteByte(0)
 	writeSortedLabels(&sb, s.LabelsIncludeAny)
-	sb.WriteByte(0)
 	writeSortedLabels(&sb, s.LabelsExcludeAny)
 	return sb.String()
 }
 
 func writeSortedLabels(sb *strings.Builder, labels []string) {
-	if len(labels) == 0 {
-		return
-	}
 	sorted := make([]string, len(labels))
 	copy(sorted, labels)
 	slices.Sort(sorted)
-	for i, l := range sorted {
-		if i > 0 {
-			sb.WriteByte(1)
-		}
-		sb.WriteString(l)
+	writeUvarint(sb, uint64(len(sorted)))
+	for _, l := range sorted {
+		writeLengthPrefixed(sb, l)
 	}
+}
+
+func writeLengthPrefixed(sb *strings.Builder, s string) {
+	writeUvarint(sb, uint64(len(s)))
+	sb.WriteString(s)
+}
+
+func writeUvarint(sb *strings.Builder, v uint64) {
+	var buf [binary.MaxVarintLen64]byte
+	n := binary.PutUvarint(buf[:], v)
+	sb.Write(buf[:n])
 }
 
 type MDMLabelsMode string
