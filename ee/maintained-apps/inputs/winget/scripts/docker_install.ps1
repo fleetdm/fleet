@@ -10,7 +10,7 @@ try {
 # each installer might use different argument (usually it's "/S" or "/s")
 $processOptions = @{
   FilePath = "$exeFilePath"
-  ArgumentList = "install --accept-license --quiet"
+  ArgumentList = "install --accept-license --quiet --no-windows-containers"
   PassThru = $true
   Wait = $true
 }
