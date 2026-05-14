@@ -1,29 +1,45 @@
 #!/bin/bash
 
+set -euo pipefail
+
 # variables
 APPDIR="/Applications/"
 TMPDIR=$(dirname "$(realpath "$INSTALLER_PATH")")
+MOUNT_POINT=""
+
+cleanup() {
+  local mp="${MOUNT_POINT:-}"
+  if [[ -n "$mp" ]]; then
+    if mount | grep -q " on $mp "; then
+      hdiutil detach "$mp" >/dev/null 2>&1 || true
+    fi
+    rmdir "$mp" >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
 # functions
 
 quit_and_track_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name
+  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local timeout_duration=10
 
   # check if the application is running
   local app_running
-  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null)
+  app_running=$(osascript -e "application id \"$bundle_id\" is running" 2>/dev/null || echo "false")
   if [[ "$app_running" != "true" ]]; then
     eval "export $var_name=0"
-    return
+    return 0
   fi
 
   local console_user
-  console_user=$(stat -f "%Su" /dev/console)
+  console_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping quitting application ID '$bundle_id'."
     eval "export $var_name=0"
-    return
+    return 0
   fi
 
   # App was running, mark it for relaunch
@@ -47,24 +63,26 @@ quit_and_track_application() {
   done
 
   if [[ "$quit_success" = false ]]; then
-    echo "Application '$bundle_id' did not quit."
+    echo "Application '$bundle_id' did not quit within ${timeout_duration}s; aborting install." >&2
+    return 1
   fi
 }
 
 
 relaunch_application() {
   local bundle_id="$1"
-  local var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
+  local var_name
+  var_name="APP_WAS_RUNNING_$(echo "$bundle_id" | tr '.-' '__')"
   local was_running
 
   # Check if the app was running before installation
-  eval "was_running=\$$var_name"
+  eval "was_running=\${$var_name:-0}"
   if [[ "$was_running" != "1" ]]; then
     return
   fi
 
   local console_user
-  console_user=$(stat -f "%Su" /dev/console)
+  console_user=$(stat -f "%Su" /dev/console 2>/dev/null || echo "")
   if [[ -z "$console_user" || "$console_user" == "root" || "$console_user" == "loginwindow" ]]; then
     echo "Not logged into a non-root GUI; skipping relaunching application ID '$bundle_id'."
     return
@@ -96,9 +114,13 @@ relaunch_application() {
 
 # extract contents
 MOUNT_POINT=$(mktemp -d /tmp/dmg_mount_XXXXXX)
-hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"
+if ! hdiutil attach -plist -nobrowse -readonly -mountpoint "$MOUNT_POINT" "$INSTALLER_PATH"; then
+  echo "Failed to mount DMG '$INSTALLER_PATH'." >&2
+  exit 1
+fi
 sudo cp -R "$MOUNT_POINT"/* "$TMPDIR"
 hdiutil detach "$MOUNT_POINT"
+MOUNT_POINT=""
 # copy to the applications folder
 quit_and_track_application 'com.electron.dockerdesktop'
 if [ -d "$APPDIR/Docker.app" ]; then
