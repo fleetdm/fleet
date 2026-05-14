@@ -63,6 +63,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -30485,4 +30486,129 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	require.Len(t, byName[validAnyName].LabelsIncludeAny, 1)
 	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
 	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
+}
+
+// TestOrbitOsqueryReEnrollDoesNotChangeTeam verifies that re-enrolling a host
+// via orbit or osquery with an enroll secret belonging to a different team than
+// the host's current team does not change the host's team_id. This protects
+// against unintended team transfers when a host re-enrolls using a different
+// enroll secret than the one originally used to onboard it.
+func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	teamASecret := "team-a-reenroll-secret" //nolint:gosec // G101: test value only
+	teamBSecret := "team-b-reenroll-secret" //nolint:gosec // G101: test value only
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:    t.Name() + "_teamA",
+		Secrets: []*fleet.EnrollSecret{{Secret: teamASecret}},
+	})
+	require.NoError(t, err)
+
+	// Team B exists only to own teamBSecret. The host should never end up in it.
+	_, err = s.ds.NewTeam(ctx, &fleet.Team{
+		Name:    t.Name() + "_teamB",
+		Secrets: []*fleet.EnrollSecret{{Secret: teamBSecret}},
+	})
+	require.NoError(t, err)
+
+	t.Run("orbit", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		hostSerial := uuid.New().String()
+		hostName := t.Name() + ".local"
+
+		// Initial orbit enroll with team A's secret — host should be created in team A.
+		var orbitResp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+			EnrollSecret:   teamASecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: hostSerial,
+			Hostname:       hostName,
+			Platform:       "darwin",
+			HardwareModel:  "MacBookPro16,1",
+		}, http.StatusOK, &orbitResp)
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+
+		// Re-enroll the same host using team B's secret. team_id must not change.
+		var reorbitResp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+			EnrollSecret:   teamBSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: hostSerial,
+			Hostname:       hostName,
+			Platform:       "darwin",
+			HardwareModel:  "MacBookPro16,1",
+		}, http.StatusOK, &reorbitResp)
+		require.NotEmpty(t, reorbitResp.OrbitNodeKey)
+
+		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+	})
+
+	t.Run("osquery", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		hostSerial := uuid.New().String()
+
+		// Initial osquery enroll with team A's secret — host should be created in team A.
+		var osqueryResp contract.EnrollOsqueryAgentResponse
+		s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   teamASecret,
+			HostIdentifier: hostUUID,
+			HostDetails: map[string]map[string]string{
+				"osquery_info": {
+					"instance_id": hostUUID,
+				},
+				"system_info": {
+					"hardware_serial": hostSerial,
+					"uuid":            hostUUID,
+				},
+			},
+		}, http.StatusOK, &osqueryResp)
+		require.NotEmpty(t, osqueryResp.NodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+
+		// Age last_enrolled_at to bypass the osquery enroll cooldown (default 42m in tests).
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				ctx,
+				"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
+				hostLite.ID,
+			)
+			return err
+		})
+
+		// Re-enroll the same host using team B's secret. team_id must not change.
+		var reosqueryResp contract.EnrollOsqueryAgentResponse
+		s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   teamBSecret,
+			HostIdentifier: hostUUID,
+			HostDetails: map[string]map[string]string{
+				"osquery_info": {
+					"instance_id": hostUUID,
+				},
+				"system_info": {
+					"hardware_serial": hostSerial,
+					"uuid":            hostUUID,
+				},
+			},
+		}, http.StatusOK, &reosqueryResp)
+		require.NotEmpty(t, reosqueryResp.NodeKey)
+
+		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+	})
 }

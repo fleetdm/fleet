@@ -54,11 +54,11 @@ describe("SetupAssistant", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/first turn on automatic enrollment/)
+        screen.getByText(/Additional configuration required/)
       ).toBeInTheDocument();
     });
     expect(
-      screen.getByText(/Add an automatic enrollment profile/)
+      screen.getByText(/Turn on MDM and automatic enrollment to customize/)
     ).toBeVisible();
   });
 
