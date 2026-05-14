@@ -847,18 +847,11 @@ func labelCountMap(labels []string) map[string]int {
 // MDMProfileSpecsMatch checks if two slices contain the same spec elements,
 // regardless of order.
 //
-// Precondition: each slice must contain at most one entry per Path. Upstream
-// validation (`getProfilesContents` in server/service/client.go and
-// `validateCrossPlatformProfileNames` in server/service/mdm.go) enforces this
-// invariant before specs reach storage, so callers always pass unique-Path
-// lists. As a guard, this function returns false if either slice violates
-// the precondition; multiset comparison across duplicate Paths is not
-// supported.
+// Precondition: each slice must contain at most one entry per Path.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	mustNotHaveDuplicatePaths("a", a)
+	mustNotHaveDuplicatePaths("b", b)
 	if len(a) != len(b) {
-		return false
-	}
-	if hasDuplicatePaths(a) || hasDuplicatePaths(b) {
 		return false
 	}
 
@@ -941,18 +934,17 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
-func hasDuplicatePaths(specs []MDMProfileSpec) bool {
+func mustNotHaveDuplicatePaths(name string, specs []MDMProfileSpec) {
 	if len(specs) < 2 {
-		return false
+		return
 	}
 	seen := make(map[string]struct{}, len(specs))
 	for _, s := range specs {
 		if _, dup := seen[s.Path]; dup {
-			return true
+			panic(fmt.Sprintf("MDMProfileSpecsMatch: %s contains duplicate Path %q; upstream validation should have rejected this", name, s.Path))
 		}
 		seen[s.Path] = struct{}{}
 	}
-	return false
 }
 
 type MDMLabelsMode string
