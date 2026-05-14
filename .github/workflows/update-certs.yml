@@ -31,7 +31,7 @@ jobs:
         egress-policy: audit
 
     - name: Checkout code
-      uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b # v.24.0
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
     # We trust own version of mk-ca-bundle.pl and its output, but as an extra check
     # we compare with the cacert.pem served by https://curl.se/ca/cacert.pem (this
