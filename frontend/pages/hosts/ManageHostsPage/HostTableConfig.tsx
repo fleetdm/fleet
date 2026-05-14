@@ -81,7 +81,7 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
 const lastSeenTime = (
   status: string,
   seenTime: string,
-  platform?: string,
+  platform?: string
 ): string => {
   if (platform && isMobilePlatform(platform)) {
     return "Last seen: Not supported";
@@ -131,7 +131,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
           title={lastSeenTime(
             cellProps.row.original.status,
             cellProps.row.original.seen_time,
-            cellProps.row.original.platform,
+            cellProps.row.original.platform
           )}
         />
       );
@@ -165,7 +165,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
     Cell: (cellProps: IHostTableStringCellProps) => {
       const os_version = cellProps.cell.value;
       const versionForRender = ROLLING_ARCH_LINUX_VERSIONS.includes(
-        os_version,
+        os_version
       ) ? (
         // wrap a tooltip around the "rolling" suffix
         <>
@@ -250,7 +250,7 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
       if (
         isAndroid(cellProps.row.original.platform) ||
         isBYODAccountDrivenUserEnrollment(
-          cellProps.row.original.mdm.enrollment_status,
+          cellProps.row.original.mdm.enrollment_status
         )
       ) {
         return NotSupported;
@@ -722,7 +722,7 @@ const generateAvailableTableHeaders = ({
       columns.push(currentColumn);
       return columns;
     },
-    [],
+    []
   );
 };
 
