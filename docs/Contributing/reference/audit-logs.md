@@ -1630,6 +1630,63 @@ This activity contains the following fields:
 }
 ```
 
+## added_self_service_category
+
+Generated when a self-service category is added to a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was added.
+- "fleet_name": Name of the fleet the category was added to.
+- "fleet_id": ID of the fleet the category was added to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## edited_self_service_category
+
+Generated when a self-service category is renamed on a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": New name of the self-service category.
+- "fleet_name": Name of the fleet the category belongs to.
+- "fleet_id": ID of the fleet the category belongs to.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support utilities",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
+## deleted_self_service_category
+
+Generated when a self-service category is deleted from a fleet.
+
+This activity contains the following fields:
+- "self_service_category_name": Name of the self-service category that was deleted.
+- "fleet_name": Name of the fleet the category was deleted from.
+- "fleet_id": ID of the fleet the category was deleted from.
+
+#### Example
+
+```json
+{
+  "self_service_category_name": "🛟 Support",
+  "fleet_name": "💻 Workstations",
+  "fleet_id": 123
+}
+```
+
 ## enabled_vpp
 
 Generated when VPP features are enabled in Fleet.

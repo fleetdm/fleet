@@ -3609,6 +3609,29 @@ X-Client-Cert-Serial: <fleet_identity_scep_cert_serial>
 
 `Status: 202`
 
+#### Install all self-service software
+
+Queues an install for every self-service software title available to the device that isn't already installed.
+
+If `category_id` is provided, only titles assigned to that [self-service category](https://fleetdm.com/docs/rest-api/rest-api#self-service-categories) on the device's fleet are queued.
+
+`POST /api/v1/fleet/device/{token}/software/install_all`
+
+##### Parameters
+
+| Name        | Type    | In    | Description                                                                                                                                          |
+| ----------- | ------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| token       | string  | path  | **Required**. The device's authentication token.                                                                                                     |
+| category_id | integer | query | Restrict the install to a single self-service category. Must reference a category that exists on the device's fleet. If omitted, all categories are included. |
+
+##### Example
+
+`POST /api/v1/fleet/device/22aada07-dc73-41f2-8452-c0987543fd29/software/install_all?category_id=12`
+
+##### Default response
+
+`Status: 202`
+
 ### Uninstall software via self-service
 
 Uninstalls software from a host via the My device page.
