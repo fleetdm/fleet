@@ -17,6 +17,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/androidmanagement/v1"
@@ -348,6 +350,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "vpp-managedcfg-install-team"})
 	require.NoError(t, err)
 	s.setVPPTokenForTeam(team.ID)
+	s.registerResetVPPProxyData(t)
 
 	asJSONString := func(s string) json.RawMessage {
 		b, err := json.Marshal(s)
@@ -627,6 +630,119 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		require.Contains(t, raw, fmt.Sprintf("<string>%s</string>", ssHost.UUID),
 			"self-service install must resolve $FLEET_VAR_HOST_UUID to this host's UUID")
 		_, err = ssDev.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	})
+
+	t.Run("auto-update install carries the managed Configuration", func(t *testing.T) {
+		// adam "3" is unused by prior subtests; override its proxy metadata
+		// to declare iOS at v1.0.0 (default proxy data has it as iPadOS-only).
+		const cfgAdamID = "3"
+		s.appleVPPProxySrvData[cfgAdamID] = `{"id": "3", "attributes": {"name": "Config App", "platformAttributes": {"ios": {"bundleId": "app-cfg", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "1.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
+
+		cfgHost, cfgDev := s.createAppleMobileHostThenEnrollMDM("ios")
+		s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, cfgDev.SerialNumber)
+		s.Do("POST", "/api/latest/fleet/hosts/transfer",
+			&addHostsToTeamRequest{HostIDs: []uint{cfgHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+		var addResp addAppStoreAppResponse
+		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{
+			TeamID: &team.ID, AppStoreID: cfgAdamID, Platform: fleet.IOSPlatform,
+			Configuration: json.RawMessage(`"<dict><key>auto</key><string>update</string></dict>"`),
+		}, http.StatusOK, &addResp)
+		appTitleID := addResp.TitleID
+		require.NotZero(t, appTitleID)
+
+		// First install.
+		s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", cfgHost.ID, appTitleID),
+			&installSoftwareRequest{}, http.StatusAccepted, &installSoftwareResponse{})
+		s.awaitRunAppleMDMWorkerSchedule()
+		s.runWorker()
+		cmd, err := cfgDev.Idle()
+		require.NoError(t, err)
+		require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), "<key>Configuration</key>")
+		require.Contains(t, string(cmd.Raw), "<string>update</string>")
+		_, err = cfgDev.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		s.runWorker()
+		cmd, err = cfgDev.Idle()
+		require.NoError(t, err)
+		require.Equal(t, "InstalledApplicationList", cmd.Command.RequestType)
+		_, err = cfgDev.AcknowledgeInstalledApplicationList(cfgDev.UUID, cmd.CommandUUID, []fleet.Software{
+			{Name: "Config App", BundleIdentifier: "app-cfg", Version: "1.0.0", Installed: true},
+		})
+		require.NoError(t, err)
+
+		// handleRefetch processes the three commands a refetch queues:
+		// InstalledApplicationList, CertificateList, DeviceInformation.
+		handleRefetch := func(software []fleet.Software) {
+			s.runWorker()
+			c, err := cfgDev.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "InstalledApplicationList", c.Command.RequestType)
+			_, err = cfgDev.AcknowledgeInstalledApplicationList(cfgDev.UUID, c.CommandUUID, software)
+			require.NoError(t, err)
+			c, err = cfgDev.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "CertificateList", c.Command.RequestType)
+			_, err = cfgDev.AcknowledgeCertificateList(cfgDev.UUID, c.CommandUUID, nil)
+			require.NoError(t, err)
+			c, err = cfgDev.Idle()
+			require.NoError(t, err)
+			require.Equal(t, "DeviceInformation", c.Command.RequestType)
+			_, err = cfgDev.AcknowledgeDeviceInformation(cfgDev.UUID, c.CommandUUID, "iPhone 17", "iPhone", "America/Los_Angeles")
+			require.NoError(t, err)
+		}
+
+		// First refetch populates the host's timezone (DeviceInformation is sent last).
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", cfgHost.ID), nil, http.StatusOK)
+		handleRefetch([]fleet.Software{
+			{Name: "Config App", BundleIdentifier: "app-cfg", Version: "1.0.0", Installed: true},
+		})
+
+		// Enable auto-update inside the current Los Angeles window.
+		nowInLA, err := getCurrentLocalTimeInHostTimeZone(ctx, "America/Los_Angeles")
+		require.NoError(t, err)
+		startHHMM := nowInLA.Add(-30 * time.Minute).Format("15:04")
+		endHHMM := nowInLA.Add(30 * time.Minute).Format("15:04")
+		s.DoJSON("PATCH", fmt.Sprintf("/api/v1/fleet/software/titles/%d/app_store_app", appTitleID),
+			updateAppStoreAppRequest{
+				TeamID:              &team.ID,
+				AutoUpdateEnabled:   new(true),
+				AutoUpdateStartTime: &startHHMM,
+				AutoUpdateEndTime:   &endHHMM,
+			}, http.StatusOK, &updateAppStoreAppResponse{})
+
+		// Bump latest version in proxy data, refresh, and bypass the 1-hour install filter.
+		s.appleVPPProxySrvData[cfgAdamID] = `{"id": "3", "attributes": {"name": "Config App", "platformAttributes": {"ios": {"bundleId": "app-cfg", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
+		require.NoError(t, vpp.RefreshVersions(ctx, s.ds, apple_apps.StubbedConfig()))
+		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(ctx,
+				`UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, cfgHost.ID)
+			return err
+		})
+
+		// Refetch with the host still on v1.0.0 → auto-update kicks in.
+		s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/refetch", cfgHost.ID), nil, http.StatusOK)
+		handleRefetch([]fleet.Software{
+			{Name: "Config App", BundleIdentifier: "app-cfg", Version: "1.0.0", Installed: true},
+		})
+
+		s.runWorker()
+		cmd, err = cfgDev.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd, "expected an auto-update InstallApplication command")
+		require.Equal(t, "InstallApplication", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), "<key>Configuration</key>",
+			"scheduled auto-update InstallApplication must carry Configuration")
+		require.Contains(t, string(cmd.Raw), "<string>update</string>",
+			"scheduled auto-update must use the latest stored config bytes")
+
+		isAuto, err := s.ds.IsAutoUpdateVPPInstall(ctx, cmd.CommandUUID)
+		require.NoError(t, err)
+		require.True(t, isAuto, "command must be recorded with from_auto_update=true")
+
+		_, err = cfgDev.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	})
 }
