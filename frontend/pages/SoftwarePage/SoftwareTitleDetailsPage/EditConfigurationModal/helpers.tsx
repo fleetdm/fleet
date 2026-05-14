@@ -5,6 +5,46 @@ import { getErrorReason } from "interfaces/errors";
 const DEFAULT_ERROR_MESSAGE =
   "Couldn't update configuration. Please try again.";
 
+/** Variables that are valid in configuration profiles but NOT in managed configuration. */
+const PROFILE_ONLY_VARIABLE_PATTERNS = [
+  /^NDES_SCEP_/,
+  /^CUSTOM_SCEP_/,
+  /^SCEP_RENEWAL_ID$/,
+  /^DIGICERT_/,
+  /^SCEP_WINDOWS_CERTIFICATE_ID$/,
+  /^SMALLSTEP_SCEP_/,
+];
+
+const isProfileOnlyVariable = (varNameWithoutPrefix: string): boolean => {
+  return PROFILE_ONLY_VARIABLE_PATTERNS.some((pattern) =>
+    pattern.test(varNameWithoutPrefix)
+  );
+};
+
+const generateUnsupportedVariableErrMsg = (errMsg: string) => {
+  const match = errMsg.match(/\$FLEET_VAR_(\w+)/);
+  if (!match) {
+    return DEFAULT_ERROR_MESSAGE;
+  }
+  const fullVarName = match[0];
+  const varNameWithoutPrefix = match[1];
+
+  if (isProfileOnlyVariable(varNameWithoutPrefix)) {
+    return `Couldn't add. Variable "${fullVarName}" isn't supported in managed configuration. It can be only used in configuration profiles.`;
+  }
+
+  return `Couldn't add. Variable "${fullVarName}" doesn't exist.`;
+};
+
+const generateMissingSecretErrMsg = (errMsg: string) => {
+  const match = errMsg.match(/"\$FLEET_SECRET_\w+"/);
+  if (!match) {
+    return DEFAULT_ERROR_MESSAGE;
+  }
+  const varName = match[0].replace(/"/g, "");
+  return `Couldn't add. Variable "${varName}" doesn't exist.`;
+};
+
 export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   const reason = getErrorReason(err);
 
@@ -21,6 +61,16 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
         supported as top-level keys.
       </>
     );
+  }
+
+  // Fleet variable unsupported in managed configuration
+  if (reason.includes("unsupported variable")) {
+    return generateUnsupportedVariableErrMsg(reason);
+  }
+
+  // Secret variable missing from database
+  if (reason.includes("Secret variable")) {
+    return generateMissingSecretErrMsg(reason);
   }
 
   return reason || DEFAULT_ERROR_MESSAGE;
