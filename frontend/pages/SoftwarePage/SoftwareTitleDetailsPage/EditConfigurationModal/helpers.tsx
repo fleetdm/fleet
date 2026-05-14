@@ -37,11 +37,16 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
 };
 
 const generateMissingSecretErrMsg = (errMsg: string) => {
-  const matches = [...errMsg.matchAll(/"\$FLEET_SECRET_\w+"/g)];
-  if (matches.length === 0) {
+  const regex = /"\$FLEET_SECRET_\w+"/g;
+  const varNames: string[] = [];
+  let m = regex.exec(errMsg);
+  while (m) {
+    varNames.push(m[0].replace(/"/g, ""));
+    m = regex.exec(errMsg);
+  }
+  if (varNames.length === 0) {
     return DEFAULT_ERROR_MESSAGE;
   }
-  const varNames = matches.map((m) => m[0].replace(/"/g, ""));
   const plural = varNames.length > 1 ? "s" : "";
   const verb = varNames.length > 1 ? "don't" : "doesn't";
   const quoted = varNames.map((v) => `"${v}"`).join(", ");
@@ -70,7 +75,10 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   // Note: the backend validates variables one at a time and returns on the
   // first unsupported one it finds, so only one variable is surfaced per
   // request even if the configuration contains multiple invalid variables.
-  if (reason.includes("unsupported variable") && reason.includes("$FLEET_VAR_")) {
+  if (
+    reason.includes("unsupported variable") &&
+    reason.includes("$FLEET_VAR_")
+  ) {
     return generateUnsupportedVariableErrMsg(reason);
   }
 
