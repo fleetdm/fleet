@@ -17,7 +17,7 @@ func Up_20260512173249(tx *sql.Tx) error {
 			managed_apple_id  VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			client_user_id    VARCHAR(36)  COLLATE utf8mb4_unicode_ci NOT NULL,
 			apple_user_id     VARCHAR(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-			status            ENUM('pending','registered','retired') NOT NULL DEFAULT 'pending',
+			status            ENUM('pending','registered','retired') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',
 			created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 			PRIMARY KEY (id),

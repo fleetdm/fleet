@@ -38,7 +38,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 
 	// Common mock-server setup. Captures the AssociateAssets body so the test
 	// can assert on the wire payload.
-	setupServer := func(t *testing.T, cap *captured) {
+	setupServer := func(t *testing.T, capt *captured) {
 		t.Helper()
 		setupFakeVPPServer(t, func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "Bearer "+bearerToken, r.Header.Get("Authorization"))
@@ -61,7 +61,7 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 			case r.Method == http.MethodPost && r.URL.Path == "/assets/associate":
 				b, err := io.ReadAll(r.Body)
 				assert.NoError(t, err)
-				cap.body = b
+				capt.body = b
 				_, _ = w.Write([]byte(`{"eventId":"associate-evt"}`))
 			default:
 				t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
@@ -100,8 +100,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 	vppApp := &fleet.VPPApp{VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: adamID, Platform: fleet.IOSPlatform}}}
 
 	t.Run("personal enrollment routes via clientUserIds", func(t *testing.T) {
-		var cap captured
-		setupServer(t, &cap)
+		var capt captured
+		setupServer(t, &capt)
 
 		ds := setupDS(t, true)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
@@ -109,12 +109,12 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
-		require.NotEmpty(t, cap.body, "AssociateAssets request must have been sent")
+		require.NotEmpty(t, capt.body, "AssociateAssets request must have been sent")
 		var got struct {
 			ClientUserIds []string `json:"clientUserIds"`
 			SerialNumbers []string `json:"serialNumbers"`
 		}
-		require.NoError(t, json.Unmarshal(cap.body, &got))
+		require.NoError(t, json.Unmarshal(capt.body, &got))
 		require.Len(t, got.ClientUserIds, 1)
 		require.NotEmpty(t, got.ClientUserIds[0])
 		require.Empty(t, got.SerialNumbers, "personal enrollment must not send serialNumbers")
@@ -124,8 +124,8 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 	})
 
 	t.Run("non-personal enrollment keeps SerialNumbers", func(t *testing.T) {
-		var cap captured
-		setupServer(t, &cap)
+		var capt captured
+		setupServer(t, &capt)
 
 		ds := setupDS(t, false)
 		svc := &Service{ds: ds, logger: slog.New(slog.DiscardHandler)}
@@ -133,12 +133,12 @@ func TestInstallVPPAppPostValidation_AssociateAssetsRouting(t *testing.T) {
 		_, err := svc.InstallVPPAppPostValidation(context.Background(), host, vppApp, bearerToken, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
-		require.NotEmpty(t, cap.body)
+		require.NotEmpty(t, capt.body)
 		var got struct {
 			ClientUserIds []string `json:"clientUserIds"`
 			SerialNumbers []string `json:"serialNumbers"`
 		}
-		require.NoError(t, json.Unmarshal(cap.body, &got))
+		require.NoError(t, json.Unmarshal(capt.body, &got))
 		require.Equal(t, []string{hostSerial}, got.SerialNumbers, "manually-enrolled hosts must use serialNumbers")
 		require.Empty(t, got.ClientUserIds, "manually-enrolled hosts must not send clientUserIds")
 
