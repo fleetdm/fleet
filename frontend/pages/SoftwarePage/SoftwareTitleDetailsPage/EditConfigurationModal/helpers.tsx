@@ -30,19 +30,21 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
   const varNameWithoutPrefix = match[1];
 
   if (isProfileOnlyVariable(varNameWithoutPrefix)) {
-    return `Couldn't add. Variable "${fullVarName}" isn't supported in managed configuration. It can be only used in configuration profiles.`;
+    return `Couldn't add. Variable "${fullVarName}" isn't supported in managed configuration. It can only be used in configuration profiles.`;
   }
 
   return `Couldn't add. Variable "${fullVarName}" doesn't exist.`;
 };
 
 const generateMissingSecretErrMsg = (errMsg: string) => {
-  const match = errMsg.match(/"\$FLEET_SECRET_\w+"/);
-  if (!match) {
+  const matches = [...errMsg.matchAll(/"\$FLEET_SECRET_\w+"/g)];
+  if (matches.length === 0) {
     return DEFAULT_ERROR_MESSAGE;
   }
-  const varName = match[0].replace(/"/g, "");
-  return `Couldn't add. Variable "${varName}" doesn't exist.`;
+  const varNames = matches.map((m) => m[0].replace(/"/g, ""));
+  const plural = varNames.length > 1 ? "s" : "";
+  const quoted = varNames.map((v) => `"${v}"`).join(", ");
+  return `Couldn't add. Variable${plural} ${quoted} doesn't exist.`;
 };
 
 export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
@@ -63,7 +65,10 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
     );
   }
 
-  // Fleet variable unsupported in managed configuration
+  // Fleet variable unsupported in managed configuration.
+  // Note: the backend validates variables one at a time and returns on the
+  // first unsupported one it finds, so only one variable is surfaced per
+  // request even if the configuration contains multiple invalid variables.
   if (reason.includes("unsupported variable")) {
     return generateUnsupportedVariableErrMsg(reason);
   }

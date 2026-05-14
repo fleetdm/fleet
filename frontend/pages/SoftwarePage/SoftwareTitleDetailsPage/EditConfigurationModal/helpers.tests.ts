@@ -116,116 +116,55 @@ describe("getErrorMessage", () => {
     );
   });
 
-  it("returns 'isn't supported in managed configuration' for NDES_SCEP variable", () => {
+  it("returns 'doesn't exist' for an unknown $FLEET_VAR_ variable on Android", () => {
     const err = {
       response: {
         data: {
           errors: [
             {
               name: "configuration",
-              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_CHALLENGE",
+              reason: "unsupported variable $FLEET_VAR_BLA_BLA",
             },
           ],
         },
       },
     };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_NDES_SCEP_CHALLENGE" isn't supported in managed configuration. It can be only used in configuration profiles.`
+    expect(getErrorMessage(err, false)).toBe(
+      `Couldn't add. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
     );
   });
 
-  it("returns 'isn't supported in managed configuration' for DIGICERT variable", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason: "unsupported variable $FLEET_VAR_DIGICERT_DATA_myCA",
-            },
-          ],
+  it.each([
+    ["NDES_SCEP_CHALLENGE"],
+    ["NDES_SCEP_PROXY_URL"],
+    ["DIGICERT_DATA_myCA"],
+    ["DIGICERT_PASSWORD_myCA"],
+    ["SCEP_WINDOWS_CERTIFICATE_ID"],
+    ["SMALLSTEP_SCEP_CHALLENGE_myCA"],
+    ["SMALLSTEP_SCEP_PROXY_URL_myCA"],
+    ["CUSTOM_SCEP_CHALLENGE_myCA"],
+    ["CUSTOM_SCEP_PROXY_URL_myCA"],
+    ["SCEP_RENEWAL_ID"],
+  ])(
+    "returns 'isn't supported in managed configuration' for %s",
+    (varSuffix) => {
+      const err = {
+        response: {
+          data: {
+            errors: [
+              {
+                name: "configuration",
+                reason: `unsupported variable $FLEET_VAR_${varSuffix}`,
+              },
+            ],
+          },
         },
-      },
-    };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_DIGICERT_DATA_myCA" isn't supported in managed configuration. It can be only used in configuration profiles.`
-    );
-  });
-
-  it("returns 'isn't supported in managed configuration' for SCEP_WINDOWS_CERTIFICATE_ID", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason:
-                "unsupported variable $FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID",
-            },
-          ],
-        },
-      },
-    };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_SCEP_WINDOWS_CERTIFICATE_ID" isn't supported in managed configuration. It can be only used in configuration profiles.`
-    );
-  });
-
-  it("returns 'isn't supported in managed configuration' for SMALLSTEP_SCEP variable", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason:
-                "unsupported variable $FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_myCA",
-            },
-          ],
-        },
-      },
-    };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_myCA" isn't supported in managed configuration. It can be only used in configuration profiles.`
-    );
-  });
-
-  it("returns 'isn't supported in managed configuration' for CUSTOM_SCEP variable", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason:
-                "unsupported variable $FLEET_VAR_CUSTOM_SCEP_CHALLENGE_myCA",
-            },
-          ],
-        },
-      },
-    };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_myCA" isn't supported in managed configuration. It can be only used in configuration profiles.`
-    );
-  });
-
-  it("returns 'isn't supported in managed configuration' for SCEP_RENEWAL_ID", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason: "unsupported variable $FLEET_VAR_SCEP_RENEWAL_ID",
-            },
-          ],
-        },
-      },
-    };
-    expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_SCEP_RENEWAL_ID" isn't supported in managed configuration. It can be only used in configuration profiles.`
-    );
-  });
+      };
+      expect(getErrorMessage(err, true)).toBe(
+        `Couldn't add. Variable "$FLEET_VAR_${varSuffix}" isn't supported in managed configuration. It can only be used in configuration profiles.`
+      );
+    }
+  );
 
   it("returns 'doesn't exist' for a missing $FLEET_SECRET_ variable", () => {
     const err = {
@@ -243,6 +182,25 @@ describe("getErrorMessage", () => {
     };
     expect(getErrorMessage(err, true)).toBe(
       `Couldn't add. Variable "$FLEET_SECRET_BLA_BLA" doesn't exist.`
+    );
+  });
+
+  it("returns 'doesn't exist' listing all variables for multiple missing $FLEET_SECRET_ variables", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason:
+                'Couldn\'t add. Secret variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" missing from database',
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't add. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" doesn't exist.`
     );
   });
 });
