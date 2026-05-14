@@ -1,0 +1,1 @@
+- Fixed Android hosts being auto-deleted by host expiry on every cleanup tick after re-enrolling, which previously caused an hourly enroll/delete loop while host expiry was enabled.

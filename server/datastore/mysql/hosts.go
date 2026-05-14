@@ -2382,7 +2382,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
         hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
         computer_name = COALESCE(NULLIF(computer_name, ''), ?),
         hardware_model = COALESCE(NULLIF(hardware_model, ''), ?),
-        refetch_requested = ?%s
+        refetch_requested = ?
       WHERE id = ?`
 			args := []any{
 				orbitNodeKey,
@@ -2394,21 +2394,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				refetchRequested,
 			}
 
-			if !enrollConfig.IgnoreTeamUpdate {
-				args = append(args, teamID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
-			} else {
-				ds.logger.InfoContext(ctx, "skipping team update on orbit enroll", "host_uuid", hostInfo.HardwareUUID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
-			}
-
 			// WHERE attributes
 			args = append(args, enrolledHostInfo.ID)
-
-			_, err := tx.ExecContext(ctx, sqlUpdate,
-				args...,
-			)
-			if err != nil {
+			if _, err := tx.ExecContext(ctx, sqlUpdate, args...); err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error updating host details")
 			}
 			host.ID = enrolledHostInfo.ID
@@ -2433,7 +2421,8 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostInfo.OsqueryIdentifier, *enrollConfig.IdentityCert.HostID))
 			}
 
-			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+			// Use the canonical "never" sentinel (2000-01-01 UTC) so CleanupExpiredHosts does not immediately delete it.
+			zeroTime := common_mysql.GetDefaultNonZeroTime()
 			// Create new host record. We always create newly enrolled hosts with refetch_requested = true
 			// so that the frontend automatically starts background checks to update the page whenever
 			// the refetch is completed.
@@ -2531,7 +2520,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 
 	var host fleet.Host
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
+		zeroTime := common_mysql.GetDefaultNonZeroTime()
 
 		var hostID uint
 		enrolledHostInfo, err := matchHostDuringEnrollment(ctx, tx, osqueryEnroll, isMDMEnabled, osqueryHostID, hardwareUUID, hardwareSerial)
@@ -2621,7 +2610,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				osquery_host_id = ?,
 				uuid = COALESCE(NULLIF(uuid, ''), ?),
 				hardware_serial = COALESCE(NULLIF(hardware_serial, ''), ?),
-				refetch_requested = ?%s
+				refetch_requested = ?
 				WHERE id = ?
 			`
 			args := []any{
@@ -2632,17 +2621,8 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 				refetchRequested,
 			}
 
-			if !enrollConfig.IgnoreTeamUpdate {
-				args = append(args, teamID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, ", team_id = ?")
-			} else {
-				ds.logger.InfoContext(ctx, "skipping team update on osquery enroll", "host_uuid", hardwareUUID)
-				sqlUpdate = fmt.Sprintf(sqlUpdate, "")
-			}
-
 			// WHERE attributes
 			args = append(args, enrolledHostInfo.ID)
-
 			_, err := tx.ExecContext(ctx, sqlUpdate, args...)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "update host")

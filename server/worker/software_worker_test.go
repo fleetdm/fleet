@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -15,11 +15,11 @@ import (
 )
 
 func TestSoftwareWorker(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
-	mysql.SetTestABMAssets(t, ds, "fleet")
+	mysqltest.SetTestABMAssets(t, ds, "fleet")
 
 }
 
