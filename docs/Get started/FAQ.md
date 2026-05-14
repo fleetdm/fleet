@@ -727,3 +727,15 @@ Finally, "shard" has been retired as an option for queries. In its place, we rec
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
+
+# My EDR is flagging Fleet — what's going on, and what should I do?
+
+### Why is my EDR flagging Fleet?
+
+Fleet and your EDR have overlapping interests with opposite jobs.
+
+Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
+
+Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
+
+If you notice a new flag or detection against Fleet, osquery, or orbit by your EDR, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
