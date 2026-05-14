@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -7229,4 +7230,218 @@ software:
 	logs = RunAppForTest(t, []string{"gitops", "-f", globalPath, "-f", teamPath})
 	assert.Contains(t, logs, "[+] applied 1 script\n")
 	assert.Contains(t, logs, fmt.Sprintf("[+] applied 1 script for fleet %s\n", teamName))
+}
+
+// gitopsModeYamlSetup wires up the minimum-viable mocks needed to run the
+// gitops apply through the AppConfig PATCH path for the
+// `org_settings.gitops` YAML control tests. It seeds the existing AppConfig
+// (so PATCH-merge has something to merge against) and captures both the
+// saved AppConfig and the activities emitted.
+func gitopsModeYamlSetup(t *testing.T, tier string, seed fleet.GitOpsConfig) (savedAppConfig **fleet.AppConfig, activities *[]activity_api.ActivityDetails) {
+	t.Helper()
+	t.Setenv("FLEET_SERVER_URL", "https://fleet.example.com")
+	t.Setenv("ORG_NAME", "GitOps Mode YAML Test")
+
+	license := &fleet.LicenseInfo{Tier: tier}
+	if tier == fleet.TierPremium {
+		license.Expiration = time.Now().Add(24 * time.Hour)
+	}
+
+	opts := &service.TestServerOpts{
+		License:       license,
+		KeyValueStore: testing_utils.NewMemKeyValueStore(),
+	}
+	_, ds := testing_utils.RunServerWithMockedDS(t, opts)
+	setupEmptyGitOpsMocks(ds)
+
+	captured := &fleet.AppConfig{}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		cfg := &fleet.AppConfig{}
+		cfg.GitOpsConfig = seed
+		return cfg, nil
+	}
+	ds.SaveAppConfigFunc = func(ctx context.Context, config *fleet.AppConfig) error {
+		captured = config
+		return nil
+	}
+
+	var emitted []activity_api.ActivityDetails
+	var emittedMu sync.Mutex
+	opts.ActivityMock.NewActivityFunc = func(_ context.Context, _ *activity_api.User, activity activity_api.ActivityDetails) error {
+		emittedMu.Lock()
+		defer emittedMu.Unlock()
+		emitted = append(emitted, activity)
+		return nil
+	}
+
+	out := &captured
+	return out, &emitted
+}
+
+// writeGitOpsYamlWithGitops writes a minimal global gitops YAML to a temp
+// file and returns the path. The provided `gitopsBlock` is inserted under
+// `org_settings.gitops`. Pass an empty string to omit the block entirely.
+func writeGitOpsYamlWithGitops(t *testing.T, gitopsBlock string) string {
+	t.Helper()
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+
+	body := `
+controls:
+queries:
+policies:
+agent_options:
+org_settings:
+  server_settings:
+    server_url: $FLEET_SERVER_URL
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: ${ORG_NAME}
+  secrets:
+GITOPS_BLOCK_PLACEHOLDER
+software:
+`
+	if gitopsBlock != "" {
+		body = strings.Replace(body, "GITOPS_BLOCK_PLACEHOLDER\n", "  gitops:\n"+gitopsBlock, 1)
+	} else {
+		body = strings.Replace(body, "GITOPS_BLOCK_PLACEHOLDER\n", "", 1)
+	}
+	_, err = tmpFile.WriteString(body)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
+	return tmpFile.Name()
+}
+
+func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	t.Run("YAML sets mode and url; server picks them up", func(t *testing.T) {
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
+	})
+
+	t.Run("YAML omitting gitops preserves stored mode and url", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://prior.example.com",
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://prior.example.com", saved.GitOpsConfig.RepositoryURL)
+	})
+
+	t.Run("YAML omitting gitops preserves exceptions", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			Exceptions: fleet.GitOpsExceptions{Labels: true, Software: true, Secrets: false},
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Labels)
+		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Software)
+		assert.Equal(t, false, saved.GitOpsConfig.Exceptions.Secrets)
+	})
+
+	t.Run("YAML setting mode and url does not clobber stored exceptions", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			Exceptions: fleet.GitOpsExceptions{Labels: true, Software: true, Secrets: false},
+		}
+		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		saved := *savedAppConfigPtr
+		assert.Equal(t, true, saved.GitOpsConfig.GitopsModeEnabled)
+		assert.Equal(t, "https://github.com/example/fleet-config", saved.GitOpsConfig.RepositoryURL)
+		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Labels)
+		assert.Equal(t, true, saved.GitOpsConfig.Exceptions.Software)
+		assert.Equal(t, false, saved.GitOpsConfig.Exceptions.Secrets)
+	})
+}
+
+func TestGitOpsModeYamlActivityEmission(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	countActivities := func(emitted []activity_api.ActivityDetails) (enabled, disabled int) {
+		for _, a := range emitted {
+			switch a.(type) {
+			case fleet.ActivityTypeEnabledGitOpsMode:
+				enabled++
+			case fleet.ActivityTypeDisabledGitOpsMode:
+				disabled++
+			}
+		}
+		return
+	}
+
+	t.Run("flip false->true emits enabled_gitops_mode", func(t *testing.T) {
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 1, enabled)
+		assert.Equal(t, 0, disabled)
+	})
+
+	t.Run("flip true->false emits disabled_gitops_mode", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://prior.example.com",
+		}
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: false\n")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 0, enabled)
+		assert.Equal(t, 1, disabled)
+	})
+
+	t.Run("no-op YAML emits no gitops-mode activity", func(t *testing.T) {
+		seed := fleet.GitOpsConfig{
+			GitopsModeEnabled: true,
+			RepositoryURL:     "https://github.com/example/fleet-config",
+		}
+		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
+		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+
+		enabled, disabled := countActivities(*activitiesPtr)
+		assert.Equal(t, 0, enabled)
+		assert.Equal(t, 0, disabled)
+	})
+}
+
+func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
+	// Cannot t.Parallel() — uses t.Setenv.
+
+	savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierFree, fleet.GitOpsConfig{})
+	yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+
+	_, err := RunAppNoChecks([]string{"gitops", "-f", yml})
+	require.Error(t, err)
+	// The server-side validation in ModifyAppConfig is what flags this on free tier.
+	assert.ErrorContains(t, err, "missing or invalid license")
+	// Saved AppConfig should not have been mutated since the PATCH was rejected.
+	saved := *savedAppConfigPtr
+	assert.Equal(t, false, saved.GitOpsConfig.GitopsModeEnabled)
 }
