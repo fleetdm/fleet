@@ -7850,12 +7850,12 @@ None.
       "name": "🔳🏢 Company-owned iPads",
       "id": 3
     },
-    "byo_team": {
-      "name": "📱 BYO iPhones",
+    "byod_team": {
+      "name": "📱 BYOD iPhones",
       "id": 4
     },
-    "byo_fleet": {
-      "name": "📱 BYO iPhones",
+    "byod_fleet": {
+      "name": "📱 BYOD iPhones",
       "id": 4
     }
   }
