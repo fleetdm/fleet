@@ -12,19 +12,21 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/platform/mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDEPService_RunAssigner(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	const abmTokenOrgName = "test_org"
 	depStorage, err := ds.NewMDMAppleDEPStorage()
@@ -34,12 +36,12 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		// start a server that will mock the Apple DEP API
 		srv := httptest.NewServer(depHandler)
 		t.Cleanup(srv.Close)
-		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
+		t.Cleanup(func() { mysqltest.TruncateTables(t, ds) })
 
 		err = depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL})
 		require.NoError(t, err)
 
-		mysql.SetTestABMAssets(t, ds, abmTokenOrgName)
+		mysqltest.SetTestABMAssets(t, ds, abmTokenOrgName)
 
 		logger := slog.New(slog.DiscardHandler)
 		return apple_mdm.NewDEPService(ds, depStorage, logger)
@@ -191,7 +193,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -325,7 +327,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		}
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -420,7 +422,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
 		// Verify that the two hosts have assignments marked failed
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id IN (?, ?) AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, hosts[1].ID, fleet.DEPAssignProfileResponseFailed))
@@ -511,7 +513,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		require.ElementsMatch(t, []string{"a", "c"}, serials)
 
 		// Verify that the one host has an assignment marked throttled
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id = ? AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[1].ID, fleet.DEPAssignProfileResponseThrottled))
@@ -520,7 +522,7 @@ func TestDEPService_RunAssigner(t *testing.T) {
 		})
 
 		// And the other is marked success
-		mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			stmt := "SELECT COUNT(*) FROM host_dep_assignments WHERE host_id = ? AND assign_profile_response = ?"
 			var result int
 			require.NoError(t, sqlx.GetContext(ctx, q, &result, stmt, hosts[0].ID, fleet.DEPAssignProfileResponseSuccess))
@@ -528,4 +530,86 @@ func TestDEPService_RunAssigner(t *testing.T) {
 			return nil
 		})
 	})
+}
+
+// We use the dummy-replica harness with explicit replication control: any writes
+// that happen between RunReplication() calls remain on the primary node only.
+func TestDEPService_RunAssigner_ReplicaLag(t *testing.T) {
+	ctx := context.Background()
+	opts := &testing_utils.DatastoreTestOptions{
+		DummyReplica:   true,
+		UniqueTestName: "dep_runassigner_replica_lag",
+	}
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
+
+	const abmTokenOrgName = "test_org"
+	depStorage, err := ds.NewMDMAppleDEPStorage()
+	require.NoError(t, err)
+
+	mysqltest.SetTestABMAssets(t, ds, abmTokenOrgName)
+	// Replicate ABM-related rows (abm_tokens, certs, app_config) so the JOIN target
+	// for the screen query exists on the replica. The lag we want to simulate is
+	// for the ghost-host rows ingested *during* RunAssigner, not for ABM setup.
+	opts.RunReplication()
+
+	laggedSerial := "LAGGED-001"
+	onTimeSerial := "ONTIME-001"
+	devices := []godep.Device{
+		{SerialNumber: laggedSerial, OpType: "added"},
+		{SerialNumber: onTimeSerial, OpType: "added"},
+	}
+
+	var assignedSerials []string
+	syncCallCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+		switch r.URL.Path {
+		case "/session":
+			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
+		case "/account":
+			_, _ = w.Write(fmt.Appendf([]byte{}, `{"admin_id": "admin123", "org_name": "%s"}`, abmTokenOrgName))
+		case "/profile":
+			assert.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
+		case "/server/devices", "/devices/sync":
+			syncCallCount++
+			// Return our two devices on the very first sync; empty thereafter so the
+			// syncer terminates instead of looping on the same devices.
+			if syncCallCount == 1 {
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: devices}))
+			} else {
+				assert.NoError(t, encoder.Encode(godep.DeviceResponse{Devices: nil}))
+			}
+		case "/profile/devices":
+			body, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			var assignReq godep.Profile
+			assert.NoError(t, json.Unmarshal(body, &assignReq))
+			assignedSerials = append(assignedSerials, assignReq.Devices...)
+			apiResp := godep.ProfileResponse{
+				ProfileUUID: assignReq.ProfileUUID,
+				Devices:     map[string]string{},
+			}
+			for _, s := range assignReq.Devices {
+				apiResp.Devices[s] = string(fleet.DEPAssignProfileResponseSuccess)
+			}
+			assert.NoError(t, encoder.Encode(apiResp))
+		default:
+			t.Errorf("unexpected request to %s", r.URL.Path)
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	require.NoError(t, depStorage.StoreConfig(ctx, abmTokenOrgName, &nanodep_client.Config{BaseURL: srv.URL}))
+	logger := slog.New(slog.DiscardHandler)
+	svc := apple_mdm.NewDEPService(ds, depStorage, logger)
+
+	require.NoError(t, svc.RunAssigner(ctx))
+	// never call opts.RunReplication() after this point, so we exercise the replica lag.
+
+	// Both serials must reach AssignProfile, even though their host /
+	// host_dep_assignments rows were invisible to the cooldown screen on the
+	// lagged replica.
+	require.ElementsMatch(t, []string{laggedSerial, onTimeSerial}, assignedSerials,
+		"serials newly inserted on primary but not yet replicated must still be sent to AssignProfile")
 }

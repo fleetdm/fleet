@@ -2,20 +2,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import classnames from "classnames";
 import { format, parseISO } from "date-fns";
 
-import { ChartTheme, IFormattedDataPoint, TooltipFormatter } from "./types";
+import {
+  ChartTheme,
+  IFormattedDataPoint,
+  TooltipFormatter,
+} from "interfaces/charts";
 
 const baseClass = "checkerboard-viz";
-
-// Returns a CSS class suffix for the color level (0-5). Buckets match the
-// six legend swatches declared in _styles.scss (level-0 is the no-data swatch).
-const getColorLevel = (percentage: number): number => {
-  if (percentage === 0) return 0;
-  if (percentage <= 20) return 1;
-  if (percentage <= 40) return 2;
-  if (percentage <= 60) return 3;
-  if (percentage <= 80) return 4;
-  return 5;
-};
 
 const formatHourLabel = (hourVal: number): string => {
   if (hourVal === 0) return "12am";
@@ -39,6 +32,7 @@ interface ICheckerboardVizProps {
   selectedDays: number;
   theme?: ChartTheme;
   tooltipFormatter?: TooltipFormatter;
+  relativeScale?: boolean;
 }
 
 // These are calculated at a chart width of 580px and columns.
@@ -56,14 +50,47 @@ const CheckerboardViz = ({
   selectedDays,
   theme = "green",
   tooltipFormatter,
+  relativeScale = false,
 }: ICheckerboardVizProps): JSX.Element => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollWrapperRef = useRef<HTMLDivElement>(null);
   const [isWide, setIsWide] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<ICellData | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const [tooltipAlign, setTooltipAlign] = useState<"left" | "center" | "right">(
     "center"
   );
+
+  let getColorLevel;
+  if (!relativeScale) {
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      if (percentage <= 20) return 1;
+      if (percentage <= 40) return 2;
+      if (percentage <= 60) return 3;
+      if (percentage <= 80) return 4;
+      return 5;
+    };
+  } else {
+    // When relativeScale is true, the color ramp is based on the min/max in
+    // this dataset, not fixed percentage thresholds. This surfaces more
+    // variation when values are generally low or generally high.
+    // Exclude 0% points from the min/max calculation — they represent
+    // "no data" cells (level-0) and would otherwise compress the ramp
+    // toward zero whenever the grid contains empty slots.
+    const nonZeroPercs = data.map((d) => d.percentage).filter((p) => p > 0);
+    const minPerc = nonZeroPercs.length ? Math.min(...nonZeroPercs) : 0;
+    const maxPerc = nonZeroPercs.length ? Math.max(...nonZeroPercs) : 0;
+    const range = maxPerc - minPerc || 1; // avoid divide-by-zero
+
+    getColorLevel = (percentage: number): number => {
+      if (percentage === 0) return 0;
+      const scaled = ((percentage - minPerc) / range) * 5;
+      // Level zero is reserved for real 0, so ensure we return
+      // something between 1 and 5.
+      return Math.min(5, Math.ceil(scaled)) || 1;
+    };
+  }
 
   useEffect(() => {
     const node = containerRef.current;
@@ -102,7 +129,7 @@ const CheckerboardViz = ({
           value: point.value,
           total: point.total,
           percentage: point.percentage,
-          dayLabel: format(date, "MMM d"),
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(date.getHours()),
         };
       });
@@ -141,13 +168,21 @@ const CheckerboardViz = ({
       }
     });
 
+    // The API window is anchored to "now" in UTC, so for users west of UTC
+    // the earliest local calendar day in the response is partially populated
+    // (the leading hours fall before the window starts). The caller works
+    // around this by requesting `selectedDays + 1` so the trailing
+    // `selectedDays` local days are always full. Trim the leading partial
+    // day(s) here so the grid only renders the requested window.
+    const visibleDays = dayOrder.slice(-selectedDays);
+
     // Emit one cell per (day, slot) pair in a fixed grid. Days with no data
     // for a given slot still get a cell with percentage 0 so the grid stays
     // rectangular and the color ramp renders the "no data" swatch.
     const labels: string[] = [];
     const cells: ICellData[] = [];
 
-    dayOrder.forEach((dayKey, dayIndex) => {
+    visibleDays.forEach((dayKey, dayIndex) => {
       const date = parseISO(dayKey);
       labels.push(format(date, "MMM d"));
       const hourMap = dayMap.get(dayKey);
@@ -161,14 +196,14 @@ const CheckerboardViz = ({
           percentage: point?.percentage ?? 0,
           value: point?.value ?? 0,
           total: point?.total,
-          dayLabel: format(date, "MMM d"),
+          dayLabel: format(date, "EEEE, MMM d"),
           hourLabel: formatHourLabel(hourVal),
         });
       }
     });
 
     return { grid: cells, dayLabels: labels };
-  }, [data, hoursPerSlot, hourRows, is24h]);
+  }, [data, hoursPerSlot, hourRows, is24h, selectedDays]);
 
   const numDays = dayLabels.length || 1;
 
@@ -181,6 +216,30 @@ const CheckerboardViz = ({
   const cellH = CELL_H * scale;
   const gridWidth = cellW * numCols + CELL_GAP * (numCols - 1);
   const gridHeight = cellH * numRows + CELL_GAP * (numRows - 1);
+
+  // Scroll the grid to the far right so the most recent data is visible by
+  // default. Re-runs when the grid resizes (e.g. when the card crosses the
+  // wide breakpoint and cells scale up, growing scrollWidth).
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (el) {
+      el.scrollLeft = el.scrollWidth;
+    }
+  }, [gridWidth]);
+
+  // Also snap to the right edge whenever the wrapper resizes while the
+  // grid is clipped, so a window resize keeps the most recent data in view.
+  useEffect(() => {
+    const el = scrollWrapperRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(() => {
+      if (el.scrollWidth > el.clientWidth) {
+        el.scrollLeft = el.scrollWidth;
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Compute x-axis date labels: start, middle, end
   const xAxisDates = useMemo(() => {
@@ -258,26 +317,33 @@ const CheckerboardViz = ({
           </div>
         )}
 
-        <div className={`${baseClass}__scroll-wrapper`}>
+        <div ref={scrollWrapperRef} className={`${baseClass}__scroll-wrapper`}>
           {/* Grid cells */}
           <svg width={gridWidth} height={gridHeight}>
             {grid.map((cell) => {
               const col = is24h ? cell.hourRow : cell.dayIndex;
               const row = is24h ? 0 : cell.hourRow;
+              const level = getColorLevel(cell.percentage);
+              // Filled cells have a bg-colored 1px stroke that visually blends
+              // away. The level-0 (empty) cell uses a colored stroke instead,
+              // so without insetting it would look 1px larger than filled
+              // cells. Inset by half the stroke so the outline's outer edge
+              // sits where the filled cell's invisible stroke does.
+              const inset = level === 0 ? 0.5 : 0;
               return (
                 <rect
                   key={`${cell.dayIndex}-${cell.hourRow}`}
-                  x={col * (cellW + CELL_GAP)}
-                  y={row * (cellH + CELL_GAP)}
-                  width={cellW}
-                  height={cellH}
+                  x={col * (cellW + CELL_GAP) + inset}
+                  y={row * (cellH + CELL_GAP) + inset}
+                  width={cellW - inset * 2}
+                  height={cellH - inset * 2}
                   rx={3}
                   ry={3}
-                  className={`${baseClass}__cell ${baseClass}__cell--level-${getColorLevel(
-                    cell.percentage
-                  )}`}
+                  className={`${baseClass}__cell ${baseClass}__cell--level-${level}`}
                   role="img"
-                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${cell.percentage}% of hosts online`}
+                  aria-label={`${cell.dayLabel}, ${cell.hourLabel}: ${
+                    cell.value
+                  } host${cell.value === 1 ? "" : "s"}`}
                   onMouseEnter={(e) => handleMouseEnter(cell, e)}
                   onMouseLeave={handleMouseLeave}
                 />

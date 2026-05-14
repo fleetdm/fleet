@@ -266,26 +266,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	var stickyEnrollment *string
-	if svc.keyValueStore != nil {
-		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
-		// this prevents enrollment-based team changes for a time window to avoid race conditions
-		// with MDM profile delivery.
-		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hostInfo.HardwareUUID)
-		if err != nil {
-			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
-			// enrollment proceeds without sticky behavior rather than blocking.
-			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
-		}
-	}
-
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
-		fleet.WithEnrollOrbitIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
@@ -452,6 +438,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 	if !appConfig.MDM.WindowsEnabledAndConfigured {
 		if host.IsEligibleForWindowsMDMUnenrollment(isConnectedToFleetMDM) {
 			notifs.NeedsProgrammaticWindowsMDMUnenrollment = true
+		}
+	}
+
+	// Check if Windows host is in Autopilot setup experience. When awaiting_configuration is Pending or Active,
+	// orbit should run the setup experience to install software during the ESP.
+	//
+	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being turned off, the unenrollment branch
+	// above sets NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set RunSetupExperience for the
+	// same orbit response.
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		host.Platform == "windows" &&
+		isConnectedToFleetMDM {
+		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+		}
+		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
+			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
+			notifs.RunSetupExperience = true
 		}
 	}
 
@@ -1047,41 +1052,29 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 			fallthrough
 		default:
-			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
-			shouldCreateActivity := true
 			if hsr.PolicyID != nil {
 				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
 					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 				}
-
-				// Suppress activity for policy automation retires
-				if hsr.AttemptNumber != nil {
-					scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
-					if scriptFailed && *hsr.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
-					}
-				}
 			}
 
-			if shouldCreateActivity {
-				if err := svc.NewActivity(
-					ctx,
-					user,
-					fleet.ActivityTypeRanScript{
-						HostID:              host.ID,
-						HostDisplayName:     host.DisplayName(),
-						ScriptExecutionID:   hsr.ExecutionID,
-						BatchExecutionID:    hsr.BatchExecutionID,
-						ScriptName:          scriptName,
-						Async:               !hsr.SyncRequest,
-						PolicyID:            hsr.PolicyID,
-						PolicyName:          policyName,
-						FromSetupExperience: fromSetupExperience,
-					},
-				); err != nil {
-					return ctxerr.Wrap(ctx, err, "create activity for script execution request")
-				}
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeRanScript{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					ScriptExecutionID:   hsr.ExecutionID,
+					BatchExecutionID:    hsr.BatchExecutionID,
+					ScriptName:          scriptName,
+					Async:               !hsr.SyncRequest,
+					PolicyID:            hsr.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
 		}
 	}
@@ -1481,7 +1474,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		var policyName *string
-		shouldCreateActivity := true
 		if hsi.PolicyID != nil {
 			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
@@ -1504,13 +1496,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 							"policy_id", *hsi.PolicyID,
 							"err", err,
 						)
-					}
-				}
-
-				// Only create activity on final
-				if hsi.AttemptNumber != nil {
-					if *hsi.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
 					}
 				}
 			}
@@ -1543,26 +1528,24 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		if shouldCreateActivity {
-			if err := svc.NewActivity(
-				ctx,
-				user,
-				fleet.ActivityTypeInstalledSoftware{
-					HostID:              host.ID,
-					HostDisplayName:     host.DisplayName(),
-					SoftwareTitle:       hsi.SoftwareTitle,
-					SoftwarePackage:     hsi.SoftwarePackage,
-					InstallUUID:         result.InstallUUID,
-					Status:              string(status),
-					Source:              hsi.Source,
-					SelfService:         hsi.SelfService,
-					PolicyID:            hsi.PolicyID,
-					PolicyName:          policyName,
-					FromSetupExperience: fromSetupExperience,
-				},
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for software installation")
-			}
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeInstalledSoftware{
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         result.InstallUUID,
+				Status:              string(status),
+				Source:              hsi.Source,
+				SelfService:         hsi.SelfService,
+				PolicyID:            hsi.PolicyID,
+				PolicyName:          policyName,
+				FromSetupExperience: fromSetupExperience,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery

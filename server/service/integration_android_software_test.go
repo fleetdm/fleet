@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -149,7 +149,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 
 	// self_service is coerced to be true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
 		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
 		s.Require().NoError(err)
@@ -239,7 +239,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 
 	// Even though we sent self_service: false, self_service remains true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
 		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
 		s.Require().NoError(err)
@@ -304,6 +304,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		http.StatusOK,
 		&addAppResp,
 	)
+	require.Equal(t, androidAppNewTeam2.Name, addAppResp.Name)
 
 	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSWTitles, "team_id", fmt.Sprint(team.ID))
 	s.Assert().Len(listSWTitles.SoftwareTitles, 2)
@@ -388,6 +389,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 		http.StatusOK,
 		&appWithConfigResp,
 	)
+	require.Equal(t, androidAppWithConfig.Name, appWithConfigResp.Name)
 
 	// Verify that activity includes configuration
 	s.lastActivityMatches(fleet.ActivityAddedAppStoreApp{}.ActivityName(),
@@ -771,7 +773,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			TeamID: teamID,
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_1", *titleResp.SoftwareTitle.ApplicationID)
-		require.Equal(t, json.RawMessage(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+		require.Equal(t, []byte(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp2), &getSoftwareTitleRequest{
 			ID:     titleApp2,
@@ -800,7 +802,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			TeamID: teamID,
 		}, http.StatusOK, &titleResp)
 		require.Equal(t, "app_1", *titleResp.SoftwareTitle.ApplicationID)
-		require.Equal(t, json.RawMessage(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
+		require.Equal(t, []byte(`{}`), titleResp.SoftwareTitle.AppStoreApp.Configuration)
 
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", titleApp2), &getSoftwareTitleRequest{
 			ID:     titleApp2,
@@ -820,7 +822,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 	t.Run("android app setup experience", func(t *testing.T) {
 		// Get initial count of edited setup experience activities
 		var initialCount int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
@@ -883,7 +885,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			http.StatusOK, &batchResp, "team_name", teamName,
 		)
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil

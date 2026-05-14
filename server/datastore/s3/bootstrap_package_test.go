@@ -20,7 +20,7 @@ import (
 
 func TestBootstrapPackage(t *testing.T) {
 	ctx := context.Background()
-	store := SetupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
+	store := setupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
 
 	// get a non-existing package
 	blob, length, err := store.Get(ctx, "no-such-package")
@@ -87,7 +87,7 @@ func TestBootstrapPackage(t *testing.T) {
 
 func TestBootstrapPackageCleanup(t *testing.T) {
 	ctx := context.Background()
-	store := SetupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
+	store := setupTestBootstrapPackageStore(t, "bootstrap-packages-unit-test", "prefix")
 
 	assertExisting := func(want []string) {
 		prefix := path.Join(store.prefix, bootstrapPackagePrefix)

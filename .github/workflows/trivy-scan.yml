@@ -117,18 +117,32 @@ jobs:
         with:
           scan-type: "fs"
           ignore-unfixed: false
-          format: "sarif"
-          output: "trivy-results.sarif"
+          # PR/push: print findings to the run log and fail the check so
+          # engineers see issues before merging. Schedule/manual matrix runs:
+          # emit SARIF for upload to the Security tab.
+          format: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'sarif' || 'table' }}
+          output: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'trivy-results.sarif' || '' }}
+          exit-code: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && '0' || '1' }}
           severity: "CRITICAL,HIGH,MEDIUM,LOW"
           trivyignores: "./security/code/.trivyignore"
+          # Skip private keys used only for local testing, not production:
+          # - tools/osquery/in-a-box/osquery/fleet.key: TLS key for the "Fleet in a box" demo
+          # - tools/osquery/fleet.key: TLS key for the standalone osquery dev sandbox
+          # - orbit/pkg/insecure/proxy.go: TLS key used when running orbit with `--insecure` mode for development/testing.
+          # - ee/orbit/pkg/httpsigproxy/httpsigproxy.go: TLS key only used for osquery to orbit _local_ communication 
+          #   (for injection of HTTP signatures for the TPM-backed feature in Linux).
+          skip-files: |
+            tools/osquery/in-a-box/osquery/fleet.key
+            tools/osquery/fleet.key
+            orbit/pkg/insecure/proxy.go
+            ee/orbit/pkg/httpsigproxy/httpsigproxy.go
 
       - name: Upload Trivy scan results to GitHub Security tab
+        # Only upload on schedule/manual runs. PR/push uploads register
+        # instances on `refs/pull/*/merge` refs that are never re-scanned
+        # after the PR closes, leaving zombie alerts open forever.
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         uses: github/codeql-action/upload-sarif@8a470fddafa5cbb6266ee11b37ef4d8aae19c571 # v3.24.6
         with:
           sarif_file: "trivy-results.sarif"
-          # On nightly/manual runs the matrix scans multiple branches, so use a
-          # distinct category per branch to keep results separate. On push/PR
-          # there's only one matrix run, so leave category empty and let
-          # upload-sarif use its default — avoids slashes in github.ref_name
-          # (e.g. "123/merge" on pull_request) leaking into the category.
-          category: ${{ matrix.branch && format('trivy-{0}', matrix.branch) || '' }}
+          category: trivy-${{ matrix.branch }}

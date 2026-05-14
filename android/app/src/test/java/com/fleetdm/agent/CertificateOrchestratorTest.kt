@@ -8,7 +8,6 @@ import com.fleetdm.agent.testutil.FakeCertificateApiClient
 import com.fleetdm.agent.testutil.FakeDeviceKeystoreManager
 import com.fleetdm.agent.testutil.MockCertificateInstaller
 import com.fleetdm.agent.testutil.TestCertificateTemplateFactory
-import com.fleetdm.agent.testutil.UpdateStatusCall
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,6 +20,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import java.math.BigInteger
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -97,13 +97,21 @@ class CertificateOrchestratorTest {
         retries: Int = 0,
         statusReportRetries: Int = 0,
         uuid: String = "uuid-1",
+        serialNumber: String? = null,
     ) {
         context.prefDataStore.edit { preferences ->
             val existing = preferences[stringPreferencesKey("installed_certificates")]?.let {
                 json.decodeFromString<CertificateStateMap>(it)
             } ?: emptyMap()
 
-            val certInfo = CertificateState(alias, status, retries, statusReportRetries, uuid)
+            val certInfo = CertificateState(
+                alias = alias,
+                status = status,
+                retries = retries,
+                statusReportRetries = statusReportRetries,
+                uuid = uuid,
+                serialNumber = serialNumber,
+            )
             val updated = existing.toMutableMap().apply {
                 put(certificateId, certInfo)
             }
@@ -1271,6 +1279,26 @@ class CertificateOrchestratorTest {
         assertEquals(CertificateStatus.INSTALLED, getStoredCertificates()[3]?.status) // Unchanged
 
         assertEquals(2, fakeApiClient.updateStatusCalls.size)
+    }
+
+    @Test
+    fun `retryUnreportedStatuses parses stored serial as hex when reporting to server`() = runTest {
+        storeTestCertificateInDataStore(
+            certificateId = 1,
+            alias = "test-cert",
+            status = CertificateStatus.INSTALLED_UNREPORTED,
+            serialNumber = "a1b2c3",
+        )
+
+        val results = orchestrator.retryUnreportedStatuses(context)
+
+        assertEquals(mapOf(1 to true), results)
+        assertEquals(1, fakeApiClient.updateStatusCalls.size)
+        assertEquals(
+            "Stored hex serial 'a1b2c3' should parse to BigInteger 0xa1b2c3",
+            BigInteger.valueOf(0xa1b2c3L),
+            fakeApiClient.updateStatusCalls[0].serialNumber,
+        )
     }
 
     @Test

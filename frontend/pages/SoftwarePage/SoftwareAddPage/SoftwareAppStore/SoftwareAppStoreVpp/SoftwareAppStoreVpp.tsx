@@ -35,27 +35,49 @@ const baseClass = "software-app-store-vpp";
 
 interface IEnableVppMessage {
   onEnableVpp: () => void;
+  isGlobalAdmin?: boolean;
 }
 
-const EnableVppMessage = ({ onEnableVpp }: IEnableVppMessage) => (
+const EnableVppMessage = ({
+  onEnableVpp,
+  isGlobalAdmin,
+}: IEnableVppMessage) => (
   <EmptyState
     variant="list"
     header="Volume Purchasing Program (VPP) isn't enabled"
-    info="To add App Store apps, first enable VPP."
-    primaryButton={<Button onClick={onEnableVpp}>Enable VPP</Button>}
+    info={
+      isGlobalAdmin
+        ? "Enable VPP to add App Store apps (MDM required)."
+        : "To add App Store apps, ask your admin to enable VPP."
+    }
+    primaryButton={
+      isGlobalAdmin ? (
+        <Button onClick={onEnableVpp}>Enable VPP</Button>
+      ) : undefined
+    }
   />
 );
 
 interface IAddTeamToVppMessage {
   onEditVpp: () => void;
+  isGlobalAdmin?: boolean;
 }
 
-const AddTeamToVppMessage = ({ onEditVpp }: IAddTeamToVppMessage) => (
+const AddTeamToVppMessage = ({
+  onEditVpp,
+  isGlobalAdmin,
+}: IAddTeamToVppMessage) => (
   <EmptyState
     variant="list"
     header="This fleet isn't added to Volume Purchasing Program (VPP)"
-    info="To add App Store apps, first add this fleet to VPP."
-    primaryButton={<Button onClick={onEditVpp}>Edit VPP</Button>}
+    info={
+      isGlobalAdmin
+        ? "To add App Store apps, first add this fleet to VPP."
+        : "To add App Store apps, ask your admin to add this fleet to VPP."
+    }
+    primaryButton={
+      isGlobalAdmin ? <Button onClick={onEditVpp}>Edit VPP</Button> : undefined
+    }
   />
 );
 
@@ -88,7 +110,7 @@ const SoftwareAppStoreVpp = ({
   router,
 }: ISoftwareAppStoreProps) => {
   const { renderFlash } = useContext(NotificationContext);
-  const { isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, isGlobalAdmin } = useContext(AppContext);
   const queryClient = useQueryClient();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -223,6 +245,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <EnableVppMessage
           onEnableVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }
@@ -231,6 +254,7 @@ const SoftwareAppStoreVpp = ({
       return (
         <AddTeamToVppMessage
           onEditVpp={() => router.push(PATHS.ADMIN_INTEGRATIONS_VPP)}
+          isGlobalAdmin={isGlobalAdmin}
         />
       );
     }

@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -974,7 +975,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 func TestSoftwareInstallReplicaLag(t *testing.T) {
 	// Create datastore with dummy replica to simulate replication lag
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1026,7 +1027,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	// simulate Orbit picking up upcoming_activity and activating
 	installUUID := uuid.New().String()
 	var titleID uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, q, &titleID,
 			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
 		if err != nil {
@@ -1044,7 +1045,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 
 	var attemptNumberBeforeResult *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberBeforeResult,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -1066,7 +1067,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// Verify the attempt_number was set in the primary
 	var attemptNumberInWriter *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberInWriter,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -1076,7 +1077,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// verify retry was scheduled, and that we did not throw an error because of nil attempt_number
 	var retryCount int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &retryCount,
 			`SELECT COUNT(*) FROM upcoming_activities
 			WHERE activity_type = 'software_install'`,
@@ -1084,3 +1085,128 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 	require.Equal(t, 1, retryCount, "should have scheduled a retry in upcoming_activities")
 }
+
+// TestGetOrbitConfigWindowsSetupExperience verifies that GetOrbitConfig sets
+// notifs.RunSetupExperience=true for Windows hosts whose MDM enrollment is
+// in awaiting_configuration Pending or Active, and false otherwise (None,
+// not-enrolled, non-Windows platforms).
+func TestGetOrbitConfigWindowsSetupExperience(t *testing.T) {
+	setupSvc := func(t *testing.T) (*mock.Store, fleet.Service, context.Context, *fleet.Host) {
+		ds := new(mock.Store)
+		license := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
+
+		host := &fleet.Host{
+			ID:            1,
+			OsqueryHostID: ptr.String("test"),
+			UUID:          "host-uuid-1",
+			Platform:      "windows",
+		}
+
+		appCfg := &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}
+		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+			return appCfg, nil
+		}
+		ds.GetHostOperatingSystemFunc = func(ctx context.Context, hostID uint) (*fleet.OperatingSystem, error) {
+			return &fleet.OperatingSystem{Platform: "windows", Version: "10.0.19045"}, nil
+		}
+		ds.ListReadyToExecuteScriptsForHostFunc = func(ctx context.Context, hostID uint, onlyShowInternal bool) ([]*fleet.HostScriptResult, error) {
+			return nil, nil
+		}
+		ds.ListReadyToExecuteSoftwareInstallsFunc = func(ctx context.Context, hostID uint) ([]string, error) {
+			return nil, nil
+		}
+		ds.IsHostConnectedToFleetMDMFunc = func(ctx context.Context, h *fleet.Host) (bool, error) {
+			return true, nil
+		}
+		ds.IsHostPendingEscrowFunc = func(ctx context.Context, hostID uint) bool {
+			return false
+		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+		}
+		ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostUUID string) (bool, error) {
+			return false, nil
+		}
+
+		ctx = test.HostContext(ctx, host)
+		return ds, svc, ctx, host
+	}
+
+	t.Run("Windows host awaiting=Pending sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationPending, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+		assert.True(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked)
+	})
+
+	t.Run("Windows host awaiting=Active sets RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationActive, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.True(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host awaiting=None does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return fleet.WindowsMDMAwaitingConfigurationNone, nil
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host not enrolled (NotFound) does not set RunSetupExperience", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, &orbitTestNotFoundErr{}
+		}
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+	})
+
+	t.Run("Windows host with non-NotFound lookup error returns the error", func(t *testing.T) {
+		ds, svc, ctx, _ := setupSvc(t)
+		ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFunc = func(ctx context.Context, hostUUID string) (fleet.WindowsMDMAwaitingConfiguration, error) {
+			return 0, errors.New("transient db error")
+		}
+
+		_, err := svc.GetOrbitConfig(ctx)
+		require.Error(t, err)
+	})
+
+	t.Run("non-Windows host does not query awaiting_configuration", func(t *testing.T) {
+		ds, svc, ctx, host := setupSvc(t)
+		host.Platform = "darwin"
+
+		cfg, err := svc.GetOrbitConfig(ctx)
+		require.NoError(t, err)
+		assert.False(t, cfg.Notifications.RunSetupExperience)
+		assert.False(t, ds.GetMDMWindowsAwaitingConfigurationByHostUUIDFuncInvoked,
+			"non-Windows hosts must not invoke the Windows lookup")
+	})
+}
+
+// orbitTestNotFoundErr is a minimal IsNotFound error type for orbit config tests.
+type orbitTestNotFoundErr struct{}
+
+func (e *orbitTestNotFoundErr) Error() string    { return "not found" }
+func (e *orbitTestNotFoundErr) IsNotFound() bool { return true }

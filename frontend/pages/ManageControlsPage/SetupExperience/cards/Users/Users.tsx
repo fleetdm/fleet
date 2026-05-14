@@ -7,6 +7,7 @@ import { IConfig, IMdmConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
@@ -130,15 +131,13 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
     }
     const mdmConfig = globalConfig.mdm;
     return (
-      <SetupExperienceContentContainer>
-        <UsersForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-          defaultLockEndUserInfo={defaultLockEndUserInfo}
-          defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
-          isIdPConfigured={isIdPConfigured(mdmConfig)}
-        />
-      </SetupExperienceContentContainer>
+      <UsersForm
+        currentTeamId={currentTeamId}
+        defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        defaultLockEndUserInfo={defaultLockEndUserInfo}
+        defaultEnableManagedLocalAccount={defaultEnableManagedLocalAccount}
+        isIdPConfigured={isIdPConfigured(mdmConfig)}
+      />
     );
   };
 
@@ -154,7 +153,23 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
           />
         }
       />
-      {renderContent()}
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Customize local user accounts. You can automatically create local
+            user accounts using IdP credentials (PSSO).{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+              text="Learn how"
+              newTab
+            />
+          </>
+        }
+      />
+      <SetupExperienceContentContainer>
+        {renderContent()}
+      </SetupExperienceContentContainer>
     </section>
   );
 };
