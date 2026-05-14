@@ -3,7 +3,6 @@ package fleet
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -837,70 +836,123 @@ func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
 	return &clone
 }
 
+func labelCountMap(labels []string) map[string]int {
+	counts := make(map[string]int)
+	for _, label := range labels {
+		counts[label]++
+	}
+	return counts
+}
+
 // MDMProfileSpecsMatch checks if two slices contain the same spec elements,
-// regardless of order. Two specs compare equal when their Path,
-// LabelsIncludeAll (or the deprecated Labels field when LabelsIncludeAll is
-// empty), LabelsIncludeAny, and LabelsExcludeAny fields agree, with each
-// labels list treated as an unordered multiset.
+// regardless of order.
+//
+// Precondition: each slice must contain at most one entry per Path. Upstream
+// validation (`getProfilesContents` in server/service/client.go and
+// `validateCrossPlatformProfileNames` in server/service/mdm.go) enforces this
+// invariant before specs reach storage, so callers always pass unique-Path
+// lists. As a guard, this function returns false if either slice violates
+// the precondition; multiset comparison across duplicate Paths is not
+// supported.
 func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	if len(a) != len(b) {
 		return false
 	}
-
-	counts := make(map[string]int, len(a))
-	for _, s := range a {
-		counts[mdmProfileSpecKey(s)]++
+	if hasDuplicatePaths(a) || hasDuplicatePaths(b) {
+		return false
 	}
-	for _, s := range b {
-		k := mdmProfileSpecKey(s)
-		counts[k]--
-		if counts[k] < 0 {
-			return false
+
+	pathLabelIncludeCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		// the deprecated Labels field is only relevant if LabelsIncludeAll is
+		// empty.
+		if len(v.LabelsIncludeAll) > 0 {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			pathLabelIncludeCounts[v.Path] = labelCountMap(v.Labels)
 		}
 	}
-	return true
-}
-
-// mdmProfileSpecKey returns a canonical string representation of an
-// MDMProfileSpec used for multiset equality. Labels are sorted so the order
-// in the slice does not matter; duplicates within a labels list are
-// preserved so the labels themselves are also compared as multisets. Each
-// field is length-prefixed with a varint so the encoding is collision-free
-// regardless of which bytes paths or label names contain.
-func mdmProfileSpecKey(s MDMProfileSpec) string {
-	// the deprecated Labels field is only relevant if LabelsIncludeAll is empty
-	include := s.LabelsIncludeAll
-	if len(include) == 0 {
-		include = s.Labels
+	pathLabelsIncludeAnyCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelsIncludeAnyCounts[v.Path] = labelCountMap(v.LabelsIncludeAny)
+	}
+	pathLabelExcludeCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelExcludeCounts[v.Path] = labelCountMap(v.LabelsExcludeAny)
 	}
 
-	var sb strings.Builder
-	writeLengthPrefixed(&sb, s.Path)
-	writeSortedLabels(&sb, include)
-	writeSortedLabels(&sb, s.LabelsIncludeAny)
-	writeSortedLabels(&sb, s.LabelsExcludeAny)
-	return sb.String()
-}
+	for _, v := range b {
+		includeLabels, okIncl := pathLabelIncludeCounts[v.Path]
+		includeAnyLabels, okInclAny := pathLabelsIncludeAnyCounts[v.Path]
+		excludeLabels, okExcl := pathLabelExcludeCounts[v.Path]
+		if !okIncl || !okExcl || !okInclAny {
+			return false
+		}
 
-func writeSortedLabels(sb *strings.Builder, labels []string) {
-	sorted := make([]string, len(labels))
-	copy(sorted, labels)
-	slices.Sort(sorted)
-	writeUvarint(sb, uint64(len(sorted)))
-	for _, l := range sorted {
-		writeLengthPrefixed(sb, l)
+		var bLabelIncludeCounts map[string]int
+		if len(v.LabelsIncludeAll) > 0 {
+			bLabelIncludeCounts = labelCountMap(v.LabelsIncludeAll)
+		} else {
+			bLabelIncludeCounts = labelCountMap(v.Labels)
+		}
+		for label, count := range bLabelIncludeCounts {
+			if includeLabels[label] != count {
+				return false
+			}
+			includeLabels[label] -= count
+		}
+		for _, count := range includeLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		bLabelIncludeAnyCounts := labelCountMap(v.LabelsIncludeAny)
+		for label, count := range bLabelIncludeAnyCounts {
+			if includeAnyLabels[label] != count {
+				return false
+			}
+			includeAnyLabels[label] -= count
+		}
+		for _, count := range includeAnyLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		bLabelExcludeCounts := labelCountMap(v.LabelsExcludeAny)
+		for label, count := range bLabelExcludeCounts {
+			if excludeLabels[label] != count {
+				return false
+			}
+			excludeLabels[label] -= count
+		}
+		for _, count := range excludeLabels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelIncludeCounts, v.Path)
+		delete(pathLabelsIncludeAnyCounts, v.Path)
+		delete(pathLabelExcludeCounts, v.Path)
 	}
+
+	return len(pathLabelIncludeCounts) == 0 && len(pathLabelsIncludeAnyCounts) == 0 && len(pathLabelExcludeCounts) == 0
 }
 
-func writeLengthPrefixed(sb *strings.Builder, s string) {
-	writeUvarint(sb, uint64(len(s)))
-	sb.WriteString(s)
-}
-
-func writeUvarint(sb *strings.Builder, v uint64) {
-	var buf [binary.MaxVarintLen64]byte
-	n := binary.PutUvarint(buf[:], v)
-	sb.Write(buf[:n])
+func hasDuplicatePaths(specs []MDMProfileSpec) bool {
+	if len(specs) < 2 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(specs))
+	for _, s := range specs {
+		if _, dup := seen[s.Path]; dup {
+			return true
+		}
+		seen[s.Path] = struct{}{}
+	}
+	return false
 }
 
 type MDMLabelsMode string

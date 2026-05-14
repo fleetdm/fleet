@@ -1,1 +1,0 @@
-* Internal: hardened `MDMProfileSpecsMatch` to honor its multiset-equality contract on inputs with duplicate `path` entries. No user-facing behavior change.
