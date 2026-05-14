@@ -24,6 +24,10 @@ module.exports = {
 
     let fleetctlDownloadUrls = sails.config.builtStaticContent.fleetctlDownloadUrls;
 
+    if(!_.isString(fleetctlDownloadUrls.macOs) || !_.isString(fleetctlDownloadUrls.windows) || !_.isString(fleetctlDownloadUrls.windowsArm)) {
+      throw {badConfig: 'builtStaticContent.fleetctlDownloadUrls'};
+    }
+
 
     return {
       macOsDownloadUrl: fleetctlDownloadUrls.macOs,
