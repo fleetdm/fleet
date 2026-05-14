@@ -34,6 +34,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Matcher recovers stuck hmmc rows", testMatcherRecoversStuckHMMCRows},
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Origin-scoped delete", testUpdateHostCertificatesOriginScopedDelete},
+		{"Origin downgrade on osquery rediscovery", testUpdateHostCertificatesOriginDowngrade},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
 		{"Count matches main query", testListHostCertificatesCountMatches},
@@ -1149,6 +1150,93 @@ func testUpdateHostCertificatesOriginScopedDelete(t *testing.T, ds *Datastore) {
 	require.Len(t, certs, 1, "osquery-only cert should survive an MDM sync that omits it")
 	require.Equal(t, "osquery-only", certs[0].CommonName)
 	require.Equal(t, fleet.HostCertificateOriginOsquery, certs[0].Origin)
+}
+
+// testUpdateHostCertificatesOriginDowngrade verifies that osquery rediscovery
+// of an mdm-origin cert flips origin to osquery, and that the downgrade is
+// one-way.
+func testUpdateHostCertificatesOriginDowngrade(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("downgrade-host-osquery-id"),
+		NodeKey:         ptr.String("downgrade-host-node-key"),
+		UUID:            "downgrade-host-uuid",
+		Hostname:        "downgrade-host",
+	})
+	require.NoError(t, err)
+
+	mkCert := func(commonName string) *fleet.HostCertificateRecord {
+		template := x509.Certificate{
+			Subject:               pkix.Name{CommonName: commonName, Organization: []string{"Org"}},
+			Issuer:                pkix.Name{CommonName: "issuer", Organization: []string{"Issuer"}},
+			SerialNumber:          big.NewInt(mathrand.Int64()), // nolint:gosec
+			KeyUsage:              x509.KeyUsageDigitalSignature,
+			SignatureAlgorithm:    x509.SHA256WithRSA,
+			NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+			NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+			BasicConstraintsValid: true,
+		}
+		certBytes, _, err := GenerateTestCertBytes(&template)
+		require.NoError(t, err)
+		block, _ := pem.Decode(certBytes)
+		parsed, err := x509.ParseCertificate(block.Bytes)
+		require.NoError(t, err)
+		rec := fleet.NewHostCertificateRecord(host.ID, parsed)
+		rec.Source = fleet.SystemHostCertificate
+		return rec
+	}
+
+	rootCA := mkCert("user-installed-root-ca")
+	mdmDelivered := mkCert("mdm-delivered-only")
+
+	// MDM ingestion sees both certs first.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA, mdmDelivered}, fleet.HostCertificateOriginMDM))
+
+	originByCN := func() map[string]fleet.HostCertificateOrigin {
+		certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		m := make(map[string]fleet.HostCertificateOrigin, len(certs))
+		for _, c := range certs {
+			m[c.CommonName] = c.Origin
+		}
+		return m
+	}
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginMDM,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
+
+	// Osquery rediscovers the Root CA; row downgrades. MDM-only cert unchanged.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA}, fleet.HostCertificateOriginOsquery))
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginOsquery,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
+
+	// Downgrade is sticky across repeated osquery syncs.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA}, fleet.HostCertificateOriginOsquery))
+	require.Equal(t, fleet.HostCertificateOriginOsquery, originByCN()["user-installed-root-ca"])
+
+	// Source-scoped delete preserved: osquery omitting the MDM-only cert does not soft-delete it.
+	certs, _, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+
+	// One-way: MDM rediscovery does not re-upgrade the downgraded row.
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID,
+		[]*fleet.HostCertificateRecord{rootCA, mdmDelivered}, fleet.HostCertificateOriginMDM))
+	require.Equal(t, map[string]fleet.HostCertificateOrigin{
+		"user-installed-root-ca": fleet.HostCertificateOriginOsquery,
+		"mdm-delivered-only":     fleet.HostCertificateOriginMDM,
+	}, originByCN())
 }
 
 // testHostCertificateWithInvalidCountryCode tests that a certificate with a country code longer than the standard 2 letters works
