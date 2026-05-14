@@ -3441,6 +3441,296 @@ func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context)
 	return profilesToInstall, profilesToRemove, nil
 }
 
+// ListMDMAppleProfilesToInstallAndRemoveForHosts is the scoped variant of
+// ListMDMAppleProfilesToInstallAndRemove. Both lists are read in a single
+// read-only transaction so they reflect the same point-in-time system
+// state. See ReconcileAppleProfiles.
+func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil, nil
+	}
+
+	var profilesToInstall []*fleet.MDMAppleProfilePayload
+	var profilesToRemove []*fleet.MDMAppleProfilePayload
+	err := ds.withReadTx(ctx, func(tx common_mysql.DBReadTx) error {
+		var err error
+		profilesToInstall, err = ds.listMDMAppleProfilesToInstallForHostsDB(ctx, tx, hostUUIDs)
+		if err != nil {
+			return err
+		}
+		profilesToRemove, err = ds.listMDMAppleProfilesToRemoveForHostsDB(ctx, tx, hostUUIDs)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple profiles to install and remove for hosts")
+	}
+
+	return profilesToInstall, profilesToRemove, nil
+}
+
+// listMDMAppleProfilesToInstallForHostsDB returns rows from the
+// ListMDMAppleProfilesToInstall set restricted to the given host UUIDs.
+// Uses the same conditions as listMDMAppleProfilesToInstallTransaction
+// (the authoritative reconciliation queries), not the subtly different
+// conditions in bulkSetPendingMDMAppleHostProfilesDB.
+func (ds *Datastore) listMDMAppleProfilesToInstallForHostsDB(ctx context.Context, tx common_mysql.DBReadTx, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+
+	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
+
+	// h.uuid IN (?) appears in all 4 UNION arms of the desired-state query
+	// so the optimizer filters early per branch. Pattern mirrors the
+	// Windows scoped variant in listMDMWindowsProfilesToInstallDB.
+	desiredStateFilter := "h.uuid IN (?)"
+
+	toInstallStmt := fmt.Sprintf(`
+	SELECT
+		ds.profile_uuid,
+		ds.host_uuid,
+		ds.host_platform,
+		ds.profile_identifier,
+		ds.profile_name,
+		ds.checksum,
+		ds.secrets_updated_at,
+		ds.scope,
+		ds.device_enrolled_at
+	FROM ( %s ) as ds
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		-- profile or secret variables have been updated
+		( hmap.checksum != ds.checksum ) OR IFNULL(hmap.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+		-- profiles in A but not in B
+		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
+		-- profiles in A and B but with operation type "remove"
+		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
+		-- profiles in A and B with operation type "install" and NULL status
+		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter))
+
+	// Mirror ListMDMAppleProfilesToInstall: a 10k host batch size matches
+	// what bulkSetPendingMDMAppleHostProfilesDB does for parameter-limit
+	// safety. In practice the reconciler caller passes <= batch size
+	// (typically 2000), so this loop runs once; the guard is here for
+	// safety in case the batch size is ever raised.
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	var wantedProfiles []*fleet.MDMAppleProfilePayload
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+		batchUUIDs := hostUUIDs[start:end]
+
+		stmt, args, err := sqlx.In(toInstallStmt,
+			batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs,
+			fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "building statement to select Apple profiles to install for hosts, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		if err := sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "selecting Apple profiles to install for hosts, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+		wantedProfiles = append(wantedProfiles, partialResult...)
+	}
+
+	return wantedProfiles, nil
+}
+
+// listMDMAppleProfilesToRemoveForHostsDB returns rows from the
+// ListMDMAppleProfilesToRemove set restricted to the given host UUIDs.
+// Uses the same conditions as listMDMAppleProfilesToRemoveTransaction
+// (the authoritative reconciliation queries).
+func (ds *Datastore) listMDMAppleProfilesToRemoveForHostsDB(ctx context.Context, tx common_mysql.DBReadTx, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, error) {
+	if len(hostUUIDs) == 0 {
+		return nil, nil
+	}
+
+	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
+
+	// The desired-state subquery is anti-joined ("ds.profile_uuid IS NULL
+	// AND ds.host_uuid IS NULL"), so the host filter applied inside the
+	// subquery does not prune rows from the remove set on its own; the
+	// outer hmap.host_uuid IN (?) is what actually scopes the result. We
+	// still push the filter into the desired-state UNION arms so the
+	// optimizer evaluates a much smaller ds. (Mirrors the Windows scoped
+	// variant.)
+	desiredStateFilter := "h.uuid IN (?)"
+
+	toRemoveStmt := fmt.Sprintf(`
+	SELECT
+		hmap.profile_uuid as profile_uuid,
+		hmap.host_uuid as host_uuid,
+		hmap.profile_identifier as profile_identifier,
+		hmap.profile_name as profile_name,
+		hmap.checksum as checksum,
+		hmap.status as status,
+		hmap.operation_type as operation_type,
+		COALESCE(hmap.detail, '') as detail,
+		hmap.command_uuid as command_uuid,
+		hmap.scope as scope
+	FROM ( %s ) as ds
+		RIGHT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		hmap.host_uuid IN (?) AND
+		-- profiles that are in B but not in A
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- except "remove" operations in a terminal state or already pending
+		( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL ) AND
+		-- except "would be removed" profiles if they are a broken label-based profile
+		-- (regardless of if it is an include-all or exclude-any label)
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.apple_profile_uuid = hmap.profile_uuid AND
+				mcpl.label_id IS NULL
+		)
+`, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter))
+
+	selectProfilesBatchSize := 10_000
+	if ds.testSelectMDMProfilesBatchSize > 0 {
+		selectProfilesBatchSize = ds.testSelectMDMProfilesBatchSize
+	}
+	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
+
+	var currentProfiles []*fleet.MDMAppleProfilePayload
+	for i := 0; i < selectProfilesTotalBatches; i++ {
+		start := i * selectProfilesBatchSize
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
+		batchUUIDs := hostUUIDs[start:end]
+
+		stmt, args, err := sqlx.In(toRemoveStmt,
+			batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs, batchUUIDs,
+			fleet.MDMOperationTypeRemove,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "building statement to select Apple profiles to remove for hosts, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+
+		var partialResult []*fleet.MDMAppleProfilePayload
+		if err := sqlx.SelectContext(ctx, tx, &partialResult, stmt, args...); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "selecting Apple profiles to remove for hosts, batch %d of %d", i, selectProfilesTotalBatches)
+		}
+		currentProfiles = append(currentProfiles, partialResult...)
+	}
+
+	return currentProfiles, nil
+}
+
+// ListNextPendingMDMAppleHostUUIDs returns up to batchSize host UUIDs
+// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
+// the host has any pending Apple MDM profile reconciliation work (install
+// or remove). If afterHostUUID is empty, scanning starts from the
+// beginning. The cron uses this to slice its per-tick work into a bounded
+// host window; see ReconcileAppleProfiles.
+func (ds *Datastore) ListNextPendingMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
+
+	// Push the cursor predicate (h.uuid > ?) into each branch of the UNION
+	// so the optimizer applies it before deduplication. Both the install
+	// and remove queries push the cursor into all 4 desired-state UNION
+	// arms; the remove query additionally gets the cursor in its outer
+	// WHERE on hmap.host_uuid for a clean PK range scan on
+	// host_mdm_apple_profiles. Mirrors the Windows pattern in
+	// ListNextPendingMDMWindowsHostUUIDs.
+	cursorPred := "h.uuid > ?"
+	desiredStateInstall := fmt.Sprintf(appleMDMProfilesDesiredStateQuery, cursorPred, cursorPred, cursorPred, cursorPred)
+	desiredStateRemove := fmt.Sprintf(appleMDMProfilesDesiredStateQuery, cursorPred, cursorPred, cursorPred, cursorPred)
+
+	// Note on what's distinct from the full install/remove queries: we
+	// project only host_uuid here, so we don't need to project profile
+	// content (checksum etc.). We still use the same join + WHERE shape
+	// so the planner picks the same indexes.
+	toInstall := fmt.Sprintf(`
+	SELECT ds.host_uuid
+	FROM ( %s ) as ds
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		( hmap.checksum != ds.checksum ) OR IFNULL(hmap.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
+		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
+		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
+		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
+`, desiredStateInstall)
+
+	toRemove := fmt.Sprintf(`
+	SELECT hmap.host_uuid
+	FROM ( %s ) as ds
+		RIGHT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		hmap.host_uuid > ? AND
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL ) AND
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.apple_profile_uuid = hmap.profile_uuid AND
+				mcpl.label_id IS NULL
+		)
+`, desiredStateRemove)
+
+	stmt := fmt.Sprintf(`
+		SELECT host_uuid FROM (
+			SELECT host_uuid FROM (%s) AS install_set
+			UNION
+			SELECT host_uuid FROM (%s) AS remove_set
+		) AS combined
+		ORDER BY host_uuid
+		LIMIT %d
+	`, toInstall, toRemove, batchSize)
+
+	// Placeholder order in stmt:
+	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (remove, install)
+	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms,
+	//                     1 cursor (hmap.host_uuid > ?) for outer WHERE,
+	//                     1 op-type (remove)
+	var hostUUIDs []string
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
+		afterHostUUID,
+		fleet.MDMOperationTypeRemove,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM apple host UUIDs")
+	}
+	return hostUUIDs, nil
+}
+
+// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used
+// by the Apple MDM reconciliation cron to bound per-tick work. Returns ""
+// if no cursor is set or if the underlying datastore does not support
+// cursor persistence (the bare mysql.Datastore in unit tests returns ""
+// here; the mysqlredis wrapper backs it with Redis).
+//
+// See ReconcileAppleProfiles.
+func (ds *Datastore) GetMDMAppleReconcileCursor(_ context.Context) (string, error) {
+	return "", nil
+}
+
+// SetMDMAppleReconcileCursor persists the host_uuid cursor used by the
+// Apple MDM reconciliation cron. The bare mysql.Datastore is a no-op
+// here; the mysqlredis wrapper writes to Redis. See
+// GetMDMAppleReconcileCursor.
+func (ds *Datastore) SetMDMAppleReconcileCursor(_ context.Context, _ string) error {
+	return nil
+}
+
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
 	if len(uuids) == 0 {
 		return nil, nil
