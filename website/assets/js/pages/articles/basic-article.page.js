@@ -9,13 +9,20 @@ parasails.registerPage('basic-article', {
     lastScrollTop: 0,
     scrollDistance: 0,
     isIpadOS: false,
+    showLastUpdated: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if (this.thisPage && this.thisPage.lastModifiedAt && this.thisPage.meta && this.thisPage.meta.publishedOn) {
+      var publishedTimestamp = new Date(this.thisPage.meta.publishedOn).getTime();
+      var oneDayMs = 86400000;
+      if (this.thisPage.lastModifiedAt - publishedTimestamp > oneDayMs) {
+        this.showLastUpdated = true;
+      }
+    }
   },
   mounted: async function() {
     // Set a flag to determine whether or not this is an ipad. (Used to show/hide an embeded PDF)
