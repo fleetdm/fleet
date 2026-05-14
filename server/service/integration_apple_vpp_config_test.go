@@ -13,7 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -360,7 +360,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 
 	titleIDFor := func(adamID string, platform fleet.InstallableDevicePlatform) uint {
 		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &id,
 				`SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, adamID, platform)
 		})
@@ -466,8 +466,10 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
-			&updateAppStoreAppRequest{TeamID: &team.ID,
-				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`)},
+			&updateAppStoreAppRequest{
+				TeamID:        &team.ID,
+				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`),
+			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
 		ios2Host, ios2Dev := s.createAppleMobileHostThenEnrollMDM("ios")
@@ -570,12 +572,14 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		// activateNextUpcomingActivity runs in-tx with the upcoming-activity insert).
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
-			&updateAppStoreAppRequest{TeamID: &team.ID,
-				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`)},
+			&updateAppStoreAppRequest{
+				TeamID:        &team.ID,
+				Configuration: asJSONString(`<dict><key>Email</key><string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string></dict>`),
+			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
 		var uaBefore int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &uaBefore,
 				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
 		})
@@ -587,7 +591,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 			"managed app configuration references Fleet variables that can't be resolved")
 
 		var uaAfter int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &uaAfter,
 				`SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?`, iosHost.ID)
 		})
@@ -610,8 +614,10 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		titleID := titleIDFor(adamMulti, fleet.IOSPlatform)
 		s.DoJSON("PATCH",
 			fmt.Sprintf("/api/latest/fleet/software/titles/%d/app_store_app", titleID),
-			&updateAppStoreAppRequest{TeamID: &team.ID, SelfService: new(true),
-				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`)},
+			&updateAppStoreAppRequest{
+				TeamID: &team.ID, SelfService: new(true),
+				Configuration: asJSONString(`<dict><key>UUID</key><string>$FLEET_VAR_HOST_UUID</string></dict>`),
+			},
 			http.StatusOK, &updateAppStoreAppResponse{})
 
 		s.DoRawWithHeaders("POST",
@@ -716,7 +722,7 @@ func (s *integrationMDMTestSuite) TestVPPManagedConfigurationOnInstallCommand() 
 		// Bump latest version in proxy data, refresh, and bypass the 1-hour install filter.
 		s.appleVPPProxySrvData[cfgAdamID] = `{"id": "3", "attributes": {"name": "Config App", "platformAttributes": {"ios": {"bundleId": "app-cfg", "artwork": {"url": "https://example.com/images/3/{w}x{h}.{f}"}, "latestVersionInfo": {"versionDisplay": "2.0.0"}}}, "deviceFamilies": ["iphone", "ipad"]}}`
 		require.NoError(t, vpp.RefreshVersions(ctx, s.ds, apple_apps.StubbedConfig()))
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx,
 				`UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR) WHERE host_id = ?`, cfgHost.ID)
 			return err
