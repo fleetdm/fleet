@@ -1,0 +1,61 @@
+- name: Windows Secure Boot CA 2023 migration state
+  automations_enabled: false
+  description: |
+    Detects per-host migration state for KB5025885 / CVE-2023-24932.
+    Combines file signatures on disk with the Microsoft servicing state
+    machine. One row per boot binary. compliance_verdict column gives
+    the per-row verdict (compliant_via_files, compliant_via_registry,
+    in_progress, errored, not_started).
+  discard_data: false
+  interval: 86400
+  logging: snapshot
+  observer_can_run: true
+  platform: windows
+  query: |
+    SELECT
+      a.path,
+      a.issuer_name,
+      a.result,
+      CASE
+        WHEN a.issuer_name LIKE '%Windows UEFI CA 2023%' THEN 'migrated'
+        WHEN a.issuer_name LIKE '%Production PCA 2011%' THEN 'not_migrated'
+        ELSE 'unknown'
+      END AS file_status,
+      (SELECT data FROM registry
+       WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+         AND name = 'UEFICA2023Status') AS reg_status,
+      (SELECT data FROM registry
+       WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+         AND name = 'WindowsUEFICA2023Capable') AS reg_capable,
+      (SELECT data FROM registry
+       WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+         AND name = 'UEFICA2023Error') AS reg_error,
+      CASE
+        WHEN a.issuer_name LIKE '%Windows UEFI CA 2023%'
+          THEN 'compliant_via_files'
+        WHEN (SELECT data FROM registry
+              WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+                AND name = 'UEFICA2023Status') = 'Updated'
+         AND (SELECT data FROM registry
+              WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+                AND name = 'WindowsUEFICA2023Capable') = '2'
+         AND IFNULL((SELECT data FROM registry
+                     WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+                       AND name = 'UEFICA2023Error'), '0') = '0'
+          THEN 'compliant_via_registry'
+        WHEN CAST(IFNULL((SELECT data FROM registry
+                          WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+                            AND name = 'UEFICA2023Error'), '0') AS INTEGER) > 0
+          THEN 'errored'
+        WHEN (SELECT data FROM registry
+              WHERE key = 'HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\SecureBoot\Servicing'
+                AND name = 'UEFICA2023Status') = 'InProgress'
+          THEN 'in_progress'
+        ELSE 'not_started'
+      END AS compliance_verdict
+    FROM authenticode a
+    WHERE a.path IN (
+      'C:\Windows\Boot\EFI\bootmgfw.efi',
+      'C:\Windows\System32\winload.efi',
+      'C:\Windows\System32\winresume.efi'
+    );
