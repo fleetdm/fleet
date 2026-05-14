@@ -4,7 +4,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can lock and wipe macOS, Windows, Linux, iOS and iPadOS hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
+In Fleet, you can lock and wipe macOS, Windows, Linux, iOS, iPadOS, and Android hosts remotely when a host might have been lost or stolen, or to remotely prepare a device to be re-deployed to another end user.
 
 Restricting wipe for iPhones and iPads to only company-owned iPhones and iPads is coming soon.
 
@@ -20,7 +20,9 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
 > **iOS and iPadOS**: Lock action is only available for company-owned ([supervised](https://support.apple.com/en-gb/guide/deployment/dep1d89f0bff/web)) hosts.
 As part of locking an iOS or iPadOS host, Fleet collects the device's location data. Fleet will not consider the device fully locked until the location data is collected.
 
-> **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+> **Linux**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+
+> **Android**: Lock action will enforce the host lock screen and require the user to enter their password/PIN to regain access. Fully managed and BYO Android hosts are both supported.
 
 ### Get location of locked iOS/iPadOS host
 
@@ -59,6 +61,10 @@ For Windows hosts, Fleet uses the [doWipeProtected](https://learn.microsoft.com/
 
 If the wipe command fails (MDM protocol returns 500 in [MDM command results](https://fleetdm.com/docs/rest-api/rest-api#list-mdm-commands)), you can run a [fallback wipe script](https://github.com/fleetdm/fleet/blob/main/docs/solutions/windows/scripts/wipe-windows-device.ps1) via Fleet. This script validates and repairs WinRE (the most common cause of wipe failure), suspends BitLocker, and triggers the wipe locally via the WMI-to-CSP bridge, bypassing the MDM command queue.
 For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [default fallback behavior documented by Apple](https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command-data.dictionary#:~:text=devices%20always%20obliterate.-,Default,-%3A%20If%20EACS%20preflight).
+
+Wipe is available for fully managed Android hosts. To remove Fleet from a BYO Android host, unenroll it instead.
+
+On personal Android hosts (work profile), Fleet sends a [wipe command](https://developers.google.com/android/management/deprovision-device#wipe_command) via the Android Management API, because the unenroll command is retired if the host is offline for more than 30 days.
 
 ## Unlock a host
 
