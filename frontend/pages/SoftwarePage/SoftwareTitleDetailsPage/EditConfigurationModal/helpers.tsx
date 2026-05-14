@@ -43,8 +43,9 @@ const generateMissingSecretErrMsg = (errMsg: string) => {
   }
   const varNames = matches.map((m) => m[0].replace(/"/g, ""));
   const plural = varNames.length > 1 ? "s" : "";
+  const verb = varNames.length > 1 ? "don't" : "doesn't";
   const quoted = varNames.map((v) => `"${v}"`).join(", ");
-  return `Couldn't add. Variable${plural} ${quoted} doesn't exist.`;
+  return `Couldn't add. Variable${plural} ${quoted} ${verb} exist.`;
 };
 
 export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
@@ -69,12 +70,12 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   // Note: the backend validates variables one at a time and returns on the
   // first unsupported one it finds, so only one variable is surfaced per
   // request even if the configuration contains multiple invalid variables.
-  if (reason.includes("unsupported variable")) {
+  if (reason.includes("unsupported variable") && reason.includes("$FLEET_VAR_")) {
     return generateUnsupportedVariableErrMsg(reason);
   }
 
   // Secret variable missing from database
-  if (reason.includes("Secret variable")) {
+  if (reason.includes("missing from database")) {
     return generateMissingSecretErrMsg(reason);
   }
 

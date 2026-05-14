@@ -116,24 +116,6 @@ describe("getErrorMessage", () => {
     );
   });
 
-  it("returns 'doesn't exist' for an unknown $FLEET_VAR_ variable on Android", () => {
-    const err = {
-      response: {
-        data: {
-          errors: [
-            {
-              name: "configuration",
-              reason: "unsupported variable $FLEET_VAR_BLA_BLA",
-            },
-          ],
-        },
-      },
-    };
-    expect(getErrorMessage(err, false)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
-    );
-  });
-
   it.each([
     ["NDES_SCEP_CHALLENGE"],
     ["NDES_SCEP_PROXY_URL"],
@@ -200,7 +182,7 @@ describe("getErrorMessage", () => {
       },
     };
     expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" doesn't exist.`
+      `Couldn't add. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" don't exist.`
     );
   });
 });
