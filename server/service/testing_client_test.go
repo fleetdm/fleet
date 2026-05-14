@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
@@ -61,9 +62,9 @@ type withDS struct {
 
 func (ts *withDS) SetupSuite(dbName string) {
 	t := ts.s.T()
-	ts.ds, ts.dbConns = mysql.CreateNamedMySQLDSWithConns(t, dbName)
+	ts.ds, ts.dbConns = mysqltest.CreateNamedMySQLDSWithConns(t, dbName)
 	// remove any migration-created labels
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), `DELETE FROM labels`)
 		return err
 	})
@@ -155,13 +156,13 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM policies;`)
 		return err
 	})
 
 	// Clean software installers in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		if err != nil {
 			return err
@@ -211,7 +212,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	}
 
 	// Clean scripts in "No team" (the others are deleted in ts.ds.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM scripts WHERE global_or_team_id = 0;`)
 		return err
 	})
@@ -243,41 +244,41 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	require.NoError(t, err)
 
 	// delete orphaned scripts
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM scripts`)
 		return err
 	})
 
 	// delete orphaned host_script_results
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM secret_variables")
 		return err
 	})
 
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM fleet_maintained_apps; ")
 		return err
 	})
 	// Most tests reference FMAs by ID, and the expect the records to be inserted starting with 1, so we need to reset the auto increment.
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "ALTER TABLE fleet_maintained_apps AUTO_INCREMENT = 1;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM invites; ")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM host_conditional_access")
 		return err
 	})

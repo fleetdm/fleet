@@ -3,8 +3,16 @@ package dev_mode
 import (
 	"os"
 	"sync"
-	"testing"
 )
+
+// testingTB is the subset of *testing.T that SetOverride needs in order to
+// register cleanup. *testing.T satisfies it without an explicit conversion,
+// so callers continue to pass `t` as-is. Defining this interface locally
+// keeps the "testing" package out of dev_mode's production import graph.
+type testingTB interface {
+	Setenv(name, value string)
+	Cleanup(f func())
+}
 
 // IsEnabled should be configured once at process startup (e.g., via flags) and then treated as read-only.
 // It must not be written from concurrent goroutines; SetOverride only affects enabledViaOverride/env overrides.
@@ -35,7 +43,7 @@ func Env(name string) string {
 	return os.Getenv(name)
 }
 
-func SetOverride(name string, value string, cleanup ...*testing.T) { // optional parameter to reset on test cleanup
+func SetOverride(name string, value string, cleanup ...testingTB) { // optional parameter to reset on test cleanup
 	if len(cleanup) > 0 {
 		cleanup[0].Setenv("FLEET_DEV_OVERRIDE_SET", "1") // triggers test deny-parallel check
 		cleanup[0].Cleanup(func() {

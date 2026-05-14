@@ -14,7 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -975,7 +975,7 @@ func TestGetSoftwareInstallerAttemptNumber(t *testing.T) {
 func TestSoftwareInstallReplicaLag(t *testing.T) {
 	// Create datastore with dummy replica to simulate replication lag
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
-	ds := mysql.CreateMySQLDSWithOptions(t, opts)
+	ds := mysqltest.CreateMySQLDSWithOptions(t, opts)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -1027,7 +1027,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	// simulate Orbit picking up upcoming_activity and activating
 	installUUID := uuid.New().String()
 	var titleID uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, q, &titleID,
 			`SELECT title_id FROM software_installers WHERE id = ?`, installerID)
 		if err != nil {
@@ -1045,7 +1045,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 	})
 
 	var attemptNumberBeforeResult *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberBeforeResult,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -1067,7 +1067,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// Verify the attempt_number was set in the primary
 	var attemptNumberInWriter *int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptNumberInWriter,
 			`SELECT attempt_number FROM host_software_installs WHERE execution_id = ?`,
 			installUUID)
@@ -1077,7 +1077,7 @@ func TestSoftwareInstallReplicaLag(t *testing.T) {
 
 	// verify retry was scheduled, and that we did not throw an error because of nil attempt_number
 	var retryCount int
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &retryCount,
 			`SELECT COUNT(*) FROM upcoming_activities
 			WHERE activity_type = 'software_install'`,

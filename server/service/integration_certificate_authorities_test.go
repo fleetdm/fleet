@@ -15,7 +15,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/scep"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -458,7 +458,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -559,7 +559,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -585,7 +585,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -611,7 +611,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -804,7 +804,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -1029,7 +1029,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -1290,7 +1290,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -1416,7 +1416,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
-				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
 					return nil
 				})
@@ -1642,7 +1642,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	p := generateTestProfileSmallstepSCEP("$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_STEP_WIFI", "$FLEET_VAR_SCEP_RENEWAL_ID", "$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_STEP_WIFI")
 	body, headers := generateNewProfileMultipartRequest(t, "foobar.mobileconfig", []byte(p), s.token, nil)
 	_ = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &profUUID, "SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE name = ?", "Smallstep Fleet WIFI")
 	})
 
@@ -1684,7 +1684,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	// listHostProfilesDB lists the host profiles for a given host from the database
 	listHostProfilesDB := func(hostUUID string) []hostProfile {
 		var got []hostProfile
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			// for the purpose of this test, we ignore the Fleet-internal profiles
 			// (we only care about the custom profiles)
 			return sqlx.SelectContext(t.Context(), q, &got, `
@@ -1889,7 +1889,7 @@ func (s *integrationMDMTestSuite) TestSCEPChallengeExpirationRetriesSmallStep() 
 	require.Equal(t, expectHostProf, gotHostProfs[0])
 
 	// simulate challenge expiration by backdating challenge_retrieved_at
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, _ = q.ExecContext(context.Background(), "UPDATE host_mdm_managed_certificates SET challenge_retrieved_at = DATE_SUB(challenge_retrieved_at, INTERVAL 270 SECOND) WHERE host_uuid = ?", host.UUID)
 		return nil
 	})

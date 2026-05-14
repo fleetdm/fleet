@@ -297,10 +297,8 @@
     box-sizing: border-box;
     height: 34px;
 
-    // Override react-select's hardcoded `.Select-control .Select-input:focus
-    // { background: #fff; }` so the input stays themed when the menu is open.
     &:focus {
-      background: $core-fleet-white;
+      background: transparent;
     }
 
     > input {
