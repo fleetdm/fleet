@@ -438,6 +438,7 @@ func CreateMySQLDSWithReplica(t *testing.T, opts *testing_utils.DatastoreTestOpt
 				t.Logf("replica not running after attempt %d; Last_Error: %s", attempt, lastErr)
 			}
 			ds.Close()
+			ds = nil
 			continue
 		}
 		break

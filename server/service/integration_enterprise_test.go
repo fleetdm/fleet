@@ -30580,7 +30580,7 @@ func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTe
 		require.Equal(t, teamA.ID, *hostLite.TeamID)
 
 		// Age last_enrolled_at to bypass the osquery enroll cooldown (default 42m in tests).
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				ctx,
 				"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
