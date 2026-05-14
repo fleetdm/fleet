@@ -68,6 +68,24 @@ Store certs from both osquery and MDM `CertificateList` ingestion in `host_certi
 - *Separate `host_mdm_certificates` table.* Rejected: complicates the host details API by requiring a UNION across two tables. Single-table-with-origin is simpler.
 - *Expose `origin` in the API.* Rejected per discussion — clients only care about the unified deduped list.
 
+### Decision 1.4: Osquery sync downgrades existing `mdm` rows to `osquery`
+
+Refinement of Decision 1.3 surfaced during 2026-05-14 local validation. Today the `origin` column reflects "first ingestion source to see this cert." That's misleading: MDM `CertificateList` returns the entire device keychain on every InstallProfile ack, including Root CAs and other system certs the user installed manually. If MDM observes a non-MDM-delivered cert before the next osquery cert sync, the row gets `origin='mdm'` even though Fleet did not deliver it.
+
+**Decision:** when osquery sync UPSERTs a cert that already exists with `origin='mdm'`, downgrade `origin` to `'osquery'`. One-way only (mdm → osquery, never the reverse).
+
+**Why this is correct:**
+- Osquery sees a strict superset of what MDM `CertificateList` sees (the entire keychain, unfiltered). If osquery observes a cert, the device has it in the keychain by whatever path; the cert's presence is not evidence of MDM delivery.
+- MDM `CertificateList` observation is *not* sufficient evidence of MDM delivery, because the protocol returns every keychain entry, not just Fleet-delivered ones. The current MDM-only path remains the right one for first-seen MDM-delivered certs (ACME/SCEP) because they appear in the keychain only after the MDM-driven exchange.
+- The matcher path (PR 2.2) keys on the `fleet-<profile_uuid>` marker in the cert Subject, not on `origin`, so renewal correctness is unaffected. `origin` is purely for visibility / audit semantics.
+
+**Concretely:** the live row for a system cert observed by both sources lands as `origin='osquery'`. The live row for an ACME cert observed only by MDM (because hardware-bound certs are invisible to osquery on macOS) stays `origin='mdm'`. That matches intent: "did Fleet deliver this cert?"
+
+**Alternatives considered:**
+- *Filter what `CertificateList` ingests* — only persist certs that match an installed cert-issuing profile on the host. Rejected: requires inspecting profile contents during ingestion (currently we don't), creates a tight coupling between the ingestion path and the profile-matching logic, and loses visibility of MDM-delivered certs whose profile got removed but cert was retained. The downgrade approach keeps the ingestion path simple and lets matcher logic handle linkage separately.
+- *Three-valued `origin` column (`osquery` / `mdm` / `both`).* Rejected: doesn't add information — `both` would mean "observed by both," which is equivalent to "osquery saw it" since osquery is the superset. And it'd require enum migration plus a third soft-delete branch.
+- *Backfill existing rows on deploy.* Rejected: the next natural osquery sync downgrades affected rows. Adding a deploy-time scan is unnecessary churn for a slowly-self-correcting issue.
+
 ## Phase 2 Decisions (#40639 renewal extension)
 
 ### Decision 2.1: Extend `UpdateHostCertificates` to insert managed-cert rows
