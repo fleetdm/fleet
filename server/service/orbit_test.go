@@ -1210,3 +1210,208 @@ type orbitTestNotFoundErr struct{}
 
 func (e *orbitTestNotFoundErr) Error() string    { return "not found" }
 func (e *orbitTestNotFoundErr) IsNotFound() bool { return true }
+
+func rawJSON(s string) *json.RawMessage {
+	r := json.RawMessage(s)
+	return &r
+}
+
+func TestMaybeStampOrbitDebugFromAgentOptions(t *testing.T) {
+	getInternal := func(svc fleet.Service) *Service {
+		return ((svc.(validationMiddleware)).Service).(*Service)
+	}
+
+	t.Run("no agent options -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("zero duration -> no stamp", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 0}}`),
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("global option set, no team -> stamps from app config", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 42}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
+		}
+
+		var gotID uint
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotID = hostID
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+		require.Equal(t, host.ID, gotID)
+		require.WithinDuration(t, before.Add(time.Hour), gotUntil, time.Minute)
+	})
+
+	t.Run("team option set -> stamps from team agent options, ignores global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			// Team membership: team options win, global is ignored.
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 86400}}`),
+		}
+
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			require.Equal(t, teamID, id)
+			return rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 1800}}`), nil
+		}
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		require.True(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+		require.WithinDuration(t, before.Add(30*time.Minute), gotUntil, time.Minute)
+	})
+
+	t.Run("team has no agent options row -> no stamp, no fallback to global", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		teamID := uint(7)
+		host := &fleet.Host{ID: 99, TeamID: &teamID}
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 3600}}`),
+		}
+		ds.TeamAgentOptionsFunc = func(ctx context.Context, id uint) (*json.RawMessage, error) {
+			return nil, nil
+		}
+
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.True(t, ds.TeamAgentOptionsFuncInvoked)
+		require.False(t, ds.ExtendHostOrbitDebugUntilFuncInvoked)
+	})
+
+	t.Run("over-cap value defensively clamped at 24h", func(t *testing.T) {
+		ds := new(mock.Store)
+		svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{SkipCreateTestUsers: true})
+		host := &fleet.Host{ID: 1}
+		// Bypass the validator by stuffing a too-large value directly.
+		appCfg := &fleet.AppConfig{
+			AgentOptions: rawJSON(`{"orbit": {"debug_logging_on_enroll_duration": 360000}}`),
+		}
+		var gotUntil time.Time
+		ds.ExtendHostOrbitDebugUntilFunc = func(ctx context.Context, hostID uint, until time.Time) error {
+			gotUntil = until
+			return nil
+		}
+
+		before := time.Now()
+		err := getInternal(svc).maybeStampOrbitDebugFromAgentOptions(ctx, host, appCfg)
+		require.NoError(t, err)
+		require.WithinDuration(t, before.Add(fleet.MaxOrbitDebugLoggingOnEnrollDuration), gotUntil, time.Minute)
+	})
+}
+
+func TestResolveOrbitDebugLogging(t *testing.T) {
+	ctx := t.Context()
+	future := time.Now().Add(time.Hour)
+	past := time.Now().Add(-time.Hour)
+
+	cases := []struct {
+		name      string
+		host      *fleet.Host
+		inFlags   json.RawMessage
+		wantDebug *bool
+		wantFlags map[string]any
+	}{
+		{
+			name:      "no host -> nil debug, flags unchanged",
+			host:      nil,
+			inFlags:   nil,
+			wantDebug: nil,
+		},
+		{
+			name:      "no override -> nil debug, flags unchanged",
+			host:      &fleet.Host{},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: nil,
+		},
+		{
+			name:      "unexpired override -> debug on, flags merged",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   nil,
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"verbose": true,
+			},
+		},
+		{
+			name:      "unexpired override with admin flags -> merged",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   json.RawMessage(`{"distributed_interval":10}`),
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"distributed_interval": float64(10),
+				"verbose":              true,
+			},
+		},
+		{
+			name:      "admin verbose:false wins over debug-on",
+			host:      &fleet.Host{OrbitDebugUntil: &future},
+			inFlags:   json.RawMessage(`{"verbose":false}`),
+			wantDebug: new(true),
+			wantFlags: map[string]any{
+				"verbose": false,
+			},
+		},
+		{
+			name:      "expired override is ignored",
+			host:      &fleet.Host{OrbitDebugUntil: &past},
+			inFlags:   nil,
+			wantDebug: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			gotFlags, gotDebug, err := resolveOrbitDebugLogging(ctx, tc.host, tc.inFlags)
+			require.NoError(t, err)
+
+			if tc.wantDebug == nil {
+				require.Nil(t, gotDebug)
+				require.Equal(t, tc.inFlags, gotFlags)
+				return
+			}
+
+			require.NotNil(t, gotDebug)
+			require.Equal(t, *tc.wantDebug, *gotDebug)
+			var got map[string]any
+			require.NoError(t, json.Unmarshal(gotFlags, &got))
+			require.Equal(t, tc.wantFlags, got)
+		})
+	}
+}

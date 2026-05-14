@@ -397,6 +397,10 @@ type Host struct {
 	// so we don't need this.
 	RefetchCriticalQueriesUntil *time.Time `json:"refetch_critical_queries_until" db:"refetch_critical_queries_until" csv:"-"` //nolint:apiparamcheck
 
+	// When non-nil and in the future, the orbit config response sets
+	// debug_logging=true until that time.
+	OrbitDebugUntil *time.Time `json:"orbit_debug_until,omitempty" db:"orbit_debug_until" csv:"-"`
+
 	// DEPAssignedToFleet is set to true if the host is assigned to Fleet in Apple Business.
 	// It is a *bool becase we want it to be returned from only a subset of endpoints related to
 	// Orbit and Fleet Desktop. Otherwise, it will be set to NULL so it is omitted from JSON
