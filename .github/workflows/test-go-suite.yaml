@@ -52,7 +52,7 @@ jobs:
 
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+      uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
       with:
         egress-policy: audit
 
@@ -277,7 +277,7 @@ jobs:
 
     - name: Save coverage
       if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-coverage
         path: ./coverage.txt
@@ -313,7 +313,7 @@ jobs:
 
     - name: Upload test log
       if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a # v4.3.6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-test-log
         path: /tmp/gotest.log
@@ -321,14 +321,14 @@ jobs:
 
     - name: Upload summary test log
       if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-summary-test-log
         path: /tmp/summary.txt
 
     - name: Upload JSON test output
       if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-test-json
         path: /tmp/test-output.json
@@ -345,7 +345,7 @@ jobs:
 
     - name: Upload status indicator
       if: always()
-      uses: actions/upload-artifact@834a144ee995460fba8ed112a2fc961b36a5ec5a  # v4.3.6
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ env.ARTIFACT_PREFIX }}-status
         path: /tmp/status
