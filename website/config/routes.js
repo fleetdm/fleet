@@ -594,7 +594,7 @@ module.exports.routes = {
     }
   },
 
-  'GET /open-source': {
+  'GET /imagine/open-source': {
     action: 'landing-pages/view-open-source',
     locals: {
       pageTitleForMeta: 'Open source MDM | Self-hosted device management',
