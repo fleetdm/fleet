@@ -21,7 +21,7 @@ import (
 
 var softwareTitlesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{
 	"id":                "st.id",
-	"name":              "st.name",
+	"name":              "COALESCE(NULLIF(stdn.display_name, ''), st.name)",
 	"source":            "st.source",
 	"extension_for":     "st.extension_for",
 	"bundle_identifier": "st.bundle_identifier",
@@ -576,7 +576,7 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	case "name":
 		secondaryOrderBy = ", hosts_count DESC"
 	default:
-		secondaryOrderBy = ", name ASC"
+		secondaryOrderBy = ", COALESCE(NULLIF(stdn.display_name, ''), st.name) ASC"
 	}
 
 	if k != "source" {
@@ -632,6 +632,7 @@ FROM software_titles st
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
+	LEFT JOIN software_title_display_names stdn ON stdn.software_title_id = st.id AND stdn.team_id = {{teamID .}}
 {{with $softwareJoin := " "}}
 	{{if or $.ListOptions.MatchQuery $.VulnerableOnly}}
 		-- If we do a match but not vulnerable only, we want a LEFT JOIN on

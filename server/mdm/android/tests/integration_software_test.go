@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -131,7 +131,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		// Check software table for correct values, we should have as many rows as there were ApplicationReports sent
 		var software []*fleet.Software
 		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software")
@@ -185,7 +185,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
 	var hostID1 uint
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		// Get host id
 		err := sqlx.GetContext(ctx, q, &hostID1, "SELECT id FROM hosts WHERE uuid = ?", enterpriseSpecificID1)
 		require.NoError(t, err)
@@ -231,7 +231,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var software []*fleet.Software
 		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
 		require.NoError(t, err)
@@ -263,7 +263,7 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	}
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var software []*fleet.Software
 		err = sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software JOIN host_software ON host_software.software_id = software.id WHERE host_software.host_id = ?", hostID1)
 		require.NoError(t, err)

@@ -33,7 +33,7 @@ permissions:
 jobs:
   build:
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
 
     steps:
       - name: Harden Runner
@@ -242,7 +242,7 @@ jobs:
 
   scep-integration-test:
     name: SCEP integration test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-8core
     timeout-minutes: 15
 
     steps:

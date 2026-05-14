@@ -194,6 +194,8 @@
   usualDepartment: Security
   waysToUse:
     - description: Export activity of Fleet admins to your SIEM or data lake
+    - description: See when a wipe command fails on a Windows host in the activity feed so you can create webhooks or automations that respond to failed wipes (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42290
 #  
 #  ╔═╗╔═╗╔═╗╔═╗╔═╗  ╔╦╗╦═╗╔═╗╔╗╔╔═╗╔═╗╔═╗╦═╗╔═╗╔╗╔╔═╗╦ ╦
 #  ╚═╗║  ║ ║╠═╝║╣    ║ ╠╦╝╠═╣║║║╚═╗╠═╝╠═╣╠╦╝║╣ ║║║║  ╚╦╝
@@ -272,6 +274,10 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/34433
     - description: Use ACME to generate MDM protocol certificates with hardware-bound device attestation for Apple Silicon Macs enrolling via DEP, ensuring certificates are issued only to legitimate devices (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15611
+    - description: Create a local break-glass admin account during macOS DEP setup so IT teams have a fallback account for troubleshooting (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/37141
+    - description: End users are prompted to authenticate only once during Windows enrollment when "End user authentication" is enabled, simplifying the setup experience (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/40787
   demos:
     - description: Install a bootstrap package to run custom scripts during the setup experience to enforce required configurations.
       moreInfoUrl: https://youtu.be/gt7_dAU0VMY
@@ -512,6 +518,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/33418
     - description: Automatically retries failed configuration profile installations up to 3 times on Apple macOS, iOS, and iPadOS hosts, eliminating compliance gaps caused by network blips (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/42327
+    - description: Use Fleet variables in declaration (DDM) profiles to dynamically insert host vitals like hardware serial number and IdP username into configuration profiles (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42960
   productCategories: [Device management]
   pricingTableCategories: [Devices]
 #
@@ -612,7 +620,9 @@
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39916
    - description: Add a Fleet-maintained app to a policy via GitOps to automatically install the app when the policy fails (4.84.0).
      moreInfoUrl: https://github.com/fleetdm/fleet/issues/36751
-#  
+   - description: Pin a Fleet-maintained app to a specific major version via GitOps so end users receive patches without upgrading to versions that require new licenses (4.85.0).
+     moreInfoUrl: https://github.com/fleetdm/fleet/issues/38988
+#
 #  ╔═╗╔═╗╦  ╔═╗  ╔═╗╔═╗╦═╗╦  ╦╦╔═╗╔═╗  ╔═╗╔═╗╔═╗╦  ╦╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ╦╔╗╔╔═╗╔╦╗╔═╗╦  ╦  ╔═╗╔╦╗╦╔═╗╔╗╔                                   
 #  ╚═╗║╣ ║  ╠╣───╚═╗║╣ ╠╦╝╚╗╔╝║║  ║╣   ╠═╣╠═╝╠═╝║  ║║  ╠═╣ ║ ║║ ║║║║  ║║║║╚═╗ ║ ╠═╣║  ║  ╠═╣ ║ ║║ ║║║║                                   
 #  ╚═╝╚═╝╩═╝╚    ╚═╝╚═╝╩╚═ ╚╝ ╩╚═╝╚═╝  ╩ ╩╩  ╩  ╩═╝╩╚═╝╩ ╩ ╩ ╩╚═╝╝╚╝  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝                                   
@@ -727,6 +737,8 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
     - description: High-level remote wipe for macOS, Windows, Linux, iOS/iPadOS, and Android.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
+    - description: Clear passcodes on iOS and iPadOS devices to help end users reset a forgotten passcode (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/39570
   tier: Premium
   jamfProHasFeature: appleOnly
   jamfProtectHasFeature: no
@@ -762,6 +774,8 @@
   pricingTableCategories: [Devices]
   waysToUse:
     - description: View host activity and hosts enrolled widgets to understand fleet uptime and host distribution at a glance (4.84.0).
+    - description: View a vulnerability exposure widget on the Fleet dashboard to quickly understand your organization's overall CVE exposure across all hosts (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/43769
 #  ╔═╗ ╦ ╦╔═╗╦═╗╦╔═╗╔═╗
 #  ║═╬╗║ ║║╣ ╠╦╝║║╣ ╚═╗
 #  ╚═╝╚╚═╝╚═╝╩╚═╩╚═╝╚═╝
@@ -1075,7 +1089,7 @@
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162681703918985216%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162681703918985216%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
     - description: 'Melissa Bischoping: CVSS is never enough to contextualize the urgency or risk of a vulnerability in your environment. It is one metric that needs to be part of an overall risk calculus, but a CVSS of 6 can be a greater threat in your organization than a CVSS of 10 based on the environmental variables and mitigations. Only two 10.0s here, but several lower severity that are resulting in high-impact breaches.   Getting a handle on managing that public facing infrastructure and being able to rapidly patch the apps and devices with such exposure needs to be part of an overall plan, but must go hand in hand with mitigations and layers of a zero trust design. CVSS isn’t the sole determination of risk, it’s only one partial piece of data to understand the impact of a vulnerability if exploited.'
       moreInfoUrl: https://www.linkedin.com/feed/update/urn:li:activity:7162614115025215488?commentUrn=urn%3Ali%3Acomment%3A%28activity%3A7162614115025215488%2C7162629486344159232%29&dashCommentUrn=urn%3Ali%3Afsd_comment%3A%287162629486344159232%2Curn%3Ali%3Aactivity%3A7162614115025215488%29
-    - description: Vulnerability detection for Ubuntu uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.84.0).
+    - description: Vulnerability detection for Ubuntu and RHEL uses per-CVE OSV data instead of advisory-grouped OVAL data, reducing false positives and improving accuracy (4.85.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/39900
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
@@ -1190,6 +1204,9 @@
   tier: Free
   jamfProHasFeature: yes
   jamfProtectHasFeature: yes
+  waysToUse:
+    - description: Create API-only users with access limited to specific customer-defined Fleet API endpoints, minimizing the blast radius if an API token is compromised (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/38044
 #  
 #  ╔═╗╦╔╗╔╔═╗╦  ╔═╗  ╔═╗╦╔═╗╔╗╔  ╔═╗╔╗╔
 #  ╚═╗║║║║║ ╦║  ║╣   ╚═╗║║ ╦║║║  ║ ║║║║
@@ -1234,6 +1251,10 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37546
     - description: Resend certificates to a specific Android host to troubleshoot issues (4.84.0).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/37556
+    - description: Request plain x509 PEM-encoded certificates from the certificate API for Linux hosts, avoiding format conversions when using certificates with most tools (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/44533
+    - description: Wi-Fi configuration profiles referencing a certificate are automatically delivered after the certificate is installed on Android hosts, preventing failed Wi-Fi provisioning (4.85.0).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/42405
 #
 #  ╔╦╗╦ ╦╦╦═╗╔╦╗   ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗╔╗╔
 #   ║ ╠═╣║╠╦╝ ║║───╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║ ║║║║

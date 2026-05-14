@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -573,7 +573,7 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 	name := "test_multiple_schedule_instances_config_change"
 	initialSchedInterval := 1 * time.Hour
 
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	_, err := ds.InsertCronStats(ctx, fleet.CronStatsTypeScheduled, name, "a", fleet.CronStatsStatusCompleted)

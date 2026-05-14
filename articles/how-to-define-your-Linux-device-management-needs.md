@@ -1,7 +1,5 @@
 # How to define your Linux device management needs
 
-## As Linux adoption grows, organizations can't afford to ignore the management of Linux devices.
-
 Linux adoption is growing, and [organizations are taking note](https://fleetdm.com/articles/why-enterprise-linux-is-important-in-2026). Relying on manual, high-touch IT processes or leaving Linux users to fully self-manage their devices is no longer workable.
 
 Windows and Mac devices have had mature management platforms for years. Linux MDM support is still catching up. This young field might seem daunting, but it can also be an opportunity to build a Linux device management strategy from scratch.
