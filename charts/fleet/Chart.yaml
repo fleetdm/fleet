@@ -4,11 +4,11 @@ name: fleet
 keywords:
   - fleet
   - osquery
-version: v7.0.1
+version: v7.0.2
 home: https://github.com/fleetdm/fleet
 sources:
   - https://github.com/fleetdm/fleet.git
-appVersion: v4.84.3
+appVersion: v4.85.0
 dependencies:
   - name: mysql
     condition: mysql.enabled
