@@ -1,3 +1,0 @@
-- Fleet UI: Added new policy details page with read-only view of policy information
-- Fleet UI: Updated edit policy page to redirect users with read-only access to policy details page.
-- Fleet UI: Added dedicated `/policies/:id/live` route for running policies
