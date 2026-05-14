@@ -43,12 +43,11 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-4core]
-        # build_type == 'remote' means this job will test the fleetdm/fleetctl:latest from Docker Hub.
-        # build_type == 'local' means this job will build the the image locally.
-        #
-        # TODO(lucas): We should only run 'remote' on schedule
-        # (adding conditionals to 'matrix' requires many tricks).
-        build_type: ["remote", "local"]
+        # build_type == 'remote' tests fleetdm/fleetctl:latest from Docker Hub (cheap).
+        # build_type == 'local' rebuilds the wix/bomutils/fleetctl Docker images from
+        # source (expensive — adds Go install + three docker image builds).
+        # PRs run only 'remote'; push, schedule, and workflow_dispatch run both.
+        build_type: ${{ fromJSON(github.event_name == 'pull_request' && '["remote"]' || '["remote","local"]') }}
     runs-on: ${{ matrix.os }}
 
     steps:
