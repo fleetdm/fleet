@@ -541,15 +541,10 @@ Currently, when a `.ipa` file is added in `packages`, Fleet adds software for bo
 
 ```yaml
 software:
-  self_service_categories:
-    - "🌎 Browsers"
-    - "👬 Communication"
-    - "🧰 Developer tools"
-    - "💻 Productivity"
   packages:
     - path: ../lib/software-name.package.yml
       categories:
-        - "🌎 Browsers"
+        - Browsers
       self_service: true
       setup_experience: true
     - path: ../lib/software-name2.package.yml
@@ -560,7 +555,7 @@ software:
         - Product
         - Marketing
       categories:
-        - "👬 Communication"
+        - Communication
       setup_experience: true
       auto_update_enabled: true
       auto_update_window_start: "00:00"
@@ -588,24 +583,21 @@ software:
         - Design
         - Sales
       categories:
-        - "👬 Communication"
-        - "💻 Productivity"
+        - Communication
+        - Productivity
 ```
-
-#### self_service_categories
-
-_Available in Fleet Premium_
-
-- `self_service_categories` is a list of custom self-service category names available on this fleet. End users can browse and install self-service software by category on the **My device > Self-service** page. Custom categories replace Fleet's previous fixed list and are managed per fleet.
-- Each category name must be unique within the fleet (case-insensitive) and is limited to 255 characters. Emojis are supported and are part of the name (e.g. `"🌎 Browsers"`).
-- When a fleet is created, Fleet seeds the following default categories that admins can rename or delete: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**.
-- `self_service_categories` is an optional key. When the key is included, the listed categories fully replace the fleet's existing self-service categories — any category not listed is deleted. When the key is omitted, existing categories are left unchanged. Software assigned to a deleted category is removed from that category but otherwise unaffected.
 
 #### self_service, labels, categories, and setup_experience
   
 - `self_service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`) on macOS or [self-service web app](https://fleetdm.com/learn-more-about/deploy-self-service-to-ios) on iOS/iPadOS.
 - `labels_include_all` targets hosts that **have all** of the specified labels. `labels_include_any` targets hosts that **have any** of the specified labels. `labels_exclude_any` targets hosts that **have none** of the specified labels. Only one of these fields can be set. If none are set, all hosts are targeted.
-- `categories` is a list of [self-service category names](#self-service-categories) on the fleet. Categories group self-service software on your end users' **Fleet Desktop > My device** page so that end users can filter by category and install all software in a category at once. Each value must match a category defined in the fleet's `self_service_categories`. If `categories` is empty, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) (creating them on the fleet if needed) and all other software only appears in the **All** group.
+- `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
+  - `Browsers`: shown as **🌎 Browsers**
+  - `Communication`: shown as **👬 Communication**
+  - `Developer tools`: shown as **🧰 Developer tools**
+  - `Productivity`: shown as **🖥️ Productivity**
+  - `Security`: shown as **🔐 Security**
+  - `Utilities`: shown as **🛠️ Utilities**
 - `setup_experience` installs the software when hosts enroll (default: `false`). Learn more in the [setup experience guide](https://fleetdm.com/guides/setup-experience).
 
 ### packages
@@ -657,7 +649,7 @@ software:
          path: ../lib/icons/vpn-setup.png
       self_service: true
       categories:
-        - "🛟 Support"
+        - Utilities
       labels_include_any:
       - Engineering
       - Customer Support
