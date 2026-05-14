@@ -233,7 +233,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download signed fleetctl binary
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
           name: fleetctl-signed-macos
           path: dist/fleetctl_darwin_all
@@ -296,7 +296,7 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Download unsigned fleetctl binary
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
         with:
           name: fleetctl-unsigned-windows-${{ matrix.arch }}
 
@@ -379,7 +379,8 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+          subject-path:
+            dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
             matrix.arch }}.msi
 
   upload-fleetctl-msi:
