@@ -5,6 +5,7 @@ package table
 import (
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/adobe_plugins"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/bitlocker_key_protectors"
 	cisaudit "github.com/fleetdm/fleet/v4/orbit/pkg/table/cis_audit"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/mdm_bridge"
@@ -19,6 +20,7 @@ import (
 func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
+		adobe_plugins.TablePlugin(log.Logger),
 		table.NewPlugin("cis_audit", cisaudit.Columns(), cisaudit.Generate),
 
 		bitlocker_key_protectors.TablePlugin(log.Logger),
