@@ -57,7 +57,9 @@ After signing in, the device will automatically enroll in Fleet.
 - If your iOS/iPadOS hosts are running version 18.2 or later, skip this step. Fleet manages service discovery automatically for these versions.
 - If your iOS/iPadOS hosts are running a version below 18.2, self-host a [service discovery JSON file](https://support.apple.com/en-gb/guide/deployment/dep4d9e9cd26/web#depcae01b5df).
 
-> **Note:** If you're using another MDM in production, hosting this file sends only Account-driven User Enrollments to Fleet. Devices enrolled through AB or an enrollment profile will continue to enroll in your current MDM.
+> When you self-host the service discovery file, hosts will always enroll to "Unassigned." If you want to automatically assign hosts to specific fleets upon enrollment, use Fleet's default hosting behavior (i.e., skip this step). This means that to support iOS 18.2 and lower **and** have hosts go somewhere other than "Unassigned," you must manually move them after enrollment.
+
+> If you're using another MDM in production, hosting this file sends only Account-driven User Enrollments to Fleet. Devices enrolled through AB or an enrollment profile will continue to enroll in your current MDM.
 
 Host the JSON file below at the following URL: `https://<company_domain>/.well-known/com.apple.remotemanagement.`
 
