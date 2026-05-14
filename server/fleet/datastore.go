@@ -1101,6 +1101,10 @@ type Datastore interface {
 	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
 	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
 
+	// ExtendHostOrbitDebugUntil writes `until` only when it is later than the
+	// current value (or NULL): idempotent, never shortens an existing override.
+	ExtendHostOrbitDebugUntil(ctx context.Context, hostID uint, until time.Time) error
+
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first
 	//	run, and those that were passing on the previous run and are failing on the incoming execution.
@@ -2058,7 +2062,14 @@ type Datastore interface {
 	// the ESP finalize path so a partial-insert + fresh-UUID retry can't leave orphan rows in the queue.
 	MDMWindowsInsertCommandsForHost(ctx context.Context, hostUUIDOrDeviceID string, cmds []*MDMWindowsCommand) error
 
+	MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*MDMWindowsCommand) error
+
 	MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
+
+	// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a pre-inserted
+	// command for hosts and upserts their profile tracking rows. The command
+	// must already exist in windows_mdm_commands.
+	MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *MDMWindowsCommand, profilePayloads []*MDMWindowsBulkUpsertHostProfilePayload) error
 
 	// MDMWindowsGetPendingCommands returns all pending commands for the given enrollment.
 	MDMWindowsGetPendingCommands(ctx context.Context, enrollmentID uint) ([]*MDMWindowsCommand, error)

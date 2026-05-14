@@ -3,7 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // this is test code
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -18,7 +18,6 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -30,7 +29,6 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	activity_bootstrap "github.com/fleetdm/fleet/v4/server/activity/bootstrap"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 	mdmtesting "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
@@ -429,7 +427,7 @@ func CreateNamedMySQLDSWithConns(t *testing.T, name string) (*Datastore, *common
 	ds := initializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
 	t.Cleanup(func() { ds.Close() })
 
-	return ds, TestDBConnections(t, ds)
+	return ds, getTestDBConnections(t, ds)
 }
 
 func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error) {
@@ -563,7 +561,7 @@ func printDumpTable(t *testing.T, cols []string, rows [][]string) {
 
 func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileContents {
 	syncML := generateDummyWindowsProfile(uuid)
-	checksum := md5.Sum(syncML)
+	checksum := md5.Sum(syncML) // nolint:gosec // this is a test package
 	return fleet.MDMWindowsProfileContents{
 		SyncML:   syncML,
 		Checksum: checksum[:],
@@ -800,102 +798,6 @@ func GenerateTestCertBytes(template *x509.Certificate) ([]byte, []byte, error) {
 	return certPEM, keyPEM, nil
 }
 
-// MasterStatus is a struct that holds the file and position of the master, retrieved by SHOW MASTER STATUS
-type MasterStatus struct {
-	File     string
-	Position uint64
-}
-
-func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (MasterStatus, error) {
-	stmt := "SHOW BINARY LOG STATUS"
-	if strings.HasPrefix(mysqlVersion, "8.0") {
-		stmt = "SHOW MASTER STATUS"
-	}
-
-	rows, err := ds.writer(ctx).Query(stmt)
-	if err != nil {
-		return MasterStatus{}, ctxerr.Wrap(ctx, err, stmt)
-	}
-	defer rows.Close()
-
-	// Since we don't control the column names, and we want to be future compatible,
-	// we only scan for the columns we care about.
-	ms := MasterStatus{}
-	// Get the column names from the query
-	columns, err := rows.Columns()
-	if err != nil {
-		return ms, ctxerr.Wrap(ctx, err, "get columns")
-	}
-	numberOfColumns := len(columns)
-	for rows.Next() {
-		cols := make([]interface{}, numberOfColumns)
-		for i := range cols {
-			cols[i] = new(string)
-		}
-		err := rows.Scan(cols...)
-		if err != nil {
-			return ms, ctxerr.Wrap(ctx, err, "scan row")
-		}
-		for i, col := range cols {
-			switch columns[i] {
-			case "File":
-				ms.File = *col.(*string)
-			case "Position":
-				ms.Position, err = strconv.ParseUint(*col.(*string), 10, 64)
-				if err != nil {
-					return ms, ctxerr.Wrap(ctx, err, "parse Position")
-				}
-
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return ms, ctxerr.Wrap(ctx, err, "rows error")
-	}
-	if ms.File == "" || ms.Position == 0 {
-		return ms, ctxerr.New(ctx, "missing required fields in master status")
-	}
-	return ms, nil
-}
-
-func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
-	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW REPLICA STATUS")
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "show replica status")
-	}
-	defer rows.Close()
-
-	// Get the column names from the query
-	columns, err := rows.Columns()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get columns")
-	}
-	numberOfColumns := len(columns)
-	result := make(map[string]interface{}, numberOfColumns)
-	for rows.Next() {
-		cols := make([]interface{}, numberOfColumns)
-		for i := range cols {
-			cols[i] = &sql.NullString{}
-		}
-		err = rows.Scan(cols...)
-		if err != nil {
-			return result, ctxerr.Wrap(ctx, err, "scan row")
-		}
-		for i, col := range cols {
-			colValue := col.(*sql.NullString)
-			if colValue.Valid {
-				result[columns[i]] = colValue.String
-			} else {
-				result[columns[i]] = nil
-			}
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return result, ctxerr.Wrap(ctx, err, "rows error")
-	}
-	return result, nil
-}
-
 // NormalizeSQL normalizes the SQL statement by removing extra spaces and new lines, etc.
 func NormalizeSQL(query string) string {
 	query = strings.ToUpper(query)
@@ -1011,8 +913,8 @@ func (t *testingLookupService) ActivateNextUpcomingActivityForHost(ctx context.C
 	return t.ds.ActivateNextUpcomingActivityForHost(ctx, hostID, fromCompletedExecID)
 }
 
-// TestDBConnections extracts the underlying DB connections from a test Datastore.
-func TestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections {
+// getTestDBConnections extracts the underlying DB connections from a test Datastore.
+func getTestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections {
 	t.Helper()
 	replica, ok := ds.replica.(*sqlx.DB)
 	require.True(t, ok, "ds.replica should be *sqlx.DB in tests")
@@ -1024,7 +926,7 @@ func TestDBConnections(t testing.TB, ds *Datastore) *common_mysql.DBConnections 
 func NewTestActivityService(t testing.TB, ds *Datastore) activity_api.Service {
 	t.Helper()
 
-	dbConns := TestDBConnections(t, ds)
+	dbConns := getTestDBConnections(t, ds)
 
 	// Use the real ACL adapter with a testing lookup service
 	lookupSvc := &testingLookupService{ds: ds}

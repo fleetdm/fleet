@@ -11,6 +11,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
@@ -250,5 +251,5 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 		t.Skip("MySQL tests are disabled")
 	}
 	// Use a named Fleet datastore for Android integration tests to ensure the expected database exists
-	return mysql.CreateNamedMySQLDS(t, name)
+	return mysqltest.CreateNamedMySQLDS(t, name)
 }
