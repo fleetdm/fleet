@@ -399,6 +399,20 @@ controls:
     grace_period_days: 2
   apple_settings:
     configuration_profiles:
+      - path: ../lib/macos-profile1.mobileconfig
+        labels_include_any: # Available in Fleet Premium
+          - Engineering
+          - Product
+        labels_exclude_any: # Available in Fleet Premium
+          - Macs on Sequoia
+      - path: ../lib/macos-profile2.json
+        labels_include_all: # Available in Fleet Premium
+          - Macs on Sonoma
+      - paths: ../lib/macos/profiles/*.mobileconfig  # Glob pattern to include all .mobileconfig files
+        labels_include_any: # Available in Fleet Premium
+          - Engineering
+          - Product
+      - paths: ../lib/configuration-profiles/*.json
       - paths: ../lib/macos/profiles/*.mobileconfig
   windows_settings:
     configuration_profiles:
@@ -455,7 +469,7 @@ Each entry can use either `path:` or `paths:`:
 - **`path:`** references a single file. Filenames must not contain `*`, `?`, `[`, or `{`.
 - **`paths:`** accepts a [glob pattern](#path-vs-paths-glob-patterns) to match multiple files (e.g. `../lib/windows/profiles/*.xml`). Labels and other options specified on a `paths:` entry apply to all matched files.
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
 ### android_settings
 
@@ -463,7 +477,7 @@ Use `labels_include_all` to target hosts that have all labels, `labels_include_a
 
 Each entry can use either `path:` or `paths:`. Filenames must not contain `*`, `?`, `[`, or `{` when using `path:`. See [`path:` vs `paths:`](#path-vs-paths-glob-patterns) for glob pattern support.
 
-Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
+Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. `labels_exclude_any` can be combined with either `labels_include_all` or `labels_include_any`, but `labels_include_all` and `labels_include_any` cannot be combined with each other. If none are specified, all hosts are targeted.
 
 #### android_settings.certificates
 
