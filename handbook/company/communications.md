@@ -240,7 +240,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company. 
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
-- **"¶":** _(E-group - Direct reports the the CEO)_
+- **"¶":** _(E-group - Direct reports to the CEO)_
 - **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and GTM Systems Architect)_
 
 
