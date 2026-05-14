@@ -17135,3 +17135,73 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 	}
 	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
 }
+
+func (s *integrationTestSuite) TestOrbitDebugLoggingOnEnroll() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Reject above cap.
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 86401} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// Reject negative.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": -1} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// Reject duration string (must be seconds, integer).
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": "1h"} }
+	}`), http.StatusBadRequest, &acResp)
+
+	// 1h global window (3600 seconds).
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 3600} }
+	}`), http.StatusOK, &acResp)
+
+	secret := uuid.New().String()
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: secret}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	beforeEnroll := time.Now()
+	var enrollResp enrollOrbitResponse
+	hostUUID := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp)
+	require.NotEmpty(t, enrollResp.OrbitNodeKey)
+
+	stampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp.OrbitNodeKey)
+	require.NoError(t, err)
+	require.NotNil(t, stampedHost.OrbitDebugUntil)
+	require.WithinDuration(t, beforeEnroll.Add(time.Hour), *stampedHost.OrbitDebugUntil, time.Minute)
+
+	// Clearing the option stops stamping.
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"agent_options": { "orbit": {"debug_logging_on_enroll_duration": 0} }
+	}`), http.StatusOK, &acResp)
+
+	var enrollResp2 enrollOrbitResponse
+	hostUUID2 := uuid.New().String()
+	s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+		EnrollSecret:   secret,
+		HardwareUUID:   hostUUID2,
+		HardwareSerial: uuid.New().String(),
+		Hostname:       "enroll-debug-not-stamped",
+		Platform:       "linux",
+	}, http.StatusOK, &enrollResp2)
+
+	unstampedHost, err := s.ds.LoadHostByOrbitNodeKey(ctx, enrollResp2.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Nil(t, unstampedHost.OrbitDebugUntil)
+}

@@ -1,0 +1,1 @@
+- Fixed software titles list sorting to use display name instead of installer filename when a custom display name is set.

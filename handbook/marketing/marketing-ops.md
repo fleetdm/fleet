@@ -148,6 +148,7 @@ For all paid and owned online media and content.
 | Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
 | Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
 | Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
+| Press Release | PR | 2025\_11-PR-Abc\_launch |  
 
 
 #### 🎯 Prospecting
