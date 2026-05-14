@@ -84,7 +84,10 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   }
 
   // Secret variable missing from database
-  if (reason.includes("missing from database") && reason.includes("$FLEET_SECRET_")) {
+  if (
+    reason.includes("missing from database") &&
+    reason.includes("$FLEET_SECRET_")
+  ) {
     return generateMissingSecretErrMsg(reason);
   }
 
