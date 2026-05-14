@@ -1,0 +1,6 @@
+- Added configurable HTTP server write timeout via `server.write_timeout` (env `FLEET_SERVER_WRITE_TIMEOUT`).
+  The default remains 40 s. Set to a higher value (e.g. `5m`) when deploying many app store apps
+  to avoid timeouts on the `/api/latest/fleet/app_store_apps/batch` endpoint.
+- Parallelized Android app validation in the batch endpoint to reduce wall-clock time.
+  Up to 10 concurrent Google Play API calls are now used instead of sequential validation,
+  making 200+ app batches complete in ~15 s instead of >120 s.

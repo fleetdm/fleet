@@ -130,6 +130,10 @@ type ServerConfig struct {
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
 	VPPVerifyRequestDelay            time.Duration `yaml:"vpp_verify_request_delay"`
 	CleanupDistTargetsAge            time.Duration `yaml:"cleanup_dist_targets_age"`
+	// WriteTimeout is the HTTP server write timeout. Defaults to 40 s.
+	// Long-running endpoints (e.g. /app_store_apps/batch with 200+ apps)
+	// may need a higher value. Set via FLEET_SERVER_WRITE_TIMEOUT.
+	WriteTimeout                     time.Duration `yaml:"write_timeout"`
 	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
 	TrustedProxies                   string        `yaml:"trusted_proxies"`
 	GzipResponses                    bool          `yaml:"gzip_responses"`
@@ -139,18 +143,24 @@ type ServerConfig struct {
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
 	// Create the base server configuration
 	server := &http.Server{
-		Addr:        s.Address,
-		ReadTimeout: 25 * time.Second,
-		// WriteTimeout is set for security purposes.
-		// If we don't set it, (bugy or malignant) clients making long running
-		// requests could DDOS Fleet.
-		WriteTimeout:      40 * time.Second,
+		Addr:              s.Address,
+		ReadTimeout:       25 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       5 * time.Minute,
 		MaxHeaderBytes:    1 << 18, // 0.25 MB (262144 bytes)
 		BaseContext: func(l net.Listener) context.Context {
 			return ctx
 		},
+	}
+
+	// WriteTimeout is set for security purposes.
+	// If we don't set it, (bugy or malignant) clients making long running
+	// requests could DDOS Fleet.
+	// Defaults to 40 s if not configured via server.write_timeout.
+	if s.WriteTimeout > 0 {
+		server.WriteTimeout = s.WriteTimeout
+	} else {
+		server.WriteTimeout = 40 * time.Second
 	}
 
 	// Check if H2C (HTTP/2 without TLS) is enabled
@@ -1261,6 +1271,7 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amount of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 	man.addConfigDuration("server.cleanup_dist_targets_age", 24*time.Hour, "Specifies the cleanup age for completed live query distributed targets.")
+	man.addConfigDuration("server.write_timeout", 0, "HTTP server write timeout (0 = default 40 s). Increase for deployments with many app store apps.")
 	man.addConfigByteSize("server.max_installer_size", installersize.Human(installersize.MaxSoftwareInstallerSize), "Maximum size in bytes for software installer uploads (e.g. 10GiB, 500MB, 1G)")
 	man.addConfigString("server.trusted_proxies", "",
 		"Trusted proxy configuration for client IP extraction: 'none' (RemoteAddr only), a header name (e.g., 'True-Client-IP'), a hop count (e.g., '2'), or comma-separated IP/CIDR ranges")
@@ -1754,6 +1765,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
 			VPPVerifyRequestDelay:            man.getConfigDuration("server.vpp_verify_request_delay"),
 			CleanupDistTargetsAge:            man.getConfigDuration("server.cleanup_dist_targets_age"),
+			WriteTimeout:                     man.getConfigDuration("server.write_timeout"),
 			MaxInstallerSizeBytes:            man.getConfigByteSize("server.max_installer_size"),
 			TrustedProxies:                   man.getConfigString("server.trusted_proxies"),
 			GzipResponses:                    man.getConfigBool("server.gzip_responses"),

@@ -868,3 +868,41 @@ func TestConditionalAccessConfigValidate(t *testing.T) {
 		})
 	}
 }
+
+// TestDefaultHTTPServerWriteTimeout verifies the configurable write timeout
+// behavior added for R-ARCH-14 (configurable HTTP server timeouts).
+func TestDefaultHTTPServerWriteTimeout(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+
+	t.Run("defaults to 40s when WriteTimeout is zero", func(t *testing.T) {
+		s := &ServerConfig{
+			Address: "127.0.0.1:0",
+		}
+		server := s.DefaultHTTPServer(ctx, handler)
+		require.Equal(t, 40*time.Second, server.WriteTimeout,
+			"zero WriteTimeout should default to 40s")
+	})
+
+	t.Run("uses configured WriteTimeout when set", func(t *testing.T) {
+		s := &ServerConfig{
+			Address:      "127.0.0.1:0",
+			WriteTimeout: 5 * time.Minute,
+		}
+		server := s.DefaultHTTPServer(ctx, handler)
+		require.Equal(t, 5*time.Minute, server.WriteTimeout,
+			"non-zero WriteTimeout should be honored")
+	})
+
+	t.Run("custom short timeout is applied", func(t *testing.T) {
+		s := &ServerConfig{
+			Address:      "127.0.0.1:0",
+			WriteTimeout: 10 * time.Second,
+		}
+		server := s.DefaultHTTPServer(ctx, handler)
+		require.Equal(t, 10*time.Second, server.WriteTimeout,
+			"short WriteTimeout should be honored")
+	})
+}

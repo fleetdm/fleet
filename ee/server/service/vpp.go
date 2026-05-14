@@ -17,6 +17,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -28,11 +29,30 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/androidmanagement/v1"
 )
 
 // Used for overriding the env var value in testing
 var testSetEmptyPrivateKey bool
+
+// syncMap is a mutex-protected map[string]bool for use in concurrent loops.
+type syncMap struct {
+	mu   sync.Mutex
+	seen map[string]bool
+}
+
+func (m *syncMap) has(k string) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.seen[k]
+}
+
+func (m *syncMap) set(k string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.seen[k] = true
+}
 
 // vppTokenInfo bundles the encoded VPP token bytes and the country code of
 // the storefront associated with the token, for callers that need both.
@@ -473,33 +493,50 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			return nil, &fleet.BadRequestError{Message: "Android MDM is not enabled", InternalErr: err}
 		}
 
-		seenWebAppNames := make(map[string]bool)
-		for _, a := range incomingAndroidApps {
-			androidApp, err := svc.androidModule.EnterprisesApplications(ctx, enterprise.Name(), a.AdamID)
-			if err != nil {
-				if fleet.IsNotFound(err) {
-					return nil, fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
-				}
-				return nil, ctxerr.Wrap(ctx, err, "bulk add app store apps: check if android app exists")
-			}
-
-			if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
-				lowerTitle := strings.ToLower(androidApp.Title)
-				if seenWebAppNames[lowerTitle] {
-					return nil, fleet.ConflictError{
-						Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
+		// Parallel validation of Android apps to avoid timeout on large batches.
+		// Each app requires a synchronous Google Play API call; 200+ apps
+		// can take >120s, exceeding the default 40s WriteTimeout.
+		g, gctx := errgroup.WithContext(ctx)
+		g.SetLimit(10) // limit concurrent Google Play API calls
+		seenWebAppNames := &syncMap{seen: make(map[string]bool)}
+		results := make([]*fleet.VPPApp, len(incomingAndroidApps))
+		for i, a := range incomingAndroidApps {
+			g.Go(func() error {
+				androidApp, err := svc.androidModule.EnterprisesApplications(gctx, enterprise.Name(), a.AdamID)
+				if err != nil {
+					if fleet.IsNotFound(err) {
+						return fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
 					}
+					return ctxerr.Wrap(gctx, err, "bulk add app store apps: check if android app exists")
 				}
-				seenWebAppNames[lowerTitle] = true
-			}
 
-			appStoreApps = append(appStoreApps, &fleet.VPPApp{
-				VPPAppTeam:       a,
-				BundleIdentifier: a.AdamID,
-				IconURL:          androidApp.IconUrl,
-				Name:             androidApp.Title,
-				TeamID:           teamID,
+				if strings.HasPrefix(a.AdamID, fleet.AndroidWebAppPrefix) {
+					lowerTitle := strings.ToLower(androidApp.Title)
+					if seenWebAppNames.has(lowerTitle) {
+						return fleet.ConflictError{
+							Message: fmt.Sprintf("Couldn't add. Web app with this name (%q) already exists in this fleet. Please add a web app with a different name or delete the existing app and try again.", androidApp.Title),
+						}
+					}
+					seenWebAppNames.set(lowerTitle)
+				}
+
+				results[i] = &fleet.VPPApp{
+					VPPAppTeam:       a,
+					BundleIdentifier: a.AdamID,
+					IconURL:          androidApp.IconUrl,
+					Name:             androidApp.Title,
+					TeamID:           teamID,
+				}
+				return nil
 			})
+		}
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+		for _, app := range results {
+			if app != nil {
+				appStoreApps = append(appStoreApps, app)
+			}
 		}
 	}
 
