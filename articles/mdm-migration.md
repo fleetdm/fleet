@@ -25,7 +25,7 @@ To migrate hosts, we will do the following steps:
 ### Step 1: Enroll hosts to Fleet
 
 1. First, [enroll your hosts](https://fleetdm.com/guides/enroll-hosts) to Fleet by installing Fleet's agent (fleetd).
-2. Ensure your end users have access to an admin account on their Mac. End users won't be able to migrate on their own if they have a standard account.
+2. Ensure your end users have access to an admin account on their Mac. macOS asks for an admin username and password before installing the enrollment profile.
 
 ### Step 2: Assign hosts in Apple Business (AB) to Fleet
 
