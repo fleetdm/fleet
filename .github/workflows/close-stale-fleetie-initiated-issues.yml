@@ -19,6 +19,12 @@ on:
         description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
         type: number
         default: 400
+  # TEMPORARY: lets the workflow run once on this PR so GitHub registers it, after which it can be
+  # triggered via `gh workflow run ... --ref <branch>`. PR runs are always treated as dry-run via the
+  # env guards below. Remove this `pull_request` block before flipping `dry_run` default to false.
+  pull_request:
+    paths:
+      - .github/workflows/close-stale-fleetie-initiated-issues.yml
 
 concurrency:
   group: ${{ github.workflow }}
@@ -58,8 +64,10 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
           FLEETIE_HANDLES_FILE: ${{ runner.temp }}/fleeties.txt
-          DRY_RUN: ${{ inputs.dry_run }}
-          MAX_OPERATIONS: ${{ inputs.max_operations }}
+          # Default to dry-run when inputs are absent (e.g. pull_request trigger). Only explicit
+          # `dry_run=false` from workflow_dispatch flips to live writes.
+          DRY_RUN: ${{ inputs.dry_run == false && 'false' || 'true' }}
+          MAX_OPERATIONS: ${{ inputs.max_operations || 400 }}
         with:
           script: |
             const fs = require('node:fs');
