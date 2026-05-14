@@ -24,18 +24,6 @@ func TestDebugLogReceiver(t *testing.T) {
 		expectedLevel zerolog.Level
 	}{
 		{
-			name:          "nil config field preserves current level (info)",
-			startLevel:    zerolog.InfoLevel,
-			debugLogging:  nil,
-			expectedLevel: zerolog.InfoLevel,
-		},
-		{
-			name:          "nil config field preserves current level (debug)",
-			startLevel:    zerolog.DebugLevel,
-			debugLogging:  nil,
-			expectedLevel: zerolog.DebugLevel,
-		},
-		{
 			name:          "true flips info to debug",
 			startLevel:    zerolog.InfoLevel,
 			debugLogging:  &trueVal,
@@ -59,6 +47,18 @@ func TestDebugLogReceiver(t *testing.T) {
 			debugLogging:  &falseVal,
 			expectedLevel: zerolog.InfoLevel,
 		},
+		{
+			name:          "nil config field treated as false, idempotent when already info",
+			startLevel:    zerolog.InfoLevel,
+			debugLogging:  nil,
+			expectedLevel: zerolog.InfoLevel,
+		},
+		{
+			name:          "nil config field treated as false, flips debug to info",
+			startLevel:    zerolog.DebugLevel,
+			debugLogging:  nil,
+			expectedLevel: zerolog.InfoLevel,
+		},
 	}
 
 	for _, tc := range cases {
@@ -69,13 +69,6 @@ func TestDebugLogReceiver(t *testing.T) {
 			require.Equal(t, tc.expectedLevel, zerolog.GlobalLevel())
 		})
 	}
-}
-
-func TestDebugLogReceiverNilConfig(t *testing.T) {
-	orig := zerolog.GlobalLevel()
-	t.Cleanup(func() { zerolog.SetGlobalLevel(orig) })
-
-	require.NoError(t, NewDebugLogReceiver(false).Run(nil))
 }
 
 func TestDebugLogReceiverStartupFlagIsFloor(t *testing.T) {
@@ -92,10 +85,10 @@ func TestDebugLogReceiverStartupFlagIsFloor(t *testing.T) {
 	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: &falseVal}))
 	require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
 
-	// Server off + already info: floor refuses to lower further.
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: &falseVal}))
-	require.Equal(t, zerolog.InfoLevel, zerolog.GlobalLevel())
+	// Server nil + already debug: floor keeps it on.
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	require.NoError(t, r.Run(&fleet.OrbitConfig{DebugLogging: nil}))
+	require.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
 
 	// Server on: always honored.
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)

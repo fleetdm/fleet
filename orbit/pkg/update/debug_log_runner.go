@@ -18,30 +18,28 @@ func NewDebugLogReceiver(startedInDebug bool) *DebugLogReceiver {
 	return &DebugLogReceiver{startedInDebug: startedInDebug}
 }
 
-// Run sets the global zerolog level to match config.DebugLogging. A nil
-// value preserves the current level (server has no opinion).
+// Run sets the global zerolog level to match config.DebugLogging. Nil
+// returns the value to the default, either info level or debug if the
+// agent was started in debug mode.
 func (r *DebugLogReceiver) Run(config *fleet.OrbitConfig) error {
-	if config == nil || config.DebugLogging == nil {
+	if config == nil {
 		return nil
 	}
 
+	currentGlobalLevel := zerolog.GlobalLevel()
+
 	desired := zerolog.InfoLevel
-	if *config.DebugLogging {
+	if (config.DebugLogging != nil && *config.DebugLogging) || r.startedInDebug {
 		desired = zerolog.DebugLevel
 	}
 
-	if r.startedInDebug && desired == zerolog.InfoLevel {
-		return nil
-	}
-
-	current := zerolog.GlobalLevel()
-	if current == desired {
+	if currentGlobalLevel == desired {
 		return nil
 	}
 
 	zerolog.SetGlobalLevel(desired)
 	log.Info().
-		Str("from", current.String()).
+		Str("from", currentGlobalLevel.String()).
 		Str("to", desired.String()).
 		Msg("orbit log level changed by server config")
 	return nil
