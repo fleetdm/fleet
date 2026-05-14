@@ -31,6 +31,8 @@ Policy automation software installs are automatically attempted up to 3 total ti
 
 If the software install still fails after all attempts, you can reset a software automation and trigger the install on all targeted hosts again. To do this, deselect the policy in the **Policies > Manage automations** modal, select **Save**, and then reselect the policy. This will reset the policy's host passing and failing host counts and retrigger the software automations.
 
+If software has a custom target (labels), it will only be installed on hosts within that scope. Similarly, if a policy has a custom target, it will only run on hosts within that scope. When the scopes differ, each behaves independently. For example, if the policy has a broader scope than the software: the policy runs on all hosts in its scope and reports pass/fail for each, but the automatic installation only triggers on hosts that fall within the software's (narrower) scope.
+
 ## How does it work?
 
 * After configuring Fleet to auto-install a specific software the rest will be done automatically.
