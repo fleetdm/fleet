@@ -467,6 +467,12 @@ type agent struct {
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
 
+	// fakeThirdPartyMDMServerURL, when non-empty, causes mdmMac() to report
+	// the host as enrolled in a fake third-party MDM at this URL (with an
+	// empty payload_identifier). Used to repro the ambiguous-URL bug from
+	// fleetdm/fleet#45491.
+	fakeThirdPartyMDMServerURL string
+
 	// Note that the following ddm variables do not need a mutex because they are only
 	// accessed in the MDM goroutine (and then only in the DDM handling function), and never
 	// read/written concurrently.
@@ -622,6 +628,7 @@ func newAgent(
 	mdmProfileFailureProb float64,
 	httpMessageSignatureProb float64,
 	httpMessageSignatureP384Prob float64,
+	fakeThirdPartyMDMServerURL string,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
@@ -726,6 +733,8 @@ func newAgent(
 
 		entraIDDeviceID:          uuid.NewString(),
 		entraIDUserPrincipalName: fmt.Sprintf("fake-%s@example.com", randomString(5)),
+
+		fakeThirdPartyMDMServerURL: fakeThirdPartyMDMServerURL,
 	}
 
 	// Initialize host identity client
@@ -2521,6 +2530,22 @@ func (a *agent) randomQueryStats() []map[string]string {
 // NOTE: To support proper DEP simulation in a loadtest environment
 // we may need to implement a mocked Apple DEP endpoint.
 func (a *agent) mdmMac() []map[string]string {
+	// If a fake third-party MDM server URL is configured, report the host as
+	// enrolled in that third-party MDM (empty payload_identifier so Fleet falls
+	// through to MDMNameFromServerURL to deduce the solution name from the URL).
+	// Used to reproduce the bug from https://github.com/fleetdm/fleet/issues/45491
+	// where ambiguous URLs like "https://jumpcloud.awmdm.com" cause the deduced
+	// MDM solution name to flip non-deterministically.
+	if a.fakeThirdPartyMDMServerURL != "" {
+		return []map[string]string{
+			{
+				"enrolled":           "true",
+				"server_url":         a.fakeThirdPartyMDMServerURL,
+				"installed_from_dep": "false",
+				"payload_identifier": "",
+			},
+		}
+	}
 	if !a.mdmEnrolled() {
 		return []map[string]string{
 			{"enrolled": "false", "server_url": "", "installed_from_dep": "false"},
@@ -3775,6 +3800,11 @@ func main() {
 		mdmProb               = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
 		mdmSCEPChallenge      = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 		mdmProfileFailureProb = flag.Float64("mdm_profile_failure_prob", 0.0, "Probability of an MDM profile to fail install [0, 1]")
+		// fakeThirdPartyMDMServerURL: when set, macOS agents report themselves as enrolled in a fake third-party MDM
+		// with this server_url and an empty payload_identifier, so Fleet uses MDMNameFromServerURL to deduce the
+		// solution name. Used to repro the ambiguous-URL non-determinism bug (fleetdm/fleet#45491).
+		fakeThirdPartyMDMServerURL = flag.String("fake_third_party_mdm_server_url", "",
+			"If set, macOS agents report being enrolled in a fake third-party MDM at this server URL (e.g. https://jumpcloud.awmdm.com). For testing only.")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
@@ -4013,6 +4043,7 @@ func main() {
 			*mdmProfileFailureProb,
 			*httpMessageSignatureProb,
 			*httpMessageSignatureP384Prob,
+			*fakeThirdPartyMDMServerURL,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
