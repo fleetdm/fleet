@@ -91,7 +91,7 @@ jobs:
 
       - name: Restrict FLEET_DEV_* env var overrides to test code only
         run: |
-          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude="testing_utils.go" --exclude-dir="mdmtest" .; then
+          if grep -R 'SetOverride("FLEET_DEV' --include="*.go" --exclude="*_test.go" --exclude-dir="mdmtest" --exclude-dir="maintainedappstest" .; then
             echo "Error: Found FLEET_DEV_* overrides in non-test code." >&2
             exit 1
           else
