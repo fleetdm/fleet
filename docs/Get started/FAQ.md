@@ -127,13 +127,15 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-## Why is my EDR flagging the fleetd agent (orbit)?
+# Why is my EDR flagging the fleetd agent (orbit)?
 
 EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
 
-It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet—endpoint agents from many vendors encounter the same heuristic-based false positives.
+It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet; endpoint agents from many vendors encounter the same heuristic-based false positives.
 
-For example, osquery v5.23.0 was released as part of the fleetd agent and included a change to prevent keychain corruption that could occur when querying the macOS `certificates` table. To safely access keychain data without risking corruption, this change performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern—creating temporary copies and then cleaning them up—can trigger EDR heuristic alerts even though the behavior is legitimate and expected.
+<!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
+
+Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
 
 ### SLSA provenance attestation 🌶️
 
@@ -146,8 +148,6 @@ gh attestation verify <path-to-orbit-binary> --repo fleetdm/fleet
 ```
 
 This gives your security team an additional signal when triaging EDR alerts: if the attestation verifies successfully, the binary is the authentic artifact produced by Fleet's CI pipeline.
-
-Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If your EDR product flags the orbit binary, you can safely allowlist it by binary path or hash while the false-positive classification is being addressed by the vendor.
 
 ## How can I uninstall fleetd?
 
@@ -198,17 +198,6 @@ Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 o
 ### What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
-
-## Why is my EDR flagging Fleet?
-
-Fleet and your EDR have overlapping interests with opposite jobs.
-
-Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
-
-Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
-
-If you notice a new flag or detection against Fleet, osquery, or orbit by your EDR, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
-
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
