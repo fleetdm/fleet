@@ -127,7 +127,8 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
-# Why is my EDR flagging the fleetd agent (orbit)?
+
+## Why is my EDR flagging the fleetd agent (orbit)?
 
 EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
 
