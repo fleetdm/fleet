@@ -14,6 +14,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// windowsFreshEnrollmentWindow is how recently the most recent mdm_windows_enrollments row must have
+// been created for a Windows host whose last_enrolled_at is >24h old to still be treated as freshly
+// re-enrolling. Sized to cover the gap between orbit/enroll and osquery's directIngestMDMDeviceIDWindows
+// linking host_uuid, plus typical jitter.
+const windowsFreshEnrollmentWindow = 5 * time.Minute
+
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform, hostPlatformLike, hostUUID string, teamID uint) (bool, error) {
 	return ds.enqueueSetupExperienceItems(ctx, hostPlatform, hostPlatformLike, hostUUID, teamID, false)
 }
@@ -147,8 +153,7 @@ func (ds *Datastore) enqueueSetupExperienceItems(ctx context.Context, hostPlatfo
 						found = true
 					}
 				}
-				freshEnrollmentWindow := 5 * time.Minute
-				if found && (mdmState.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone || time.Since(mdmState.CreatedAt) < freshEnrollmentWindow) {
+				if found && (mdmState.AwaitingConfiguration != fleet.WindowsMDMAwaitingConfigurationNone || time.Since(mdmState.CreatedAt) < windowsFreshEnrollmentWindow) {
 					ds.logger.DebugContext(ctx, "Windows host enrolled >24h ago but has fresh MDM enrollment state; running setup experience for re-enrollment",
 						"host_uuid", hostUUID,
 						"awaiting_configuration", mdmState.AwaitingConfiguration,
