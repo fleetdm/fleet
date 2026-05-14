@@ -1310,6 +1310,7 @@ module.exports.routes = {
   'GET /learn-more-about/end-user-accounts': '/guides/setup-experience#end-user-account-type',
   'GET /learn-more-about/fleets': '/guides/fleets',
   'GET /learn-more-about/vulnerability-exposure-cves': 'https://github.com/fleetdm/fleet/blob/1ea1fddfd62f66fd14de65cbeceb4f7a9d0167ec/server/chart/internal/mysql/charts.go#L111-L138',
+  'GET /learn-more-about/self-service-categories': '/guides/software-self-service#manage-self-service-categories',
 
   // Sitemap
   // =============================================================================================================
