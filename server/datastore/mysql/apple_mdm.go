@@ -1656,6 +1656,29 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "associating host with idp account")
 			}
+
+			// Associate the host with the matching SCIM user so IdP attributes populate.
+			// Skip if a mapping already exists.
+			var existingScimUserID uint
+			existsErr := sqlx.GetContext(ctx, tx, &existingScimUserID,
+				`SELECT scim_user_id FROM host_scim_user WHERE host_id = ?`, host.ID)
+			switch {
+			case existsErr == nil:
+				// already mapped — nothing to do
+			case !errors.Is(existsErr, sql.ErrNoRows):
+				ds.logger.ErrorContext(ctx, "failed to check existing host_scim_user mapping",
+					"host_uuid", host.UUID, "host_id", host.ID, "error", existsErr)
+			default:
+				var idpAccount fleet.MDMIdPAccount
+				if getErr := sqlx.GetContext(ctx, tx, &idpAccount,
+					`SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`, idpUUID); getErr != nil {
+					ds.logger.ErrorContext(ctx, "failed to load mdm idp account for scim association",
+						"host_uuid", host.UUID, "idp_uuid", idpUUID, "error", getErr)
+				} else if scimErr := maybeAssociateHostMDMIdPWithScimUser(ctx, tx, ds.logger, host.ID, &idpAccount); scimErr != nil {
+					ds.logger.ErrorContext(ctx, "failed to associate scim user with migrated host",
+						"host_uuid", host.UUID, "host_id", host.ID, "idp_uuid", idpUUID, "error", scimErr)
+				}
+			}
 		} else if idpUUID == "" && len(hosts) > 0 {
 			ds.logger.InfoContext(ctx, "clearing previous mdm idp account association", "host_uuid", hosts[0].UUID)
 			if _, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?", hosts[0].UUID); err != nil {
@@ -7969,9 +7992,13 @@ func (ds *Datastore) ClaimHostsForRecoveryLockClear(ctx context.Context) ([]stri
 	`, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified, fleet.MDMOperationTypeRemove)
 
 	// Update all claimed hosts to remove/pending
+	// auto_rotate_at is also nulled: it's meaningful only for install-state
+	// rows (see GetHostsForAutoRotation), so leaving a stale view-deadline on
+	// a row pending removal would cause the read API to report a rotation
+	// time that auto-rotation will never honor.
 	updateStmt := fmt.Sprintf(`
 		UPDATE host_recovery_key_passwords
-		SET operation_type = '%s', status = '%s'
+		SET operation_type = '%s', status = '%s', auto_rotate_at = NULL
 		WHERE host_uuid IN (?)
 	`, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
 
@@ -8291,9 +8318,19 @@ func (ds *Datastore) HasPendingRecoveryLockRotation(ctx context.Context, hostUUI
 	return hasPending, nil
 }
 
+// MarkRecoveryLockPasswordViewed schedules auto-rotation by setting
+// auto_rotate_at to 1 hour from now on the host's install-state recovery lock
+// row, overwriting any prior deadline. Returns the scheduled rotation time.
+//
+// If the row is missing or not in install state (e.g.,
+// ClaimHostsForRecoveryLockClear has flipped it to operation_type='remove'
+// because the host's current team has the feature disabled), returns a zero
+// time and no error: the password is still readable until the device confirms
+// ClearRecoveryLock, but auto-rotation does not apply and would be undone by
+// the clear anyway. Callers should treat zero as "no rotation scheduled" and
+// omit auto_rotate_at from the response rather than reporting a deadline the
+// auto-rotation cron (filtered on operation_type='install') will never honor.
 func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUID string) (time.Time, error) {
-	// Set auto_rotate_at to 1 hour from now when password is viewed.
-	// This always updates (even if pending rotation exists) so the API always returns a valid rotation time.
 	rotateAt := time.Now().Add(1 * time.Hour)
 
 	stmt := fmt.Sprintf(`
@@ -8311,8 +8348,7 @@ func (ds *Datastore) MarkRecoveryLockPasswordViewed(ctx context.Context, hostUUI
 
 	rows, _ := result.RowsAffected()
 	if rows == 0 {
-		return time.Time{}, ctxerr.Wrap(ctx, notFound("HostRecoveryLockPassword").
-			WithMessage(fmt.Sprintf("for host %s", hostUUID)))
+		return time.Time{}, nil
 	}
 
 	return rotateAt, nil
