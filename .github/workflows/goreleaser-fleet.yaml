@@ -32,12 +32,12 @@ jobs:
       packages: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0 # Needed for goreleaser
 
@@ -48,12 +48,12 @@ jobs:
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
       - name: Set up Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: "go.mod"
 
       - name: Set up Node.js
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: package.json
 
@@ -91,7 +91,7 @@ jobs:
           APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
 
       - name: Attest binaries and archives
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: "dist/**"
 
@@ -112,7 +112,7 @@ jobs:
           echo "digest_fleetctl=$digest_fleetctl" >> "$GITHUB_OUTPUT"
 
       - name: Attest Fleet image
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleet}}
@@ -120,7 +120,7 @@ jobs:
           push-to-registry: true
 
       - name: Attest FleetCtl image
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         continue-on-error: true
         with:
           subject-digest: ${{steps.image_digests.outputs.digest_fleetctl}}
@@ -171,7 +171,7 @@ jobs:
           fi
 
       - name: Upload signed fleetctl binary for .pkg creation
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.check_binary.outputs.exists == 'true'
         with:
           name: fleetctl-signed-macos
@@ -197,7 +197,7 @@ jobs:
           echo "arches=[$(IFS=,; echo "${ARCHES[*]}")]" >> "$GITHUB_OUTPUT"
 
       - name: Upload unsigned Windows fleetctl amd64
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.check_windows_binaries.outputs.windows_amd64_path != ''
         with:
           name: fleetctl-unsigned-windows-amd64
@@ -205,7 +205,7 @@ jobs:
           retention-days: 1
 
       - name: Upload unsigned Windows fleetctl arm64
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: steps.check_windows_binaries.outputs.windows_arm64_path != ''
         with:
           name: fleetctl-unsigned-windows-arm64
@@ -223,17 +223,17 @@ jobs:
       attestations: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Download signed fleetctl binary
-        uses: actions/download-artifact@5e317d1137c093c30a278992a91e9db4e3c1f039 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: fleetctl-signed-macos
           path: dist/fleetctl_darwin_all
@@ -270,7 +270,7 @@ jobs:
 
       - name: Attest package
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: dist/fleetctl_v*_mac.pkg
 
@@ -288,15 +288,15 @@ jobs:
       attestations: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download unsigned fleetctl binary
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: fleetctl-unsigned-windows-${{ matrix.arch }}
 
@@ -368,7 +368,7 @@ jobs:
             "${{ matrix.arch }}"
 
       - name: Upload signed MSI artifact
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fleetctl-msi-${{ matrix.arch }}
           path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
@@ -377,7 +377,7 @@ jobs:
 
       - name: Attest MSI
         continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
             matrix.arch }}.msi
@@ -389,12 +389,12 @@ jobs:
       contents: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Download signed MSI artifacts
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: fleetctl-msi-*
           merge-multiple: true

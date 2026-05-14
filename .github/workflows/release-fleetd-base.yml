@@ -49,17 +49,17 @@ jobs:
       update_needed: ${{ steps.check-for-fleetd-component-updates.outputs.update_needed }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout Code
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
       - name: Install Go
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: 'go.mod'
 
@@ -80,7 +80,7 @@ jobs:
           echo "date_dir=$(date -u +%Y-%m-%d_%H-%M-%S)" >> $GITHUB_OUTPUT
 
       - name: Upload latest TUF meta artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: latest-tuf-meta.json
           path: latest-tuf-meta.json
@@ -96,12 +96,12 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout code needed for R2 upload
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .github/actions/r2-upload/action.yml
@@ -194,7 +194,7 @@ jobs:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
@@ -208,7 +208,7 @@ jobs:
           mv fleet-osquery*.msi fleetd-base.msi
 
       - name: Upload fleetd-base.msi for code signing
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: unsigned-windows
           path: fleetd-base.msi
@@ -240,12 +240,12 @@ jobs:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout code needed for R2 upload
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .github/actions/r2-upload/action.yml
@@ -253,7 +253,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download signed artifact
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.6
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: fleetd-base-msi
 
@@ -279,12 +279,12 @@ jobs:
       FULL_DATE_DIR: archive/stable/${{ needs.check-for-fleetd-component-updates.outputs.date_dir }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@20cf305ff2072d973412fa9b1e3a4f227bda3c76 # v2.14.0
+        uses: step-security/harden-runner@9ca718d3bf646d6534007c269a635b3e54cadf99 # v2.19.2
         with:
           egress-policy: audit
 
       - name: Checkout code needed for R2 upload
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           sparse-checkout: |
             .github/actions/r2-upload/action.yml
@@ -292,7 +292,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Download latest-tuf-meta.json artifact
-        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427 # v4.1.4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: latest-tuf-meta.json
 
