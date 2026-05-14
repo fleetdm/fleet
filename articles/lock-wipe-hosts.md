@@ -75,6 +75,25 @@ For macOS hosts, Fleet uses Erase All Content and Settings (EACS) with the [defa
 
 If an iPhone/iPad is turned off or restarted while locked, it will disconnect from Wi-Fi and can't be unlocked remotely. Connect your iPhone/iPad to your Mac with a USB and [share the network](https://support.apple.com/en-gb/guide/mac-help/mchlp1540/mac). After connecting your iPhone/iPad to the internet, in Fleet, head to the **Host details** page and select **Actions > Unlock**.
 
+## Clear passcode on iOS/iPadOS host
+
+You can remotely clear the passcode on an iOS or iPadOS host to help end users who have forgotten their passcode.
+
+> Clear passcode is only available for company-owned or manually enrolled iOS/iPadOS hosts. It is not available for hosts with a personal MDM enrollment status, or hosts that are in Lost Mode or pending wipe.
+
+1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the iOS or iPadOS device you want to clear the passcode for. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
+2. Click the host to open the **Host details** page.
+3. Click the **Actions** dropdown, then click **Clear passcode**.
+4. A confirmation dialog will appear. Click **Clear passcode** to confirm.
+
+The clear passcode activity will be logged in the host's activity feed.
+
+You can also clear the passcode using the [REST API](https://fleetdm.com/docs/rest-api/rest-api#clear-iosipados-host-passcode):
+
+```shell
+POST /api/v1/fleet/hosts/:id/clear_passcode
+```
+
 ## Lock and wipe using `fleetctl`
 
 You can lock, unlock, and wipe hosts using Fleet's command-line tool `fleetctl`:
