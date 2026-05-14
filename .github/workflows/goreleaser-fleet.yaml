@@ -379,10 +379,9 @@ jobs:
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path:
-            dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
+          subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
             matrix.arch }}.msi
-
+            
   upload-fleetctl-msi:
     needs: build-fleetctl-msi
     runs-on: ubuntu-latest
