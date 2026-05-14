@@ -77,6 +77,8 @@ controls:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    - path: ../lib/windows/scripts/migrate-windows-ca-2023.ps1
+    - path: ../lib/windows/scripts/verify-windows-ca-2023.ps1
     # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
@@ -85,6 +87,8 @@ policies:
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:
+  # Windows reports
+ - path: ../lib/windows/reports/windows-ca-2023.yml
 software:
   packages:
     # Linux apps
