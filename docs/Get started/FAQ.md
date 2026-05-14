@@ -131,6 +131,20 @@ The only way we are able to partner as a business to provide support and build n
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
+
+## How do I properly handle all these deprecation warnings in GitOps?
+
+If you set up GitOps before Fleet version 4.82.0, you may see deprecation warnings like so in your GitOps runs:
+
+```
+[!] 'queries' is deprecated; use 'reports' instead
+```
+
+To migrate from queries to reports, teams to fleets, etc. and take care of any of these deprecation warnings, you can use `grep -ri "team" . --exclude-dir=.git` to search your GitOps folder for a term (in this case `team`), then edit the files and update the references to `fleet`. Be cautious about using a general find-and-replace command to do this for all files at once, as you may end up unintentionally replacing something incorrectly. Note that in some cases the word is plural (team vs. teams) or may be in all caps (teams vs. TEAMS).
+
+If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git mv teams fleets` to _rename_ the folder. This is critical, as renaming with the file manager, the standard `mv` command, or GitHub Desktop will not cause git to initiate a _rename_ command, and will instead _delete_ and then _create_ files/folders, which will cause Fleet to delete the ~~teams~~ fleets and move all your devices into Unassigned.
+
+
 ## What is your commitment to open source stewardship?
 
 - When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
@@ -162,19 +176,6 @@ Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 o
 ### What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
-
-
-### How do I properly handle all these deprecation warnings in GitOps?
-
-If you set up GitOps before Fleet version 4.82.0, you may see deprecation warnings like so in your GitOps runs:
-
-```
-[!] 'queries' is deprecated; use 'reports' instead
-```
-
-To migrate from queries to reports, teams to fleets, etc. and take care of any of these deprecation warnings, you can use `grep -ri "team" . --exclude-dir=.git` to search your GitOps folder for a term (in this case `team`), then edit the files and update the references to `fleet`. Be cautious about using a general find-and-replace command to do this for all files at once, as you may end up unintentionally replacing something incorrectly. Note that in some cases the word is plural (team vs. teams) or may be in all caps (teams vs. TEAMS).
-
-If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git mv teams fleets` to _rename_ the folder. This is critical, as renaming with the file manager, the standard `mv` command, or GitHub Desktop will not cause git to initiate a _rename_ command, and will instead _delete_ and then _create_ files/folders, which will cause Fleet to delete the ~~teams~~ fleets and move all your devices into Unassigned.
 
 
 
