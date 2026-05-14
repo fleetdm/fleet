@@ -71,10 +71,11 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
     );
   }
 
-  // Fleet variable unsupported in managed configuration.
-  // Note: the backend validates variables one at a time and returns on the
-  // first unsupported one it finds, so only one variable is surfaced per
-  // request even if the configuration contains multiple invalid variables.
+  // Fleet variable ($FLEET_VAR_) unsupported in managed configuration.
+  // Note: the backend validates $FLEET_VAR_ variables one at a time and
+  // returns on the first unsupported one it finds, so only one variable is
+  // surfaced per request even if the configuration contains multiple invalid
+  // variables. $FLEET_SECRET_ errors can contain multiple variables.
   if (
     reason.includes("unsupported variable") &&
     reason.includes("$FLEET_VAR_")
@@ -83,7 +84,7 @@ export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
   }
 
   // Secret variable missing from database
-  if (reason.includes("missing from database")) {
+  if (reason.includes("missing from database") && reason.includes("$FLEET_SECRET_")) {
     return generateMissingSecretErrMsg(reason);
   }
 
