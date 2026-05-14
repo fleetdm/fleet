@@ -30,7 +30,7 @@ func registerHostTools(s *server.MCPServer, fleetClient *FleetClient) {
 func registerGetEndpoints(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("get_endpoints",
 		mcp.WithDescription("Get a list of hosts/endpoints enrolled in Fleet with full server-side filtering. All filters compose: combine fleet+platform+label+policy_id+policy_response+status+query in one call to narrow precisely instead of paginating client-side. The `query` parameter alone covers user / IP / hostname / serial / hardware model / IdP group as a case-insensitive substring — reach for it before paginating. Use get_host for full details on one host, get_host_policies for one host's compliance, get_policy_hosts for hosts grouped by policy result. Do NOT call this tool repeatedly with per_page=1 just to count — use get_total_system_count instead."),
-		mcp.WithString("fleet", mcp.Description("Optional fleet name to filter by (e.g. '💻 Workstations')")),
+		mcp.WithString("fleet", mcp.Description("Optional fleet name to filter by (e.g. 'Workstations')")),
 		mcp.WithString("platform", mcp.Description("Optional platform to filter by (e.g. 'macos', 'windows', 'linux')")),
 		mcp.WithString("status", mcp.Description("Optional host status filter (e.g. 'online', 'offline', 'new', 'mia')")),
 		mcp.WithString("query", mcp.Description("Optional substring (case-insensitive) matched against hostname, hardware serial, primary IP, hardware model, AND user inventory (username / email / IdP group). Best way to narrow results when you have a partial identifier such as a person's name, email, or IP fragment.")),
@@ -77,7 +77,15 @@ func registerGetEndpoints(s *server.MCPServer, fleetClient *FleetClient) {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get endpoints: %v", err)), nil
 		}
 
-		totalCount, err := fleetClient.GetHostCount(ctx)
+		// Total must reflect the *filter scope*, not the global inventory.
+		// Otherwise the LLM trusts a 133-host global count as "Workstations
+		// total" even when the returned slice is correctly team-scoped.
+		var totalCount int
+		if anyFilter {
+			totalCount, err = fleetClient.GetHostCountWithFilters(ctx, fleet, platform, status, query, label, policyID, policyResponse)
+		} else {
+			totalCount, err = fleetClient.GetHostCount(ctx)
+		}
 		if err != nil {
 			return mcp.NewToolResultError(fmt.Sprintf("Failed to get host count: %v", err)), nil
 		}
@@ -96,7 +104,7 @@ func registerGetEndpoints(s *server.MCPServer, fleetClient *FleetClient) {
 
 func registerGetHost(s *server.MCPServer, fleetClient *FleetClient) {
 	tool := mcp.NewTool("get_host",
-		mcp.WithDescription("Get full details for a single host including its labels, fleet, and platform info. Accepts a numeric `host_id` (most precise), or an `identifier` (exact hostname / UUID / hardware serial, OR a substring to fuzzy-match). If the substring matches exactly one host, full details are returned. If multiple match — for example two hosts share a hostname — a candidate list is returned with each host's id, hostname, display_name, hardware_serial, primary_ip, and team so you can pick the right one and re-call with `host_id`.\n\nIMPORTANT: substring matching covers hostname / serial / IP / model / user inventory but NOT display_name. If the host you want has only a custom display_name (e.g. 'USS Protostar'), use `host_id` from a candidate list. Use get_endpoints when you need many hosts; use get_host_policies when you need a host's policy compliance."),
+		mcp.WithDescription("Get full details for a single host including its labels, fleet, and platform info. Accepts a numeric `host_id` (most precise), or an `identifier` (exact hostname / UUID / hardware serial, OR a substring to fuzzy-match). If the substring matches exactly one host, full details are returned. If multiple match — for example two hosts share a hostname — a candidate list is returned with each host's id, hostname, display_name, hardware_serial, primary_ip, and team so you can pick the right one and re-call with `host_id`.\n\nIMPORTANT: substring matching covers hostname / serial / IP / model / user inventory but NOT display_name. If the host you want has only a custom display_name (a user-set computer name that does not appear in any indexed string field), use `host_id` from a candidate list. Use get_endpoints when you need many hosts; use get_host_policies when you need a host's policy compliance."),
 		mcp.WithString("host_id", mcp.Description("Numeric Fleet host ID (e.g. '1309'). Unambiguous. Use whenever you have it — preferred over identifier when collisions are possible.")),
 		mcp.WithString("identifier", mcp.Description("Optional. Exact hostname / UUID / serial OR a fuzzy substring (e.g. 'Dhruv' → 'Dhruvs-MacBook-Pro.local'). Required if host_id is not set. Does NOT match display_name.")),
 		mcp.WithReadOnlyHintAnnotation(true),

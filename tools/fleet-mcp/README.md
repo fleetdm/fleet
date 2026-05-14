@@ -4,7 +4,7 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for th
 
 **Transform how you interact with your endpoint data. Query OSQuery, check compliance, drill into per-host policy results, and investigate CVEs natively from Claude, Cursor, and any MCP-compatible AI agent.**
 
-🔗 **GitHub Repo:** [https://github.com/karmine05/fleet-mcp](https://github.com/karmine05/fleet-mcp)
+🔗 **GitHub Repo:** [https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp](https://github.com/fleetdm/fleet/tree/main/tools/fleet-mcp)
 🔗 **Learn about MCP:** [https://modelcontextprotocol.io/](https://modelcontextprotocol.io/)
 🔗 **Learn about Fleet:** [https://fleetdm.com/](https://fleetdm.com/)
 
@@ -78,7 +78,7 @@ Fleet allows multiple hosts to share a `hostname` (e.g. several Macs all reporti
 1. If you pass `host_id` (numeric), it goes straight to `/hosts/:host_id` — exact, no collision possible.
 2. Otherwise the tool does a substring search first. One match → fetch by ID. Multiple matches → return a candidate list with each host's `id`, `hostname`, `display_name`, `hardware_serial`, `primary_ip`, and `fleet_name`. Zero matches → fall back to `/hosts/identifier/:id` (catches UUIDs and `computer_name`-only matches).
 
-If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (e.g. one named `USS Protostar` whose hostname is `mac`) are best fetched with `host_id` from the start.
+If your AI agent gets a candidate list back, it should pick the right `id` and re-call with `host_id`. Display-name-only hosts (where the user-friendly display name does not match any indexed string field) are best fetched with `host_id` from the start.
 
 ## Configuration
 
@@ -86,7 +86,7 @@ Configure the server using environment variables or a `.env` file (in the same d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://dogfood.fleetdm.com` |
+| `FLEET_BASE_URL` | *(required)* | Base URL of your Fleet instance, e.g. `https://your-fleet.example.com` |
 | `FLEET_API_KEY` | *(required)* | Fleet API token — see [Fleet docs](https://fleetdm.com/docs/using-fleet/rest-api#authentication). May alternatively be supplied via `FLEET_API_KEY_FILE`. |
 | `FLEET_API_KEY_FILE` | *(optional)* | Path to a file containing the Fleet API token. Preferred over `FLEET_API_KEY` for production: keeps the admin token out of process env (`ps`), shell history, and `claude_desktop_config.json` (readable by your UID, lands in Time Machine backups). When both are set, `_FILE` wins. |
 | `MCP_AUTH_TOKEN` | *(required)* | Bearer token for authenticating MCP clients. Generate with `openssl rand -hex 32`. **The server refuses to start without it on every transport (including stdio).** In SSE mode the server validates the token on every request and rate-limits each client IP to 20 requests/sec (burst 60); in stdio mode the token still must be set but is not checked at runtime (the client launches the binary as a local subprocess). May alternatively be supplied via `MCP_AUTH_TOKEN_FILE`. |
@@ -330,13 +330,14 @@ Tunables (env vars) for the schema layer:
 A few non-obvious behaviors discovered while building this:
 
 - **`?query=` substring matching covers hostname, serial, primary IP, hardware model, AND host_users (username/email/IdP groups)** — but **not** display_name. Use `host_id` for display-name-only lookups.
-- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why an identifier like `"USS Protostar"` resolves even though `?query=` doesn't match it.
+- **`/hosts/identifier/:id` matches more than the docs claim:** in addition to hostname / UUID / serial, it also matches `computer_name` exactly. That's why a user-set computer name resolves on the identifier endpoint even though `?query=` (which does not index `computer_name`) does not match it.
 - **Hostname collisions are real** in any sizeable fleet. Always prefer `host_id` when you have it. The substring resolver returns up to 50 candidates with `display_name` / `serial` / `primary_ip` for disambiguation.
 - **`policy_response` requires `policy_id`** at the API level. The MCP layer rejects the orphan combination upfront with a clean error rather than letting Fleet return a vague 400.
 - **Fleet's `/hosts` endpoint silently ignores several filter params we tested.** As of Fleet 4.85, passing `cve=CVE-X`, `platform=linux`, or `label_id=N` to `GET /hosts` is accepted without error but returns the unfiltered host list — the MCP cannot rely on these. Workarounds shipped in this repo:
-  - **Platform / label scoping** routes through `GET /labels/:id/hosts` (which DOES honor `fleet_id` and `query`, but ALSO ignores `software_version_id` and `policy_id`, so policy + label intersection is computed client-side by host ID).
+  - **Platform / label scoping** routes through `GET /labels/:id/hosts` (which honors `query` and `status` but ignores `team_id`, `software_version_id`, and `policy_id` — the upstream datastore `applyHostLabelFilters` reads the RBAC `filter.TeamID` rather than `opt.TeamFilter` from the URL, so the team query param is silently dropped). The MCP intersects label/platform with team client-side by `host.team_id` to honor the caller's `fleet=` scope; policy + label intersection is likewise computed client-side by host ID.
+  - **`get_endpoints` Total field reflects the filter scope.** Earlier behavior called the bare `/hosts/count` endpoint, which is global, so passing `fleet=…` would report the global inventory count as `Total` even though the returned slice was correctly team-scoped. Fixed: when any filter is set, `Total` comes from `GetHostCountWithFilters` which routes through `/hosts/count?team_id=…` for no-label paths and a client-side team intersection for label paths. Unfiltered calls still hit `/hosts/count` directly.
   - **CVE → hosts** is a 3-step compose in `GetHostsForCVE`: `GET /software/titles?vulnerable=true&query=CVE-X` → per-title `GET /software/titles/:id` to harvest vulnerable version IDs → `GET /hosts?software_version_id=N` per ID → intersect with fleet / status / query / label-id client-side.
-  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results (e.g. CVE-2026-31431 yields 50 hosts via `?cve=`, but the correct answer is 1).
+  - The single-call `GET /hosts?cve=` path is deliberately NOT used because it returns wrong results — observed empirically in dogfood Fleet instances where `?cve=` yields the unfiltered host page (50 hosts) regardless of the CVE, while the correct intersection through `/software/titles?vulnerable=true&query=CVE-X` → version IDs → `/hosts?software_version_id=N` returns the true impacted set.
   - Future Fleet versions may fix these — revisit `GetEndpointsWithFilters` and `GetHostsForCVE` if/when that happens.
 - **Fleet-scoped policy compliance** uses `/fleets/:fleet_id/policies/:policy_id`, not the global path. `get_policy_compliance` routes to whichever based on whether `fleet` is set.
 - **Saved-query fleet scope is independent of host targeting.** `POST /api/v1/fleet/queries` accepts a `fleet_id` field that controls *where the saved query lives* (RBAC, listings, audit) — it does NOT filter target hosts. Host filtering still happens at execution time via `host_ids` on `POST /queries/:id/run`. The MCP threads `fleet_id` through both `create_saved_query` (explicit `fleet` arg) and `run_live_query` (resolved from `spec.Fleet` via `resolveLiveQueryTeamID`) so the transient saved query is owned by the right fleet. Omitting `fleet` keeps the query at Global scope. Single-host ad-hoc queries via `POST /hosts/:id/query` create no saved query and need no fleet scoping.
