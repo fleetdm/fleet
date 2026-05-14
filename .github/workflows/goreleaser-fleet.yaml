@@ -233,7 +233,7 @@ jobs:
           fetch-depth: 0
 
       - name: Download signed fleetctl binary
-        uses: actions/download-artifact@5e317d1137c093c30a278992a91e9db4e3c1f039 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: fleetctl-signed-macos
           path: dist/fleetctl_darwin_all
@@ -296,7 +296,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download unsigned fleetctl binary
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: fleetctl-unsigned-windows-${{ matrix.arch }}
 
@@ -394,7 +394,7 @@ jobs:
           egress-policy: audit
 
       - name: Download signed MSI artifacts
-        uses: actions/download-artifact@9c19ed7fe5d278cd354c7dfd5d3b88589c7e2395 # v4.1.8
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           pattern: fleetctl-msi-*
           merge-multiple: true
