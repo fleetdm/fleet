@@ -11502,7 +11502,7 @@ Update a package to install on macOS, Windows, Linux, iOS, or iPadOS hosts.
 | software        | file    | body | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.ipa`, `.sh`, and `.ps1`.   |
 | fleet_id         | integer | body | **Required**. The fleet ID. Updates a software package in the specified fleet. |
 | display_name    | string  | body | Optional override for the default `name`. |
-| categories        | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
+| categories        | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | body | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
 | pre_install_query  | string | body | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
 | post_install_script | string | body | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
@@ -11801,7 +11801,7 @@ Modify an Apple App Store (VPP) or a Google Play app's options.
 | fleet_id       | integer | body | **Required**. The fleet ID. Edits Apple App Store or Android Play store app from the specified fleet.  |
 | display_name    | string  | body | Optional override for the default `name`. |
 | self_service | boolean | body | **Required if platform is Android**. Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
-| categories | array | body | Zero or more [self-service category](#list-self-service-categories) names defined on the fleet, used to group self-service software on your end users' **Fleet Desktop > My device** page. Each value must match a category that exists on the fleet. Software with no categories will still be shown under **All**. |
+| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | auto_update_enabled | boolean | body | Whether to enable automatic updates for iOS/iPadOS App Store (VPP) apps. |
 | auto_update_window_start | string | body | Update window start time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
 | auto_update_window_end | string | body | Update window end time (local time of the device) when automatic updates will take place for iOS/iPadOS App Store (VPP) apps, formatted as HH:MM. Required if `auto_update_enabled` is `true`. |
@@ -12244,163 +12244,6 @@ Deletes software that's available for install. This won't uninstall the software
 #### Example
 
 `DELETE /api/v1/fleet/software/titles/24/available_for_install?team_id=2`
-
-##### Default response
-
-`Status: 204`
-
-## Self-service categories
-
-_Available in Fleet Premium_
-
-Self-service categories let IT admins group self-service software on each fleet so end users can browse and install software by category on the **My device > Self-service** page.
-
-When a new fleet is created, Fleet seeds it with the following default categories that can be renamed or deleted: **🌎 Browsers**, **👬 Communication**, **🧰 Developer tools**, **💻 Productivity**, **🔐 Security**, and **🛟 Support**.
-
-- [List self-service categories](#list-self-service-categories)
-- [Add self-service category](#add-self-service-category)
-- [Update self-service category](#update-self-service-category)
-- [Delete self-service category](#delete-self-service-category)
-
-### List self-service categories
-
-Lists all self-service categories on the specified fleet.
-
-`GET /api/v1/fleet/software/self_service_categories`
-
-#### Parameters
-
-| Name     | Type    | In    | Description                                                                                                       |
-| -------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
-| fleet_id | integer | query | **Required**. The fleet ID. Use `0` to list categories for "Unassigned" hosts.                                    |
-
-#### Example
-
-`GET /api/v1/fleet/software/self_service_categories?fleet_id=3`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "self_service_categories": [
-    {
-      "id": 12,
-      "name": "🌎 Browsers",
-      "fleet_id": 3,
-      "created_at": "2026-05-01T14:22:58Z",
-      "updated_at": "2026-05-01T14:22:58Z"
-    },
-    {
-      "id": 13,
-      "name": "🧰 Developer tools",
-      "fleet_id": 3,
-      "created_at": "2026-05-01T14:22:58Z",
-      "updated_at": "2026-05-01T14:22:58Z"
-    }
-  ]
-}
-```
-
-### Add self-service category
-
-Creates a new self-service category on the specified fleet. Only global and fleet admins and maintainers can call this endpoint.
-
-`POST /api/v1/fleet/software/self_service_categories`
-
-#### Parameters
-
-| Name     | Type    | In   | Description                                                                                                                                                                                                                                                                                |
-| -------- | ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| fleet_id | integer | body | **Required**. The fleet ID. Use `0` to add the category to "Unassigned" hosts.                                                                                                                                                                                                            |
-| name     | string  | body | **Required**. The category name. Must be unique within the fleet (case-insensitive) and at most 255 characters. Emojis are supported and are part of the name (e.g. `"🌎 Browsers"`).                                                                                                       |
-
-#### Example
-
-`POST /api/v1/fleet/software/self_service_categories`
-
-##### Request body
-
-```json
-{
-  "fleet_id": 3,
-  "name": "💼 Engineering"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "self_service_category": {
-    "id": 42,
-    "name": "💼 Engineering",
-    "fleet_id": 3,
-    "created_at": "2026-05-12T18:45:00Z",
-    "updated_at": "2026-05-12T18:45:00Z"
-  }
-}
-```
-
-### Update self-service category
-
-Renames an existing self-service category. Only global and fleet admins and maintainers can call this endpoint.
-
-`PATCH /api/v1/fleet/software/self_service_categories/:id`
-
-#### Parameters
-
-| Name | Type    | In   | Description                                                                                                                                                |
-| ---- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id   | integer | path | **Required**. The self-service category ID.                                                                                                                |
-| name | string  | body | **Required**. The new category name. Must be unique within the fleet (case-insensitive) and at most 255 characters. Emojis are supported and are part of the name. |
-
-#### Example
-
-`PATCH /api/v1/fleet/software/self_service_categories/42`
-
-##### Request body
-
-```json
-{
-  "name": "💼 Engineering tools"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "self_service_category": {
-    "id": 42,
-    "name": "💼 Engineering tools",
-    "fleet_id": 3,
-    "created_at": "2026-05-12T18:45:00Z",
-    "updated_at": "2026-05-12T19:01:00Z"
-  }
-}
-```
-
-### Delete self-service category
-
-Deletes the specified self-service category. Software assigned to the deleted category is removed from that category but otherwise unaffected. Only global and fleet admins and maintainers can call this endpoint.
-
-`DELETE /api/v1/fleet/software/self_service_categories/:id`
-
-#### Parameters
-
-| Name | Type    | In   | Description                                  |
-| ---- | ------- | ---- | -------------------------------------------- |
-| id   | integer | path | **Required**. The self-service category ID.  |
-
-#### Example
-
-`DELETE /api/v1/fleet/software/self_service_categories/42`
 
 ##### Default response
 
