@@ -16,7 +16,7 @@ parasails.registerPage('basic-article', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if (this.thisPage && this.thisPage.lastModifiedAt && this.thisPage.meta && this.thisPage.meta.publishedOn) {
+    if (this.thisPage && this.thisPage.lastModifiedAt && this.thisPage.hasBeenUpdated && this.thisPage.meta && this.thisPage.meta.publishedOn) {
       var publishedTimestamp = new Date(this.thisPage.meta.publishedOn).getTime();
       var oneDayMs = 86400000;
       if (this.thisPage.lastModifiedAt - publishedTimestamp > oneDayMs) {
