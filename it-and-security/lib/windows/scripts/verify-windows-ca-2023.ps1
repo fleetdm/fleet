@@ -35,7 +35,11 @@ Write-Output ""
 
 # --- Secure Boot enabled ---
 $sb = $null
-try { $sb = Confirm-SecureBootUEFI } catch {}
+try {
+    $sb = Confirm-SecureBootUEFI
+} catch {
+    Write-State "Secure Boot check" "FAILED: $_"
+}
 Write-State "Secure Boot enabled" $sb
 
 # --- Firmware DB: is CA 2023 trusted? ---
@@ -79,7 +83,12 @@ foreach ($f in $bootFiles) {
         continue
     }
     $issuer = $null
-    try { $issuer = (Get-AuthenticodeSignature $f).SignerCertificate.Issuer } catch {}
+    try {
+        $issuer = (Get-AuthenticodeSignature $f).SignerCertificate.Issuer
+    } catch {
+        Write-State $name "signature read FAILED: $_"
+        continue
+    }
     $tag = if ($issuer -match 'Windows UEFI CA 2023')      { 'CA 2023' }
            elseif ($issuer -match 'Production PCA 2011')   { 'PCA 2011' }
            else { "unknown: $issuer" }
@@ -126,7 +135,7 @@ $capable   = (Get-ItemProperty -Path $servicing  -Name "WindowsUEFICA2023Capable
 $err       = (Get-ItemProperty -Path $servicing  -Name "UEFICA2023Error"          -ErrorAction SilentlyContinue).UEFICA2023Error
 $available = (Get-ItemProperty -Path $secureboot -Name "AvailableUpdates"         -ErrorAction SilentlyContinue).AvailableUpdates
 
-$statusStr  = if ($status)              { $status }              else { "(not set)" }
+$statusStr  = if ($null -ne $status)    { $status }              else { "(not set)" }
 $capableStr = if ($null -ne $capable)   { $capable.ToString() }  else { "(not set)" }
 $errStr     = if ($null -ne $err)       { $err.ToString() }      else { "(not set)" }
 $availStr   = if ($null -ne $available) { "0x{0:X4}" -f $available } else { "(not set)" }

@@ -13,7 +13,7 @@
   platform: windows
   query: |
     SELECT
-      a.path,
+      expected_paths.path,
       a.issuer_name,
       a.result,
       CASE
@@ -53,9 +53,9 @@
           THEN 'in_progress'
         ELSE 'not_started'
       END AS compliance_verdict
-    FROM authenticode a
-    WHERE a.path IN (
-      'C:\Windows\Boot\EFI\bootmgfw.efi',
-      'C:\Windows\System32\winload.efi',
-      'C:\Windows\System32\winresume.efi'
-    );
+    FROM (
+      SELECT 'C:\Windows\Boot\EFI\bootmgfw.efi' AS path
+      UNION ALL SELECT 'C:\Windows\System32\winload.efi'
+      UNION ALL SELECT 'C:\Windows\System32\winresume.efi'
+    ) AS expected_paths
+    LEFT JOIN authenticode AS a ON expected_paths.path = a.path;
