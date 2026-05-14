@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
@@ -149,7 +149,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 
 	// self_service is coerced to be true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
 		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", androidApp.AdamID)
 		s.Require().NoError(err)
@@ -239,7 +239,7 @@ func (s *integrationMDMTestSuite) TestAndroidAppsSelfService() {
 	)
 
 	// Even though we sent self_service: false, self_service remains true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var selfService bool
 		err := sqlx.GetContext(ctx, q, &selfService, "SELECT self_service FROM vpp_apps_teams WHERE adam_id = ?", getHostSw.Software[0].AppStoreApp.AppStoreID)
 		s.Require().NoError(err)
@@ -822,7 +822,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 	t.Run("android app setup experience", func(t *testing.T) {
 		// Get initial count of edited setup experience activities
 		var initialCount int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			err := sqlx.GetContext(ctx, q, &initialCount, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil
@@ -885,7 +885,7 @@ func (s *integrationMDMTestSuite) TestBatchAndroidApps() {
 			http.StatusOK, &batchResp, "team_name", teamName,
 		)
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			err := sqlx.GetContext(ctx, q, &count, `SELECT COUNT(id) FROM activity_past WHERE activity_type = 'edited_setup_experience_software'`)
 			require.NoError(t, err)
 			return nil

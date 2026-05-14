@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestCollect(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	oldMaxPolicy := maxRedisPolicyResultsPerHost
 	maxRedisPolicyResultsPerHost = 3
@@ -25,13 +25,13 @@ func TestCollect(t *testing.T) {
 
 	t.Run("Label", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "label_membership", false, false, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "label_membership", true, true, false)
 			testCollectLabelQueryExecutions(t, ds, pool)
 		})
@@ -39,13 +39,13 @@ func TestCollect(t *testing.T) {
 
 	t.Run("Policy", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "policy_pass", false, false, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "policy_pass", true, true, false)
 			testCollectPolicyQueryExecutions(t, ds, pool)
 		})
@@ -53,13 +53,13 @@ func TestCollect(t *testing.T) {
 
 	t.Run("Host Last Seen", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "host_last_seen", false, false, false)
 			testCollectHostsLastSeen(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "host_last_seen", true, true, false)
 			testCollectHostsLastSeen(t, ds, pool)
 		})
@@ -67,13 +67,13 @@ func TestCollect(t *testing.T) {
 
 	t.Run("Scheduled Query Stats", func(t *testing.T) {
 		t.Run("standalone", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "scheduled_query_stats", false, false, false)
 			testCollectScheduledQueryStats(t, ds, pool)
 		})
 
 		t.Run("cluster", func(t *testing.T) {
-			defer mysql.TruncateTables(t, ds)
+			defer mysqltest.TruncateTables(t, ds)
 			pool := redistest.SetupRedis(t, "scheduled_query_stats", true, true, false)
 			testCollectScheduledQueryStats(t, ds, pool)
 		})
