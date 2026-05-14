@@ -342,6 +342,34 @@ func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx context.Cont
 	})
 }
 
+// MDMWindowsBulkInsertCommands inserts multiple MDM commands in a single
+// multi-row INSERT. Duplicate commands are silently ignored. Complementary to
+// MDMWindowsEnqueueCommandAndUpsertHostProfiles
+func (ds *Datastore) MDMWindowsBulkInsertCommands(ctx context.Context, cmds []*fleet.MDMWindowsCommand) error {
+	if len(cmds) == 0 {
+		return nil
+	}
+
+	var sb strings.Builder
+	var args []any
+	for i, cmd := range cmds {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString("(?, ?, ?)")
+		args = append(args, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI)
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		VALUES %s
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid`, sb.String())
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk inserting MDMWindowsCommands")
+	}
+	return nil
+}
+
 // this function inserts both the host_mdm_windows_profile entries and the actual mdm_windows_command_queue entries for a given command and list of hosts.
 // We do the host-targeting pieces in a transaction to ensure that we don't end up with queued commands that don't have corresponding host profile entries,
 // which would previously cause issues when processing responses from the device if there was a long delay between enqueing the command and the host profile
@@ -353,22 +381,32 @@ func (ds *Datastore) MDMWindowsInsertCommandAndUpsertHostProfilesForHosts(ctx co
 		return nil
 	}
 
-	const defaultBatchSize = 1000
-	batchSize := defaultBatchSize
-	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
-		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
-	}
-
 	// Insert the command once, outside of the batched transactions.
 	cmdStmt := `
 		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
 		VALUES (?, ?, ?)
+		ON DUPLICATE KEY UPDATE command_uuid = command_uuid
 	`
 	if _, err := ds.writer(ctx).ExecContext(ctx, cmdStmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
-		if IsDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
-		}
 		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+	}
+
+	return ds.MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx, hostUUIDs, cmd, payload)
+}
+
+// MDMWindowsEnqueueCommandAndUpsertHostProfiles enqueues a command for hosts
+// and upserts their profile tracking rows. The command must already exist in
+// windows_mdm_commands (inserted via MDMWindowsBulkInsertCommands or
+// MDMWindowsInsertCommandAndUpsertHostProfilesForHosts).
+func (ds *Datastore) MDMWindowsEnqueueCommandAndUpsertHostProfiles(ctx context.Context, hostUUIDs []string, cmd *fleet.MDMWindowsCommand, payload []*fleet.MDMWindowsBulkUpsertHostProfilePayload) error {
+	if len(hostUUIDs) == 0 {
+		return nil
+	}
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
 	// Build a map from host UUID to its corresponding profile payload for quick lookup.
@@ -2461,16 +2499,13 @@ func (ds *Datastore) ListMDMWindowsProfilesToRemoveForHosts(ctx context.Context,
 // bounded host window; see ReconcileWindowsProfiles.
 func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
 	// Push the cursor predicate (host_uuid > ?) into each branch of the
-	// UNION so the optimizer applies it before deduplication. The install
-	// query has 4 host-filter slots, one per UNION branch in the
-	// desired-state subquery; each gets h.uuid > ?. The remove query
-	// inverts desired-state membership (it keeps rows where ds.host_uuid
-	// IS NULL), so its 4 desired-state slots stay TRUE; the cursor goes
-	// in the 5th slot, which filters hmwp.host_uuid after the RIGHT JOIN
-	// to host_mdm_windows_profiles. hmwp.host_uuid is the leading column
-	// of that table's PK, so this is a clean PK range scan.
+	// UNION so the optimizer applies it before deduplication. Both the
+	// install and remove queries push the cursor into all 4 desired-state
+	// UNION arms so the optimizer filters early. The remove query also
+	// gets the cursor in its 5th slot (outer WHERE on hmwp.host_uuid)
+	// for a clean PK range scan on host_mdm_windows_profiles.
 	toInstall := fmt.Sprintf(windowsProfilesToInstallQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?")
-	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", "hmwp.host_uuid > ?")
+	toRemove := fmt.Sprintf(windowsProfilesToRemoveQuery, "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "h.uuid > ?", "hmwp.host_uuid > ?")
 
 	stmt := fmt.Sprintf(`
 		SELECT host_uuid FROM (
@@ -2484,11 +2519,12 @@ func (ds *Datastore) ListNextPendingMDMWindowsHostUUIDs(ctx context.Context, aft
 
 	// Placeholder order in stmt:
 	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (install, remove)
-	//   remove branches:  1 cursor (hmwp.host_uuid > ?)
+	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms, 1 cursor (hmwp.host_uuid > ?) for outer WHERE
 	var hostUUIDs []string
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
 		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove,
+		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
 		afterHostUUID,
 	); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM windows host UUIDs")
@@ -2591,12 +2627,17 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 		return profiles, nil
 	}
 
-	hostFilter := "hmwp.host_uuid IN (?)"
+	desiredStateFilter := "h.uuid IN (?)"
+	outerFilter := "hmwp.host_uuid IN (?)"
 	if len(onlyProfileUUIDs) > 0 {
-		hostFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
+		desiredStateFilter = "mwcp.profile_uuid IN (?) AND h.uuid IN (?)"
+		outerFilter = "hmwp.profile_uuid IN (?) AND hmwp.host_uuid IN (?)"
 	}
 
-	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery, "TRUE", "TRUE", "TRUE", "TRUE", hostFilter)
+	toRemoveQuery := fmt.Sprintf(windowsProfilesToRemoveQuery,
+		desiredStateFilter, desiredStateFilter, desiredStateFilter, desiredStateFilter,
+		outerFilter,
+	)
 
 	// use a 10k host batch size to match what we do on the macOS side.
 	selectProfilesBatchSize := 10_000
@@ -2615,9 +2656,21 @@ func (ds *Datastore) listMDMWindowsProfilesToRemoveDB(
 		var args []any
 		var stmt string
 		if len(onlyProfileUUIDs) > 0 {
-			stmt, args, err = sqlx.In(toRemoveQuery, onlyProfileUUIDs, batchUUIDs)
+			stmt, args, err = sqlx.In(toRemoveQuery,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+				onlyProfileUUIDs, batchUUIDs,
+			)
 		} else {
-			stmt, args, err = sqlx.In(toRemoveQuery, batchUUIDs)
+			stmt, args, err = sqlx.In(toRemoveQuery,
+				batchUUIDs,
+				batchUUIDs,
+				batchUUIDs,
+				batchUUIDs,
+				batchUUIDs,
+			)
 		}
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "building sqlx.In for list MDM windows profiles to remove, batch %d of %d", i, selectProfilesTotalBatches)

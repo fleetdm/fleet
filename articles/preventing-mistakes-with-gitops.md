@@ -20,11 +20,11 @@ The ultimate goals of this approach? Improve reliability, reduce errors, and ena
 
 ## Getting Started 
 
-Fleet publishes a starter template that we recommend checking out (available for both GitHub and GitLab.) 
+Fleet publishes starter templates for both GitHub and GitLab.
 
 > In this article we will be using GitHub but the general principles are the same. 
 
-Clone the starter repo: `https://github.com/fleetdm/fleet-gitops` and create your own repo to which you will push code. 
+Head to the [GitOps's reference](https://fleetdm.com/docs/configuration/yaml-files) and create your own repo to which you will push code. 
 
 > In a production environment, it is best to protect the `main` branch and only allow merging after a code review is conducted. It can be modified if needed, but, by default the apply action will run whenever code is committed to `main`.
 

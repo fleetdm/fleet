@@ -3,7 +3,11 @@ package fleet
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/variables"
+	"howett.net/plist"
 )
 
 type VPPAppID struct {
@@ -56,12 +60,12 @@ type VPPAppTeam struct {
 	// app creation if AddAutoInstallPolicy is true.
 	AddedAutomaticInstallPolicy *Policy `json:"-"`
 	DisplayName                 *string `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
-	Configuration       json.RawMessage `json:"configuration,omitempty"`
-	AutoUpdateEnabled   *bool           `json:"-"`
-	AutoUpdateStartTime *string         `json:"-"`
-	AutoUpdateEndTime   *string         `json:"-"`
+	// Configuration is the managed app configuration payload.
+	// JSON for Android, XML for iOS / iPadOS.
+	Configuration       []byte  `json:"configuration,omitempty"`
+	AutoUpdateEnabled   *bool   `json:"-"`
+	AutoUpdateStartTime *string `json:"-"`
+	AutoUpdateEndTime   *string `json:"-"`
 }
 
 func (v VPPAppTeam) GetPlatform() string {
@@ -135,8 +139,8 @@ type VPPAppStoreApp struct {
 	// "Browsers", etc.
 	Categories  []string `json:"categories"`
 	DisplayName string   `json:"display_name"`
-	// Configuration is a json file used to customize Android app
-	// behavior/settings. Applicable to Android apps only.
+	// Configuration is the managed app configuration payload.
+	// JSON for Android, XML for iOS / iPadOS.
 	Configuration json.RawMessage `json:"configuration,omitempty"`
 }
 
@@ -203,6 +207,88 @@ type AppStoreAppUpdatePayload struct {
 	LabelsIncludeAll []string
 	Categories       []string
 	DisplayName      *string
-	Configuration    json.RawMessage
+	Configuration    []byte
 	SoftwareAutoUpdateConfig
+}
+
+// FleetVarsSupportedInAppleAppConfig is the allow-list of Fleet variables that
+// can appear in an iOS / iPadOS managed app configuration plist. Subset of the
+// variables supported in Apple configuration profiles — credential variables
+// (NDES, SCEP, DigiCert) don't fit the InstallApplication command shape.
+var FleetVarsSupportedInAppleAppConfig = []FleetVarName{
+	FleetVarHostUUID,
+	FleetVarHostHardwareSerial,
+	FleetVarHostPlatform,
+	FleetVarHostEndUserEmailIDP,
+	FleetVarHostEndUserIDPUsername,
+	FleetVarHostEndUserIDPUsernameLocalPart,
+	FleetVarHostEndUserIDPGroups,
+	FleetVarHostEndUserIDPDepartment,
+	FleetVarHostEndUserIDPFullname,
+}
+
+// ValidateAppleAppConfiguration validates a managed app configuration payload
+// for an iOS or iPadOS InstallApplication command. The payload must be an XML
+// plist whose root element is a <dict>, and any Fleet variable tokens used in
+// string values or keys must be drawn from FleetVarsSupportedInAppleAppConfig.
+// Empty input is allowed — callers decide whether to store or clear.
+func ValidateAppleAppConfiguration(config []byte) error {
+	if len(config) == 0 {
+		return nil
+	}
+
+	var root map[string]any
+	format, err := plist.Unmarshal(config, &root)
+	if err != nil {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("invalid plist: %s", err))
+	}
+	// Apple's MDM InstallApplication only accepts XML plist for the
+	// Configuration dict; reject binary, OpenStep and GNUStep formats up front
+	// so admins don't get surprised when devices reject the install.
+	if format != plist.XMLFormat {
+		return NewInvalidArgumentError("configuration", "configuration must be an XML plist")
+	}
+
+	// Raw-bytes scan catches structural bypasses (duplicate keys, trailing
+	// siblings) invisible to the decoded tree. The decoded-tree walk below
+	// catches XML-entity-encoded tokens the regex won't match.
+	for _, name := range variables.Find(string(config)) {
+		if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+			return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+		}
+	}
+	if name, ok := findUnsupportedFleetVar(root); ok {
+		return NewInvalidArgumentError("configuration", fmt.Sprintf("unsupported variable $FLEET_VAR_%s", name))
+	}
+	return nil
+}
+
+// findUnsupportedFleetVar walks v's keys and string values and returns the
+// first $FLEET_VAR_* token that is not in FleetVarsSupportedInAppleAppConfig.
+// The second return is false when every referenced variable is allowed.
+func findUnsupportedFleetVar(v any) (string, bool) {
+	switch t := v.(type) {
+	case string:
+		for _, name := range variables.Find(t) {
+			if !slices.Contains(FleetVarsSupportedInAppleAppConfig, FleetVarName(name)) {
+				return name, true
+			}
+		}
+	case map[string]any:
+		for k, val := range t {
+			if name, ok := findUnsupportedFleetVar(k); ok {
+				return name, ok
+			}
+			if name, ok := findUnsupportedFleetVar(val); ok {
+				return name, ok
+			}
+		}
+	case []any:
+		for _, val := range t {
+			if name, ok := findUnsupportedFleetVar(val); ok {
+				return name, ok
+			}
+		}
+	}
+	return "", false
 }

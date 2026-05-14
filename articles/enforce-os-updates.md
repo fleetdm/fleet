@@ -10,7 +10,7 @@ For Android hosts, you can enforce OS updates using a configuration profile with
 
 ## Enforce
 
-You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's best practice GitOps](https://github.com/fleetdm/fleet-gitops).
+You can enforce OS settings using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
 1. Head to the **Controls** > **OS updates** tab.
 

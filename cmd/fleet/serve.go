@@ -10,6 +10,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -444,7 +445,7 @@ func runServeCmd(cmd *cobra.Command, configManager configpkg.Manager, debug, dev
 		}
 	case fleet.SomeMigrationsCompleted:
 		tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
-		printMissingMigrationsWarning(tables, data)
+		printMissingMigrationsWarning(os.Stdout, tables, data)
 		if !config.Upgrades.AllowMissingMigrations {
 			os.Exit(1)
 		}
@@ -2047,8 +2048,8 @@ func printDatabaseNotInitializedError() {
 		os.Args[0])
 }
 
-func printMissingMigrationsWarning(tables []int64, data []int64) {
-	fmt.Printf("################################################################################\n"+
+func printMissingMigrationsWarning(w io.Writer, tables []int64, data []int64) {
+	fmt.Fprintf(w, "################################################################################\n"+
 		"# WARNING:\n"+
 		"#   Your Fleet database is missing required migrations. This is likely to cause\n"+
 		"#   errors in Fleet.\n"+

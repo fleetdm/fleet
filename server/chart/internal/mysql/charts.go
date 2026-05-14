@@ -15,6 +15,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// onlineIntervalBufferSeconds mirrors fleet.OnlineIntervalBuffer (the grace
+// period added on top of a host's own check-in interval before it's
+// considered offline). Duplicated rather than imported because the chart
+// bounded context must not depend on server/fleet — arch test enforced.
+const onlineIntervalBufferSeconds = 60
+
 // Datastore is the MySQL implementation of the chart datastore.
 type Datastore struct {
 	primary *sqlx.DB
@@ -64,25 +70,24 @@ func (ds *Datastore) GetHostIDsForFilter(ctx context.Context, hostFilter *types.
 	return ids, nil
 }
 
-// FindRecentlySeenHostIDs returns host IDs with any activity signal at or after `since`.
-// "Activity signal" is the most recent of host_seen_times.seen_time, nano_enrollments.last_seen_at,
-// or host details/creation timestamps.
-func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error) {
-	query := `
+// FindOnlineHostIDs returns host IDs that are "online" at `now` per the same
+// per-host predicate used by the hosts list status=online filter
+// (filterHostsByStatus in server/datastore/mysql/hosts.go): the host has a
+// host_seen_times row whose seen_time falls within the host's own check-in
+// interval (LEAST of distributed_interval and config_tls_refresh) plus the
+// OnlineIntervalBuffer grace period.
+//
+// Because host_seen_times is updated only by osquery check-ins, MDM-only
+// mobile devices (iOS, iPadOS, Android) are currently excluded by design.
+func (ds *Datastore) FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error) {
+	query := fmt.Sprintf(`
 		SELECT h.id
 		FROM hosts h
-			LEFT JOIN host_seen_times hst ON h.id = hst.host_id
-			LEFT JOIN nano_enrollments ne ON ne.id = h.uuid
-				AND ne.type IN ('Device', 'User Enrollment (Device)')
-		WHERE COALESCE(
-			GREATEST(
-				COALESCE(hst.seen_time, ne.last_seen_at),
-				COALESCE(ne.last_seen_at, hst.seen_time)
-			),
-			NULLIF(h.detail_updated_at, '2000-01-01 00:00:00'),
-			h.created_at
-		) >= ?`
-	args := []any{since.UTC()}
+		JOIN host_seen_times hst ON h.id = hst.host_id
+		WHERE DATE_ADD(hst.seen_time,
+			INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND
+		) > ?`, onlineIntervalBufferSeconds)
+	args := []any{now.UTC()}
 
 	if len(disabledFleetIDs) > 0 {
 		query += ` AND (h.team_id IS NULL OR h.team_id NOT IN (?))`
@@ -91,22 +96,20 @@ func (ds *Datastore) FindRecentlySeenHostIDs(ctx context.Context, since time.Tim
 
 	expanded, expandedArgs, err := sqlx.In(query, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "expand recently-seen host args")
+		return nil, ctxerr.Wrap(ctx, err, "expand online host args")
 	}
 	expanded = ds.rebind(expanded)
 
 	var ids []uint
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &ids, expanded, expandedArgs...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "find recently seen host IDs")
+		return nil, ctxerr.Wrap(ctx, err, "find online host IDs")
 	}
 	return ids, nil
 }
 
-// TODO(iteration-2): the matcher list and TrackedCriticalCVEs exist only
-// until user-configurable CVE filtering ships on the dashboard. When that
-// lands, delete trackedCVESoftwareMatchers, TrackedCriticalCVEs, its entries
-// on the Datastore/DatasetStore interfaces, and the `if metric == "cve"`
-// branch in the chart service. See change `cve-chart-demo-filter`.
+// The matcher list and TrackedCriticalCVEs exist as performance optimizations.
+// TODO: implement bitmap compression so we can collect more CVE data.
+// TODO: implement more filtering options for users.
 
 // cveSoftwareMatcher filters `software` rows by a MySQL LIKE pattern and an
 // optional source allowlist. Empty Sources means any source.
@@ -148,12 +151,18 @@ var trackedCVESoftwareMatchers = []cveSoftwareMatcher{
 	{"kernel-%", []string{"rpm_packages"}},
 }
 
-// AffectedHostIDsByCVE returns host IDs grouped by CVE. It streams two joins
-// (software-level and OS-level vulnerabilities) and merges the results into a
-// single map. Duplicates across sources are harmless — the downstream
-// HostIDsToBlob setBit is idempotent.
-func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint) (map[string][]uint, error) {
+// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+// cves set. It streams two joins (software-level and OS-level vulnerabilities)
+// and merges the results into a single map. Duplicates across sources are
+// harmless — the downstream HostIDsToBlob setBit is idempotent.
+//
+// nil or empty cves returns an empty map without running any query.
+// TODO: support `nil` meaning "all CVEs" once bitmap compression is implemented.
+func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error) {
 	result := make(map[string][]uint)
+	if len(cves) == 0 {
+		return result, nil
+	}
 
 	// Both subqueries gain a hosts JOIN + WHERE only when there are fleets to
 	// exclude. Skipping the JOIN entirely when the slice is empty keeps the
@@ -167,18 +176,25 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 		FROM operating_system_vulnerabilities osv
 		JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id`
 
-	var swArgs, osArgs []any
+	swWhere := []string{"sc.cve IN (?)"}
+	osWhere := []string{"osv.cve IN (?)"}
+	swArgs := []any{cves}
+	osArgs := []any{cves}
+
 	if len(disabledFleetIDs) > 0 {
 		swQuery += `
-			JOIN hosts h ON h.id = hs.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		swArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hs.host_id`
+		swWhere = append(swWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		swArgs = append(swArgs, disabledFleetIDs)
 
 		osQuery += `
-			JOIN hosts h ON h.id = hos.host_id
-			WHERE (h.team_id IS NULL OR h.team_id NOT IN (?))`
-		osArgs = []any{disabledFleetIDs}
+			JOIN hosts h ON h.id = hos.host_id`
+		osWhere = append(osWhere, "(h.team_id IS NULL OR h.team_id NOT IN (?))")
+		osArgs = append(osArgs, disabledFleetIDs)
 	}
+
+	swQuery += " WHERE " + strings.Join(swWhere, " AND ")
+	osQuery += " WHERE " + strings.Join(osWhere, " AND ")
 
 	if err := ds.streamCVEHostPairs(ctx, swQuery, swArgs, result); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "stream software CVE host pairs")
@@ -199,7 +215,7 @@ func (ds *Datastore) AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs 
 // distinguish "filter resolved to empty" from "no filter requested" (nil).
 // See GetSCDData for how empty vs nil is interpreted at the query layer.
 //
-// TODO(iteration-2): replace with user-configurable filtering. See the
+// TODO: replace with user-configurable filtering. See the
 // matcher-list comment above.
 func (ds *Datastore) TrackedCriticalCVEs(ctx context.Context) ([]string, error) {
 	const criticalCVSS = 9.0

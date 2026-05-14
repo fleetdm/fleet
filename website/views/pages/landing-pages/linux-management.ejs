@@ -12,7 +12,7 @@
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" class="btn btn-primary" href="/whitepapers/it-leaders-guide-to-linux-device-management">Read the whitepaper</a>
-            <a purpose="video-button" @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action <span>3 mins</span></a>
+            <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
           </div>
         </div>
       </div><%/* landing-page-hero */%>
@@ -41,6 +41,7 @@
         </div>
       </div>
 
+
       <div purpose="landing-page-section">
         <div purpose="feature-with-image">
           <div purpose="feature-image">
@@ -60,13 +61,19 @@
       </div>
       <div purpose="landing-page-section">
         <div purpose="section-quote">
-          <p purpose="quote-text">“We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.”</p>
+          <div purpose="quote-image">
+            <img alt="Nutanix logo" src="/images/logo-nutanix-140x32@2x.png">
+          </div>
+          <p purpose="quote-text">"We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure."</p>
           <div purpose="quote-author-info">
             <div purpose="quote-author-image">
               <img alt="Roger Cantrell" src="/images/testimonial-author-roger-cantrell-100x100@2x.png">
             </div>
-            <p purpose="author-name">Roger Cantrell</p>
-            <p purpose="author-title">IT Operations Engineer, Nutanix</p>
+            <div purpose="name-and-title">
+              <p purpose="author-name">Roger Cantrell</p>
+              <p purpose="author-title">IT Operations Engineer</p>
+              <p purpose="author-title">Nutanix</p>
+            </div>
           </div>
         </div>
       </div>
@@ -132,7 +139,7 @@
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
   <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

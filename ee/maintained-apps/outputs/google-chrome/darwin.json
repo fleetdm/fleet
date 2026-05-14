@@ -1,10 +1,10 @@
 {
   "versions": [
     {
-      "version": "148.0.7778.97",
+      "version": "148.0.7778.168",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome' AND version_compare(bundle_short_version, '148.0.7778.97') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.Chrome' AND version_compare(bundle_short_version, '148.0.7778.168') < 0);"
       },
       "installer_url": "https://dl.google.com/dl/chrome/mac/universal/stable/gcem/GoogleChrome.pkg",
       "install_script_ref": "6981ff84",

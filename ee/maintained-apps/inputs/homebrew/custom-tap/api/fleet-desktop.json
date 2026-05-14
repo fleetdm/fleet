@@ -14,7 +14,7 @@
   "skip_livecheck": false,
   "bundle_version": null,
   "bundle_short_version": null,
-  "sha256": "4e7352b5faac94f8176a8291d170663f220fd4268ee33dd67b2723f7fe721a09",
+  "sha256": "d58a07e71d350b6c7fc39319080c28ad56d298f41ef45c67e0114940dce41420",
   "artifacts": [
     {
       "uninstall": [
@@ -72,6 +72,6 @@
   "languages": [],
   "ruby_source_path": "Casks/fleet-desktop.rb",
   "ruby_source_checksum": {
-    "sha256": "54320e7f3daaf9ad437b1abdc8978730453c227b2436b4f961ec011e61b39f16"
+    "sha256": "22014d0a5d40491927793478b16940b9c38306b8a7c44058e0b356bb17a35493"
   }
 }

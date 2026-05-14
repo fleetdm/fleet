@@ -19,7 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/spec"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -155,7 +155,7 @@ org_settings:
 	require.NoError(t, err)
 	_, err = RunAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "'org_settings' is required")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
@@ -1497,6 +1497,221 @@ software:
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	require.Len(t, enrolledTeamSecrets, 1)
 	assert.Equal(t, secret, enrolledTeamSecrets[0].Secret)
+}
+
+// TestGitOpsTeamLabelAndProfileSameApply verifies issue #44046: a single
+// `fleetctl gitops` run can declare a new fleet-scoped label AND a profile
+// referencing that label by name. Before the fix, `fleetctl gitops` applied
+// fleet profiles inside `ApplyGroup` before applying fleet-scoped labels, so
+// the server-side label-existence validator rejected the profile apply with
+// "Couldn't update. Label %q doesn't exist."
+//
+// The mocked `LabelIDsByName` here only resolves a label name once
+// `ApplyLabelSpecsWithAuthor` has been called for it, which mirrors the
+// real DB behavior and would fail the test without the ordering fix.
+func TestGitOpsTeamLabelAndProfileSameApply(t *testing.T) {
+	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "../../../server/service/testdata")
+
+	_, ds := testing_utils.RunServerWithMockedDS(
+		t, &service.TestServerOpts{
+			License:          license,
+			MDMStorage:       new(mdmmock.MDMAppleStore),
+			MDMPusher:        testing_utils.MockPusher{},
+			FleetConfig:      &fleetCfg,
+			NoCacheDatastore: true,
+			KeyValueStore:    testing_utils.NewMemKeyValueStore(),
+		},
+	)
+
+	mdmtest.StartNewAppleGDMFTestServer(t)
+
+	setupEmptyGitOpsMocks(ds)
+	setupDefaultTeamConfigMocks(ds)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{EnabledAndConfigured: true},
+		}, nil
+	}
+
+	// Track which labels exist "in the database." A label is considered to
+	// exist only after ApplyLabelSpecsWithAuthor has been called for it.
+	// This mirrors real DB behavior and exercises the ordering requirement
+	// that motivated the fix.
+	var (
+		mu                sync.Mutex
+		appliedLabels     = map[string]struct{}{}
+		applyOrder        int
+		applyLabelOrder   int
+		batchProfileOrder int
+	)
+
+	ds.ApplyLabelSpecsWithAuthorFunc = func(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) error {
+		mu.Lock()
+		defer mu.Unlock()
+		applyOrder++
+		if applyLabelOrder == 0 {
+			applyLabelOrder = applyOrder
+		}
+		for _, s := range specs {
+			appliedLabels[s.Name] = struct{}{}
+		}
+		return nil
+	}
+	labelExists := func(name string) bool {
+		// builtin labels are always "in the DB"; mocked manual labels are
+		// only present after ApplyLabelSpecsWithAuthor has been called for them
+		if _, ok := appliedLabels[name]; ok {
+			return true
+		}
+		return name == fleet.BuiltinLabelMacOS14Plus ||
+			name == fleet.BuiltinLabelIOS ||
+			name == fleet.BuiltinLabelIPadOS
+	}
+	ds.LabelIDsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]uint, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out := map[string]uint{}
+		for i, name := range names {
+			if labelExists(name) {
+				out[name] = uint(100 + i)
+			}
+		}
+		return out, nil
+	}
+	ds.LabelsByNameFunc = func(ctx context.Context, names []string, filter fleet.TeamFilter) (map[string]*fleet.Label, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		out := map[string]*fleet.Label{}
+		for i, name := range names {
+			if labelExists(name) {
+				out[name] = &fleet.Label{ID: uint(100 + i), Name: name}
+			}
+		}
+		return out, nil
+	}
+
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile,
+		winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
+		androidProfiles []*fleet.MDMAndroidConfigProfile, vars []fleet.MDMProfileIdentifierFleetVariables,
+	) (fleet.MDMProfilesUpdates, error) {
+		mu.Lock()
+		applyOrder++
+		if batchProfileOrder == 0 {
+			batchProfileOrder = applyOrder
+		}
+		mu.Unlock()
+		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, profile fleet.MDMAppleConfigProfile, vars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
+		return &profile, nil
+	}
+
+	var savedTeam *fleet.Team
+	ds.TeamByNameFunc = func(ctx context.Context, name string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Name == name {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamByFilenameFunc = func(ctx context.Context, filename string) (*fleet.Team, error) {
+		if savedTeam != nil && savedTeam.Filename != nil && *savedTeam.Filename == filename {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamWithExtrasFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		if savedTeam != nil && tid == savedTeam.ID {
+			return savedTeam, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.TeamLiteFunc = func(ctx context.Context, tid uint) (*fleet.TeamLite, error) {
+		if savedTeam != nil && tid == savedTeam.ID {
+			return savedTeam.ToTeamLite(), nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.NewTeamFunc = func(ctx context.Context, newTeam *fleet.Team) (*fleet.Team, error) {
+		newTeam.ID = 1
+		savedTeam = newTeam
+		return newTeam, nil
+	}
+	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+		savedTeam = team
+		return team, nil
+	}
+
+	// Write a minimal mobileconfig fixture and a team YAML referencing it.
+	tmpDir := t.TempDir()
+	mobileConfigPath := filepath.Join(tmpDir, "test-profile.mobileconfig")
+	mobileConfigContent, err := os.ReadFile("./testdata/gitops/lib/macos-password.mobileconfig")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(mobileConfigPath, mobileConfigContent, 0o600))
+
+	teamYAMLPath := filepath.Join(tmpDir, "team.yml")
+	require.NoError(t, os.WriteFile(teamYAMLPath, fmt.Appendf(nil, `
+name: "Test Label Order Team"
+team_settings:
+  secrets:
+    - secret: "ABC"
+queries:
+policies:
+agent_options:
+software:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s
+        labels_include_any:
+          - new-team-label
+labels:
+  - name: new-team-label
+    label_membership_type: manual
+    hosts: []
+`, mobileConfigPath), 0o600))
+
+	_, err = RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath})
+	require.NoError(t, err, "fleetctl gitops should succeed when a new label and a profile referencing it are declared in the same fleet YAML (issue #44046)")
+
+	require.NotNil(t, savedTeam, "fleet should have been created")
+	assert.Equal(t, "Test Label Order Team", savedTeam.Name)
+
+	mu.Lock()
+	require.NotZero(t, applyLabelOrder, "ApplyLabelSpecsWithAuthor should have been called")
+	require.NotZero(t, batchProfileOrder, "BatchSetMDMProfiles should have been called")
+	assert.Less(t, applyLabelOrder, batchProfileOrder,
+		"labels must apply before profiles for label-references in profiles to validate")
+	mu.Unlock()
+
+	// Dry-run against the same fleet/YAML must also succeed (would error if
+	// label resolution happened too early in dry-run output paths) and the
+	// label-apply log line must appear before the profile-apply log line.
+	mu.Lock()
+	applyLabelOrder = 0
+	batchProfileOrder = 0
+	applyOrder = 0
+	mu.Unlock()
+	dryRunBuf, err := RunAppNoChecks([]string{"gitops", "-f", teamYAMLPath, "--dry-run"})
+	require.NoError(t, err, "fleetctl gitops --dry-run should succeed with new label and profile in same fleet YAML")
+	dryRunOut := dryRunBuf.String()
+
+	// In dry-run for a brand-new fleet, the labels log line must appear and
+	// must precede the profile log line. Pre-fix, the early return in
+	// DoGitOps' fleet branch fired before doGitOpsLabels could log anything.
+	labelIdx := strings.Index(dryRunOut, "would've created 1 label")
+	profileIdx := strings.Index(dryRunOut, "would've applied MDM profiles")
+	require.NotEqual(t, -1, labelIdx, "dry-run output should mention label apply; got: %s", dryRunOut)
+	require.NotEqual(t, -1, profileIdx, "dry-run output should mention profile apply; got: %s", dryRunOut)
+	assert.Less(t, labelIdx, profileIdx, "label-apply log line should precede profile-apply log line in dry-run output")
 }
 
 func TestGitOpsFullGlobal(t *testing.T) {
@@ -3111,7 +3326,7 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 		return nil
 	}
 
-	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
+	apnsCert, apnsKey, err := mysqltest.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
 	crt, key, err := apple_mdm.NewSCEPCACertKey()
 	require.NoError(t, err)
@@ -3827,6 +4042,9 @@ software:
 			ds.ListCertificateAuthoritiesFunc = func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
 				return nil, nil
 			}
+			ds.VerifyAppleConfigProfileScopesDoNotConflictFunc = func(ctx context.Context, cps []*fleet.MDMAppleConfigProfile) error {
+				return nil
+			}
 
 			args := []string{"gitops"}
 			for _, cfg := range tt.cfgs {
@@ -4315,7 +4533,7 @@ software:
 	_, err = RunAppNoChecks([]string{"gitops", "-f", globalFileBasic.Name()})
 	require.NoError(t, err)
 
-	require.False(t, appConfig.Features.EnableHostUsers)
+	require.True(t, appConfig.Features.EnableHostUsers)
 	require.True(t, appConfig.Features.EnableSoftwareInventory)
 	require.Nil(t, appConfig.Features.AdditionalQueries)
 	require.Nil(t, appConfig.Features.DetailQueryOverrides)
