@@ -2934,7 +2934,6 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's Recovery Lock password](#get-hosts-recovery-lock-password)
 - [Get host's certificates](#get-hosts-certificates)
-- [Get host's MDM commands](#get-hosts-mdm-commands)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
 - [Wipe host](#wipe-host)
@@ -5172,71 +5171,6 @@ Retrieves the certificates installed on a host.
   }
 }
 ```
-
-### Get host's MDM commands
-
-This endpoint returns the upcoming and past MDM commands for the host.
-
-`GET /api/v1/fleet/hosts/:id/mdm_commands`
-
-#### Parameters
-
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| id           | string  | path | **Required for new integrations.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below) and will be rejected in a future Fleet release. |
-| page                      | integer | query | Page number of the results to fetch.                                      |
-| per_page                  | integer | query | Results per page. Default is `10`.                                        |
-| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
-| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| request_type              | string  | query | The request type to filter commands by. |
-| command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
-| after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
-
-> Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
-
-> Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
-
-
-#### Example
-
-`GET /api/v1/fleet/hosts/123/mdm_commands`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "meta": {
-    "has_next_results": true,
-    "has_previous_results": false
-  },
-  "count": null,
-  "results": [
-    {
-      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
-      "command_uuid": "a3650ec9-6dd0-40e9-b5d8-feffe9939461",
-      "status": "Acknowledged",
-      "command_status": "ran",
-      "updated_at": "2026-03-20T19:45:27Z",
-      "request_type": "DeclarativeManagement",
-      "name": null,
-      "hostname": "Mac-mini.local"
-    },
-    {
-      "host_uuid": "A1B2C3D4-E5F6-7890-1234-567890ABCDEF",
-      "command_uuid": "97ceaa39-eadc-4953-98a8-2ffe72ab120d",
-      "status": "Error",
-      "command_status": "failed",
-      "updated_at": "2026-03-24T21:37:32Z",
-      "request_type": "InstallProfile",
-      "name": null,
-      "hostname": "Mac-mini.local"
-    }
-  ]
-}
-```
-
 
 ### Get host's OS settings (configuration profile)
 
@@ -7741,8 +7675,6 @@ Example VPP `InstallApplication` command result metadata:
 
 ### List MDM commands
 
-> This API endpoint is **deprecated** as of Fleet 4.86. It is maintained for backward compatibility. Please use the [Get host's MDM commands](#get-hosts-mdm-commands) endpoint instead.
-
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below.  [Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands) is available for the deprecated endpoint.
 
 This endpoint returns the list of custom MDM commands that have been executed.
@@ -7762,14 +7694,13 @@ This endpoint returns the list of custom MDM commands that have been executed.
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
 
-> **Warning:** Calling this endpoint without ⁠`host_identifier` is **not recommended**. The underlying query is not performant at scale and may time out.
-
 > Currently, `⁠command_status` is only available when ⁠`host_identifier` is provided and the host is macOS, iOS, or iPadOS. Additionally, ⁠`count` is returned only when ⁠`command_status` is `⁠pending`; for any other values, ⁠`count` will be `⁠null`.
 >
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 >
 > Apple (macOS, iOS, iPadOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows commands.
 >
+> **Deprecated:** calling this endpoint without `host_identifier` is deprecated and will be required in a future Fleet release. Always provide `host_identifier` to scope the response to a single host. Unscoped calls continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. New integrations must pass `host_identifier`.
 
 #### Example
 
