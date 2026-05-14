@@ -1638,7 +1638,7 @@ func getMDMCommandsCommand() *cli.Command {
 			debugFlag(),
 			&cli.StringFlag{
 				Name:     "host",
-				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number.",
+				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number. (required)",
 				Required: true,
 			},
 			byMDMCommandRequestType(),
