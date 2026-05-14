@@ -3029,7 +3029,7 @@ LIMIT %d OFFSET %d
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
 	}
 
-	if len(summary) == 0 {
+	if filter.ExecutionID != nil && len(summary) == 0 {
 		nfErr := notFound("batch execution")
 		if filter.ExecutionID != nil {
 			nfErr = nfErr.WithName(*filter.ExecutionID)

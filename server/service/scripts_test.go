@@ -1049,7 +1049,7 @@ func TestBatchScriptExecutionSummary(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	t.Run("not found", func(t *testing.T) {
-		// While these not found tests seems useless, it's mainly to check that we do an authz check so we don't return 500's but the actual not found.
+		// While these not found tests seem useless, it's mainly to check that we do an authz check so we don't return 500s but the actual not found.
 		ds.BatchExecuteSummaryFunc = func(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 			return nil, platform_mysql.NotFound("batch execution").WithName(executionID)
 		}
