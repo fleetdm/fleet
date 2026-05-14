@@ -10,7 +10,7 @@ module.exports = {
   exits: {
 
     success: {
-      viewTemplatePath: 'pages/landing-pages/linux-management'
+      viewTemplatePath: 'pages/linux-management'
     },
     badConfig: { responseType: 'badConfig' },
   },

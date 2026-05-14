@@ -548,7 +548,7 @@ module.exports.routes = {
   },
 
   'GET /gitops-workshop': {
-    action: 'landing-pages/view-gitops-workshop',
+    action: 'view-gitops-workshop',
     locals: {
       pageTitleForMeta: 'GitOps workshops',
       pageDescriptionForMeta: 'Join Fleet’s GitOps workshop to learn configuration-as-code for managing devices at scale. See every change, undo any error, and repeat every success.',
@@ -556,7 +556,7 @@ module.exports.routes = {
   },
 
   'GET /compare/:slug': {
-    action: 'landing-pages/view-basic-comparison'
+    action: 'articles/view-basic-comparison'
   },
 
   'GET /infrastructure-as-code': {
@@ -569,7 +569,7 @@ module.exports.routes = {
   },
 
   'GET /deployment': {
-    action: 'landing-pages/view-deployment',
+    action: 'view-deployment',
     locals: {
       pageTitleForMeta: 'Deploy Fleet anywhere',
       pageDescriptionForMeta: 'Run Fleet on-premise, in your private cloud (AWS, Azure, GCP), or air-gapped environments. Or let us handle it with Fleet Cloud. The only MDM with zero infrastructure lock-in.',
@@ -578,7 +578,7 @@ module.exports.routes = {
   },
 
   'GET /linux-management': {
-    action: 'landing-pages/view-linux-management',
+    action: 'view-linux-management',
     locals: {
       pageTitleForMeta: 'Linux device management',
       pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
