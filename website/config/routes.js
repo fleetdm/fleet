@@ -142,6 +142,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },
 
@@ -198,6 +199,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },// handles /releases/foo
 
@@ -214,6 +216,7 @@ module.exports.routes = {
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
       currentSection: 'more',
+      showSearchInMobileMenu: true,
     }
   },// handles /guides/foo
 
@@ -228,6 +231,10 @@ module.exports.routes = {
   'GET /announcements/*': {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
+    locals: {
+      currentSection: 'more',
+      showSearchInMobileMenu: true,
+    }
   },// handles /announcements/foo
 
   'GET /podcasts': {
