@@ -60,6 +60,13 @@
           .name__cell {
             max-width: 250px;
           }
+
+          // Override DataTable's 10px vertical margin on tooltip wrappers
+          // to prevent the VulnerabilitiesCell tooltip from making the row
+          // taller than the container, which causes an unnecessary scrollbar.
+          .vulnerabilities-cell .component__tooltip-wrapper {
+            margin: 0;
+          }
         }
       }
 
