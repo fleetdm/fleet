@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/stretchr/testify/require"
+	"pgregory.net/rapid"
 )
 
 func TestDEPClient(t *testing.T) {
@@ -548,6 +550,33 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			// Regression for https://github.com/fleetdm/fleet/issues/45485 —
+			// duplicate Paths must be compared as a multiset, not via a
+			// path-keyed map that collapses duplicates.
+			name: "Duplicate Path Reflexive",
+			a: []fleet.MDMProfileSpec{
+				{Path: "/a"},
+				{Path: "/a"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "/a"},
+				{Path: "/a"},
+			},
+			expected: true,
+		},
+		{
+			name: "Duplicate Path Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "/a"},
+				{Path: "/a"},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "/a"},
+				{Path: "/b"},
+			},
+			expected: false,
+		},
 	}
 
 	for _, tc := range tests {
@@ -556,6 +585,92 @@ func TestMDMProfileSpecsMatch(t *testing.T) {
 			require.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+// TestMDMProfileSpecsMatchProperties uses property-based testing to verify
+// the contract documented on MDMProfileSpecsMatch ("contain the same spec
+// elements, regardless of order") via invariants that don't depend on a
+// reference implementation:
+//   - Reflexivity: Match(a, a) is always true.
+//   - Symmetry: Match(a, b) == Match(b, a).
+//   - Permutation invariance on the slice: shuffling a does not change
+//     Match(a, b).
+//   - Permutation invariance on labels within a spec: shuffling any of a
+//     spec's labels fields does not change Match(a, b).
+//   - Sensitivity to length: appending an extra element makes Match false.
+//
+// Generators use narrow pools so duplicate Paths and duplicate labels are
+// likely, which is where the multiset semantics matter most.
+func TestMDMProfileSpecsMatchProperties(t *testing.T) {
+	labelGen := rapid.SliceOfN(rapid.SampledFrom([]string{"x", "y", "z"}), 0, 3)
+	pathGen := rapid.SampledFrom([]string{"/a", "/b"})
+	specGen := rapid.Custom(func(t *rapid.T) fleet.MDMProfileSpec {
+		return fleet.MDMProfileSpec{
+			Path:             pathGen.Draw(t, "Path"),
+			Labels:           labelGen.Draw(t, "Labels"),
+			LabelsIncludeAll: labelGen.Draw(t, "LabelsIncludeAll"),
+			LabelsIncludeAny: labelGen.Draw(t, "LabelsIncludeAny"),
+			LabelsExcludeAny: labelGen.Draw(t, "LabelsExcludeAny"),
+		}
+	})
+	sliceGen := rapid.SliceOfN(specGen, 0, 5)
+
+	t.Run("Reflexive", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			a := sliceGen.Draw(t, "a")
+			require.Truef(t, fleet.MDMProfileSpecsMatch(a, a),
+				"Match(a, a) should be true; a=%+v", a)
+		})
+	})
+
+	t.Run("Symmetric", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			a := sliceGen.Draw(t, "a")
+			b := sliceGen.Draw(t, "b")
+			require.Equalf(t, fleet.MDMProfileSpecsMatch(a, b), fleet.MDMProfileSpecsMatch(b, a),
+				"Match should be symmetric; a=%+v b=%+v", a, b)
+		})
+	})
+
+	t.Run("PermutationInvariantOnSlice", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			a := sliceGen.Draw(t, "a")
+			b := sliceGen.Draw(t, "b")
+			aShuf := rapid.Permutation(a).Draw(t, "permA")
+			require.Equalf(t, fleet.MDMProfileSpecsMatch(a, b), fleet.MDMProfileSpecsMatch(aShuf, b),
+				"Match changed after shuffling a; a=%+v aShuf=%+v b=%+v", a, aShuf, b)
+		})
+	})
+
+	t.Run("PermutationInvariantOnLabels", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			a := sliceGen.Draw(t, "a")
+			b := sliceGen.Draw(t, "b")
+			aShuf := make([]fleet.MDMProfileSpec, len(a))
+			for i, s := range a {
+				prefix := fmt.Sprintf("a[%d]", i)
+				aShuf[i] = fleet.MDMProfileSpec{
+					Path:             s.Path,
+					Labels:           rapid.Permutation(s.Labels).Draw(t, prefix+".Labels"),
+					LabelsIncludeAll: rapid.Permutation(s.LabelsIncludeAll).Draw(t, prefix+".LabelsIncludeAll"),
+					LabelsIncludeAny: rapid.Permutation(s.LabelsIncludeAny).Draw(t, prefix+".LabelsIncludeAny"),
+					LabelsExcludeAny: rapid.Permutation(s.LabelsExcludeAny).Draw(t, prefix+".LabelsExcludeAny"),
+				}
+			}
+			require.Equalf(t, fleet.MDMProfileSpecsMatch(a, b), fleet.MDMProfileSpecsMatch(aShuf, b),
+				"Match changed after shuffling labels inside a; a=%+v aShuf=%+v b=%+v", a, aShuf, b)
+		})
+	})
+
+	t.Run("SensitiveToLengthChange", func(t *testing.T) {
+		rapid.Check(t, func(t *rapid.T) {
+			a := sliceGen.Draw(t, "a")
+			extra := specGen.Draw(t, "extra")
+			aPlus := append(append([]fleet.MDMProfileSpec{}, a...), extra)
+			require.Falsef(t, fleet.MDMProfileSpecsMatch(aPlus, a),
+				"Match should reject slices of different lengths; a=%+v aPlus=%+v", a, aPlus)
+		})
+	})
 }
 
 func TestHasCAVariables(t *testing.T) {

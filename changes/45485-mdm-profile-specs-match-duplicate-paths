@@ -1,0 +1,1 @@
+* Fixed `MDMProfileSpecsMatch` to correctly compare MDM custom-settings lists that contain duplicate `path` entries. Previously, applying app config or team specs with duplicate paths was incorrectly detected as a change on every apply.
