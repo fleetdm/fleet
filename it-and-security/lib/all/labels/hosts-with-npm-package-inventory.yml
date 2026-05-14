@@ -4,4 +4,3 @@
     visible to the agent inventory).
   query: SELECT 1 FROM npm_packages LIMIT 1;
   label_membership_type: dynamic
-  platform: darwin,linux,windows

@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
@@ -48,7 +48,7 @@ func TestNewWindowsMDMProfileManagerWithoutConfig(t *testing.T) {
 
 func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	ctx := context.Background()
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	depStorage, err := ds.NewMDMAppleDEPStorage()
 	require.NoError(t, err)
@@ -56,7 +56,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 	const tokenOrgName = "fleet"
 
 	// insert an ABM token as if it had been migrated by the DB migration script
-	tok := mysql.SetTestABMAssets(t, ds, "")
+	tok := mysqltest.SetTestABMAssets(t, ds, "")
 	// tok, err := ds.InsertABMToken(ctx, &fleet.ABMToken{EncryptedToken: abmToken, RenewAt: time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)})
 	// require.NoError(t, err)
 	require.Empty(t, tok.OrganizationName)
@@ -139,7 +139,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
 	ctx := t.Context()
 	logger := slog.New(slog.DiscardHandler)
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	// Create test software
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
@@ -196,7 +196,7 @@ func TestCleanupStaleOSVVulnerabilities(t *testing.T) {
 func TestCleanupStaleOVALVulnerabilities(t *testing.T) {
 	ctx := context.Background()
 	logger := slog.New(slog.DiscardHandler)
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 
 	// Create test software
 	host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())

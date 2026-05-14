@@ -166,6 +166,11 @@ Additional infrastructure:
 9. **Object storage**. All object storage dependencies necessary to operate a fleetdm.com instance (download.fleetdm.com, updates.fleetdm.com), are hosted in R2 buckets at [Cloudflare](https://www.cloudflare.com).
 
 
+## Why enforce a minimum release age for npm packages?
+
+Fleet configures `min-release-age` in `.npmrc` to reject any npm package published less than 12 hours ago.  This is a supply-chain security measure.  When a [popular package is compromised](https://github.com/axios/axios/issues/10636), the malicious version is almost always removed quickly — but the damage happens to anyone who installed it in those first few minutes.  A short delay gives the community time to detect and respond before Fleet's CI or any contributor pulls the poisoned release.  The same principle applies to other package managers (Go modules, C++/osquery dependencies), but npm is the highest priority since it has the largest attack surface.  The delay is intentionally short so it doesn't frustrate day-to-day development — if it's too long, people work around it, which defeats the purpose.  Fleet also requires npm v11.10.0+ (the first version to support `min-release-age`) and uses Fleet policies to verify compliance across contributor machines.
+
+
 ## Why not continuously generate REST API reference docs from javadoc-style code comments?
 
 Here are a few of the drawbacks that we have experienced when generating docs via tools like Swagger or OpenAPI, and some of the advantages of doing it by hand with Markdown.
@@ -421,33 +426,6 @@ Some tools like Omnissa say "Windows CSP/XML" instead of "Windows configuration 
 
 By saying "configuration profile," Fleet has one, cross-platform name for a feature used to enforce OS settings on macOS, iOS, iPadOS, Windows, and Linux hosts.
 
-## Why not mention the CEO in Slack threads?
-
-> UPDATE: Thanks to the addition of some recent executive hires, the CEO is currently able to keep up with threads again.
-
-<!-- Everyone else who works at Fleet is expected to read (and reply or acknowledge with an emoji reaction) every time they're mentioned in Slack, even deep inside long threads.
-
-Now that the company has grown, the CEO gets mentioned in threads [too often](https://docs.google.com/document/d/1vK-Dy2BVrw7doYUzabOPyCiN4RfolWFgOKMm23l91s0/edit) to keep up with thread replies, even for threads he participates in.
-
-From Mike:
-
-<blockquote purpose="large-quote">
-  Staying on top of your Slack mentions (including in threads!) is very important. Please use them. 
-But now that the company has grown, in my role as CEO, I get mentioned in Slack very often.
-
-I held on as long as I could.  But due to volume, in late 2022, I made the decision to no longer read Slack threads where I am mentioned.
-
- What do I still read?
- 
- - If you mention me in a top-level channel message, I'll see and read it in 1 business day.
- - If you send me a direct message, I'll see and read that ASAP.
-
-Keep in mind I am often in meetings all day, and may not be able to reply promptly.
-  
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
-Thank you so much!" 🙇
-</blockquote> 
--->
 
 ## Why "multi-platform" instead of "cross-platform"?
 

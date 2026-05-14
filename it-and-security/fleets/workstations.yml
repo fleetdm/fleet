@@ -229,8 +229,8 @@ software:
       self_service: true
       categories:
         - Security
-      # icon:
-      #   path: ../lib/all/icons/touch-id.png
+      icon:
+        path: ../lib/all/icons/touch-id.png
     # Linux apps
     - path: ../lib/linux/software/1password-deb.yml # 1Password for Ubuntu
       self_service: true
@@ -369,6 +369,8 @@ software:
         - Security
     - slug: fleet-desktop/darwin # Fleet Desktop for macOS
       self_service: true
+      icon:
+        path: ../lib/all/icons/fleet-desktop-icon.png
       categories:
         - Utilities
     - slug: claude/darwin # Claude for macOS
