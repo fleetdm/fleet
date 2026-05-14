@@ -167,7 +167,11 @@ Unlike product groups, which use [scrum](#scrum-at-fleet) with 3-week sprints, w
 
 #### What is the same
 
+- **Group roles**: Same group roles and overall responsibilities. 
+- **Standups**: Daily standups become 30 minutes so fast draft can happen.
+- **Weekly planning**: Sprint planning becomes a weekly 1-hour standup.
 - **3-week release cadence**: Planning is decoupled from the release boundary. We ship what is complete at each release. fleetd changes follow their own cadence.
+-  **Release retros**: 30-minute retrospective at the end of each 3-week release. 
 
 #### Roles
 
