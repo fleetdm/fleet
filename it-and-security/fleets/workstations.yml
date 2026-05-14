@@ -369,6 +369,8 @@ software:
         - Security
     - slug: fleet-desktop/darwin # Fleet Desktop for macOS
       self_service: true
+      icon:
+        path: ../lib/all/icons/fleet-desktop-icon.png
       categories:
         - Utilities
     - slug: claude/darwin # Claude for macOS
