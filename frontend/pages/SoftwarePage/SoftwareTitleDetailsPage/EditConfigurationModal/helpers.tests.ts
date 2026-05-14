@@ -112,7 +112,7 @@ describe("getErrorMessage", () => {
       },
     };
     expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
+      `Couldn't edit. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
     );
   });
 
@@ -143,10 +143,28 @@ describe("getErrorMessage", () => {
         },
       };
       expect(getErrorMessage(err, true)).toBe(
-        `Couldn't add. Variable "$FLEET_VAR_${varSuffix}" isn't supported in managed configuration. It can only be used in configuration profiles.`
+        `Couldn't edit. Variable "$FLEET_VAR_${varSuffix}" isn't supported in managed configuration. It can only be used in configuration profiles.`
       );
     }
   );
+
+  it("returns 'doesn't exist' for a typo like $FLEET_VAR_NDES_SCEP_FOO (not a real profile variable)", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_FOO",
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_FOO" doesn't exist.`
+    );
+  });
 
   it("returns 'doesn't exist' for a missing $FLEET_SECRET_ variable", () => {
     const err = {
@@ -163,7 +181,7 @@ describe("getErrorMessage", () => {
       },
     };
     expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variable "$FLEET_SECRET_BLA_BLA" doesn't exist.`
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA_BLA" doesn't exist.`
     );
   });
 
@@ -182,7 +200,7 @@ describe("getErrorMessage", () => {
       },
     };
     expect(getErrorMessage(err, true)).toBe(
-      `Couldn't add. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" don't exist.`
+      `Couldn't edit. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" don't exist.`
     );
   });
 });
