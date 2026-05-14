@@ -381,7 +381,7 @@ jobs:
         with:
           subject-path: dist/fleetctl_v${{ steps.version.outputs.version }}_windows_${{
             matrix.arch }}.msi
-            
+
   upload-fleetctl-msi:
     needs: build-fleetctl-msi
     runs-on: ubuntu-latest
