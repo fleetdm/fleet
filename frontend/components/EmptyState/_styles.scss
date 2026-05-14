@@ -111,7 +111,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
     h3 {
       font-size: $small; // 16px per Figma
       font-weight: $bold;
-      line-height: 1.5;
+      line-height: $line-height;
       color: $core-fleet-black;
       margin: 0;
     }
@@ -121,7 +121,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   &__additional-info {
     @include help-text;
 
-    line-height: 1.5;
+    line-height: $line-height;
     text-align: center;
     margin: 0;
   }
@@ -158,7 +158,7 @@ $ghost-cell-padding-x: $pad-large; // 24px, matches Figma
   // Form variant — ghost form fields with a save button
   // ----------------------------------------------------------
   &--form {
-    height: 320px;
+    height: $ghost-table-height;
 
     .empty-state__ghost-table {
       display: block;

@@ -29,9 +29,6 @@ const (
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
 
-	StickyMDMEnrollmentKeyPrefix = "sticky_mdm_enrollment_" // + host UUID
-	StickyMDMEnrollmentTTL       = 30 * time.Minute
-
 	// MDMProfileProcessingKeyPrefix is used to indicate that a host is currently being processed for MDM profile installation.
 	// We wrap the key in braces to make Redis hash the keys to the same slot, avoiding CrossSlot errors.
 	MDMProfileProcessingKeyPrefix = "{mdm_profile_processing}" // + :hostUUID
@@ -87,12 +84,8 @@ const (
 	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 	FleetVarSCEPWindowsCertificateID     FleetVarName = "SCEP_WINDOWS_CERTIFICATE_ID" // nolint:gosec // G101: Potential hardcoded credentials
 
-	// OneTimeChallengeTTL is the time to live for one-time challenges. The challenge is
-	// generated at profile-render time but consumed when the device makes its SCEP request,
-	// which can be hours or days later if the device is offline (asleep, on a plane, etc.).
-	// 7 days covers a typical absence without being unbounded; once consumed, the challenge
-	// is deleted immediately regardless of TTL. See issue #44111.
-	OneTimeChallengeTTL = 7 * 24 * time.Hour
+	// OneTimeChallengeTTL is the time to live for one-time challenges.
+	OneTimeChallengeTTL = 1 * time.Hour
 )
 
 // HasCAVariables returns true if any of the given Fleet variable names
@@ -422,6 +415,18 @@ type MDMCommandListOptions struct {
 	ListOptions
 	Filters MDMCommandFilters
 }
+
+// Pagination bounds for the list-MDM-commands endpoints (GET /api/v1/fleet/commands and GET /api/v1/fleet/mdm/commands).
+const (
+	// DefaultMDMCommandsPerPage is the per_page value used when none is specified on the request.
+	DefaultMDMCommandsPerPage uint = 10
+	// MaxMDMCommandsPerPage caps per_page so a single request can't scan an unbounded number of command rows.
+	MaxMDMCommandsPerPage uint = 1000
+	// MaxMDMCommandsPage caps the offset (page * per_page) so deep
+	// traversal can't cause a timeout issue. Clients that need to walk the full set
+	// should use cursor pagination via the after query parameter.
+	MaxMDMCommandsPage uint = 100
+)
 
 type MDMCommandStatusFilter string
 
@@ -1112,12 +1117,19 @@ type VPPTokenRaw struct {
 type VPPTokenData struct {
 	// Location comes from an Apple API:
 	// https://developer.apple.com/documentation/devicemanagement/client_config. It is the name of
-	// the "library" of apps in ABM that is associated with this VPP token.
+	// the organization unit (formerly "location") in Apple Business that is associated with this
+	// VPP token.
 	Location string `json:"location"`
 
 	// Token is the token that is downloaded from ABM. It is a base64 encoded JSON object with the
 	// structure of `VPPTokenRaw`.
 	Token string `json:"token"`
+
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// It comes from the same /client/config endpoint as Location. May be
+	// empty if the country lookup failed; the caller will lazy-backfill.
+	CountryCode string `json:"country_code"`
 }
 
 const VPPTimeFormat = "2006-01-02T15:04:05Z0700"
@@ -1130,8 +1142,14 @@ type VPPTokenDB struct {
 	RenewDate time.Time `db:"renew_at" json:"renew_date"`
 	// Token is the token dowloaded from ABM. It is the base64 encoded
 	// JSON object with the structure of `VPPTokenRaw`
-	Token string      `db:"token" json:"-"`
-	Teams []TeamTuple `json:"teams" renameto:"fleets"`
+	Token string `db:"token" json:"-"`
+	// CountryCode is the lowercase ISO 3166-1 alpha-2 country code of the
+	// Apple Business Manager account that owns this token (e.g. "us", "de").
+	// Populated from Apple's /client/config endpoint when the token is
+	// uploaded; may be empty for tokens uploaded before this field was added,
+	// in which case it is lazily backfilled.
+	CountryCode string      `db:"country_code" json:"country_code"`
+	Teams       []TeamTuple `json:"teams" renameto:"fleets"`
 	// CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -1304,3 +1322,20 @@ type NanoMDMEnrollmentDetails struct {
 	HardwareAttested      bool       `db:"hardware_attested"`
 	UnlockToken           *string    `db:"unlock_token"`
 }
+
+// MDM SSO initiator constants identify which enrollment flow initiated the SSO
+// authentication. These values are stored in the SSO session and used in the
+// callback to determine the correct behavior.
+const (
+	// SSOInitiatorOTAEnroll is used for OTA/BYOD enrollment flows (Android,
+	// iPhone, iPad) initiated from the /enroll page.
+	SSOInitiatorOTAEnroll = "ota_enroll"
+	// SSOInitiatorOrbitSetupExperience is used when the Orbit agent opens the SSO
+	// browser window during the macOS Setup Assistant, Windows enrollment or Linux enrollment.
+	SSOInitiatorOrbitSetupExperience = "setup_experience"
+	// SSOInitiatorAccountDrivenEnroll is used for Apple's native account-driven
+	// MDM enrollment flow.
+	SSOInitiatorAccountDrivenEnroll = "account_driven_enroll"
+	// SSOInitiatorAppleMDMSSO is used for automatic MDM Apple enrollment SSO flow.
+	SSOInitiatorAppleMDMSSO = "mdm_sso"
+)

@@ -3,7 +3,7 @@
     <div purpose="page-content" class="mx-auto">
       <div purpose="hero">
         <div purpose="page-headline">
-          <h4>High-agency device management</h4>
+          <h4>Open device management</h4>
           <h1>Manage devices your way</h1>
         </div>
         <div purpose="testimonials" class="d-flex flex-md-row flex-column align-items-center justify-content-between">
@@ -25,7 +25,7 @@
         </div>
         <div purpose="button-row" class="d-flex justify-content-start align-items-center">
               <a purpose="cta-button" href="/contact">Get a demo</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action <span>3 mins</span></a>
+              <animated-arrow-button href="/gitops-workshop">Join a workshop</animated-arrow-button>
             </div>
       </div>
       <logo-carousel></logo-carousel>
@@ -34,7 +34,7 @@
          <div purpose="page-section" class="pb-0 mt-5">
            <div purpose="feature-with-image">
              <div purpose="feature-image">
-               <img alt="Modern change management" src="/images/mdm-modern-change-management-528x377@2x.png">
+               <img alt="Modern change management" src="/images/mdm-modern-change-management-600x435@2x.png">
              </div>
              <div purpose="feature-text">
                <h2>Modern change management</h2>
@@ -902,7 +902,7 @@
   <%/* Cloud city banner */%>
   <parallax-city></parallax-city>
   <modal purpose="video-modal" v-if="modal === 'fleet-in-three-minutes'" @close="closeModal()">
-    <iframe width="560" height="315" src="https://www.youtube.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    <iframe width="560" height="315" src="https://www.youtube-nocookie.com/embed/q1Tm3IBcx24?rel=0&autoplay=1" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

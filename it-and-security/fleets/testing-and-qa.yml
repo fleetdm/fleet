@@ -4,8 +4,8 @@ settings:
     enable_host_users: true
     enable_software_inventory: true
   host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
+    host_expiry_enabled: true
+    host_expiry_window: 30
   secrets:
     - secret: $DOGFOOD_TESTING_AND_QA_ENROLL_SECRET
 agent_options:
@@ -67,7 +67,7 @@ controls:
   setup_experience:
     macos_bootstrap_package: ""
     enable_end_user_authentication: true
-    apple_setup_assistant: 
+    apple_setup_assistant:
   macos_updates:
     deadline:
     minimum_version:
@@ -82,7 +82,6 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
-  - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 reports:

@@ -29,16 +29,21 @@ type HostFilter struct {
 
 // Datastore is the internal datastore interface for the chart bounded context.
 type Datastore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" per the
+	// product's standard online predicate: host_seen_times.seen_time falls
+	// within the host's own check-in interval (LEAST of distributed_interval
+	// and config_tls_refresh, plus a 60-second grace period that mirrors
+	// fleet.OnlineIntervalBuffer). Hosts without a host_seen_times row —
+	// iOS, iPadOS, and Android devices, which only check in via MDM — are
+	// excluded. Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
-	// underlying joins: a host's software/OS row transitions when it upgrades
-	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error)
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map. Unresolved-only is
+	// implicit in the underlying joins: a host's software/OS row transitions
+	// when it upgrades past the vulnerable version, so the join naturally
+	// stops matching.
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
 
 	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
 	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
@@ -87,4 +92,22 @@ type Datastore interface {
 	// CleanupSCDData deletes closed SCD rows whose valid_to is older than the
 	// retention cutoff. Open rows (valid_to = sentinel) are never deleted.
 	CleanupSCDData(ctx context.Context, days int) error
+
+	// DeleteAllForDataset removes every host_scd_data row whose dataset column
+	// matches `dataset`, in batches of up to `batchSize` rows per statement,
+	// looping until no rows remain. Used by the global scrub worker when an
+	// admin disables a dataset entirely. Each batch is its own transaction so
+	// long-running deletes don't hold locks for unbounded durations.
+	DeleteAllForDataset(ctx context.Context, dataset string, batchSize int) error
+
+	// HostIDsInFleets returns host IDs whose team_id is in fleetIDs. Used by
+	// the per-fleet scrub worker to build the bit mask of hosts to clear from
+	// existing host_scd_data rows. Returns nil/empty for empty input.
+	HostIDsInFleets(ctx context.Context, fleetIDs []uint) ([]uint, error)
+
+	// ApplyScrubMaskToDataset walks every host_scd_data row for the given
+	// dataset in id-order with `batchSize`-row pages, computing
+	// chart.BlobANDNOT(host_bitmap, mask) and writing the result back via
+	// UPDATE. Used by the per-fleet scrub worker.
+	ApplyScrubMaskToDataset(ctx context.Context, dataset string, mask []byte, batchSize int) error
 }

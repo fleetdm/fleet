@@ -138,6 +138,7 @@ const InstallSoftware = ({
   );
 
   const isAndroidMdmEnabled = globalConfig?.mdm.android_enabled_and_configured;
+  const isWindowsMdmEnabled = globalConfig?.mdm.windows_enabled_and_configured;
 
   const isLoadingConfig = isLoadingGlobalConfig || isLoadingTeamConfig;
 
@@ -160,50 +161,51 @@ const InstallSoftware = ({
 
       const turnOnAndroidMdm = platform === "android" && !isAndroidMdmEnabled;
 
-      // Only Apple and Android setup experience require MDM
+      // Only Apple and Android setup experience require MDM. Windows admins can
+      // pre-stage setup-experience software without MDM, but the
+      // require_all_software_windows option does require Windows MDM to be on
+      // (gated at the checkbox level inside InstallSoftwareForm).
       const turnOnMdm = turnOnAppleMdm || turnOnAndroidMdm;
 
-      return (
-        <SetupExperienceContentContainer>
-          <PageDescription content="Install software on hosts that automatically enroll to Fleet." />
-          {turnOnMdm ? (
-            <EmptyState
-              header={
-                platform === "android"
-                  ? "Turn on Android MDM"
-                  : "Additional configuration required"
-              }
-              info={
-                platform === "android"
-                  ? "Turn on MDM to install software during setup experience."
-                  : "Turn on MDM and automatic enrollment to install software during setup experience."
-              }
-              primaryButton={
-                <Button
-                  onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}
-                >
-                  Turn on
-                </Button>
-              }
-            />
-          ) : (
-            <InstallSoftwareForm
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              softwareTitles={softwareTitles}
-              platform={platform}
-              savedRequireAllSoftwareMacOS={
-                currentTeamId
-                  ? teamConfig?.mdm?.setup_experience
-                      ?.require_all_software_macos
-                  : globalConfig?.mdm?.setup_experience
-                      ?.require_all_software_macos
-              }
-              router={router}
-              refetchSoftwareTitles={refetchSoftwareTitles}
-            />
-          )}
-        </SetupExperienceContentContainer>
+      return turnOnMdm ? (
+        <EmptyState
+          header={
+            platform === "android"
+              ? "Turn on Android MDM"
+              : "Additional configuration required"
+          }
+          info={
+            platform === "android"
+              ? "Turn on MDM to install software during setup experience."
+              : "Turn on MDM and automatic enrollment to install software during setup experience."
+          }
+          primaryButton={
+            <Button onClick={() => router.push(PATHS.ADMIN_INTEGRATIONS_MDM)}>
+              Turn on
+            </Button>
+          }
+        />
+      ) : (
+        <InstallSoftwareForm
+          currentTeamId={currentTeamId}
+          hasManualAgentInstall={hasManualAgentInstall}
+          softwareTitles={softwareTitles}
+          platform={platform}
+          savedRequireAllSoftwareMacOS={
+            currentTeamId
+              ? teamConfig?.mdm?.setup_experience?.require_all_software_macos
+              : globalConfig?.mdm?.setup_experience?.require_all_software_macos
+          }
+          savedRequireAllSoftwareWindows={
+            currentTeamId
+              ? teamConfig?.mdm?.setup_experience?.require_all_software_windows
+              : globalConfig?.mdm?.setup_experience
+                  ?.require_all_software_windows
+          }
+          isWindowsMdmEnabled={!!isWindowsMdmEnabled}
+          router={router}
+          refetchSoftwareTitles={refetchSoftwareTitles}
+        />
       );
     }
 
@@ -222,42 +224,50 @@ const InstallSoftware = ({
           />
         }
       />
-      {isLoadingConfig ? (
-        <Spinner />
-      ) : (
-        <TabNav secondary>
-          <Tabs
-            selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
-            onSelect={handleTabChange}
-          >
-            <TabList>
-              <Tab>
-                <TabText>macOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Windows</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Linux</TabText>
-              </Tab>
-              <Tab>
-                <TabText>iOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>iPadOS</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Android</TabText>
-              </Tab>
-            </TabList>
-            {PLATFORM_BY_INDEX.map((platform) => {
-              return (
-                <TabPanel key={platform}>{renderTabContent(platform)}</TabPanel>
-              );
-            })}
-          </Tabs>
-        </TabNav>
-      )}
+      <PageDescription
+        variant="right-panel"
+        content="Install software on hosts that automatically enroll to Fleet."
+      />
+      <SetupExperienceContentContainer>
+        {isLoadingConfig ? (
+          <Spinner />
+        ) : (
+          <TabNav secondary>
+            <Tabs
+              selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+              onSelect={handleTabChange}
+            >
+              <TabList>
+                <Tab>
+                  <TabText>macOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Windows</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Linux</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>iOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>iPadOS</TabText>
+                </Tab>
+                <Tab>
+                  <TabText>Android</TabText>
+                </Tab>
+              </TabList>
+              {PLATFORM_BY_INDEX.map((platform) => {
+                return (
+                  <TabPanel key={platform}>
+                    {renderTabContent(platform)}
+                  </TabPanel>
+                );
+              })}
+            </Tabs>
+          </TabNav>
+        )}
+      </SetupExperienceContentContainer>
     </section>
   );
 };

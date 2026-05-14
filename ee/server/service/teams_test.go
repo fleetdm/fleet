@@ -14,6 +14,7 @@ import (
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -677,6 +678,106 @@ func TestApplyTeamSpecsCollationEqualConflict(t *testing.T) {
 	})
 }
 
+// TestModifyTeamMDMEnableDiskEncryption covers the team-level PATCH endpoint
+// validation for `mdm.enable_disk_encryption`. The flag governs both FileVault
+// (Apple) and BitLocker (Windows), so the change must be allowed when either
+// platform's MDM is configured. The Apple FileVault profile is created only
+// when Apple MDM is configured.
+func TestModifyTeamMDMEnableDiskEncryption(t *testing.T) {
+	testCases := []struct {
+		name           string
+		appleEnabled   bool
+		windowsEnabled bool
+		wantErr        string
+	}{
+		{
+			name:           "windows MDM only succeeds without invoking FileVault (issue #44194)",
+			windowsEnabled: true,
+		},
+		{
+			name:    "neither MDM platform configured rejects the change",
+			wantErr: "mdm.enable_disk_encryption",
+		},
+		{
+			name:         "apple MDM configured invokes FileVault profile creation",
+			appleEnabled: true,
+		},
+	}
+
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	mockSvc := &svcmock.Service{}
+	mockSvc.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails) error {
+		return nil
+	}
+	ctx := test.UserContext(context.Background(),
+		&fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ds := new(mock.Store)
+			ds.AppConfigFunc = func(context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{
+					EnabledAndConfigured:        tc.appleEnabled,
+					WindowsEnabledAndConfigured: tc.windowsEnabled,
+				}}, nil
+			}
+			ds.TeamWithExtrasFunc = func(_ context.Context, tid uint) (*fleet.Team, error) {
+				return &fleet.Team{ID: tid, Name: "team-1"}, nil
+			}
+			var savedTeam *fleet.Team
+			ds.SaveTeamFunc = func(_ context.Context, team *fleet.Team) (*fleet.Team, error) {
+				savedTeam = team
+				return team, nil
+			}
+			// Wire the Apple FileVault mocks only when Apple MDM is configured;
+			// a regression that drops the gate would call into them on a
+			// Windows-only deployment and panic on the nil mock function.
+			if tc.appleEnabled {
+				ds.GetAllMDMConfigAssetsByNameFunc = func(_ context.Context, _ []fleet.MDMAssetName,
+					_ sqlx.QueryerContext,
+				) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+					return map[fleet.MDMAssetName]fleet.MDMConfigAsset{
+						fleet.MDMAssetCACert: {Value: []byte(testCert)},
+					}, nil
+				}
+				ds.NewMDMAppleConfigProfileFunc = func(_ context.Context, p fleet.MDMAppleConfigProfile,
+					_ []fleet.FleetVarName,
+				) (*fleet.MDMAppleConfigProfile, error) {
+					return &p, nil
+				}
+			}
+
+			svc := &Service{
+				Service: mockSvc,
+				ds:      ds,
+				config:  config.FleetConfig{Server: config.ServerConfig{PrivateKey: "something"}},
+				authz:   authorizer,
+			}
+
+			payload := fleet.TeamPayload{MDM: &fleet.TeamPayloadMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+			}}
+			team, err := svc.ModifyTeam(ctx, 1, payload)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.wantErr)
+				require.Nil(t, team)
+				require.False(t, ds.SaveTeamFuncInvoked, "team should not have been saved")
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, team)
+			require.True(t, team.Config.MDM.EnableDiskEncryption)
+			require.NotNil(t, savedTeam)
+			require.True(t, savedTeam.Config.MDM.EnableDiskEncryption)
+			require.Equal(t, tc.appleEnabled, ds.NewMDMAppleConfigProfileFuncInvoked,
+				"FileVault profile creation must match Apple MDM configuration")
+		})
+	}
+}
+
 func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -928,6 +1029,10 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
 	}
 
 	authorizer, err := authz.NewAuthorizer()

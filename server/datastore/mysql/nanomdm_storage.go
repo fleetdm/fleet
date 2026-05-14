@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	abmctx "github.com/fleetdm/fleet/v4/server/contexts/apple_bm"
@@ -99,23 +100,78 @@ func (ds *Datastore) NewTestMDMAppleMDMStorage(asyncCap int, asyncInterval time.
 	}, nil
 }
 
+type pushCertStalenessCheck struct {
+	hash      string
+	updatedAt time.Time
+}
+
+// We store staleness check in-memory since it's a short-lived 5 minute time window.
+// And it also means some containers might rotate it faster than 5 minutes depending on the time.
+var (
+	pushCertStaleness   *pushCertStalenessCheck
+	pushCertStalenessMu sync.RWMutex
+)
+
 // RetrievePushCert partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns "0" as stale token because fleet.Datastore always returns a valid push certificate.
+// Returns the push certificate and its MD5 checksum as the stale token.
 func (s *NanoMDMStorage) RetrievePushCert(
 	ctx context.Context, topic string,
 ) (*tls.Certificate, string, error) {
-	cert, err := assets.APNSKeyPair(ctx, s.ds)
+	cert, checksum, err := assets.APNSKeyPair(ctx, s.ds)
 	if err != nil {
 		return nil, "", ctxerr.Wrap(ctx, err, "loading push certificate")
 	}
-	return cert, "0", nil
+	pushCertStalenessMu.Lock()
+	defer pushCertStalenessMu.Unlock()
+	checkInMemoryHash(checksum)
+	return cert, checksum, nil
+}
+
+// checkInMemoryHash checks the incoming hash agains the in-memory hash.
+// if criteria is met, it updates the in-memory hash with the new hash and updatedAt = now.
+func checkInMemoryHash(hash string) {
+	if pushCertStaleness == nil || pushCertStaleness.hash != hash || time.Since(pushCertStaleness.updatedAt) > 5*time.Minute {
+		// We will not call this unless we are stale, OR on new topic getting a provider, which means we should be fine to update here.
+		// Update on new hash, or if it's been more than 5 minutes since last update, to avoid fetching the cert on each stale check.
+		pushCertStaleness = &pushCertStalenessCheck{
+			hash:      hash,
+			updatedAt: time.Now(),
+		}
+	}
 }
 
 // IsPushCertStale partially implements nanomdm_storage.PushCertStore.
 //
-// Always returns `false` because the underlying datastore implementation makes sure that the token is always fresh.
+// Checks the provided stale token against the in-memory hash of the current push certificate. If they differ, the cert is stale.
+// If the token is the same, it checks if the certificate was last updated more than 5 minutes ago. If so, it re-fetches the certificate and updates the hash for future checks.
 func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
+	pushCertStalenessMu.RLock()
+	staleness := pushCertStaleness
+	pushCertStalenessMu.RUnlock()
+	if staleness == nil {
+		return true, nil
+	}
+	if staleness.hash != staleToken {
+		s.logger.InfoContext(ctx, "push certificate is stale", "topic", topic, "staleToken", staleToken, "currentHash", staleness.hash, "updatedAt", staleness.updatedAt)
+		return true, nil
+	}
+
+	// If updated at is more than 5 minutes ago, re-fetch and re-calculate the has for staleness
+	if time.Since(staleness.updatedAt) > 5*time.Minute {
+		_, checksum, err := assets.APNSKeyPair(ctx, s.ds)
+		if err != nil {
+			return false, fmt.Errorf("loading push certificate for staleness check: %w", err)
+		}
+		pushCertStalenessMu.Lock()
+		defer pushCertStalenessMu.Unlock()
+		checkInMemoryHash(checksum)
+		if checksum != staleToken {
+			s.logger.InfoContext(ctx, "push certificate is stale after re-checking", "topic", topic, "staleToken", staleToken, "newHash", checksum)
+			return true, nil
+		}
+	}
+
 	return false, nil
 }
 

@@ -26,6 +26,7 @@ Champion stories and case studies showing real customers achieving real outcomes
 | [Fintech company strengthens infrastructure visibility with Fleet](https://fleetdm.com/articles/fintech-company-strengthens-infrastructure-visibility) | ✓ | ✓ | ✓ | 2026‑03‑14 |
 | [Financial data company scales endpoint visibility with Fleet](https://fleetdm.com/articles/financial-data-company) | ✓ | ✓ | ✓ | 2026‑03‑04 |
 | [Banking platform guarantees script execution and audit-ready compliance](https://fleetdm.com/case-study/banking-platform) | ✓ | ✓ |  | 2026‑02‑22 |
+| [Scaling financial security with GitOps and RBAC](https://fleetdm.com/announcements/scaling-financial-security-with-gitops) | ✓ | ✓ |  | 2026‑02‑23 |
 | [American financial services company migrates to Fleet for MDM and next-gen change management](https://fleetdm.com/case-study/financial-services-company) | ✓ | ✓ |  | 2024‑12‑19 |
 | [Digital bank strengthens security and compliance with Fleet](https://fleetdm.com/case-study/digital-bank) | ✓ | ✓ | ✓ | 2024‑06‑01 |
 | [Digital bank centralizes compliance and improves audit readiness with Fleet](https://fleetdm.com/case-study/digital-bank-1) | ✓ | ✓ | ✓ | 2026‑04‑22 |

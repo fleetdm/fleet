@@ -155,9 +155,13 @@ See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-unin
 
 Fleet is tested with MySQL 8.0.44, 8.4.8, and 9.5.0 (9.6.0 is currently incompatible). Newer versions of MySQL 8 typically work well. AWS Aurora requires at least version 3.10.3. Please avoid using MariaDB or other MySQL variants that are not officially supported. Compatibility issues have been identified with MySQL variants, and these may not be addressed in future Fleet releases.
 
+### What Redis versions are supported?
+
+Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 on AWS ElastiCache). Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
+
 ### What version of the Mac Admins osquery extension is supported?
 
-Fleet deploys v1.2.7 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
+Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.
@@ -514,7 +518,6 @@ We've found this error when you try to build an MSI on Docker 4.17. The underlyi
 - [Does Fleet support MySQL replication?](#does-fleet-support-mysql-replication)
 - [What is duplicate enrollment and how do I fix it?](#what-is-duplicate-enrollment-and-how-do-i-fix-it)
 - [What API endpoints should I expose to the public internet?](#what-api-endpoints-should-i-expose-to-the-public-internet)
-- [What Redis versions are supported?](#what-redis-versions-are-supported)
 
 ### How do I get support for working with Fleet?
 
@@ -703,9 +706,6 @@ Fleet requires at least MySQL version 8.0.44, and is tested using the InnoDB sto
 ### How do I migrate from Fleet Free to Fleet Premium?
 
 To migrate from Fleet Free to Fleet Premium, once you get a Fleet license, set it as a parameter to `fleet serve` either as an environment variable using `FLEET_LICENSE_KEY` or in [Fleet's config file](https://fleetdm.com/docs/deploying/configuration#license). You don't need to redeploy Fleet after the migration.
-
-### What Redis versions are supported?
-Fleet is actively tested with Redis 6 and 7. Redis 8 and Valkey are also known to work, though we don't currently actively test with those versions.
 
 ## What happened to the "Schedule" page?
 Scheduled queries are not gone! Instead, the concept of a scheduled query has been merged with a saved query. After 4.35, scheduling now happens on the queries page: a query can be scheduled (via familiar attributes such as "interval" and "platform"), or it can simply be saved to be run ad-hoc. A query can now belong to a team, or it can be a global query that every team inherits. This greatly simplifies the mental model of the product and enables us to build [exciting features](https://github.com/fleetdm/fleet/issues/7766) on top of the new unified query concept.

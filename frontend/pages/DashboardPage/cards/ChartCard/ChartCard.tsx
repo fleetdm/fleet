@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useContext, useEffect, useState, useMemo } from "react";
 import { useQuery } from "react-query";
 import { format, parseISO } from "date-fns";
 import { SingleValue } from "react-select-5";
@@ -17,40 +17,28 @@ import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
+import CustomLink from "components/CustomLink";
+
+import {
+  IDataSet,
+  IFormattedDataPoint,
+  DATASET_CONFIG_KEY,
+  DATASET_LABEL,
+  HistoricalDataConfigKey,
+} from "interfaces/charts";
+
+import { AppContext } from "context/app";
 
 import ChartFilterModal, { IChartFilterState } from "./ChartFilterModal";
 import LineChartViz from "./LineChartViz";
 import CheckerboardViz from "./CheckerboardViz";
-import { IDataSet, IFormattedDataPoint } from "./types";
+import DataCollectionDisabledState from "./DataCollectionDisabledState";
 
 const baseClass = "chart-card";
 
 // All charts are currently fixed at a 30-day window. When the server supports
 // configurable ranges we'll add UI and request-param plumbing for this.
 const CHART_DAYS = 30;
-
-const DATASETS: IDataSet[] = [
-  {
-    name: "uptime",
-    label: "Hosts active",
-    defaultChartType: "checkerboard",
-    description: (
-      <>
-        Shows the number of hosts detected online
-        <br />
-        during a given hour.
-      </>
-    ),
-  },
-];
-
-const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
-  label: ds.label,
-  value: ds.name,
-}));
-
-const getDataset = (name: string): IDataSet =>
-  DATASETS.find((ds) => ds.name === name) || DATASETS[0];
 
 const hasActiveFilters = (filters: IChartFilterState): boolean => {
   const hasHostFilter =
@@ -62,9 +50,13 @@ const hasActiveFilters = (filters: IChartFilterState): boolean => {
 
 interface IChartCardProps {
   currentTeamId?: number;
+  historicalDataEnabled?: Record<HistoricalDataConfigKey, boolean>;
 }
 
-const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
+const ChartCard = ({
+  currentTeamId,
+  historicalDataEnabled,
+}: IChartCardProps): JSX.Element => {
   const [selectedMetric, setSelectedMetric] = useState("uptime");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [chartFilters, setChartFilters] = useState<IChartFilterState>({
@@ -73,6 +65,69 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     hostFilterMode: "none",
     selectedHosts: [],
   });
+
+  const { isPremiumTier } = useContext(AppContext);
+
+  const DATASETS: IDataSet[] = [
+    {
+      name: "uptime",
+      label: "Hosts online",
+      defaultChartType: "checkerboard",
+      description: (
+        <>
+          The number of hosts detected online (checking in to Fleet) during a
+          given hour.
+          <br />
+          <br />
+          Currently, only macOS, Windows, Linux, and ChromeOS are supported.
+        </>
+      ),
+      tooltipFormatter: ({ value }: { value: number }) =>
+        `${value.toLocaleString()} host${value === 1 ? "" : "s"} online`,
+      relativeScale: true,
+    },
+  ];
+
+  const getDataset = (name: string): IDataSet =>
+    DATASETS.find((ds) => ds.name === name) || DATASETS[0];
+
+  if (isPremiumTier) {
+    DATASETS.push({
+      name: "cve",
+      label: "Vulnerability exposure",
+      defaultChartType: "checkerboard",
+      description: (
+        <>
+          The number of hosts with critical vulnerabilities detected in browsers
+          and{" "}
+          <CustomLink
+            newTab
+            text="other common software "
+            variant="tooltip-link"
+            url="https://fleetdm.com/learn-more-about/vulnerability-exposure-cves"
+          />
+          <br />
+          <br />
+          Want more control? Comprehensive vulnerability filtering is{" "}
+          <CustomLink
+            newTab
+            text="coming soon "
+            variant="tooltip-link"
+            url="https://github.com/fleetdm/fleet/issues/44746"
+          />
+        </>
+      ),
+      tooltipFormatter: ({ value }: { value: number }) =>
+        `${value.toLocaleString()} host${value === 1 ? "" : "s"}`,
+      theme: "red",
+      relativeScale: true,
+    });
+  }
+
+  const DATASET_OPTIONS: CustomOptionType[] = DATASETS.map((ds) => ({
+    label: ds.label,
+    value: ds.name,
+  }));
 
   // Labels and selected hosts are team-scoped, so clear filters when the
   // active fleet changes to avoid submitting stale IDs under the new scope.
@@ -87,9 +142,19 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
 
   const currentDataset = getDataset(selectedMetric);
 
+  const datasetConfigKey = DATASET_CONFIG_KEY[currentDataset.name];
+  // If a dataset has no config-key mapping (future addition), treat it as
+  // enabled — collection toggles only apply to known config keys.
+  const datasetCollectionEnabled =
+    datasetConfigKey === undefined
+      ? true
+      : historicalDataEnabled?.[datasetConfigKey] ?? true;
+
   const queryParams: IChartRequestParams = useMemo(() => {
     return {
-      days: CHART_DAYS,
+      // Add an extra day to ensure we get the full # of calendar days
+      // represented in the chart, regardless of timezone.
+      days: CHART_DAYS + 1,
       tz_offset: new Date().getTimezoneOffset(),
       fleet_id: currentTeamId,
       label_ids: chartFilters.labelIDs.length
@@ -121,25 +186,37 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     () => chartsAPI.getChartData(selectedMetric, queryParams),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: datasetCollectionEnabled,
       staleTime: 300000, // 5 minutes
     }
   );
 
   const formattedData: IFormattedDataPoint[] = useMemo(() => {
     if (!chartData?.data) return [];
-    const totalHosts = chartData.total_hosts || 1;
+    const totalHosts = chartData.total_hosts;
     return chartData.data.map((point) => {
       const date = parseISO(point.timestamp);
       return {
         timestamp: point.timestamp,
         label: format(date, "MMM d, h:mm a"),
         value: point.value,
-        percentage: Math.round((point.value / totalHosts) * 100),
+        percentage: totalHosts
+          ? Math.round((point.value / totalHosts) * 100)
+          : 0,
+        total: totalHosts,
       };
     });
   }, [chartData]);
 
   const renderChart = () => {
+    if (!datasetCollectionEnabled && datasetConfigKey !== undefined) {
+      return (
+        <DataCollectionDisabledState
+          datasetLabel={DATASET_LABEL[datasetConfigKey]}
+          currentTeamId={currentTeamId}
+        />
+      );
+    }
     if (isLoading) {
       return <Spinner includeContainer={false} verticalPadding="small" />;
     }
@@ -157,6 +234,9 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
     const vizProps = {
       data: formattedData,
       selectedDays: CHART_DAYS,
+      theme: currentDataset.theme,
+      tooltipFormatter: currentDataset.tooltipFormatter,
+      relativeScale: currentDataset.relativeScale,
     };
 
     switch (currentDataset.defaultChartType) {
@@ -183,6 +263,7 @@ const ChartCard = ({ currentTeamId }: IChartCardProps): JSX.Element => {
                 }
               }}
               className={`${baseClass}__dataset-dropdown`}
+              nowrapMenu
             />
           ) : (
             <h2 className={`${baseClass}__title`}>{currentDataset.label}</h2>

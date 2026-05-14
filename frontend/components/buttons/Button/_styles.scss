@@ -228,7 +228,7 @@ $base-class: "button";
     margin: 0;
     padding: 0;
     height: auto;
-    line-height: normal;
+    line-height: $line-height;
     display: inline-flex;
     align-items: center;
     gap: $pad-xsmall;
@@ -246,8 +246,6 @@ $base-class: "button";
       top: 0;
     }
   }
-
-
 
   // &--icon is used for svg icon buttons without text
   &--text-icon,

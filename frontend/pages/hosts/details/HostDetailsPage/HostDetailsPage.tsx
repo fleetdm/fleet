@@ -95,6 +95,9 @@ import CertificateInstallDetailsModal, {
 import { getDisplayedSoftwareName } from "pages/SoftwarePage/helpers";
 
 import CommandResultsModal from "pages/hosts/components/CommandDetailsModal";
+import FailedEnrollmentProfileModal, {
+  IFailedEnrollmentProfileModalProps,
+} from "components/modals/FailedEnrollmentProfileModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import VitalsCard from "../cards/Vitals";
@@ -122,7 +125,7 @@ import HostActionsDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
 import ScriptModalGroup from "./modals/ScriptModalGroup";
-import SelectQueryModal from "./modals/SelectQueryModal";
+import SelectReportModal from "./modals/SelectReportModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
@@ -218,7 +221,7 @@ const HostDetailsPage = ({
 
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
-  const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [showSelectReportModal, setShowSelectReportModal] = useState(false);
   const [showScriptModalGroup, setShowScriptModalGroup] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
@@ -286,6 +289,10 @@ const HostDetailsPage = ({
   const [mdmCommandDetails, setMdmCommandDetails] = useState<ICommand | null>(
     null
   );
+  const [
+    enrollmentProfileFailedDetails,
+    setEnrollmentProfileFailedDetails,
+  ] = useState<Omit<IFailedEnrollmentProfileModalProps, "onDone"> | null>(null);
 
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
@@ -870,6 +877,13 @@ const HostDetailsPage = ({
             detail: details?.detail || "",
           });
           break;
+        case ActivityType.FailedEnrollmentProfileRenewal:
+          setEnrollmentProfileFailedDetails({
+            command: {
+              command_uuid: details?.command_uuid || "",
+            },
+          });
+          break;
         default: // do nothing
       }
     },
@@ -961,7 +975,7 @@ const HostDetailsPage = ({
         setShowTransferHostModal(true);
         break;
       case "query":
-        setShowSelectQueryModal(true);
+        setShowSelectReportModal(true);
         break;
       case "diskEncryption":
         setShowDiskEncryptionModal(true);
@@ -1039,6 +1053,10 @@ const HostDetailsPage = ({
         managedAccountStatus={
           host.mdm.os_settings?.managed_local_account?.status
         }
+        managedAccountPasswordAvailable={
+          host.mdm.os_settings?.managed_local_account?.password_available ??
+          false
+        }
       />
     );
   };
@@ -1097,6 +1115,7 @@ const HostDetailsPage = ({
 
   const showReportsTab =
     !isIosOrIpadosHost && !isAndroidHost && !isChromeOsHost;
+  const showPoliciesTab = !isIosOrIpadosHost && !isAndroidHost;
 
   const hostDetailsSubNav: IHostDetailsSubNavItem[] = [
     {
@@ -1119,12 +1138,16 @@ const HostDetailsPage = ({
           },
         ]
       : []),
-    {
-      name: "Policies",
-      title: "policies",
-      pathname: PATHS.HOST_POLICIES(hostIdFromURL),
-      count: failingPoliciesCount,
-    },
+    ...(showPoliciesTab
+      ? [
+          {
+            name: "Policies",
+            title: "policies",
+            pathname: PATHS.HOST_POLICIES(hostIdFromURL),
+            count: failingPoliciesCount,
+          },
+        ]
+      : []),
   ];
 
   const hostSoftwareSubNav: IHostDetailsSubNavItem[] = [
@@ -1182,6 +1205,26 @@ const HostDetailsPage = ({
     currentUser,
     host?.team_id
   );
+
+  const isHostTeamObserverPlus =
+    !!currentUser &&
+    permissions.isObserverPlus(currentUser, host?.team_id ?? null);
+
+  // CTA permissions are checked against the host's specific team, not the
+  // currently selected team in the nav. Must align with the /reports/new
+  // route guard (AuthAnyMaintainerAdminObserverPlusRoutes).
+  const canScheduleReport =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer ||
+    isHostTeamObserverPlus;
+
+  const canManagePolicies =
+    isGlobalAdmin ||
+    isGlobalMaintainer ||
+    isHostTeamAdmin ||
+    isHostTeamMaintainer;
 
   const bootstrapPackageData = {
     status: host?.mdm.setup_experience?.bootstrap_package_status,
@@ -1538,18 +1581,37 @@ const HostDetailsPage = ({
                       config?.server_settings?.query_reports_disabled
                     }
                     showReportsEmptyState={showReportsEmptyState}
+                    canScheduleReport={canScheduleReport}
+                    onScheduleReport={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.NEW_REPORT, {
+                          host_id: host.id,
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
                   />
                 </TabPanel>
               )}
-              <TabPanel>
-                <PoliciesCard
-                  policies={host?.policies || []}
-                  isLoading={isLoadingHost}
-                  togglePolicyDetailsModal={togglePolicyDetailsModal}
-                  hostPlatform={host.platform}
-                  currentTeamId={currentTeam?.id}
-                />
-              </TabPanel>
+              {showPoliciesTab && (
+                <TabPanel>
+                  <PoliciesCard
+                    policies={host?.policies || []}
+                    isLoading={isLoadingHost}
+                    togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    hostPlatform={host.platform}
+                    currentTeamId={currentTeam?.id}
+                    canManagePolicies={canManagePolicies}
+                    onManagePolicies={() =>
+                      router.push(
+                        getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
+                          fleet_id: host.team_id,
+                        })
+                      )
+                    }
+                  />
+                </TabPanel>
+              )}
             </Tabs>
           </TabNav>
           {showDeleteHostModal && (
@@ -1560,9 +1622,9 @@ const HostDetailsPage = ({
               isUpdating={isUpdating}
             />
           )}
-          {showSelectQueryModal && host && (
-            <SelectQueryModal
-              onCancel={() => setShowSelectQueryModal(false)}
+          {showSelectReportModal && host && (
+            <SelectReportModal
+              onCancel={() => setShowSelectReportModal(false)}
               isOnlyObserver={isOnlyObserver}
               hostId={hostIdFromURL}
               hostTeamId={host?.team_id}
@@ -1643,10 +1705,25 @@ const HostDetailsPage = ({
           {showManagedAccountModal && host && (
             <ManagedAccountModal
               hostId={host.id}
+              canRotatePassword={
+                isGlobalAdmin ||
+                isGlobalMaintainer ||
+                isHostTeamAdmin ||
+                isHostTeamMaintainer
+              }
               onCancel={() => {
                 setShowManagedAccountModal(false);
                 // Opening the modal triggers a "viewed managed account"
-                // activity server-side, so refetch to show it in the feed.
+                // activity server-side and may set auto_rotate_at; refetch
+                // host details + activities so they reflect the new state.
+                refetchHostDetails();
+                refetchPastActivities();
+              }}
+              onRotate={() => {
+                // The rotation activity and cleared auto_rotate_at land on
+                // host details / activities — refresh both so the banner and
+                // feed are in sync with the newly-rotated state.
+                refetchHostDetails();
                 refetchPastActivities();
               }}
             />
@@ -1713,6 +1790,12 @@ const HostDetailsPage = ({
             <CommandResultsModal
               command={mdmCommandDetails}
               onDone={onCancelMdmCommandDetailsModal}
+            />
+          )}
+          {enrollmentProfileFailedDetails && (
+            <FailedEnrollmentProfileModal
+              command={enrollmentProfileFailedDetails.command}
+              onDone={() => setEnrollmentProfileFailedDetails(null)}
             />
           )}
           {showLockHostModal && (
