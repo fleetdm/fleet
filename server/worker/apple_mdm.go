@@ -133,9 +133,68 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
 		}
+
+		// Send refetch commands so the host's apps/certs/device info are
+		// populated immediately after BYOD enrollment, rather than waiting up
+		// to an hour for the iphone_ipad_refetcher cron to pick it up. Without
+		// this, the host page would show no installable software until the
+		// user manually clicked "Refetch".
+		if err := a.refetchIOSIPadOSAfterEnrollment(ctx, args.HostUUID); err != nil {
+			a.Log.ErrorContext(ctx, "scheduling post-enrollment refetch for iOS/iPadOS host", "host_uuid", args.HostUUID, "err", err)
+			// Don't fail enrollment — the cron will eventually pick the host
+			// up, and the user can still manually refetch from the host page.
+		}
 	}
 
 	return nil
+}
+
+// refetchIOSIPadOSAfterEnrollment sends the same MDM commands as a manual
+// "Refetch" click for an iOS/iPadOS host. The dedicated refetcher cron only
+// runs hourly and skips hosts whose details were updated within the past hour,
+// so without an explicit kick freshly enrolled BYOD devices have no app
+// inventory and can't have software installed from Fleet until the user
+// manually refetches.
+func (a *AppleMDM) refetchIOSIPadOSAfterEnrollment(ctx context.Context, hostUUID string) error {
+	host, err := a.Datastore.HostByIdentifier(ctx, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "retrieving host by UUID")
+	}
+	if host.Platform != "ios" && host.Platform != "ipados" {
+		return nil
+	}
+	hostMDM, err := a.Datastore.GetHostMDM(ctx, host.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host mdm")
+	}
+
+	if err := a.Datastore.UpdateHostRefetchRequested(ctx, host.ID, true); err != nil {
+		return ctxerr.Wrap(ctx, err, "marking host refetch requested")
+	}
+
+	// BYOD (User Enrollment) restricts the InstalledApplicationList payload to
+	// managed apps only — Apple rejects the full-inventory variant on those
+	// enrollments.
+	isBYOD := !hostMDM.InstalledFromDep
+	cmdUUID := uuid.NewString()
+
+	if err := a.Commander.InstalledApplicationList(ctx, []string{host.UUID}, fleet.RefetchAppsCommandUUIDPrefix+cmdUUID, isBYOD); err != nil {
+		return ctxerr.Wrap(ctx, err, "refetch apps with MDM")
+	}
+	if err := a.Commander.CertificateList(ctx, []string{host.UUID}, fleet.RefetchCertsCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "refetch certs with MDM")
+	}
+	// DeviceInformation is last because the refetch response clears the
+	// refetch_requested flag.
+	if err := a.Commander.DeviceInformation(ctx, []string{host.UUID}, fleet.RefetchDeviceCommandUUIDPrefix+cmdUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "refetch device info with MDM")
+	}
+
+	return a.Datastore.AddHostMDMCommands(ctx, []fleet.HostMDMCommand{
+		{HostID: host.ID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		{HostID: host.ID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	})
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
