@@ -5129,3 +5129,117 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 	require.NotNil(t, orbitStatusResponse.Results.Software[1].SoftwareTitleID)
 	require.Equal(t, shTitleID, *orbitStatusResponse.Results.Software[1].SoftwareTitleID)
 }
+
+// TestSetupExperienceBYODiOS exercises the post-enrollment integration path
+// for an iOS Account-Driven User Enrollment (BYOD): after the device finishes
+// TokenUpdate, Fleet should
+//   - persist the Managed Apple ID on host_mdm (from the IdP account email),
+//   - flag the host as refetch_requested so the UI shows software install is
+//     pending data,
+//   - send the three iOS refetch MDM commands (InstalledApplicationList with
+//     managedAppsOnly=true since BYOD restricts the payload, CertificateList,
+//     DeviceInformation), and
+//   - record those commands in host_mdm_commands so the hourly
+//     iphone_ipad_refetcher cron skips them on its next tick.
+//
+// The setup-experience VPP install half of the BYOD flow is exercised by
+// unit-level tests (see TestInstallVPPAppPostValidation_AssociateAssetsRouting);
+// reproducing the full Apple /users/create + /assets/associate clientUserId
+// dance in this integration test would need a more complete VPP mock backend.
+func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+	ctx := context.Background()
+
+	// Account-Driven User Enrollment goes through the SAML SSO flow to obtain
+	// the bearer token Apple includes on subsequent enrollment requests.
+	// setUpMDMSSO swaps server_url to match the (hardcoded) SAML audience; we
+	// restore the original URL before performing the actual enrollment so the
+	// device gets the regular MDM endpoints.
+	originalServerURL := s.server.URL
+	s.setUpMDMSSO(t, true)
+
+	ssoResult := s.LoginAccountDrivenEnrollUser("sso_user", "user123#")
+	loc, err := ssoResult.Location()
+	require.NoError(t, err)
+	require.NotNil(t, loc)
+	require.True(t, strings.HasPrefix(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token="))
+	accessToken := strings.Split(loc.String(), "apple-remotemanagement-user-login://authentication-results?access-token=")[1]
+
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {"server_url": "`+originalServerURL+`"}
+	}`), http.StatusOK, &appConfigResponse{})
+
+	// BYOD-enroll an iPhone with the SSO-issued bearer token.
+	iPhoneHwModel := "iPhone14,5"
+	mdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(s.server.URL, iPhoneHwModel, accessToken)
+	require.NoError(t, mdmDevice.Enroll())
+	require.Equal(t, "sso_user@example.com", mdmDevice.EnrollInfo.AssignedManagedAppleID)
+
+	// Process the AppleMDMPostManualEnrollmentTask that the lifecycle queued
+	// during TokenUpdate. apple_mdm jobs run on s.appleMDMWorker (not s.worker
+	// — that one handles macosJob/vppVerifyJob/softwareWorker).
+	require.NoError(t, s.appleMDMWorker.ProcessJobs(ctx))
+
+	// Locate the freshly enrolled host. For Account-Driven User Enrollment the
+	// host UUID is the enrollment id, not a real device UDID.
+	var hostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp)
+	var enrolledHostID uint
+	for _, h := range hostsResp.Hosts {
+		if h.UUID == mdmDevice.EnrollmentID() {
+			enrolledHostID = h.ID
+			require.NotNil(t, h.MDM.EnrollmentStatus)
+			require.Equal(t, "On (personal)", *h.MDM.EnrollmentStatus)
+			break
+		}
+	}
+	require.NotZero(t, enrolledHostID, "BYOD-enrolled iPhone not found")
+
+	refreshed, err := s.ds.Host(ctx, enrolledHostID)
+	require.NoError(t, err)
+	require.True(t, refreshed.RefetchRequested, "post-enrollment hook must flag refetch_requested")
+
+	// Managed Apple ID is persisted on host_mdm so VPP installs can target the
+	// user via clientUserId.
+	managedAppleID, err := s.ds.GetHostManagedAppleID(ctx, enrolledHostID)
+	require.NoError(t, err)
+	require.Equal(t, "sso_user@example.com", managedAppleID)
+
+	// host_mdm_commands tracks the three refetch commands so the hourly cron
+	// skips them next time.
+	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []fleet.HostMDMCommand{
+		{HostID: enrolledHostID, CommandType: fleet.RefetchAppsCommandUUIDPrefix},
+		{HostID: enrolledHostID, CommandType: fleet.RefetchCertsCommandUUIDPrefix},
+		{HostID: enrolledHostID, CommandType: fleet.RefetchDeviceCommandUUIDPrefix},
+	}, tracked)
+
+	// Drain the device's command queue and check the three refetch commands
+	// arrive. InstalledApplicationList for BYOD MUST request managed apps only;
+	// Apple rejects the full-inventory variant on User Enrollments.
+	var sawAppList, sawCertList, sawDeviceInfo, sawManagedOnly bool
+	cmd, err := mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		switch cmd.Command.RequestType {
+		case "InstalledApplicationList":
+			sawAppList = true
+			require.NotNil(t, fullCmd.Command.InstalledApplicationList)
+			sawManagedOnly = fullCmd.Command.InstalledApplicationList.ManagedAppsOnly
+		case "CertificateList":
+			sawCertList = true
+		case "DeviceInformation":
+			sawDeviceInfo = true
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	require.True(t, sawAppList, "InstalledApplicationList must be queued for BYOD iPhone")
+	require.True(t, sawManagedOnly, "InstalledApplicationList for BYOD must set managedOnly=true")
+	require.True(t, sawCertList, "CertificateList must be queued for BYOD iPhone")
+	require.True(t, sawDeviceInfo, "DeviceInformation must be queued for BYOD iPhone")
+}
