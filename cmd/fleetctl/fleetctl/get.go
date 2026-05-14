@@ -1631,12 +1631,16 @@ func getMDMCommandsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-commands",
 		Aliases: []string{"mdm_commands"},
-		Usage:   "List information about MDM commands that were run.",
+		Usage:   "List information about MDM commands that were run on a host.",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
-			byHostIdentifier(),
+			&cli.StringFlag{
+				Name:     "host",
+				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number.",
+				Required: true,
+			},
 			byMDMCommandRequestType(),
 			withMDMCommandStatusFilter(),
 		},
@@ -1675,12 +1679,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			if len(results) == 0 {
-				if opts.Filters.HostIdentifier != "" {
-					log(c, "No MDM commands have been run on this host.\n")
-					return nil
-				}
-
-				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				log(c, "No MDM commands have been run on this host.\n")
 				return nil
 			}
 
