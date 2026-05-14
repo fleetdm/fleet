@@ -7,12 +7,12 @@ const DEFAULT_ERROR_MESSAGE =
 
 /** Variables that are valid in configuration profiles but NOT in managed configuration. */
 const PROFILE_ONLY_VARIABLE_PATTERNS = [
-  /^NDES_SCEP_/,
-  /^CUSTOM_SCEP_/,
+  /^NDES_SCEP_(CHALLENGE|PROXY_URL)$/,
+  /^CUSTOM_SCEP_(CHALLENGE|PROXY_URL)_/,
   /^SCEP_RENEWAL_ID$/,
-  /^DIGICERT_/,
+  /^DIGICERT_(DATA|PASSWORD)_/,
   /^SCEP_WINDOWS_CERTIFICATE_ID$/,
-  /^SMALLSTEP_SCEP_/,
+  /^SMALLSTEP_SCEP_(CHALLENGE|PROXY_URL)_/,
 ];
 
 const isProfileOnlyVariable = (varNameWithoutPrefix: string): boolean => {
@@ -30,10 +30,10 @@ const generateUnsupportedVariableErrMsg = (errMsg: string) => {
   const varNameWithoutPrefix = match[1];
 
   if (isProfileOnlyVariable(varNameWithoutPrefix)) {
-    return `Couldn't add. Variable "${fullVarName}" isn't supported in managed configuration. It can only be used in configuration profiles.`;
+    return `Couldn't edit. Variable "${fullVarName}" isn't supported in managed configuration. It can only be used in configuration profiles.`;
   }
 
-  return `Couldn't add. Variable "${fullVarName}" doesn't exist.`;
+  return `Couldn't edit. Variable "${fullVarName}" doesn't exist.`;
 };
 
 const generateMissingSecretErrMsg = (errMsg: string) => {
@@ -50,7 +50,7 @@ const generateMissingSecretErrMsg = (errMsg: string) => {
   const plural = varNames.length > 1 ? "s" : "";
   const verb = varNames.length > 1 ? "don't" : "doesn't";
   const quoted = varNames.map((v) => `"${v}"`).join(", ");
-  return `Couldn't add. Variable${plural} ${quoted} ${verb} exist.`;
+  return `Couldn't edit. Variable${plural} ${quoted} ${verb} exist.`;
 };
 
 export const getErrorMessage = (err: unknown, isApplePlatform: boolean) => {
