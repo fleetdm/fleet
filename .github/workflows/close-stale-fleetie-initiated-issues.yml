@@ -1,8 +1,9 @@
 name: Close stale Fleetie-initiated issues
 
 # Marks open issues authored by current or former Fleeties as stale after 2 years of no activity, then
-# closes them 14 days after being marked stale. Issues with the `bug`, `:product`, or any `customer-*`
-# label are exempt. Activity is `updated_at`, so comments and label changes reset the clock.
+# closes them after 14 more days of inactivity once labeled stale. Activity (any comment or update) bumps
+# `updated_at` and resets both clocks. Issues with the `bug`, `:product`, or any `customer-*` label are
+# exempt.
 #
 # Initial rollout: workflow_dispatch only, dry_run defaults to true. After the dry-run output has been
 # reviewed, switch dry_run to false and add a schedule trigger in a follow-up PR.
@@ -15,12 +16,12 @@ on:
         type: boolean
         default: true
       max_operations:
-        description: 'Maximum stale-label + close write operations per run.'
+        description: 'Maximum GitHub API write operations per run. Each modified issue costs 2 writes (comment + label, or comment + close).'
         type: number
-        default: 200
+        default: 400
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  group: ${{ github.workflow }}
   cancel-in-progress: true
 
 defaults:
@@ -160,7 +161,8 @@ jobs:
                     state: 'closed',
                     state_reason: 'not_planned',
                   });
-                  writes++;
+                  // Each modified issue performs exactly 2 API writes (comment + close).
+                  writes += 2;
                 }
               } else if (idleDays >= STALE_DAYS) {
                 // Stale phase.
@@ -180,7 +182,8 @@ jobs:
                     issue_number: issue.number,
                     labels: [STALE_LABEL],
                   });
-                  writes++;
+                  // Each modified issue performs exactly 2 API writes (comment + addLabels).
+                  writes += 2;
                 }
               } else {
                 skippedNotStaleYet++;

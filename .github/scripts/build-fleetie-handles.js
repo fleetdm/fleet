@@ -71,8 +71,8 @@ const DENYLIST = new Set([
   'edit',
 ]);
 
-// Match `https://github.com/<handle>)` exactly. The trailing `)` ensures we only capture handles inside
-// `[@x](https://github.com/x)` markdown links and not URL path segments like `/orgs/...`.
+// Match `github.com/<handle>)` to capture handles from markdown links like `[@x](https://github.com/x)`.
+// The trailing `)` ensures we only match inside such links, not URL path segments like `/orgs/...`.
 // GitHub handles: 1-39 chars, alphanumeric or hyphen, must not start with hyphen.
 const HANDLE_RE = /github\.com\/([A-Za-z0-9][A-Za-z0-9-]{0,38})\)/g;
 
