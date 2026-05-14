@@ -128,6 +128,11 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
 
+	// Validate the device payload up front.
+	if err := svc.validateDevice(ctx, &device); err != nil {
+		return err
+	}
+
 	// NOTE: uncomment as needed, can be useful for debugging as the pubsub report
 	// can be very large - it is not practical to print so it saves it to a file,
 	// different names for all instances of the pubsub, and under an extension that
@@ -286,6 +291,12 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
 	}
 
+	// Validate up front so the DELETED branch below (getExistingHost/getComputerName)
+	// cannot dereference a nil *HardwareInfo before enrollHost's own validateDevice runs.
+	if err := svc.validateDevice(ctx, &device); err != nil {
+		return err
+	}
+
 	// Some deployments may report work profile removal under ENROLLMENT notifications.
 	// Detect DELETED here too and treat as unenrollment confirmation.
 	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
@@ -396,14 +407,31 @@ func (svc *Service) getExistingHost(ctx context.Context, device *androidmanageme
 }
 
 func (svc *Service) validateDevice(ctx context.Context, device *androidmanagement.Device) error {
+	// Validation errors are returned with HTTP 200 so Pub/Sub acks the delivery
+	// instead of retrying. The missing field is either a permanent payload shape
+	// issue or a policy setting (e.g. softwareInfoEnabled) — retrying the same
+	// message will not change either.
 	if device.HardwareInfo == nil {
-		return ctxerr.Errorf(ctx, "missing hardware info for Android device %s", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing hardwareInfo",
+			"device.name", device.Name,
+			"device.appliedState", device.AppliedState,
+			"device.state", device.State,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing hardware info for Android device %s", device.Name)).WithStatus(http.StatusOK)
 	}
 	if device.SoftwareInfo == nil {
-		return ctxerr.Errorf(ctx, "missing software info for Android device %s. Are policy statusReportingSettings set correctly?", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing softwareInfo",
+			"device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing software info for Android device %s. Are policy statusReportingSettings set correctly?", device.Name)).WithStatus(http.StatusOK)
 	}
 	if device.MemoryInfo == nil {
-		return ctxerr.Errorf(ctx, "missing memory info for Android device %s", device.Name)
+		svc.logger.WarnContext(ctx, "Android device payload missing memoryInfo",
+			"device.name", device.Name,
+			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId,
+		)
+		return fleet.NewInvalidArgumentError("device", fmt.Sprintf("missing memory info for Android device %s", device.Name)).WithStatus(http.StatusOK)
 	}
 	return nil
 }
@@ -710,6 +738,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		// Dedupe the policyRequestUUID across all pending install profiles
 		var policyRequestUUID string
 		for _, profile := range pendingInstallProfiles {
+			if profile.IncludedInPolicyVersion == nil {
+				continue
+			}
 			if int64(*profile.IncludedInPolicyVersion) == device.AppliedPolicyVersion && profile.PolicyRequestUUID != nil {
 				policyRequestUUID = *profile.PolicyRequestUUID
 			}
