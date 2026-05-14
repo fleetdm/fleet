@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -39,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
 	"github.com/google/uuid"
@@ -129,7 +131,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		serverConfig.Logger = slog.New(slog.DiscardHandler)
 	}
-	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	users, server := svctest.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
 	s.activityMock = serverConfig.ActivityMock
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.Server = server
@@ -158,7 +160,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		// Delete certificate templates before CAs and teams to avoid FK constraints.
 		if _, err := q.ExecContext(ctx, `DELETE FROM certificate_templates`); err != nil {
 			return err
@@ -175,12 +177,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	}
 
 	// Delete policies in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE team_id = 0;`)
 		return err
 	})
 	// Clean software installers in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		return err
 	})
@@ -192,11 +194,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM in_house_apps;")
 		return err
 	})
@@ -493,7 +495,7 @@ settings:
 		Token:  uuid.NewString(),
 		Sha256: []byte("sha256"),
 	}, nil))
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -514,7 +516,7 @@ settings:
 		Profile: []byte(`{"foo":"bar"}`),
 	})
 	require.NoError(t, err)
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -526,14 +528,14 @@ settings:
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
 		assert.Equal(t, 0, result)
 		return nil
 	})
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -2713,7 +2715,7 @@ settings:
 
 	// Verify the display name is stored in the database for no team
 	var noTeamDisplayName string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &noTeamDisplayName,
 			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
 			0, noTeamTitleID)
@@ -2729,7 +2731,7 @@ settings:
 
 	// Verify the display name is stored in the database for team
 	var teamDisplayName string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &teamDisplayName,
 			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
 			team.ID, teamTitleID)
@@ -2866,7 +2868,7 @@ settings:
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
 		return err
@@ -2891,7 +2893,7 @@ settings:
 
 	// Verify the custom icon is stored in the database for no team
 	var noTeamIconFilenames []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, noTeamTitleIDs)
 		if err != nil {
 			return err
@@ -2912,7 +2914,7 @@ settings:
 
 	// Verify the custom icon is stored in the database for team
 	var teamIconFilenames []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", team.ID, teamTitleIDs)
 		if err != nil {
 			return err
@@ -3007,7 +3009,7 @@ settings:
 	require.Len(t, titles, 1)
 
 	var storageID string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &storageID,
 			"SELECT storage_id FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
 			team.ID, titles[0].ID)
@@ -3038,7 +3040,7 @@ settings:
 
 	// Recovery: clearing storage_id forces a hash mismatch and re-upload
 	// on the next run.
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE software_title_icons SET storage_id = '' WHERE team_id = ? AND software_title_id = ?",
 			team.ID, titles[0].ID)
@@ -3055,6 +3057,143 @@ settings:
 	info, err = os.Stat(iconPath)
 	require.NoError(t, err)
 	require.Equal(t, originalSize, info.Size())
+}
+
+// TestGitOpsIconUpdateRecoversWhenBytesAreMissing exercises the gitops
+// client's fallback from a metadata-only icon update to a full upload
+// when the server reports the bytes for a known hash are missing. Two
+// titles in the same team share an icon. After the first run we mutate
+// one title's icon row to point at a hash with no bytes and truncate
+// the real bytes; the next gitops run forces that title through the
+// update path with a hash whose bytes are missing, and the client must
+// recover by re-uploading.
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsIconUpdateRecoversWhenBytesAreMissing() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	const (
+		globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+
+		teamTemplate = `
+controls:
+software:
+  packages:
+    - url: ${SOFTWARE_INSTALLER_URL}/ruby.deb
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
+    - url: ${SOFTWARE_INSTALLER_URL}/vim.deb
+      icon:
+        path: %s/testdata/gitops/lib/icon.png
+reports:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+`
+	)
+
+	_, currentFile, _, ok := runtime.Caller(0)
+	require.True(t, ok, "failed to get runtime caller info")
+	dirPath := filepath.Dir(currentFile)
+	dirPath = filepath.Join(dirPath, "../../fleetctl")
+	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
+	require.NoError(t, err)
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	require.NoError(t, globalFile.Close())
+
+	teamName := uuid.NewString()
+	teamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = fmt.Fprintf(teamFile, teamTemplate, dirPath, dirPath, teamName)
+	require.NoError(t, err)
+	require.NoError(t, teamFile.Close())
+
+	t.Setenv("FLEET_URL", s.Server.URL)
+	testing_utils.StartSoftwareInstallerServer(t)
+
+	firstRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, firstRunOut)
+	require.Contains(t, firstRunOut, "set icons on 2 software titles")
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+
+	titles, _, _, err := s.DS.ListSoftwareTitles(ctx,
+		fleet.SoftwareTitleListOptions{TeamID: &team.ID},
+		fleet.TeamFilter{User: test.UserAdmin})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+
+	var storageIDs []string
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &storageIDs,
+			"SELECT DISTINCT storage_id FROM software_title_icons WHERE team_id = ?", team.ID)
+	})
+	require.Len(t, storageIDs, 1)
+	storageID := storageIDs[0]
+
+	iconPath := filepath.Join(s.iconDir, "software-title-icons", storageID)
+	info, err := os.Stat(iconPath)
+	require.NoError(t, err)
+	originalSize := info.Size()
+	require.Positive(t, originalSize)
+
+	// Force divergence: redirect one title's icon row to a fake hash
+	// (no bytes will exist at that storage id) and truncate the real
+	// bytes so the integrity check on the genuine hash also fails. On
+	// the next gitops run, the title with the fake storage_id will be
+	// routed through IconsToUpdate (its server hash differs from the
+	// local hash, but the local hash is in UploadedHashes from the
+	// other title's row), and the server will refuse the metadata-only
+	// update because the bytes for the local hash are gone.
+	const fakeHash = "deadbeef0000000000000000000000000000000000000000000000000000beef"
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx,
+			"UPDATE software_title_icons SET storage_id = ? WHERE team_id = ? AND software_title_id = ?",
+			fakeHash, team.ID, titles[0].ID)
+		return err
+	})
+	require.NoError(t, os.Truncate(iconPath, 0))
+
+	secondRunOut := fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(),
+		"-f", globalFile.Name(), "-f", teamFile.Name(),
+	})
+	s.assertRealRunOutput(t, secondRunOut)
+
+	info, err = os.Stat(iconPath)
+	require.NoError(t, err)
+	require.Equal(t, originalSize, info.Size())
+
+	var afterStorageIDs []string
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &afterStorageIDs,
+			"SELECT DISTINCT storage_id FROM software_title_icons WHERE team_id = ?", team.ID)
+	})
+	require.Len(t, afterStorageIDs, 1)
+	require.Equal(t, storageID, afterStorageIDs[0])
 }
 
 // TestGitOpsTeamLabels tests operations around team labels
@@ -3404,7 +3543,7 @@ func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ct
 		TeamID *uint  `db:"team_id"`
 	}
 	var result []labelResult
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		require.NoError(t, sqlx.SelectContext(ctx, q, &result, "SELECT name, team_id FROM labels WHERE label_type = 0"))
 		return nil
 	})
@@ -3673,6 +3812,196 @@ labels:
 	require.Contains(t, deletedNames, "lbl-host-vitals")
 }
 
+// captureDeletedPolicyActivities replaces the suite's activity mock with a
+// recorder for deleted_policy activities. It returns a function that returns
+// and resets the captured activities. Cleanup restores the previous
+// NewActivityFunc.
+func (s *enterpriseIntegrationGitopsTestSuite) captureDeletedPolicyActivities(t *testing.T) func() []fleet.ActivityTypeDeletedPolicy {
+	t.Helper()
+	require.NotNil(t, s.activityMock, "activity mock should be wired up via TestServerOpts.ActivityMock")
+	prev := s.activityMock.NewActivityFunc
+	var (
+		mu       sync.Mutex
+		captured []fleet.ActivityTypeDeletedPolicy
+	)
+	s.activityMock.NewActivityFunc = func(ctx context.Context, user *activity_api.User, a activity_api.ActivityDetails) error {
+		if d, ok := a.(fleet.ActivityTypeDeletedPolicy); ok {
+			mu.Lock()
+			captured = append(captured, d)
+			mu.Unlock()
+		}
+		if prev != nil {
+			return prev(ctx, user, a)
+		}
+		return nil
+	}
+	t.Cleanup(func() { s.activityMock.NewActivityFunc = prev })
+
+	return func() []fleet.ActivityTypeDeletedPolicy {
+		mu.Lock()
+		defer mu.Unlock()
+		out := captured
+		captured = nil
+		return out
+	}
+}
+
+// setupDarwinFMA inserts a darwin FMA record and starts a per-FMA installer
+// server. Returns the slug and the installer server URL. The caller is
+// responsible for wiring a manifest server (FLEET_DEV_MAINTAINED_APPS_BASE_URL)
+// that serves a manifest for /<slug>.json — calling this helper twice within
+// the same test requires a single combined manifest server because
+// dev_mode.SetOverride only supports one base URL at a time.
+func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slug, installerURL string) {
+	t.Helper()
+	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")
+	slug = fmt.Sprintf("foo%s/darwin", suffix)
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(t.Context(),
+			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
+			 VALUES (?, ?, 'darwin', ?)`, "foo"+suffix, slug, "com.example.foo"+suffix)
+		return err
+	})
+
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("foo"))
+	}))
+	t.Cleanup(installerServer.Close)
+	return slug, installerServer.URL
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsRemovedFMAEmitsPolicyDeletedActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	sharedSlug, sharedInstaller := s.setupDarwinFMA(t)
+	patchAndInstallSlug, patchAndInstallInstaller := s.setupDarwinFMA(t)
+	teamName := uuid.NewString()
+
+	manifestFor := func(installerURL string) ma.FMAManifestFile {
+		return ma.FMAManifestFile{
+			Versions: []*ma.FMAManifestApp{{
+				Version:            "1.0",
+				Queries:            ma.FMAQueries{Exists: "SELECT 1 FROM osquery_info;"},
+				InstallerURL:       installerURL + "/foo.pkg",
+				InstallScriptRef:   "fooscript",
+				UninstallScriptRef: "fooscript",
+				SHA256:             "no_check", // See ma.noCheckHash
+			}},
+			Refs: map[string]string{"fooscript": "echo hello"},
+		}
+	}
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var installerURL string
+		switch r.URL.Path {
+		case "/" + sharedSlug + ".json":
+			installerURL = sharedInstaller
+		case "/" + patchAndInstallSlug + ".json":
+			installerURL = patchAndInstallInstaller
+		default:
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(manifestFor(installerURL))
+	}))
+	t.Cleanup(manifestServer.Close)
+	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
+
+	const globalConfig = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+policies:
+reports:
+`
+	teamWithFMAAndPolicies := fmt.Sprintf(`
+controls:
+software:
+  fleet_maintained_apps:
+    - slug: %s
+    - slug: %s
+policies:
+  - name: install-policy
+    query: SELECT 1
+    install_software:
+      fleet_maintained_app_slug: %s
+  - name: patch-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+  - name: patch-and-install-policy
+    type: patch
+    fleet_maintained_app_slug: %s
+    install_software:
+      fleet_maintained_app_slug: %s
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, sharedSlug, patchAndInstallSlug, sharedSlug, sharedSlug, patchAndInstallSlug, patchAndInstallSlug, teamName)
+	teamEmpty := fmt.Sprintf(`
+controls:
+software:
+policies:
+agent_options:
+name: %s
+settings:
+  secrets: [{"secret":"enroll_secret"}]
+reports:
+`, teamName)
+
+	globalFile := filepath.Join(t.TempDir(), "global.yml")
+	require.NoError(t, os.WriteFile(globalFile, []byte(globalConfig), 0o644))
+	teamFile := filepath.Join(t.TempDir(), "team.yml")
+
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamWithFMAAndPolicies), 0o644))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	}))
+
+	team, err := s.DS.TeamByName(ctx, teamName)
+	require.NoError(t, err)
+	pols, err := s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Len(t, pols, 3)
+	policyIDsByName := map[string]uint{}
+	for _, p := range pols {
+		policyIDsByName[p.Name] = p.ID
+	}
+	require.Contains(t, policyIDsByName, "install-policy")
+	require.Contains(t, policyIDsByName, "patch-policy")
+	require.Contains(t, policyIDsByName, "patch-and-install-policy")
+
+	flush := s.captureDeletedPolicyActivities(t)
+	require.NoError(t, os.WriteFile(teamFile, []byte(teamEmpty), 0o644))
+	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{
+		"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile,
+	}))
+
+	pols, err = s.DS.ListMergedTeamPolicies(ctx, team.ID, fleet.ListOptions{}, "")
+	require.NoError(t, err)
+	require.Empty(t, pols, "all policies should be removed after FMA installer is removed")
+
+	deletedIDs := map[uint]bool{}
+	for _, d := range flush() {
+		deletedIDs[d.ID] = true
+	}
+	for _, name := range []string{"install-policy", "patch-policy", "patch-and-install-policy"} {
+		require.True(t, deletedIDs[policyIDsByName[name]],
+			"expected deleted_policy activity for %q (id=%d), got activities for IDs %v",
+			name, policyIDsByName[name], deletedIDs)
+	}
+}
+
 // TestGitOpsVPPAppAutoUpdate tests that auto-update settings for VPP apps (iOS/iPadOS)
 // are properly applied via GitOps.
 func (s *enterpriseIntegrationGitopsTestSuite) TestGitOpsVPPAppAutoUpdate() {
@@ -3773,7 +4102,7 @@ settings:
 		EndTime   string `db:"end_time"`
 	}
 	var schedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &schedules,
 			`SELECT title_id, team_id, enabled, start_time, end_time
 			FROM software_update_schedules
@@ -3844,7 +4173,7 @@ settings:
 
 	// Verify auto-update schedules: iOS should still have settings, iPadOS should be disabled
 	var updatedSchedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &updatedSchedules,
 			`SELECT title_id, team_id, enabled, start_time, end_time
 			FROM software_update_schedules
@@ -4932,7 +5261,7 @@ settings:
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	// Insert the FMA record so gitops can resolve the slug
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			 VALUES (?, ?, 'darwin', ?)`, "foo"+t.Name(), slug, `com.example.foo`+t.Name())

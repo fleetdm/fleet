@@ -1183,8 +1183,22 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 }
 
 func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+	return ds.bulkUpsertMDMAndroidHostProfiles(ctx, payload, false)
+}
+
+// bulkUpsertMDMAndroidHostProfiles upserts host/profile rows.
+func (ds *Datastore) bulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload, preserveExistingDetail bool) error {
 	if len(payload) == 0 {
 		return nil
+	}
+
+	detailUpdate := "detail = VALUES(detail),"
+	if preserveExistingDetail {
+		// detail intentionally omitted from the ON DUPLICATE KEY UPDATE clause:
+		// the reconciler owns this field and may carry a forward-looking message
+		// (e.g. "Waiting for certificate ..." on withheld ONC profiles) that
+		// must survive this state reset.
+		detailUpdate = ""
 	}
 
 	executeUpsertBatch := func(valuePart string, args []any) error {
@@ -1206,14 +1220,14 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 			ON DUPLICATE KEY UPDATE
 				status = VALUES(status),
 				operation_type = VALUES(operation_type),
-				detail = VALUES(detail),
+				%s
 				profile_name = VALUES(profile_name),
 				policy_request_uuid = VALUES(policy_request_uuid),
 				device_request_uuid = VALUES(device_request_uuid),
 				request_fail_count = VALUES(request_fail_count),
 				included_in_policy_version = VALUES(included_in_policy_version),
 				can_reverify = VALUES(can_reverify)
-`, strings.TrimSuffix(valuePart, ","),
+`, strings.TrimSuffix(valuePart, ","), detailUpdate,
 		)
 
 		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
@@ -1443,20 +1457,22 @@ WHERE
 		}
 	}
 
+	// Mark every row backing an incoming profile as needing reprocessing. We do NOT
+	// touch `detail` here: that column is owned by the reconciler and may carry a
+	// forward-looking message (e.g. "Waiting for certificate ..." on ONC profiles)
 	const updateIncludedInPolicyVersionStmt = `
 	UPDATE
 		host_mdm_android_profiles
 	SET
 		included_in_policy_version = NULL,
-		detail = NULL,
 		policy_request_uuid = NULL,
 		device_request_uuid = NULL,
 		status = NULL,
 		request_fail_count = 0
 	WHERE
-		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE name IN (?))
+		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE team_id = ? AND name IN (?))
 	`
-	stmt, args, err = sqlx.In(updateIncludedInPolicyVersionStmt, incomingNames)
+	stmt, args, err = sqlx.In(updateIncludedInPolicyVersionStmt, profileTeamID, incomingNames)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "build query to update included in policy version")
 	}
@@ -1532,7 +1548,12 @@ func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx
 	return nil
 }
 
-// For android we set the status to NIL
+// bulkSetPendingMDMAndroidHostProfilesDB resets the status of every applicable
+// Android host profile to NULL so the next reconciler tick picks them up. New
+// rows are inserted with an empty detail; for existing rows we deliberately
+// leave the detail column alone so forward-looking messages (e.g. the
+// "Waiting for certificate ..." text on ONC profiles withheld pending a cert
+// install) are not wiped between this call and the next reconciler run.
 func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	ctx context.Context,
 	hostUUIDs []string,
@@ -1573,9 +1594,8 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		}
 	}
 
-	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	if err := ds.bulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert, true); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk reset android host profiles to pending")
 	}
 
 	return true, nil
@@ -1718,7 +1738,7 @@ WHERE
 // HasAndroidAppConfigurationChanged checks if the new configuration for an Android app
 // identified by application_id and global_or_team_id is different from the existing one. This
 // is a datastore method so that we rely on mysql's canonicalisation of JSON for comparison.
-func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig json.RawMessage) (bool, error) {
+func (ds *Datastore) HasAndroidAppConfigurationChanged(ctx context.Context, applicationID string, teamID uint, newConfig []byte) (bool, error) {
 	const stmt = `
 SELECT
 	CAST(? AS JSON) != configuration AS has_changed
@@ -1747,10 +1767,10 @@ WHERE
 }
 
 // GetAndroidAppConfiguration retrieves the configuration for an Android app by app ID and team
-func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, applicationID string, teamID uint) ([]byte, error) {
 	stmt := `SELECT configuration FROM android_app_configurations WHERE application_id = ? AND global_or_team_id = ?`
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, applicationID, teamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1759,10 +1779,10 @@ func (ds *Datastore) GetAndroidAppConfiguration(ctx context.Context, application
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) (*json.RawMessage, error) {
+func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, vppAppTeamID uint) ([]byte, error) {
 	stmt := `
 	SELECT aac.configuration
 	FROM android_app_configurations aac
@@ -1771,7 +1791,7 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 	WHERE vat.id = ?
 `
 
-	var config json.RawMessage
+	var config []byte
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, vppAppTeamID)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -1780,10 +1800,10 @@ func (ds *Datastore) GetAndroidAppConfigurationByAppTeamID(ctx context.Context, 
 		return nil, ctxerr.Wrap(ctx, err, "get android app configuration")
 	}
 
-	return &config, nil
+	return config, nil
 }
 
-func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string]json.RawMessage, error) {
+func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs []string, teamID uint) (map[string][]byte, error) {
 	const bulkGetStmt = `
 	SELECT
 		application_id,
@@ -1802,15 +1822,15 @@ func (ds *Datastore) BulkGetAndroidAppConfigurations(ctx context.Context, appIDs
 	}
 
 	var configs []*struct {
-		ApplicationID string          `db:"application_id"`
-		Configuration json.RawMessage `db:"configuration"`
+		ApplicationID string `db:"application_id"`
+		Configuration []byte `db:"configuration"`
 	}
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &configs, stmt, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "bulk get android app configurations")
 	}
 
-	m := make(map[string]json.RawMessage, len(configs))
+	m := make(map[string][]byte, len(configs))
 	for _, c := range configs {
 		m[c.ApplicationID] = c.Configuration
 	}
@@ -1869,7 +1889,7 @@ func (ds *Datastore) DeleteAndroidAppConfiguration(ctx context.Context, appID st
 }
 
 // updateAndroidAppConfigurationTx inserts or updates an app configuration using a transaction
-func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config json.RawMessage) error {
+func (ds *Datastore) updateAndroidAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, teamID uint, appID string, config []byte) error {
 	err := fleet.ValidateAndroidAppConfiguration(config)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating android app configuration")

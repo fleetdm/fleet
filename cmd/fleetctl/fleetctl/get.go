@@ -229,13 +229,13 @@ type UserRoles struct {
 }
 
 type TeamRole struct {
-	Team string `json:"team"`
+	Team string `json:"team" renameto:"fleet"` // renameto doesn't actually do anything here but adding for visibility
 	Role string `json:"role"`
 }
 
 type UserRole struct {
 	GlobalRole *string    `json:"global_role"`
-	Teams      []TeamRole `json:"teams"`
+	Teams      []TeamRole `json:"teams" renameto:"fleets"` // renameto doesn't actually do anything here but adding for visibility
 }
 
 func usersToUserRoles(users []fleet.User) UserRoles {
@@ -1631,16 +1631,25 @@ func getMDMCommandsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "mdm-commands",
 		Aliases: []string{"mdm_commands"},
-		Usage:   "List information about MDM commands that were run.",
+		Usage:   "List information about MDM commands that were run on a host.",
 		Flags: []cli.Flag{
 			configFlag(),
 			contextFlag(),
 			debugFlag(),
-			byHostIdentifier(),
+			&cli.StringFlag{
+				Name:     "host",
+				Usage:    "Filter MDM commands by host specified by hostname, UUID, or serial number. (required)",
+				Required: true,
+			},
 			byMDMCommandRequestType(),
 			withMDMCommandStatusFilter(),
 		},
 		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+			if hostIdent == "" {
+				return errors.New("No host targeted. Please provide --host.")
+			}
+
 			client, err := clientFromCLI(c)
 			if err != nil {
 				return err
@@ -1660,7 +1669,7 @@ func getMDMCommandsCommand() *cli.Command {
 
 			opts := fleet.MDMCommandListOptions{
 				Filters: fleet.MDMCommandFilters{
-					HostIdentifier:  c.String("host"),
+					HostIdentifier:  hostIdent,
 					RequestType:     c.String("type"),
 					CommandStatuses: commandStatuses,
 				},
@@ -1675,12 +1684,7 @@ func getMDMCommandsCommand() *cli.Command {
 			}
 
 			if len(results) == 0 {
-				if opts.Filters.HostIdentifier != "" {
-					log(c, "No MDM commands have been run on this host.\n")
-					return nil
-				}
-
-				log(c, "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.\n")
+				log(c, "No MDM commands have been run on this host.\n")
 				return nil
 			}
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/elimity-com/scim/errors"
 	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -41,7 +41,7 @@ func TestSCIM(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			defer mysql.TruncateTables(t, s.DS, []string{
+			defer mysqltest.TruncateTables(t, s.DS, []string{
 				"host_scim_user", "scim_users", "scim_user_emails", "scim_groups",
 				"scim_user_group", "scim_last_request",
 			}...)
@@ -3182,6 +3182,99 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		m, ok = m_.(map[string]interface{})
 		require.True(t, ok)
 		assert.Equal(t, "Engineering", m["department"])
+	})
+
+	t.Run("Patch department alongside extra enterprise attributes (no-path, flat keys)", func(t *testing.T) {
+		const enterpriseURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+		patchPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{
+					"op": "replace",
+					"value": map[string]any{
+						enterpriseURN + ":department":     "Internal Tools",
+						enterpriseURN + ":employeeNumber": "EMP-12345",
+						enterpriseURN + ":costCenter":     "CC-90",
+					},
+				},
+			},
+		}
+
+		var resp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &resp)
+		ext, ok := resp[enterpriseURN].(map[string]any)
+		require.True(t, ok, "enterprise extension should be present in response")
+		assert.Equal(t, "Internal Tools", ext["department"])
+		// Fleet does not store employeeNumber/costCenter — they must not appear in the response.
+		_, hasEmp := ext["employeeNumber"]
+		assert.False(t, hasEmp, "employeeNumber should not be stored")
+		_, hasCC := ext["costCenter"]
+		assert.False(t, hasCC, "costCenter should not be stored")
+	})
+
+	t.Run("Patch with explicit path on extra enterprise attribute is silently skipped", func(t *testing.T) {
+		const enterpriseURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+		// Set a known department first so we can prove the no-op PATCH below leaves
+		// it untouched (this subtest is therefore self-contained — it does not rely
+		// on state established by an earlier subtest).
+		const knownDept = "BeforeNoOp"
+		setDeptPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{"op": "replace", "path": enterpriseURN + ":department", "value": knownDept},
+			},
+		}
+		var setResp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setDeptPayload, http.StatusOK, &setResp)
+
+		// Now PATCH only an unrecognized enterprise attribute.
+		patchPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{
+					"op":    "replace",
+					"path":  enterpriseURN + ":employeeNumber",
+					"value": "EMP-OTHER",
+				},
+			},
+		}
+
+		var resp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusOK, &resp)
+		ext, ok := resp[enterpriseURN].(map[string]any)
+		require.True(t, ok, "enterprise extension should still be present after the no-op PATCH")
+		assert.Equal(t, knownDept, ext["department"], "department must be unchanged by a no-op PATCH on an extra attribute")
+		_, hasEmp := ext["employeeNumber"]
+		assert.False(t, hasEmp, "employeeNumber must not be stored")
+	})
+
+	t.Run("Patch with nested enterprise extension map is rejected by SCIM library", func(t *testing.T) {
+		// The nested form below — where the enterprise URN is the top-level key and the
+		// value is a sub-object — is not accepted by the elimity SCIM library because
+		// validateEmptyPath parses each top-level key as a SCIM path, and a URI alone
+		// (no attribute name after it) fails to parse. This test pins down that
+		// behavior so a future library bump that quietly starts to accept the nested
+		// form will be caught: Fleet only handles the flat
+		// form (urn:...:User:department), and that assumption is load-bearing here.
+		const enterpriseURN = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"
+		patchPayload := map[string]any{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]any{
+				{
+					"op": "replace",
+					"value": map[string]any{
+						enterpriseURN: map[string]any{
+							"department":     "Sales",
+							"employeeNumber": "EMP-99",
+						},
+					},
+				},
+			},
+		}
+
+		var errResp map[string]any
+		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchPayload, http.StatusBadRequest, &errResp)
+		assert.EqualValues(t, []any{"urn:ietf:params:scim:api:messages:2.0:Error"}, errResp["schemas"])
 	})
 
 	// ///////////////////////////////////////////////

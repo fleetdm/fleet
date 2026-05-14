@@ -7,6 +7,7 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Cavalry from "./Cavalry";
 import Charles from "./Charles";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
@@ -23,6 +24,7 @@ import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
+import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -302,6 +304,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  cavalry: Cavalry,
   charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
@@ -428,6 +431,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,

@@ -30,6 +30,10 @@ type FlagRunner struct {
 type FlagUpdateOptions struct {
 	// RootDir is the root directory for orbit state
 	RootDir string
+	// StartedInDebug keeps --verbose and --tls_dump in osquery.flags even
+	// when the server doesn't push them, so server config can't silently
+	// override the operator's startup --debug flag.
+	StartedInDebug bool
 }
 
 // NewFlagRunner creates a new runner with provided options
@@ -57,14 +61,28 @@ func (r *FlagRunner) Run(config *fleet.OrbitConfig) error {
 		flagFileExists = false
 	}
 
-	if len(config.Flags) == 0 {
-		// command_line_flags not set in YAML, nothing to do
-		return nil
+	// Nil/empty Flags is a valid state we must be able to reconcile TO
+	// (admin cleared command_line_flags, or server-side debug merge turned off).
+	osqueryFlagMapFromFleet := map[string]string{}
+	if len(config.Flags) > 0 {
+		osqueryFlagMapFromFleet, err = getFlagsFromJSON(config.Flags)
+		if err != nil {
+			return fmt.Errorf("error parsing flags: %w", err)
+		}
 	}
 
-	osqueryFlagMapFromFleet, err := getFlagsFromJSON(config.Flags)
-	if err != nil {
-		return fmt.Errorf("error parsing flags: %w", err)
+	// Startup --debug is a floor; admin-specified values still win.
+	if r.opt.StartedInDebug {
+		if _, ok := osqueryFlagMapFromFleet["--verbose"]; !ok {
+			osqueryFlagMapFromFleet["--verbose"] = "true"
+		}
+		if _, ok := osqueryFlagMapFromFleet["--tls_dump"]; !ok {
+			osqueryFlagMapFromFleet["--tls_dump"] = "true"
+		}
+	}
+
+	if !flagFileExists && len(osqueryFlagMapFromFleet) == 0 {
+		return nil
 	}
 
 	// compare both flags, if they are equal, nothing to do

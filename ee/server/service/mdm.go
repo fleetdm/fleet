@@ -221,8 +221,10 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
-	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	// Also sync when EUA was just disabled so the Lock-requires-EUA invariant stays satisfied.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil &&
+		(ac.MDM.EnabledAndConfigured || !ac.MDM.MacOSSetup.EnableEndUserAuthentication) {
 		ac.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(ac.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 
@@ -887,12 +889,12 @@ func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOrigina
 
 	originalURL := "/"
 	switch initiator {
-	case "account_driven_enroll":
+	case fleet.SSOInitiatorAccountDrivenEnroll:
 		// originalURL is unused in the Setup Experience initiated MDM flow
 		// however because we need slightly different behavior for account driven
 		// enrollment we use it to signal proper behavior on the callback.
 		originalURL = appleMDMAccountDrivenEnrollmentUrl
-	case "ota_enroll":
+	case fleet.SSOInitiatorOTAEnroll:
 		// for ota_enroll, we support the custom original URL argument, as the
 		// enroll secret used to enroll varies. Other initiators do not support
 		// a custom original URL (and should receive an empty string).
@@ -928,7 +930,7 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 		return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 	}
 
-	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != "setup_experience" {
+	if !strings.HasPrefix(originalURL, "/enroll?") && ssoRequestData.Initiator != fleet.SSOInitiatorOrbitSetupExperience {
 		// for flows other than the /enroll BYOD, we have to ensure that Apple MDM
 		// is enabled (this was previously done in a middleware on the route, but
 		// we do it here now so the middleware is disabled for the BYOD flow, which
@@ -941,11 +943,13 @@ func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlRe
 	}
 
 	q := url.Values{
-		"profile_token":        {profileToken},
 		"enrollment_reference": {enrollmentRef},
 	}
 	if eulaToken != "" {
 		q.Add("eula_token", eulaToken)
+	}
+	if profileToken != "" {
+		q.Add("profile_token", profileToken)
 	}
 
 	q.Add("initiator", ssoRequestData.Initiator)
@@ -1111,9 +1115,9 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
-	// If the initiator is "setup_experience", we can insert the host idp account record
+	// If the initiator is setup_experience, we can insert the host idp account record
 	// right away, as the host uuid is provided in the SSO request data.
-	if ssoRequestData.Initiator == "setup_experience" && ssoRequestData.HostUUID != "" {
+	if ssoRequestData.Initiator == fleet.SSOInitiatorOrbitSetupExperience && ssoRequestData.HostUUID != "" {
 		err = svc.ds.AssociateHostMDMIdPAccountDB(ctx, ssoRequestData.HostUUID, idpAcc.UUID)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "saving host-account link from IdP")
@@ -1129,14 +1133,9 @@ func (svc *Service) mdmSSOHandleCallbackAuth(
 		eulaToken = eula.Token
 	}
 
-	// If this is account driven enrollment there is no need to fetch the profile
-	if originalURL == appleMDMAccountDrivenEnrollmentUrl {
-		return "", idpAcc.UUID, eulaToken, originalURL, ssoRequestData, nil
-	}
-
-	var depProfToken string
 	// For automatic enrollments, get the automatic profile to access the authentication token.
-	if ssoRequestData.Initiator != "setup_experience" {
+	var depProfToken string
+	if ssoRequestData.Initiator == fleet.SSOInitiatorAppleMDMSSO {
 		depProf, err := svc.getAutomaticEnrollmentProfile(ctx)
 		if err != nil {
 			return "", "", "", "", sso.SSORequestData{}, ctxerr.Wrap(ctx, err, "listing profiles")

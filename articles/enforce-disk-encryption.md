@@ -14,7 +14,7 @@ For Windows, currently disk encryption is enforced on the C: volume (default sys
 
 ## Enforce disk encryption
 
-You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
+You can enforce disk encryption using the Fleet UI, Fleet API, or [GitOps](https://fleetdm.com/docs/configuration/yaml-files).
 
 #### Fleet UI:
 

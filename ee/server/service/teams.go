@@ -297,10 +297,6 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		}
 
 		if payload.MDM.MacOSSetup != nil {
-			if !appCfg.MDM.EnabledAndConfigured && team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication {
-				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
-					`Couldn't update setup_experience.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-			}
 			macOSEnableEndUserAuthUpdated = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication != payload.MDM.MacOSSetup.EnableEndUserAuthentication
 			if macOSEnableEndUserAuthUpdated && payload.MDM.MacOSSetup.EnableEndUserAuthentication && appCfg.MDM.EndUserAuthentication.IsEmpty() {
 				// TODO: update this error message to include steps to resolve the issue once docs for IdP
@@ -314,8 +310,10 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 			}
 
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
-			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid {
+			// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+			// Also sync when EUA was just disabled so the Lock-requires-EUA invariant below stays satisfied.
+			if macOSEnableEndUserAuthUpdated && !payload.MDM.MacOSSetup.LockEndUserInfo.Valid &&
+				(appCfg.MDM.EnabledAndConfigured || !team.Config.MDM.MacOSSetup.EnableEndUserAuthentication) {
 				team.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 			}
 
@@ -411,15 +409,26 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		return nil, err
 	}
 
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped on this team. SaveTeam (above) has already
+	// committed; the worker will see the new config when it picks up the
+	// job.
+	//
+	// Log-and-continue on failure: the joined error covers both activity
+	// emit and scrub enqueue, both non-fatal individually. See design
+	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldHistoricalData,
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
 	if macOSMinVersionUpdated {
@@ -1683,10 +1692,6 @@ func (svc *Service) editTeamFromSpec(
 
 	didUpdateMacOSEndUserAuth := spec.MDM.MacOSSetup.EnableEndUserAuthentication != oldMacOSSetup.EnableEndUserAuthentication
 	if didUpdateMacOSEndUserAuth && spec.MDM.MacOSSetup.EnableEndUserAuthentication {
-		if !appCfg.MDM.EnabledAndConfigured {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("setup_experience.enable_end_user_authentication",
-				`Couldn't update setup_experience.enable_end_user_authentication because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
-		}
 		if appCfg.MDM.EndUserAuthentication.IsEmpty() {
 			// TODO: update this error message to include steps to resolve the issue once docs for IdP
 			// config are available
@@ -1861,16 +1866,25 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
-	// Emit one activity per historical_data sub-key whose value flipped.
+	// Emit activities and enqueue scrub jobs for any historical_data sub-key
+	// whose value flipped on this team via GitOps batch apply. SaveTeam
+	// (above) has already committed.
+	//
+	// Log-and-continue on failure: the joined error covers both activity
+	// emit and scrub enqueue, both non-fatal individually. See design
+	// decision 8a of chart-disabling-collection-scrub.
 	if err := fleet.OnHistoricalDataChanged(
 		ctx,
 		svc,
+		svc.ds,
 		authz.UserFromContext(ctx),
 		oldHistoricalData,
 		team.Config.Features.HistoricalData,
 		&team.ID, &team.Name,
 	); err != nil {
-		return ctxerr.Wrap(ctx, err, "on historical data changed")
+		err = ctxerr.Wrap(ctx, err, "OnHistoricalDataChanged")
+		ctxerr.Handle(ctx, err)
+		svc.logger.ErrorContext(ctx, "OnHistoricalDataChanged", "err", err, "team_id", team.ID)
 	}
 
 	if appCfg.MDM.EnabledAndConfigured && didUpdateDiskEncryption {
@@ -2149,6 +2163,11 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 }
 
 func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetch app config")
+	}
+
 	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateManagedLocalAccount bool
 
 	if payload.EnableEndUserAuthentication != nil {
@@ -2166,8 +2185,10 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
-	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA.
-	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil {
+	// When EUA changes and LockEndUserInfo is not explicitly set, sync LockEndUserInfo to match EUA (Apple-only).
+	// Also sync when EUA was just disabled so the Lock-requires-EUA invariant below stays satisfied.
+	if didUpdateMacOSEndUserAuth && payload.LockEndUserInfo == nil &&
+		(appCfg.MDM.EnabledAndConfigured || !tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication) {
 		tm.Config.MDM.MacOSSetup.LockEndUserInfo = optjson.SetBool(tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
 	}
 

@@ -153,6 +153,20 @@ Fleet is in active communication with EDR vendors to resolve false-positive flag
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
+
+## How do I properly handle all these deprecation warnings in GitOps?
+
+If you set up GitOps before Fleet version 4.82.0, you may see deprecation warnings like so in your GitOps runs:
+
+```
+[!] 'queries' is deprecated; use 'reports' instead
+```
+
+To migrate from queries to reports, teams to fleets, etc. and take care of any of these deprecation warnings, you can use `grep -ri "team" . --exclude-dir=.git` to search your GitOps folder for a term (in this case `team`), then edit the files and update the references to `fleet`. Be cautious about using a general find-and-replace command to do this for all files at once, as you may end up unintentionally replacing something incorrectly. Note that in some cases the word is plural (team vs. teams) or may be in all caps (teams vs. TEAMS).
+
+If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git mv teams fleets` to _rename_ the folder. This is critical, as renaming with the file manager, the standard `mv` command, or GitHub Desktop will not cause git to initiate a _rename_ command, and will instead _delete_ and then _create_ files/folders, which will cause Fleet to delete the ~~teams~~ fleets and move all your devices into Unassigned.
+
+
 ## What is your commitment to open source stewardship?
 
 - When a feature is free and open source we won't move that feature to a paid tier. Features might be removed from the open source codebase in other cases, for example when combining features from multiple tiers into one new feature.
@@ -184,6 +198,17 @@ Fleet is actively tested with Redis 6.2 and 7 (specifically engine_version 7.1 o
 ### What version of the Mac Admins osquery extension is supported?
 
 Fleet deploys v1.4.1 of the [Mac Admins osquery extension](https://github.com/macadmins/osquery-extension), with full support for the tables currently available in Fleet. For a list of supported tables, see the [Fleet tables reference](https://fleetdm.com/tables).
+
+## Why is my EDR flagging Fleet?
+
+Fleet and your EDR have overlapping interests with opposite jobs.
+
+Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
+
+Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
+
+If you notice a new flag or detection against Fleet, osquery, or orbit by your EDR, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
+
 
 <!--
 Mike T: In 2023 we made the decision to comment out the following questions because the FAQs had become a dumping ground for miscellaneous content that wasn't quite reference docs and wasn't quite committed learning docs (suitable for articles). We chose to hide the content rather than remove, or spend time trying to figure out better places in the docs, with the assumption that if it's important enough content, someone will circle back at some point to prioritize a better home.

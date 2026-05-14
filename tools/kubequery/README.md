@@ -13,7 +13,7 @@ kubectl apply -f kubequery-fleet.yml
 
 Kubernetes clusters will show up in Fleet with hostnames like `kubequery <CLUSTER NAME>`.
 
-Sample queries are included in the configuration file ([queries-kubequery-fleet.yml](queries-kubequery-fleet.yml)). Modify the `team` value in this file to reflect the appropriate team name for your environment and apply with `fleetctl`.
+Sample reports (formerly "queries") are included in the configuration file ([queries-kubequery-fleet.yml](queries-kubequery-fleet.yml)). Modify the `team` value in this file to reflect the appropriate fleet (formerly "team") name for your environment and apply with `fleetctl`.
 
 ```
 fleetctl apply -f queries-kubequery-fleet.yml

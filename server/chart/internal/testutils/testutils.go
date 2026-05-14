@@ -48,7 +48,8 @@ func (tdb *TestDB) Conns() *common_mysql.DBConnections {
 // TruncateTables clears the tables used by the chart bounded context.
 func (tdb *TestDB) TruncateTables(t *testing.T) {
 	t.Helper()
-	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil, "host_scd_data")
+	mysql_testing_utils.TruncateTables(t, tdb.DB, tdb.Logger, nil,
+		"host_scd_data", "hosts", "host_seen_times", "nano_enrollments", "teams")
 }
 
 // InsertSCDRow inserts a single host_scd_data row for tests. host_bitmap is
@@ -62,6 +63,34 @@ func (tdb *TestDB) InsertSCDRow(t *testing.T, dataset, entityID string, validFro
 		VALUES (?, ?, ?, ?, ?)
 	`, dataset, entityID, []byte{}, validFrom, validTo)
 	require.NoError(t, err)
+}
+
+// InsertSCDRowWithBitmap inserts a host_scd_data row with a caller-supplied
+// host_bitmap and returns the auto-assigned id.
+func (tdb *TestDB) InsertSCDRowWithBitmap(t *testing.T, dataset, entityID string, bitmap []byte, validFrom, validTo time.Time) uint {
+	t.Helper()
+	ctx := t.Context()
+
+	res, err := tdb.DB.ExecContext(ctx, `
+		INSERT INTO host_scd_data (dataset, entity_id, host_bitmap, valid_from, valid_to)
+		VALUES (?, ?, ?, ?, ?)
+	`, dataset, entityID, bitmap, validFrom, validTo)
+	require.NoError(t, err)
+	id, err := res.LastInsertId()
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, id, int64(0), "AUTO_INCREMENT should never produce a negative id")
+	return uint(id) //nolint:gosec // G115: id is a positive AUTO_INCREMENT primary key
+}
+
+// SCDBitmap returns the host_bitmap column for the given row id.
+func (tdb *TestDB) SCDBitmap(t *testing.T, id uint) []byte {
+	t.Helper()
+	ctx := t.Context()
+
+	var b []byte
+	err := tdb.DB.GetContext(ctx, &b, `SELECT host_bitmap FROM host_scd_data WHERE id = ?`, id)
+	require.NoError(t, err)
+	return b
 }
 
 // CountSCDRows returns the total number of rows in host_scd_data.

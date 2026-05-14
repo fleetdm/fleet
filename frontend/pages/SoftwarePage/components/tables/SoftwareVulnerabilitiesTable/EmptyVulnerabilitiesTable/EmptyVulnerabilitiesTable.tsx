@@ -26,7 +26,7 @@ const emptyStateDetails: Record<
 > = {
   "no-vulns-detected": {
     header: "No vulnerabilities detected",
-    info: "Expecting to see vulnerabilities? Check back later.",
+    info: "Vulnerability data will appear after the next scheduled check-in.",
   },
   "no-matching-items": {
     header: "No items match the current search criteria",
