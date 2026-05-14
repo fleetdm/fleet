@@ -586,12 +586,20 @@ module.exports.routes = {
     }
   },
 
+
   'GET /autonomous-endpoint-management': {
     action: 'landing-pages/view-autonomous-endpoint-management',
     locals: {
       pageTitleForMeta: 'Autonomous endpoint management',
-      hideHeaderLinks: true,
       pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+    }
+  },
+
+  'GET /imagine/apple-mdm': {
+    action: 'landing-pages/view-apple-mdm',
+    locals: {
+      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
     }
   },
 
