@@ -2567,6 +2567,30 @@ This activity contains the following fields:
 }
 ```
 
+## ran_custom_mdm_command
+
+Generated when a user runs a custom MDM command via API or the fleetctl CLI.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_uuid": UUID of the host.
+- "command_uuid": UUID of the MDM command used to install the app.
+- "request_type": the type of custom MDM command.
+- "platform": the platform of the host ("darwin" or "windows").
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_uuid": "1b3d5e7f-9a2c-4e6d-8b0a-1c3d5e7f9a2b",
+  "command_uuid": "98765432-1234-1234-1234-1234567890ab",
+  "request_type": "EraseDevice",
+  "platform": "darwin"
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
