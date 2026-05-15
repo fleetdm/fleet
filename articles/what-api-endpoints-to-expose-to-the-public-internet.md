@@ -67,9 +67,9 @@ If you would like to use Fleet's iOS/iPadOS MDM features, the following endpoint
 
 If you use [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account#basic-article) for personal iPhones and iPads (BYOD), the following endpoints also need to be exposed:
 
-- `/api/mdm/apple/account_driven_enroll`: Allows hosts to complete enrollment using a Managed Apple Account.
+- `/api/mdm/apple/account_driven_enroll` and `/api/mdm/apple/account_driven_enroll/*`: Allows hosts to complete enrollment using a Managed Apple Account.
 - `/mdm/apple/account_driven_enroll/sso`: If end users authenticate with your IdP during Account-driven User Enrollment, allows that SSO flow to complete.
-- `/mdm/apple/service_discovery`: The endpoint registered with .Well-Known service discovery
+- `/mdm/apple/service_discovery` and `/mdm/apple/service_discovery/*`: The endpoints registered with .well-known service discovery.
 
 ### Android
 
