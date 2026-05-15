@@ -121,6 +121,8 @@ function parseLinkNext(linkHeader) {
 }
 
 function httpGet(url, token) {
+  // Default 15s. Override via env for tests or slow networks.
+  const timeoutMs = Number.parseInt(process.env.READ_ORG_HTTP_TIMEOUT_MS, 10) || 15000;
   return new Promise((resolve, reject) => {
     const opts = {
       headers: {
@@ -130,20 +132,22 @@ function httpGet(url, token) {
         Authorization: `Bearer ${token}`,
       },
     };
-    https
-      .get(url, opts, (res) => {
-        let body = '';
-        res.setEncoding('utf8');
-        res.on('data', (chunk) => (body += chunk));
-        res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve({ body, linkNext: parseLinkNext(res.headers.link || '') });
-          } else {
-            reject(new Error(`HTTP ${res.statusCode} from ${url}: ${body.slice(0, 200)}`));
-          }
-        });
-      })
-      .on('error', reject);
+    const req = https.get(url, opts, (res) => {
+      let body = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => (body += chunk));
+      res.on('end', () => {
+        if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ body, linkNext: parseLinkNext(res.headers.link || '') });
+        } else {
+          reject(new Error(`HTTP ${res.statusCode} from ${url}: ${body.slice(0, 200)}`));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`request timeout after ${timeoutMs}ms: ${url}`));
+    });
   });
 }
 
