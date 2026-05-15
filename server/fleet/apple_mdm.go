@@ -461,16 +461,23 @@ func (h *AppleHostReconcileInfo) EffectiveTeamID() uint {
 	return *h.TeamID
 }
 
-// AppleProfileLabelMode indicates how a profile's label assignments gate
-// applicability to a host. Profiles never mix modes — a single profile is
-// either no-labels, include-all, include-any, or exclude-any.
-type AppleProfileLabelMode int
+// AppleProfileIncludeMode indicates how a profile's include-labels gate
+// applicability to a host. Independent of exclude-labels, which always
+// have "exclude any" semantics. A single profile may carry both include
+// labels (with one consistent mode) and exclude labels.
+type AppleProfileIncludeMode int
 
 const (
-	AppleProfileLabelModeNone AppleProfileLabelMode = iota
-	AppleProfileLabelModeIncludeAll
-	AppleProfileLabelModeIncludeAny
-	AppleProfileLabelModeExcludeAny
+	// AppleProfileIncludeNone means the profile has no include labels —
+	// applicability is determined entirely by team, platform, and any
+	// exclude labels present.
+	AppleProfileIncludeNone AppleProfileIncludeMode = iota
+	// AppleProfileIncludeAll requires the host to be a member of every
+	// (non-broken) include label.
+	AppleProfileIncludeAll
+	// AppleProfileIncludeAny requires the host to be a member of at
+	// least one include label.
+	AppleProfileIncludeAny
 )
 
 // AppleProfileLabelRef is a single label reference attached to a profile.
@@ -487,6 +494,10 @@ type AppleProfileLabelRef struct {
 
 // AppleProfileForReconcile is the profile data needed by the batched
 // reconciler to compute desired state per host in memory.
+//
+// Include and exclude labels are stored separately so a profile can carry
+// both: applicability becomes (include gate passes) AND (exclude gate
+// passes), with each gate skipped when its slice is empty.
 type AppleProfileForReconcile struct {
 	ProfileUUID       string
 	ProfileIdentifier string
@@ -495,16 +506,22 @@ type AppleProfileForReconcile struct {
 	Checksum          []byte
 	SecretsUpdatedAt  *time.Time
 	Scope             PayloadScope
-	LabelMode         AppleProfileLabelMode
-	Labels            []AppleProfileLabelRef
+	IncludeMode       AppleProfileIncludeMode
+	IncludeLabels     []AppleProfileLabelRef
+	ExcludeLabels     []AppleProfileLabelRef
 }
 
-// HasBrokenLabel reports whether any of the profile's label assignments
-// reference a deleted label. Broken include-* profiles are excluded from
-// desired state; broken exclude-any profiles are also excluded (never apply).
-// Broken profiles are also exempt from removal in the existing flow.
+// HasBrokenLabel reports whether any include or exclude label on the
+// profile references a deleted label. Used to keep broken-label profiles
+// exempt from removal (matches legacy behaviour: a profile with a broken
+// label is never auto-removed from a host that already has it).
 func (p *AppleProfileForReconcile) HasBrokenLabel() bool {
-	for _, l := range p.Labels {
+	for _, l := range p.IncludeLabels {
+		if l.LabelID == nil {
+			return true
+		}
+	}
+	for _, l := range p.ExcludeLabels {
 		if l.LabelID == nil {
 			return true
 		}
