@@ -130,7 +130,9 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
+  if (state.isFocused) return COLORS["ui-fleet-black-5"];
+  if (state.isSelected) return COLORS["ui-fleet-black-10"];
+  return "transparent";
 };
 
 const getOptionFontWeight = (
@@ -326,6 +328,7 @@ export const generateCustomDropdownStyles = (
     input: (provided) => {
       return {
         ...provided,
+        color: COLORS["core-fleet-black"],
         fontSize: "13px",
         margin: 0,
         padding: 0,

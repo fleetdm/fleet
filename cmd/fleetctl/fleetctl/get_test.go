@@ -1850,6 +1850,116 @@ spec:
 	assert.Equal(t, expectedJson, RunAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"}))
 }
 
+func TestGetQueryLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		if teamID != nil || name != "qall" {
+			return nil, &notFoundError{}
+		}
+		return &fleet.Query{
+			ID:             77,
+			Name:           "qall",
+			Description:    "include_all roundtrip",
+			Query:          "select 1;",
+			Saved:          true,
+			ObserverCanRun: false,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: "labelA", LabelID: 1},
+				{LabelName: "labelB", LabelID: 2},
+			},
+		}, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: include_all roundtrip
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"include_all roundtrip","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "qall"}))
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "query", "--yaml", "qall"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "query", "--json", "qall"}))
+}
+
+func TestGetReportsLabelsIncludeAll(t *testing.T) {
+	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		return []*fleet.TeamSummary{}, nil
+	}
+	ds.ListQueriesFunc = func(ctx context.Context, opt fleet.ListQueryOptions) ([]*fleet.Query, int, int, *fleet.PaginationMetadata, error) {
+		if opt.TeamID != nil {
+			return nil, 0, 0, nil, errors.New("unexpected team scope")
+		}
+		return []*fleet.Query{
+			{
+				ID:    78,
+				Name:  "qall-bulk",
+				Query: "select 1;",
+				Saved: true,
+				LabelsIncludeAll: []fleet.LabelIdent{
+					{LabelName: "labelA", LabelID: 1},
+					{LabelName: "labelB", LabelID: 2},
+				},
+			},
+		}, 1, 0, nil, nil
+	}
+
+	expectedYaml := `---
+apiVersion: v1
+kind: report
+spec:
+  automations_enabled: false
+  description: ""
+  discard_data: false
+  fleet: ""
+  interval: 0
+  labels_include_all:
+  - labelA
+  - labelB
+  logging: ""
+  min_osquery_version: ""
+  name: qall-bulk
+  observer_can_run: false
+  platform: ""
+  query: select 1;
+  team: ""
+`
+	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"","discard_data":false,"fleet":"","interval":0,"labels_include_all":["labelA","labelB"],"logging":"","min_osquery_version":"","name":"qall-bulk","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
+`
+
+	assert.YAMLEq(t, expectedYaml, RunAppForTest(t, []string{"get", "reports", "--yaml"}))
+	assert.JSONEq(t, expectedJson, RunAppForTest(t, []string{"get", "reports", "--json"}))
+}
+
 // TestGetQueriesAsObservers tests that when observers run `fleectl get queries` they
 // only get queries that they can execute.
 func TestGetQueriesAsObserver(t *testing.T) {

@@ -1,16 +1,21 @@
 import React, { useContext, useEffect, useState } from "react";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
-import { noop } from "lodash";
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
+import { NotificationContext } from "context/notification";
 import { PolicyContext } from "context/policy";
 import { IPolicy, IStoredPolicyResponse } from "interfaces/policy";
 import { ILabelPolicy } from "interfaces/label";
-import { API_ALL_TEAMS_ID, APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
+import {
+  API_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_ID,
+  APP_CONTEXT_ALL_TEAMS_SUMMARY,
+  APP_CONTEXT_NO_TEAM_SUMMARY,
+} from "interfaces/team";
 import { PLATFORM_DISPLAY_NAMES, Platform } from "interfaces/platform";
-import globalPoliciesAPI from "services/entities/global_policies";
+import policiesAPI from "services/entities/policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { addGravatarUrlToResource } from "utilities/helpers";
@@ -42,6 +47,16 @@ interface IPolicyDetailsPageProps {
 
 const baseClass = "policy-details-page";
 
+const getPolicyFleetName = (
+  policy: IPolicy | undefined,
+  teamData: ILoadTeamResponse | undefined
+): string | null => {
+  if (!policy) return null;
+  if (policy.team_id === null) return APP_CONTEXT_ALL_TEAMS_SUMMARY.name;
+  if (policy.team_id === 0) return APP_CONTEXT_NO_TEAM_SUMMARY.name;
+  return teamData?.team?.name ?? null;
+};
+
 const PolicyDetailsPage = ({
   router,
   params: { id: paramsPolicyId },
@@ -49,6 +64,7 @@ const PolicyDetailsPage = ({
 }: IPolicyDetailsPageProps): JSX.Element => {
   const policyId = paramsPolicyId ? parseInt(paramsPolicyId, 10) : null;
   const handlePageError = useErrorHandler();
+  const queryClient = useQueryClient();
 
   const {
     currentUser,
@@ -57,7 +73,6 @@ const PolicyDetailsPage = ({
     isGlobalTechnician,
     isOnGlobalTeam,
     config,
-    currentTeam,
   } = useContext(AppContext);
 
   const {
@@ -99,7 +114,10 @@ const PolicyDetailsPage = ({
     },
   });
 
+  const { renderFlash } = useContext(NotificationContext);
+
   const [showQueryModal, setShowQueryModal] = useState(false);
+  const [isAddingAutomation, setIsAddingAutomation] = useState(false);
 
   if (policyId === null || isNaN(policyId)) {
     router.push(PATHS.MANAGE_POLICIES);
@@ -109,53 +127,54 @@ const PolicyDetailsPage = ({
     IStoredPolicyResponse,
     Error,
     IPolicy
-  >(
-    ["policy", policyId, teamIdForApi],
-    () =>
-      teamIdForApi && teamIdForApi > 0
-        ? teamPoliciesAPI.load(teamIdForApi, policyId as number)
-        : globalPoliciesAPI.load(policyId as number),
+  >(["policy", policyId], () => policiesAPI.load(policyId as number), {
+    enabled: isRouteOk && !!policyId,
+    refetchOnWindowFocus: false,
+    retry: false,
+    select: (data: IStoredPolicyResponse) => data.policy,
+    onSuccess: (returnedPolicy) => {
+      setLastEditedQueryId(returnedPolicy.id);
+      setLastEditedQueryName(returnedPolicy.name);
+      setLastEditedQueryDescription(returnedPolicy.description);
+      setLastEditedQueryBody(returnedPolicy.query);
+      setLastEditedQueryResolution(returnedPolicy.resolution);
+      setLastEditedQueryCritical(returnedPolicy.critical);
+      setLastEditedQueryPlatform(returnedPolicy.platform);
+      setLastEditedQueryLabelsIncludeAny(
+        returnedPolicy.labels_include_any || []
+      );
+      setLastEditedQueryLabelsIncludeAll(
+        returnedPolicy.labels_include_all || []
+      );
+      setLastEditedQueryLabelsExcludeAny(
+        returnedPolicy.labels_exclude_any || []
+      );
+      const deNulledTeamId = returnedPolicy.team_id ?? undefined;
+      setPolicyTeamId(
+        deNulledTeamId === API_ALL_TEAMS_ID
+          ? APP_CONTEXT_ALL_TEAMS_ID
+          : deNulledTeamId
+      );
+    },
+    onError: (error) => handlePageError(error),
+  });
+
+  // Drive the team display from the policy's own team_id rather than the URL's
+  // fleet_id: a user can land here from another team's list (e.g. clicking an
+  // inherited policy from team 42's view), and the displayed Fleet must reflect
+  // the policy's owner, not the navigation context.
+  const policyTeamId = storedPolicy?.team_id;
+
+  const { data: teamData } = useQuery<ILoadTeamResponse>(
+    ["team", policyTeamId],
+    () => teamsAPI.load(policyTeamId as number),
     {
-      enabled: isRouteOk && !!policyId,
+      enabled: !!policyTeamId && policyTeamId > 0,
       refetchOnWindowFocus: false,
-      retry: false,
-      select: (data: IStoredPolicyResponse) => data.policy,
-      onSuccess: (returnedPolicy) => {
-        setLastEditedQueryId(returnedPolicy.id);
-        setLastEditedQueryName(returnedPolicy.name);
-        setLastEditedQueryDescription(returnedPolicy.description);
-        setLastEditedQueryBody(returnedPolicy.query);
-        setLastEditedQueryResolution(returnedPolicy.resolution);
-        setLastEditedQueryCritical(returnedPolicy.critical);
-        setLastEditedQueryPlatform(returnedPolicy.platform);
-        setLastEditedQueryLabelsIncludeAny(
-          returnedPolicy.labels_include_any || []
-        );
-        setLastEditedQueryLabelsIncludeAll(
-          returnedPolicy.labels_include_all || []
-        );
-        setLastEditedQueryLabelsExcludeAny(
-          returnedPolicy.labels_exclude_any || []
-        );
-        const deNulledTeamId = returnedPolicy.team_id ?? undefined;
-        setPolicyTeamId(
-          deNulledTeamId === API_ALL_TEAMS_ID
-            ? APP_CONTEXT_ALL_TEAMS_ID
-            : deNulledTeamId
-        );
-      },
-      onError: (error) => handlePageError(error),
     }
   );
 
-  const { data: teamData } = useQuery<ILoadTeamResponse>(
-    ["team", teamIdForApi],
-    () => teamsAPI.load(teamIdForApi as number),
-    {
-      enabled: !!teamIdForApi && teamIdForApi > 0,
-      refetchOnWindowFocus: false,
-    }
-  );
+  const policyFleetName = getPolicyFleetName(storedPolicy, teamData);
 
   let currentAutomatedPolicies: number[] = [];
   if (teamData?.team) {
@@ -164,8 +183,8 @@ const PolicyDetailsPage = ({
       integrations,
     } = teamData.team;
     const isIntegrationEnabled =
-      (integrations?.jira?.some((j: any) => j.enable_failing_policies) ||
-        integrations?.zendesk?.some((z: any) => z.enable_failing_policies)) ??
+      (integrations?.jira?.some((j) => j.enable_failing_policies) ||
+        integrations?.zendesk?.some((z) => z.enable_failing_policies)) ??
       false;
     if (isIntegrationEnabled || webhook?.enable_failing_policies_webhook) {
       currentAutomatedPolicies = webhook?.policy_ids || [];
@@ -196,6 +215,28 @@ const PolicyDetailsPage = ({
     isTeamTechnician;
 
   const disabledLiveQuery = config?.server_settings.live_query_disabled;
+
+  const onAddPatchAutomation = async () => {
+    if (
+      !storedPolicy?.patch_software?.software_title_id ||
+      storedPolicy?.team_id == null
+    ) {
+      return;
+    }
+    setIsAddingAutomation(true);
+    try {
+      await teamPoliciesAPI.update(policyId as number, {
+        team_id: storedPolicy.team_id,
+        software_title_id: storedPolicy.patch_software.software_title_id,
+      });
+      queryClient.invalidateQueries(["policy", policyId]);
+      renderFlash("success", "Automation added.");
+    } catch {
+      renderFlash("error", "Couldn't set automation. Please try again.");
+    } finally {
+      setIsAddingAutomation(false);
+    }
+  };
 
   const backToPoliciesPath = getPathWithQueryParams(PATHS.MANAGE_POLICIES, {
     fleet_id: teamIdForApi,
@@ -385,11 +426,11 @@ const PolicyDetailsPage = ({
               />
             )}
             {renderAuthor()}
-            {currentTeam && (
+            {policyFleetName && (
               <DataSet
                 className={`${baseClass}__fleet`}
                 title="Fleet"
-                value={currentTeam.name}
+                value={policyFleetName}
               />
             )}
             {renderPlatforms()}
@@ -398,8 +439,9 @@ const PolicyDetailsPage = ({
               <PolicyAutomations
                 storedPolicy={storedPolicy}
                 currentAutomatedPolicies={currentAutomatedPolicies}
-                onAddAutomation={noop}
-                isAddingAutomation={false}
+                canEditPolicy={canEditPolicy}
+                onAddAutomation={onAddPatchAutomation}
+                isAddingAutomation={isAddingAutomation}
               />
             )}
           </>

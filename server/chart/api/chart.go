@@ -50,7 +50,16 @@ type Dataset interface {
 	SampleStrategy() SampleStrategy
 
 	// Collect is called by the cron job to populate data in bulk.
-	Collect(ctx context.Context, store DatasetStore, now time.Time) error
+	//
+	// disabledFleetIDs scopes which fleets contribute to this collection. The
+	// orchestrator derives it from per-team config (teams whose Enabled(name)
+	// is false). Implementations should use this to filter out hosts from
+	// disabled fleets when collecting data.
+	//
+	// No-team hosts (team_id IS NULL) are always included when the orchestrator
+	// invokes Collect — the orchestrator skips Collect entirely if the global
+	// flag is off.
+	Collect(ctx context.Context, store DatasetStore, now time.Time, disabledFleetIDs []uint) error
 
 	// DefaultVisualization returns the default visualization type (e.g. "line", "heatmap").
 	DefaultVisualization() string
@@ -60,16 +69,26 @@ type Dataset interface {
 // method. It is satisfied by the chart internal Datastore, keeping dataset
 // implementations decoupled from internals.
 type DatasetStore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" per the
+	// product's standard online predicate (host_seen_times.seen_time within
+	// the host's own check-in interval). MDM-only mobile devices (iOS,
+	// iPadOS, Android) are excluded by design — they don't have
+	// host_seen_times rows. Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
-	// AffectedHostIDsByCVE returns, for every CVE currently affecting any host,
-	// the slice of host IDs impacted by it. Unresolved-only is implicit in the
+	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
+	// cves set. nil or empty cves returns an empty map — callers must pass the
+	// CVE set they want to collect for. Unresolved-only is implicit in the
 	// underlying joins: a host's software/OS row transitions when it upgrades
 	// past the vulnerable version, so the join naturally stops matching.
-	AffectedHostIDsByCVE(ctx context.Context) (map[string][]uint, error)
+	AffectedHostIDsByCVE(ctx context.Context, disabledFleetIDs []uint, cves []string) (map[string][]uint, error)
+
+	// TrackedCriticalCVEs returns CVE IDs matching the iteration-1 curated
+	// filter: critical (CVSS >= 9.0) CVEs on a hard-coded set of software
+	// titles, unioned with all critical OS vulnerabilities. Used by the CVE
+	// collector to scope collection to only the CVEs the chart actually
+	// renders. See TODO in the mysql implementation.
+	TrackedCriticalCVEs(ctx context.Context) ([]string, error)
 
 	// RecordBucketData writes one or more entity bitmaps for the given bucket
 	// using the specified sample strategy. See SampleStrategy for semantics.

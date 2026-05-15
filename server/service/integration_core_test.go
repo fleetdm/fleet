@@ -34,6 +34,7 @@ import (
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -941,7 +942,7 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 
 	// Skip our serialization mechanism, to make sure an old config stored in the DB is still valid
 	var previousRawConfig string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(context.Background(), q, &previousRawConfig, "SELECT json_value FROM app_config_json")
 		if err != nil {
 			return err
@@ -965,7 +966,7 @@ func (s *integrationTestSuite) TestAppConfigDeprecatedFields() {
 	require.NotNil(t, resp.Features.AdditionalQueries)
 
 	// restore the previous appconfig so that other tests are not impacted
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		insertAppConfigQuery := `INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`
 		_, err := q.ExecContext(context.Background(), insertAppConfigQuery, previousRawConfig)
 		return err
@@ -1042,7 +1043,7 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 	// row whose features block lacks the key, then verify that AppConfig
 	// reads back with defaults applied.
 	var previousRawConfig string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		if err := sqlx.GetContext(ctx, q, &previousRawConfig, "SELECT json_value FROM app_config_json"); err != nil {
 			return err
 		}
@@ -1053,7 +1054,7 @@ func (s *integrationTestSuite) TestAppConfigHistoricalData() {
 		return err
 	})
 	t.Cleanup(func() {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx,
 				`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 				previousRawConfig)
@@ -1872,7 +1873,7 @@ func (s *integrationTestSuite) TestHostsCount() {
 	// also create server with MDM information, which is ignored.
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[2].ID, true, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
 	var mdmID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
 			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
 	})
@@ -2061,7 +2062,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	require.NoError(t, err)
 
 	var fooV1ID, fooV2ID, barAppTitleID, fooTitleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(context.Background(), q, &fooV1ID,
 			`SELECT id FROM software WHERE name = ? AND source = ? AND version = ?`, "foo", "chrome_extensions", "0.0.1")
 		if err != nil {
@@ -2203,7 +2204,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	// set MDM information on a host
 	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), host2.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
 	var mdmID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &mdmID,
 			`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
 	})
@@ -2217,7 +2218,7 @@ func (s *integrationTestSuite) TestListHosts() {
 		HardwareModel:  "MacBook Pro",
 	})
 	require.NoError(t, err)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(context.Background(), "INSERT INTO mobile_device_management_solutions (name, server_url) VALUES ('https://fleetdm.com', 'Fleet')")
 		require.NoError(t, err)
 		return err
@@ -2299,7 +2300,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	// set munki information on a host
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), host2.ID, "1.2.3", []string{"err"}, []string{"warn"}))
 	var errMunkiID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &errMunkiID,
 			`SELECT id FROM munki_issues WHERE name = 'err' AND issue_type = 'error'`)
 	})
@@ -2330,7 +2331,7 @@ func (s *integrationTestSuite) TestListHosts() {
 	testOS := fleet.OperatingSystem{Name: "fooOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "bar"}
 	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), host2.ID, testOS))
 	var osID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &osID,
 			`SELECT id FROM operating_systems WHERE name = ? AND version = ?`, "fooOS", "4.2")
 	})
@@ -3654,7 +3655,7 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 
 	staleIssuesCount, freshIssueCount := uint64(500), uint64(0)
 	// create host_issues for it with stale data
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO host_issues (host_id, total_issues_count) VALUES (?, ?)`, host.ID, staleIssuesCount)
 		return err
@@ -3667,7 +3668,7 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
 
 	// set updated_at to longer than minute ago
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`UPDATE host_issues SET updated_at = ? WHERE host_id = ?`, time.Now().Add(-2*time.Minute), host.ID)
 		return err
@@ -3758,7 +3759,7 @@ func (s *integrationTestSuite) TestListActivities() {
 
 	prevActivities := s.listActivities()
 
-	activitySvc := mysql.NewTestActivityService(t, s.ds)
+	activitySvc := mysqltest.NewTestActivityService(t, s.ds)
 	apiUser := &activity_api.User{ID: u.ID, Name: u.Name, Email: u.Email}
 	err := activitySvc.NewActivity(ctx, apiUser, fleet.ActivityTypeAppliedSpecPack{})
 	require.NoError(t, err)
@@ -4892,7 +4893,7 @@ func (s *integrationTestSuite) TestGetMacadminsData() {
 	require.NotNil(t, hostMDMNoID)
 
 	// insert a host_mdm row for hostMDMNoID without any mdm_id
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO host_mdm (host_id, enrolled, server_url, installed_from_dep, is_server) VALUES (?, ?, ?, ?, ?)`,
 			hostMDMNoID.ID, true, "https://simplemdm.com", true, false)
@@ -5400,7 +5401,7 @@ func (s *integrationTestSuite) TestLabels() {
 		assert.Equal(t, lbl2Hosts[len(lbl2Hosts)-1].ID, listHostsResp.Hosts[0].ID)
 		assert.Equal(t, lbl2Hosts[0].ID, listHostsResp.Hosts[len(lbl2Hosts)-1].ID)
 
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				context.Background(),
 				`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
@@ -5439,7 +5440,7 @@ func (s *integrationTestSuite) TestLabels() {
 		// set MDM information on a host
 		require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), lbl2Hosts[0].ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false))
 		var mdmID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &mdmID,
 				`SELECT id FROM mobile_device_management_solutions WHERE name = ? AND server_url = ?`, fleet.WellKnownMDMSimpleMDM, "https://simplemdm.com")
 		})
@@ -5598,7 +5599,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 	t.Run("IdP Labels", func(t *testing.T) {
 		// Add some SCIM users
-		mysql.ExecAdhocSQL(
+		mysqltest.ExecAdhocSQL(
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
@@ -5623,7 +5624,7 @@ func (s *integrationTestSuite) TestLabels() {
 			},
 		)
 		// Add some SCIM groups
-		mysql.ExecAdhocSQL(
+		mysqltest.ExecAdhocSQL(
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
@@ -5639,7 +5640,7 @@ func (s *integrationTestSuite) TestLabels() {
 			},
 		)
 		// Add some SCIM group memberships
-		mysql.ExecAdhocSQL(
+		mysqltest.ExecAdhocSQL(
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
@@ -5654,7 +5655,7 @@ func (s *integrationTestSuite) TestLabels() {
 			},
 		)
 		// Add some host->scim user mappings
-		mysql.ExecAdhocSQL(
+		mysqltest.ExecAdhocSQL(
 			t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(
 					context.Background(),
@@ -5864,7 +5865,7 @@ func (s *integrationTestSuite) TestLabels() {
 
 		// Set columns not handled by NewHost via direct UPDATEs.
 		for i, h := range sortHosts {
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx, `
 					UPDATE hosts SET
 						created_at = ?,
@@ -5915,33 +5916,33 @@ func (s *integrationTestSuite) TestLabels() {
 		// Populate joined tables (host_disks, host_seen_times, host_updates,
 		// host_issues, host_emails) with values that also sort by host index.
 		for i, h := range sortHosts {
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx, `
 					INSERT INTO host_disks (host_id, gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space)
 					VALUES (?, ?, ?, ?)`,
 					h.ID, float64((i+1)*100), float64((i+1)*10), float64((i+1)*1000))
 				return err
 			})
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx,
 					`UPDATE host_seen_times SET seen_time = ? WHERE host_id = ?`,
 					base.Add(time.Duration(i+1)*9*time.Hour), h.ID)
 				return err
 			})
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx,
 					`INSERT INTO host_updates (host_id, software_updated_at) VALUES (?, ?)`,
 					h.ID, base.Add(time.Duration(i+1)*10*time.Hour))
 				return err
 			})
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx, `
 					INSERT INTO host_issues (host_id, failing_policies_count, critical_vulnerabilities_count, total_issues_count)
 					VALUES (?, ?, ?, ?)`,
 					h.ID, uint(i+1), uint(i+1)*2, uint(i+1)*3) //nolint:gosec // ignore G115
 				return err
 			})
-			mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 				_, err := db.ExecContext(ctx,
 					`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
 					h.ID, fmt.Sprintf("sort-%d@example.com", i), "src")
@@ -6052,7 +6053,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	host := hosts[0]
 
 	// Update label
-	mysql.ExecAdhocSQL(
+	mysqltest.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(
 				context.Background(),
@@ -6439,7 +6440,7 @@ func (s *integrationTestSuite) TestUsers() {
 	var loginResp loginResponse
 
 	// try MFA
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `UPDATE users SET mfa_enabled = TRUE WHERE id = ?`, u.ID)
 		return err
 	})
@@ -6450,7 +6451,7 @@ func (s *integrationTestSuite) TestUsers() {
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
 	var mfaToken string
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), tx, &mfaToken, `SELECT token FROM verification_tokens WHERE user_id = ? LIMIT 1`, createResp.User.ID)
 	})
 	// create session from MFA token
@@ -6461,7 +6462,7 @@ func (s *integrationTestSuite) TestUsers() {
 	// send another email, which we'll expire the token for
 	s.DoJSONWithoutAuth("POST", "/api/latest/fleet/login",
 		contract.LoginRequest{Email: "extra@asd.com", Password: userRawPwd, SupportsEmailVerification: true}, http.StatusAccepted, &loginResp)
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
 			`UPDATE verification_tokens SET created_at = NOW() - INTERVAL ? SECOND - INTERVAL 0.5 SECOND WHERE user_id = ?`,
@@ -8082,6 +8083,52 @@ func (s *integrationTestSuite) TestQueriesBadRequests() {
 			// TODO – add checks for specific errors
 		})
 	}
+
+	for _, tc := range []struct {
+		tname string
+		body  string
+	}{
+		{
+			tname: "null name",
+			body:  `{"name": null, "query": "SELECT 1;"}`,
+		},
+		{
+			tname: "null query",
+			body:  `{"name": "Test", "query": null}`,
+		},
+		{
+			tname: "null name and query",
+			body:  `{"name": null, "query": null}`,
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			resp := s.DoRaw("POST", "/api/latest/fleet/queries", []byte(tc.body), http.StatusBadRequest)
+			resp.Body.Close()
+		})
+	}
+
+	for _, tc := range []struct {
+		tname string
+		body  string
+	}{
+		{
+			tname: "spec null name",
+			body:  `{"specs": [{"name": null, "query": "SELECT 1;"}]}`,
+		},
+		{
+			tname: "spec null query",
+			body:  `{"specs": [{"name": "Test", "query": null}]}`,
+		},
+		{
+			tname: "spec null name and query",
+			body:  `{"specs": [{"name": null, "query": null}]}`,
+		},
+	} {
+		t.Run(tc.tname, func(t *testing.T) {
+			resp := s.DoRaw("POST", "/api/latest/fleet/spec/queries", []byte(tc.body), http.StatusBadRequest)
+			resp.Body.Close()
+		})
+	}
 }
 
 func (s *integrationTestSuite) TestPacksBadRequests() {
@@ -8117,6 +8164,11 @@ func (s *integrationTestSuite) TestPacksBadRequests() {
 			s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/packs/%d", existingPackID), &payload, http.StatusBadRequest, &mResp)
 		})
 	}
+
+	t.Run("null name on create", func(t *testing.T) {
+		res := s.Do("POST", "/api/latest/fleet/packs", json.RawMessage(`{"name": null}`), http.StatusBadRequest)
+		assertBodyContains(t, res, "pack name cannot be empty")
+	})
 }
 
 func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
@@ -8431,6 +8483,61 @@ func (s *integrationTestSuite) TestGlobalPoliciesBrowsing() {
 	require.Len(t, policiesResponse.Policies, 1)
 	assert.Equal(t, "global policy", policiesResponse.Policies[0].Name)
 	assert.Equal(t, "select * from osquery;", policiesResponse.Policies[0].Query)
+}
+
+// TestGetPolicyByIDCrossTeamAccess verifies that GET /api/latest/fleet/policies/{id}
+// returns a team policy to a user that has access to the team it belongs to and
+// rejects the request with 403 when the requesting user has no role on that team.
+// This guards the security fix for the "Cross-Team Policy Data Exposure" disclosure.
+func (s *integrationTestSuite) TestGetPolicyByIDCrossTeamAccess() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team1"})
+	require.NoError(t, err)
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "_team2"})
+	require.NoError(t, err)
+
+	policy, err := s.ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:  t.Name() + "_team1_policy",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	password := test.GoodPassword
+
+	team1Observer := &fleet.User{
+		Name:  "team1 observer",
+		Email: t.Name() + "_team1_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team1Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team1Observer)
+	require.NoError(t, err)
+
+	team2Observer := &fleet.User{
+		Name:  "team2 observer",
+		Email: t.Name() + "_team2_observer@example.com",
+		Teams: []fleet.UserTeam{{Team: *team2, Role: fleet.RoleObserver}},
+	}
+	require.NoError(t, team2Observer.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(ctx, team2Observer)
+	require.NoError(t, err)
+
+	policyURL := fmt.Sprintf("/api/latest/fleet/policies/%d", policy.ID)
+
+	// A user with access to the policy's team can read it.
+	s.setTokenForTest(t, team1Observer.Email, password)
+	var okResp fleet.GetPolicyByIDResponse
+	s.DoJSON("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusOK, &okResp)
+	require.NotNil(t, okResp.Policy)
+	assert.Equal(t, policy.ID, okResp.Policy.ID)
+	require.NotNil(t, okResp.Policy.TeamID)
+	assert.Equal(t, team1.ID, *okResp.Policy.TeamID)
+
+	// A user with no role on the policy's team is forbidden from reading it.
+	s.setTokenForTest(t, team2Observer.Email, password)
+	s.Do("GET", policyURL, fleet.GetPolicyByIDRequest{}, http.StatusForbidden)
 }
 
 func (s *integrationTestSuite) TestTeamPoliciesTeamNotExists() {
@@ -8951,405 +9058,6 @@ func (s *integrationTestSuite) TestQuerySpecs() {
 		"ids": []uint{q1ID, q2ID, q3ID},
 	}, http.StatusOK, &delBatchResp)
 	assert.Equal(t, uint(3), delBatchResp.Deleted)
-}
-
-func (s *integrationTestSuite) TestCertificatesSpecs() {
-	t := s.T()
-	ctx := context.Background()
-
-	// create team
-	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team"})
-	require.NoError(t, err)
-
-	// Create a test certificate authority
-	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
-		Type:      string(fleet.CATypeCustomSCEPProxy),
-		Name:      ptr.String("Test SCEP CA"),
-		URL:       ptr.String("http://localhost:8080/scep"),
-		Challenge: ptr.String("test-challenge"),
-	})
-	require.NoError(t, err)
-
-	// invalid Fleet variable in subject name
-	var applyResp applyCertificateTemplateSpecsResponse
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Invalid Template",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_NOT_VALID/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusBadRequest, &applyResp)
-
-	// test with non-existent team name
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Invalid Team Template",
-				Team:                   "NonExistentTeam",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusNotFound, &applyResp)
-
-	activitiesBeforeInsert := s.listActivities()
-
-	// valid templates - test team name (not team ID)
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Template 1",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name:                   "Template 2",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// Only one activity per team
-	activitiesAfterInsert := s.listActivities()
-	require.Len(t, activitiesAfterInsert, len(activitiesBeforeInsert)+1, "expected exactly one new activity for the team")
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
-		0,
-	)
-
-	// list specs
-	var listCertifcatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
-	require.Len(t, listCertifcatesResp.Certificates, 2)
-	assert.ElementsMatch(t, []string{"Template 1", "Template 2"}, []string{listCertifcatesResp.Certificates[0].Name, listCertifcatesResp.Certificates[1].Name})
-
-	lastActivityID := s.lastActivityMatches("", "", 0)
-
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "Template 1",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID/ST=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name:                   "Template 2",
-				Team:                   team.Name,
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// No new activities created
-	currentActivityID := s.lastActivityMatches("", "", 0)
-	assert.Equal(t, lastActivityID, currentActivityID, "no new activity should be created when re-applying same certificates")
-
-	// Create a host to get certificate get by id endpoint
-	host, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-node-key"),
-		UUID:            "test-uuid-12345",
-		Hostname:        "test-cert-host.local",
-		HardwareSerial:  "TEST-SERIAL-67890",
-		TeamID:          &team.ID,
-	})
-	require.NoError(t, err)
-
-	orbitNodeKey := uuid.New().String()
-	host.OrbitNodeKey = &orbitNodeKey
-	require.NoError(t, s.ds.UpdateHost(ctx, host))
-
-	savedCertificateTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, team.ID, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	certID := savedCertificateTemplates[0].ID
-
-	// Create a host_certificate_templates record for this host (simulating what happens during Android enrollment)
-	// The endpoint /api/fleetd/certificates/{id} requires a host_certificate_templates record to exist
-	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
-		{
-			HostUUID:              host.UUID,
-			CertificateTemplateID: certID,
-			Status:                fleet.CertificateTemplateDelivered,
-			OperationType:         fleet.MDMOperationTypeInstall,
-		},
-	})
-	require.NoError(t, err)
-
-	var getCertResp getDeviceCertificateTemplateResponse
-
-	resp := s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.Equal(t, getCertResp.Certificate.Status, fleet.CertificateTemplateFailed) // failed because no IDP user to replace variables
-
-	// Add an IDP user for the host
-	err = s.ds.ReplaceHostDeviceMapping(ctx, host.ID, []*fleet.HostDeviceMapping{
-		{
-			HostID: host.ID,
-			Email:  "test.user@example.com",
-			Source: fleet.DeviceMappingMDMIdpAccounts,
-		},
-	}, fleet.DeviceMappingMDMIdpAccounts)
-	require.NoError(t, err)
-
-	// Get certificate without node_key
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusUnauthorized, nil)
-	require.NoError(t, resp.Body.Close())
-
-	// Get certificate with node_key (should return replaced variables)
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", certID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", orbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test.user@example.com")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "test-uuid-12345")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "TEST-SERIAL-67890")
-
-	// Get certificate without host_uuid (should return subject with variables)
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", certID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_END_USER_IDP_USERNAME")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_UUID")
-	assert.Contains(t, getCertResp.Certificate.SubjectName, "$FLEET_VAR_HOST_HARDWARE_SERIAL")
-
-	// batch delete certificate templates
-	var delBatchResp deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{listCertifcatesResp.Certificates[0].ID, listCertifcatesResp.Certificates[1].ID},
-		"team_id": team.ID,
-	}, http.StatusOK, &delBatchResp)
-
-	// Verify activity was created for deleting certificates
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		fmt.Sprintf(`{"fleet_id": %d, "fleet_name": %q, "team_id": %d, "team_name": %q}`, team.ID, team.Name, team.ID, team.Name),
-		0,
-	)
-
-	// list specs
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team.ID), nil, http.StatusOK, &listCertifcatesResp)
-	require.Len(t, listCertifcatesResp.Certificates, 0)
-
-	activitiesBeforeNoTeam := s.listActivities()
-
-	// certificate templates for "No team"
-	s.DoJSON("POST", "/api/latest/fleet/spec/certificates", applyCertificateTemplateSpecsRequest{
-		Specs: []*fleet.CertificateRequestSpec{
-			{
-				Name:                   "No Team Template 1",
-				Team:                   "No team",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_END_USER_IDP_USERNAME/OU=$FLEET_VAR_HOST_UUID",
-			},
-			{
-				Name:                   "No Team Template 2",
-				Team:                   "",
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_HARDWARE_SERIAL",
-			},
-			{
-				Name: "No Team Template 3",
-				// No Team field, should default to empty string
-				CertificateAuthorityId: ca.ID,
-				SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-			},
-		},
-	}, http.StatusOK, &applyResp)
-
-	// Only one activity was created for "No team"
-	activitiesAfterNoTeam := s.listActivities()
-	require.Len(t, activitiesAfterNoTeam, len(activitiesBeforeNoTeam)+1, "expected exactly one new activity for no team")
-	s.lastActivityMatches(
-		fleet.ActivityTypeEditedAndroidCertificate{}.ActivityName(),
-		`{"fleet_id": null, "fleet_name": null, "team_id": null, "team_name": null}`,
-		0,
-	)
-
-	// list specs for "no team" (team_id 0)
-	var noTeamCertificatesResp listCertificateTemplatesResponse
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 3)
-	certNames := []string{noTeamCertificatesResp.Certificates[0].Name, noTeamCertificatesResp.Certificates[1].Name, noTeamCertificatesResp.Certificates[2].Name}
-	assert.ElementsMatch(t, []string{"No Team Template 1", "No Team Template 2", "No Team Template 3"}, certNames)
-
-	// Create a host
-	noTeamHost, err := s.ds.NewHost(ctx, &fleet.Host{
-		DetailUpdatedAt: time.Now(),
-		LabelUpdatedAt:  time.Now(),
-		PolicyUpdatedAt: time.Now(),
-		SeenTime:        time.Now(),
-		NodeKey:         ptr.String("test-cert-no-team-node-key"),
-		UUID:            "test-no-team-uuid-12345",
-		Hostname:        "test-cert-no-team-host.local",
-		HardwareSerial:  "TEST-NO-TEAM-SERIAL",
-		TeamID:          nil, // No team
-	})
-	require.NoError(t, err)
-
-	noTeamOrbitNodeKey := uuid.New().String()
-	noTeamHost.OrbitNodeKey = &noTeamOrbitNodeKey
-	require.NoError(t, s.ds.UpdateHost(ctx, noTeamHost))
-
-	// Add an IDP user for host
-	err = s.ds.ReplaceHostDeviceMapping(ctx, noTeamHost.ID, []*fleet.HostDeviceMapping{
-		{
-			HostID: noTeamHost.ID,
-			Email:  "no.team.user@example.com",
-			Source: fleet.DeviceMappingMDMIdpAccounts,
-		},
-	}, fleet.DeviceMappingMDMIdpAccounts)
-	require.NoError(t, err)
-
-	savedNoTeamCertTemplates, _, err := s.ds.GetCertificateTemplatesByTeamID(ctx, 0, fleet.ListOptions{Page: 0, PerPage: 10})
-	require.NoError(t, err)
-	require.Len(t, savedNoTeamCertTemplates, 3)
-	noTeamCertID := savedNoTeamCertTemplates[0].ID
-
-	// Create a host_certificate_templates record for this no-team host
-	err = s.ds.BulkInsertHostCertificateTemplates(ctx, []fleet.HostCertificateTemplate{
-		{
-			HostUUID:              noTeamHost.UUID,
-			CertificateTemplateID: noTeamCertID,
-			Status:                fleet.CertificateTemplateDelivered,
-			OperationType:         fleet.MDMOperationTypeInstall,
-		},
-	})
-	require.NoError(t, err)
-
-	// Get certificate with orbit node_key (should return replaced variables)
-	var getNoTeamCertResp getDeviceCertificateTemplateResponse
-	resp = s.DoRawWithHeaders("GET", fmt.Sprintf("/api/fleetd/certificates/%d", noTeamCertID), nil, http.StatusOK, map[string]string{
-		"Authorization": fmt.Sprintf("Node key %s", noTeamOrbitNodeKey),
-	})
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&getNoTeamCertResp))
-	require.NoError(t, resp.Body.Close())
-	require.NotNil(t, getNoTeamCertResp.Certificate)
-	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "no.team.user@example.com")
-	assert.Contains(t, getNoTeamCertResp.Certificate.SubjectName, "test-no-team-uuid-12345")
-
-	var profilesSummaryResp getMDMProfilesSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/configuration_profiles/summary", nil, http.StatusOK, &profilesSummaryResp)
-	require.NotNil(t, profilesSummaryResp)
-	require.Equal(t, uint(0), profilesSummaryResp.Verified)
-	require.Equal(t, uint(0), profilesSummaryResp.Verifying)
-	require.Equal(t, uint(0), profilesSummaryResp.Failed)
-	require.Equal(t, uint(0), profilesSummaryResp.Pending)
-
-	// creating a certificate
-	var createCertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", map[string]interface{}{
-		"name":                     "POST No Team Cert",
-		"certificate_authority_id": ca.ID,
-		"subject_name":             "CN=$FLEET_VAR_HOST_UUID",
-		// team_id intentionally omitted - should default to 0
-	}, http.StatusOK, &createCertResp)
-	require.NotZero(t, createCertResp.ID)
-	require.Equal(t, "POST No Team Cert", createCertResp.Name)
-
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &getCertResp)
-	require.NotNil(t, getCertResp.Certificate)
-
-	// Delete is authorized properly
-	observerEmail := "observer-cert-test@fleetdm.com"
-	observerPwd := test.GoodPassword
-	observerUser := &fleet.User{
-		Name:       "Observer User",
-		Email:      observerEmail,
-		GlobalRole: ptr.String(fleet.RoleObserver),
-	}
-	require.NoError(t, observerUser.SetPassword(observerPwd, 10, 10))
-	_, err = s.ds.NewUser(ctx, observerUser)
-	require.NoError(t, err)
-
-	// Switch to observer user
-	s.token = s.getCachedUserToken(observerEmail, observerPwd)
-	// just in case test fails, restore to admin
-	defer func() { s.token = s.getTestAdminToken() }()
-
-	// Delete with observer
-	resp = s.Do("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{savedNoTeamCertTemplates[0].ID},
-		"team_id": uint(0), // "No team"
-	}, http.StatusForbidden)
-	resp.Body.Close()
-
-	// Switch back to admin
-	s.token = s.getTestAdminToken()
-
-	// Verify the certificate still exists (wasn't deleted by observer)
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	found := false
-	for _, cert := range noTeamCertificatesResp.Certificates {
-		if cert.ID == savedNoTeamCertTemplates[0].ID {
-			found = true
-			break
-		}
-	}
-	require.True(t, found, "Certificate should not be deleted by observer user")
-
-	// Cannot delete certificates from a different team
-	// Create team 2
-	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "Test Team 2"})
-	require.NoError(t, err)
-	team2ID := team2.ID
-	// Create a certificate in team2
-	var team2CertResp createCertificateTemplateResponse
-	s.DoJSON("POST", "/api/latest/fleet/certificates", createCertificateTemplateRequest{
-		Name:                   "Team 2 Cert",
-		TeamID:                 team2ID,
-		CertificateAuthorityId: ca.ID,
-		SubjectName:            "CN=$FLEET_VAR_HOST_UUID",
-	}, http.StatusOK, &team2CertResp)
-	var forbiddenDelResp deleteCertificateTemplateSpecsResponse
-	// Delete with team 1 id and certificate from team 2
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]any{
-		"ids":     []uint{team2CertResp.ID},
-		"team_id": team.ID,
-	}, http.StatusForbidden, &forbiddenDelResp)
-	var listTeam2Resp listCertificateTemplatesResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificates?team_id=%d", team2ID),
-		nil, http.StatusOK, &listTeam2Resp)
-	require.Len(t, listTeam2Resp.Certificates, 1)
-	require.Equal(t, "Team 2 Cert", listTeam2Resp.Certificates[0].Name)
-
-	var delResp deleteCertificateTemplateResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/certificates/%d", createCertResp.ID), nil, http.StatusOK, &delResp)
-
-	var delBatchResp2 deleteCertificateTemplateSpecsResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids": []uint{noTeamCertificatesResp.Certificates[0].ID},
-		// team_id intentionally omitted - should default to 0
-	}, http.StatusOK, &delBatchResp2)
-
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 2)
-	require.Equal(t, noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[0].ID)
-
-	s.DoJSON("DELETE", "/api/latest/fleet/spec/certificates", map[string]interface{}{
-		"ids":     []uint{noTeamCertificatesResp.Certificates[0].ID, noTeamCertificatesResp.Certificates[1].ID},
-		"team_id": uint(0),
-	}, http.StatusOK, &delBatchResp)
-
-	s.DoJSON("GET", "/api/latest/fleet/certificates", nil, http.StatusOK, &noTeamCertificatesResp)
-	require.Len(t, noTeamCertificatesResp.Certificates, 0)
 }
 
 func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
@@ -9921,7 +9629,7 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	require.Len(t, searchResp.Hosts, 1)
 	require.Greater(t, searchResp.Hosts[0].SoftwareUpdatedAt, searchResp.Hosts[0].CreatedAt)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
 			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
@@ -10100,7 +9808,7 @@ func (s *integrationTestSuite) TestReenrollHostCleansPolicies() {
 	require.NoError(t, err)
 
 	// prevent the enroll cooldown from being applied
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(
 			context.Background(),
 			"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
@@ -10533,7 +10241,7 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	res.Body.Close()
 
 	var token string
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), db, &token, "SELECT token FROM password_reset_requests WHERE user_id = ?", u.ID)
 	})
 
@@ -10853,7 +10561,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, s.ds.LoadHostSoftware(ctx, hosts[0], false))
 
 	var fooV1ID, fooTitleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(context.Background(), q, &fooV1ID,
 			`SELECT id FROM software WHERE name = ? AND source = ? AND version = ?`, "foo", "chrome_extensions", "0.0.1")
 		if err != nil {
@@ -11139,7 +10847,7 @@ func (s *integrationTestSuite) TestGetHostMaintenanceWindow() {
 	// DB methods don't allow nil timezone, since we only allow it for the edge case that the db has
 	// just undergone a migration and the calendar_cron has not run to populate the new `time_zone`
 	// column yet. This means we need to manually set the timezone to nil.
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "UPDATE calendar_events SET timezone = NULL WHERE id = ?", dsEvent.ID)
 		return err
 	})
@@ -12688,7 +12396,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 
 	// Check that the received stats were stored in the DB as expected.
 	var scheduledQueriesStats []fleet.ScheduledQueryStats
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
 			`SELECT
 				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
@@ -12765,7 +12473,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 
 	// Check that the received stats were stored in the DB as expected.
 	scheduledQueriesStats = []fleet.ScheduledQueryStats{}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &scheduledQueriesStats,
 			`SELECT
 				scheduled_query_id, q.name AS scheduled_query_name, average_memory, denylisted,
@@ -12843,7 +12551,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	// Check that the software was properly ingested.
 	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
 	var wiresharkSoftware fleet.Software
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
@@ -12856,7 +12564,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	require.Equal(t, "The Wireshark developer community, https://www.wireshark.org", wiresharkSoftware.Vendor)
 	hostSoftwareInstalledPathsQuery := `SELECT installed_path FROM host_software_installed_paths WHERE software_id = ?;`
 	var wiresharkSoftwareInstalledPath string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftwareInstalledPath, hostSoftwareInstalledPathsQuery, wiresharkSoftware.ID)
 	})
 	require.Equal(t, "C:\\Program Files\\Wireshark", wiresharkSoftwareInstalledPath)
@@ -12871,7 +12579,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	)
 	require.NoError(t, err)
 	var wiresharkSoftware2 fleet.Software
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware2, softwareQueryByName, "Wireshark 4.0.8 64-bit")
 	})
 	require.NotZero(t, wiresharkSoftware2.ID)
@@ -12903,7 +12611,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	require.NoError(t, err)
 
 	var foobarSoftware fleet.Software
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &foobarSoftware, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
 	})
 	require.NotZero(t, foobarSoftware.ID)
@@ -12927,7 +12635,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 	require.NoError(t, err)
 
 	var foobarSoftware2 fleet.Software
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &foobarSoftware2, softwareQueryByName, "Foobar"+strings.Repeat("A", fleet.SoftwareNameMaxLength-6))
 	})
 	require.Equal(t, foobarSoftware.ID, foobarSoftware2.ID)
@@ -12995,7 +12703,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 
 	// Check that the software was not ingested.
 	softwareQueryByVendor := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE vendor = ?;"
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var wiresharkSoftware fleet.Software
 		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByVendor, "The Wireshark developer community, https://www.wireshark.org") != sql.ErrNoRows {
 			return errors.New("expected no results")
@@ -13043,7 +12751,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 
 	// Check that the software was not ingested.
 	softwareQueryByName := "SELECT id, name, version, source, bundle_identifier, `release`, arch, vendor FROM software WHERE name = ?;"
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var wiresharkSoftware fleet.Software
 		if sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit") != sql.ErrNoRows {
 			return errors.New("expected no results")
@@ -13087,7 +12795,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 
 	// Check that the software was properly ingested.
 	var wiresharkSoftware fleet.Software
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &wiresharkSoftware, softwareQueryByName, "Wireshark 4.0.8 64-bit")
 	})
 	require.NotZero(t, wiresharkSoftware.ID)
@@ -14639,13 +14347,13 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	require.NoError(t, err)
 
 	// force an order to the activities (h1A must be first as it was automatically activated)
-	mysql.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "upcoming_activities", "execution_id", h1A, h1B, h1Foo, h1C, h1D, h1E)
+	mysqltest.SetOrderedCreatedAtTimestamps(t, s.ds, time.Now(), "upcoming_activities", "execution_id", h1A, h1B, h1Foo, h1C, h1D, h1E)
 
 	// modify the timestamp h1A and h1B to simulate an script that has been
 	// pending for a long time (h1A is a sync script but that doesn't change
 	// anything anymore, sync scripts are part of the queue like any other:
 	// https://github.com/fleetdm/fleet/issues/22866#issuecomment-2575961141)
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "UPDATE upcoming_activities SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), h1A)
 		if err != nil {
 			return err
@@ -16217,7 +15925,7 @@ INSERT INTO host_certificate_templates (
 	name
 ) VALUES (?, ?, ?, ?, ?, ?);
 	`
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err = q.ExecContext(ctx, sql, host.UUID, certificateTemplateID, "pending", "some_challenge_value", "install", savedTemplate.Name)
 		require.NoError(t, err)
 		return nil
@@ -16434,7 +16142,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplate() {
 		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// Pending status - should be deleted
 		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID, "pending", "install", nil, certTemplateName)
 		require.NoError(t, err)
@@ -16619,7 +16327,7 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// Template 1 - hosts with pending and delivered status
 		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certTemplateID1, "pending", "install", nil, certTemplateName1)
 		require.NoError(t, err)
@@ -16735,26 +16443,21 @@ func (s *integrationTestSuite) TestDeleteCertificateTemplateSpec() {
 	}
 }
 
-// TestOsqueryBodySizeLimit verifies the body size limits on the
-// /api/osquery/log and /api/osquery/distributed/write endpoints:
-//   - Bodies exceeding the default limit are rejected with HTTP 413.
-//   - Bodies within the limit are accepted.
-//   - A malformed (truncated) body within the limit is NOT reported as HTTP 413
-//     (guards against the false-positive PayloadTooLargeError fix).
-//   - Setting Osquery.MaxLogWriteBodySize / MaxDistributedWriteBodySize in the
-//     server config overrides the built-in defaults.
 func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	t := s.T()
 
 	host := createOrbitEnrolledHost(t, "linux", "body-limit", s.ds)
 
-	// Body over DefaultMaxOsqueryLogWriteSize must be rejected with 413. The padding
+	logLimit := int(fleet.DefaultMaxOsqueryLogWriteSize)
+	distLimit := int(fleet.DefaultMaxOsqueryDistributedWriteSize)
+
+	// Body over the per-route default must be rejected with 413. The padding
 	// is inside a JSON string value so the body is syntactically valid up to
 	// the point where the reader is cut off.
 	logPrefix := fmt.Sprintf(`{"node_key":%q,"log_type":"status","data":["`, *host.NodeKey)
 	logSuffix := `"]}`
-	logPadSize := int(fleet.DefaultMaxOsqueryLogWriteSize) + 1 - len(logPrefix) - len(logSuffix)
-	require.Positive(t, logPadSize, "padding must be positive; DefaultMaxOsqueryLogWriteSize may be too small")
+	logPadSize := logLimit + 1 - len(logPrefix) - len(logSuffix)
+	require.Positive(t, logPadSize, "padding must be positive")
 	overLimitLog := []byte(logPrefix + strings.Repeat("x", logPadSize) + logSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/log", overLimitLog, http.StatusRequestEntityTooLarge)
 
@@ -16774,11 +16477,11 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedLog := fmt.Appendf(nil, `{"node_key":%q,"log_type":"status","data":[`, *host.NodeKey) // missing closing ]}
 	s.DoRawNoAuth("POST", "/api/osquery/log", truncatedLog, http.StatusBadRequest)
 
-	// Body over DefaultMaxOsqueryDistributedWriteSize must be rejected with 413.
+	// Body over the per-route default must be rejected with 413.
 	distPrefix := fmt.Sprintf(`{"node_key":%q,"queries":{"q1":[{"data":"`, *host.NodeKey)
 	distSuffix := `"}]},"statuses":{"q1":0},"messages":{},"stats":{}}`
-	distPadSize := int(fleet.DefaultMaxOsqueryDistributedWriteSize) + 1 - len(distPrefix) - len(distSuffix)
-	require.Positive(t, distPadSize, "padding must be positive; DefaultMaxOsqueryDistributedWriteSize may be too small")
+	distPadSize := distLimit + 1 - len(distPrefix) - len(distSuffix)
+	require.Positive(t, distPadSize, "padding must be positive")
 	overLimitDist := []byte(distPrefix + strings.Repeat("x", distPadSize) + distSuffix)
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", overLimitDist, http.StatusRequestEntityTooLarge)
 
@@ -16798,9 +16501,10 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 	truncatedDist := fmt.Appendf(nil, `{"node_key":%q,"queries":{"q1":[`, *host.NodeKey) // missing closing
 	s.DoRawNoAuth("POST", "/api/osquery/distributed/write", truncatedDist, http.StatusBadRequest)
 
-	// Verify that Osquery.MaxLogWriteBodySize and MaxDistributedWriteBodySize
-	// in the server config override the built-in defaults.
-	s.Run("config override", func() {
+	s.Run("config overrides take effect in body-auth mode", func() {
+		// Spin up a second server with custom per-route limits and
+		// confirm bodies above the override are rejected while bodies
+		// below are accepted.
 		const customLimit = 2 * units.MiB
 
 		cfg := config.TestConfig()
@@ -16815,21 +16519,51 @@ func (s *integrationTestSuite) TestOsqueryBodySizeLimit() {
 		ts := withServer{server: customServer}
 		ts.s = &s.Suite
 
-		// body over the custom limit must return 413.
 		logPad := customLimit + 1 - len(logPrefix) - len(logSuffix)
-		require.Positive(s.T(), logPad, "padding must be positive; customLimit may be too small")
-		ts.DoRawNoAuth("POST", "/api/osquery/log", []byte(logPrefix+strings.Repeat("x", logPad)+logSuffix), http.StatusRequestEntityTooLarge)
-
-		// body within the custom limit must succeed.
+		s.Require().Positive(logPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/log",
+			[]byte(logPrefix+strings.Repeat("x", logPad)+logSuffix),
+			http.StatusRequestEntityTooLarge)
 		ts.DoRawNoAuth("POST", "/api/osquery/log", withinLimitLog, http.StatusOK)
 
-		// body over the custom limit must return 413.
 		distPad := customLimit + 1 - len(distPrefix) - len(distSuffix)
-		require.Positive(s.T(), distPad, "padding must be positive; customLimit may be too small")
-		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", []byte(distPrefix+strings.Repeat("x", distPad)+distSuffix), http.StatusRequestEntityTooLarge)
-
-		// body within the custom limit must succeed.
+		s.Require().Positive(distPad)
+		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write",
+			[]byte(distPrefix+strings.Repeat("x", distPad)+distSuffix),
+			http.StatusRequestEntityTooLarge)
 		ts.DoRawNoAuth("POST", "/api/osquery/distributed/write", withinLimitDist, http.StatusOK)
+	})
+
+	s.Run("header-auth mode imposes no body size limit", func() {
+		// In header-auth mode the per-route configs are intentionally
+		// ignored AND no body size limit applies. A body well above the
+		// global default (and well above any per-route default) must
+		// succeed when authenticated via header.
+		cfg := config.TestConfig()
+		cfg.Osquery.AllowBodyAuthFallback = false
+		cfg.Osquery.MaxLogWriteBodySize = 1 * units.MiB         // ignored
+		cfg.Osquery.MaxDistributedWriteBodySize = 1 * units.MiB // ignored
+
+		_, customServer := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{
+			FleetConfig:         &cfg,
+			SkipCreateTestUsers: true,
+		})
+		s.T().Cleanup(customServer.Close)
+		ts := withServer{server: customServer}
+		ts.s = &s.Suite
+
+		// 12 MiB body — over both the global limit (1 MiB) and any
+		// per-route default. Must succeed because header-auth mode
+		// applies no body size constraint.
+		oversizedLog, err := json.Marshal(submitLogsRequest{
+			NodeKey: *host.NodeKey,
+			LogType: "status",
+			Data:    []json.RawMessage{json.RawMessage(`"` + strings.Repeat("x", 12*1024*1024) + `"`)},
+		})
+		s.Require().NoError(err)
+		ts.DoRawWithHeaders("POST", "/api/osquery/log", oversizedLog,
+			http.StatusOK,
+			map[string]string{"Authorization": "NodeKey " + *host.NodeKey})
 	})
 }
 
@@ -17128,6 +16862,70 @@ func (s *integrationTestSuite) TestListHostReports() {
 		_, hasReportID := firstReport["report_id"]
 		assert.True(t, hasReportID, "expected key 'report_id' in response")
 	})
+
+	t.Run("free_tier_hides_include_all_reports", func(t *testing.T) {
+		labelA, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-A", Query: "SELECT 1"})
+		require.NoError(t, err)
+		labelB, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name() + "-B", Query: "SELECT 1"})
+		require.NoError(t, err)
+
+		qIncludeAll, err := s.ds.NewQuery(ctx, &fleet.Query{
+			Name:        t.Name() + "_include_all",
+			Query:       "SELECT 1",
+			AuthorID:    &admin.ID,
+			Saved:       true,
+			DiscardData: false,
+			Logging:     fleet.LoggingSnapshot,
+			LabelsIncludeAll: []fleet.LabelIdent{
+				{LabelName: labelA.Name},
+				{LabelName: labelB.Name},
+			},
+		})
+		require.NoError(t, err)
+
+		mkHost := func(suffix string) *fleet.Host {
+			h, err := s.ds.NewHost(ctx, &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        time.Now(),
+				OsqueryHostID:   ptr.String(t.Name() + suffix),
+				NodeKey:         ptr.String(t.Name() + suffix),
+				UUID:            uuid.New().String(),
+				Hostname:        t.Name() + "-" + suffix + ".local",
+				Platform:        "linux",
+			})
+			require.NoError(t, err)
+			return h
+		}
+		hostNone := mkHost("none")
+		hostOnlyA := mkHost("onlyA")
+		hostBoth := mkHost("both")
+
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostOnlyA, map[uint]*bool{labelA.ID: new(true)}, time.Now(), false))
+		require.NoError(t, s.ds.RecordLabelQueryExecutions(ctx, hostBoth, map[uint]*bool{labelA.ID: new(true), labelB.ID: new(true)}, time.Now(), false))
+
+		hasIncludeAllReport := func(hostID uint) bool {
+			t.Helper()
+			var resp listHostReportsResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/reports", hostID), nil, http.StatusOK, &resp, "include_reports_dont_store_results", "true")
+			for _, r := range resp.Reports {
+				if r.ReportID == qIncludeAll.ID {
+					return true
+				}
+			}
+			return false
+		}
+
+		// Free tier must hide include_all queries entirely from /hosts/:id/reports —
+		// labels_include_all is premium-only and pre-existing rows (e.g., from a
+		// tier downgrade) must not surface in the reports list, regardless of
+		// label membership. Premium-tier behavior is exercised in the
+		// enterprise integration test.
+		assert.False(t, hasIncludeAllReport(hostNone.ID), "free tier must not surface include_all queries (no labels)")
+		assert.False(t, hasIncludeAllReport(hostOnlyA.ID), "free tier must not surface include_all queries (subset of labels)")
+		assert.False(t, hasIncludeAllReport(hostBoth.ID), "free tier must not surface include_all queries (all labels)")
+	})
 }
 
 // TestLabelScopePremiumGate verifies that the include_all scope fields is
@@ -17175,6 +16973,26 @@ func (s *integrationTestSuite) TestLabelScopePremiumGate() {
 	} {
 		s.DoJSON("POST", "/api/latest/fleet/queries", payload, http.StatusPaymentRequired, &fleet.CreateQueryResponse{})
 	}
+
+	// PolicySpec label fields don't carry the `premium:"true"` middleware tag,
+	// so the gate fires at the service layer and returns 402 (PaymentRequired).
+	s.DoJSON("POST", "/api/latest/fleet/spec/policies", fleet.ApplyPolicySpecsRequest{
+		Specs: []*fleet.PolicySpec{{
+			Name:             "spec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyPolicySpecsResponse{})
+
+	// Same for QuerySpec.
+	s.DoJSON("POST", "/api/latest/fleet/spec/queries", fleet.ApplyQuerySpecsRequest{
+		Specs: []*fleet.QuerySpec{{
+			Name:             "qspec-premium-gate-" + t.Name(),
+			Query:            "SELECT 1",
+			Logging:          fleet.LoggingSnapshot,
+			LabelsIncludeAll: []string{lbl.Name},
+		}},
+	}, http.StatusPaymentRequired, &fleet.ApplyQuerySpecsResponse{})
 }
 
 func (s *integrationTestSuite) TestOrgLogoUpload() {
@@ -17256,4 +17074,64 @@ func (s *integrationTestSuite) TestOrgLogoUpload() {
 
 	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
 	require.NoError(t, res.Body.Close())
+
+	// 6. DELETE is idempotent — a second DELETE for the same mode (now
+	// empty) returns 200 with no error.
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "light")
+
+	// 7. DELETE on an external URL (no blob) clears the URL field.
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"org_info": {
+			"org_logo_url": "https://placehold.co/100",
+			"org_logo_url_dark_mode": "https://placehold.co/100",
+			"org_logo_url_light_background": "https://placehold.co/200",
+			"org_logo_url_light_mode": "https://placehold.co/200"
+		}
+	}`), http.StatusOK)
+
+	s.Do("DELETE", "/api/v1/fleet/logo", nil, http.StatusOK, "mode", "dark")
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURLDarkMode)
+	require.Empty(t, acResp.OrgInfo.OrgLogoURL)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Equal(t, "https://placehold.co/200", acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	// 8. PATCH transitioning a Fleet-hosted URL to an external URL must
+	// preserve the external URL and delete the previously-stored blob.
+	body, headers = buildLogoBody("light2.png", pngBytes)
+	s.DoRawWithHeaders("PUT", "/api/v1/fleet/logo?mode=light", body, http.StatusOK, headers)
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Contains(t, acResp.OrgInfo.OrgLogoURLLightMode, "/api/latest/fleet/logo")
+
+	s.DoRaw("PATCH", "/api/latest/fleet/config", []byte(`{
+		"org_info": {
+			"org_logo_url_light_mode": "https://placehold.co/300",
+			"org_logo_url_light_background": "https://placehold.co/300"
+		}
+	}`), http.StatusOK)
+	s.DoJSON("GET", "/api/v1/fleet/config", nil, http.StatusOK, &acResp)
+	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightMode)
+	require.Equal(t, "https://placehold.co/300", acResp.OrgInfo.OrgLogoURLLightBackground)
+
+	// The orphan blob is actually gone: GET /logo?mode=light returns 404.
+	res = s.DoRawNoAuth("GET", "/api/latest/fleet/logo?mode=light", nil, http.StatusNotFound)
+	require.NoError(t, res.Body.Close())
+
+	// And the cleanup recorded a deleted_org_logo activity.
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	var sawAutoCleanupActivity bool
+	for _, a := range activities.Activities {
+		if a.Type != "deleted_org_logo" || a.Details == nil {
+			continue
+		}
+		var d struct {
+			Mode string `json:"mode"`
+		}
+		if err := json.Unmarshal(*a.Details, &d); err == nil && d.Mode == string(fleet.OrgLogoModeLight) {
+			sawAutoCleanupActivity = true
+			break
+		}
+	}
+	assert.True(t, sawAutoCleanupActivity, "auto-cleanup must emit a deleted_org_logo activity for the affected mode")
 }

@@ -11,10 +11,12 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/retry"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 )
 
@@ -27,8 +29,8 @@ type Asset struct {
 	// PricingParam is the quality of a product in the store.
 	// Possible Values are `STDQ` and `PLUS`
 	PricingParam string `json:"pricingParam"`
-	// AvailableCount is the number of available licenses for this app in the location specified by
-	// the VPP token.
+	// AvailableCount is the number of available licenses for this app in the organization unit
+	// specified by the VPP token.
 	AvailableCount uint `json:"availableCount"`
 }
 
@@ -62,25 +64,68 @@ type ResponseErrorInfo struct {
 // use.
 var client = fleethttp.NewClient(fleethttp.WithTimeout(10 * time.Second))
 
+// ClientConfig is the subset of Apple's /client/config response that Fleet
+// uses. CountryCode is the lowercase ISO 3166-1 alpha-2 code (e.g. "us",
+// "de") of the storefront associated with the token.
+type ClientConfig struct {
+	LocationName string
+	CountryCode  string
+}
+
 // GetConfig fetches the VPP config from Apple's VPP API. This doubles as a
-// verification that the user-provided VPP token is valid.
+// verification that the user-provided VPP token is valid. The call is wrapped
+// in a 3-attempt retry; the returned country code is lowercased. ctx bounds
+// the entire retry sequence so callers can cap user-facing latency with a
+// deadline.
 //
 // https://developer.apple.com/documentation/devicemanagement/client_config-a40
-func GetConfig(token string) (string, error) {
-	req, err := http.NewRequest(http.MethodGet, getBaseURL()+"/client/config", nil)
-	if err != nil {
-		return "", fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
-	}
+func GetConfig(ctx context.Context, token string) (ClientConfig, error) {
+	var cfg ClientConfig
+	var returnErr error
 
-	var respJSON struct {
-		LocationName string `json:"locationName"`
-	}
+	_ = retry.Do(func() error {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL()+"/client/config", nil)
+		if err != nil {
+			returnErr = ctxerr.Wrap(ctx, err, "creating request to Apple VPP endpoint")
+			// don't retry on request construction errors
+			return nil
+		}
 
-	if err := do(req, token, &respJSON); err != nil {
-		return "", fmt.Errorf("making request to Apple VPP endpoint: %w", err)
-	}
+		// Apple's /client/config response uses countryISO2ACode for the ISO
+		// 3166-1 alpha-2 storefront country (e.g. "US", "DE"). Verified
+		// empirically — the developer docs aren't loaded here.
+		var respJSON struct {
+			LocationName     string `json:"locationName"`
+			CountryISO2ACode string `json:"countryISO2ACode"`
+		}
 
-	return respJSON.LocationName, nil
+		if err := do(req, token, &respJSON); err != nil {
+			returnErr = ctxerr.Wrap(ctx, err, "making request to Apple VPP endpoint")
+
+			// Don't retry on Apple application errors (e.g. invalid token);
+			// only on transient transport-level failures.
+			var appleErr *ErrorResponse
+			if errors.As(err, &appleErr) {
+				return nil
+			}
+
+			// retry on other errors
+			return err
+		}
+
+		cfg = ClientConfig{
+			LocationName: respJSON.LocationName,
+			CountryCode:  strings.ToLower(respJSON.CountryISO2ACode),
+		}
+		returnErr = nil
+		return nil
+	},
+		retry.WithBackoffMultiplier(2),
+		retry.WithInterval(500*time.Millisecond),
+		retry.WithMaxAttempts(3),
+	)
+
+	return cfg, returnErr
 }
 
 // AssociateAssetsRequest is the request for asset management.

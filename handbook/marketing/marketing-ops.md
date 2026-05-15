@@ -148,6 +148,7 @@ For all paid and owned online media and content.
 | Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
 | Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
 | Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
+| Press Release | PR | 2025\_11-PR-Abc\_launch |  
 
 
 #### 🎯 Prospecting
@@ -664,7 +665,7 @@ What grace is not:
 
 ### How it works in practice
 
-- Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
+- **Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
 - Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
 - Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
 - Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
@@ -677,6 +678,24 @@ Alternative
 > *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
 
 
+### Set up and configuration
+
+Fleet uses a virtual persona — Grace West (gracewest at fleetdm.com) — as the sender for ActiveCampaign automated marketing emails. Using a realistic-looking sender improves open rates and engagement.
+
+**How it's set up:** gracewest at fleetdm.com is a Google Group, not a licensed Gmail user. This avoids license fees and SSO/Okta complications, and allows multiple marketing team members to send as Grace when needed.
+
+**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to (gracewest at fleetdm.com) lands in their inboxes, and replies route back to the group rather than to individuals.
+
+**To send as Grace from your own Gmail:**
+1. In Gmail, click the gear icon → **See all settings**.
+2. Go to the **Accounts and Import** tab.
+3. Under **Send mail as**, click **Add another email address**.
+4. Set **Name:** Grace West, **Email:** gracewest at fleetdm.com.
+5. Uncheck "Treat as an alias" — this ensures replies from prospects route to the Google Group rather than your personal inbox.
+6. Click **Next Step** → **Send Verification**.
+7. The verification email lands in your inbox (since you're a group member). Click the link or copy the code.
+
+Once verified, the **From** dropdown in Gmail's compose window lets you switch to "Grace West <gracewest at fleetdm.com>" when sending.
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">

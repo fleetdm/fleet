@@ -56,7 +56,7 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		argsIos := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDios, "ios", payload.SelfService}
 		argsIpad := []any{tid, globalOrTeamID, payload.Filename, payload.StorageID, payload.Version, payload.BundleID, titleIDipad, "ipados", payload.SelfService}
 
-		_, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
+		installerIDIpad, err := ds.insertInHouseAppDB(ctx, tx, payload, argsIpad)
 		if err != nil {
 			return err
 		}
@@ -64,6 +64,20 @@ func (ds *Datastore) insertInHouseApp(ctx context.Context, payload *fleet.InHous
 		installerID, err = ds.insertInHouseAppDB(ctx, tx, payload, argsIos)
 		if err != nil {
 			return err
+		}
+
+		// A single .ipa upload creates two in_house_apps rows (ios + ipados),
+		// each with its own installer ID. Configuration is keyed on installer
+		// ID, so without writing under both rows iPadOS lookups would always
+		// return no config. Write the same configuration under both so install
+		// command builders see it regardless of which platform's row they
+		// resolve from.
+		if len(payload.Configuration) > 0 {
+			for _, id := range []uint{installerID, installerIDIpad} {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, id, payload.Configuration); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+				}
+			}
 		}
 
 		return nil
@@ -264,6 +278,14 @@ WHERE
 		}
 	}
 
+	cfg, err := ds.GetInHouseAppConfiguration(ctx, dest.InstallerID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+	if cfg != nil {
+		dest.Configuration = cfg
+	}
+
 	return &dest, nil
 }
 
@@ -311,6 +333,31 @@ func (ds *Datastore) SaveInHouseAppUpdates(ctx context.Context, payload *fleet.U
 		if payload.DisplayName != nil {
 			if err := updateSoftwareTitleDisplayName(ctx, tx, payload.TeamID, payload.TitleID, *payload.DisplayName); err != nil {
 				return ctxerr.Wrap(ctx, err, "update in house app display name")
+			}
+		}
+
+		// nil = leave unchanged; empty = clear; non-empty = set. Apply the change
+		// to both the iOS and iPadOS rows so platform-specific installer-ID
+		// lookups stay in sync (a single .ipa upload created two rows).
+		if payload.Configuration != nil {
+			ids, err := installerIDsForInHouseAppSibling(ctx, tx, payload.InstallerID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "looking up sibling in-house app row")
+			}
+			if len(payload.Configuration) == 0 {
+				query, args, err := sqlx.In(`DELETE FROM in_house_app_configurations WHERE in_house_app_id IN (?)`, ids)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "build clear in-house app configuration query")
+				}
+				if _, err := tx.ExecContext(ctx, query, args...); err != nil {
+					return ctxerr.Wrap(ctx, err, "clearing in-house app configuration")
+				}
+			} else {
+				for _, id := range ids {
+					if err := ds.updateInHouseAppConfigurationTx(ctx, tx, id, payload.Configuration); err != nil {
+						return ctxerr.Wrap(ctx, err, "setting in-house app configuration")
+					}
+				}
 			}
 		}
 
@@ -1302,6 +1349,18 @@ WHERE
 				return ctxerr.Wrapf(ctx, err, "load id of new/edited in-house app with name %q", installer.Filename)
 			}
 
+			// Apply managed app configuration declaratively: an explicit
+			// non-empty value sets it, anything else (nil or empty) clears it.
+			if len(installer.Configuration) > 0 {
+				if err := ds.updateInHouseAppConfigurationTx(ctx, tx, installerID, installer.Configuration); err != nil {
+					return ctxerr.Wrapf(ctx, err, "set in-house app configuration for %q", installer.Filename)
+				}
+			} else {
+				if _, err := tx.ExecContext(ctx, `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`, installerID); err != nil {
+					return ctxerr.Wrapf(ctx, err, "clear in-house app configuration for %q", installer.Filename)
+				}
+			}
+
 			// process the labels associated with that in-house installer
 			if len(installer.ValidatedLabels.ByName) == 0 {
 				// no label to apply, so just delete all existing labels if any
@@ -1599,4 +1658,146 @@ LIMIT 1
 		return false, "", err
 	}
 	return true, title, nil
+}
+
+func (ds *Datastore) HasInHouseAppConfigurationChanged(ctx context.Context, inHouseAppID uint, newConfig []byte) (bool, error) {
+	const stmt = `
+SELECT
+	BINARY COALESCE(?, '') != configuration AS has_changed
+FROM
+	in_house_app_configurations
+WHERE
+	in_house_app_id = ?
+`
+
+	var hasChanged bool
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasChanged, stmt, newConfig, inHouseAppID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return len(newConfig) > 0, nil
+		}
+		return false, ctxerr.Wrap(ctx, err, "compare in-house app configuration")
+	}
+	return hasChanged, nil
+}
+
+func (ds *Datastore) GetInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) ([]byte, error) {
+	const stmt = `SELECT configuration FROM in_house_app_configurations WHERE in_house_app_id = ?`
+
+	var config []byte
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &config, stmt, inHouseAppID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get in-house app configuration")
+	}
+
+	return config, nil
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurations(ctx context.Context, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, ds.reader(ctx), inHouseAppIDs)
+}
+
+func (ds *Datastore) BulkGetInHouseAppConfigurationsTx(ctx context.Context, tx sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	return ds.bulkGetInHouseAppConfigurations(ctx, tx, inHouseAppIDs)
+}
+
+func (ds *Datastore) bulkGetInHouseAppConfigurations(ctx context.Context, q sqlx.QueryerContext, inHouseAppIDs []uint) (map[uint][]byte, error) {
+	if len(inHouseAppIDs) == 0 {
+		return nil, nil
+	}
+
+	const bulkGetStmt = `
+SELECT
+	in_house_app_id,
+	configuration
+FROM in_house_app_configurations
+WHERE in_house_app_id IN (?)
+`
+
+	stmt, args, err := sqlx.In(bulkGetStmt, inHouseAppIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building bulk get in-house app configurations query")
+	}
+
+	var configs []*struct {
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		Configuration []byte `db:"configuration"`
+	}
+	err = sqlx.SelectContext(ctx, q, &configs, stmt, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
+	}
+
+	m := make(map[uint][]byte, len(configs))
+	for _, c := range configs {
+		m[c.InHouseAppID] = c.Configuration
+	}
+	return m, nil
+}
+
+func (ds *Datastore) DeleteInHouseAppConfiguration(ctx context.Context, inHouseAppID uint) error {
+	const stmt = `DELETE FROM in_house_app_configurations WHERE in_house_app_id = ?`
+
+	result, err := ds.writer(ctx).ExecContext(ctx, stmt, inHouseAppID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration")
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete in-house app configuration rows affected")
+	}
+
+	if rows == 0 {
+		return ctxerr.Wrap(ctx, notFound("InHouseAppConfiguration"))
+	}
+
+	return nil
+}
+
+func (ds *Datastore) updateInHouseAppConfigurationTx(ctx context.Context, tx sqlx.ExtContext, inHouseAppID uint, config []byte) error {
+	if err := fleet.ValidateAppleAppConfiguration(config); err != nil {
+		return ctxerr.Wrap(ctx, err, "validating in-house app configuration")
+	}
+
+	const stmt = `
+INSERT INTO
+	in_house_app_configurations (in_house_app_id, configuration)
+VALUES (?, ?)
+ON DUPLICATE KEY UPDATE
+	configuration = VALUES(configuration)
+`
+
+	_, err := tx.ExecContext(ctx, stmt, inHouseAppID, config)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updateInHouseAppConfiguration")
+	}
+	return nil
+}
+
+// installerIDsForInHouseAppSibling returns the supplied in_house_apps.id along
+// with the row sharing its (global_or_team_id, bundle_identifier) pair on the
+// other Apple platform. A single .ipa upload always creates two rows (ios and
+// ipados); configuration changes need to land on both so platform-specific
+// installer-ID lookups always see the same content.
+func installerIDsForInHouseAppSibling(ctx context.Context, tx sqlx.ExtContext, installerID uint) ([]uint, error) {
+	const stmt = `
+SELECT id FROM in_house_apps
+WHERE (global_or_team_id, bundle_identifier) = (
+	SELECT global_or_team_id, bundle_identifier FROM in_house_apps WHERE id = ?
+)`
+
+	var ids []uint
+	if err := sqlx.SelectContext(ctx, tx, &ids, stmt, installerID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select sibling in-house app ids")
+	}
+	if len(ids) == 0 {
+		// Defensive: caller already verified the row exists. Fall back to the
+		// supplied id so we never write zero rows.
+		return []uint{installerID}, nil
+	}
+	return ids, nil
 }

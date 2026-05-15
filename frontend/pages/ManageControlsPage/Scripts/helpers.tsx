@@ -5,7 +5,18 @@ import { IScriptBatchSummaryV2 } from "services/entities/scripts";
 
 import { isDateTimePast } from "utilities/helpers";
 
-const getWhen = (summary: IScriptBatchSummaryV2) => {
+export const SCRIPT_UPLOADER_EMPTY_STATE_TEXT = (
+  <>
+    Upload shell (.sh) or Python (.py) for macOS and Linux,
+    <br />
+    or PowerShell (.ps1) for Windows.
+  </>
+);
+
+export const SCRIPT_UPLOADER_TEXT =
+  "Shell (.sh) or Python (.py) for macOS and Linux, or PowerShell (.ps1) for Windows";
+
+export const getWhen = (summary: IScriptBatchSummaryV2) => {
   const {
     batch_execution_id: id,
     not_before,
@@ -73,5 +84,3 @@ const getWhen = (summary: IScriptBatchSummaryV2) => {
       return null;
   }
 };
-
-export default getWhen;

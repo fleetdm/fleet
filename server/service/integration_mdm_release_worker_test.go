@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/google/uuid"
@@ -20,7 +20,7 @@ import (
 func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	t := s.T()
 	ctx := context.Background()
-	mysql.TruncateTables(t, s.ds, "nano_commands", "host_mdm_apple_profiles", "mdm_apple_configuration_profiles") // We truncate this table beforehand to avoid persistence from other tests.
+	mysqltest.TruncateTables(t, s.ds, "nano_commands", "host_mdm_apple_profiles", "mdm_apple_configuration_profiles") // We truncate this table beforehand to avoid persistence from other tests.
 
 	type mdmCommandOfType struct {
 		CommandType string
@@ -54,7 +54,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		if shouldBeSent == true {
 			expectedCount = 1
 		}
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var count int
 			err := sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM nano_commands WHERE request_type = 'DeviceConfigured'")
 			require.NoError(t, err)
@@ -65,7 +65,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 
 	// Helper function to set the queued job not_before to current time to ensure it can be picked up without waiting.
 	speedUpQueuedAppleMdmJob := func(t *testing.T) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(ctx, "UPDATE jobs SET not_before = ? WHERE name = 'apple_mdm' AND state = 'queued'", time.Now().Add(-1*time.Second))
 			require.NoError(t, err)
 			return nil
@@ -146,7 +146,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 	t.Run("automatic release", func(t *testing.T) {
 		t.Run("waits for config profiles being installed", func(t *testing.T) {
 			// Clean up
-			mysql.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
+			mysqltest.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
 			// Simulate profile reconciler running at least once before enrollment, and adds fleet profiles to the team
 			s.awaitTriggerProfileSchedule(t)
 			config := mobileconfigForTest("N1", "I1")
@@ -190,7 +190,7 @@ func (s *integrationMDMTestSuite) TestReleaseWorker() {
 		})
 
 		t.Run("ignores user scoped config profiles", func(t *testing.T) {
-			mysql.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
+			mysqltest.TruncateTables(t, s.ds, "mdm_apple_configuration_profiles", "host_mdm_apple_profiles", "nano_commands") // Clean tables after use
 			// Simulate profile reconciler running at least once before enrollment, and adds fleet profiles to the team
 			s.awaitTriggerProfileSchedule(t)
 			systemScopedConfig := mobileconfigForTest("N1", "I1")

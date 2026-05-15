@@ -2913,9 +2913,16 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 		}
 	}
 
+	// Verify profile scopes conflict before stopping dry-run, but also before entering the transaction in BatchSetMDMAppleProfiles
+	err = svc.ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, profs)
+	if err != nil {
+		return err
+	}
+
 	if dryRun {
 		return nil
 	}
+
 	if err := svc.ds.BatchSetMDMAppleProfiles(ctx, tmID, profs); err != nil {
 		return err
 	}
@@ -3743,15 +3750,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 
 	if svc.keyValueStore != nil {
-		if !scepRenewalInProgress {
-			// Set sticky key for MDM enrollments to avoid updating team id on orbit enrollments
-			err = svc.keyValueStore.Set(r.Context, fleet.StickyMDMEnrollmentKeyPrefix+r.ID, "1", fleet.StickyMDMEnrollmentTTL)
-			if err != nil {
-				// We do not want to fail here, just log the error to notify
-				svc.logger.ErrorContext(r.Context, "failed to set sticky mdm enrollment key", "err", err, "host_uuid", r.ID)
-			}
-		}
-
 		// Set profile processing flag, is being handled by the apple_mdm worker, it will be cleared later if it's a SCEP renewal.
 		if err := svc.keyValueStore.Set(r.Context, fleet.MDMProfileProcessingKeyPrefix+":"+r.ID, "1", fleet.MDMProfileProcessingTTL); err != nil {
 			svc.logger.ErrorContext(r.Context, "failed to set mdm profile processing key", "err", err, "host_uuid", r.ID)
@@ -3816,8 +3814,28 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		if err := svc.ds.ClearHostEnrolledFromMigration(r.Context, r.ID); err != nil {
 			return ctxerr.Wrap(r.Context, err, "resetting enrolled from migration flag", "host_uuid", r.ID)
 		}
+
+		nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "getting nanomdm enrollment")
+		}
+
+		skipDarwinMigration := info.MigrationInProgress && info.Platform == "darwin"
+
+		// Reset host details on re-enrollment, since we are in DEP (AwaitingConfiguration) and new TokenUpdate (TokenUpdateTally == 1).
+		if nanoEnroll != nil && nanoEnroll.TokenUpdateTally == 1 && !skipDarwinMigration {
+			appCfg, err := svc.ds.AppConfig(r.Context)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "getting app config")
+			}
+
+			if err := svc.ds.MDMAppleResetOnReenrollment(r.Context, r.ID, appCfg.ActivityExpirySettings.PreserveHostActivitiesOnReenrollment); err != nil {
+				return ctxerr.Wrap(r.Context, err, "resetting enrollment on re-enrollment", "host_uuid", r.ID)
+			}
+		}
+
 		// Note that Setup Experience is only skipped for macOS during DEP migration. iOS and iPadOS will still get VPP apps
-		if info.MigrationInProgress && info.Platform == "darwin" {
+		if skipDarwinMigration {
 			svc.logger.InfoContext(r.Context, "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
 		} else {
 			enqueueSetupExperienceItems = true
@@ -4312,7 +4330,46 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 				}
 			}
 		}
-		// No matching row = SSO-only AccountConfiguration → no-op
+		// No matching row = SSO-only AccountConfiguration, no-op
+
+	case fleet.SetAutoAdminPasswordCmdName:
+		host, err := svc.ds.GetManagedLocalAccountByPendingCommandUUID(r.Context, cmdResult.CommandUUID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// Hard to say what happened here, most likely a command was superseded by another or a user
+				// sent this command manually (e.g. via Commands endpoint)
+				break
+			}
+			return nil, ctxerr.Wrap(r.Context, err, "get managed local account by pending command uuid")
+		}
+		if host == nil || host.UUID == "" {
+			break
+		}
+		if host.UUID != r.ID {
+			svc.logger.WarnContext(r.Context, "SetAutoAdminPassword command UUID matched a different host",
+				"expected_host_uuid", host.UUID, "checkin_host_uuid", r.ID, "command_uuid", cmdResult.CommandUUID)
+			break
+		}
+		// NotNow will leave the row in pending state; the device will retry on the next checkin.
+		switch cmdResult.Status {
+		case fleet.MDMAppleStatusAcknowledged:
+			if err := svc.ds.CompleteManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "complete managed local account rotation")
+			}
+		case fleet.MDMAppleStatusError, fleet.MDMAppleStatusCommandFormatError:
+			errMsg := "device returned " + cmdResult.Status
+			if err := svc.ds.FailManagedLocalAccountRotation(r.Context, host.UUID, cmdResult.CommandUUID, errMsg); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "fail managed local account rotation")
+			}
+			// Failure activity is always attributed to Fleet (no viewer context here,
+			// and the original initiating user — if any — isn't tracked on the row).
+			if err := svc.newActivityFn(r.Context, nil, fleet.ActivityTypeFailedToRotateManagedLocalAccountPassword{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			}); err != nil {
+				return nil, ctxerr.Wrap(r.Context, err, "create failed-to-rotate managed local account activity")
+			}
+		}
 	}
 
 	return nil, nil
@@ -4458,6 +4515,31 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchAppsResults(ctx contex
 var versionPattern = regexp.MustCompile(
 	`^v?\s*(\d+(?:\.\d+)*)\s*$`,
 )
+
+// Allows alphanumeric characters, spaces, and the punctuation Apple uses in RSR suffixes (e.g. "(a)").
+var supplementalOSVersionExtraRe = regexp.MustCompile(`^[A-Za-z0-9 ()._-]+$`)
+
+// buildOSVersion combines osVersion and supplementalOSVersionExtra into a
+// single version string, validating the supplemental value before appending.
+// The result is capped at 150 characters to match the operating_systems.version
+// column, which is the tighter of the two columns this value is written to.
+// Callers that prepend a platform prefix (e.g. "iOS ") must still truncate the
+// final combined string to fit their own column limit.
+func buildOSVersion(osVersion, supplementalOSVersionExtra string) (string, error) {
+	if supplementalOSVersionExtra != "" {
+		if len(supplementalOSVersionExtra) > 32 {
+			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: too long (length=%d, value=%q)", len(supplementalOSVersionExtra), supplementalOSVersionExtra)
+		}
+		if !supplementalOSVersionExtraRe.MatchString(supplementalOSVersionExtra) {
+			return "", fmt.Errorf("invalid SupplementalOSVersionExtra: contains disallowed characters (value=%q)", supplementalOSVersionExtra)
+		}
+		osVersion += " " + supplementalOSVersionExtra
+	}
+	if len(osVersion) > 150 {
+		osVersion = osVersion[:150]
+	}
+	return osVersion, nil
+}
 
 // trimLeadingZeros converts "00123" → "123", "000" → "0", "0" → "0"
 func trimLeadingZeros(s string) string {
@@ -5008,15 +5090,20 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	if err := plist.Unmarshal(cmdResult.Raw, &deviceInformationResponse); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failed to unmarshal device information command result")
 	}
-
-	// Apple MDM responses occasionally omit DeviceInformation fields or return them
-	// as nil/wrong types; type-assert defensively rather than panicking, and preserve
-	// existing host values or skip dependent updates when fields are missing.
 	queryResponses := deviceInformationResponse.QueryResponses
 	deviceName, deviceNameOK := queryResponses["DeviceName"].(string)
 	deviceCapacity, deviceCapacityOK := queryResponses["DeviceCapacity"].(float64)
 	availableDeviceCapacity, availableDeviceCapacityOK := queryResponses["AvailableDeviceCapacity"].(float64)
-	osVersion, osVersionOK := queryResponses["OSVersion"].(string)
+	rawOSVersion, osVersionOK := queryResponses["OSVersion"].(string)
+	var supplementalExtra string
+	if v, ok := queryResponses["SupplementalOSVersionExtra"]; ok {
+		supplementalExtra, _ = v.(string)
+	}
+	osVersion, err := buildOSVersion(rawOSVersion, supplementalExtra)
+	if err != nil {
+		svc.logger.WarnContext(ctx, "ignoring invalid SupplementalOSVersionExtra from device", "host_uuid", host.UUID, "err", err)
+		osVersion, _ = buildOSVersion(rawOSVersion, "")
+	}
 	productName, productNameOK := queryResponses["ProductName"].(string)
 	wifiMac, _ := queryResponses["WiFiMAC"].(string) // not present for user-enrolled devices
 	isLostModeEnabled, _ := queryResponses["IsMDMLostModeEnabled"].(bool)
@@ -5070,10 +5157,11 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 			osVersionPrefix = "iPadOS"
 			platform = "ipados"
 		}
-		host.HardwareModel = productName
 	} else {
+		// Fall back to the host's known platform when ProductName is absent so
+		// the OS version is still updated with the correct prefix.
 		platform = host.Platform
-		switch host.Platform {
+		switch platform {
 		case "ios":
 			osVersionPrefix = "iOS"
 		case "ipados":
@@ -5085,9 +5173,14 @@ func (svc *MDMAppleCheckinAndCommandService) handleRefetchDeviceResults(ctx cont
 	// preserved platform) and the version string itself.
 	if osVersionOK && osVersionPrefix != "" {
 		host.OSVersion = osVersionPrefix + " " + osVersion
+		if len(host.OSVersion) > 255 {
+			host.OSVersion = host.OSVersion[:255]
+		}
 	}
-
 	host.PrimaryMac = wifiMac
+	if productNameOK {
+		host.HardwareModel = productName
+	}
 	host.DetailUpdatedAt = time.Now()
 	// iOS/iPadOS devices do not support dynamic labels at this time so we should update their LabelUpdatedAt timestamp
 	// on refetch similar to other platforms to simplify exclusion logic with dynamic labels
