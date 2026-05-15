@@ -122,8 +122,8 @@ const FileDetails = ({
         onFileSelect &&
         (gitopsCompatible ? (
           <GitOpsModeTooltipWrapper
-            position="left"
-            tipOffset={4}
+            position={customEditor ? "top" : "left"}
+            tipOffset={customEditor ? 12 : 4}
             renderChildren={(disableChildren) =>
               renderEditButton(disableChildren)
             }
