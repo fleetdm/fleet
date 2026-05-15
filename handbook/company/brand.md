@@ -24,7 +24,7 @@ Use the primary logo whenever possible.
 
 ![Fleet dots](https://raw.githubusercontent.com/fleetdm/fleet/handbook-brand-guidelines/website/assets/images/brand-fleet-dots-720x445%402x.png)
 
-Use Fleet dots for profile avatars on social media and similar platforms. Avoid repeating the full logo and dots together.
+Use Fleet dots as a standalone mark where the full logo doesn't fit, such as profile avatars on social media and similar platforms. Avoid repeating the full logo and dots together.
 
 [Download primary logo](https://fleetdm.com/logos)
 
