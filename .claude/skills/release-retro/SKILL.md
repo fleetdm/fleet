@@ -28,7 +28,6 @@ Retro notes typically have two parts. Both may appear in any format the user pas
 ### 1. Resolve the working group
 
 - Slack channel ID: call `slack_search_channels` with the channel name; pick the matching result.
-- User group ID: the working group has a Slack user group whose handle usually mirrors the channel (e.g. `first-impressions-group` for `#g-first-impressions`, `power-to-pc-group` for `#g-power-to-pc`). Find it via `slack_list_channel_members` with `include_bots=true` or `slack_search_users`. User group IDs start with `S`. If you cannot resolve it, ask the user.
 - GitHub label: matches the channel name with a `#` prefix (e.g. `#g-first-impressions`). Verify with `gh label list --repo fleetdm/fleet --search "<channel-name>"`.
 
 ### 2. Resolve GitHub handles
@@ -68,7 +67,7 @@ For each action item, draft an issue using the timebox template (`.github/ISSUE_
 Template:
 
 ```
-:recycle:  <version> release retro recap <@<USER_GROUP_ID>|<group-handle>>
+:recycle:  <version> release retro recap
 
 _Summary via Claude_
 
@@ -106,7 +105,7 @@ Present:
 1. The list of issues you plan to create: title, assignees, labels, full body.
 2. The full Slack draft text.
 
-When previewing the Slack draft in chat, render user-group and user mentions as friendly handles (e.g. `@first-impressions-group`, `@allenhouchins`), NOT the raw `<@ID|handle>` form. Use the canonical raw form in the actual API call.
+If the recap body references individuals by @-mention, render them as friendly handles in chat previews (e.g. `@allenhouchins`), not the raw `<@ID>` form. Use the canonical raw form in the actual API call.
 
 Wait for explicit confirmation.
 
@@ -129,21 +128,14 @@ On confirmation:
 ## Constraints
 
 - **Default to drafting, never sending.** Only post to Slack if the user explicitly says to.
-- **Never use `@channel` or `@here`.** Only the proper Slack user group.
+- **Never use `@channel`, `@here`, or `@<group>` mentions in the header.** The post lands in the working group's own channel, so the audience is implicit.
 - **No em dashes** in the recap, even if source notes use them.
 - If an action item lacks an obvious assignee, ask before creating.
 - If a name doesn't resolve to a GitHub handle from the handbook, ask before creating.
 
 ## Example
 
-For the 4.86.0 retro in `#g-first-impressions`, the resolved IDs were:
-- Channel: `C0ACJ8L1FD0`
-- User group: `S0AR86XUSSZ` (`first-impressions-group`)
-- Label: `#g-first-impressions`
+Cached pointers from the 4.86.0 cycle (re-verify with the Slack API in case they change):
 
-For `#g-power-to-pc`:
-- Channel: `C0AQY8D7FM4`
-- User group: `S0ARQGHL457` (`power-to-pc-group`)
-- Label: `#g-power-to-pc`
-
-These are cached pointers; always re-verify with the Slack API in case they change.
+- `#g-first-impressions`: channel `C0ACJ8L1FD0`, label `#g-first-impressions`
+- `#g-power-to-pc`: channel `C0AQY8D7FM4`, label `#g-power-to-pc`
