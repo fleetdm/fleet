@@ -197,13 +197,14 @@ const EditConfigurationModal = ({
     }
     return (
       <p className={`${baseClass}__description`}>
-        Configuration and updated values of Fleet{" "}
+        Configuration edits and variable value changes are only 
+        applied during future installs and updates. Learn more 
+        about{" "}
         <CustomLink
           newTab
           text="variables"
           url={`${LEARN_MORE_ABOUT_BASE_LINK}/fleet-variables`}
-        />{" "}
-        will be applied to future installs and updates.
+        />
       </p>
     );
   };
