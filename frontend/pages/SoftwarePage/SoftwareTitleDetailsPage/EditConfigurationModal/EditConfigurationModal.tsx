@@ -197,9 +197,8 @@ const EditConfigurationModal = ({
     }
     return (
       <p className={`${baseClass}__description`}>
-        Configuration edits and variable value changes are only 
-        applied during future installs and updates. Learn more 
-        about{" "}
+        Configuration edits and variable value changes are only applied during
+        future installs and updates. Learn more about{" "}
         <CustomLink
           newTab
           text="variables"
