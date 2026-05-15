@@ -7671,7 +7671,7 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 		// iOS/iPadOS hosts are enrolled with refetch_requested=true so the
 		// iphone_ipad_refetcher cron picks them up on its next tick (the
 		// flag is cleared by the DeviceInformation ack handler).
-		require.Equal(t, true, h.RefetchRequested)
+		require.True(t, h.RefetchRequested)
 		require.Less(t, time.Since(h.LastEnrolledAt), 1*time.Hour) // check it's not in the date in the 2000 we use as "Never".
 		require.Equal(t, "test-hw-model", h.HardwareModel)
 
@@ -7700,7 +7700,7 @@ func testMDMAppleUpsertHostIOSIPadOS(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		// updateMDMAppleHostDB also sets refetch_requested=true for iOS/iPadOS
 		// on re-enrollment, so the cron picks up re-enrolled BYOD devices too.
-		require.Equal(t, true, h.RefetchRequested)
+		require.True(t, h.RefetchRequested)
 		require.Less(t, time.Since(h.LastEnrolledAt), 1*time.Hour) // check it's not in the date in the 2000 we use as "Never".
 		require.Equal(t, "test-hw-model-2", h.HardwareModel)
 
