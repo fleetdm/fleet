@@ -1,16 +1,11 @@
 # Deploying Platform SSO with Okta and Fleet
 
-Apple's Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
+Apple's [Platform Single Sign-on (Platform SSO)](https://support.apple.com/guide/deployment/platform-sso-for-macos-dep7bbb05313/web), enables the following features for macOS hosts:
+- Initial local account creation based on identity provider (IdP) credentials during macOS automatic (ADE) enrollment (aka [Simplified Platform SSO](#simplified-platform-sso-macos-26))
+- Sync local account password with IdP
+- End users sign in to their Mac once and automatically access apps and websites that require authentication through an IdP
 
-This guide details how to deploy Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts. It covers both the standard Platform SSO setup (macOS 13+) and the newer [Simplified Platform SSO](#simplified-platform-sso-macos-26) workflow introduced in macOS 26.
-
-If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
-
-Rather than your users having to enter credentials each time they sign in to an app protected by Okta, the Platform SSO extension will automatically perform the authentication and sync their local macOS password with their Okta password.
-
-This speeds up the authentication process for your employees and enables them to use their Okta credentials to unlock their Mac.
-
-**Important:** This feature requires the **Okta Device Access SKU** to enable Desktop Password Sync and Platform SSO functionality. Contact your Okta account representative if you need to purchase this license for your organization.
+This guide details how to enable these features by deploying Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts.
 
 ## Prerequisites
 
