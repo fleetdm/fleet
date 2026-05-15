@@ -1,4 +1,11 @@
-package schedule
+// Package scheduletest provides test helpers (no-op and mock implementations
+// of the schedule package's Locker and CronStatsStore interfaces) for use by
+// tests that exercise the cron schedule.
+//
+// It imports the "testing" package and must therefore only ever be imported
+// from test code; importing it from production code would pull "testing"
+// into the resulting binary.
+package scheduletest
 
 import (
 	"context"
@@ -10,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// NopLocker is a no-op Locker implementation that always succeeds.
 type NopLocker struct{}
 
 func (NopLocker) Lock(context.Context, string, string, time.Duration) (bool, error) {
@@ -20,28 +28,33 @@ func (NopLocker) Unlock(context.Context, string, string) error {
 	return nil
 }
 
+// NopStatsStore is a no-op CronStatsStore implementation.
 type NopStatsStore struct{}
 
-func (NopStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
+func (NopStatsStore) GetLatestCronStats(_ context.Context, _ string) ([]fleet.CronStats, error) {
 	return []fleet.CronStats{}, nil
 }
 
-func (NopStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+func (NopStatsStore) InsertCronStats(_ context.Context, _ fleet.CronStatsType, _ string, _ string, _ fleet.CronStatsStatus) (int, error) {
 	return 0, nil
 }
 
-func (NopStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
+func (NopStatsStore) UpdateCronStats(_ context.Context, _ int, _ fleet.CronStatsStatus, _ *fleet.CronScheduleErrors) error {
 	return nil
 }
 
-func (NopStatsStore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+func (NopStatsStore) ClaimCronStats(_ context.Context, _ int, _ string, _ fleet.CronStatsStatus) error {
 	return nil
 }
 
+// SetupMockLocker returns a *MockLock pre-populated with the given name,
+// owner, and expiration.
 func SetupMockLocker(name string, owner string, expiresAt time.Time) *MockLock {
 	return &MockLock{name: name, owner: owner, expiresAt: expiresAt}
 }
 
+// MockLock is an in-memory Locker that records lock/unlock activity and can
+// optionally signal those events through channels (see AddChannels).
 type MockLock struct {
 	mu sync.Mutex
 
@@ -56,7 +69,7 @@ type MockLock struct {
 	UnlockCount int
 }
 
-func (ml *MockLock) Lock(ctx context.Context, name string, owner string, expiration time.Duration) (bool, error) {
+func (ml *MockLock) Lock(_ context.Context, name string, owner string, expiration time.Duration) (bool, error) {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
@@ -78,7 +91,7 @@ func (ml *MockLock) Lock(ctx context.Context, name string, owner string, expirat
 	return false, nil
 }
 
-func (ml *MockLock) Unlock(ctx context.Context, name string, owner string) error {
+func (ml *MockLock) Unlock(_ context.Context, name string, owner string) error {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
 
@@ -110,6 +123,8 @@ func (ml *MockLock) GetExpiration() time.Time {
 	return ml.expiresAt
 }
 
+// AddChannels initializes the named signaling channels on the MockLock. The
+// known channel names are "locked" and "unlocked".
 func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
 	ml.mu.Lock()
 	defer ml.mu.Unlock()
@@ -129,6 +144,8 @@ func (ml *MockLock) AddChannels(t *testing.T, chanNames ...string) error {
 	return nil
 }
 
+// MockStatsStore is an in-memory CronStatsStore that records calls and can
+// optionally signal them through channels (see AddChannels).
 type MockStatsStore struct {
 	sync.Mutex
 	stats map[int]fleet.CronStats
@@ -138,7 +155,7 @@ type MockStatsStore struct {
 	UpdateStatsCalled chan struct{}
 }
 
-func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) ([]fleet.CronStats, error) {
+func (m *MockStatsStore) GetLatestCronStats(_ context.Context, name string) ([]fleet.CronStats, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -169,7 +186,7 @@ func (m *MockStatsStore) GetLatestCronStats(ctx context.Context, name string) ([
 	return res, nil
 }
 
-func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
+func (m *MockStatsStore) InsertCronStats(_ context.Context, statsType fleet.CronStatsType, name string, instance string, status fleet.CronStatsStatus) (int, error) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -183,7 +200,7 @@ func (m *MockStatsStore) InsertCronStats(ctx context.Context, statsType fleet.Cr
 	return id, nil
 }
 
-func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fleet.CronStatsStatus, cronErrors *fleet.CronScheduleErrors) error {
+func (m *MockStatsStore) UpdateCronStats(_ context.Context, id int, status fleet.CronStatsStatus, _ *fleet.CronScheduleErrors) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -202,7 +219,7 @@ func (m *MockStatsStore) UpdateCronStats(ctx context.Context, id int, status fle
 	return nil
 }
 
-func (m *MockStatsStore) ClaimCronStats(ctx context.Context, id int, instance string, status fleet.CronStatsStatus) error {
+func (m *MockStatsStore) ClaimCronStats(_ context.Context, id int, instance string, status fleet.CronStatsStatus) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -218,6 +235,9 @@ func (m *MockStatsStore) ClaimCronStats(ctx context.Context, id int, instance st
 	return nil
 }
 
+// AddChannels initializes the named signaling channels on the MockStatsStore.
+// The known channel names are "GetStatsCalled", "InsertStatsCalled", and
+// "UpdateStatsCalled".
 func (m *MockStatsStore) AddChannels(t *testing.T, chanNames ...string) error {
 	m.Lock()
 	defer m.Unlock()
@@ -237,7 +257,9 @@ func (m *MockStatsStore) AddChannels(t *testing.T, chanNames ...string) error {
 	return nil
 }
 
-func SetUpMockStatsStore(name string, initialStats ...fleet.CronStats) *MockStatsStore {
+// SetUpMockStatsStore returns a *MockStatsStore pre-seeded with the given
+// initial stats.
+func SetUpMockStatsStore(_ string, initialStats ...fleet.CronStats) *MockStatsStore {
 	stats := make(map[int]fleet.CronStats)
 	for _, s := range initialStats {
 		stats[s.ID] = s
