@@ -746,6 +746,14 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			}
 		}
 
+		// No pending profile matches the applied policy version, so there's nothing
+		// to map the non-compliance details back to. Skip the datastore lookup that
+		// would otherwise emit a spurious "policy request not found" error.
+		if policyRequestUUID == "" {
+			svc.logger.DebugContext(ctx, "no matching policy request for non-compliance evaluation", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
+			return
+		}
+
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
 		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
 		policyRequest, err := svc.ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
