@@ -137,12 +137,11 @@ const SoftwareLibraryTable = ({
     return generateLibraryTableConfig(router, teamId);
   }, [data, router, teamId]);
 
-  // Determines if a user should be able to filter or search in the table
   const hasData = tableData && tableData.length > 0;
   const hasQuery = query !== "";
 
-  const showFilterHeaders =
-    isSoftwareEnabled && (hasData || hasQuery || selfServiceOnly);
+  const isTrulyEmpty = !hasData && !hasQuery && !selfServiceOnly;
+  const controlsDisabled = !isSoftwareEnabled || isTrulyEmpty;
 
   const handleSelfServiceToggle = () => {
     const queryParams: Record<string, string | number | undefined> = {
@@ -202,6 +201,7 @@ const SoftwareLibraryTable = ({
         onChange={handleSelfServiceToggle}
         inactiveText="Self-service only"
         activeText="Self-service only"
+        disabled={controlsDisabled}
       />
     );
   };
@@ -272,11 +272,12 @@ const SoftwareLibraryTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={showFilterHeaders}
+        searchable
+        disableSearch={controlsDisabled}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}
         additionalQueries={String(selfServiceOnly)}
-        customControl={showFilterHeaders ? renderCustomControls : undefined}
+        customControl={renderCustomControls}
         stackControls
         renderCount={renderSoftwareCount}
         renderTableHelpText={renderTableHelpText}

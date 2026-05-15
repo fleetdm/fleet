@@ -69,10 +69,12 @@ type Dataset interface {
 // method. It is satisfied by the chart internal Datastore, keeping dataset
 // implementations decoupled from internals.
 type DatasetStore interface {
-	// FindRecentlySeenHostIDs returns host IDs that have reported since the
-	// given cutoff. Used by datasets like uptime that derive their sample from
-	// recent host activity.
-	FindRecentlySeenHostIDs(ctx context.Context, since time.Time, disabledFleetIDs []uint) ([]uint, error)
+	// FindOnlineHostIDs returns host IDs that are "online right now" per the
+	// product's standard online predicate (host_seen_times.seen_time within
+	// the host's own check-in interval). MDM-only mobile devices (iOS,
+	// iPadOS, Android) are excluded by design — they don't have
+	// host_seen_times rows. Used by datasets like uptime.
+	FindOnlineHostIDs(ctx context.Context, now time.Time, disabledFleetIDs []uint) ([]uint, error)
 
 	// AffectedHostIDsByCVE returns host IDs grouped by CVE, scoped to the given
 	// cves set. nil or empty cves returns an empty map — callers must pass the

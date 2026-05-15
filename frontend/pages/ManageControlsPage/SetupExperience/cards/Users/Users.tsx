@@ -155,7 +155,17 @@ const Users = ({ currentTeamId }: ISetupExperienceCardProps) => {
       />
       <PageDescription
         variant="right-panel"
-        content="Configure end user authentication and local account settings for hosts that automatically enroll to Fleet."
+        content={
+          <>
+            Customize local user accounts. You can automatically create local
+            user accounts using IdP credentials (PSSO).{" "}
+            <CustomLink
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/psso-local-account`}
+              text="Learn how"
+              newTab
+            />
+          </>
+        }
       />
       <SetupExperienceContentContainer>
         {renderContent()}

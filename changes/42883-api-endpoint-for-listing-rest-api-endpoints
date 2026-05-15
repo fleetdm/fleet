@@ -1,1 +1,0 @@
-* Added a new premium GET /api/_version_/fleet/rest_api endpoint that returns the contents of the embedded `api_endpoints.yml` artifact.

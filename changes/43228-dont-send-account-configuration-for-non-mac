@@ -1,1 +1,0 @@
-* Fixed an issue where we would send an AccountConfiguration command to iOS and iPadOS devices when end user authentication was enabled; AccountConfiguration is macOS-only.

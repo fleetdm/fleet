@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/fleetctl/fleetctltest"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/integrationtest"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -80,7 +80,7 @@ func (s *starterLibraryIntegrationEnterpriseTestSuite) TestApplyStarterLibraryPr
 		token,
 		logger,
 		func(args []string) error {
-			_, err := fleetctl.RunAppNoChecks(args)
+			_, err := fleetctltest.RunAppNoChecks(args)
 			return err
 		},
 	)
