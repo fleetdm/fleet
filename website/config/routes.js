@@ -612,6 +612,12 @@ module.exports.routes = {
     }
   },
 
+  'GET /webinars': {
+    action: 'articles/view-articles',
+    locals: {
+      currentSection: 'more'
+    }
+  },
 
   'GET /webinars/:slug': {
     action: 'articles/view-basic-webinar',
