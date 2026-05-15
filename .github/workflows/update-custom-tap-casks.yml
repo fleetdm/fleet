@@ -29,14 +29,13 @@ jobs:
 
       - name: Get current date and time
         id: date
-        run: echo "::set-output name=date::$(date +'%y%m%d%H%M')"
+        run: echo "date=$(date +'%y%m%d%H%M')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout Fleet
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: fleetdm/fleet
           fetch-depth: 1
-          ref: ${{ github.head_ref }}
           path: fleet
 
       - name: Setup Go

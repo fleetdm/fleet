@@ -473,7 +473,7 @@ func checkZoomRooms(ctx context.Context, client *http.Client, logger *slog.Logge
 		logger.WarnContext(ctx, "zoom redirect target did not match expected pattern", "final", finalURL)
 		return nil, nil
 	}
-	return &upstream{version: m[1], url: finalURL}, nil
+	return &upstream{version: m[1], url: latestURL}, nil
 }
 
 // githubLatestTag returns the tag_name of the latest non-prerelease
