@@ -1,6 +1,6 @@
-name: Test Fleetie handle script
+name: Test Fleetie scripts
 
-# Runs the unit tests for .github/scripts/build-fleetie-handles.js on PRs that change the script, the
+# Runs the unit tests for the Fleetie scripts on PRs that change either script (or its tests), the
 # closer workflow, this workflow, or any handbook markdown file (since handbook edits affect the
 # extracted handle list).
 
@@ -9,6 +9,8 @@ on:
     paths:
       - '.github/scripts/build-fleetie-handles.js'
       - '.github/scripts/build-fleetie-handles.test.js'
+      - '.github/scripts/stale-fleetie-issues.js'
+      - '.github/scripts/stale-fleetie-issues.test.js'
       - '.github/workflows/close-stale-fleetie-initiated-issues.yml'
       - '.github/workflows/test-fleetie-script.yml'
       - 'handbook/**/*.md'
@@ -41,4 +43,4 @@ jobs:
           node-version: '20'
 
       - name: Run tests
-        run: node --test .github/scripts/build-fleetie-handles.test.js
+        run: node --test .github/scripts/build-fleetie-handles.test.js .github/scripts/stale-fleetie-issues.test.js
