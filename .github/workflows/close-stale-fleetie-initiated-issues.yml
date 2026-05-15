@@ -5,6 +5,14 @@ name: Close stale Fleetie-initiated issues
 # `updated_at` and resets both clocks. Issues with the `bug`, `:product`, or any `customer-*` label are
 # exempt.
 #
+# Why this isn't just `actions/stale`: that action filters by labels, not by author. We can't pre-tag
+# issues with a "fleetie-initiated" label and hand off to actions/stale either, because adding a label
+# bumps `updated_at` and resets the staleness clock for the entire backlog. The closest upstream PR is
+# https://github.com/actions/stale/pull/1181 (`anyOfAuthors` allowlist input). It has been open with no
+# review since October 2024. When it merges, we should be able to replace this whole flow with a small
+# `actions/stale` config that passes the handle list from `build-fleetie-handles.js` as `anyOfAuthors`
+# and delete `stale-fleetie-issues.js` and its tests.
+#
 # Initial rollout: workflow_dispatch only, dry_run defaults to true. After the dry-run output has been
 # reviewed, switch dry_run to false and add a schedule trigger in a follow-up PR.
 
