@@ -1609,8 +1609,11 @@ func testHostsManagedAppleID(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	// SetHostManagedAppleID is a no-op when no host_mdm row exists.
-	require.NoError(t, ds.SetHostManagedAppleID(ctx, h.ID, "user@example.com"))
+	// SetHostManagedAppleID also returns NotFound when no host_mdm row exists
+	// (rather than silently dropping the value).
+	err = ds.SetHostManagedAppleID(ctx, h.ID, "user@example.com")
+	require.Error(t, err)
+	require.True(t, fleet.IsNotFound(err))
 	_, err = ds.GetHostManagedAppleID(ctx, h.ID)
 	require.True(t, fleet.IsNotFound(err))
 

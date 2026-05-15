@@ -2294,12 +2294,18 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 		require.Equal(t, "bearer.user@example.com", gotMAID)
 	})
 
-	t.Run("UserEnrollmentDevice without IDP account does not write managed_apple_id", func(t *testing.T) {
+	t.Run("UserEnrollmentDevice without IDP account clears managed_apple_id", func(t *testing.T) {
+		// Even when no IdP account is available, we still call SetHostManagedAppleID
+		// (with an empty value) to clear any stale Managed Apple ID a prior
+		// enrollment may have left behind, so it can't be reused for user-scoped
+		// VPP actions.
 		ds.GetMDMIdPAccountByHostUUIDFunc = func(context.Context, string) (*fleet.MDMIdPAccount, error) {
 			return nil, nil
 		}
 		ds.SetHostManagedAppleIDFuncInvoked = false
-		ds.SetHostManagedAppleIDFunc = func(context.Context, uint, string) error {
+		var gotMAID string
+		ds.SetHostManagedAppleIDFunc = func(_ context.Context, _ uint, managedAppleID string) error {
+			gotMAID = managedAppleID
 			return nil
 		}
 
@@ -2315,7 +2321,8 @@ func TestMDMTokenUpdateUserEnrollmentManagedAppleID(t *testing.T) {
 			},
 		)
 		require.NoError(t, err)
-		require.False(t, ds.SetHostManagedAppleIDFuncInvoked)
+		require.True(t, ds.SetHostManagedAppleIDFuncInvoked)
+		require.Empty(t, gotMAID)
 	})
 
 	t.Run("Device enrollment never writes managed_apple_id even with linked IDP account", func(t *testing.T) {

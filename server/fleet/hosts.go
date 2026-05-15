@@ -1268,7 +1268,9 @@ type HostMDM struct {
 	Name                   string  `db:"name" json:"-" csv:"-"`
 	DEPProfileAssignStatus *string `db:"dep_profile_assign_status" json:"-" csv:"-"`
 	// ManagedAppleID is set for iOS/iPadOS hosts enrolled via Account-Driven
-	// User Enrollment, sourced from Apple's TokenUpdate UserLongName.
+	// User Enrollment, sourced from the IdP account email resolved from the
+	// OAuth Bearer token at TokenUpdate time. Apple does not reliably populate
+	// UserLongName on User Enrollment so we don't fall back to it.
 	ManagedAppleID *string `db:"managed_apple_id" json:"-" csv:"-"`
 }
 

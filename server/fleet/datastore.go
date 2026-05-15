@@ -407,11 +407,12 @@ type Datastore interface {
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
 	// GetHostManagedAppleID returns the Managed Apple ID stored on host_mdm
-	// for the given host, or empty string if none is set.
+	// for the given host. Returns an empty string when a host_mdm row exists
+	// with a NULL managed_apple_id, and a NotFound error (see fleet.IsNotFound)
+	// when there is no host_mdm row at all.
 	GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error)
 	// SetHostManagedAppleID sets the Managed Apple ID on host_mdm for the
-	// given host. The host must already have a host_mdm row; if not, the
-	// call is a no-op.
+	// given host. Returns a NotFound error if the host has no host_mdm row.
 	SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error
 	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,

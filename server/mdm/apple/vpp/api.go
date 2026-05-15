@@ -174,6 +174,9 @@ type AssociateAssetsRequest struct {
 // Validate enforces Apple's contract that exactly one of SerialNumbers or
 // ClientUserIds is set on an associate-assets request.
 func (r *AssociateAssetsRequest) Validate() error {
+	if r == nil {
+		return errors.New("AssociateAssetsRequest: params cannot be nil")
+	}
 	hasSerials := len(r.SerialNumbers) > 0
 	hasUsers := len(r.ClientUserIds) > 0
 	switch {

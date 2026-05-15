@@ -3910,15 +3910,24 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 		}
 	}
 
-	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), persist the Managed
-	// Apple ID on host_mdm so VPP user-provisioning and asset-association can
-	// address the user directly rather than the device serial. The canonical
+	// For Account-Driven User Enrollment (BYOD iOS/iPadOS), keep host_mdm's
+	// managed_apple_id in sync with the current IdP-resolved email — including
+	// clearing it when resolution failed, so a stale value from a prior
+	// enrollment can't be reused for user-scoped VPP actions. The canonical
 	// source is the IDP account email resolved from the OAuth Bearer token at
 	// enrollment; Apple does not reliably populate UserLongName for User
-	// Enrollment so we don't fall back to it.
-	if r.Type == mdm.UserEnrollmentDevice && managedAppleID != "" {
+	// Enrollment so we don't fall back to it. NotFound is logged rather than
+	// returned because the lifecycle reset above should have inserted the
+	// host_mdm row already, and we don't want a transient race to break
+	// enrollment.
+	if r.Type == mdm.UserEnrollmentDevice {
 		if err := svc.ds.SetHostManagedAppleID(r.Context, info.HostID, managedAppleID); err != nil {
-			return ctxerr.Wrap(r.Context, err, "setting managed apple id")
+			if fleet.IsNotFound(err) {
+				svc.logger.WarnContext(r.Context, "setting managed apple id: host_mdm row not found",
+					"host_id", info.HostID, "host_uuid", r.ID)
+			} else {
+				return ctxerr.Wrap(r.Context, err, "setting managed apple id")
+			}
 		}
 	}
 

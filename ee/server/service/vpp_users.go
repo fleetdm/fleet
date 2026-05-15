@@ -65,13 +65,20 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 		Users: []vpp.CreateUsersUser{{ClientUserId: clientUserID, ManagedAppleId: managedAppleID}},
 	})
 	if err != nil {
-		// Persist 'pending' so a future retry can reuse the same clientUserID.
-		_ = svc.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+		// Persist 'pending' so a future retry can reuse the same clientUserID
+		// rather than minting a fresh one (which would leave us with multiple
+		// Apple-side users for the same Managed Apple ID). Log if the persist
+		// itself fails — we still want to surface the original CreateUsers
+		// error to the caller.
+		if insertErr := svc.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
 			VPPTokenID:     token.ID,
 			ManagedAppleID: managedAppleID,
 			ClientUserID:   clientUserID,
 			Status:         fleet.VPPClientUserStatusPending,
-		})
+		}); insertErr != nil {
+			svc.logger.ErrorContext(ctx, "persisting pending vpp client user after CreateUsers failure",
+				"host_id", host.ID, "vpp_token_id", token.ID, "err", insertErr)
+		}
 		return "", ctxerr.Wrap(ctx, err, "calling Apple VPP create-users")
 	}
 
@@ -88,12 +95,15 @@ func (svc *Service) ensureVPPClientUser(ctx context.Context, host *fleet.Host, t
 			continue
 		}
 		if u.HasError() {
-			_ = svc.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
+			if insertErr := svc.ds.InsertVPPClientUser(ctx, &fleet.VPPClientUser{
 				VPPTokenID:     token.ID,
 				ManagedAppleID: managedAppleID,
 				ClientUserID:   clientUserID,
 				Status:         fleet.VPPClientUserStatusPending,
-			})
+			}); insertErr != nil {
+				svc.logger.ErrorContext(ctx, "persisting pending vpp client user after Apple per-user error",
+					"host_id", host.ID, "vpp_token_id", token.ID, "err", insertErr)
+			}
 			return "", ctxerr.Errorf(ctx, "Apple VPP create-users returned error for managed apple id %q: %s (code %d)",
 				managedAppleID, u.ErrorMessage, u.ErrorNumber)
 		}

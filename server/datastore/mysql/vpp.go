@@ -1855,8 +1855,10 @@ WHERE vpp_token_id = ? AND managed_apple_id = ?`
 	var row fleet.VPPClientUser
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &row, stmt, tokenID, managedAppleID); err != nil {
 		if err == sql.ErrNoRows {
+			// Don't include managed_apple_id (PII) in the not-found message —
+			// it can end up in logs and API responses.
 			return nil, ctxerr.Wrap(ctx, notFound("VPPClientUser").
-				WithMessage(fmt.Sprintf("no VPP client user for vpp_token_id=%d, managed_apple_id=%q", tokenID, managedAppleID)))
+				WithMessage(fmt.Sprintf("no VPP client user for vpp_token_id=%d", tokenID)))
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get vpp_client_users row")
 	}

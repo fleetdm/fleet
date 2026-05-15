@@ -377,6 +377,9 @@ func TestInstallSoftwareTitleAllowsPersonallyEnrolledDevices(t *testing.T) {
 		OrbitNodeKey: ptr.String("orbit_key"),
 		Platform:     "ios",
 		TeamID:       ptr.Uint(1),
+		MDM: fleet.MDMHostData{
+			EnrollmentStatus: ptr.String(string(fleet.MDMEnrollStatusPersonal)),
+		},
 	}
 
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
