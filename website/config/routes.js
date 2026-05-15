@@ -593,31 +593,6 @@ module.exports.routes = {
     }
   },
 
-
-  'GET /autonomous-endpoint-management': {
-    action: 'landing-pages/view-autonomous-endpoint-management',
-    locals: {
-      pageTitleForMeta: 'Autonomous endpoint management',
-      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
-    }
-  },
-
-  'GET /imagine/apple-mdm': {
-    action: 'landing-pages/view-apple-mdm',
-    locals: {
-      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
-      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
-    }
-  },
-
-  'GET /on-premise': {
-    action: 'landing-pages/view-on-premise',
-    locals: {
-      pageTitleForMeta: 'On-premise device management',
-      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
-    }
-  },
-
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
@@ -626,25 +601,6 @@ module.exports.routes = {
     action: 'articles/view-articles',
     locals: {
       currentSection: 'more',
-    }
-  },
-
-  'GET /lp/patch-faster': {
-    action: 'landing-pages/view-patch-faster',
-    locals: {
-      currentSection: 'platform',
-      hideHeaderLinks: true,
-      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
-      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
-    }
-  },
-
-  'GET /replace-jamf': {
-    action: 'landing-pages/view-replace-jamf',
-    locals: {
-      currentSection: 'platform',
-      pageTitleForMeta: 'Replace Jamf with confidence',
-      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
     }
   },
 
@@ -678,6 +634,51 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Download fleetctl',
       pageDescriptionForMeta: 'Download fleetctl, Fleet\'s CLI for managing hosts, applying configurations, running reports, and interacting with the Fleet API.'
+    }
+  },
+
+  //  ╦  ╔═╗╔╗╔╔╦╗╦╔╗╔╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗
+  //  ║  ╠═╣║║║ ║║║║║║║ ╦  ╠═╝╠═╣║ ╦║╣ ╚═╗
+  //  ╩═╝╩ ╩╝╚╝═╩╝╩╝╚╝╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
+
+  'GET /lp/patch-faster': {
+    action: 'landing-pages/view-patch-faster',
+    locals: {
+      hideHeaderLinks: true,
+      pageTitleForMeta: 'Stop waiting on your MDM catalog. Fleet automated patch management.',
+      pageDescriptionForMeta: 'Fleet\'s maintained app catalog and automated patch policies push updates to every device on a regular, predictable cadence — no manual repackaging, no osquery queries to write.'
+    }
+  },
+
+  'GET /lp/replace-jamf': {
+    action: 'landing-pages/view-replace-jamf',
+    locals: {
+      pageTitleForMeta: 'Replace Jamf with confidence',
+      pageDescriptionForMeta: 'Replace Jamf with Fleet. Manage devices faster, review changes safely, and deploy across macOS, Windows, and Linux from one platform.'
+    }
+  },
+
+  'GET /lp/autonomous-endpoint-management': {
+    action: 'landing-pages/view-autonomous-endpoint-management',
+    locals: {
+      pageTitleForMeta: 'Autonomous endpoint management',
+      pageDescriptionForMeta: 'Patch at exploit speed. The average time-to-exploitation is now 1.3 days. Fleet\'s autonomous endpoint management updates devices automatically across every major OS, with humans in the loop.',
+    }
+  },
+
+  'GET /lp/apple-mdm': {
+    action: 'landing-pages/view-apple-mdm',
+    locals: {
+      pageTitleForMeta: 'Apple MDM: open source Mac device management at enterprise scale',
+      pageDescriptionForMeta: 'Fleet is open source Apple MDM for modern IT and security teams. Enroll, configure, and secure Mac, iPhone, and iPad with Apple Business Manager, FileVault, DDM, and GitOps. Self-hosted or Fleet-hosted.',
+    }
+  },
+
+  'GET /lp/on-premise': {
+    action: 'landing-pages/view-on-premise',
+    locals: {
+      pageTitleForMeta: 'On-premise device management',
+      pageDescriptionForMeta: 'Fleet is the only enterprise MDM that runs entirely on your infrastructure — full feature parity, air-gap ready, MIT licensed. Your data never leaves your network.',
     }
   },
 
@@ -1127,7 +1128,10 @@ module.exports.routes = {
     }
   },
   'GET /meetups': '/gitops-workshop',
-
+  'GET /replace-jamf': '/lp/replace-jamf',
+  'GET /on-premise': '/lp/on-premise',
+  'GET /imagine/apple-mdm': '/lp/apple-mdm',
+  'GET /autonomous-endpoint-management': '/lp/autonomous-endpoint-management',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
