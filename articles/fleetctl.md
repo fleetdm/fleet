@@ -122,7 +122,9 @@ An API-only user does not have access to the Fleet UI. Instead, it's only purpos
 
 #### Create API-only user
 
-On Fleet Premium, starting in Fleet 4.85.0, you can create API-only users directly from the Fleet UI. Navigate to **Settings > Users > Create user** and select the **API-only** option. From the UI you can also restrict the user to a specific list of API endpoints, which narrows access without expanding permissions beyond the user's role (for example, a team admin granted access to the [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) endpoint will still receive a `403` response, because that endpoint is restricted to global admins).
+To create an API-only user, navigate to **Settings > Users > Create user** and select the **API-only** option. 
+
+You can optionally restrict the user to a specific list of API endpoints, which narrows access without expanding permissions beyond the user's role (for example, a team admin granted access to the [Update configuration](https://fleetdm.com/docs/rest-api/rest-api#update-configuration) endpoint will still receive a `403` response, because that endpoint is restricted to global admins).
 
 You can also create an API-only user with `fleetctl`. First, log in to fleetctl as an admin (see [authentication](#authentication) above for details), then run:
 
