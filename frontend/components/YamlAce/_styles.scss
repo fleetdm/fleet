@@ -6,9 +6,6 @@
         border: 1px solid $ui-error;
       }
     }
-    &--disabled {
-      @include disabled($allow-pointer-events: true);
-    }
   }
 
   // Added to remove the "popping" effect when the editor first loads.

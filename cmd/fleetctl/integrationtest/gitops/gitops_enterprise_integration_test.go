@@ -29,6 +29,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -39,6 +40,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
+	"github.com/fleetdm/fleet/v4/server/service/svctest"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
 	"github.com/google/uuid"
@@ -129,7 +131,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		serverConfig.Logger = slog.New(slog.DiscardHandler)
 	}
-	users, server := service.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
+	users, server := svctest.RunServerForTestsWithDS(s.T(), s.DS, &serverConfig)
 	s.activityMock = serverConfig.ActivityMock
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.Server = server
@@ -158,7 +160,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	t := s.T()
 	ctx := context.Background()
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		// Delete certificate templates before CAs and teams to avoid FK constraints.
 		if _, err := q.ExecContext(ctx, `DELETE FROM certificate_templates`); err != nil {
 			return err
@@ -175,12 +177,12 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 	}
 
 	// Delete policies in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM policies WHERE team_id = 0;`)
 		return err
 	})
 	// Clean software installers in "Unassigned" (the others are deleted in ts.DS.DeleteTeam above).
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM software_installers WHERE global_or_team_id = 0;`)
 		return err
 	})
@@ -192,11 +194,11 @@ func (s *enterpriseIntegrationGitopsTestSuite) TearDownTest() {
 		require.NoError(t, err)
 	}
 
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_apps;")
 		return err
 	})
-	mysql.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM in_house_apps;")
 		return err
 	})
@@ -493,7 +495,7 @@ settings:
 		Token:  uuid.NewString(),
 		Sha256: []byte("sha256"),
 	}, nil))
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -514,7 +516,7 @@ settings:
 		Profile: []byte(`{"foo":"bar"}`),
 	})
 	require.NoError(t, err)
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -526,14 +528,14 @@ settings:
 	s.assertDryRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name(), "--dry-run"}))
 	s.assertRealRunOutput(t, fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", teamFile.Name()}))
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_bootstrap_packages WHERE team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
 		assert.Equal(t, 0, result)
 		return nil
 	})
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt := "SELECT COUNT(*) FROM mdm_apple_setup_assistants WHERE global_or_team_id IN (?, ?)"
 		var result int
 		require.NoError(t, sqlx.GetContext(context.Background(), q, &result, stmt, 0, team.ID))
@@ -2713,7 +2715,7 @@ settings:
 
 	// Verify the display name is stored in the database for no team
 	var noTeamDisplayName string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &noTeamDisplayName,
 			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
 			0, noTeamTitleID)
@@ -2729,7 +2731,7 @@ settings:
 
 	// Verify the display name is stored in the database for team
 	var teamDisplayName string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &teamDisplayName,
 			"SELECT display_name FROM software_title_display_names WHERE team_id = ? AND software_title_id = ?",
 			team.ID, teamTitleID)
@@ -2866,7 +2868,7 @@ settings:
 	t.Cleanup(manifestServer.Close)
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			VALUES ('foo', 'foo/darwin', 'darwin', 'com.example.foo')`)
 		return err
@@ -2891,7 +2893,7 @@ settings:
 
 	// Verify the custom icon is stored in the database for no team
 	var noTeamIconFilenames []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", 0, noTeamTitleIDs)
 		if err != nil {
 			return err
@@ -2912,7 +2914,7 @@ settings:
 
 	// Verify the custom icon is stored in the database for team
 	var teamIconFilenames []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		stmt, args, err := sqlx.In("SELECT filename FROM software_title_icons WHERE team_id = ? AND software_title_id IN (?)", team.ID, teamTitleIDs)
 		if err != nil {
 			return err
@@ -3007,7 +3009,7 @@ settings:
 	require.Len(t, titles, 1)
 
 	var storageID string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &storageID,
 			"SELECT storage_id FROM software_title_icons WHERE team_id = ? AND software_title_id = ?",
 			team.ID, titles[0].ID)
@@ -3038,7 +3040,7 @@ settings:
 
 	// Recovery: clearing storage_id forces a hash mismatch and re-upload
 	// on the next run.
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE software_title_icons SET storage_id = '' WHERE team_id = ? AND software_title_id = ?",
 			team.ID, titles[0].ID)
@@ -3145,7 +3147,7 @@ settings:
 	require.Len(t, titles, 2)
 
 	var storageIDs []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &storageIDs,
 			"SELECT DISTINCT storage_id FROM software_title_icons WHERE team_id = ?", team.ID)
 	})
@@ -3167,7 +3169,7 @@ settings:
 	// other title's row), and the server will refuse the metadata-only
 	// update because the bytes for the local hash are gone.
 	const fakeHash = "deadbeef0000000000000000000000000000000000000000000000000000beef"
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			"UPDATE software_title_icons SET storage_id = ? WHERE team_id = ? AND software_title_id = ?",
 			fakeHash, team.ID, titles[0].ID)
@@ -3186,7 +3188,7 @@ settings:
 	require.Equal(t, originalSize, info.Size())
 
 	var afterStorageIDs []string
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &afterStorageIDs,
 			"SELECT DISTINCT storage_id FROM software_title_icons WHERE team_id = ?", team.ID)
 	})
@@ -3541,7 +3543,7 @@ func labelTeamIDResult(t *testing.T, s *enterpriseIntegrationGitopsTestSuite, ct
 		TeamID *uint  `db:"team_id"`
 	}
 	var result []labelResult
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		require.NoError(t, sqlx.SelectContext(ctx, q, &result, "SELECT name, team_id FROM labels WHERE label_type = 0"))
 		return nil
 	})
@@ -3854,7 +3856,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) setupDarwinFMA(t *testing.T) (slu
 	t.Helper()
 	suffix := strings.ReplaceAll(uuid.NewString(), "-", "")
 	slug = fmt.Sprintf("foo%s/darwin", suffix)
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(t.Context(),
 			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			 VALUES (?, ?, 'darwin', ?)`, "foo"+suffix, slug, "com.example.foo"+suffix)
@@ -4100,7 +4102,7 @@ settings:
 		EndTime   string `db:"end_time"`
 	}
 	var schedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &schedules,
 			`SELECT title_id, team_id, enabled, start_time, end_time
 			FROM software_update_schedules
@@ -4171,7 +4173,7 @@ settings:
 
 	// Verify auto-update schedules: iOS should still have settings, iPadOS should be disabled
 	var updatedSchedules []autoUpdateSchedule
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(ctx, q, &updatedSchedules,
 			`SELECT title_id, team_id, enabled, start_time, end_time
 			FROM software_update_schedules
@@ -5259,7 +5261,7 @@ settings:
 	dev_mode.SetOverride("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL, t)
 
 	// Insert the FMA record so gitops can resolve the slug
-	mysql.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.DS, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
 			`INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			 VALUES (?, ?, 'darwin', ?)`, "foo"+t.Name(), slug, `com.example.foo`+t.Name())

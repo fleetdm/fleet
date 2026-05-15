@@ -28,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/installersize"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -1529,6 +1530,12 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	cmdUUID := uuid.NewString()
 	err = svc.ds.InsertHostVPPSoftwareInstall(ctx, host.ID, vppApp.VPPAppID, cmdUUID, eventID, opts)
 	if err != nil {
+		if errors.Is(err, apple_mdm.ErrUnresolvableAppConfigVar) {
+			return "", &fleet.BadRequestError{
+				Message:     "Couldn't install. The managed app configuration references Fleet variables that can't be resolved for this host.",
+				InternalErr: err,
+			}
+		}
 		return "", ctxerr.Wrapf(ctx, err, "inserting host vpp software install for host with serial %s and app with adamID %s", host.HardwareSerial, vppApp.AdamID)
 	}
 

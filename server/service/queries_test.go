@@ -8,7 +8,7 @@ import (
 
 	activity_api "github.com/fleetdm/fleet/v4/server/activity/api"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -137,6 +137,29 @@ func TestQueryPayloadValidationCreate(t *testing.T) {
 				Query:    ptr.String("select 1"),
 				Logging:  ptr.String("differential"),
 				Platform: ptr.String("darwin,windows,sphinx"),
+			},
+			true,
+		},
+		{
+			"Nil name",
+			fleet.QueryPayload{
+				Query:   ptr.String("select 1"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil query",
+			fleet.QueryPayload{
+				Name:    ptr.String("test query"),
+				Logging: ptr.String("snapshot"),
+			},
+			true,
+		},
+		{
+			"Nil name and query",
+			fleet.QueryPayload{
+				Logging: ptr.String("snapshot"),
 			},
 			true,
 		},
@@ -887,7 +910,7 @@ func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
 }
 
 func TestInheritedQueryReportTeamPermissions(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	defer ds.Close()
 
 	svc, ctx := newTestService(t, ds, nil, nil)

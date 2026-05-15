@@ -3400,19 +3400,25 @@ func TestGetMDMCommands(t *testing.T) {
 		}, nil, nil, nil
 	}
 
-	listErr = io.ErrUnexpectedEOF
+	// --host is required
 	_, err := RunAppNoChecks([]string{"get", "mdm-commands"})
+	require.Error(t, err)
+	require.ErrorContains(t, err, `Required flag "host" not set`)
+
+	// --host="" is rejected before any API call
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", ""})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "No host targeted. Please provide --host.")
+
+	expectIdentifier = true
+	listErr = io.ErrUnexpectedEOF
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.Error(t, err)
 	require.ErrorContains(t, err, io.ErrUnexpectedEOF.Error())
 
 	listErr = nil
-	empty = true
-	buf, err := RunAppNoChecks([]string{"get", "mdm-commands"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), "You haven't run any MDM commands. Run MDM commands with the `fleetctl mdm run-command` command.")
-
 	empty = false
-	buf, err = RunAppNoChecks([]string{"get", "mdm-commands"})
+	buf, err := RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
 
@@ -3430,23 +3436,8 @@ The list of 3 most recent commands:
 `))
 
 	// Test with invalid option
-	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo"})
+	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--invalid", "foo", "--host", "foo"})
 	require.Error(t, err)
-
-	// Test with host identifier filter
-	listErr = nil
-	empty = false
-	expectIdentifier = true
-	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
-	require.NoError(t, err)
-
-	// Test with request type filter
-	listErr = nil
-	empty = false
-	expectRequestType = true
-	expectIdentifier = false
-	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--type", "foo"})
-	require.NoError(t, err)
 
 	// Test with request type and host identifier filter
 	listErr = nil
@@ -3474,11 +3465,6 @@ The list of 3 most recent commands:
 	buf, err = RunAppNoChecks([]string{"get", "mdm-commands", "--host", "foo"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), "No MDM commands have been run on this host.")
-
-	// Command status no host
-	_, err = RunAppNoChecks([]string{"get", "mdm-commands", "--command_status", "ran"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `"host_identifier" must be specified when filtering by "command_status"`)
 }
 
 func TestUserIsObserver(t *testing.T) {

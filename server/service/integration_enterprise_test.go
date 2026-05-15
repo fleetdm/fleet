@@ -50,18 +50,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	mdmtest "github.com/fleetdm/fleet/v4/server/mdm/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
+	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
@@ -165,6 +168,28 @@ func (s *integrationEnterpriseTestSuite) TearDownTest() {
 	s.lq.Mock = mock.Mock{}
 	s.withServer.commonTearDownTest(s.T())
 }
+
+// testOktaValidCert is a valid PEM-encoded x509 certificate used by tests that
+// configure Okta conditional access in AppConfig.
+const testOktaValidCert = `-----BEGIN CERTIFICATE-----
+MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
+A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
+MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
+ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
+VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
+A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
+MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
+ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
+NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
+2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
+kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
+ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
+Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
+nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
+9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
+umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
+FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
+-----END CERTIFICATE-----`
 
 // clearOktaConditionalAccess clears all Okta conditional access configuration fields.
 // This is useful for test cleanup to ensure tests don't interfere with each other.
@@ -1385,7 +1410,7 @@ func (s *integrationEnterpriseTestSuite) TestListTeamPoliciesAutomationTypeSoftw
 	s.uploadSoftwareInstaller(t, payload2, http.StatusOK, "")
 	dummyTitleID := getSoftwareTitleID(t, s.ds, "DummyApp", "apps")
 	// Create a Fleet Maintained App and associate it with the dummy installer
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			VALUES ('DummyApp', 'dummy-autofilter/darwin', 'darwin', 'com.example.dummy-autofilter')`)
 		require.NoError(t, err)
@@ -2006,7 +2031,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// modify a team with a NULL config
 	defaultFeatures := fleet.Features{}
 	defaultFeatures.ApplyDefaultsForNewInstalls()
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = NULL WHERE id = ? `, tm1ID)
 		return err
 	})
@@ -2020,7 +2045,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
 
 	// modify a team with an empty config
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `UPDATE teams SET config = '{}' WHERE id = ? `, tm1ID)
 		return err
 	})
@@ -3569,7 +3594,7 @@ func (s *integrationEnterpriseTestSuite) assertAppleOSUpdatesDeclaration(teamID 
 	}
 
 	var declUUID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(context.Background(), q, &declUUID,
 			`SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND name = ?`, teamID, profileName)
 		if expected == nil {
@@ -5204,7 +5229,7 @@ func (s *integrationEnterpriseTestSuite) TestSSOJITProvisioning() {
 	// We cannot use NewTeam and must use adhoc SQL because the teams.id is
 	// auto-incremented and other tests cause it to be different than what we need (ID=1).
 	var execErr error
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, execErr = db.ExecContext(context.Background(), `INSERT INTO teams (id, name) VALUES (1, 'Foobar'), (2, 'Hollatchaboi') ON DUPLICATE KEY UPDATE name = VALUES(name);`)
 		return execErr
 	})
@@ -5981,7 +6006,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		ID          uint `db:"id"`
 		OSVersionID uint `db:"os_version_id"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &osinfo,
 			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
@@ -6553,14 +6578,14 @@ func createHostAndDeviceToken(t *testing.T, ds *mysql.Datastore, token string) *
 }
 
 func updateDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
-	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `UPDATE host_device_auth SET token = ? WHERE host_id = ?`, token, hostID)
 		return err
 	})
 }
 
 func createDeviceTokenForHost(t *testing.T, ds *mysql.Datastore, hostID uint, token string) {
-	mysql.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(context.Background(), `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, hostID, token)
 		return err
 	})
@@ -7686,7 +7711,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, `UPDATE host_script_results SET created_at = ? WHERE execution_id = ?`,
 			now.Add(-1*time.Hour),
 			runResp.ExecutionID,
@@ -7883,7 +7908,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// modify the timestamp of the script to simulate an script that has
 	// been pending for a long time
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(context.Background(), "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), runSyncResp.ExecutionID)
 		return err
 	})
@@ -9223,7 +9248,7 @@ VALUES
 
 		args := []interface{}{}
 		var scID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			// First check if this script content already exists
 			row := tx.QueryRowxContext(ctx, `
 				SELECT id FROM script_contents WHERE md5_checksum = UNHEX(MD5(?))
@@ -9262,7 +9287,7 @@ VALUES
 		}
 		args = append(args, hostID, createdAt, execID, exitCode, scID, "")
 
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
 			return err
 		})
@@ -9470,7 +9495,7 @@ VALUES
 	t.Run("get script results user message", func(t *testing.T) {
 		// add a script with an older created_at timestamp
 		var oldScriptID, oldScriptContentsID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			// create script_contents first
 			res, err := tx.ExecContext(ctx, `
 INSERT INTO
@@ -10862,7 +10887,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	require.Len(t, resp.SoftwareTitles, 0)
 
 	// update it to be self-service, check that it gets returned
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payloadRubyTm1.Filename)
 		return err
 	})
@@ -11041,7 +11066,7 @@ func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uin
 	ctx := context.Background()
 
 	var prof fleet.MDMWindowsConfigProfile
-	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		var globalOrTeamID uint
 		if teamID != nil {
 			globalOrTeamID = *teamID
@@ -11804,7 +11829,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEvents() {
 
 	calendar.SetMockEventsToNow()
 
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Update updated_at so the event gets updated (the event is updated regularly)
 		_, err := db.ExecContext(ctx,
 			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
@@ -12025,7 +12050,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventsTransferringHosts() {
 	require.NoError(t, err)
 
 	// Move event to two days ago (to clean up the calendar event)
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(ctx,
 			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 49 HOUR) WHERE id = ?`, team1CalendarEvents[0].ID)
 		if err != nil {
@@ -12305,7 +12330,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	titleID := getSoftwareTitleID(t, s.ds, "ruby", "deb_packages")
 
 	// update it to be self-service
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "UPDATE software_installers SET self_service = 1 WHERE filename = ?", payload.Filename)
 		return err
 	})
@@ -12377,7 +12402,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 	// TODO(JVE): remove/update this once the API is in place
 	updateInstallerLabel := func(siID, labelID uint, exclude bool) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err = q.ExecContext(
 				ctx,
 				`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`,
@@ -12388,7 +12413,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 	}
 
 	var installerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerID, "SELECT id FROM software_installers WHERE title_id = ?", titleID)
 	})
 	require.NotEmpty(t, installerID)
@@ -12531,7 +12556,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftware() {
 
 func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source string) uint {
 	var id uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`, title, source)
 	})
 	return id
@@ -12539,7 +12564,7 @@ func checkSoftwareTitle(t *testing.T, ds *mysql.Datastore, title string, source 
 
 func checkScriptContentsID(t *testing.T, ds *mysql.Datastore, id uint, expectedContents string) {
 	var contents string
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &contents, `SELECT contents FROM script_contents WHERE id = ?`, id)
 	})
 	require.Equal(t, expectedContents, contents)
@@ -12551,13 +12576,13 @@ func checkSoftwareInstaller(t *testing.T, ds *mysql.Datastore, payload *fleet.Up
 		tid = *payload.TeamID
 	}
 	var id uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, tid, payload.Filename)
 	})
 	require.NotZero(t, id)
 
 	var platform string
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE id = ?`, id)
 	})
 	require.Equal(t, payload.Platform, "linux")
@@ -13166,7 +13191,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, 0, titleID)
 		})
 		require.Equal(t, 0, count)
@@ -13212,7 +13237,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		var origPackageIDs string
 		var origExtension string
 		// Update DB by clearing package id and tweaking extension
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if err := sqlx.GetContext(context.Background(), q, &origPackageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
 				installerID); err != nil {
 				return err
@@ -13245,7 +13270,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.NoError(t, err)
 
 		// Check package ID and extension
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var packageIDs string
 			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
 				installerID); err != nil {
@@ -13278,7 +13303,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.NoError(t, err)
 
 		// Update DB by clearing package ids and swapping extension to one we skip
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			if _, err = q.ExecContext(context.Background(), `UPDATE software_installers SET package_ids = '', extension = 'tar.gz' WHERE id = ?`,
 				installerID); err != nil {
 				return err
@@ -13291,7 +13316,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		require.NoError(t, err)
 
 		// Package ID and extension should not have been modified
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var packageIDs string
 			if err := sqlx.GetContext(context.Background(), q, &packageIDs, `SELECT package_ids FROM software_installers WHERE id = ?`,
 				installerID); err != nil {
@@ -13794,7 +13819,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 
 	// PUT: gitops workflow, passing in sha256 & filename
 	var storedIcons []fleet.SoftwareTitleIcon
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
 		if err != nil {
 			return err
@@ -13829,7 +13854,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 
 	// verify no new software title icons were created
 	storedIcons = make([]fleet.SoftwareTitleIcon, 0)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
 		if err != nil {
 			return err
@@ -13985,7 +14010,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, tm.ID, *packages[0].TeamID)
 
 	var installerHash string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
 	})
 
@@ -14049,7 +14074,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
 	require.Equal(t, rubyURL, *titlesResp.SoftwareTitles[0].SoftwarePackage.PackageURL)
 
 	// check that platform is set when the installer is created
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var platform string
 		if err := sqlx.GetContext(context.Background(), q, &platform, `SELECT platform FROM software_installers WHERE title_id= ? AND team_id = ?`, titlesResp.SoftwareTitles[0].ID, tm.ID); err != nil {
 			return err
@@ -15118,7 +15143,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerNewInstallRequestP
 	for kind := range softwareTitles {
 		// TODO(roberto): we need real binaries for exe, msi and pkg to
 		// perform the API calls.
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			ctx := context.Background()
 			installScript := fmt.Sprintf(`echo '%s'`, kind)
 			res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
@@ -15988,7 +16013,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 
 	latestInstallUUID := func() string {
 		var id string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &id, `SELECT execution_id FROM upcoming_activities ORDER BY id DESC LIMIT 1`)
 		})
 		return id
@@ -16261,7 +16286,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptSoftDelete() {
 
 func getSoftwareTitleID(t *testing.T, ds *mysql.Datastore, title, source string) uint {
 	var id uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM software_titles WHERE name = ? AND source = ? AND extension_for = ''`, title, source)
 	})
 	return id
@@ -16657,7 +16682,7 @@ func (s *integrationEnterpriseTestSuite) TestEXEPackageUploads() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	var titleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
 	})
 	require.NotZero(t, titleID)
@@ -16740,7 +16765,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 	var titleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
 	})
 	require.NotZero(t, titleID)
@@ -16751,7 +16776,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 		PostInstallScript string `db:"post_install_script"`
 		PreInstallQuery   string `db:"pre_install_query"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &scriptContents, `
 			SELECT
 				COALESCE(uninst.contents, '') AS uninstall_script,
@@ -16777,7 +16802,7 @@ func (s *integrationEnterpriseTestSuite) TestScriptPackageUploads() {
 	}, http.StatusOK, "")
 
 	// Verify unsupported params are still cleared after update
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &scriptContents, `
 			SELECT
 				COALESCE(uninst.contents, '') AS uninstall_script,
@@ -17346,7 +17371,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Update updated_at so the event gets updated (the event is updated regularly)
 		_, err := db.ExecContext(ctx,
 			`UPDATE calendar_events SET updated_at = DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 25 HOUR) WHERE id = ?`, event.ID)
@@ -17874,7 +17899,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		UserName  string `db:"user_name"`
 		UserEmail string `db:"user_email"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&dummyInstallerPkg,
 			`SELECT id, user_id, user_name, user_email FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
@@ -17939,7 +17964,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 		UserName  string `db:"user_name"`
 		UserEmail string `db:"user_email"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&rubyDeb,
 			`SELECT id, user_id, user_name, user_email FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
@@ -17976,7 +18001,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.NotNil(t, resp.SoftwareTitles[0].SoftwarePackage)
 	fleetOsqueryMSITitleID := resp.SoftwareTitles[0].ID
 	var fleetOsqueryMSIInstallerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&fleetOsqueryMSIInstallerID,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
@@ -18155,7 +18180,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(1), policy1Team1.FailingHostCount)
 	passes := true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&passes,
 			`SELECT passes FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
@@ -18179,7 +18204,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(0), policy1Team1.FailingHostCount)
 	countBiggerThanZero := true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&countBiggerThanZero,
 			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
@@ -18203,7 +18228,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(1), policy1Team1.FailingHostCount)
 	passes = true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&passes,
 			`SELECT passes FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
@@ -18230,7 +18255,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(0), policy1Team1.FailingHostCount)
 	countBiggerThanZero = true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&countBiggerThanZero,
 			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
@@ -18462,7 +18487,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 	}`, host1Team1.ID, host1Team1.DisplayName(), "DummyApp", "dummy_installer.pkg", host1LastInstall.ExecutionID, policy1Team1.ID, policy1Team1.Name), 0)
 
 	var activityCount int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityCount,
 			`SELECT count(1) FROM activity_past`,
@@ -18488,7 +18513,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsSoftwareInstallers
 			"install_script_output": "failed"
 		}`, *host3Team2.OrbitNodeKey, host3LastInstall.ExecutionID)), http.StatusNoContent)
 	var activityNewCount int
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&activityNewCount,
 			`SELECT count(1) FROM activity_past`,
@@ -18552,7 +18577,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	softwareTitleID := resp.SoftwareTitles[0].ID
 
 	var installerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerID,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
 			team.ID, "dummy_installer.pkg")
@@ -18591,7 +18616,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	}
 	getPendingInstall := func() *fleet.HostSoftwareInstallerResult {
 		var results []*fleet.HostSoftwareInstallerResult
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &results, `
 				SELECT
 					id,
@@ -18623,7 +18648,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	}
 	getInstallResults := func() []*fleet.HostSoftwareInstallerResult {
 		var results []*fleet.HostSoftwareInstallerResult
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &results, `
 				SELECT id, execution_id, host_id, software_installer_id, policy_id, install_script_exit_code, attempt_number
 				FROM host_software_installs
@@ -18635,7 +18660,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 	}
 	countActivities := func() int {
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
 				FROM activity_past
@@ -18821,7 +18846,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationSoftwareInstallRetr
 		PositiveCount int `db:"positive_count"`
 		NullCount     int `db:"null_count"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptCounts, `
 			SELECT
 				COUNT(*) as total_rows,
@@ -18876,7 +18901,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	softwareTitleID := resp.SoftwareTitles[0].ID
 
 	var installerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerID,
 			`SELECT id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`,
 			team.ID, "dummy_installer.pkg")
@@ -18885,7 +18910,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 
 	getPendingInstall := func() *fleet.HostSoftwareInstallerResult {
 		var results []*fleet.HostSoftwareInstallerResult
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &results, `
 				SELECT
 					id,
@@ -18917,7 +18942,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	}
 	getInstallResults := func() []*fleet.HostSoftwareInstallerResult {
 		var results []*fleet.HostSoftwareInstallerResult
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &results, `
 				SELECT id, execution_id, host_id, software_installer_id, self_service,
 					install_script_exit_code, attempt_number
@@ -18930,7 +18955,7 @@ func (s *integrationEnterpriseTestSuite) TestNonPolicySoftwareInstallRetries() {
 	}
 	countActivities := func() int {
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
 				FROM activity_past
@@ -19808,7 +19833,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(1), policy1Team1.FailingHostCount)
 	passes := true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&passes,
 			`SELECT passes FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
@@ -19832,7 +19857,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(0), policy1Team1.FailingHostCount)
 	countBiggerThanZero := true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&countBiggerThanZero,
 			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
@@ -19856,7 +19881,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(1), policy1Team1.FailingHostCount)
 	passes = true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&passes,
 			`SELECT passes FROM policy_membership WHERE policy_id = ? AND host_id = ?`,
@@ -19882,7 +19907,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, uint(0), policy1Team1.PassingHostCount)
 	require.Equal(t, uint(0), policy1Team1.FailingHostCount)
 	countBiggerThanZero = true
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q,
 			&countBiggerThanZero,
 			`SELECT COUNT(*) > 0 FROM policy_membership WHERE policy_id = ?`,
@@ -20154,7 +20179,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	}
 	getScriptResults := func() []*fleet.HostScriptResult {
 		var results []*fleet.HostScriptResult
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &results, `
 				SELECT id, host_id, script_id, policy_id, exit_code, attempt_number, execution_id
 				FROM host_script_results
@@ -20166,7 +20191,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 	}
 	countActivities := func() int {
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &count, `
 				SELECT COUNT(*)
 				FROM activity_past
@@ -20353,7 +20378,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationScriptRetries() {
 		PositiveCount int `db:"positive_count"`
 		NullCount     int `db:"null_count"`
 	}
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &attemptCounts, `
 			SELECT
 				COUNT(*) as total_rows,
@@ -20492,7 +20517,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 
 	getSoftwareInstallerIDByMAppID := func(mappID uint) uint {
 		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM software_installers WHERE fleet_maintained_app_id = ?", mappID)
 		})
 
@@ -20503,7 +20528,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	insertedApps := maintained_apps.SyncApps(t, s.ds)
+	insertedApps := maintainedappstest.SyncApps(t, s.ds)
 	expectedApps := insertedApps
 
 	h := sha256.New()
@@ -20695,7 +20720,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	// Verify the installer has is_active = 1 for this FMA
 	var activeInstallerCount, onlyInstallerID uint
 	var isActive bool
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.GetContext(ctx, q, &activeInstallerCount,
 			`SELECT COUNT(*) FROM software_installers WHERE fleet_maintained_app_id = ? AND global_or_team_id = ? AND is_active = 1`,
 			req.AppID, team.ID)
@@ -20773,7 +20798,7 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	)
 
 	// Edit DB to point some apps at bad-installer/timeout slugs
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 2", "badinstaller")
 		require.NoError(t, err)
 		_, err = q.ExecContext(ctx, "UPDATE fleet_maintained_apps SET slug = ? WHERE id = 3", "timeout")
@@ -21119,17 +21144,17 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	http.DefaultTransport = mockTransport
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// verify WARP is in `fleet_maintained_apps` table but not in `software_installers`
 	var warpFmaId uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &warpFmaId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare WARP' AND platform = 'windows'")
 	})
 	require.NotNil(t, warpFmaId)
 
 	var count uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &count, "SELECT COUNT(*) FROM software_installers")
 	})
 	require.Zero(t, count)
@@ -21141,7 +21166,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Add WARP for Windows
 	var warpAppId uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &warpAppId, "SELECT id FROM fleet_maintained_apps WHERE name = 'Cloudflare WARP' and platform = 'windows'")
 	})
 
@@ -21160,7 +21185,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// Verify WARP is now in `software_installers`, a `software_tiles` row has been created, and they
 	// are associated
 	var warpInstaller fleet.SoftwareInstaller
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &warpInstaller, "SELECT id, title_id, upgrade_code, filename FROM software_installers WHERE upgrade_code = ?", warpUpgradeCode)
 	})
 	require.NotNil(t, warpInstaller)
@@ -21224,7 +21249,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	// confirm software row now in the database and `upgrade_code`s match for that row, the associated
 	// `software_titles` row, and the associated `software_installers` row
 	var swTitleId *uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &swTitleId, "SELECT title_id FROM software WHERE upgrade_code = ?", warpUpgradeCode)
 	})
 	require.Equal(t, title.ID, *swTitleId)
@@ -21244,7 +21269,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 	require.Equal(t, warpUpgradeCode, *sw0.UpgradeCode)
 
 	// nuke the title so we can try this with a batch upload
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, "DELETE FROM software_titles WHERE upgrade_code = ?", warpUpgradeCode)
 		return err
 	})
@@ -21261,7 +21286,7 @@ func (s *integrationEnterpriseTestSuite) TestUpgradeCodesFromMaintainedApps() {
 
 	// Verify the upgrade code was correctly set on the software installer
 	var installerUpgradeCode *string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerUpgradeCode, "SELECT upgrade_code FROM software_installers WHERE title_id = ?", packages[0].TitleID)
 	})
 	require.NotNil(t, installerUpgradeCode)
@@ -21375,7 +21400,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	// De-scope the software by adding an exclude any label that the host has.
 	// TODO(JVE): remove/update this once the API is in place
 	updateInstallerLabel := func(siID, labelID uint, exclude bool) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(
 				ctx,
 				`INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`,
@@ -21386,7 +21411,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	}
 
 	var installerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerID, "SELECT id FROM software_installers WHERE title_id = ?", titleID)
 	})
 	require.NotEmpty(t, installerID)
@@ -21437,7 +21462,7 @@ func (s *integrationEnterpriseTestSuite) TestListHostSoftwareWithLabelScoping() 
 	require.Nil(t, getHostSw.Software[0].SoftwarePackage)
 
 	var uninstallExecutionID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &uninstallExecutionID, `
 			SELECT execution_id
 			FROM host_software_installs
@@ -21856,7 +21881,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	hitDebURL = false
 
 	var debHash string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &debHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[0].TitleID)
 	})
 	require.NotEmpty(t, debHash)
@@ -21990,7 +22015,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSoftwareUploadWithSHAs() {
 	hitExeURL = false
 
 	var exeHash string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &exeHash, "SELECT storage_id FROM software_installers WHERE title_id = ?", packages[1].TitleID)
 	})
 	require.NotEmpty(t, exeHash)
@@ -24863,7 +24888,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 
 	// Get the installer title ID we just created
 	var titleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM software_installers WHERE global_or_team_id = ? AND filename = ?`, &team.ID, payload.Filename)
 	})
 	require.NotZero(t, titleID)
@@ -24899,7 +24924,7 @@ func (s *integrationEnterpriseTestSuite) TestSetupExperiencePayloadFreePackageWi
 	// Manually create a pending software install for setup experience
 	// This simulates what happens when setup experience starts
 	var executionID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		execUUID := uuid.New().String()
 		executionID = execUUID
 		_, err := q.ExecContext(ctx, `
@@ -25206,26 +25231,7 @@ func (s *integrationEnterpriseTestSuite) TestAppConfigOktaConditionalAccess() {
 		return b
 	}
 
-	// Valid PEM certificate for testing (real Okta certificate)
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	// Test values
 	idp := "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl"
@@ -25427,30 +25433,106 @@ qcznMoapfGAjRwaheTlWbzyUh57ToALyx3xQbzqYIxiQCzY=
 	)
 }
 
+// TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity verifies that
+// toggling GitOps mode while Okta conditional access is already configured
+// (with bypass_disabled=true) does not generate a spurious
+// update_conditional_access_bypass activity. The PATCH payload only touches
+// the gitops block, so the conditional-access bypass setting is unchanged.
+func (s *integrationEnterpriseTestSuite) TestGitOpsModeToggleDoesNotCreateConditionalAccessActivity() {
+	t := s.T()
+	ctx := t.Context()
+	t.Cleanup(func() {
+		s.clearOktaConditionalAccess()
+		// Also reset gitops config to a clean state.
+		s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+			"gitops": { "gitops_mode_enabled": false, "repository_url": "" }
+		}`), http.StatusOK)
+	})
+
+	validCert := testOktaValidCert
+
+	// Configure Okta conditional access with bypass_disabled=true. This puts
+	// the appconfig in the state required to trigger the buggy code path.
+	oktaBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     true,
+		},
+	}
+	oktaBodyBytes, err := json.Marshal(oktaBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", oktaBodyBytes, http.StatusOK)
+
+	var acResp appConfigResponse
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Valid)
+	require.True(t, acResp.ConditionalAccess.BypassDisabled.Value, "bypass_disabled must be true to reproduce the bug")
+
+	// Seed a host_conditional_access row. The buggy branch in ModifyAppConfig
+	// calls ConditionalAccessClearBypasses, which deletes every row in this
+	// table — so if the bug fires, this row disappears.
+	host := createHostAndDeviceToken(t, s.ds, fmt.Sprintf("bypass-row-%s", uuid.New().String()))
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+
+	// Toggle GitOps mode ON. The PATCH body intentionally omits
+	// conditional_access — this is exactly what the Change management page
+	// sends (frontend/pages/admin/IntegrationsPage/cards/ChangeManagement).
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": true, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	// The seeded bypass row must survive the toggle — if the buggy branch
+	// ran it would have called ConditionalAccessClearBypasses.
+	bypassedAt, err := s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	// The most recent activity must be enabled_gitops_mode — NOT
+	// update_conditional_access_bypass. The buggy code emits the bypass
+	// activity after the gitops one, so checking only the last activity
+	// is sufficient.
+	s.lastActivityMatches(fleet.ActivityTypeEnabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Re-seed the bypass row and toggle GitOps mode OFF. Same assertions.
+	require.NoError(t, s.ds.ConditionalAccessBypassDevice(ctx, host.ID))
+	s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"gitops": { "gitops_mode_enabled": false, "repository_url": "https://example.com/repo" }
+	}`), http.StatusOK)
+
+	bypassedAt, err = s.ds.ConditionalAccessConsumeBypass(ctx, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, bypassedAt, "host_conditional_access row was cleared by an unrelated gitops PATCH")
+
+	s.lastActivityMatches(fleet.ActivityTypeDisabledGitOpsMode{}.ActivityName(), "", 0)
+
+	// Sanity check: a real change to bypass_disabled still emits the activity.
+	flipBody := map[string]any{
+		"conditional_access": map[string]any{
+			"okta_idp_id":                         "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_assertion_consumer_service_url": "https://dev-579.okta.com/sso/saml2/0oaqu0748bP2ELUlJ5d7",
+			"okta_audience_uri":                   "https://www.okta.com/saml2/service-provider/spaubuaqdunfbsmoxyhl",
+			"okta_certificate":                    validCert,
+			"bypass_disabled":                     false,
+		},
+	}
+	flipBodyBytes, err := json.Marshal(flipBody)
+	require.NoError(t, err)
+	s.DoRaw("PATCH", "/api/latest/fleet/config", flipBodyBytes, http.StatusOK)
+	s.lastActivityOfTypeMatches(
+		fleet.ActivityTypeUpdateConditionalAccessBypass{}.ActivityName(),
+		`{"bypass_disabled": false}`,
+		0,
+	)
+}
+
 func (s *integrationEnterpriseTestSuite) TestConditionalAccessBypass() {
 	t := s.T()
 	ctx := t.Context()
 
-	// Shared certificate for Okta configuration
-	validCert := `-----BEGIN CERTIFICATE-----
-MIIDqDCCApCgAwIBAgIGAZXsT7aXMA0GCSqGSIb3DQEBCwUAMIGUMQswCQYDVQQGEwJVUzETMBEG
-A1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsGA1UECgwET2t0YTEU
-MBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEcMBoGCSqGSIb3DQEJ
-ARYNaW5mb0Bva3RhLmNvbTAeFw0yNTAzMzExMzA1NDFaFw0zNTAzMzExMzA2NDFaMIGUMQswCQYD
-VQQGEwJVUzETMBEGA1UECAwKQ2FsaWZvcm5pYTEWMBQGA1UEBwwNU2FuIEZyYW5jaXNjbzENMAsG
-A1UECgwET2t0YTEUMBIGA1UECwwLU1NPUHJvdmlkZXIxFTATBgNVBAMMDGRldi01Nzk4ODEyOTEc
-MBoGCSqGSIb3DQEJARYNaW5mb0Bva3RhLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
-ggEBAIS/AMr00GVLTHWnufTZg9sWjJhEkEawLoSRtMPZhJRPi/8rKsKk0fiYK6YKHpiY+iL4kle0
-NHVMAQhk6vC4wmiaKMy8iEZxJB2gWLO/Xk6b+Vaa1Fu4xg+wWb61ue46HGRhvhHG3eHtz8NOLao4
-2DRCjbghCv+qRDcfgei/IrrTUmSJDUMXNMtaQbg+dOMeQRbgfkz2x6LI/TeBKghIGHIYRKzebcH6
-kr1XtgVapG+X6NccjL4FmIvfITpOK6+B3wdszEH5HUicMdZEt/8yLO00kJZhxRVCvK0LbzYEHFx5
-ftIyBCB6iwIZ9eECf4p87UxOfe0AD0NAdm/BR+dr1psCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEA
-Wzh9U6/I5G/Uy/BoMTv3lBsbS6h7OGUE2kOTX5YF3+t4EKlGNHNHx1CcOa7kKb1Cpagnu3UfThly
-nMVWcUemsnhjN+6DeTGpqX/GGpQ22YKIZbqFm90jS+CtLQQsi0ciU7w4d981T2I7oRs9yDk+A2ZF
-9yf8wGi6ocy4EC00dCJ7DoSui6HdYiQWk60K4w7LPqtvx2bPPK9j+pmAbuLmHPAQ4qyccDZVDOaP
-umSer90UyfV6FkY8/nfrqDk6tE8RyabI3o48Q4m12RoYcA3sZ3Ba3A4CzP7Q0uUFD6nMTqgq4ZeV
-FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
------END CERTIFICATE-----`
+	validCert := testOktaValidCert
 
 	t.Run("bypass succeeds when enabled", func(t *testing.T) {
 		// Create a unique host for this subtest
@@ -25506,7 +25588,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 		// Create a SCIM user and map it to the host
 		var scimUserID int64
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			res, err := db.ExecContext(ctx,
 				`INSERT INTO scim_users (user_name, given_name, family_name, active) VALUES (?, ?, ?, ?)`,
 				"john.doe@example.com", "John", "Doe", 1)
@@ -25516,7 +25598,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 			scimUserID, err = res.LastInsertId()
 			return err
 		})
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx,
 				`INSERT INTO host_scim_user (host_id, scim_user_id) VALUES (?, ?)`,
 				host.ID, scimUserID)
@@ -25686,7 +25768,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 
 		// Verify both bypasses exist by checking the count directly
 		var count int
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
 		})
 		require.GreaterOrEqual(t, count, 2, "at least both bypass records should exist")
@@ -25699,7 +25781,7 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==
 		}`), http.StatusOK, &acResp)
 
 		// Verify all bypasses were cleared
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, db, &count, "SELECT COUNT(*) FROM host_conditional_access WHERE host_id IN (?, ?)", host1.ID, host2.ID)
 		})
 		require.Equal(t, 0, count, "all bypass records should be cleared when bypass_disabled is toggled")
@@ -25932,7 +26014,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 
 	// Create device token for macOS host (traditional token-based auth)
 	macToken := "valid-mac-token"
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, macHost.ID, macToken)
 		return err
 	})
@@ -25942,7 +26024,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	certPEM, certHash, cert := generateTestCertForDeviceAuth(t, certSerial, iosHost.UUID)
 
 	// Insert certificate into nanomdm tables
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Insert serial (scep_serials uses auto-increment but we can insert explicit value)
 		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
@@ -26061,7 +26143,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 		ipadCertSerial := uint64(987654321)
 		ipadCertPEM, ipadCertHash, ipadCert := generateTestCertForDeviceAuth(t, ipadCertSerial, ipadHost.UUID)
 
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, ipadCertSerial)
 			if err != nil {
 				return err
@@ -26149,7 +26231,7 @@ func (s *integrationEnterpriseTestSuite) TestDeviceAuthenticationMethods() {
 	t.Run("iOS device with token auth should be rejected", func(t *testing.T) {
 		// Create a device token for the iOS host
 		iosToken := "ios-device-token"
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx, `INSERT INTO host_device_auth (host_id, token) VALUES (?, ?)`, iosHost.ID, iosToken)
 			return err
 		})
@@ -26190,7 +26272,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		var titleID uint
 		var installerID uint
 		var titleName string
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
 			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT title_id FROM in_house_apps WHERE filename = ?`, payload.Filename))
 			require.NoError(t, sqlx.GetContext(ctx, q, &titleName, `SELECT name FROM software_titles WHERE id = ?`, titleID))
@@ -26290,7 +26372,7 @@ func (s *integrationEnterpriseTestSuite) TestInHouseAppCRUD() {
 		s.uploadSoftwareInstaller(t, payload, http.StatusOK, "")
 
 		var titleID, installerID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			require.NoError(t, sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
 			require.NoError(t, sqlx.GetContext(ctx, q, &installerID, `SELECT id FROM in_house_apps WHERE filename = ? AND platform = 'ios' AND team_id = ?`, payload.Filename, teamResp.Team.ID))
 			return nil
@@ -26697,7 +26779,7 @@ func (s *integrationEnterpriseTestSuite) TestDeleteTeamCertificateTemplates() {
 		INSERT INTO host_certificate_templates (host_uuid, certificate_template_id, status, operation_type, fleet_challenge, name)
 		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// Template 1 - Various statuses
 		// Pending status - should be deleted
 		_, err := q.ExecContext(ctx, insertSQL, hostPending.UUID, certificateTemplateID1, "pending", "install", nil, certTemplateName1)
@@ -26936,7 +27018,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	s.Do("POST", "/api/latest/fleet/software/fleet_maintained_apps", &addFleetMaintainedAppRequest{AppID: 1}, http.StatusNotFound)
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// Mock manifest server — routes by slug path and returns current per-FMA state.
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27036,7 +27118,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 	// fmaAppID returns the fleet_maintained_apps.id for the given slug.
 	fmaAppID := func(slug string) uint {
 		var id uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &id, "SELECT id FROM fleet_maintained_apps WHERE slug = ?", slug)
 		})
 		require.NotZero(t, id)
@@ -27127,7 +27209,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// Get the queued installer ID from the pending install record
 	var installerID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerID, `
 			SELECT software_installer_id FROM host_software_installs
 			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
@@ -27169,7 +27251,7 @@ func (s *integrationEnterpriseTestSuite) TestFMAVersionRollback() {
 
 	// Get the queued installer ID from the pending install record
 	var installerIDv3 uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installerIDv3, `
 			SELECT software_installer_id FROM host_software_installs
 			WHERE host_id = ? AND software_installer_id IS NOT NULL AND install_script_exit_code IS NULL
@@ -27810,7 +27892,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 
 	// mock an installer being uploaded through FMA
 	updateInstallerFMAID := func(fmaID, teamID, titleID uint) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err = q.ExecContext(ctx, `UPDATE software_installers SET fleet_maintained_app_id = ? WHERE global_or_team_id = ? AND title_id = ?`, fmaID, teamID, titleID)
 			require.NoError(t, err)
 			return nil
@@ -27891,7 +27973,7 @@ func (s *integrationEnterpriseTestSuite) TestPatchPolicies() {
 		res.Body.Close()
 
 		// add a fleet maintained app and associate the installer with it
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			res, err := q.ExecContext(ctx, `INSERT INTO fleet_maintained_apps (name, slug, platform, unique_identifier)
 			VALUES ('DummyApp', 'dummy/darwin', 'darwin', 'com.example.dummy')`)
 			require.NoError(t, err)
@@ -28623,7 +28705,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadPayloadTooLa
 
 func getFleetMaintainedAppID(t *testing.T, ds *mysql.Datastore, slug string) uint {
 	var id uint
-	mysql.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(context.Background(), q, &id, `SELECT id FROM fleet_maintained_apps WHERE slug = ?`, slug)
 	})
 	return id
@@ -29449,7 +29531,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	require.NotZero(t, titleID)
 
 	var storageID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &storageID,
 			"SELECT storage_id FROM software_installers WHERE title_id = ? AND global_or_team_id = ?",
 			titleID, tm.ID)
@@ -29463,7 +29545,7 @@ func (s *integrationEnterpriseTestSuite) TestBatchSetInstallersScriptByHash() {
 	waitBatchSetSoftwareInstallersCompleted(t, &s.withServer, tm.Name, batchResponse.RequestUUID)
 
 	var installScript string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installScript, `
 			SELECT sc.contents
 			FROM software_installers si
@@ -30405,4 +30487,129 @@ func (s *integrationEnterpriseTestSuite) TestApplyPolicySpecsBatchMixedScopes() 
 	require.Len(t, byName[validAnyName].LabelsIncludeAny, 1)
 	require.Len(t, byName[validAllName].LabelsIncludeAll, 2)
 	require.Len(t, byName[validExclName].LabelsExcludeAny, 1)
+}
+
+// TestOrbitOsqueryReEnrollDoesNotChangeTeam verifies that re-enrolling a host
+// via orbit or osquery with an enroll secret belonging to a different team than
+// the host's current team does not change the host's team_id. This protects
+// against unintended team transfers when a host re-enrolls using a different
+// enroll secret than the one originally used to onboard it.
+func (s *integrationEnterpriseTestSuite) TestOrbitOsqueryReEnrollDoesNotChangeTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	teamASecret := "team-a-reenroll-secret" //nolint:gosec // G101: test value only
+	teamBSecret := "team-b-reenroll-secret" //nolint:gosec // G101: test value only
+
+	teamA, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name:    t.Name() + "_teamA",
+		Secrets: []*fleet.EnrollSecret{{Secret: teamASecret}},
+	})
+	require.NoError(t, err)
+
+	// Team B exists only to own teamBSecret. The host should never end up in it.
+	_, err = s.ds.NewTeam(ctx, &fleet.Team{
+		Name:    t.Name() + "_teamB",
+		Secrets: []*fleet.EnrollSecret{{Secret: teamBSecret}},
+	})
+	require.NoError(t, err)
+
+	t.Run("orbit", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		hostSerial := uuid.New().String()
+		hostName := t.Name() + ".local"
+
+		// Initial orbit enroll with team A's secret — host should be created in team A.
+		var orbitResp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+			EnrollSecret:   teamASecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: hostSerial,
+			Hostname:       hostName,
+			Platform:       "darwin",
+			HardwareModel:  "MacBookPro16,1",
+		}, http.StatusOK, &orbitResp)
+		require.NotEmpty(t, orbitResp.OrbitNodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+
+		// Re-enroll the same host using team B's secret. team_id must not change.
+		var reorbitResp enrollOrbitResponse
+		s.DoJSON("POST", "/api/fleet/orbit/enroll", fleet.EnrollOrbitRequest{
+			EnrollSecret:   teamBSecret,
+			HardwareUUID:   hostUUID,
+			HardwareSerial: hostSerial,
+			Hostname:       hostName,
+			Platform:       "darwin",
+			HardwareModel:  "MacBookPro16,1",
+		}, http.StatusOK, &reorbitResp)
+		require.NotEmpty(t, reorbitResp.OrbitNodeKey)
+
+		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+	})
+
+	t.Run("osquery", func(t *testing.T) {
+		hostUUID := uuid.New().String()
+		hostSerial := uuid.New().String()
+
+		// Initial osquery enroll with team A's secret — host should be created in team A.
+		var osqueryResp contract.EnrollOsqueryAgentResponse
+		s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   teamASecret,
+			HostIdentifier: hostUUID,
+			HostDetails: map[string]map[string]string{
+				"osquery_info": {
+					"instance_id": hostUUID,
+				},
+				"system_info": {
+					"hardware_serial": hostSerial,
+					"uuid":            hostUUID,
+				},
+			},
+		}, http.StatusOK, &osqueryResp)
+		require.NotEmpty(t, osqueryResp.NodeKey)
+
+		hostLite, err := s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+
+		// Age last_enrolled_at to bypass the osquery enroll cooldown (default 42m in tests).
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				ctx,
+				"UPDATE hosts SET last_enrolled_at = DATE_SUB(NOW(), INTERVAL '1' HOUR) WHERE id = ?",
+				hostLite.ID,
+			)
+			return err
+		})
+
+		// Re-enroll the same host using team B's secret. team_id must not change.
+		var reosqueryResp contract.EnrollOsqueryAgentResponse
+		s.DoJSON("POST", "/api/osquery/enroll", contract.EnrollOsqueryAgentRequest{
+			EnrollSecret:   teamBSecret,
+			HostIdentifier: hostUUID,
+			HostDetails: map[string]map[string]string{
+				"osquery_info": {
+					"instance_id": hostUUID,
+				},
+				"system_info": {
+					"hardware_serial": hostSerial,
+					"uuid":            hostUUID,
+				},
+			},
+		}, http.StatusOK, &reosqueryResp)
+		require.NotEmpty(t, reosqueryResp.NodeKey)
+
+		hostLite, err = s.ds.HostLiteByIdentifier(ctx, hostUUID)
+		require.NoError(t, err)
+		require.NotNil(t, hostLite.TeamID)
+		require.Equal(t, teamA.ID, *hostLite.TeamID)
+	})
 }

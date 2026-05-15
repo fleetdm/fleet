@@ -78,7 +78,14 @@ const condenseDeviceUsers = (users: IDeviceUser[]): string[] => {
     : condensed;
 };
 
-const lastSeenTime = (status: string, seenTime: string): string => {
+const lastSeenTime = (
+  status: string,
+  seenTime: string,
+  platform?: string
+): string => {
+  if (platform && isMobilePlatform(platform)) {
+    return "Last seen: Not supported";
+  }
   if (status !== "online") {
     return `Last seen: ${humanHostLastSeen(seenTime)}`;
   }
@@ -123,7 +130,8 @@ const allHostTableHeaders = (teamId?: number): IHostTableColumnConfig[] => [
           path={PATHS.HOST_DETAILS(cellProps.row.original.id, teamId)}
           title={lastSeenTime(
             cellProps.row.original.status,
-            cellProps.row.original.seen_time
+            cellProps.row.original.seen_time,
+            cellProps.row.original.platform
           )}
         />
       );

@@ -1281,12 +1281,13 @@ func TestGitOpsTeamVPPAppleConfiguration(t *testing.T) {
 			}
 			ds.GetVPPTokenByTeamIDFunc = func(ctx context.Context, teamID *uint) (*fleet.VPPTokenDB, error) {
 				return &fleet.VPPTokenDB{
-					ID:        1,
-					OrgName:   "Fleet",
-					Location:  "Earth",
-					RenewDate: renewDate,
-					Token:     string(token),
-					Teams:     nil,
+					ID:          1,
+					OrgName:     "Fleet",
+					Location:    "Earth",
+					RenewDate:   renewDate,
+					Token:       string(token),
+					Teams:       nil,
+					CountryCode: "us",
 				}, nil
 			}
 			ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
