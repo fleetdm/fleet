@@ -130,11 +130,13 @@ type caskJSON struct {
 
 func main() {
 	var (
-		debug bool
-		only  string
+		debug  bool
+		only   string
+		dryRun bool
 	)
 	flag.BoolVar(&debug, "debug", false, "verbose logging")
-	flag.StringVar(&only, "only", "", "comma-separated tokens to process (default: all)")
+	flag.StringVar(&only, "only", "", "comma-separated cask tokens to process (default: all)")
+	flag.BoolVar(&dryRun, "dry-run", false, "run upstream checks and log results without downloading or writing files")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -169,7 +171,7 @@ func main() {
 			continue
 		}
 		l := logger.With("app", app.cask)
-		if err := updateApp(ctx, l, client, app); err != nil {
+		if err := updateApp(ctx, l, client, app, dryRun); err != nil {
 			l.ErrorContext(ctx, "update failed", "err", err)
 			failed = append(failed, app.cask)
 			continue
@@ -182,7 +184,7 @@ func main() {
 	}
 }
 
-func updateApp(ctx context.Context, logger *slog.Logger, client *http.Client, app appConfig) error {
+func updateApp(ctx context.Context, logger *slog.Logger, client *http.Client, app appConfig, dryRun bool) error {
 	rbPath := filepath.Join(customTapRoot, "Casks", app.cask+".rb")
 	jsonPath := filepath.Join(customTapRoot, "api", app.cask+".json")
 
@@ -209,6 +211,11 @@ func updateApp(ctx context.Context, logger *slog.Logger, client *http.Client, ap
 	}
 
 	logger.InfoContext(ctx, "new version available", "from", meta.Version, "to", up.version, "url", up.url)
+
+	if dryRun {
+		logger.InfoContext(ctx, "dry-run: skipping download and write")
+		return nil
+	}
 
 	// Stream the asset through the hasher rather than buffering — installer
 	// packages can run to hundreds of MB.
@@ -372,12 +379,15 @@ func checkXCreds(ctx context.Context, client *http.Client, _ *slog.Logger) (*ups
 }
 
 // druva-insync: Druva doesn't expose a parseable version feed. Best
-// effort here is to scrape their public release-notes page for the
-// newest "inSync Mac Client X.Y.Z (Build NNNNNN)" header. If the page
-// layout changes the regex fails and we return (nil, nil) so the
-// workflow leaves the file alone instead of erroring.
+// effort here is to scrape the inSync Client release-notes article on
+// help.druva.com — each release block lists the Mac client as
+// "macOS: X.Y.Zr<build>" (e.g., "macOS: 8.0.0r110959"). The newest
+// release appears first on the page. If the page format changes or
+// Druva's TLS cert is expired (their *.druva.com cert lapsed for ~11
+// days in May 2026), the checker returns (nil, nil) and the workflow
+// leaves the file alone instead of erroring.
 func checkDruvaInSync(ctx context.Context, client *http.Client, logger *slog.Logger) (*upstream, error) {
-	const docURL = "https://docs.druva.com/Knowledge_Base/inSync/Release_Notes/Release_Notes_inSync_Mac_Client"
+	const docURL = "https://help.druva.com/en/articles/8829600-release-notes-insync-client-insync-web"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, docURL, nil)
 	if err != nil {
 		return nil, err
@@ -396,10 +406,9 @@ func checkDruvaInSync(ctx context.Context, client *http.Client, logger *slog.Log
 	if err != nil {
 		return nil, err
 	}
-	re := regexp.MustCompile(`inSync\s+Mac\s+Client\s+(\d+\.\d+(?:\.\d+)?)\s*\(\s*Build\s+(\d+)\s*\)`)
-	m := re.FindSubmatch(body)
+	m := regexp.MustCompile(`macOS:\s*(\d+\.\d+(?:\.\d+)?)\s*r\s*(\d+)`).FindSubmatch(body)
 	if m == nil {
-		logger.WarnContext(ctx, "no version pattern found on druva docs page")
+		logger.WarnContext(ctx, "no version pattern found on druva release notes page")
 		return nil, nil
 	}
 	ver, build := string(m[1]), string(m[2])
