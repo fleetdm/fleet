@@ -13,20 +13,24 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func RunAppForTest(t *testing.T, args []string) string {
-	w, err := RunAppNoChecks(args)
+// runAppForTest mirrors fleetctltest.runAppForTest for internal tests in
+// this package, which can't import fleetctltest (cycle: fleetctltest -> fleetctl).
+func runAppForTest(t *testing.T, args []string) string {
+	w, err := runAppNoChecks(args)
 	require.NoError(t, err)
 	return w.String()
 }
 
-func RunAppCheckErr(t *testing.T, args []string, errorMsg string) string {
-	w, err := RunAppNoChecks(args)
+// runAppCheckErr mirrors fleetctltest.runAppCheckErr for internal tests.
+func runAppCheckErr(t *testing.T, args []string, errorMsg string) string {
+	w, err := runAppNoChecks(args)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), errorMsg)
 	return w.String()
 }
 
-func RunWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error) {
+// runWithErrWriter mirrors fleetctltest.runWithErrWriter for internal tests.
+func runWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error) {
 	args = append([]string{""}, args...)
 
 	w := new(bytes.Buffer)
@@ -36,11 +40,12 @@ func RunWithErrWriter(args []string, errWriter io.Writer) (*bytes.Buffer, error)
 	return w, err
 }
 
-func noopExitErrHandler(c *cli.Context, err error) {}
+func noopExitErrHandler(_ *cli.Context, _ error) {}
 
-// Alias for RunApp; added rather than changing all existing calls to `RunApp`,
-// to avoid confusion and in case the behavior of `RunApp` needs to diverge in the future.
-func RunAppNoChecks(args []string) (*bytes.Buffer, error) {
+// runAppNoChecks is an alias for RunApp; added rather than changing all
+// existing calls to `RunApp`, to avoid confusion and in case the behavior
+// of `RunApp` needs to diverge in the future.
+func runAppNoChecks(args []string) (*bytes.Buffer, error) {
 	return RunApp(args)
 }
 

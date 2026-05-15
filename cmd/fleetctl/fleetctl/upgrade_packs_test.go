@@ -259,7 +259,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 0 queries from 2 2017 "Packs" into portable queries:`)
 	require.Contains(t, got, `visit https://example.com/packs/manage and disable all`)
 
@@ -379,7 +379,7 @@ spec:
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, `Converted 2 queries from 2 2017 "Packs" into portable queries:`)
 
 	content, err := os.ReadFile(outputFile)
@@ -402,9 +402,9 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	require.NoError(t, err)
 
 	// first try without the required output file flag
-	RunAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
+	runAppCheckErr(t, []string{"upgrade-packs"}, `Required flag "o" not set`)
 	// then try with the required flag but user is not admin
-	RunAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
+	runAppCheckErr(t, []string{"upgrade-packs", "-o", outputFile}, `could not upgrade packs: forbidden: user does not have the admin role`)
 
 	content, err := os.ReadFile(outputFile)
 	require.NoError(t, err)
@@ -429,7 +429,7 @@ func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
 	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
-	got := RunAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
+	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
 	require.Contains(t, got, "No 2017 \"Packs\" found.\n")
 
 	content, err := os.ReadFile(outputFile)

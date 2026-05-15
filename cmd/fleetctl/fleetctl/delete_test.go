@@ -31,7 +31,7 @@ spec:
     - darwin
 `)
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
+	assert.Empty(t, runAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeleteLabelFuncInvoked)
 	assert.Equal(t, "pending_updates", deletedLabel)
 }
@@ -69,7 +69,7 @@ spec:
     labels: null
 `)
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
+	assert.Empty(t, runAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeletePackFuncInvoked)
 	assert.Equal(t, "pack1", deletedPack)
 }
@@ -104,7 +104,7 @@ spec:
   query: select 1;
 `)
 
-	assert.Equal(t, "", RunAppForTest(t, []string{"delete", "-f", name}))
+	assert.Empty(t, runAppForTest(t, []string{"delete", "-f", name}))
 	assert.True(t, ds.DeleteQueryFuncInvoked)
 	assert.Equal(t, "query1", deletedQuery)
 }
