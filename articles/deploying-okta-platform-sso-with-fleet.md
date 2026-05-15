@@ -364,7 +364,39 @@ In addition to the [standard prerequisites](#prerequisites) above, Simplified Pl
 
 Simplified Platform SSO uses the same Extensible SSO / Platform SSO profile and Okta Device Access SCEP profile described in the sections above. Follow the existing instructions to create:
 
-- An **Extensible Single Sign-On** profile with Platform SSO settings.
+- An **Extensible Single Sign-On** profile with Simplified Platform SSO settings.
+
+For users to be created during setup and immediately registered with Platform SSO the profile must include **EnableRegistrationDuringSetup** and must list https://yourdomain.okta.com/v1/auth/device-sign within **URLs**
+
+Example configuration for macOS 26:
+
+```xml
+<key>PayloadType</key>
+<string>com.apple.extensiblesso</string>
+<key>PlatformSSO</key>
+<dict>
+    <key>AccountDisplayName</key>
+    <string>Okta Verify</string>
+    <key>AuthenticationMethod</key>
+    <string>Password</string>
+    <key>UseSharedDeviceKeys</key>
+    <true/>
+    <key>EnableRegistrationDuringSetup</key>
+    <true/>
+</dict>
+<key>ExtensionIdentifier</key>
+<string>com.okta.mobile.auth-service-extension</string>
+<key>TeamIdentifier</key>
+<string>B7F62B65BN</string>
+<key>Type</key>
+<string>Redirect</string>
+<key>URLs</key>
+<array>
+    <string>https://yourdomain.okta.com/device-access/api/v1/nonce</string>
+    <string>https://yourdomain.okta.com/oauth2/v1/token</string>
+    <string>https://yourdomain.okta.com/v1/auth/device-sign</string>
+</array>
+```
   - View example **[Extensible Single Sign-On profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-sso-extension-simplified-setup-example.mobileconfig)**
 - An **Associated domains** profile.
   - View example **[Associated domains profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-associated-domains-example.mobileconfig)**

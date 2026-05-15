@@ -78,7 +78,7 @@ Fleet supports the following operating system versions on hosts.
 | macOS      | 14+ (Sonoma)                            |
 | iOS/iPadOS | 17+                                     |
 | Windows    | Pro and Enterprise 10 21H2 (E) (LTS)+, Server 2012+    |
-| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38, 39, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7, 8, 9, openSUSE 15.6+, Arch Linux, Omarchy |
+| Linux      | CentOS 7.1+, Ubuntu 20.04+, Fedora 38+, Amazon Linux 2+, Debian 11+, Red Hat Enterprise Linux (RHEL) 7+, openSUSE 15.6+, Arch Linux, Omarchy |
 | ChromeOS   | 112.0.5615.134+                         |
 | Android    | 14+                                     |
 
@@ -127,9 +127,46 @@ Anyone is free to contribute to the free or paid features of the project. We are
 
 The only way we are able to partner as a business to provide support and build new open source and paid features is through customers purchasing Fleet Premium.
 
+
+## Why is my EDR flagging the fleetd agent (orbit)?
+
+EDR products such as SentinelOne and CrowdStrike may occasionally flag the fleetd agent (orbit) after an update. This is a known false-positive scenario that can occur when changes to the agent's behavior trigger heuristic-based detections.
+
+It's common for security products to be falsely flagged as malicious because they need to access security-sensitive data (keychains, certificates, system configurations) to do their intended work. This is a known pattern across the industry and is not unique to Fleet; endpoint agents from many vendors encounter the same heuristic-based false positives.
+
+<!-- For example, osquery v5.23.0 (released as part of the fleetd agent) included a change to prevent keychain corruption when querying the macOS `certificates` table. To safely access keychain data without risking corruption, osquery performs a temporary copy of keychain files to a temporary folder, uses the Apple APIs to read the keychain contents, and removes the temporary files after processing. This type of keychain access pattern can trigger EDR heuristic alerts even though the behavior is legitimate and expected.-->
+
+Fleet is in active communication with EDR vendors to resolve false-positive flagging of the fleetd agent. If you notice a new flag against the orbit binary, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
+
+### SLSA provenance attestation 🌶️
+
+Fleet's orbit binaries are built via GitHub Actions and include SLSA (Supply-chain Levels for Software Artifacts) provenance attestations. These attestations allow customers to cryptographically verify that a given binary was produced from a specific GitHub build job and source commit—providing confidence that the binary has not been tampered with.
+
+You can verify the attestation using the `gh` CLI:
+
+```bash
+gh attestation verify <path-to-orbit-binary> --repo fleetdm/fleet
+```
+
+This gives your security team an additional signal when triaging EDR alerts: if the attestation verifies successfully, the binary is the authentic artifact produced by Fleet's CI pipeline.
+
 ## How can I uninstall fleetd?
 
 See the ["How to uninstall fleetd" guide](https://fleetdm.com/guides/how-to-uninstall-fleetd).
+
+
+## How do I properly handle all these deprecation warnings in GitOps?
+
+If you set up GitOps before Fleet version 4.82.0, you may see deprecation warnings like so in your GitOps runs:
+
+```
+[!] 'queries' is deprecated; use 'reports' instead
+```
+
+To migrate from queries to reports, teams to fleets, etc. and take care of any of these deprecation warnings, you can use `grep -ri "team" . --exclude-dir=.git` to search your GitOps folder for a term (in this case `team`), then edit the files and update the references to `fleet`. Be cautious about using a general find-and-replace command to do this for all files at once, as you may end up unintentionally replacing something incorrectly. Note that in some cases the word is plural (team vs. teams) or may be in all caps (teams vs. TEAMS).
+
+If you used the `teams/` directory to organize your ~~teams~~ fleets, use `git mv teams fleets` to _rename_ the folder. This is critical, as renaming with the file manager, the standard `mv` command, or GitHub Desktop will not cause git to initiate a _rename_ command, and will instead _delete_ and then _create_ files/folders, which will cause Fleet to delete the ~~teams~~ fleets and move all your devices into Unassigned.
+
 
 ## What is your commitment to open source stewardship?
 
@@ -727,15 +764,3 @@ Finally, "shard" has been retired as an option for queries. In its place, we rec
 
 
 <meta name="description" value="Commonly asked questions and answers about deployment from the Fleet community.">
-
-# My EDR is flagging Fleet — what's going on, and what should I do?
-
-### Why is my EDR flagging Fleet?
-
-Fleet and your EDR have overlapping interests with opposite jobs.
-
-Your EDR's job is to detect anomalous behavior on the host — usually through behavioral heuristics, signatures, or machine learning. Anything that touches keychains, walks process trees, reads memory regions, or replaces binaries on disk is exactly what it's looking for.
-
-Fleet's role is to give you visibility into what's happening on the host — and that means gathering the same types of data that your EDR monitors. This is by design, on every endpoint you manage.
-
-If you notice a new flag or detection against Fleet, osquery, or orbit by your EDR, please contact your EDR vendor support team to report the false positive. They will let you know the best path forward to address any exceptions you may want to make.
