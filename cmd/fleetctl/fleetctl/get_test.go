@@ -1262,8 +1262,8 @@ spec:
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "labels"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "labels", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "labels", "--json"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "labels", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "labels", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
 func TestGetLabel(t *testing.T) {
@@ -1299,9 +1299,9 @@ spec:
 	expectedJson := `{"kind":"label","apiVersion":"v1","spec":{"description":"some description","fleet_id":null,"hosts":null,"id":32,"label_membership_type":"dynamic","name":"label1","platform":"windows","query":"select 1;","team_id":null}}
 `
 
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "label1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "label", "--yaml", "label1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "label", "--json", "label1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
 func TestGetEnrollmentSecrets(t *testing.T) {
@@ -1333,9 +1333,9 @@ spec:
 	expectedJson := `{"kind":"enroll_secret","apiVersion":"v1","spec":{"secrets":[{"created_at":"0001-01-01T00:00:00Z","secret":"abcd"},{"created_at":"0001-01-01T00:00:00Z","secret":"efgh"}]}}
 `
 
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "enroll_secrets", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "enroll_secrets", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
 func TestGetPacks(t *testing.T) {
@@ -1726,12 +1726,12 @@ spec:
 `
 
 	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "reports"}))
-	assert.YAMLEq(t, expectedYAMLGlobal, runAppForTest(t, []string{"get", "reports", "--yaml"}))
-	assert.JSONEq(t, expectedJSONGlobal, runAppForTest(t, []string{"get", "reports", "--json"}))
+	assert.Equal(t, expectedYAMLGlobal, runAppForTest(t, []string{"get", "reports", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJSONGlobal, runAppForTest(t, []string{"get", "reports", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 
 	assert.Equal(t, expectedTeam, runAppForTest(t, []string{"get", "reports", "--fleet", "1"}))
-	assert.YAMLEq(t, expectedYAMLTeam, runAppForTest(t, []string{"get", "reports", "--yaml", "--fleet", "1"}))
-	assert.JSONEq(t, expectedJSONTeam, runAppForTest(t, []string{"get", "reports", "--json", "--fleet", "1"}))
+	assert.Equal(t, expectedYAMLTeam, runAppForTest(t, []string{"get", "reports", "--yaml", "--fleet", "1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJSONTeam, runAppForTest(t, []string{"get", "reports", "--json", "--fleet", "1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 
 	assert.Empty(t, runAppForTest(t, []string{"get", "reports", "--fleet", "2"}))
 	assert.Empty(t, runAppForTest(t, []string{"get", "reports", "--yaml", "--fleet", "2"}))
@@ -1821,9 +1821,9 @@ spec:
 	expectedJson := `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":false,"description":"some desc","discard_data":false,"fleet":"","interval":0,"logging":"","min_osquery_version":"","name":"globalQuery1","observer_can_run":false,"platform":"","query":"select 1;","team":""}}
 `
 
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "globalQuery1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "globalQuery1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--yaml", "globalQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "query", "--json", "globalQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 
 	expectedYaml = `---
 apiVersion: v1
@@ -1845,9 +1845,9 @@ spec:
 	expectedJson = `{"kind":"report","apiVersion":"v1","spec":{"automations_enabled":true,"description":"some team desc","discard_data":false,"fleet":"Foobar","interval":3600,"logging":"differential","min_osquery_version":"5.2.0","name":"teamQuery1","observer_can_run":true,"platform":"linux","query":"select 2;","team":"Foobar"}}
 `
 
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--yaml", "--fleet", "1", "teamQuery1"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--fleet", "1", "teamQuery1"}))           //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "report", "--yaml", "--fleet", "1", "teamQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "report", "--json", "--fleet", "1", "teamQuery1"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 }
 
 func TestGetQueryLabelsIncludeAll(t *testing.T) {
@@ -2077,8 +2077,8 @@ spec:
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))
-			assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "reports", "--yaml"}))
-			assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "reports", "--json"}))
+			assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "reports", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+			assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "reports", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 		})
 	}
 
@@ -2196,8 +2196,8 @@ spec:
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "reports"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "reports", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "reports", "--json"}))
+	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "reports", "--yaml"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
+	assert.Equal(t, expectedJson, runAppForTest(t, []string{"get", "reports", "--json"})) //nolint:testifylint // NDJSON / multi-document YAML output, not a single JSON/YAML value
 
 	// No queries are returned if none is observer_can_run.
 	setCurrentUserSession(t, ds, &fleet.User{
