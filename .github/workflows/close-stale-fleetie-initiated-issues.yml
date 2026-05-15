@@ -27,7 +27,9 @@ on:
       - .github/workflows/close-stale-fleetie-initiated-issues.yml
 
 concurrency:
-  group: ${{ github.workflow }}
+  # Scope by event_name + ref so a pull_request trigger doesn't preempt an in-flight
+  # workflow_dispatch run, and vice versa. Same-event same-ref runs still cancel as expected.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
