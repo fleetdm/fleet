@@ -1,6 +1,10 @@
 .vitals-card {
   @include vertical-card-layout;
 
+  .date-tooltip {
+    cursor: pointer;
+  }
+
   .truncated-tooltip {
     .vitals-card__device-mapping__source {
       color: inherit;
