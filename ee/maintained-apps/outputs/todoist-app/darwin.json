@@ -4,7 +4,7 @@
       "version": "9.27.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.todoist.mac.Todoist';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.todoist.mac.Todoist' AND version_compare(bundle_short_version, '9.27.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.todoist.mac.Todoist') AND version_compare(bundle_short_version, '9.27.1') < 0);"
       },
       "installer_url": "https://electron-dl.todoist.com/mac/Todoist-darwin-9.27.1-arm64-latest.dmg",
       "install_script_ref": "ace689e3",

@@ -4,7 +4,7 @@
       "version": "1.165.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama' AND version_compare(bundle_short_version, '1.165.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.grammarly.ProjectLlama') AND version_compare(bundle_short_version, '1.165.1') < 0);"
       },
       "installer_url": "https://download-mac.grammarly.com/versions/1.165.1.0/Grammarly.dmg",
       "install_script_ref": "20d5bd8f",

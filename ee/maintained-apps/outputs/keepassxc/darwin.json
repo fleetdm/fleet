@@ -4,7 +4,7 @@
       "version": "2.7.12",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc' AND version_compare(bundle_short_version, '2.7.12') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.keepassx.keepassxc') AND version_compare(bundle_short_version, '2.7.12') < 0);"
       },
       "installer_url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-arm64.dmg",
       "install_script_ref": "ea2ab047",

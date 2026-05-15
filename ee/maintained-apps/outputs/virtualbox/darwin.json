@@ -4,7 +4,7 @@
       "version": "7.2.8",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox' AND version_compare(bundle_short_version, '7.2.8') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.virtualbox.app.VirtualBox') AND version_compare(bundle_short_version, '7.2.8') < 0);"
       },
       "installer_url": "https://download.virtualbox.org/virtualbox/7.2.8/VirtualBox-7.2.8-173730-macOSArm64.dmg",
       "install_script_ref": "aa84721d",

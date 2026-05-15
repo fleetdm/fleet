@@ -4,7 +4,7 @@
       "version": "16.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower' AND version_compare(bundle_short_version, '16.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.fournova.Tower') AND version_compare(bundle_short_version, '16.0') < 0);"
       },
       "installer_url": "https://www.git-tower.com/apps/tower3-mac/534-1e48e030/Tower-16.0-534.zip",
       "install_script_ref": "59069b9f",

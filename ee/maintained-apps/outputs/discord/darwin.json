@@ -4,7 +4,7 @@
       "version": "0.0.390",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord' AND version_compare(bundle_short_version, '0.0.390') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.hnc.Discord') AND version_compare(bundle_short_version, '0.0.390') < 0);"
       },
       "installer_url": "https://dl.discordapp.net/apps/osx/0.0.390/Discord.dmg",
       "install_script_ref": "57ec7b28",

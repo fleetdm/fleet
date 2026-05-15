@@ -4,7 +4,7 @@
       "version": "1.133.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron' AND version_compare(bundle_short_version, '1.133.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.cron.electron') AND version_compare(bundle_short_version, '1.133.0') < 0);"
       },
       "installer_url": "https://calendar-desktop-release.notion-static.com/Notion%20Calendar-darwin-arm64-1.133.0.zip",
       "install_script_ref": "d0f24b42",

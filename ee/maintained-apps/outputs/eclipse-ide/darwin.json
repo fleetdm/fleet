@@ -4,7 +4,7 @@
       "version": "4.39",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers' AND version_compare(bundle_short_version, '4.39') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'epp.package.committers') AND version_compare(bundle_short_version, '4.39') < 0);"
       },
       "installer_url": "https://www.eclipse.org/downloads/download.php?file=/technology/epp/downloads/release/2026-03/R/eclipse-committers-2026-03-R-macosx-cocoa-aarch64.dmg&r=1",
       "install_script_ref": "99517b0e",

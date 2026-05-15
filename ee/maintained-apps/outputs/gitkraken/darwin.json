@@ -4,7 +4,7 @@
       "version": "12.1.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken' AND version_compare(bundle_short_version, '12.1.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.axosoft.gitkraken') AND version_compare(bundle_short_version, '12.1.1') < 0);"
       },
       "installer_url": "https://api.gitkraken.dev/releases/production/darwin/arm64/12.1.1/GitKraken-v12.1.1.zip",
       "install_script_ref": "f20ab23e",
