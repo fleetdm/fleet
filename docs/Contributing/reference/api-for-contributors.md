@@ -1523,32 +1523,39 @@ This endpoint is used by Google Pub/Sub subscription to push messages to Fleet.
 
 ### Get Apple Account Driven User Enrollment Profile
 
-This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are
-directed here via service discovery. The first request is unauthenticated and returns 401 with a
+This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are directed here via service discovery. The URL is scoped to one of Fleet's Apple Business organizations via a randomly generated token within the path. Hosts enrolling here are placed in that organization's `byod_fleet`. Fleet registers this URL with Apple automatically; admins don't need to handle it. The first request is unauthenticated and returns 401 with a
 `Www-Authenticate` header pointing at SSO. After authenticating, the device retries with
 `Authorization: Bearer <access-token>`; Access token returned after SSO authentication.
 
-Two forms exist:
 
-- `POST /api/mdm/apple/account_driven_enroll` — Deprecated. Hosts enrolling here are not assigned
-  to a fleet.
-- `POST /api/mdm/apple/account_driven_enroll/:token` — scoped to one of Fleet's Apple Business tokens. Hosts enrolling here are placed in that token's `byod_fleet`. Fleet registers this URL with Apple automatically; admins don't need to handle it.
+`POST /api/mdm/apple/account_driven_enroll/:token`
 
 Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token is invalid or reused.
 
 #### Parameters
 
-A PKCS#7-signed plist with LANGUAGE, VERSION, PRODUCT, OS_VERSION, SOFTWARE_UPDATE_DEVICE_ID, and
-SUPPLEMENTAL_BUILD_VERSION.
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| token | string | path | **Required.** A randomly-generated token corresponding to an AB organization in Fleet |
+| body | blob   | body | **Required.** A PKCS#7-signed DeviceInfo plist with LANGUAGE, VERSION, PRODUCT, OS_VERSION, SOFTWARE_UPDATE_DEVICE_ID, and SUPPLEMENTAL_BUILD_VERSION.|
 
 ### Get Apple Account Driven User Enrollment service discovery payload
 
-Used by devices to discover the enrollment endpoint.
+Used by devices to discover the enrollment endpoint for an AB organization in Fleet.
 
-- `GET /mdm/apple/service_discovery` — deprecated. Hosts enrolling through the returned URL are not assigned to a fleet
-- `GET /mdm/apple/service_discovery/:token` — per-AB-token form. Fleet registers this URL with Apple automatically for each configured AB token. Returns 404 if the token doesn't match a known ABM token.
+`GET /mdm/apple/service_discovery/:token`
 
-> The token within the URL is randomly generated and does not correspond to the AB token's id.
+Requires Fleet Premium.
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| token | string | path | **Required.** A randomly-generated token corresponding to an AB organization in Fleet |
+
+#### Example
+
+`GET /mdm/apple/service_discovery/a671c2216bdd765f992aa0557d33766c`
 
 ##### Response
 
@@ -1559,7 +1566,52 @@ Used by devices to discover the enrollment endpoint.
   "Servers": [
     {
       "Version": "mdm-byod",
-      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll/<token>"
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll/a671c2216bdd765f992aa0557d33766c"
+    }
+  ]
+}
+```
+
+### Get Unassigned Apple Account Driven User Enrollment Profile
+
+This endpoint initiates Account-driven User Enrollment on iOS and iPadOS devices. Devices are directed here via service discovery. The first request is unauthenticated and returns 401 with a
+`Www-Authenticate` header pointing at SSO. After authenticating, the device retries with
+`Authorization: Bearer <access-token>`; Access token returned after SSO authentication.
+
+> Deprecated as of v4.87. Hosts enrolling through this endpoint will not be assigned to a fleet. Fleet now registers the AB-organization-specific enrollment endpoint with Apple
+
+`POST /api/mdm/apple/account_driven_enroll`
+
+Requires Fleet Premium. Returns 400 if the device is not an iPhone/iPad, 401 if the access token is invalid or reused.
+
+#### Parameters
+
+| Name          | Type   | In    | Description                                         |
+|---------------|--------|-------|-----------------------------------------------------|
+| body | blob   | body | **Required.** A PKCS#7-signed DeviceInfo plist with LANGUAGE, VERSION, PRODUCT, OS_VERSION, SOFTWARE_UPDATE_DEVICE_ID, and SUPPLEMENTAL_BUILD_VERSION.|
+
+### Get Unassigned Apple Account Driven User Enrollment service discovery payload
+
+Used by devices to discover the enrollment endpoint.
+
+> Deprecated as of v4.87. Hosts enrolling through the returned endpoint will not be assigned to a fleet. Fleet now registers the AB-organization-specific endpoint with Apple
+
+`GET /mdm/apple/service_discovery`
+
+#### Example
+
+`GET /mdm/apple/service_discovery`
+
+##### Response
+
+`Status 200`
+
+```json
+{
+  "Servers": [
+    {
+      "Version": "mdm-byod",
+      "BaseURL": "<fleet_server_url>/api/mdm/apple/account_driven_enroll"
     }
   ]
 }
