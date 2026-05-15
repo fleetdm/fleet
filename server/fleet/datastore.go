@@ -1523,12 +1523,13 @@ type Datastore interface {
 	// reconciliation path; see ReconcileAppleProfiles.
 	ListMDMAppleProfilesToInstallAndRemoveForHosts(ctx context.Context, hostUUIDs []string) ([]*MDMAppleProfilePayload, []*MDMAppleProfilePayload, error)
 
-	// ListNextPendingMDMAppleHostUUIDs returns up to batchSize host UUIDs
-	// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
-	// the host has any pending Apple MDM profile reconciliation work
-	// (install or remove). Used by the cron's batched reconciliation path;
-	// see ReconcileAppleProfiles.
-	ListNextPendingMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+	// ListNextMDMAppleHostUUIDs returns up to batchSize Apple MDM host
+	// UUIDs (sorted ascending, lexicographic) where host_uuid >
+	// afterHostUUID. Does NOT pre-filter by pending work — the scoped
+	// install/remove query that follows in the cron tick does that
+	// filtering. Used by the cron's batched reconciliation path; see
+	// ReconcileAppleProfiles.
+	ListNextMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
 
 	// GetMDMAppleReconcileCursor returns the persisted host_uuid cursor used
 	// by the Apple MDM reconciliation cron to bound per-tick work. Returns

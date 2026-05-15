@@ -1035,7 +1035,7 @@ type ListMDMAppleProfilesToInstallAndRemoveFunc func(ctx context.Context) ([]*fl
 
 type ListMDMAppleProfilesToInstallAndRemoveForHostsFunc func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error)
 
-type ListNextPendingMDMAppleHostUUIDsFunc func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
+type ListNextMDMAppleHostUUIDsFunc func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error)
 
 type GetMDMAppleReconcileCursorFunc func(ctx context.Context) (string, error)
 
@@ -3492,8 +3492,8 @@ type DataStore struct {
 	ListMDMAppleProfilesToInstallAndRemoveForHostsFunc        ListMDMAppleProfilesToInstallAndRemoveForHostsFunc
 	ListMDMAppleProfilesToInstallAndRemoveForHostsFuncInvoked bool
 
-	ListNextPendingMDMAppleHostUUIDsFunc        ListNextPendingMDMAppleHostUUIDsFunc
-	ListNextPendingMDMAppleHostUUIDsFuncInvoked bool
+	ListNextMDMAppleHostUUIDsFunc        ListNextMDMAppleHostUUIDsFunc
+	ListNextMDMAppleHostUUIDsFuncInvoked bool
 
 	GetMDMAppleReconcileCursorFunc        GetMDMAppleReconcileCursorFunc
 	GetMDMAppleReconcileCursorFuncInvoked bool
@@ -8444,11 +8444,11 @@ func (s *DataStore) ListMDMAppleProfilesToInstallAndRemoveForHosts(ctx context.C
 	return s.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc(ctx, hostUUIDs)
 }
 
-func (s *DataStore) ListNextPendingMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+func (s *DataStore) ListNextMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
 	s.mu.Lock()
-	s.ListNextPendingMDMAppleHostUUIDsFuncInvoked = true
+	s.ListNextMDMAppleHostUUIDsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListNextPendingMDMAppleHostUUIDsFunc(ctx, afterHostUUID, batchSize)
+	return s.ListNextMDMAppleHostUUIDsFunc(ctx, afterHostUUID, batchSize)
 }
 
 func (s *DataStore) GetMDMAppleReconcileCursor(ctx context.Context) (string, error) {

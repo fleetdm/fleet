@@ -3168,7 +3168,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
 	}
-	ds.ListNextPendingMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
 		return []string{hostUUID1, hostUUID2}, nil
 	}
 	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
@@ -3931,7 +3931,7 @@ func TestReconcileAppleProfilesCAThrottle(t *testing.T) {
 	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
 	}
-	ds.ListNextPendingMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
 		return hostUUIDs, nil
 	}
 	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }
@@ -4183,7 +4183,7 @@ func TestReconcileAppleProfilesSkipsHostBeingProcessed(t *testing.T) {
 	ds.ListMDMAppleProfilesToInstallAndRemoveForHostsFunc = func(ctx context.Context, hostUUIDs []string) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
 		return ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
 	}
-	ds.ListNextPendingMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	ds.ListNextMDMAppleHostUUIDsFunc = func(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
 		return []string{blockedHostUUID, nonSetupHostUUID}, nil
 	}
 	ds.GetMDMAppleReconcileCursorFunc = func(ctx context.Context) (string, error) { return "", nil }

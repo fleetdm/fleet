@@ -5489,15 +5489,19 @@ func ReconcileAppleDeclarations(
 // delivered to the device-channel.
 const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
-// reconcileAppleProfilesBatchSize bounds how many distinct hosts the Apple
-// MDM reconciliation cron processes per tick. The cron uses a host_uuid
-// cursor (persisted in Redis via the mysqlredis wrapper) to page through
-// the pending-work universe in batches, smoothing the writer pressure
-// that an unbounded reconciliation generates during bulk events like team
-// transfers. Mirrors reconcileWindowsProfilesBatchSize.
+// reconcileAppleProfilesBatchSize bounds how many distinct Apple MDM
+// hosts the reconciliation cron considers per tick. The cron uses a
+// host_uuid cursor (persisted in Redis via the mysqlredis wrapper) to
+// page through every Apple MDM host in batches, running the full
+// desired-state install/remove query scoped to each window. Only the
+// subset of hosts with actual changes gets written/enqueued, so the
+// writer load is bounded by real work and the reader load is bounded by
+// the per-tick window. Pass-through latency to detect a new change
+// (e.g. label drift) is total_apple_hosts / batchSize × tick_interval —
+// at 5000 hosts / tick on a 30s tick, that's <= 5 min for 50k hosts.
 //
-// var rather than const so it's tunable at runtime for load testing.
-var reconcileAppleProfilesBatchSize = 2000
+// var rather than const so tests can shrink the batch size.
+var reconcileAppleProfilesBatchSize = 5000
 
 // ReconcileAppleProfiles applies configuration profiles to Apple MDM hosts.
 // Named return so the deferred SetCursor block below sees the actual
@@ -5550,9 +5554,9 @@ func ReconcileAppleProfiles(
 		cursor = ""
 	}
 
-	hostUUIDs, err := ds.ListNextPendingMDMAppleHostUUIDs(ctx, cursor, reconcileAppleProfilesBatchSize)
+	hostUUIDs, err := ds.ListNextMDMAppleHostUUIDs(ctx, cursor, reconcileAppleProfilesBatchSize)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "listing next pending Apple MDM hosts")
+		return ctxerr.Wrap(ctx, err, "listing next Apple MDM host window")
 	}
 
 	if len(hostUUIDs) == 0 {

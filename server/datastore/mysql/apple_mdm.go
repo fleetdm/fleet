@@ -3630,84 +3630,46 @@ func (ds *Datastore) listMDMAppleProfilesToRemoveForHostsDB(ctx context.Context,
 	return currentProfiles, nil
 }
 
-// ListNextPendingMDMAppleHostUUIDs returns up to batchSize host UUIDs
-// (sorted ascending, lexicographic) where host_uuid > afterHostUUID and
-// the host has any pending Apple MDM profile reconciliation work (install
-// or remove). If afterHostUUID is empty, scanning starts from the
-// beginning. The cron uses this to slice its per-tick work into a bounded
-// host window; see ReconcileAppleProfiles.
-func (ds *Datastore) ListNextPendingMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
-	appleMDMProfilesDesiredStateQuery := generateDesiredStateQuery("profile")
-
-	// Push the cursor predicate (h.uuid > ?) into each branch of the UNION
-	// so the optimizer applies it before deduplication. Both the install
-	// and remove queries push the cursor into all 4 desired-state UNION
-	// arms; the remove query additionally gets the cursor in its outer
-	// WHERE on hmap.host_uuid for a clean PK range scan on
-	// host_mdm_apple_profiles. Mirrors the Windows pattern in
-	// ListNextPendingMDMWindowsHostUUIDs.
-	cursorPred := "h.uuid > ?"
-	desiredStateInstall := fmt.Sprintf(appleMDMProfilesDesiredStateQuery, cursorPred, cursorPred, cursorPred, cursorPred)
-	desiredStateRemove := fmt.Sprintf(appleMDMProfilesDesiredStateQuery, cursorPred, cursorPred, cursorPred, cursorPred)
-
-	// Note on what's distinct from the full install/remove queries: we
-	// project only host_uuid here, so we don't need to project profile
-	// content (checksum etc.). We still use the same join + WHERE shape
-	// so the planner picks the same indexes.
-	toInstall := fmt.Sprintf(`
-	SELECT ds.host_uuid
-	FROM ( %s ) as ds
-		LEFT JOIN host_mdm_apple_profiles hmap
-			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
-	WHERE
-		( hmap.checksum != ds.checksum ) OR IFNULL(hmap.secrets_updated_at < ds.secrets_updated_at, FALSE) OR
-		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
-		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
-		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
-`, desiredStateInstall)
-
-	toRemove := fmt.Sprintf(`
-	SELECT hmap.host_uuid
-	FROM ( %s ) as ds
-		RIGHT JOIN host_mdm_apple_profiles hmap
-			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
-	WHERE
-		hmap.host_uuid > ? AND
-		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL ) AND
-		NOT EXISTS (
-			SELECT 1
-			FROM mdm_configuration_profile_labels mcpl
-			WHERE
-				mcpl.apple_profile_uuid = hmap.profile_uuid AND
-				mcpl.label_id IS NULL
-		)
-`, desiredStateRemove)
-
-	stmt := fmt.Sprintf(`
-		SELECT host_uuid FROM (
-			SELECT host_uuid FROM (%s) AS install_set
-			UNION
-			SELECT host_uuid FROM (%s) AS remove_set
-		) AS combined
-		ORDER BY host_uuid
-		LIMIT %d
-	`, toInstall, toRemove, batchSize)
-
-	// Placeholder order in stmt:
-	//   install branches: 4 cursor (h.uuid > ?), 2 op-type (remove, install)
-	//   remove branches:  4 cursor (h.uuid > ?) for desired-state arms,
-	//                     1 cursor (hmap.host_uuid > ?) for outer WHERE,
-	//                     1 op-type (remove)
+// ListNextMDMAppleHostUUIDs returns up to batchSize Apple MDM host UUIDs
+// (sorted ascending, lexicographic) where host_uuid > afterHostUUID. If
+// afterHostUUID is empty, scanning starts from the beginning. The cron
+// uses this to slice its per-tick work into a bounded host window; see
+// ReconcileAppleProfiles.
+//
+// Intentionally does NOT pre-filter to hosts with pending work. The
+// scoped install/remove query that follows evaluates the full
+// desired-state UNION against this window and naturally returns only
+// the subset (often a small minority) that actually has changes. This
+// keeps the cursor scan dirt cheap (PK range scan on hosts.uuid + an
+// EXISTS lookup against nano_enrollments.device_id) and avoids running
+// the heavy desired-state query twice per tick. The trade is that
+// hosts without pending work still consume a slot in their tick's
+// batch — fine because the scoped UNION on 5000 hosts is much cheaper
+// than the full UNION across the universe.
+//
+// Diverges from ListNextPendingMDMWindowsHostUUIDs (which pushes the
+// cursor predicate into the desired-state UNION arms to filter to
+// hosts-with-work) on purpose. For Apple, the desired-state UNION is
+// expensive enough that running it twice — once to find work, once to
+// fetch it — is worse than running it once on a slightly larger window.
+func (ds *Datastore) ListNextMDMAppleHostUUIDs(ctx context.Context, afterHostUUID string, batchSize int) ([]string, error) {
+	const stmt = `
+		SELECT h.uuid
+		FROM hosts h
+		WHERE h.uuid > ?
+			AND h.platform IN ('darwin', 'ios', 'ipados')
+			AND EXISTS (
+				SELECT 1 FROM nano_enrollments ne
+				WHERE ne.device_id = h.uuid
+					AND ne.enabled = 1
+					AND ne.type IN ('Device', 'User Enrollment (Device)')
+			)
+		ORDER BY h.uuid
+		LIMIT ?
+	`
 	var hostUUIDs []string
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
-		fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall,
-		afterHostUUID, afterHostUUID, afterHostUUID, afterHostUUID,
-		afterHostUUID,
-		fleet.MDMOperationTypeRemove,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing next pending MDM apple host UUIDs")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostUUIDs, stmt, afterHostUUID, batchSize); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing next MDM apple host UUIDs")
 	}
 	return hostUUIDs, nil
 }
