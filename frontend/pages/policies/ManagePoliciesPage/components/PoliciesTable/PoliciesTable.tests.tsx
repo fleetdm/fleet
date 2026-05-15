@@ -97,9 +97,7 @@ describe("Policies table", () => {
       />
     );
 
-    expect(
-      screen.getByText("No policies for this fleet")
-    ).toBeInTheDocument();
+    expect(screen.getByText("No policies for this fleet")).toBeInTheDocument();
     expect(screen.queryByText("Name")).toBeNull();
   });
 
