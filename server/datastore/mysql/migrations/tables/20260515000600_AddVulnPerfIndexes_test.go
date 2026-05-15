@@ -27,6 +27,6 @@ func TestUp_20260515000600(t *testing.T) {
 			e.table, e.indexName,
 		).Scan(&count)
 		require.NoError(t, err)
-		require.Greater(t, count, 0, "expected index %s on %s to exist", e.indexName, e.table)
+		require.Positive(t, count, 0, "expected index %s on %s to exist", e.indexName, e.table)
 	}
 }
