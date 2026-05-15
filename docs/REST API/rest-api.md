@@ -7685,11 +7685,11 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 | Name                      | Type    | In    | Description                                                               |
 | ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| host_identifier           | string  | query | **Required.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below). Requests w/o it continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. Support will be removed in Fleet 5. |
 | page                      | integer | query | Page number of the results to fetch.                                      |
 | per_page                  | integer | query | Results per page. Default is `10`.                                        |
 | order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. Default is `updated_at`. |
 | order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| host_identifier           | string  | query | **Required for new integrations.** The host's `hostname`, `uuid`, or `hardware_serial`. Returns only commands that target the specified host. Omitting `host_identifier` is deprecated (see the deprecation notice below) and will be rejected in a future Fleet release. |
 | request_type              | string  | query | The request type to filter commands by. |
 | command_status            | string | query | Comma-separated string of one of the following options: 'ran', 'pending', or 'failed'. |
 | after                     | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. |
@@ -7699,8 +7699,6 @@ This endpoint returns the list of custom MDM commands that have been executed.
 > Apple (macOS, iOS, iPadOS) MDM commands that 'ran' have an 'Acknowledged' `status`. Commands that are 'pending' have a 'Pending' or 'NotNow' `status`. Apple commands that 'failed' have an 'Error' `status`.
 >
 > Apple (macOS, iOS, iPadOS) InstallProfile and RemoveProfile commands enqueued by Fleet going forward will have a non-`null` "name" which represents the profile name. Previously-enqueued(prior to v4.84.0) or manually-enqueued commands will have a `null` name, as will other types of Apple MDM commands and all Windows commands.
->
-> **Deprecated:** calling this endpoint without `host_identifier` is deprecated and will be required in a future Fleet release. Always provide `host_identifier` to scope the response to a single host. Unscoped calls continue to work for backward compatibility but are not recommended; the underlying query is not performant at scale and may time out on large fleets. New integrations must pass `host_identifier`.
 
 #### Example
 
