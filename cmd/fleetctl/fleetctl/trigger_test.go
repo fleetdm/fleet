@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
+	"github.com/fleetdm/fleet/v4/server/service/schedule/scheduletest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -59,8 +60,8 @@ func TestTrigger(t *testing.T) {
 			func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc {
 				return func() (fleet.CronSchedule, error) {
 					s := schedule.New(ctx, name, instanceID, interval,
-						schedule.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
-						schedule.SetUpMockStatsStore(name),
+						scheduletest.SetupMockLocker(name, instanceID, time.Now().Add(-1*time.Hour)),
+						scheduletest.SetUpMockStatsStore(name),
 						schedule.WithJob("test_job",
 							func(context.Context) error {
 								time.Sleep(100 * time.Millisecond)
