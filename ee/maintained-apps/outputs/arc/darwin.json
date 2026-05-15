@@ -4,7 +4,7 @@
       "version": "1.147.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser' AND version_compare(bundle_short_version, '1.147.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'company.thebrowser.Browser') AND version_compare(bundle_short_version, '1.147.0') < 0);"
       },
       "installer_url": "https://releases.arc.net/release/Arc-1.147.0-80797.zip",
       "install_script_ref": "bb0dd542",

@@ -4,7 +4,7 @@
       "version": "5.23.22522",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.Amazon-Chime';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.Amazon-Chime' AND version_compare(bundle_short_version, '5.23.22522') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.amazon.Amazon-Chime') AND version_compare(bundle_short_version, '5.23.22522') < 0);"
       },
       "installer_url": "https://clients.chime.aws/mac-nme/AmazonChime-5.23.22522.dmg",
       "install_script_ref": "6ac4810f",

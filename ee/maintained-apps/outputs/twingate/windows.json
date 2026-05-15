@@ -4,7 +4,7 @@
       "version": "20.26.120.9484",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.' AND version_compare(version, '20.26.120.9484') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Twingate' AND publisher = 'Twingate Inc.') AND version_compare(version, '20.26.120.9484') < 0);"
       },
       "installer_url": "https://binaries.twingate.com/client/windows/versions/2026.120.9484/TwingateWindowsInstaller.msi",
       "install_script_ref": "8959087b",

@@ -4,7 +4,7 @@
       "version": "2025.0.8846",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer' AND version_compare(bundle_short_version, '2025.0.8846') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.nicesoftware.dcvviewer') AND version_compare(bundle_short_version, '2025.0.8846') < 0);"
       },
       "installer_url": "https://d1uj6qtbmh3dt5.cloudfront.net/2025.0/Clients/nice-dcv-viewer-2025.0.8846.arm64.dmg",
       "install_script_ref": "6586b7bb",

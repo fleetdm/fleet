@@ -4,7 +4,7 @@
       "version": "26.0.4",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product' AND version_compare(bundle_short_version, '26.0.4') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'org.jkiss.dbeaver.core.product') AND version_compare(bundle_short_version, '26.0.4') < 0);"
       },
       "installer_url": "https://dbeaver.io/files/26.0.4/dbeaver-ce-26.0.4-macos-aarch64.dmg",
       "install_script_ref": "abe5b0d5",

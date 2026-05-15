@@ -4,7 +4,7 @@
       "version": "1.27.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop' AND version_compare(bundle_short_version, '1.27.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'io.podmandesktop.PodmanDesktop') AND version_compare(bundle_short_version, '1.27.1') < 0);"
       },
       "installer_url": "https://github.com/containers/podman-desktop/releases/download/v1.27.1/podman-desktop-1.27.1-arm64.dmg",
       "install_script_ref": "203496d5",

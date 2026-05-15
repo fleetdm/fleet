@@ -4,7 +4,7 @@
       "version": "8.16.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac' AND version_compare(bundle_short_version, '8.16.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac') AND version_compare(bundle_short_version, '8.16.0') < 0);"
       },
       "installer_url": "https://download3.omnissa.com/software/CART26FQ2_MAC_2506/Omnissa-Horizon-Client-2506-8.16.0-16536825094.dmg",
       "install_script_ref": "b3b16504",

@@ -4,7 +4,7 @@
       "version": "8.0.47.CE",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench' AND version_compare(bundle_short_version, '8.0.47.CE') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.oracle.workbench.MySQLWorkbench') AND version_compare(bundle_short_version, '8.0.47.CE') < 0);"
       },
       "installer_url": "https://cdn.mysql.com/Downloads/MySQLGUITools/mysql-workbench-community-8.0.47-macos-arm64.dmg",
       "install_script_ref": "00e190a3",
