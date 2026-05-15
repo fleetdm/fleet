@@ -7187,14 +7187,13 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must be in the SCEP certificate's \"URL\" field.",
 		},
 		{
-			// Raw SCEP fixture uses the legacy SCEP_RENEWAL_ID variable
-			// (baked into the embedded mobileconfig). The new non-proxied
-			// SCEP validator is a net-new surface that requires the
-			// preferred variable name only.
-			name: "raw SCEP with legacy variable name is rejected",
+			// Non-proxied SCEP: marker in CN won't trigger auto-renewal
+			// but upload is not blocked.
+			name: "raw SCEP with renewal-ID variable in CN uploads cleanly",
 			profile: customSCEPForValidation("challenge", "url",
 				"Name", "com.apple.security.scep"),
-			errMsg: "Variable $FLEET_VAR_CERTIFICATE_RENEWAL_ID must be in the SCEP certificate's organizational unit (OU).",
+			errMsg: "",
+			vars:   []string{"SCEP_RENEWAL_ID"},
 		},
 		{
 			name: "NDES happy path",
@@ -7310,7 +7309,9 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	}
 }
 
-func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T) {
+// ACME and non-proxied SCEP profiles upload regardless of marker presence
+// or placement; the renewal-ID variable is opt-in only.
+func TestApplePayloadValidatorsAreOptional(t *testing.T) {
 	t.Parallel()
 	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
 	groupedCAs := &fleet.GroupedCertificateAuthorities{}
@@ -7322,14 +7323,10 @@ func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T)
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>PayloadType</key>
-			<string>com.apple.security.acme</string>
-			<key>PayloadIdentifier</key>
-			<string>com.test.acme</string>
-			<key>PayloadUUID</key>
-			<string>11111111-2222-3333-4444-555555555555</string>
-			<key>DirectoryURL</key>
-			<string>https://acme.example.com/directory</string>
+			<key>PayloadType</key><string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key><string>com.test.acme</string>
+			<key>PayloadUUID</key><string>11111111-2222-3333-4444-555555555555</string>
+			<key>DirectoryURL</key><string>https://acme.example.com/directory</string>
 			<key>Subject</key>
 			<array>
 				<array><array><string>CN</string><string>device-cn</string></array></array>
@@ -7337,109 +7334,13 @@ func TestValidateConfigProfileFleetVariablesACMEAndRenewalIDRename(t *testing.T)
 			</array>
 		</dict>
 	</array>
-	<key>PayloadIdentifier</key>
-	<string>com.test.profile</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>`
-
-	t.Run("ACME profile with preferred CERTIFICATE_RENEWAL_ID is accepted", func(t *testing.T) {
-		profile := fmt.Sprintf(acmeProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.NoError(t, err)
-	})
-
-	t.Run("ACME profile with legacy SCEP_RENEWAL_ID is rejected", func(t *testing.T) {
-		// ACME is a net-new validation surface; the legacy variable name
-		// is rejected even though SCEP profiles accept it.
-		profile := fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "ACME certificate")
-	})
-
-	t.Run("ACME profile missing renewal-ID marker is rejected", func(t *testing.T) {
-		profile := fmt.Sprintf(acmeProfile, "static-ou-value")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "ACME certificate")
-		require.NotContains(t, err.Error(), "SCEP_RENEWAL_ID",
-			"error message must not advertise the legacy variable name")
-	})
-
-	t.Run("ACME profile with renewal-ID in CN only is rejected", func(t *testing.T) {
-		// ACME is a net-new validation surface; the marker must live in
-		// OU. Accepting CN placement perpetuates the bug-shaped "validator
-		// says OU, code accepts either" inconsistency inherited from
-		// pre-existing SCEP validators.
-		const cnOnlyProfile = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key>
-			<string>com.apple.security.acme</string>
-			<key>PayloadIdentifier</key>
-			<string>com.test.acme</string>
-			<key>PayloadUUID</key>
-			<string>11111111-2222-3333-4444-555555555555</string>
-			<key>DirectoryURL</key>
-			<string>https://acme.example.com/directory</string>
-			<key>Subject</key>
-			<array>
-				<array><array><string>CN</string><string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string></array></array>
-				<array><array><string>OU</string><string>static-ou-value</string></array></array>
-			</array>
-		</dict>
-	</array>
-	<key>PayloadIdentifier</key>
-	<string>com.test.profile</string>
-	<key>PayloadType</key>
-	<string>Configuration</string>
-	<key>PayloadUUID</key>
-	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-	<key>PayloadVersion</key>
-	<integer>1</integer>
-</dict>
-</plist>`
-		_, err := validateConfigProfileFleetVariables(cnOnlyProfile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "organizational unit (OU)")
-	})
-
-	t.Run("Non-ACME profile without Fleet vars is unaffected", func(t *testing.T) {
-		const wifiProfile = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
+	<key>PayloadIdentifier</key><string>com.test.profile.acme</string>
 	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadIdentifier</key><string>com.test.wifi</string>
 	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
 	<key>PayloadVersion</key><integer>1</integer>
 </dict>
 </plist>`
-		_, err := validateConfigProfileFleetVariables(wifiProfile, premiumLic, groupedCAs)
-		require.NoError(t, err)
-	})
-}
 
-func TestAdditionalNonProxiedSCEPValidation(t *testing.T) {
-	t.Parallel()
-	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
-	groupedCAs := &fleet.GroupedCertificateAuthorities{}
-
-	// Raw SCEP profile template — literal Challenge/URL, marker variable
-	// in Subject OU. No Fleet proxy variables.
 	const rawSCEPProfile = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -7449,7 +7350,7 @@ func TestAdditionalNonProxiedSCEPValidation(t *testing.T) {
 		<dict>
 			<key>PayloadType</key><string>com.apple.security.scep</string>
 			<key>PayloadIdentifier</key><string>com.test.scep</string>
-			<key>PayloadUUID</key><string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadUUID</key><string>22222222-3333-4444-5555-666666666666</string>
 			<key>PayloadContent</key>
 			<dict>
 				<key>Challenge</key><string>static-challenge-value</string>
@@ -7462,135 +7363,30 @@ func TestAdditionalNonProxiedSCEPValidation(t *testing.T) {
 			</dict>
 		</dict>
 	</array>
-	<key>PayloadIdentifier</key><string>com.test.profile</string>
+	<key>PayloadIdentifier</key><string>com.test.profile.rawscep</string>
 	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadUUID</key><string>bbbbbbbb-cccc-dddd-eeee-ffffffffffff</string>
 	<key>PayloadVersion</key><integer>1</integer>
 </dict>
 </plist>`
 
-	t.Run("raw SCEP with preferred CERTIFICATE_RENEWAL_ID is accepted", func(t *testing.T) {
-		profile := fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.NoError(t, err)
-	})
-
-	t.Run("raw SCEP with legacy SCEP_RENEWAL_ID is rejected", func(t *testing.T) {
-		// Raw-SCEP validation is a net-new surface; the legacy variable
-		// is rejected even though pre-existing SCEP validators (NDES,
-		// Custom SCEP, Smallstep) still accept it.
-		profile := fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "SCEP certificate")
-	})
-
-	t.Run("raw SCEP missing renewal-ID marker is rejected", func(t *testing.T) {
-		profile := fmt.Sprintf(rawSCEPProfile, "static-ou-value")
-		_, err := validateConfigProfileFleetVariables(profile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "SCEP certificate")
-		require.NotContains(t, err.Error(), "SCEP_RENEWAL_ID variables",
-			"error must not advertise the legacy name in the suggested-fix list")
-	})
-
-	t.Run("raw SCEP with renewal-ID in CN only is rejected", func(t *testing.T) {
-		// Raw SCEP validation is a net-new surface; the marker must live in
-		// the OU. Accepting CN placement would perpetuate the bug-shaped
-		// "validator says OU, code accepts either" inconsistency inherited
-		// from pre-existing validators.
-		const cnOnlyProfile = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key><string>com.apple.security.scep</string>
-			<key>PayloadIdentifier</key><string>com.test.scep</string>
-			<key>PayloadUUID</key><string>11111111-2222-3333-4444-555555555555</string>
-			<key>PayloadContent</key>
-			<dict>
-				<key>Challenge</key><string>static-challenge-value</string>
-				<key>URL</key><string>https://scep.example.com/scep</string>
-				<key>Subject</key>
-				<array>
-					<array><array><string>CN</string><string>$FLEET_VAR_CERTIFICATE_RENEWAL_ID</string></array></array>
-					<array><array><string>OU</string><string>static-ou-value</string></array></array>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>PayloadIdentifier</key><string>com.test.profile</string>
-	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-	<key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`
-		_, err := validateConfigProfileFleetVariables(cnOnlyProfile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")
-		require.Contains(t, err.Error(), "organizational unit (OU)")
-	})
-
-	t.Run("SCEP profile using Fleet proxy vars defers to per-CA validator", func(t *testing.T) {
-		// This profile uses NDES proxy vars but lacks a SubjectName with
-		// the renewal-ID marker. additionalNonProxiedSCEPValidation should
-		// short-circuit (return nil) and let the per-CA NDES validator
-		// produce its own error downstream. The end result is still an
-		// error, but it should be the per-CA one (referencing the NDES
-		// variable triple), not the raw-SCEP one.
-		const ndesProfile = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadContent</key>
-	<array>
-		<dict>
-			<key>PayloadType</key><string>com.apple.security.scep</string>
-			<key>PayloadIdentifier</key><string>com.test.ndes</string>
-			<key>PayloadUUID</key><string>11111111-2222-3333-4444-555555555555</string>
-			<key>PayloadContent</key>
-			<dict>
-				<key>Challenge</key><string>$FLEET_VAR_NDES_SCEP_CHALLENGE</string>
-				<key>URL</key><string>$FLEET_VAR_NDES_SCEP_PROXY_URL</string>
-				<key>Subject</key>
-				<array>
-					<array><array><string>CN</string><string>device-cn</string></array></array>
-					<array><array><string>OU</string><string>static-ou</string></array></array>
-				</array>
-			</dict>
-		</dict>
-	</array>
-	<key>PayloadIdentifier</key><string>com.test.profile</string>
-	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-	<key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`
-		_, err := validateConfigProfileFleetVariables(ndesProfile, premiumLic, groupedCAs)
-		require.Error(t, err)
-		// The per-CA NDES validator's message — proves the raw-SCEP
-		// path short-circuited rather than producing its own error.
-		require.Contains(t, err.Error(), "NDES")
-	})
-
-	t.Run("non-SCEP profile is unaffected", func(t *testing.T) {
-		const wifiProfile = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>PayloadType</key><string>Configuration</string>
-	<key>PayloadIdentifier</key><string>com.test.wifi</string>
-	<key>PayloadUUID</key><string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
-	<key>PayloadVersion</key><integer>1</integer>
-</dict>
-</plist>`
-		_, err := validateConfigProfileFleetVariables(wifiProfile, premiumLic, groupedCAs)
-		require.NoError(t, err)
-	})
+	cases := []struct {
+		name    string
+		profile string
+	}{
+		{"ACME with preferred marker", fmt.Sprintf(acmeProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"ACME with legacy marker", fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
+		{"ACME with no marker", fmt.Sprintf(acmeProfile, "static-ou-value")},
+		{"raw SCEP with preferred marker", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"raw SCEP with legacy marker", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
+		{"raw SCEP with no marker", fmt.Sprintf(rawSCEPProfile, "static-ou-value")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validateConfigProfileFleetVariables(tc.profile, premiumLic, groupedCAs)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestValidateDeclarationFleetVariables(t *testing.T) {

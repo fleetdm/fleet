@@ -511,16 +511,6 @@ func CheckProfileIsNotSigned(data []byte) error {
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) ([]string, error) {
-	// Run before the fleetVars early-return: ACME and raw-SCEP profiles
-	// may carry no Fleet variables besides the renewal-ID marker and would
-	// otherwise skip this check.
-	if err := additionalACMEValidation(contents); err != nil {
-		return nil, err
-	}
-	if err := additionalNonProxiedSCEPValidation(contents); err != nil {
-		return nil, err
-	}
-
 	fleetVars := variables.Find(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -720,97 +710,6 @@ func additionalSmallstepValidation(contents string, smallstepVars *SmallstepVars
 		for _, ca := range smallstepVars.CAs() {
 			if !slices.Contains(foundCAs, ca) {
 				return &fleet.BadRequestError{Message: fleet.SCEPVariablesNotInSCEPPayloadErrMsg}
-			}
-		}
-	}
-	return nil
-}
-
-// acmePayloadForValidation differs from SCEPPayloadContent because an ACME
-// payload's Subject is a sibling of PayloadType, not nested inside it.
-type acmePayloadForValidation struct {
-	PayloadType string       `plist:"PayloadType"`
-	Subject     [][][]string `plist:"Subject"`
-}
-
-type acmeProfileForValidation struct {
-	PayloadContent []acmePayloadForValidation `plist:"PayloadContent"`
-}
-
-// additionalACMEValidation rejects profiles whose com.apple.security.acme
-// payload Subject OU lacks $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Without the
-// marker the cert can't be linked back to its profile and renewal won't
-// fire.
-func additionalACMEValidation(contents string) error {
-	if !strings.Contains(contents, mobileconfig.ACMEPayloadType) {
-		return nil
-	}
-	// Strip variables embedded in <data> elements so the plist unmarshal
-	// doesn't choke on them (consistent with unmarshalSCEPProfile).
-	contents = variables.ProfileDataVariableRegex.ReplaceAllString(contents, "")
-	var acmeProf acmeProfileForValidation
-	if err := plist.Unmarshal([]byte(contents), &acmeProf); err != nil {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("Failed to parse ACME payload with Fleet variables: %s", err.Error())}
-	}
-	for _, payload := range acmeProf.PayloadContent {
-		if payload.PayloadType != mobileconfig.ACMEPayloadType {
-			continue
-		}
-		var orgUnit strings.Builder
-		for _, rdn := range payload.Subject {
-			for _, kv := range rdn {
-				if len(kv) != 2 || kv[0] != "OU" {
-					continue
-				}
-				if orgUnit.Len() > 0 {
-					orgUnit.WriteByte(',')
-				}
-				orgUnit.WriteString(kv[1])
-			}
-		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(orgUnit.String()) {
-			return &fleet.BadRequestError{
-				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
-					" must be in the ACME certificate's organizational unit (OU).",
-			}
-		}
-	}
-	return nil
-}
-
-// additionalNonProxiedSCEPValidation rejects raw SCEP profiles (those not
-// using Fleet proxy CA variables) whose cert Subject OU lacks
-// $FLEET_VAR_CERTIFICATE_RENEWAL_ID. Profiles that use Fleet proxy
-// variables (NDES, Custom SCEP, Smallstep) are deferred to the per-CA
-// validators downstream, which enforce the same OU requirement.
-func additionalNonProxiedSCEPValidation(contents string) error {
-	if !strings.Contains(contents, mobileconfig.SCEPPayloadType) {
-		return nil
-	}
-	// If the profile uses any Fleet proxy CA variable, the per-CA
-	// validators handle it downstream.
-	for _, v := range variables.Find(contents) {
-		if v == string(fleet.FleetVarNDESSCEPChallenge) ||
-			v == string(fleet.FleetVarNDESSCEPProxyURL) ||
-			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPChallengePrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) ||
-			strings.HasPrefix(v, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) {
-			return nil
-		}
-	}
-	scepProf, err := unmarshalSCEPProfile(contents)
-	if err != nil {
-		return err
-	}
-	for _, payload := range scepProf.PayloadContent {
-		if payload.PayloadType != mobileconfig.SCEPPayloadType {
-			continue
-		}
-		if !fleet.FleetVarCertificateRenewalIDRegexp.MatchString(payload.PayloadContent.OrganizationalUnit) {
-			return &fleet.BadRequestError{
-				Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarCertificateRenewalID) +
-					" must be in the SCEP certificate's organizational unit (OU).",
 			}
 		}
 	}
