@@ -56,7 +56,9 @@ jobs:
 
       - name: Build Fleetie handle list
         env:
-          READ_ORG_TOKEN: ${{ secrets.READ_ORG_TOKEN }}
+          # Fine-scoped PAT with read:org on the fleetdm org. Provisioned by IT; without it the script
+          # falls back to handbook-only sources and emits a warning.
+          READ_ORG_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN_MEMBERS_READ }}
           FLEETIE_HANDLES_OUT: ${{ runner.temp }}/fleeties.txt
         run: node .github/scripts/build-fleetie-handles.js
 
