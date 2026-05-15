@@ -4,7 +4,7 @@
       "version": "8.9.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team' AND version_compare(version, '8.9.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'Notepad++' AND publisher = 'Notepad++ Team') AND version_compare(version, '8.9.5') < 0);"
       },
       "installer_url": "https://github.com/notepad-plus-plus/notepad-plus-plus/releases/download/v8.9.5/npp.8.9.5.Installer.x64.exe",
       "install_script_ref": "46c6fee6",

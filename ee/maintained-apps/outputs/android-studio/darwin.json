@@ -4,7 +4,7 @@
       "version": "2025.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio' AND version_compare(bundle_short_version, '2025.3') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.google.android.studio') AND version_compare(bundle_short_version, '2025.3') < 0);"
       },
       "installer_url": "https://edgedl.me.gvt1.com/android/studio/install/2025.3.4.7/android-studio-panda4-patch1-mac_arm.dmg",
       "install_script_ref": "c737fe39",

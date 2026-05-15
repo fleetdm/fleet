@@ -4,7 +4,7 @@
       "version": "6.9.6",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus' AND version_compare(bundle_short_version, '6.9.6') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.tinyapp.TablePlus') AND version_compare(bundle_short_version, '6.9.6') < 0);"
       },
       "installer_url": "https://files.tableplus.com/macos/676/TablePlus.dmg",
       "install_script_ref": "6ebc9cac",

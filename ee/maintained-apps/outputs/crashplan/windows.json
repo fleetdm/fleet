@@ -4,7 +4,7 @@
       "version": "11.9.1.19",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC' AND version_compare(version, '11.9.1.19') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name = 'CrashPlan' AND publisher = 'CrashPlan Group LLC') AND version_compare(version, '11.9.1.19') < 0);"
       },
       "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.1/19/install/CrashPlan_11.9.1_19_Win64.msi",
       "install_script_ref": "8959087b",

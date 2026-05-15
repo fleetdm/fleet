@@ -4,7 +4,7 @@
       "version": "0.2026.05.13.09.15.01",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable' AND version_compare(bundle_short_version, '0.2026.05.13.09.15.01') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'dev.warp.Warp-Stable') AND version_compare(bundle_short_version, '0.2026.05.13.09.15.01') < 0);"
       },
       "installer_url": "https://releases.warp.dev/stable/v0.2026.05.13.09.15.stable_01/Warp.dmg",
       "install_script_ref": "4b1c0c37",

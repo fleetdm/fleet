@@ -4,7 +4,7 @@
       "version": "2026.1.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit' AND version_compare(bundle_short_version, '2026.1.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.TechSmith.Snagit') AND version_compare(bundle_short_version, '2026.1.0') < 0);"
       },
       "installer_url": "https://download.techsmith.com/snagitmac/releases/2026.1.0/snagit.dmg",
       "install_script_ref": "38b5a841",

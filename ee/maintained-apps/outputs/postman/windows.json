@@ -4,7 +4,7 @@
       "version": "12.10.5",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman' AND version_compare(version, '12.10.5') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman') AND version_compare(version, '12.10.5') < 0);"
       },
       "installer_url": "https://dl.pstmn.io/download/version/12.10.5/windows_64",
       "install_script_ref": "538f63bf",

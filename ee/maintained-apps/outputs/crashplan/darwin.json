@@ -4,7 +4,7 @@
       "version": "11.9.1",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop' AND version_compare(bundle_short_version, '11.9.1') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS ((SELECT 1 FROM apps WHERE bundle_identifier = 'com.crashplan.desktop') AND version_compare(bundle_short_version, '11.9.1') < 0);"
       },
       "installer_url": "https://download.crashplan.com/installs/agent/cloud/11.9.1/19/install/CrashPlan_11.9.1_19_Mac.dmg",
       "install_script_ref": "0a300cc3",
