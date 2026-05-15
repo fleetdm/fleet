@@ -10,7 +10,7 @@ If you have questions or feedback, contact [Head of Design](https://fleetdm.com/
 
 ### Primary logo
 
-![Fleet primary logo](https://raw.githubusercontent.com/fleetdm/fleet/fc2f031815278c2ae2c15ad9f5ec54f23b38b884/website/assets/images/brand-primary-logo-720x445%402x.png)
+![Fleet primary logo](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-primary-logo-720x445%402x.png)
 
 Use the primary logo whenever possible.
 
@@ -183,6 +183,8 @@ Use these core colors across all product UI and communications.
 ## Imagery
 
 Use imagery to support messaging and communicate value. Images range from hero illustrations to graphical representations of the product. Imagery should support content, not distract from it. Keep compositions simple, consistent, and purposeful.
+
+![Cloud City](https://raw.githubusercontent.com/fleetdm/fleet/refs/heads/handbook-brand-guidelines/website/assets/images/brand-cloud-city-720x445%402x.png)
 
 ### Cloud City
 
