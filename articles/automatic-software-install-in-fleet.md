@@ -1,6 +1,6 @@
 # Automatically install/patch software
 
-In Fleet, you can automatically and remotely install andn patch software on hosts:
+In Fleet, you can automatically and remotely install and patch software on hosts:
 
 1. Add software. Learn how in the [deploy software](https://fleetdm.com/guides/deploy-software-packages) guide.
 
