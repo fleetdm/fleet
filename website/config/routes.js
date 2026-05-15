@@ -584,6 +584,15 @@ module.exports.routes = {
     }
   },
 
+  'GET /linux-management': {
+    action: 'view-linux-management',
+    locals: {
+      pageTitleForMeta: 'Linux device management',
+      pageDescriptionForMeta: 'Manage Linux devices with full visibility and control. Automate patching, monitor compliance, and unify Linux, macOS, and Windows in one place.',
+      currentSection: 'platform',
+    }
+  },
+
   'GET /whitepapers/:slug': {
     action: 'articles/view-basic-whitepaper'
   },
