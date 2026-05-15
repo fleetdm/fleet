@@ -505,7 +505,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 				androidApp, err := svc.androidModule.EnterprisesApplications(gctx, enterprise.Name(), a.AdamID)
 				if err != nil {
 					if fleet.IsNotFound(err) {
-						return fleet.NewInvalidArgumentError("app_store_id", "Couldn't add software. The application ID isn't available in Play Store. Please find ID on the Play Store and try again.")
+						return fleet.NewInvalidArgumentError("app_store_id", fmt.Sprintf("Couldn't add software. The application ID %q isn't available in Play Store. Please find ID on the Play Store and try again.", a.AdamID))
 					}
 					return ctxerr.Wrap(gctx, err, "bulk add app store apps: check if android app exists")
 				}
