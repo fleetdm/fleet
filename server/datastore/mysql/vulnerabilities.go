@@ -338,6 +338,15 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 		innerSQL, args = searchLike(innerSQL, args, match, "vhc.cve")
 	}
 
+	// Add cve as a deterministic tie-breaker so pagination is stable across
+	// pages — vhc.cve is unique within a (global_stats, team_id) scope, so it
+	// fully orders any rows that tie on the primary sort column. See
+	// query_results.go for prior art using TestSecondaryOrderKey for this.
+	if opt.ListOptions.OrderKey != "" && opt.ListOptions.OrderKey != "cve" {
+		opt.ListOptions.TestSecondaryOrderKey = "cve"
+		opt.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
+	}
+
 	innerSQL, args, err := appendListOptionsWithCursorToSQLSecure(innerSQL, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
 	if err != nil {
 		return "", nil, err
@@ -377,13 +386,17 @@ func buildListVulnerabilitiesSQL(opt *fleet.VulnListOptions) (string, []any, err
 
 	// The optimizer may not preserve the inner ORDER BY when wrapped in an
 	// outer SELECT, so restate the sort. The inner has already limited rows
-	// to the page, so this re-sort is bounded to perPage rows.
+	// to the page, so this re-sort is bounded to perPage rows. Tie-break on
+	// p.cve so within-page order matches the inner's secondary sort.
 	if orderCol, ok := vulnerabilitiesAllowedOrderKeys[opt.ListOptions.OrderKey]; ok && orderCol != "" {
 		direction := "ASC"
 		if opt.ListOptions.OrderDirection == fleet.OrderDescending {
 			direction = "DESC"
 		}
 		outer.WriteString(fmt.Sprintf(" ORDER BY %s %s", orderCol, direction))
+		if orderCol != "cve" {
+			outer.WriteString(", p.cve ASC")
+		}
 	}
 
 	return outer.String(), args, nil
@@ -459,6 +472,13 @@ func buildListVulnerabilitiesLegacySQL(opt *fleet.VulnListOptions) (string, []an
 	}
 	if match := opt.ListOptions.MatchQuery; match != "" {
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
+	}
+
+	// Tie-break on cve so pagination is stable across pages when the primary
+	// sort column has ties.
+	if opt.ListOptions.OrderKey != "" && opt.ListOptions.OrderKey != "cve" {
+		opt.ListOptions.TestSecondaryOrderKey = "cve"
+		opt.ListOptions.TestSecondaryOrderDirection = fleet.OrderAscending
 	}
 
 	return appendListOptionsWithCursorToSQLSecure(selectStmt, args, &opt.ListOptions, vulnerabilitiesAllowedOrderKeys)
