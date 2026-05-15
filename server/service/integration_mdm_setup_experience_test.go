@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_service "github.com/fleetdm/fleet/v4/server/mdm/android/service"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
@@ -5134,13 +5135,12 @@ func (s *integrationMDMTestSuite) TestLinuxSetupExperienceEnqueueSoftwareInstall
 // for an iOS Account-Driven User Enrollment (BYOD): after the device finishes
 // TokenUpdate, Fleet should
 //   - persist the Managed Apple ID on host_mdm (from the IdP account email),
-//   - flag the host as refetch_requested so the UI shows software install is
-//     pending data,
-//   - send the three iOS refetch MDM commands (InstalledApplicationList with
-//     managedAppsOnly=true since BYOD restricts the payload, CertificateList,
-//     DeviceInformation), and
-//   - record those commands in host_mdm_commands so the hourly
-//     iphone_ipad_refetcher cron skips them on its next tick.
+//     and
+//   - have the iphone_ipad_refetcher cron pick the host up on its next tick
+//     (via the freshly-enrolled branch of ListIOSAndIPadOSToRefetch) so the
+//     three iOS refetch commands are queued without waiting an hour. BYOD
+//     restricts InstalledApplicationList to managed apps only — Apple rejects
+//     the full-inventory variant on User Enrollments.
 //
 // The setup-experience VPP install half of the BYOD flow is exercised by
 // unit-level tests (see TestInstallVPPAppPostValidation_AssociateAssetsRouting);
@@ -5196,18 +5196,18 @@ func (s *integrationMDMTestSuite) TestSetupExperienceBYODiOS() {
 	}
 	require.NotZero(t, enrolledHostID, "BYOD-enrolled iPhone not found")
 
-	refreshed, err := s.ds.Host(ctx, enrolledHostID)
-	require.NoError(t, err)
-	require.True(t, refreshed.RefetchRequested, "post-enrollment hook must flag refetch_requested")
-
 	// Managed Apple ID is persisted on host_mdm so VPP installs can target the
 	// user via clientUserId.
 	managedAppleID, err := s.ds.GetHostManagedAppleID(ctx, enrolledHostID)
 	require.NoError(t, err)
 	require.Equal(t, "sso_user@example.com", managedAppleID)
 
-	// host_mdm_commands tracks the three refetch commands so the hourly cron
-	// skips them next time.
+	// Trigger the refetcher cron. With the freshly-enrolled branch in
+	// ListIOSAndIPadOSToRefetch, our brand-new host (its details_updated_at is
+	// set to the enroll time) gets picked up on this very first tick rather
+	// than waiting up to an hour.
+	require.NoError(t, apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, s.fleetSvc.NewActivity))
+
 	tracked, err := s.ds.GetHostMDMCommands(ctx, enrolledHostID)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []fleet.HostMDMCommand{

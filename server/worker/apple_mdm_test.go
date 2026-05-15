@@ -870,50 +870,6 @@ func TestAppleMDM(t *testing.T) {
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
-	t.Run("schedules refetch for iOS BYOD enrollments", func(t *testing.T) {
-		mysql.SetTestABMAssets(t, ds, testOrgName)
-		defer mysql.TruncateTables(t, ds)
-
-		h := createEnrolledHost(t, 1, nil, false, "ios")
-
-		mdmWorker := &AppleMDM{
-			Datastore: ds,
-			Log:       slogLog,
-			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
-		}
-		w := NewWorker(ds, slogLog)
-		w.Register(mdmWorker)
-
-		err := QueueAppleMDMJob(ctx, ds, slogLog, AppleMDMPostManualEnrollmentTask, h.UUID, "ios", nil, "", false, false)
-		require.NoError(t, err)
-
-		err = w.ProcessJobs(ctx)
-		require.NoError(t, err)
-
-		// Apps + certs + device-info MDM commands queued so the host's inventory
-		// populates without waiting for the hourly cron or a manual refetch.
-		require.ElementsMatch(t,
-			[]string{"InstalledApplicationList", "CertificateList", "DeviceInformation"},
-			getEnqueuedCommandTypes(t),
-		)
-
-		// Tracked so the cron won't re-send the same commands on its next tick.
-		tracked, err := ds.GetHostMDMCommands(ctx, h.ID)
-		require.NoError(t, err)
-		var trackedTypes []string
-		for _, c := range tracked {
-			trackedTypes = append(trackedTypes, c.CommandType)
-		}
-		require.ElementsMatch(t,
-			[]string{fleet.RefetchAppsCommandUUIDPrefix, fleet.RefetchCertsCommandUUIDPrefix, fleet.RefetchDeviceCommandUUIDPrefix},
-			trackedTypes,
-		)
-
-		refreshed, err := ds.Host(ctx, h.ID)
-		require.NoError(t, err)
-		require.True(t, refreshed.RefetchRequested)
-	})
-
 	t.Run("use worker for automatic release", func(t *testing.T) {
 		mysqltest.SetTestABMAssets(t, ds, testOrgName)
 		defer mysqltest.TruncateTables(t, ds)
