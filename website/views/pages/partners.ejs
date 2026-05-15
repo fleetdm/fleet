@@ -29,7 +29,7 @@
               <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
               <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
               <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
-              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <a href="https://eu1.hubs.ly/H0v39T-0" target="_blank" rel="noopener noreferrer" no-icon><img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png"></a>
               <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
               <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
@@ -43,7 +43,7 @@
               <img alt="Myriad logo" src="/images/logos/partner-logo-myriad-360-146x32@2x.png">
               <img alt="3eye logo" src="/images/logos/partner-logo-3eye-74x32@2x.png">
               <img alt="CDW logo" src="/images/logos/partner-logo-cdw-60x32@2x.png">
-              <img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png">
+              <a href="https://eu1.hubs.ly/H0v39T-0" target="_blank" rel="noopener noreferrer" no-icon><img alt="Primo logo" src="/images/logos/partner-logo-primo-108x32@2x.png"></a>
               <img alt="Wediggit logo" src="/images/logos/partner-logo-wediggit-94x32@2x.png">
               <img alt="Deel logo" src="/images/logos/partner-logo-deel-88x32@2x.png">
               <img alt="nDuo logo" src="/images/logos/partner-logo-nduo-100x32@2x.png">
@@ -184,7 +184,7 @@
             <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
           </div>
           <div class="form-group">
-            <label purpose="checkbox-group-label">How will you work with Fleet?</label>
+            <label purpose="checkbox-group-label">How will you work with Fleet? *</label>
             <label purpose="form-option" class="form-control" :class="[partnerFormData.partnerType === 'reseller' ? 'selected' : '']">
               <input type="radio" v-model.trim="partnerFormData.partnerType" value="reseller" >
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
@@ -197,17 +197,17 @@
             </label>
           </div>
           <div class="form-group">
-            <label for="partner-website">Website</label>
+            <label for="partner-website">Website *</label>
             <input class="form-control" id="partner-website" :class="[formErrors.partnerWebsite ? 'is-invalid' : '']"  v-model.trim="partnerFormData.partnerWebsite" >
-            <div class="invalid-feedback" v-if="formErrors.partnerWebsite">Please select an option.</div>
+            <div class="invalid-feedback" v-if="formErrors.partnerWebsite">Please provide your website.</div>
           </div>
           <div class="form-group">
-            <label for="partner-country">Country</label>
+            <label for="partner-country">Country *</label>
             <input class="form-control" id="partner-country" :class="[formErrors.partnerCountry ? 'is-invalid' : '']"  v-model.trim="partnerFormData.partnerCountry" >
-            <div class="invalid-feedback" v-if="formErrors.partnerCountry">Please select an option.</div>
+            <div class="invalid-feedback" v-if="formErrors.partnerCountry">Please provide your country.</div>
           </div>
           <div v-if="partnerFormData.partnerType === 'reseller'">
-            <label purpose="checkbox-group-label" for="partner-services-offered">Services offered</label>
+            <label purpose="checkbox-group-label" for="partner-services-offered">Services offered *</label>
             <div class="form-group" :class="[formErrors.servicesOffered ? 'is-invalid' : '']">
               <div purpose="input-group">
                 <label purpose="custom-checkbox-label" for="device-management" @click="clickSelectCustomCheckbox()">
@@ -234,7 +234,7 @@
               </div>
             </div>
             <div class="form-group">
-              <label for="partner-number-of-hosts">Approx. endpoints managed</label>
+              <label for="partner-number-of-hosts">Approx. endpoints managed *</label>
               <select class="form-control custom-select" v-model.trim="partnerFormData.numberOfHosts" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']">
                 <option :value="undefined">Select</option>
                 <option value="1 - 100">1 - 100</option>
@@ -248,7 +248,7 @@
           </div>
           <div v-else>
             <div class="form-group">
-              <label for="partner-service-description">Which best describes your services?</label>
+              <label for="partner-service-description">Which best describes your services? *</label>
               <select class="form-control custom-select" id="partner-service-description" v-model.trim="partnerFormData.servicesCategory" :class="[formErrors.servicesCategory ? 'is-invalid' : '']">
                 <option :value="undefined">Select</option>
                 <option value="Security">Security</option>
@@ -264,11 +264,11 @@
           </div>
           <div class="form-group">
             <div purpose="form-label" v-if="partnerFormData.partnerType === 'reseller'">
-              <label for="notes">Tell us about your services or customers</label>
+              <label for="notes">Tell us about your services or customers *</label>
               <p>E.g., types of customers, deployments, or services you offer.</p>
             </div>
             <div purpose="form-label"  v-else>
-              <label for="notes">Tell us about your integration</label>
+              <label for="notes">Tell us about your integration *</label>
               <p>E.g., data integration, product integration, or co-marketing.</p>
             </div>
             <textarea class="form-control" :class="[formErrors.notes ? 'is-invalid' : '']" id="notes" type="textarea" v-model.trim="partnerFormData.notes" >
@@ -276,7 +276,16 @@
             <div class="invalid-feedback">Please provide more information</div>
           </div>
         </div>
-        <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+        <div purpose="hp-input" aria-hidden="true">
+          <label>Website</label>
+          <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="partnerFormData.websiteUrl">
+        </div>
+        <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
+          <p>
+            Please enter your work email address.
+          </p>
+        </cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
         <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
       </ajax-form>
@@ -300,31 +309,31 @@
           <div class="row">
             <div class="col-12 col-sm-6 pr-sm-2">
               <div class="form-group">
-                <label for="submitter-first-name">First name</label>
+                <label for="submitter-first-name">First name *</label>
                 <input class="form-control" id="submitter-first-name" type="text"  :class="[formErrors.partnersFirstName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersFirstName" autocomplete="first-name">
                 <div class="invalid-feedback" v-if="formErrors.submittersFirstName">Please enter your first name.</div>
               </div>
             </div>
             <div class="col-12 col-sm-6 pl-sm-2">
               <div class="form-group">
-                <label for="submitter-last-name">Last name</label>
+                <label for="submitter-last-name">Last name *</label>
                 <input class="form-control" id="submitter-last-name" type="text"  :class="[formErrors.submittersLastName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersLastName" autocomplete="last-name">
                 <div class="invalid-feedback" v-if="formErrors.submittersLastName">Please enter your last name.</div>
               </div>
             </div>
           </div>
           <div class="form-group">
-            <label for="submitters-email-address">Email</label>
+            <label for="submitters-email-address">Email *</label>
             <input class="form-control" id="submitters-email-address"  :class="[formErrors.submittersEmailAddress ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersEmailAddress">
             <div class="invalid-feedback" v-if="formErrors.submittersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group">
-            <label for="submitters-organization">Company</label>
+            <label for="submitters-organization">Company *</label>
             <input class="form-control" id="submitters-organization" type="text"  :class="[formErrors.submittersOrganization ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.submittersOrganization">
             <div class="invalid-feedback" v-if="formErrors.submittersOrganization">Please enter the name of your organization.</div>
           </div>
           <div class="form-group" :class="[formErrors.submitterIsExistingPartner ? 'is-invalid' : '']" >
-            <strong>Are you an existing Fleet partner</strong>
+            <strong>Are you an existing Fleet partner *</strong>
             <label purpose="form-option" class="form-control" :class="[dealRegistrationFormData.submitterIsExistingPartner === 'yes' ? 'selected' : '']">
               <input type="radio" v-model.trim="dealRegistrationFormData.submitterIsExistingPartner" value="yes" >
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
@@ -345,17 +354,17 @@
         <div purpose="form-section">
           <h3>Customer details</h3>
           <div class="form-group">
-            <label for="customer-organization">Company</label>
+            <label for="customer-organization">Company *</label>
             <input class="form-control" id="customer-organization"  :class="[formErrors.customersOrganization ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.customersOrganization">
             <div class="invalid-feedback" v-if="formErrors.customersOrganization" focus-first>Please enter the customer's company</div>
           </div>
           <div class="form-group">
-            <label for="customer-name">Contact name</label>
+            <label for="customer-name">Contact name *</label>
             <input class="form-control" id="customer-name" type="text"  :class="[formErrors.customersName ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.customersName" autocomplete="first-name">
             <div class="invalid-feedback" v-if="formErrors.customersName">Please enter the customer's name.</div>
           </div>
           <div class="form-group">
-            <label for="customers-email-address">Contact email</label>
+            <label for="customers-email-address">Contact email *</label>
             <input class="form-control" id="customers-email-address"  :class="[formErrors.customersEmailAddress ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.customersEmailAddress">
             <div class="invalid-feedback" v-if="formErrors.customersEmailAddress" focus-first>This doesn’t appear to be a valid email address</div>
           </div>
@@ -364,7 +373,7 @@
         <div purpose="form-section">
           <h3>Deal qualification</h3>
           <div class="form-group">
-            <label for="deal-stage">Deal stage</label>
+            <label for="deal-stage">Deal stage *</label>
             <select class="form-control custom-select" id="deal-stage"  :class="[formErrors.dealStage ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.dealStage">
               <option :value="undefined">Select</option>
               <option value="Identified">Identified</option>
@@ -375,7 +384,7 @@
             <div class="invalid-feedback" v-if="formErrors.dealStage" focus-first>Please select a deal stage</div>
           </div>
           <div class="form-group">
-            <label for="expected-close">Expected close</label>
+            <label for="expected-close">Expected close *</label>
             <select class="form-control custom-select" id="expected-close" :class="[formErrors.expectedClose ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.expectedClose">
               <option :value="undefined">Select</option>
               <option value="< 1 month">< 1 month</option>
@@ -386,7 +395,7 @@
             <div class="invalid-feedback" v-if="formErrors.expectedClose" focus-first>Please select an option</div>
           </div>
           <div class="form-group">
-            <label for="reseller-number-of-devices">Estimated number of devices</label>
+            <label for="reseller-number-of-devices">Estimated number of devices *</label>
             <select class="form-control custom-select" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="dealRegistrationFormData.numberOfHosts">
               <option :value="undefined">Select</option>
               <option value="1 - 100">1 - 100</option>
@@ -398,7 +407,7 @@
           </div>
 
 
-          <label purpose="checkbox-group-label" for="deal-reg-platforms">Platforms</label>
+          <label purpose="checkbox-group-label" for="deal-reg-platforms">Platforms *</label>
           <div purpose="checkbox-group" class="form-group d-flex flex-column" :class="[formErrors.platforms ? 'is-invalid' : '']">
               <label purpose="custom-checkbox-label" for="apple" @click="clickSelectCustomCheckbox()">
                 <span purpose="custom-checkbox" :class="[dealRegistrationFormData.platforms.apple ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
@@ -423,7 +432,7 @@
               <div class="invalid-feedback" v-if="formErrors.platforms" focus-first>Please select an option</div>
           </div>
 
-          <label purpose="checkbox-group-label" for="deal-reg-use-case">Use case</label>
+          <label purpose="checkbox-group-label" for="deal-reg-use-case">Use case *</label>
         <div purpose="checkbox-group" class="form-group d-flex flex-column" :class="[formErrors.useCase ? 'is-invalid' : '']">
             <label purpose="custom-checkbox-label" for="mdm" @click="clickSelectCustomCheckbox()">
               <span purpose="custom-checkbox" :class="[dealRegistrationFormData.useCase.mdm ? 'checked' : '']" ><span purpose="custom-checkbox-check"></span></span>
@@ -439,12 +448,21 @@
           </div>
 
           <div class="form-group">
-            <label for="deal-notes">Additional notes</label>
+            <label for="deal-notes">Additional notes *</label>
             <textarea class="form-control" id="deal-notes" type="textarea" :class="[formErrors.notes ? 'is-invalid' : '']"  v-model.trim="dealRegistrationFormData.notes"></textarea>
             <div class="invalid-feedback" v-if="formErrors.notes" focus-first>Please provide more information</div>
           </div>
         </div>
-        <cloud-error purpose="cloud-error" v-if="cloudError"></cloud-error>
+        <div purpose="hp-input" aria-hidden="true">
+          <label>Website</label>
+          <input name="website-url" type="text" tabindex="-1" autocomplete="off" v-model.trim="dealRegistrationFormData.websiteUrl">
+        </div>
+        <cloud-error purpose="cloud-error" v-if="cloudError === 'invalidEmailDomain'">
+          <p>
+            Please enter your work email address.
+          </p>
+        </cloud-error>
+        <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <p class="small">By submitting you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Submit</ajax-button>
         <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
@@ -453,7 +471,6 @@
     <div v-else>
       <h2>Thanks for registering</h2>
       <p>A member of our team will be in touch soon.</p>
-      <div class="btn btn-primary" purpose="submit-button" @click="clickResetForm()">Register another opportunity</div>
     </div>
   </modal>
 </div>

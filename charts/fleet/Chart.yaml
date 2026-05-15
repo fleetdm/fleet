@@ -4,17 +4,17 @@ name: fleet
 keywords:
   - fleet
   - osquery
-version: v6.8.10
+version: v7.0.2
 home: https://github.com/fleetdm/fleet
 sources:
   - https://github.com/fleetdm/fleet.git
-appVersion: v4.83.2
+appVersion: v4.85.0
 dependencies:
   - name: mysql
     condition: mysql.enabled
-    version: 9.12.5
-    repository: https://charts.bitnami.com/bitnami
-  - name: redis
+    version: 1.0.0
+    repository: file://charts/mysql
+  - name: valkey
     condition: redis.enabled
-    version: 18.1.6
-    repository: https://charts.bitnami.com/bitnami
+    version: 0.9.3
+    repository: https://valkey.io/valkey-helm/

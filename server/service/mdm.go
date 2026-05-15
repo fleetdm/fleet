@@ -182,21 +182,13 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	if err := apple_mdm.GetSignedAPNSCSR(client, apnsCSR); err != nil {
 		if ferr, ok := err.(apple_mdm.FleetWebsiteError); ok {
 			status := http.StatusBadGateway
-			if ferr.Status >= 400 && ferr.Status <= 499 {
-				// TODO: fleetdm.com returns a genereric "Bad
-				// Request" message, we should coordinate and
-				// stablish a response schema from which we can get
-				// the invalid field and use
-				// fleet.NewInvalidArgumentError instead
-				//
-				// For now, since we have already validated
-				// everything else, we assume that a 4xx
-				// response is an email with an invalid domain
+			if ferr.ExitType == "invalidEmailDomain" {
+				domain := "@" + strings.SplitN(email, "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}
@@ -269,7 +261,7 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 
 	if eula.Size > fleet.MaxEULASize {
 		return nil, &fleet.BadRequestError{
-			Message: "Uploaded EULA exceeds maximum allowed size of 500 MiB",
+			Message: fmt.Sprintf("Uploaded EULA exceeds maximum allowed size of %d MiB", fleet.MaxEULASize/1024/1024),
 		}
 	}
 
@@ -929,6 +921,25 @@ func (svc *Service) getDeviceSoftwareMDMCommandResults(ctx context.Context, comm
 		res.Hostname = host.Hostname
 	}
 
+	// Enrich VPP command results with install status and verify timeout metadata,
+	// matching what the admin path does in GetMDMCommandResults.
+	if len(results) > 0 {
+		installed, err := svc.ds.GetVPPAppInstallStatusByCommandUUID(ctx, commandUUID)
+		if err != nil {
+			svc.logger.DebugContext(ctx, "failed to check if VPP app is installed", "err", err, "command_uuid", commandUUID)
+		} else {
+			for _, res := range results {
+				if res.RequestType == "InstallApplication" {
+					if res.ResultsMetadata == nil {
+						res.ResultsMetadata = make(map[string]any)
+					}
+					res.ResultsMetadata["software_installed"] = installed
+					res.ResultsMetadata["vpp_verify_timeout_seconds"] = int(svc.config.Server.VPPVerifyTimeout.Seconds())
+				}
+			}
+		}
+	}
+
 	return results, nil
 }
 
@@ -1036,6 +1047,18 @@ func (req listMDMCommandsRequest) DecodeBody(ctx context.Context, r io.Reader, u
 		}
 	}
 
+	if req.ListOptions.PerPage > fleet.MaxMDMCommandsPerPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set a per_page limit of %d or less.", fleet.MaxMDMCommandsPerPage),
+		}
+	}
+
+	if req.ListOptions.Page > fleet.MaxMDMCommandsPage {
+		return &fleet.BadRequestError{
+			Message: fmt.Sprintf("Request could not be processed. Please set page to %d or less, or use cursor pagination via the after parameter for deep traversal.", fleet.MaxMDMCommandsPage),
+		}
+	}
+
 	return nil
 }
 
@@ -1050,6 +1073,9 @@ func listMDMCommandsEndpoint(ctx context.Context, request interface{}, svc fleet
 		}
 	}
 
+	if req.ListOptions.PerPage == 0 {
+		req.ListOptions.PerPage = fleet.DefaultMDMCommandsPerPage
+	}
 	req.ListOptions.IncludeMetadata = true
 
 	results, total, meta, err := svc.ListMDMCommands(ctx, &fleet.MDMCommandListOptions{
@@ -1338,10 +1364,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     cp.Mobileconfig,
-				contentType: "application/x-apple-aspen-config",
-				filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     cp.Mobileconfig,
+				ContentType: "application/x-apple-aspen-config",
+				Filename:    fmt.Sprintf("%s_%s.mobileconfig", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1357,10 +1383,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     decl.RawJSON,
-				contentType: "application/json",
-				filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(decl.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     decl.RawJSON,
+				ContentType: "application/json",
+				Filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(decl.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1376,10 +1402,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}
 
 		if downloadRequested {
-			return downloadFileResponse{
-				content:     prof.RawJSON,
-				contentType: "application/json",
-				filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(prof.Name, " ", "_")),
+			return fleet.DownloadFileResponse{
+				Content:     prof.RawJSON,
+				ContentType: "application/json",
+				Filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(prof.Name, " ", "_")),
 			}, nil
 		}
 		return &getMDMConfigProfileResponse{
@@ -1394,10 +1420,10 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:     cp.SyncML,
-			contentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
-			filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
+		return fleet.DownloadFileResponse{
+			Content:     cp.SyncML,
+			ContentType: "application/octet-stream", // not using the XML MIME type as a profile is not valid XML (a list of <Replace> elements)
+			Filename:    fmt.Sprintf("%s_%s.xml", time.Now().Format("2006-01-02"), strings.ReplaceAll(cp.Name, " ", "_")),
 		}, nil
 	}
 	return &getMDMConfigProfileResponse{
@@ -2146,10 +2172,6 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
-	if dryRun {
-		return nil
-	}
-
 	// Get license for validation
 	lic, err := svc.License(ctx)
 	if err != nil {
@@ -2159,18 +2181,6 @@ func (svc *Service) BatchSetMDMProfiles(
 	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
-	}
-
-	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
-	for identifier, variables := range profilesVariablesByIdentifierMap {
-		varNames := make([]fleet.FleetVarName, 0, len(variables))
-		for _, varName := range variables {
-			varNames = append(varNames, fleet.FleetVarName(varName))
-		}
-		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
-			Identifier:     identifier,
-			FleetVariables: varNames,
-		})
 	}
 
 	// Now that validation is done, we remove the exposed secret variables from the profiles
@@ -2193,6 +2203,28 @@ func (svc *Service) BatchSetMDMProfiles(
 	for i, p := range androidProfiles {
 		p.RawJSON = profiles[i].Contents
 		androidProfilesSlice = append(androidProfilesSlice, p)
+	}
+
+	// Verify Apple Config profiles PayloadScope conflicts
+	err = svc.ds.VerifyAppleConfigProfileScopesDoNotConflict(ctx, appleProfilesSlice)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
+	for identifier, variables := range profilesVariablesByIdentifierMap {
+		varNames := make([]fleet.FleetVarName, 0, len(variables))
+		for _, varName := range variables {
+			varNames = append(varNames, fleet.FleetVarName(varName))
+		}
+		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
+			Identifier:     identifier,
+			FleetVariables: varNames,
+		})
 	}
 
 	var profUpdates fleet.MDMProfilesUpdates
@@ -3142,12 +3174,13 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		var fwe apple_mdm.FleetWebsiteError
 		if errors.As(err, &fwe) {
 			// From svc.RequestMDMAppleCSR: fleetdm.com returns a bad request here if the email is invalid.
-			if fwe.Status >= 400 && fwe.Status <= 499 {
+			if fwe.ExitType == "invalidEmailDomain" {
+				domain := "@" + strings.SplitN(vc.Email(), "@", 2)[1]
 				return nil, ctxerr.Wrap(
 					ctx,
 					fleet.NewInvalidArgumentError(
 						"email_address",
-						fmt.Sprintf("this email address is not valid: %v", err),
+						fmt.Sprintf("CSR request failed. Email domain '%s' is not permitted for APNS certificate signing. Please use a corporate or organization email address.", domain),
 					),
 				)
 			}

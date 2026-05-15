@@ -63,6 +63,12 @@ var (
 	ubuntuSoftwareFS embed.FS
 	//go:embed ubuntu_2204-kernels.json
 	ubuntuKernelsFS embed.FS
+	//go:embed rhel_8-kernels.json
+	rhel8KernelsFS embed.FS
+	//go:embed rhel_9-kernels.json
+	rhel9KernelsFS embed.FS
+	//go:embed rhel_10-kernels.json
+	rhel10KernelsFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
 
@@ -70,7 +76,15 @@ var (
 	vsCodeExtensionsVulnerableSoftware []fleet.Software
 	windowsSoftware                    []map[string]string
 	ubuntuSoftware                     []map[string]string
-	ubuntuKernels                      []string
+	ubuntuKernels                      []map[string]string
+	rhel8Kernels                       []map[string]string
+	rhel9Kernels                       []map[string]string
+	rhel10Kernels                      []map[string]string
+
+	// softwareDBRPM caches a one-time filtered slice of softwareDB.Ubuntu where
+	// Source == "rpm_packages", reused by RHEL agents.
+	softwareDBRPMOnce sync.Once
+	softwareDBRPM     []softwaredb.UbuntuSoftware
 
 	// Software library database (loaded from SQLite if --software_db_path is specified)
 	softwareDB *softwaredb.DB
@@ -153,17 +167,114 @@ func loadSoftwareItems(fs embed.FS, path string, source string) []map[string]str
 	return softwareRows
 }
 
-func loadKernelList(fs embed.FS, path string) []string {
+// loadDebKernelList reads a JSON array of deb-style kernel package names
+// (e.g., "linux-image-6.8.0-51-generic") and returns kernel records with
+// name, version (the suffix after "linux-image-"), and source="deb_packages".
+func loadDebKernelList(fs embed.FS, path string) []map[string]string {
 	data, err := fs.ReadFile(path)
 	if err != nil {
 		panic(err)
 	}
 
-	var kernels []string
-	if err := json.Unmarshal(data, &kernels); err != nil {
+	var names []string
+	if err := json.Unmarshal(data, &names); err != nil {
 		panic(err)
 	}
 
+	kernels := make([]map[string]string, 0, len(names))
+	for _, name := range names {
+		kernels = append(kernels, map[string]string{
+			"name":    name,
+			"version": strings.TrimPrefix(name, "linux-image-"),
+			"source":  "deb_packages",
+		})
+	}
+	return kernels
+}
+
+// loadSoftwareDBRPM returns a one-time filtered slice of softwareDB.Ubuntu
+// where Source == "rpm_packages". Returns nil if no software DB is loaded.
+func loadSoftwareDBRPM() []softwaredb.UbuntuSoftware {
+	if softwareDB == nil {
+		return nil
+	}
+	softwareDBRPMOnce.Do(func() {
+		filtered := make([]softwaredb.UbuntuSoftware, 0, len(softwareDB.Ubuntu)/4)
+		for _, s := range softwareDB.Ubuntu {
+			if s.Source == "rpm_packages" {
+				filtered = append(filtered, s)
+			}
+		}
+		softwareDBRPM = filtered
+	})
+	return softwareDBRPM
+}
+
+// rpmSliceToMaps converts UbuntuSoftware entries at the given indices to
+// osquery result maps. Mirrors softwaredb.DB.UbuntuToMaps but operates on a
+// caller-provided slice (the RPM-only filtered subset).
+func rpmSliceToMaps(pool []softwaredb.UbuntuSoftware, indices []uint32) []map[string]string {
+	results := make([]map[string]string, 0, len(indices))
+	for _, idx := range indices {
+		if int(idx) >= len(pool) {
+			continue
+		}
+		s := pool[idx]
+		m := map[string]string{
+			"name":    s.Name,
+			"source":  s.Source,
+			"version": s.Version,
+		}
+		if s.Vendor != nil {
+			m["vendor"] = *s.Vendor
+		}
+		if s.Arch != nil {
+			m["arch"] = *s.Arch
+		}
+		if s.Release != nil {
+			m["release"] = *s.Release
+		}
+		results = append(results, m)
+	}
+	return results
+}
+
+// loadRPMKernelList reads a JSON array of objects with name/version/release
+// (and optional vendor/arch) and returns kernel records stamped with
+// source="rpm_packages".
+func loadRPMKernelList(fs embed.FS, path string) []map[string]string {
+	data, err := fs.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+
+	var entries []struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Release string `json:"release"`
+		Vendor  string `json:"vendor"`
+		Arch    string `json:"arch"`
+	}
+	if err := json.Unmarshal(data, &entries); err != nil {
+		panic(err)
+	}
+
+	kernels := make([]map[string]string, 0, len(entries))
+	for _, e := range entries {
+		entry := map[string]string{
+			"name":    e.Name,
+			"version": e.Version,
+			"release": e.Release,
+			"source":  "rpm_packages",
+		}
+		if e.Vendor != "" {
+			entry["vendor"] = e.Vendor
+		}
+		if e.Arch != "" {
+			entry["arch"] = e.Arch
+		}
+		kernels = append(kernels, entry)
+	}
 	return kernels
 }
 
@@ -172,7 +283,10 @@ func init() {
 	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2", "programs")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2", "deb_packages")
-	ubuntuKernels = loadKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
+	ubuntuKernels = loadDebKernelList(ubuntuKernelsFS, "ubuntu_2204-kernels.json")
+	rhel8Kernels = loadRPMKernelList(rhel8KernelsFS, "rhel_8-kernels.json")
+	rhel9Kernels = loadRPMKernelList(rhel9KernelsFS, "rhel_9-kernels.json")
+	rhel10Kernels = loadRPMKernelList(rhel10KernelsFS, "rhel_10-kernels.json")
 }
 
 type nodeKeyManager struct {
@@ -231,15 +345,17 @@ func (n *nodeKeyManager) Add(nodekey string) {
 }
 
 type mdmAgent struct {
-	agentIndex            int
-	MDMCheckInInterval    time.Duration
-	model                 string
-	serverAddress         string
-	softwareCount         softwareEntityCount
-	stats                 *osquery_perf.Stats
-	strings               map[string]string
-	softwareVersionMap    map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
-	mdmProfileFailureProb float64
+	agentIndex                 int
+	MDMCheckInInterval         time.Duration
+	model                      string
+	serverAddress              string
+	softwareCount              softwareEntityCount
+	stats                      *osquery_perf.Stats
+	strings                    map[string]string
+	softwareVersionMap         map[rune]int // Maps first char to version option: 0=base, 1=alternate, 2-31=patch versions 0-29
+	mdmProfileFailureProb      float64
+	osVersion                  string
+	supplementalOSVersionExtra string
 }
 
 // stats, model, *serverURL, *mdmSCEPChallenge, *mdmCheckInInterval
@@ -350,6 +466,15 @@ type agent struct {
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
+
+	// Note that the following ddm variables do not need a mutex because they are only
+	// accessed in the MDM goroutine (and then only in the DDM handling function), and never
+	// read/written concurrently.
+
+	// ddmGlobalToken is the cached global DeclarationsToken from the tokens endpoint.
+	ddmGlobalToken string
+	// ddmDeclTokens caches per-declaration tokens (identifier → serverToken).
+	ddmDeclTokens map[string]string
 
 	disableScriptExec   bool
 	disableFleetDesktop bool
@@ -512,9 +637,10 @@ func newAgent(
 	// validTemplateNames below for the list of possible names, the OS is always
 	// the part before the underscore). Note that it is the OS and not the
 	// "normalized" platform, so "ubuntu" and not "linux", "macos" and not
-	// "darwin".
-	agentOS := strings.TrimRight(templates.Name(), ".tmpl")
-	agentOS, _, _ = strings.Cut(agentOS, "_")
+	// "darwin". osVariant is the part after the underscore, e.g., "8" / "9" /
+	// "10" for RHEL templates, used to pick the right kernel list.
+	templateBase := strings.TrimSuffix(templates.Name(), ".tmpl")
+	agentOS, osVariant, _ := strings.Cut(templateBase, "_")
 
 	var (
 		macMDMClient *mdmtest.TestAppleMDMClient
@@ -584,8 +710,9 @@ func newAgent(
 		linuxUniqueSoftwareVersion: linuxUniqueSoftwareVersion,
 		linuxUniqueSoftwareTitle:   linuxUniqueSoftwareTitle,
 
-		macMDMClient: macMDMClient,
-		winMDMClient: winMDMClient,
+		macMDMClient:  macMDMClient,
+		winMDMClient:  winMDMClient,
+		ddmDeclTokens: make(map[string]string),
 
 		disableScriptExec:        disableScriptExec,
 		disableFleetDesktop:      disableFleetDesktop,
@@ -609,9 +736,19 @@ func newAgent(
 		AgentIndex:    agentIndex,
 	}, useHTTPSig, httpMessageSignatureP384Prob)
 
-	// Pre-select kernels for Ubuntu agents to ensure consistency across queries
-	if agentOS == "ubuntu" {
+	// Pre-select kernels for Linux agents to ensure consistency across queries
+	switch agentOS {
+	case "ubuntu":
 		agent.linuxKernels = selectKernels(ubuntuKernels)
+	case "rhel":
+		switch osVariant {
+		case "8":
+			agent.linuxKernels = selectKernels(rhel8Kernels)
+		case "9":
+			agent.linuxKernels = selectKernels(rhel9Kernels)
+		case "10":
+			agent.linuxKernels = selectKernels(rhel10Kernels)
+		}
 	}
 
 	return agent
@@ -1068,6 +1205,7 @@ func (a *agent) runMacosMDMLoop() {
 						break INNER_FOR_LOOP
 					}
 				}
+
 			case "DeclarativeManagement":
 				// Device immediately responds with Acknowledged status and then contacts the Declarations endpoints.
 				nextMdmCommandPayload, err := a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
@@ -1077,8 +1215,10 @@ func (a *agent) runMacosMDMLoop() {
 					break INNER_FOR_LOOP
 				}
 				// Note: Declarative management could happen async while other MDM commands proceed. This is a potential enhancement.
+				// (iff a real device does process DDM in parallel with traditional MDM commands).
 				a.doDeclarativeManagement(mdmCommandPayload)
 				mdmCommandPayload = nextMdmCommandPayload
+
 			case "InstalledApplicationList":
 				var installedVPPSoftware []fleet.Software
 				// Our mock VPP apps start off as "not installed".
@@ -1106,6 +1246,7 @@ func (a *agent) runMacosMDMLoop() {
 				}
 
 				mdmCommandPayload = nextMdmCommandPayload
+
 			case "InstallApplication":
 				var appRequest struct {
 					Command map[string]any `plist:"Command"`
@@ -1171,105 +1312,216 @@ func (a *agent) runMacosMDMLoop() {
 }
 
 func (a *agent) doDeclarativeManagement(cmd *mdm.Command) {
-	// defer log.Printf("Exiting DeclarativeManagement for command %s", cmd.CommandUUID)
+	const maxAttempts = 3
 
-	// get declaration-items endpoint
-	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
-	if err != nil {
-		log.Printf("DDM %s declaration-items request failed: %s", cmd.CommandUUID, err)
-		a.stats.IncrementDDMDeclarationItemsErrors()
+	// prevToken starts as the last-applied global token. On each iteration,
+	// a tokens fetch is compared to it: if it matches, the server has settled
+	// (or nothing changed on the first pass). If it differs, we sync
+	// declaration-items and fetch changed declarations, then loop to check
+	// again (mimicking the real device behavior, see
+	// https://github.com/fleetdm/fleet/issues/43050#issuecomment-4252241277).
+	prevToken := a.ddmGlobalToken
+	var items *fleet.MDMAppleDDMDeclarationItemsResponse
+	var currentTokens map[string]string
+	changed := false
+
+	for range maxAttempts {
+		// Fetch tokens — on the first pass this is the initial check against
+		// the cached token; on subsequent passes it is the convergence check
+		// for the previous iteration's sync.
+		globalToken, err := a.ddmFetchTokens()
+		if err != nil {
+			return
+		}
+		if globalToken == prevToken {
+			break // nothing changed, or server has settled
+		}
+
+		// Fetch declaration-items manifest
+		items, err = a.ddmFetchDeclarationItems()
+		if err != nil {
+			return
+		}
+
+		// Check each manifest item against cached tokens, fetch changed ones.
+		currentTokens = make(map[string]string, len(items.Declarations.Activations)+len(items.Declarations.Configurations))
+		for _, d := range items.Declarations.Activations {
+			currentTokens[d.Identifier] = d.ServerToken
+			if a.ddmDeclTokens[d.Identifier] != d.ServerToken {
+				if err := a.ddmFetchDeclaration("activation", d.Identifier); err != nil {
+					return
+				}
+				changed = true
+			}
+		}
+
+		for _, d := range items.Declarations.Configurations {
+			currentTokens[d.Identifier] = d.ServerToken
+			if a.ddmDeclTokens[d.Identifier] != d.ServerToken {
+				if err := a.ddmFetchDeclaration("configuration", d.Identifier); err != nil {
+					return
+				}
+				changed = true
+			}
+		}
+
+		// Check for removed items (in cache but not in manifest) - no need to check if changes are
+		// already detected, as the whole set of declaration tokens will get replaced with the current ones.
+		// This is just to detect the case where the only change is a removal.
+		if !changed {
+			for id := range a.ddmDeclTokens {
+				if _, ok := currentTokens[id]; !ok {
+					changed = true
+					break
+				}
+			}
+		}
+
+		prevToken = globalToken
+	}
+
+	if !changed || items == nil {
 		return
 	}
+
+	// Server has settled (or max attempts exhausted) and declarations
+	// changed — send a single consolidated status report and update cache.
+	if err := a.ddmSendStatus(items); err != nil {
+		return
+	}
+	a.ddmGlobalToken = prevToken
+	a.ddmDeclTokens = currentTokens
+}
+
+func (a *agent) ddmFetchTokens() (string, error) {
+	r, err := a.macMDMClient.DeclarativeManagement("tokens")
+	if err != nil {
+		log.Printf("DDM tokens request failed: %s", err)
+		a.stats.IncrementDDMTokensErrors()
+		return "", err
+	}
+	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		log.Printf("DDM %s declaration-items read body failed: %s", cmd.CommandUUID, err)
+		log.Printf("DDM tokens read body failed: %s", err)
+		a.stats.IncrementDDMTokensErrors()
+		return "", err
+	}
+	var resp fleet.MDMAppleDDMTokensResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		log.Printf("DDM tokens unmarshal failed: %s", err)
+		a.stats.IncrementDDMTokensErrors()
+		return "", err
+	}
+	a.stats.IncrementDDMTokensSuccess()
+	return resp.SyncTokens.DeclarationsToken, nil
+}
+
+func (a *agent) ddmFetchDeclarationItems() (*fleet.MDMAppleDDMDeclarationItemsResponse, error) {
+	r, err := a.macMDMClient.DeclarativeManagement("declaration-items")
+	if err != nil {
+		log.Printf("DDM declaration-items request failed: %s", err)
 		a.stats.IncrementDDMDeclarationItemsErrors()
-		return
+		return nil, err
+	}
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("DDM declaration-items read body failed: %s", err)
+		a.stats.IncrementDDMDeclarationItemsErrors()
+		return nil, err
 	}
 	var items fleet.MDMAppleDDMDeclarationItemsResponse
-	err = json.Unmarshal(body, &items)
-	if err != nil {
-		log.Printf("DDM %s declaration-items unmarshal failed: %s", cmd.CommandUUID, err)
+	if err := json.Unmarshal(body, &items); err != nil {
+		log.Printf("DDM declaration-items unmarshal failed: %s", err)
 		a.stats.IncrementDDMDeclarationItemsErrors()
-		return
+		return nil, err
 	}
 	a.stats.IncrementDDMDeclarationItemsSuccess()
+	return &items, nil
+}
 
-	// get declaration/configuration/:identifer endpoint
-	for _, d := range items.Declarations.Configurations {
-		path := fmt.Sprintf("declaration/%s/%s", "configuration", d.Identifier)
-		r, err := a.macMDMClient.DeclarativeManagement(path)
-		if err != nil {
-			log.Printf("DDM %s request failed: %s", path, err)
-			a.stats.IncrementDDMConfigurationErrors()
-			return
-		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("DDM %s read body failed: %s", path, err)
-			a.stats.IncrementDDMConfigurationErrors()
-			return
-		}
-		var decl fleet.MDMAppleDeclaration
-		err = json.Unmarshal(body, &decl)
-		if err != nil {
-			log.Printf("DDM %s unmarshal failed: %s", path, err)
-			a.stats.IncrementDDMConfigurationErrors()
-			return
-		}
+func (a *agent) ddmFetchDeclaration(kind, identifier string) error {
+	path := fmt.Sprintf("declaration/%s/%s", kind, identifier)
+	r, err := a.macMDMClient.DeclarativeManagement(path)
+	if err != nil {
+		log.Printf("DDM %s request failed: %s", path, err)
+		a.ddmIncrementDeclError(kind)
+		return err
 	}
-	a.stats.IncrementDDMConfigurationSuccess()
-
-	// get declaration/activation/:identifer endpoint
-	for _, d := range items.Declarations.Activations {
-		path := fmt.Sprintf("declaration/%s/%s", "activation", d.Identifier)
-		r, err := a.macMDMClient.DeclarativeManagement(path)
-		if err != nil {
-			log.Printf("DDM %s request failed: %s", path, err)
-			a.stats.IncrementDDMActivationErrors()
-			return
-		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Printf("DDM %s read body failed: %s", path, err)
-			a.stats.IncrementDDMActivationErrors()
-			return
-		}
+	defer r.Body.Close()
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("DDM %s read body failed: %s", path, err)
+		a.ddmIncrementDeclError(kind)
+		return err
+	}
+	switch kind {
+	case "activation":
 		var act fleet.MDMAppleDDMActivation
-		err = json.Unmarshal(body, &act)
-		if err != nil {
+		if err := json.Unmarshal(body, &act); err != nil {
 			log.Printf("DDM %s unmarshal failed: %s", path, err)
-			a.stats.IncrementDDMActivationErrors()
-			return
+			a.ddmIncrementDeclError(kind)
+			return err
 		}
+		a.stats.IncrementDDMActivationSuccess()
+	case "configuration":
+		var decl fleet.MDMAppleDeclaration
+		if err := json.Unmarshal(body, &decl); err != nil {
+			log.Printf("DDM %s unmarshal failed: %s", path, err)
+			a.ddmIncrementDeclError(kind)
+			return err
+		}
+		a.stats.IncrementDDMConfigurationSuccess()
 	}
-	a.stats.IncrementDDMActivationSuccess()
+	return nil
+}
 
-	// sent status report
+func (a *agent) ddmIncrementDeclError(kind string) {
+	switch kind {
+	case "activation":
+		a.stats.IncrementDDMActivationErrors()
+	case "configuration":
+		a.stats.IncrementDDMConfigurationErrors()
+	}
+}
+
+func (a *agent) ddmSendStatus(items *fleet.MDMAppleDDMDeclarationItemsResponse) error {
+	report := fleet.MDMAppleDDMStatusReport{}
+	for _, d := range items.Declarations.Activations {
+		report.StatusItems.Management.Declarations.Activations = append(
+			report.StatusItems.Management.Declarations.Activations,
+			fleet.MDMAppleDDMStatusDeclaration{
+				Active: true, Valid: fleet.MDMAppleDeclarationValid,
+				Identifier: d.Identifier, ServerToken: d.ServerToken,
+			},
+		)
+	}
 	for _, d := range items.Declarations.Configurations {
-		report := fleet.MDMAppleDDMStatusReport{}
-		report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
-			{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: d.Identifier, ServerToken: d.ServerToken},
-		}
-		r, err := a.macMDMClient.DeclarativeManagement("status", report)
-		if err != nil {
-			log.Printf("DDM %s status request failed: %s", d.Identifier, err)
-			a.stats.IncrementDDMStatusErrors()
-			return
-		}
+		report.StatusItems.Management.Declarations.Configurations = append(
+			report.StatusItems.Management.Declarations.Configurations,
+			fleet.MDMAppleDDMStatusDeclaration{
+				Active: true, Valid: fleet.MDMAppleDeclarationValid,
+				Identifier: d.Identifier, ServerToken: d.ServerToken,
+			},
+		)
+	}
 
-		// Apple's documentation has some conflicting information about the expected status here so we'll
-		// just check for both.
-		//
-		// https://developer.apple.com/documentation/devicemanagement/get_the_device_status#response-codes
-		// https://developer.apple.com/documentation/devicemanagement/statusreport#discussion
-		if r.StatusCode != http.StatusOK && r.StatusCode != http.StatusNoContent {
-			log.Printf("DDM %s status response unexpected: %d", d.Identifier, r.StatusCode)
-			a.stats.IncrementDDMStatusErrors()
-			return
-		}
+	r, err := a.macMDMClient.DeclarativeManagement("status", report)
+	if err != nil {
+		log.Printf("DDM status request failed: %s", err)
+		a.stats.IncrementDDMStatusErrors()
+		return err
+	}
+	defer r.Body.Close()
+	_, _ = io.Copy(io.Discard, r.Body)
+	if r.StatusCode != http.StatusOK {
+		log.Printf("DDM status response unexpected: %d", r.StatusCode)
+		a.stats.IncrementDDMStatusErrors()
+		return fmt.Errorf("unexpected status code: %d", r.StatusCode)
 	}
 	a.stats.IncrementDDMStatusSuccess()
+	return nil
 }
 
 func (a *agent) runWindowsMDMLoop() {
@@ -1293,6 +1545,12 @@ func (a *agent) runWindowsMDMLoop() {
 		}
 
 		for _, c := range cmds {
+			// Skip the server's own <Status> entries. MS-MDM's "Status on a Status" is only for auth-renegotiation edge cases (see
+			// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/36b1a4d9-fd93-48ce-b865-6a9d396c52a4
+			// "While this case is not usually encountered"); real Windows does not emit Status-on-Status during normal check-ins.
+			if c.Verb == fleet.CmdStatus {
+				continue
+			}
 			a.stats.IncrementMDMCommandsReceived()
 
 			status := syncml.CmdStatusOK
@@ -2081,7 +2339,7 @@ func (a *agent) softwareVSCodeExtensions() []map[string]string {
 	return software
 }
 
-func selectKernels(kernelList []string) []map[string]string {
+func selectKernels(kernelList []map[string]string) []map[string]string {
 	// Determine number of kernels based on probability distribution
 	r := rand.Float64()
 	var numKernels int
@@ -2111,15 +2369,11 @@ func selectKernels(kernelList []string) []map[string]string {
 	kernels := make([]map[string]string, 0, numKernels)
 
 	for i := 0; i < numKernels && i < len(indices); i++ {
-		kernelName := kernelList[indices[i]]
-		// Extract version from name (remove "linux-image-" prefix)
-		version := strings.TrimPrefix(kernelName, "linux-image-")
-
-		kernels = append(kernels, map[string]string{
-			"name":    kernelName,
-			"version": version,
-			"source":  "deb_packages",
-		})
+		// Copy the map so callers cannot mutate the shared package-level slice.
+		src := kernelList[indices[i]]
+		entry := make(map[string]string, len(src))
+		maps.Copy(entry, src)
+		kernels = append(kernels, entry)
 	}
 
 	return kernels
@@ -2427,6 +2681,21 @@ func (a *agent) diskEncryption() []map[string]string {
 		return []map[string]string{{"1": "1"}}
 	}
 	return []map[string]string{}
+}
+
+func (a *agent) diskEncryptionWindows() []map[string]string {
+	// 50% of results have encryption enabled
+	a.DiskEncryptionEnabled = rand.Intn(2) == 1
+	if a.DiskEncryptionEnabled {
+		return []map[string]string{{
+			"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOn),
+			"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyEncrypted),
+		}}
+	}
+	return []map[string]string{{
+		"protection_status": strconv.Itoa(fleet.BitLockerProtectionStatusOff),
+		"conversion_status": strconv.Itoa(fleet.BitLockerConversionStatusFullyDecrypted),
+	}}
 }
 
 func (a *agent) diskEncryptionLinux() []map[string]string {
@@ -2980,7 +3249,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			ss = fleet.OsqueryStatus(1)
 		}
 		if ss == fleet.StatusOK {
-			switch a.os { //nolint:gocritic // ignore singleCaseSwitch
+			switch a.os {
 			case "ubuntu":
 				// Use database software 80% of the time if available, otherwise use embedded data
 				if softwareDB != nil && len(softwareDB.Ubuntu) > 0 && rand.Float64() < 0.8 { // nolint:gosec,G404 // load testing, not security-sensitive
@@ -3029,6 +3298,34 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					results = append(results, value.(map[string]string))
 					return true
 				})
+
+			case "rhel":
+				// RHEL agents use the rpm_packages rows from the software DB
+				// (filtered once on first use). When the DB is unavailable, only
+				// kernels and per-host installed software are reported, which is
+				// sufficient for kernel-CVE load testing.
+				rpmPool := loadSoftwareDBRPM()
+				if len(rpmPool) > 0 {
+					if a.cachedSoftwareIndices == nil {
+						count := min(softwaredb.RandomSoftwareCount("ubuntu"), len(rpmPool))
+						perm := rand.Perm(len(rpmPool))
+						a.cachedSoftwareIndices = make([]uint32, count)
+						for i := range count {
+							a.cachedSoftwareIndices[i] = uint32(perm[i]) //nolint:gosec // perm[i] is bounded by len(rpmPool)
+						}
+					} else {
+						a.cachedSoftwareIndices = softwaredb.MaybeMutateSoftware(a.cachedSoftwareIndices, len(rpmPool))
+					}
+					results = rpmSliceToMaps(rpmPool, a.cachedSoftwareIndices)
+				}
+
+				// Add pre-selected kernels for this agent
+				results = append(results, a.linuxKernels...)
+
+				a.installedSoftware.Range(func(key, value any) bool {
+					results = append(results, value.(map[string]string))
+					return true
+				})
 			}
 		}
 		return true, results, &ss, nil, nil
@@ -3054,11 +3351,16 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 			results = a.diskEncryptionLinux()
 		}
 		return true, results, &ss, nil, nil
-	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
-		name == hostDetailQueryPrefix+"disk_encryption_windows":
+	case name == hostDetailQueryPrefix+"disk_encryption_darwin":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"disk_encryption_windows":
+		ss := fleet.OsqueryStatus(rand.Intn(2))
+		if ss == fleet.StatusOK {
+			results = a.diskEncryptionWindows()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
@@ -3296,8 +3598,8 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 			a.stats.IncrementMDMCommandsReceived()
 			switch mdmCommandPayload.Command.RequestType {
 			case "DeviceInformation":
-				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformation(udid, mdmCommandPayload.CommandUUID, deviceName,
-					productName, "America/Los_Angeles")
+				mdmCommandPayload, err = mdmClient.AcknowledgeDeviceInformationWithExtra(udid, mdmCommandPayload.CommandUUID, deviceName,
+					productName, "America/Los_Angeles", a.osVersion, a.supplementalOSVersionExtra)
 			case "InstalledApplicationList":
 				software := a.softwareIOSandIPadOS(softwareSource)
 				mdmCommandPayload, err = mdmClient.AcknowledgeInstalledApplicationList(udid, mdmCommandPayload.CommandUUID, software)
@@ -3374,8 +3676,12 @@ func main() {
 		"windows_11_22H2_2861.tmpl": true,
 		"windows_11_22H2_3007.tmpl": true,
 		"ubuntu_22.04.tmpl":         true,
+		"rhel_8.tmpl":               true,
+		"rhel_9.tmpl":               true,
+		"rhel_10.tmpl":              true,
 		"iphone_14.6.tmpl":          true,
 		"ipad_13.18.tmpl":           true,
+		"iphone_17.tmpl":            true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -3393,8 +3699,12 @@ func main() {
 		configInterval  = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
-		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		logInterval   = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
+		queryInterval = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
+		// NOTE: at least for macOS (not sure for Windows), this is a significant difference vs a real
+		// device, as APNS push notifications will be used to wake-up the device for check-ins instead of
+		// the device having to check-in at a regular interval. I believe macOS will check-in from time to time
+		// without push notifications, but definitely not every minute.
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 1*time.Minute, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
@@ -3483,13 +3793,18 @@ func main() {
 	flag.Parse()
 	rand.Seed(*randSeed)
 
-	// Load software from database if path provided
+	// Load software from database if path provided. macOS / Windows / Ubuntu
+	// have embedded fallback fixtures, and RHEL kernels are embedded too — the
+	// DB only adds non-kernel RPM/DEB variety. Treat load failure as a warning
+	// rather than fatal so running from the repo root (where the default
+	// relative path doesn't resolve) still works.
 	if *softwareDatabasePath != "" {
 		db, err := softwaredb.LoadFromDatabase(*softwareDatabasePath)
 		if err != nil {
-			log.Fatalf("Failed to load software database: %v", err)
+			log.Printf("WARNING: failed to load software database (%v); falling back to embedded software data", err)
+		} else {
+			softwareDB = db
 		}
-		softwareDB = db
 	} else {
 		log.Println("No software database specified (--software_db_path). Using embedded software data.")
 	}
@@ -3590,16 +3905,26 @@ func main() {
 			tmpl = tmplss[i%len(tmplss)]
 		}
 
-		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" {
+		if tmpl.Name() == "iphone_14.6.tmpl" || tmpl.Name() == "ipad_13.18.tmpl" || tmpl.Name() == "iphone_17.tmpl" {
 			model := "iPhone 14,6"
-			if tmpl.Name() == "ipad_13.18.tmpl" {
+			var osVersion, supplementalOSVersionExtra string
+			// iphone_17 simulates a device with a Rapid Security Response (RSR) installed,
+			// which adds a SupplementalOSVersionExtra suffix to the OS version (e.g. "26.3.1 (a)").
+			switch tmpl.Name() {
+			case "ipad_13.18.tmpl":
 				model = "iPad 13,18"
+			case "iphone_17.tmpl":
+				model = "iPhone 17"
+				osVersion = "26.3.1"
+				supplementalOSVersionExtra = "(a)"
 			}
 			mobileDevice := mdmAgent{
-				agentIndex:         i + 1,
-				MDMCheckInInterval: *mdmCheckInInterval,
-				model:              model,
-				serverAddress:      *serverURL,
+				agentIndex:                 i + 1,
+				MDMCheckInInterval:         *mdmCheckInInterval,
+				model:                      model,
+				serverAddress:              *serverURL,
+				osVersion:                  osVersion,
+				supplementalOSVersionExtra: supplementalOSVersionExtra,
 				softwareCount: softwareEntityCount{
 					entityCount: entityCount{
 						common: *commonSoftwareCount,

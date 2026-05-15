@@ -11,7 +11,9 @@ import permissions from "utilities/permissions";
 
 interface IAppProps {
   children: JSX.Element;
-  location: any; // no type in react-router v3
+  location: {
+    hash: string;
+  };
   router: InjectedRouter;
 }
 

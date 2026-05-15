@@ -59,7 +59,7 @@ Ultimately, the CEO is responsible for the success or failure of the company. Th
 
 ## Outline of departmental page structure
 
-Departmental pages outline intake, people, departmental philosophy, responsibilities, recurring rituals, and .  They always follow the structure below.  Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+Departmental pages outline intake, people, departmental philosophy, responsibilities, and recurring rituals. They always follow the structure below. Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
 > For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and were dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
@@ -314,7 +314,7 @@ The CEO shadow program is a three-day temporary assignment (usually completed du
 
 > **AEs**: Account Executives (AEs) complete their shadow program with the [SVP Global Sales](https://fleetdm.com/handbook/sales#team) instead of the CEO.
  
-> **What it's not**: The CEO shadow program is not a performance evaluation or a determinating factor for a promotion or raise. 
+> **What it's not**: The CEO shadow program is not a performance evaluation or a determining factor for a promotion or raise. 
 
 As a CEO shadow, you will be attending both internal and external meetings regarding various areas of the company. In order to make the most of your time as a shadow:
 - **Be on time**: Your time is priceless, your time as a CEO shadow is short! Join each meeting on time, this limits the distraction for other attendees and gives the CEO the opportunity to introduce you to other folks on the call without interrupting the meeting.
@@ -450,15 +450,22 @@ Schedule a call with [💸 Finance](https://fleetdm.com/handbook/finance#team) t
 
 Once approved by 💸 Finance, finalize purchase of accommodations and can assist with dinner reservations, activity reservations, and travel considerations.
 
+
 ## Executive bios
 
 Certain members of the executive team are asked for press involvement from time to time.  Below are their bios and headshots:
 
 | Person               | Headshot     | Bio   |
 |:---------------------|:-------------|:------|
-| Mike McNeil          | <img height="350" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
+| Mike McNeil          | <img width="800" height="800" alt="image" src="https://github.com/user-attachments/assets/b98fa4f9-9284-4ee7-94c7-9f6d09ee7a5a" /> | CEO/Co-founder of Fleet Device Management. Creator & BDFL of Sails.JS  (YC W15) |
+| Isabell Reedy | <img alt="Isabell Reedy bio photo" width="800" height="800" src="https://github.com/user-attachments/assets/cba833a1-d69c-4f71-9b9e-2cca78661750" /> | Head of People at Fleet Device Management. Isabell joined Fleet in 2023 as a Business Operations Engineer before moving into Finance Strategy, where she co-led the work behind Fleet's $27M Series B. She was named Head of People in 2025, where she owns people strategy, culture, and Fleet's digital workspace. Before Fleet, Isabell spent nearly five years at the Australian Embassy in Washington D.C. supporting strategic security engagements between Australia and the US, building on earlier roles across the Australian government and defence sector. |
+| Tina Ong                 | <img width="800" height="800" alt="TinaOngBioPic" src="https://github.com/user-attachments/assets/97b832d1-baff-4798-8db3-48e91997b0a5" /> | Chief Financial Officer at Fleet Device Management. Before Fleet, Tina served as CFO at Nucleus Security. As CFO at Signal Sciences (acquired by Fastly for $775M in 2020), she helped guide the web application security company through its acquisition and subsequently served as Head of Security Finance at Fastly. Earlier in her career, Tina held finance and business operations leadership roles at TeleSign and the Singapore Economic Development Board. |
+| Chaz MacLaughlin         | <img width="800" height="800" alt="ChazMacLaughlinBioPic" src="https://github.com/user-attachments/assets/8fe1c3a1-f6a4-4404-81ed-72dba5956d1a" /> | Senior Vice President of Global Sales at Fleet Device Management. Before Fleet, Chaz served as CRO at Nucleus Security, VP of Sales at Lucidum, and VP of Corporate Sales at Signal Sciences (acquired by Fastly), driving partner-first revenue growth across the cybersecurity sector. As Director of Sales West at MobileIron (acquired by Ivanti), he helped build the partner-led go-to-market motion that established the company as a pioneer in enterprise mobility management. Earlier in his career, Chaz served as Regional Director Southwest at Imperva. |
+| Alex Mitchell            | <img width="800" height="800" alt="AlexMitchellBioPic" src="https://fleetdm.com/images/alex-mitchell-800x800@2x.png" /> | Head of Strategic Growth at Fleet Device Management. An engineer‑turned‑operator, Alex has held strategy, product, and go‑to‑market leadership roles at Planview, uStudio, Sprint, and Alcatel‑Lucent's Motive division, working across enterprise SaaS, telecom, and connected‑device software. He holds an MBA from Northwestern University's Kellogg School of Management and BS Electrical Engineering from the University of Kansas. |
+| Zay Hanlon               | <img width="800" height="800" alt="ZayHanlonBioPic" src="https://github.com/user-attachments/assets/41eb92bb-7061-4ab4-be8d-4c60712e9d6d" /> | SVP of Customer Success at Fleet Device Management. Before Fleet, Zay was at Cisco, supporting Fortune 500 companies using their Cloud Security product suite, and at Kaseya, where she built out the structure for Mid-market customer success supporting 10,000 MSP customers and $42M of revenue. Zay's passion for solving problems in tech, rather than using her Biology background from Penn State, began at Kaseya in 2015. |
+| Allen Houchins           | <img width="800" height="800" alt="AllenHouchinsBioPic" src="https://github.com/user-attachments/assets/77906b29-824a-4e9f-8a96-a6f5b994b286" /> | Contributor at Fleet Device Management. Before Fleet, Allen served as Vice President of Information Technology & Workplace Services at Jamf, where he helped scale the company from 200 to 3,000 employees and led IT and Security through its transition from private company, to private equity ownership, to publicly traded company. Earlier in his career, Allen held engineering and systems leadership roles at Apple, including Demo Systems Manager for Apple Retail's 400+ global stores. |
+| Luke Heath          | <img alt="Luke Heath bio photo" width="460" height="459" src="https://github.com/user-attachments/assets/24afb40f-d33c-4e05-9672-e64dd03761a5" /> | Chief Technology Officer at Fleet Device Management. Luke spends a lot of time thinking about people and computers, and how the two can best get along. He joined Fleet in 2021 and was named CTO in March 2024. Before Fleet, Luke founded Heath Software, an Austin-based agency providing design and development services to startups and Fortune 500 companies including TIAA. Earlier in his career, he led engineering at TreeHouse and worked as an independent consultant for clients including Microsoft, Reuters, Samsung, SanDisk, and Paramount. Luke got his start in IT in 1998, providing technical support at AOL. |
 | Ashish Kuthiala          | <img width="800" height="800" alt="AshishBIoPic" src="https://github.com/user-attachments/assets/19498baf-e96c-48af-876a-3d9ec20e5f21" /> | Chief Marketing Officer at Fleet Device Management. Before Fleet, Ashish served as CMO at BlinkOps and Traceable AI (acquired by Harness IO). As Senior Director of strategic marketing at GitLab, he helped GitLab establish brand leadership in the DevOps automation category and contributed to growing the company's valuation from $200M to over $6B in three years. Earlier in his career, Ashish held leadership roles in marketing, product, and R&D at Hewlett Packard Enterprise, Electric Cloud (acquired by CloudBees), and AccelOps (acquired by Fortinet). |
-
 
 
 #### Stubs

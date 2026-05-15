@@ -58,7 +58,7 @@ func (a *AppleMDM) Name() string {
 type appleMDMArgs struct {
 	Task     AppleMDMTask `json:"task"`
 	HostUUID string       `json:"host_uuid"`
-	TeamID   *uint        `json:"team_id,omitempty"`
+	TeamID   *uint        `json:"team_id,omitempty"` //nolint:apiparamcheck
 	// EnrollReference is the UUID of the MDM IdP account used to enroll the
 	// device. It is used to set the username and full name of the user
 	// associated with the device.
@@ -133,6 +133,11 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 				return ctxerr.Wrap(ctx, err, "installing setup experience VPP apps on iOS/iPadOS")
 			}
 		}
+		// Refetch is handled by the iphone_ipad_refetcher cron, which now
+		// picks up freshly-enrolled hosts on its next tick (see
+		// ListIOSAndIPadOSToRefetch). That avoids tying the host's inventory
+		// catch-up to the synchronous enrollment path and keeps a single
+		// source of truth for refetch command emission.
 	}
 
 	return nil
@@ -207,19 +212,23 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 
 	awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUIDs...)
 
+	var ssoEnabled, managedAdminAccountEnabled, lockPrimaryAccountInfo bool
+	var ssoAccount *fleet.MDMIdPAccount
+	var adminAccount *apple_mdm.AdminAccountConfig
+
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.InfoContext(ctx, "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
 		if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
 			return err
 		}
 
-		acct, err := a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
+		ssoAccount, err = a.Datastore.GetMDMIdPAccountByUUID(ctx, ref)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting idp account details for enroll reference %s", ref)
 		}
 
-		ssoEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-		lockPrimaryAccountInfo := appCfg.MDM.MacOSSetup.LockEndUserInfo.Value
+		ssoEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		lockPrimaryAccountInfo = appCfg.MDM.MacOSSetup.LockEndUserInfo.Value
 		if args.TeamID != nil {
 			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
 				return err
@@ -227,26 +236,57 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			ssoEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 			lockPrimaryAccountInfo = team.Config.MDM.MacOSSetup.LockEndUserInfo.Value
 		}
+	}
 
-		if ssoEnabled {
-			fullName, err := a.getIdPDisplayName(ctx, acct, args)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "getting idp account display name")
+	if isMacOS(args.Platform) && license.IsPremium(ctx) {
+		if args.TeamID == nil {
+			if appCfg, err = a.getAppConfig(ctx, appCfg); err != nil {
+				return err
 			}
-			a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
-			cmdUUID := uuid.New().String()
-			if err := a.Commander.AccountConfiguration(
-				ctx,
-				[]string{args.HostUUID},
-				cmdUUID,
-				fullName,
-				acct.Username,
-				lockPrimaryAccountInfo,
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+			managedAdminAccountEnabled = appCfg.MDM.MacOSSetup.EnableManagedLocalAccount.Value
+		} else {
+			if team, err = a.getTeamConfig(ctx, team, *args.TeamID); err != nil {
+				return err
 			}
-			awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
+			managedAdminAccountEnabled = team.Config.MDM.MacOSSetup.EnableManagedLocalAccount.Value
 		}
+	}
+
+	const fleetAdminFullName = "Fleet Admin"
+
+	// Only send AccountConfiguration for macOS devices.
+	if isMacOS(args.Platform) && (ssoEnabled || managedAdminAccountEnabled) {
+		var password string
+		cmdUUID := uuid.New().String()
+		if managedAdminAccountEnabled {
+			password = apple_mdm.GenerateManagedAccountPassword()
+			passwordHash, err := apple_mdm.GenerateSaltedSHA512PBKDF2Hash(password)
+			if err != nil {
+				return err
+			}
+			adminAccount = &apple_mdm.AdminAccountConfig{
+				ShortName:    fleet.ManagedLocalAccountUsername,
+				FullName:     fleetAdminFullName,
+				PasswordHash: passwordHash,
+				Hidden:       true,
+			}
+			// Save the password before sending the command so the plaintext is
+			// escrowed even if the command enqueue succeeds but a later step fails.
+			if err := a.Datastore.SaveHostManagedLocalAccount(ctx, args.HostUUID, password, cmdUUID); err != nil {
+				return err
+			}
+		}
+
+		// Only include the SSO account in the payload if SSO is actually enabled.
+		// ssoAccount may be non-nil (fetched from enroll reference) even when SSO is disabled.
+		var ssoAccountForPayload *fleet.MDMIdPAccount
+		if ssoEnabled {
+			ssoAccountForPayload = ssoAccount
+		}
+		if err := a.sendManagedAccounts(ctx, &args, ssoAccountForPayload, adminAccount, lockPrimaryAccountInfo, cmdUUID); err != nil {
+			return err
+		}
+		awaitCmdUUIDs = append(awaitCmdUUIDs, cmdUUID)
 	}
 
 	// proceed to release the device if it is not a macos, as those are released
@@ -872,5 +912,36 @@ func QueueAppleMDMJob(
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}
 	logger.DebugContext(ctx, "queued Apple MDM job", "job_id", job.ID)
+	return nil
+}
+
+// sendManagedAccounts enqueues an AccountConfiguration command for an sso and/or
+// a breakglass admin account.
+func (a *AppleMDM) sendManagedAccounts(
+	ctx context.Context,
+	args *appleMDMArgs,
+	ssoAccount *fleet.MDMIdPAccount,
+	adminAccount *apple_mdm.AdminAccountConfig,
+	lockPrimaryAccountInfo bool,
+	cmdUUID string,
+) error {
+	var ssoConfig *apple_mdm.SSOAccountConfig
+	if ssoAccount != nil {
+		fullName, err := a.getIdPDisplayName(ctx, ssoAccount, *args)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting idp account display name")
+		}
+		a.Log.InfoContext(ctx, "setting username and fullname", "host_uuid", args.HostUUID)
+		ssoConfig = &apple_mdm.SSOAccountConfig{
+			FullName:               fullName,
+			UserName:               ssoAccount.Username,
+			LockPrimaryAccountInfo: lockPrimaryAccountInfo,
+		}
+	}
+
+	if err := a.Commander.AccountConfiguration(ctx, []string{args.HostUUID}, cmdUUID, ssoConfig, adminAccount); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending AccountConfiguration command")
+	}
+
 	return nil
 }

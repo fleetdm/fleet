@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/apple_apps"
@@ -69,7 +69,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			ctx := context.Background()
 			return sqlx.GetContext(ctx, q, &titleID, `SELECT title_id FROM vpp_apps WHERE adam_id = ? AND platform = ?`, app.AdamID, app.Platform)
 		})
@@ -223,7 +223,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	// ================================
 
 	checkCommandsInFlight := func(expectedCount int) {
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			var count int
 			err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE command_type = ?", fleet.VerifySoftwareInstallVPPPrefix)
 			require.NoError(t, err)
@@ -302,7 +302,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		}
 
 		if opts.appInstallTimeout {
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
 				return err
 			})
@@ -349,7 +349,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 			cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
 			// Backdate the ack for the next verify timeout
-			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 				_, err := q.ExecContext(context.Background(), "UPDATE nano_command_results SET updated_at = ? WHERE command_uuid = ?", time.Now().Add(-11*time.Minute), installCmdUUID)
 				return err
 			})
@@ -414,7 +414,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	}
 
 	// We should have cleared out upcoming_activies since the install failed
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count uint
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
 		require.NoError(t, err)
@@ -685,6 +685,20 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		commandResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
 	)
 
+	// Verify the device/self-service endpoint also returns VPP metadata (#43957)
+	var deviceCmdResultsResp getMDMCommandResultsResponse
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/device/%s/software/commands/%s/results", "foobar", installCmdUUID), nil, http.StatusOK)
+	err := json.NewDecoder(res.Body).Decode(&deviceCmdResultsResp)
+	require.NoError(t, err)
+	require.Len(t, deviceCmdResultsResp.Results, 1)
+	require.Equal(t, false, deviceCmdResultsResp.Results[0].ResultsMetadata["software_installed"])
+	require.InEpsilon(
+		t,
+		float64(int(fleet.DefaultVPPInstallVerifyTimeout.Seconds())),
+		deviceCmdResultsResp.Results[0].ResultsMetadata["vpp_verify_timeout_seconds"],
+		0.01,
+	)
+
 	// ========================================================
 	// Mark installs as failed when MDM turned off on host
 	// ========================================================
@@ -717,7 +731,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost.ID), nil, http.StatusNoContent)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// We should have cleared out upcoming_activies when disabling MDM
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
@@ -794,7 +808,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 
 	t.Cleanup(s.appleCoreCertsSetup)
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		// We should have cleared out upcoming_activies when disabling MDM
 		var count uint
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM upcoming_activities WHERE host_id = ?", mdmHost.ID)
@@ -874,7 +888,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Before installation, we should have 0 refetch commands
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", iosHost.ID, fleet.RefetchAppsCommandUUIDPrefix)
 		require.NoError(t, err)
@@ -913,10 +927,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", iosHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ?", iosHost.ID)
 		require.NoError(t, err)
@@ -982,7 +999,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	require.Equal(t, 1, countResp.Count)
 
 	// Before installation, we should have 0 refetch commands
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ? AND command_type = ?", ipodHost.ID, fleet.RefetchAppsCommandUUIDPrefix)
 		require.NoError(t, err)
@@ -1021,10 +1038,13 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", ipodHost.ID), nil, http.StatusOK, &hostResp)
-	require.False(t, hostResp.Host.RefetchRequested, "RefetchRequested should be false after successful software install for iDevice")
+	// iOS/iPadOS enrollment sets refetch_requested=true (cleared on DeviceInformation ack);
+	// the VPP install path queues its own RefetchApps command via host_mdm_commands and
+	// must not touch the host-level flag, so it should still be true here.
+	require.True(t, hostResp.Host.RefetchRequested, "RefetchRequested should remain true after VPP install on iDevice (cleared only by DeviceInformation ack)")
 
 	// Now we have a refetch apps command in flight to update the host software inventory
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var count int
 		err := sqlx.GetContext(context.Background(), q, &count, "SELECT COUNT(*) FROM host_mdm_commands WHERE host_id = ?", ipodHost.ID)
 		require.NoError(t, err)
@@ -1264,7 +1284,7 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	// enqueue a script run, so the VPP app installs are pending in the unified
 	// queue
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// trigger install of both apps on the host
@@ -1587,7 +1607,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 
 	// Get title ID
 	var titleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &titleID, "SELECT title_id FROM in_house_apps WHERE filename = 'ipa_test.ipa'")
 	})
 
@@ -1610,7 +1630,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		iosHost.ID, titleID), nil, http.StatusAccepted, &installResp)
 
 	var installCmdUUID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
 	})
 	require.NotEmpty(t, installCmdUUID)
@@ -1698,7 +1718,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppInstall() {
 		}
 	}
 
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		var install struct {
 			CommandUUID         string     `db:"command_uuid"`
 			VerificationCmdUUID string     `db:"verification_command_uuid"`
@@ -1792,7 +1812,7 @@ func (s *integrationMDMTestSuite) TestInHouseAppSelfInstall() {
 	s.DoRawWithHeaders("POST", fmt.Sprintf("/api/v1/fleet/device/%s/software/install/%d", iosHost.UUID, titleID), nil, http.StatusAccepted, headers)
 
 	var installCmdUUID string
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		return sqlx.GetContext(ctx, q, &installCmdUUID, "SELECT command_uuid FROM host_in_house_software_installs WHERE host_id = ?", iosHost.ID)
 	})
 	require.NotEmpty(t, installCmdUUID)
@@ -1924,7 +1944,7 @@ func (s *integrationMDMTestSuite) addHostIdentityCertificate(hostUUID string, ce
 	certPEM, certHash, _ := generateTestCertForDeviceAuth(t, certSerial, hostUUID)
 
 	// Insert certificate data using the new nanomdm tables
-	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 		// Insert serial number
 		_, err := db.ExecContext(ctx, `INSERT INTO identity_serials (serial) VALUES (?)`, certSerial)
 		if err != nil {
@@ -2124,7 +2144,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 
 		// Get title ID of the VPP app.
 		var appTitleID uint
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &appTitleID, `SELECT title_id FROM vpp_apps WHERE adam_id = '1' AND platform = ?`, host.Platform)
 		})
 		require.NotZero(t, appTitleID)
@@ -2353,7 +2373,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 		require.NoError(t, err)
 
 		// Spoof the previous installation time to skip the installed-1-hour-ago filtering.
-		mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		mysqltest.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
 			_, err := db.ExecContext(ctx, `UPDATE host_vpp_software_installs SET created_at = DATE_SUB(NOW(), INTERVAL 2 HOUR);`)
 			return err
 		})
@@ -2543,7 +2563,7 @@ func (s *integrationMDMTestSuite) TestVPPAppScheduledUpdates() {
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, iosClientDeviceNoTeam.SerialNumber)
 
 	// Set VPP token for "No team".
-	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+	mysqltest.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx, "DELETE FROM vpp_tokens;")
 		return err
 	})
@@ -2800,7 +2820,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerificationXcodeSpecialCase(
 	// enqueue a script execution first, so that when it's marked as executed, both
 	// vpp app installs activate at the same time (VPP app installs get batch-activated
 	// when they are consecutive in the upcoming queue)
-	var runResp runScriptResponse
+	var runResp fleet.RunScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost2.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, appXcodeTitleID), &installSoftwareRequest{},

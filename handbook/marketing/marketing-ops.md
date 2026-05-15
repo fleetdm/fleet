@@ -21,20 +21,16 @@ Our go-to-market (GTM) approach is built on a foundation of end-to-end visibilit
 Conversion rates help us to plan, forecast, and improve. There are several key comparisons that we want to understand:
 
 - **Win rate**: From stage X to closed won.  For closed opportunities, this tells us what percentage of opportunities historically will be won for a given stage in the sales cycle.  
-- **Stage to win cycle time**: tbd/todo  
+- **Stage to win cycle time**:   
 - **Stage to stage**:tbd/todo  
-- **Stage to stage cycle time**: tbd/todo
-
+- **Stage to stage cycle time**: 
 
 ## GTM model
 
 We can build a reverse funnel using the conversion rates and an estimated ASP, which will indicate the business demand for top-of-funnel leads/contacts and opportunities in order to attain future revenue targets. 
-See our current model in google docs [link](link to google docs) <Tbd/todo>
 
 
 ## Attribution framework
-
-
 
 To scale demand generation effectively, we need to have a trusted source of data about what works in generating new leads, opportunities, pipeline, and business. Without a consistent framework, our data is messy, reporting is unreliable, and we cannot confidently measure the ROI of our marketing or sales efforts. This framework solves three core problems:
 
@@ -44,10 +40,9 @@ To scale demand generation effectively, we need to have a trusted source of data
 
 This outlines a simple, scalable, and non-negotiable system for tracking all lead-generating activities at Fleet.
 
-
 ### First-touch vs. converting-touch
 
-This framework is **not** just for the Original Lead/Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.
+This framework is **not** just for the Original Lead/Contact Source field. It should be applied to **two separate, critical moments** in the customer journey.  At some point, we may want to look at multi-touch attribution, this model is our starting point and foundation.
 
 
 #### 🌎 First-touch: Original contact source
@@ -70,8 +65,10 @@ Example:
 
 - Six months later, an SDR emails them (2026\_04-SDR-q2\_fintech\_sequence), and they reply to book a demo.   
   - Their Most Recent/Converting-Touch is Prospecting \> SDR Outbound.
+  
+Converting-touch is always stamped fresh at the moment of opportunity creation. If a contact re-engages after a prior opportunity has closed, the new opportunity's Converting-touch reflects whatever campaign or activity drove the current re-engagement,not any historical value. The prior opportunity record retains its own Converting-touch data. If a closed-lost opportunity is re-engaged within 90 days, we typically should reopen the original opportunity rather than creating a new one.
 
-This allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
+**Converting0touch** allows us to see that our webinars are great for *finding* leads, and our SDR team is great at *converting* them.
 
 
 ### Attribution hierarchy
@@ -124,14 +121,14 @@ For all manually tracked, human-to-human recommendations.
 
 For all in-person or virtual events, sponsored or hosted.
 
-| Source detail | Code | Campaign examples (discreet) |
+| Source detail | Code | Campaign examples (discrete) |
 | :---- | :---- | :---- |
-| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat\_booth\_scans |
+| Major conference (global, 10k+) | MC | 2026\_08-MC-blackhat |
 | Regional conference | RC | 2026\_03-RC-secureworld\_boston |
 | Local event / meetup | LE | 2026\_02-LE-osquery\_meetup\_nyc |
 | Executive community (Evanta, etc.) | EC | 2026\_01-EC-evanta\_ciso\_summit |
 | Field event / sales event (workshop, hosted dinner, HH) | FE | 2026\_04-FE-nyc\_fintech\_dinner |
-| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent\_booth |
+| Partner event (sponsoring) | PE | 2025\_11-PE-aws\_reinvent |
 | Speaking engagement | SE | 2026_06-SE-macadmins\_keynote |
 | Webinar (hosted) | WH | 2026\_02-WH-fleet\_v5\_launch |
 | Webinar (sponsored) | WS | 2026\_03-WS-darkreading\_webinar |
@@ -148,6 +145,7 @@ For all paid and owned online media and content.
 | Paid media | PM | 2025\_11-PM-riskybiz\_podcast |
 | Content syndication & 3rd-party | CS | 2025\_12-CS-techtarget\_survey |
 | Email marketing (owned list) | EM | 2025\_11-EM-newsletter\_promo |
+| Press Release | PR | 2025\_11-PR-Abc\_launch |  
 
 
 #### 🎯 Prospecting
@@ -156,9 +154,13 @@ For all outbound activities initiated by sales or a 3rd-party vendor.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| SDR outbound | SDR | SDR-General\_Prospecting (Always-On) 2025\_11-SDR-q4\_fintech\_sequence (Discreet) |
-| AE outbound | AE | AE-General\_Prospecting |
+| SDR outbound | SDR | Default-SDR-General\_Prospecting (Always-On) or 2025\_11-SDR-q4\_fintech\_sequence (a discrete campaign) |
+| AE outbound | AE | Default-AE-General\_Prospecting |
 | Meeting Service | MS | 2025\_11-MS-VIB 2026\_01-MS-SageTap |
+
+Other exmaples of campaigns:
+Default-AE-Dripify_LinkedIn
+Default-SDR-Dripify_LinkedIn
 
 
 #### 🤝 Partner
@@ -167,8 +169,8 @@ For all co-marketing and leads generated from formal channel partners.
 
 | Source detail | Code | Campaign examples |
 | :---- | :---- | :---- |
-| Tech partner | TP | 2025\_11-TP-aws\_marketplace |
-| Reseller / VAR | RE | RE-General\_Referrals |
+| Tech partner | TP | Default-TP-TechPartner\_Referral or 2025\_11-TP-aws\_marketplace |
+| Reseller / VAR | RE | Default-RE-Reseller\_Referral |
 | Co-marketing | CM | 2026\_01-CM-crowdstrike\_whitepaper |
 
 
@@ -187,8 +189,8 @@ Discreet campaigns have a specific start, end, and budget (e.g., webinar, trade 
 - **Structure:** YYYY\_MM-\[Code\]-\[Name\]  
   - **YYYY\_MM:** The start month. (e.g., 2026\_02)  
   - **\[Code\]:** The 2-4 letter code from the table above. (e.g., MC, PS, WH)  
-  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat\_booth, google\_brand)  
-- **Full example:** 2026\_08-MC-blackhat\_booth\_scans
+  - **\[Name\]:** A short, URL-friendly name. (e.g., blackhat, google\_brand)  
+- **Full example:** 2026\_08-MC-blackhat
 
 
 #### Always-on campaigns
@@ -199,6 +201,53 @@ These are generic "buckets" for continuous inbound channels that don't have a st
   - **\[Code\]:** The 2-4 letter code.
 - **Full example:** Default-OS (for all Organic Search)
 
+
+## SFDC field mapping
+
+The attribution framework is implemented across three record types in Salesforce: Contact/Lead, and Opportunity. Understanding which fields store which attribution values — and how they behave — is essential for building accurate reports and debugging data issues.
+
+### Contact and Lead fields
+
+There are nine attribution fields on the Contact and Lead records, organized into two groups: **Source** (first-touch, locked forever) and **Most Recent** (updated on every new campaign touch).
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Source campaign initial URL | `Source_campaign_initial_url__c` | — | The landing page URL from the contact's first touch. Set once, never overwritten. |
+| Source channel | `Source_channel__c` | L1 | The high-level source bucket (e.g., Event, Prospecting). Set once, never overwritten. |
+| Source channel detail | `Source_channel_detail__c` | L2 | The specific tactic (e.g., Webinar Hosted, SDR Outbound). Set once, never overwritten. |
+| Source campaign | `Source_campaign__c` | L3 | The specific campaign name (e.g., `2026_02-WH-fleet_v5_launch`). Set once, never overwritten. |
+| Most recent campaign initial URL | `Most_recent_campaign_initial_url__c` | — | The landing page URL from the contact's most recent touch. Updated on every new touch. |
+| Most recent channel | `Most_recent_channel__c` | L1 | Updated on every new campaign touch. |
+| Most recent channel detail | `Most_recent_channel_detail__c` | L2 | Updated on every new campaign touch. |
+| Most recent campaign | `Most_recent_campaign__c` | L3 | The primary trigger field for the attribution automation. Updated on every new campaign touch. |
+| Most recent campaign member status | `Most_recent_campaign_member_status__c` | — | Reflects the contact's engagement level on their most recent campaign. Updated on every new touch. |
+
+### Opportunity fields
+
+When an opportunity is created from a Contact or Lead, the Most Recent values at that moment are copied into the Opportunity's Converting fields. These represent the converting-touch — the campaign that drove this specific pipeline event.
+
+| Field label | API name | Attribution level | Behavior |
+|---|---|---|---|
+| Converting contact | `Converting_Contact__c` | — | Lookup to the Contact record that triggered opportunity creation. |
+| GCLID | `GCLID__c` | — | Google Click ID. Captured for paid search attribution. |
+| Converting channel | `Converting_channel__c` | L1 | Copied from Most Recent Channel at opportunity creation. |
+| Converting channel detail | `Converting_channel_detail__c` | L2 | Copied from Most Recent Channel Detail at opportunity creation. |
+| Converting campaign | `Converting_campaign__c` | L3 | Copied from Most Recent Campaign at opportunity creation. |
+| Primary Campaign Source | `CampaignId` | L3 | Standard SFDC lookup to the Campaign record. Set at opportunity creation. |
+
+### How the automation works
+
+The attribution system is driven by a single trigger: **when Most Recent Campaign is populated**, a Salesforce Flow fires and handles everything downstream.
+
+**Step 1 — Derive L1 and L2 from the campaign name.** The two-character code embedded in every campaign name (e.g., `WH` in `2026_02-WH-fleet_v5_launch`) is used to look up the correct Source Channel Detail (L2) and Source Channel (L1) values automatically. This is why the campaign naming convention is non-negotiable — the automation depends on it.
+
+**Step 2 — Stamp first-touch if Source fields are blank.** If the Source Channel field is empty, the flow copies the Most Recent values into the Source fields. This happens exactly once per contact — the moment they are first known to us. After that, the Source fields are locked and never overwritten.
+
+**Step 3 — Add to campaign and set member status.** The flow adds the contact as a Campaign Member on the corresponding SFDC Campaign record and sets their member status based on the Most Recent Campaign Member Status field.
+
+**Step 4 — Populate Opportunity on creation.** When an opportunity is created, the Most Recent Channel, Most Recent Channel Detail, and Most Recent Campaign values are copied to the Converting fields on the Opportunity record, capturing the converting-touch at that exact moment.
+
+Note: The Most Recent values on the contact are updated with each engagemet with the contact, overwriting historical values.
 
 ## SFDC campaign hierarchy
 
@@ -294,7 +343,7 @@ To accurately measure marketing ROI and attribution, we must standardize how we 
 
 All campaigns must utilize the following status values. Custom statuses outside this list are to be avoided.
 
-| Status value | Responded? | Funnel stage | Psystage | Definition |
+| Status value | Responded? | Funnel stage | Psystage (legacy) | Definition |
 | ----- | ----- | ----- | ----- | ----- |
 | **Targeted** | No | Unaware | 1 \- Unaware | The individual is on a list or in an audience segment but has taken no action. |
 | **Sent** | No | Awareness | 2 \- Aware | The email was sent, the ad was displayed, or the post was published. |
@@ -355,8 +404,7 @@ All campaigns must utilize the following status values. Custom statuses outside 
 - **Engaged:** Replied to the email directly.
 
 #### Website chat (qualified)
-- **Interacted:** We chatted and learned about the prospect
-- **Engaged:** We chatted long enough to offer a meeting 
+- **Engaged:** We chatted and learned about the prospect
 - **Meeting Requested:** The prospect has booked a meeting
 
 ## Contact source (Lead source)
@@ -406,7 +454,7 @@ We do not rely on "implied" logic (e.g., "If they have an email, email them"). I
 
 ### The "marketing status" definitions
 
-The `Marketing_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
+The `Marketing_Email_Status__c` picklist is the master switch for a contact's eligibility. Every contact in Salesforce must fall into one of the following buckets:
 
 | Status value | Definition | Can marketing email? | Can sales email? |
 | --- | --- | --- | --- |
@@ -423,17 +471,10 @@ To support this status, we use three additional fields to track the "Who, When, 
 
 | Field | API Name | Purpose |
 | --- | --- | --- |
-| **Status Date** | `Marketing_Status_Last_Updated__c` | **The Timestamp.** <br>
-
-<br>Records exactly *when* the status changed. Required for compliance auditing (e.g., "Proof of Consent"). |
 | **Status Reason** | `Marketing_Status_Detail__c` | **The Audit Trail.** <br>
 
 <br>Explains *why* the status changed. <br>
 
-<br>*Examples:* "Inbound Demo Request," "Clay Enrichment Import," "User Clicked Unsubscribe." |
-| **Is Marketable?** | `Is_Marketable__c` | **The Integration Gatekeeper.** <br>
-
-<br>A generic checkbox formula (`TRUE` only if Status = `Marketable`). Our marketing platform (ActiveCampaign) only syncs contacts where this is Checked. |
 
 ### The "Traffic Cop" automation
 
@@ -633,7 +674,68 @@ We use [Bunny.net](https://dash.bunny.net/stream) for video hosting. Credentials
 
 > **Note for webinars:** You can append a `t=xxs` parameter to the embed code URL to make the video start at a specific timestamp (e.g., `t=90s` to start at 1 minute 30 seconds). This parameter is **not** saved in Bunny.net — it must be added manually each time you use the embed code.
 
+## Virtual persona for email automation
 
+### What it is
+
+We use a virtual team member — **"Grace"** — as the sender identity for our automated email campaigns, nurture sequences, and lifecycle communications. Grace has a name, a headshot, and a consistent voice, but she is not a real employee. She is a purpose-built persona that represents our marketing team.
+
+People engage with people, not logos. Emails from a named individual consistently outperform emails sent from a brand name or a generic address like `marketing@` or `no-reply@`. A virtual persona gives us the warmth and approachability of a personal sender without the operational problems that come with tying automation to a real employee.
+
+- Turnover risk: When a real person is the face of automated email, their departure creates a jarring experience for recipients and a scramble to update templates, signatures, and sender addresses across every platform.
+- Scalability: No single employee can realistically "own" the relationship with every lead and contact in the database. A persona can.
+- Consistency: A virtual identity stays on-brand across every touchpoint — tone, title, photo, and signature never drift.
+- Privacy for the team: Real employees don't have their name and likeness attached to thousands of cold or automated emails they didn't personally write.
+
+### Who is Grace?
+
+Grace is named after pioneering women in science and technology, grounding the persona in values we admire — curiosity, precision, and breaking new ground.
+
+| **Persona name**   | **Named after**                                                                 |
+|----------------|-----------------------------------------------------------------------------|
+| **Grace West**   | [Adm. **Grace** Hopper](https://en.wikipedia.org/wiki/Grace_Hopper) (She was a pioneer of computer programming. Hopper was the first to devise the theory of machine-independent programming languages) and </br>[Gladys **West**](https://en.wikipedia.org/wiki/Gladys_West) (She was known for her contributions to mathematical modeling of the shape of the Earth, and her work on the development of satellite geodesy models, which were later incorporated into the Global Positioning System (GPS) |
+
+
+What grace is not:
+
+- She is **not** a chatbot or AI assistant. She is a sender identity for outbound email.
+- She is **not** used to deceive. We disclose her nature in every message.
+- She is **not** a replacement for real human interaction. When a recipient replies, a real team member responds.
+
+
+### How it works in practice
+
+- **Sender name and address:** Emails come from Grace west with a dedicated email address (e.g., `grace.west at company.com`).
+- Headshot: Use an AI-generated or stock portrait that looks professional and approachable. Keep it consistent across all channels.
+- Title: Something credible but not senior enough to create false expectations — e.g., *virtual Marketing Assistnat*
+- Voice: Friendly, helpful, knowledgeable. Grace writes the way a sharp colleague would, not the way a press release reads.
+- Transparency: Every automated email includes a brief disclaimer identifying Grace as a virtual team member. Honesty builds trust; deception erodes it.
+
+Example disclaimers:
+> *P.S. Full transparency — Grace is a virtual member of our team who helps us stay in touch. Hit reply and a real human will be on the other end.*
+
+Alternative
+> *Grace is our virtual team member, named after trailblazing women in science and tech. She's not a real person, but every reply goes straight to one.*
+
+
+### Set up and configuration
+
+Fleet uses a virtual persona — Grace West (gracewest at fleetdm.com) — as the sender for ActiveCampaign automated marketing emails. Using a realistic-looking sender improves open rates and engagement.
+
+**How it's set up:** gracewest at fleetdm.com is a Google Group, not a licensed Gmail user. This avoids license fees and SSO/Okta complications, and allows multiple marketing team members to send as Grace when needed.
+
+**Who has access:** Members of the marketing team are added to the Google Group with email delivery on. Anything sent to (gracewest at fleetdm.com) lands in their inboxes, and replies route back to the group rather than to individuals.
+
+**To send as Grace from your own Gmail:**
+1. In Gmail, click the gear icon → **See all settings**.
+2. Go to the **Accounts and Import** tab.
+3. Under **Send mail as**, click **Add another email address**.
+4. Set **Name:** Grace West, **Email:** gracewest at fleetdm.com.
+5. Uncheck "Treat as an alias" — this ensures replies from prospects route to the Google Group rather than your personal inbox.
+6. Click **Next Step** → **Send Verification**.
+7. The verification email lands in your inbox (since you're a group member). Click the link or copy the code.
+
+Once verified, the **From** dropdown in Gmail's compose window lets you switch to "Grace West <gracewest at fleetdm.com>" when sending.
 
 <meta name="maintainedBy" value="johnjeremiah">
 <meta name="title" value="🫧 Marketing ops">

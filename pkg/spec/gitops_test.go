@@ -458,6 +458,215 @@ labels:
 	assert.Empty(t, gitops.Labels[0].Hosts)
 }
 
+func TestLabelInvalidFieldCombinations(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		label       string
+		wantErrs    []string
+		notWantErrs []string
+	}{
+		{
+			name: "manual label with query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    query: SELECT 1`,
+			wantErrs: []string{`label "bad" is declared as manual but contains a query`},
+		},
+		{
+			name: "manual label with criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as manual but contains criteria`},
+		},
+		{
+			name: "manual label with platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    platform: darwin`,
+			wantErrs: []string{`label "bad" is declared as manual but contains a platform`},
+		},
+		{
+			name: "manual label with all invalid fields",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: manual
+    query: SELECT 1
+    platform: darwin
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{
+				`label "bad" is declared as manual but contains a query`,
+				`label "bad" is declared as manual but contains criteria`,
+				`label "bad" is declared as manual but contains a platform`,
+			},
+		},
+		{
+			name: "dynamic label with criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as dynamic but contains criteria`},
+		},
+		{
+			name: "dynamic label with hosts",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    hosts:
+      - host1`,
+			wantErrs: []string{`label "bad" is declared as dynamic but contains hosts`},
+		},
+		{
+			name: "dynamic label missing query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic`,
+			wantErrs: []string{`label "bad" is declared as dynamic but is missing a query`},
+		},
+		{
+			name: "dynamic label with invalid platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: dynamic
+    query: SELECT 1
+    platform: invalidplatform`,
+			wantErrs: []string{`label "bad" has invalid platform: "invalidplatform"`},
+		},
+		{
+			name: "dynamic label with valid platform is ok",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: dynamic
+    query: SELECT 1
+    platform: darwin`,
+		},
+		{
+			name: "host_vitals label with query",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    query: SELECT 1
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains a query`},
+		},
+		{
+			name: "host_vitals label with platform",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    platform: darwin
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains a platform`},
+		},
+		{
+			name: "host_vitals label with hosts",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering
+    hosts:
+      - host1`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but contains hosts`},
+		},
+		{
+			name: "host_vitals label missing criteria",
+			label: `
+labels:
+  - name: bad
+    label_membership_type: host_vitals`,
+			wantErrs: []string{`label "bad" is declared as host_vitals but is missing criteria`},
+		},
+		{
+			name: "valid manual label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: manual
+    hosts:
+      - host1`,
+		},
+		{
+			name: "valid dynamic label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: dynamic
+    query: SELECT 1`,
+		},
+		{
+			name: "valid host_vitals label",
+			label: `
+labels:
+  - name: ok
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_group
+      operator: "="
+      value: Engineering`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			config := getGlobalConfig([]string{})
+			config += tt.label
+			_, err := gitOpsFromString(t, config)
+			if len(tt.wantErrs) == 0 {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+				for _, wantErr := range tt.wantErrs {
+					require.ErrorContains(t, err, wantErr)
+				}
+			}
+			for _, notWantErr := range tt.notWantErrs {
+				if err != nil {
+					assert.NotContains(t, err.Error(), notWantErr)
+				}
+			}
+		})
+	}
+}
+
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"reports"})
@@ -517,6 +726,38 @@ func TestWhitespaceOnlyTeamName(t *testing.T) {
 	_, err := gitOpsFromString(t, config)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "team 'name' is required")
+}
+
+func TestMissingNameErrorMessages(t *testing.T) {
+	t.Parallel()
+
+	// Empty default.yml should report the generic missing-name guidance.
+	defaultPath, defaultBase := createNamedFileOnTempDir(t, "default.yml", "")
+	_, err := GitOpsFromFile(defaultPath, defaultBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
+
+	// Empty no-team.yml should report the No Team name requirement.
+	noTeamPath, noTeamBase := createNamedFileOnTempDir(t, "no-team.yml", "")
+	_, err = GitOpsFromFile(noTeamPath, noTeamBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`name` must be `No Team` for `no-team.yml`")
+
+	// Empty unassigned.yml should report the Unassigned name requirement.
+	unassignedPath, unassignedBase := createNamedFileOnTempDir(t, "unassigned.yml", "")
+	_, err = GitOpsFromFile(unassignedPath, unassignedBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "`name` must be `Unassigned` for `unassigned.yml`")
+
+	// Any other team file missing `name` should report the generic requirement.
+	teamPath, teamBase := createNamedFileOnTempDir(t, "workstations.yml", "")
+	_, err = GitOpsFromFile(teamPath, teamBase, nil, nopLogf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "No `name` was provided")
+	assert.Contains(t, err.Error(), "add `org_settings:` as a top-level key.")
+	assert.Contains(t, err.Error(), "Otherwise, use `name` to specify the fleet name.")
 }
 
 func TestPaddedTeamNameIsTrimmed(t *testing.T) {
@@ -723,28 +964,28 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
 					noTeamPath7, noTeamBasePath7 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath7, noTeamBasePath7, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath7))
+					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
 
 					// unassigned.yml with a non-"Unassigned" name should fail.
 					config = getConfig([]string{"name", "settings"})
 					config += "name: SomeOtherTeam\nsettings:\n  secrets:\n"
 					unassignedPathBadName, unassignedBasePathBadName := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(unassignedPathBadName, unassignedBasePathBadName, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathBadName))
+					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
 
 					// no-team.yml with "Unassigned" name should fail (wrong name for this file).
 					config = getConfig([]string{"name", "settings"})
 					config += "name: Unassigned\n"
 					noTeamPath8, noTeamBasePath8 := createNamedFileOnTempDir(t, "no-team.yml", config)
 					_, err = GitOpsFromFile(noTeamPath8, noTeamBasePath8, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'No Team'", noTeamPath8))
+					require.ErrorContains(t, err, "`name` must be `No Team` for `no-team.yml`")
 
 					// unassigned.yml with "No team" name should fail (wrong name for this file).
 					config = getConfig([]string{"name", "settings"})
 					config += "name: No team\n"
 					unassignedPathNoTeam, unassignedBasePathNoTeam := createNamedFileOnTempDir(t, "unassigned.yml", config)
 					_, err = GitOpsFromFile(unassignedPathNoTeam, unassignedBasePathNoTeam, nil, nopLogf)
-					assert.ErrorContains(t, err, fmt.Sprintf("file %q must have team name 'Unassigned'", unassignedPathNoTeam))
+					require.ErrorContains(t, err, "`name` must be `Unassigned` for `unassigned.yml`")
 
 					// 'Unassigned' team in unassigned.yml should work and coerce to "No team" internally.
 					config = getConfig([]string{"name", "settings"})
@@ -1012,7 +1253,7 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 				if test.shouldPass {
 					assert.NoError(t, err)
 				} else {
-					assert.ErrorContains(t, err, "is required")
+					assert.ErrorContains(t, err, "add `org_settings:` as a top-level key")
 				}
 			},
 		)
@@ -1028,6 +1269,171 @@ func TestGitOpsNullArrays(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Nil(t, gitops.Queries)
 	assert.Nil(t, gitops.Policies)
+}
+
+func TestGitOpsOrgLogo(t *testing.T) {
+	t.Parallel()
+
+	// New mode-aware path keys are accepted under org_info.
+	t.Run("path keys accepted", func(t *testing.T) {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+    org_logo_path_dark_mode: ./dark.png
+    org_logo_path_light_mode: ./light.png
+  secrets:
+`
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		orgInfo := gitops.OrgSettings["org_info"].(map[string]any)
+		assert.Equal(t, "./dark.png", orgInfo["org_logo_path_dark_mode"])
+		assert.Equal(t, "./light.png", orgInfo["org_logo_path_light_mode"])
+	})
+
+	// Setting both a path and a URL for the same mode is rejected at parse time.
+	t.Run("path and url mutually exclusive", func(t *testing.T) {
+		for _, mode := range []string{"dark", "light"} {
+			config := getGlobalConfig([]string{"org_settings"})
+			config += fmt.Sprintf(`
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+    org_logo_path_%[1]s_mode: ./logo.png
+    org_logo_url_%[1]s_mode: https://example.com/logo.png
+  secrets:
+`, mode)
+			_, err := gitOpsFromString(t, config)
+			require.Error(t, err)
+			require.ErrorContains(t, err, "cannot specify both")
+			require.ErrorContains(t, err, mode)
+		}
+	})
+
+	// Deprecated org_logo_url and org_logo_url_light_background keys are migrated to the new mode-aware names.
+	t.Run("deprecated URL keys are renamed", func(t *testing.T) {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+    org_logo_url: https://example.com/dark-logo.png
+    org_logo_url_light_background: https://example.com/light-logo.png
+  secrets:
+`
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		orgInfo := gitops.OrgSettings["org_info"].(map[string]any)
+		assert.Equal(t, "https://example.com/dark-logo.png", orgInfo["org_logo_url_dark_mode"])
+		assert.Equal(t, "https://example.com/light-logo.png", orgInfo["org_logo_url_light_mode"])
+		_, hasOldDark := orgInfo["org_logo_url"]
+		_, hasOldLight := orgInfo["org_logo_url_light_background"]
+		assert.False(t, hasOldDark, "deprecated org_logo_url should be removed after migration")
+		assert.False(t, hasOldLight, "deprecated org_logo_url_light_background should be removed after migration")
+	})
+
+	// Setting both an old and new URL key for the same mode errors out
+	// (handled by the generic deprecated-key migrator).
+	t.Run("old + new URL keys conflict", func(t *testing.T) {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+    org_logo_url: https://example.com/old.png
+    org_logo_url_dark_mode: https://example.com/new.png
+  secrets:
+`
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "org_logo_url")
+	})
+}
+
+// TestGitOpsModeYaml exercises the parse-time validator for the
+// `org_settings.gitops` block: rejects `exceptions`, enforces the
+// repository_url requirement and scheme rules, and accepts well-formed
+// inputs.
+func TestGitOpsModeYaml(t *testing.T) {
+	t.Parallel()
+
+	withGitops := func(body string) string {
+		config := getGlobalConfig([]string{"org_settings"})
+		config += `
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_name: Test Org
+  secrets:
+  gitops:
+` + body
+		return config
+	}
+
+	t.Run("https URL with mode enabled is accepted", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
+		gitops, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+		gitopsBlock, _ := gitops.OrgSettings["gitops"].(map[string]any)
+		require.NotNil(t, gitopsBlock)
+		assert.Equal(t, true, gitopsBlock["gitops_mode_enabled"])
+		assert.Equal(t, "https://github.com/example/fleet-config", gitopsBlock["repository_url"])
+	})
+
+	t.Run("http URL with mode enabled is accepted", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: http://internal.example.com/fleet-config\n")
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
+
+	t.Run("mode enabled without repository_url is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "repository_url is required when gitops_mode_enabled is true")
+	})
+
+	t.Run("mode enabled with empty repository_url is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: \"\"\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "repository_url is required when gitops_mode_enabled is true")
+	})
+
+	t.Run("repository_url missing scheme is rejected", func(t *testing.T) {
+		config := withGitops("    gitops_mode_enabled: true\n    repository_url: github.com/example/fleet-config\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "must include protocol")
+	})
+
+	t.Run("exceptions block is rejected", func(t *testing.T) {
+		config := withGitops("    exceptions:\n      labels: true\n")
+		_, err := gitOpsFromString(t, config)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "org_settings.gitops.exceptions is not supported via GitOps")
+	})
+
+	t.Run("absent gitops block is accepted", func(t *testing.T) {
+		config := getGlobalConfig(nil)
+		_, err := gitOpsFromString(t, config)
+		require.NoError(t, err)
+	})
 }
 
 func TestGitOpsPaths(t *testing.T) {
@@ -1524,6 +1930,36 @@ software:
 	assert.ErrorContains(t, err, "the software package defined in software/single-package.yml must not have icons, scripts, queries, URL, or hash specified at the team level")
 }
 
+func TestScriptOnlyPackagesPathWithInline(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/script-only.sh
+      icon:
+        path: ./foo/bar.png
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	err := file.Copy(
+		filepath.Join("testdata", "software", "script-only.sh"),
+		filepath.Join(basePath, "software", "script-only.sh"),
+		os.FileMode(0o755),
+	)
+	require.NoError(t, err)
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	gitops, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+	require.Len(t, gitops.Software.Packages, 1)
+	assert.Equal(t, filepath.Join(basePath, "foo", "bar.png"), gitops.Software.Packages[0].Icon.Path)
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
@@ -1854,6 +2290,41 @@ func TestExpandBaseItems(t *testing.T) {
 		requireErrorContains(t, errs, `contains glob characters`)
 	})
 
+	// Filenames containing glob metacharacters should be accepted by "path:"
+	// when the literal file exists on disk. Common with Windows MDM CSP
+	// profile names like "[AllowSpotlightCollection].xml". Regression test for
+	// fleetdm/fleet#43598.
+	t.Run("path_with_literal_glob_meta_chars_existing_file", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		filenames := []string{
+			"AllowRebootless -[Updates].xml",
+			"profile{a,b}.xml",
+		}
+		for _, name := range filenames {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte(""), 0o644))
+		}
+
+		items := make([]fleet.BaseItem, 0, len(filenames))
+		for _, name := range filenames {
+			items = append(items, fleet.BaseItem{Path: ptr.String(name)}) //nolint:modernize
+		}
+		result, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		require.Empty(t, errs)
+		require.Len(t, result, len(filenames))
+		for i, name := range filenames {
+			assert.Equal(t, filepath.Join(dir, name), *result[i].Path)
+		}
+	})
+
+	t.Run("path_with_glob_meta_chars_missing_file_error", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		items := []fleet.BaseItem{{Path: ptr.String("does-not-[exist].xml")}} //nolint:modernize
+		_, errs := expandBaseItems(items, dir, "test", GlobExpandOptions{})
+		requireErrorContains(t, errs, `contains glob characters`)
+	})
+
 	t.Run("both_path_and_paths_error", func(t *testing.T) {
 		t.Parallel()
 		items := []fleet.BaseItem{{Path: ptr.String("foo.yml"), Paths: ptr.String("*.yml")}} //nolint:modernize
@@ -2080,6 +2551,52 @@ labels:
 		require.Len(t, result.Labels, 2)
 		assert.Equal(t, "LabelA", result.Labels[0].Name)
 		assert.Equal(t, "LabelB", result.Labels[1].Name)
+	})
+}
+
+func TestLabelsIgnoredInNoTeamFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("no-team.yml", func(t *testing.T) {
+		t.Parallel()
+
+		config := "name: No team\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		noTeamPath, noTeamBasePath := createNamedFileOnTempDir(t, "no-team.yml", config)
+
+		var logMessages []string
+		captureLogf := func(format string, a ...any) {
+			logMessages = append(logMessages, fmt.Sprintf(format, a...))
+		}
+
+		gitops, err := GitOpsFromFile(noTeamPath, noTeamBasePath, nil, captureLogf)
+		require.NoError(t, err)
+
+		// LabelsPresent should be true (the key was in the YAML), but labels should not be parsed.
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in no-team file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in no-team file")
+
+		// A warning should have been logged.
+		assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in no-team.yml")
+	})
+
+	t.Run("unassigned.yml", func(t *testing.T) {
+		t.Parallel()
+
+		config := "name: Unassigned\nlabels:\n  - name: test-label\n    query: \"SELECT 1;\"\n    description: test\nsoftware:\npolicies:\n"
+		unassignedPath, unassignedBasePath := createNamedFileOnTempDir(t, "unassigned.yml", config)
+
+		var logMessages []string
+		captureLogf := func(format string, a ...any) {
+			logMessages = append(logMessages, fmt.Sprintf(format, a...))
+		}
+
+		gitops, err := GitOpsFromFile(unassignedPath, unassignedBasePath, nil, captureLogf)
+		require.NoError(t, err)
+
+		assert.True(t, gitops.LabelsPresent, "labels should be marked as present when explicitly set in unassigned file")
+		assert.Empty(t, gitops.Labels, "labels should not be parsed in unassigned file")
+
+		assert.Contains(t, strings.Join(logMessages, "\n"), "'labels' is not supported in unassigned.yml")
 	})
 }
 
@@ -3228,6 +3745,122 @@ org_settings:
 		require.Contains(t, err.Error(), "cannot specify both")
 		require.Contains(t, err.Error(), "apple_settings")
 		require.Contains(t, err.Error(), "`macos_settings` (deprecated)")
+	})
+}
+
+// TestSetupExperienceSoftwareDeprecation verifies that supplying a list of
+// software under `controls.setup_experience.software` emits a deprecation
+// warning steering users toward the per-item `setup_experience: true` form.
+func TestSetupExperienceSoftwareDeprecation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("warning_emitted_when_setup_experience_software_set", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "installer.pkg"), []byte("test"), 0o644))
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    software:
+      - package_path: ./installer.pkg
+      - app_store_id: "1091189122"
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.Contains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+		assert.Contains(t, logs.String(), "setup_experience: true")
+	})
+
+	t.Run("no_warning_when_setup_experience_software_unset", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    enable_end_user_authentication: false
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
+	})
+
+	t.Run("no_warning_when_setup_experience_software_empty", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+
+		config := `
+reports:
+policies:
+agent_options:
+software:
+org_settings:
+  server_settings:
+    server_url: https://fleet.example.com
+  org_info:
+    contact_url: https://example.com/contact
+    org_logo_url: ""
+    org_logo_url_light_background: ""
+    org_name: Test Org
+  secrets:
+controls:
+  setup_experience:
+    software: []
+`
+		yamlPath := filepath.Join(dir, "gitops.yml")
+		require.NoError(t, os.WriteFile(yamlPath, []byte(config), 0o644))
+
+		var logs strings.Builder
+		logFn := func(format string, a ...any) {
+			logs.WriteString(fmt.Sprintf(format, a...))
+		}
+
+		_, err := GitOpsFromFile(yamlPath, dir, nil, logFn)
+		require.NoError(t, err)
+		assert.NotContains(t, logs.String(), "'controls.setup_experience.software / controls.macos_setup.software' is deprecated")
 	})
 }
 

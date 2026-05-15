@@ -6,7 +6,7 @@ To manually enroll macOS, Windows, and Linux hosts, install Fleet’s agent (fle
 
 For iOS, iPadOS, and Android hosts, share the enrollment link from the [Fleet UI](#ui) with your end users. End users with Apple's [Stolen Device Protection](https://support.apple.com/en-us/120340) enabled may have to wait 1 hour before they can enroll, depending on their current location.
 
-You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
+You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business (AB)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
 
 To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-chromebooks).
 
@@ -41,8 +41,7 @@ The `--type` flag is used to specify the fleetd installer type.
 - macOS: `pkg`
   - Generating a .pkg on Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running.
 - Windows: `msi`
-  - Generating a .msi on Windows, Intel Macs, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
-  - Generating a .msi on Apple Silicon Macs requires [Wine](https://fleetdm.com/install-wine) to be installed.
+  - Generating a .msi on Windows, macOS, or Linux requires [Docker](https://docs.docker.com/get-docker) to be installed and running. On Windows, you can [use WiX without Docker instead](https://fleetdm.com/guides/enroll-hosts#generating-fleetd-for-windows-using-local-wix-toolset).
 - Linux: `deb`, `rpm`, or `pkg.tar.zst`
   - `deb`: Debian-based linux (e.g. Ubuntu, Debian).
   - `rpm`: RPM-based linux (e.g. OpenSUSE, Red Hat, Fedora).
@@ -151,9 +150,9 @@ In the Google Admin console:
 
 3. [Uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd) for macOS, Windows, and Linux hosts. 
 
-4. Select **Actions > Delete** to delete the host from Fleet. Deleting the host will cancel any pending commands, script runs, or software installs.
+4. Select **Actions > Delete** to delete the host from Fleet.
 
-> Delete the host from Fleet before re-enrolling it. This prevents pending activity (like scripts or software installs) from running on the re-enrolled host and avoids showing the original host’s vitals.
+> Delete the host from Fleet before re-enrolling it. This removes labels, prevents pending activity (like scripts or software installs) from running on the re-enrolled host, and avoids showing the original host’s vitals.
 
 ## Debugging
 
@@ -164,7 +163,7 @@ If you're running into issues when enrolling hosts, the best practice is to look
 
 - [Switch a workstation's operating system](#switch-a-workstations-operating-system)
 - [Supported osquery versions](#supported-osquery-versions)
-- [Best practice for dual-boot workstations](#best-practice-for-dual-boot-workstations)
+- [Best practice for dual-boot workstations or VMs with duplicate hardware identifiers](#best-practice-for-dual-boot-workstations-or-vms-with-duplicate-hardware-identifiers)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
 - [Grant full disk access to osquery on macOS](#grant-full-disk-access-to-osquery-on-macos) 
@@ -462,19 +461,17 @@ System keystore access can be disabled via `--disable-keystore` flag for the `fl
 
 `Applies only to Fleet Premium`
 
-When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows or macOS machine, you can tell `fleetctl package` to
+When generating Fleet's agent (fleetd) for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
-  1. Download the [WiX v3 binaries](https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip), then unzip the downloaded file.
+  1. Download the [WiX v3 binaries](https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip), then unzip the downloaded file.
   2. Find the absolute filepath of the directory containing your local WiX v3 binaries. This will be wherever you saved the unzipped package contents.
   3. As Administrator, run `fleetctl package` and pass the absolute path above as the string argument to the `--local-wix-dir` flag. (If the provided path doesn't contain all 3 binaries, the command will fail.) For example:
 
 ```powershell
 fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
 ```
-
->**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. We've built a [Wine installation script](https://fleetdm.com/install-wine) to help you get it.
 
 ### Config-less fleetd agent deployment
 

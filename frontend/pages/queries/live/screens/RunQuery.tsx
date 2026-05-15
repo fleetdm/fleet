@@ -127,7 +127,7 @@ const RunQuery = ({
     websocket.onmessage = ({ data }: { data: string }) => {
       // string is easy to compare before converting to object
       if (data === previousSocketData.current) {
-        return false;
+        return;
       }
 
       previousSocketData.current = data;
@@ -163,7 +163,7 @@ const RunQuery = ({
         "error",
         "Something went wrong running your report. Please try again."
       );
-      return false;
+      return;
     }
 
     const selected = formatSelectedTargetsForApi(selectedTargets);
@@ -179,8 +179,8 @@ const RunQuery = ({
       });
 
       connectAndRunLiveQuery(returnedCampaign);
-    } catch (campaignError: any) {
-      const err = campaignError.toString();
+    } catch (campaignError) {
+      const err = String(campaignError);
       if (err.includes("no hosts targeted")) {
         renderFlash(
           "error",

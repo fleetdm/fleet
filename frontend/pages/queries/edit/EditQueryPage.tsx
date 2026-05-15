@@ -272,7 +272,7 @@ const EditQueryPage = ({
         );
         renderFlash("success", "Report created.");
         setBackendValidators({});
-      } catch (createError: any) {
+      } catch (createError) {
         if (getErrorReason(createError).includes("already exists")) {
           const teamErrorText =
             teamNameForQuery && apiTeamIdForQuery !== 0
@@ -318,7 +318,7 @@ const EditQueryPage = ({
       await queryAPI.update(queryId, updatedQuery);
       renderFlash("success", "Report updated.");
       refetchStoredQuery(); // Required to compare recently saved query to a subsequent save to the query
-    } catch (updateError: any) {
+    } catch (updateError) {
       console.error(updateError);
       const reason = getErrorReason(updateError);
       if (reason.includes("Duplicate")) {

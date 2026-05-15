@@ -7,7 +7,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 | Role                                    | Contributor(s)
 |:----------------------------------------|:----------------------------------------------------------------------|
-| Head of IT & Solutions Consulting                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
+| VP of IT Strategy                 | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_
 | Solutions Consultant (SC)               | <sup><sub> _See [🚂 Go-To-Market operations](https://fleetdm.com/handbook/company/go-to-market-operations#current-gtm-motions)_
 | IT Support Administrator             | [Andrea Pepper](https://www.linkedin.com/in/lppepper/) _([@lppepper2](https://github.com/lppepper2))_ 
 
@@ -39,7 +39,7 @@ As soon as an offer is accepted, Fleet provides laptops for core team members to
 - Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The IT engineer can arrange for same-day pickup at a store local to the Fleetie if needed.
   - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
 
-  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business (AB).
 
 - Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
 
@@ -86,6 +86,29 @@ Once the department approves inventory to be shipped from Fleet IT, follow these
 5. This will bring you to a screen where you can select the appropriate DRIs and GitHub labels (multiple, if necessary, but always include the ":help-it" label). Vanta will autopopulate the issue with a brief description of the test due and what needs to be remediated. You can manually add details if necessary.
 6. Follow up with the DRI of each issue daily until it's resolved. As needed, loop in their manager, the [Head of People](https://fleetdm.com/handbook/people#team), Fleet's CTO, or the Head of IT. If the test is within 3 days of being overdue, DM the fleetie and their manager, asking to have the issue prioritized and completed before the due date.
 
+
+### Exclude a host from a screen lock policy
+
+The `macOS - Screen lock after inactivity (15 minutes or less)` and `Windows - Interactive logon screen lock timeout configured` policies, plus their associated configuration profiles (`screen-lock-inactivity.mobileconfig`, `Screen lock timeout.xml`), are deployed to every host on the [💻 Workstations](https://github.com/fleetdm/fleet/blob/main/it-and-security/fleets/workstations.yml) fleet. To exclude a host (e.g., a kiosk, a conference-room display driver, or a host under approved temporary investigation), add its Fleet host ID to the matching exclusion label.
+
+On macOS, contributors who only need a **temporary** break from the screen saver (without changing MDM) should set a [hot corner](https://support.apple.com/guide/mac-help/mchlp3000/mac) to **Disable Screen Saver** in **System Settings → Desktop & Dock → Hot Corners** first. Use the steps below when a **full host exemption** from the profile and policy is required — not for ordinary short-term personal use.
+
+1. Confirm the request has security approval per the [policy exception process](https://fleetdm.com/handbook/it/security#security-policy-management-policy). Exceptions must include a business justification and an expiration date no longer than one year.
+2. Look up the host's Fleet ID in [dogfood](https://dogfood.fleetdm.com/dashboard) (visible in the host's URL).
+3. Open a **Draft** pull request against the `fleet` repo editing the appropriate label file:
+   * macOS: [`it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/macos-screen-lock-exclusions.yml)
+   * Windows: [`it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml`](https://github.com/fleetdm/fleet/blob/main/it-and-security/lib/all/labels/windows-screen-lock-exclusions.yml)
+4. Add the host ID to the `hosts:` list with a comment identifying the host and the expiration date of the exception. Example:
+   ```
+   hosts:
+     - "1234"  # PR #1234 - exception expires 2026-12-01
+   ```
+5. Wait until all automated checks on the pull request have passed. On the exception or tracking issue (for example the confidential `:help-it` request), add a comment that **links to the pull request**, then convert the draft to **Ready for review**.
+6. Get the PR reviewed and merged. The next `fleetctl gitops` run (on merge to `main`) will:
+   * Add the host to the exclusion label
+   * Remove the configuration profile from that host
+   * Stop counting the host against the screen lock policy
+7. To revoke the exception, remove the host ID line from the label file and merge a follow-up PR. Do not leave `hosts: []` behind on a label that has live exclusions on it — an empty list will wipe **all** members.
 
 
 ## Rituals

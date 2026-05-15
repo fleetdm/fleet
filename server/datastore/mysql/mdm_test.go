@@ -19,6 +19,7 @@ import (
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
@@ -37,6 +38,10 @@ func TestMDMShared(t *testing.T) {
 	}{
 		{"TestMDMCommands", testMDMCommands},
 		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
+		{"TestListMDMCommandsOrderKeys", testListMDMCommandsOrderKeys},
+		{"TestListMDMAppleCommandsOrderKeys", testListMDMAppleCommandsOrderKeys},
+		{"TestListMDMCommandsRequiresPerPage", testListMDMCommandsRequiresPerPage},
+		{"TestListMDMCommandsPagination", testListMDMCommandsPagination},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
@@ -56,6 +61,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestGetMDMConfigProfileStatus", testGetMDMConfigProfileStatus},
 		{"TestDeleteMDMProfilesCancelsInstalls", testDeleteMDMProfilesCancelsInstalls},
 		{"TestDeleteTeamCancelsWindowsProfileInstalls", testDeleteTeamCancelsWindowsProfileInstalls},
+		{"TestBulkSetPendingDefersWindowsReconciliation", testBulkSetPendingDefersWindowsReconciliation},
+		{"TestListNextPendingMDMWindowsHostUUIDsCursor", testListNextPendingMDMWindowsHostUUIDsCursor},
 		{"TestCleanUpMDMManagedCertificates", testCleanUpMDMManagedCertificates},
 		{"TestEnqueueCommandWithName", testEnqueueCommandWithName},
 	}
@@ -72,7 +79,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// no commands or devices enrolled => no results
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Empty(t, cmds)
 
@@ -101,6 +108,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	}
 	err = ds.MDMWindowsInsertEnrolledDevice(ctx, windowsEnrollment)
 	require.NoError(t, err)
+	windowsEnrollment.ID = mdmWindowsEnrollmentIDByHardwareID(ctx, t, ds, windowsEnrollment.MDMHardwareID)
 	_, err = ds.UpdateMDMWindowsEnrollmentsHostUUID(
 		ctx,
 		windowsEnrollment.HostUUID,
@@ -129,7 +137,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Empty(t, cmds)
@@ -147,7 +155,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	cmds, total, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -167,7 +175,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
 		})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -190,7 +198,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment.MDMDeviceID, fleet.EnrichedSyncML{
+	_, err = ds.MDMWindowsSaveResponse(ctx, windowsEnrollment, fleet.EnrichedSyncML{
 		SyncML: &fleet.SyncML{
 			Raw: []byte("<xml></xml>"),
 		},
@@ -206,7 +214,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", PerPage: 100},
 		})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -250,6 +258,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: "non-existent",
 			},
@@ -263,6 +272,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType: "non-existent",
 			},
@@ -331,6 +341,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 				ctx,
 				fleet.TeamFilter{User: test.UserAdmin},
 				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{PerPage: 100},
 					Filters: fleet.MDMCommandFilters{
 						HostIdentifier:  tc.identifier,
 						CommandStatuses: commandStatuses,
@@ -378,10 +389,10 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending, PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType: "InstallProfile",
 			},
-			ListOptions: fleet.ListOptions{OrderKey: "hostname", OrderDirection: fleet.OrderAscending},
 		},
 	)
 	require.NoError(t, err)
@@ -394,6 +405,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				RequestType:    "InstallProfile",
 				HostIdentifier: macH.UUID,
@@ -409,6 +421,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier:  "123456",
 				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
@@ -450,6 +463,7 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 		ctx,
 		fleet.TeamFilter{User: test.UserAdmin},
 		&fleet.MDMCommandListOptions{
+			ListOptions: fleet.ListOptions{PerPage: 100},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier:  macH.UUID,
 				CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterRan, fleet.MDMCommandStatusFilterFailed},
@@ -481,6 +495,213 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, true, meta.HasNextResults)
 	require.Equal(t, false, meta.HasPreviousResults)
+
+	// Cursor pagination on the host-scoped path. Regression test for
+	// https://github.com/fleetdm/fleet/issues/44422:
+	// "Error 1052 (23000): Column '<col>' in where clause is ambiguous".
+	// Covers all three Path A SQL shapes: Apple-only, Windows-only, and
+	// multi-platform (host_identifier resolves to both an Apple and a
+	// Windows host via the shared hostname "test-host").
+	t.Run("cursor_pagination_44422", func(t *testing.T) {
+		for _, tc := range []struct {
+			name           string
+			hostIdentifier string
+			wantPlatforms  []string
+		}{
+			{"apple_only", macH.UUID, []string{"darwin"}},
+			{"multi_platform", "test-host", []string{"darwin", "windows"}},
+			{"windows_only", windowsH.UUID, []string{"windows"}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				filters := fleet.MDMCommandFilters{HostIdentifier: tc.hostIdentifier}
+
+				// Sanity: confirm the dispatch reaches the expected branch(es)
+				// and there is data to paginate over.
+				all, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{PerPage: 100},
+						Filters:     filters,
+					},
+				)
+				require.NoError(t, err)
+				require.NotEmpty(t, all)
+				platforms := map[string]struct{}{}
+				for _, c := range all {
+					switch c.HostUUID {
+					case macH.UUID:
+						platforms["darwin"] = struct{}{}
+					case windowsH.UUID:
+						platforms["windows"] = struct{}{}
+					}
+				}
+				for _, p := range tc.wantPlatforms {
+					_, ok := platforms[p]
+					require.True(t, ok, "expected commands from platform %s", p)
+				}
+
+				// Cursor on updated_at — `updated_at` is exposed by multiple
+				// inner-FROM tables on every Path A branch, so this would fail
+				// with "Column 'updated_at' ... is ambiguous" without the wrap.
+				page1, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "updated_at",
+							OrderDirection: fleet.OrderDescending,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Len(t, page1, 1)
+
+				page2, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "updated_at",
+							OrderDirection: fleet.OrderDescending,
+							After:          page1[0].UpdatedAt.Format(time.RFC3339Nano),
+						},
+						Filters: filters,
+					},
+				)
+				// require.NoError is the regression guard. The cursor predicate
+				// is strict (`updated_at < ?`, no tiebreaker), so page2 may be
+				// empty when adjacent commands share an updated_at second — that
+				// is expected, not a regression. Only assert distinctness when
+				// a row did come back.
+				require.NoError(t, err)
+				if len(page2) > 0 {
+					require.NotEqual(t, page1[0].CommandUUID, page2[0].CommandUUID)
+				}
+
+				// Cursor on command_uuid — separate ambiguity manifestation;
+				// `command_uuid` is the join column on every inner table.
+				first, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "command_uuid",
+							OrderDirection: fleet.OrderAscending,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Len(t, first, 1)
+
+				next, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        1,
+							OrderKey:       "command_uuid",
+							OrderDirection: fleet.OrderAscending,
+							After:          first[0].CommandUUID,
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.NotEmpty(t, next)
+				require.NotEqual(t, first[0].CommandUUID, next[0].CommandUUID)
+
+				// Cursor on hostname. All hosts in this test share hostname
+				// "test-host", and the helper's cursor predicate is a strict
+				// `hostname > 'test-host'` (no tiebreaker), so the result is
+				// expected to be empty. The bug would surface as a SQL error
+				// before the empty check.
+				afterHostname, _, _, err := ds.ListMDMCommands(
+					ctx,
+					fleet.TeamFilter{User: test.UserAdmin},
+					&fleet.MDMCommandListOptions{
+						ListOptions: fleet.ListOptions{
+							PerPage:        5,
+							OrderKey:       "hostname",
+							OrderDirection: fleet.OrderAscending,
+							After:          "test-host",
+						},
+						Filters: filters,
+					},
+				)
+				require.NoError(t, err)
+				require.Empty(t, afterHostname)
+
+				// Pending-only count + cursor
+				if tc.name == "apple_only" {
+					pendingFilters := fleet.MDMCommandFilters{
+						HostIdentifier:  tc.hostIdentifier,
+						CommandStatuses: []fleet.MDMCommandStatusFilter{fleet.MDMCommandStatusFilterPending},
+					}
+					// Establish the unfiltered pending baseline so the post-cursor
+					// assertions don't depend on UUID lexicographic ordering.
+					allPending, totalPending, _, err := ds.ListMDMCommands(
+						ctx,
+						fleet.TeamFilter{User: test.UserAdmin},
+						&fleet.MDMCommandListOptions{
+							ListOptions: fleet.ListOptions{
+								PerPage:         100,
+								OrderKey:        "command_uuid",
+								OrderDirection:  fleet.OrderAscending,
+								IncludeMetadata: true,
+							},
+							Filters: pendingFilters,
+						},
+					)
+					require.NoError(t, err)
+					require.NotNil(t, totalPending)
+					require.Equal(t, int64(len(allPending)), *totalPending)
+					require.Greater(t, len(allPending), 1, "test setup expects multiple pending Apple commands")
+
+					// Drive the cursor from a known pending UUID so the post-cursor
+					// expectation is deterministic.
+					cursorUUID := allPending[0].CommandUUID
+					expectedAfter := allPending[1:]
+
+					afterPending, totalAfter, _, err := ds.ListMDMCommands(
+						ctx,
+						fleet.TeamFilter{User: test.UserAdmin},
+						&fleet.MDMCommandListOptions{
+							ListOptions: fleet.ListOptions{
+								PerPage:         100,
+								OrderKey:        "command_uuid",
+								OrderDirection:  fleet.OrderAscending,
+								After:           cursorUUID,
+								IncludeMetadata: true,
+							},
+							Filters: pendingFilters,
+						},
+					)
+					require.NoError(t, err)
+					// total comes from countStmt which has no cursor, so it
+					// must report the full pending count regardless of After.
+					require.NotNil(t, totalAfter)
+					require.Equal(t, *totalPending, *totalAfter)
+					require.Len(t, afterPending, len(expectedAfter))
+					gotUUIDs := make([]string, len(afterPending))
+					for i, c := range afterPending {
+						gotUUIDs[i] = c.CommandUUID
+					}
+					expectedUUIDs := make([]string, len(expectedAfter))
+					for i, c := range expectedAfter {
+						expectedUUIDs[i] = c.CommandUUID
+					}
+					require.Equal(t, expectedUUIDs, gotUUIDs)
+				}
+			})
+		}
+	})
+
 }
 
 // testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
@@ -523,7 +744,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err := ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -533,7 +754,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser, TeamID: &team.ID},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -561,7 +782,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: teamUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
@@ -572,7 +793,7 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	cmds, _, _, err = ds.ListMDMCommands(
 		ctx,
 		fleet.TeamFilter{User: adminUser},
-		&fleet.MDMCommandListOptions{},
+		&fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}},
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
@@ -581,6 +802,333 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 		got = append(got, cmd.CommandUUID)
 	}
 	require.ElementsMatch(t, []string{teamCmdUUID, globalCmdUUID}, got)
+}
+
+func testListMDMCommandsRequiresPerPage(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	_, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, nil)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PerPage")
+
+	_, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "PerPage")
+}
+
+// testListMDMCommandsPagination exercises the all-hosts per-branch
+// pagination across both Apple and Windows branches. The path inflates the
+// inner LIMIT to per_page*page+per_page so that page N is correct even if all
+// matching rows came from a single branch, and the outer wrap clears
+// After/Page when cursor pagination is used.
+func testListMDMCommandsPagination(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Enroll one Windows host and one macOS host.
+	winHost := test.NewHost(t, ds, "paginate-win", "1.2.3.4", "paginate-node-win", uuid.NewString(), time.Now(), test.WithPlatform("windows"))
+	winDeviceID := windowsEnroll(t, ds, winHost)
+	winEnrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, winDeviceID)
+	require.NoError(t, err)
+
+	macHost := test.NewHost(t, ds, "paginate-mac", "1.2.3.5", "paginate-node-mac", uuid.NewString(), time.Now())
+	nanoEnroll(t, ds, macHost, false)
+
+	// Insert 3 Apple commands and 3 Windows commands so both branches contribute.
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	const totalApple = 3
+	const totalWin = 3
+	allUUIDs := make([]string, 0, totalApple+totalWin)
+	for range totalApple {
+		cmdUUID := uuid.NewString()
+		raw := createRawAppleCmd("ProfileList", cmdUUID)
+		require.NoError(t, commander.EnqueueCommand(ctx, []string{macHost.UUID}, raw))
+		allUUIDs = append(allUUIDs, cmdUUID)
+	}
+	winUUIDs := make([]string, 0, totalWin)
+	for range totalWin {
+		cmdUUID := uuid.NewString()
+		require.NoError(t, ds.MDMWindowsInsertCommandForHosts(ctx, []string{winDeviceID}, &fleet.MDMWindowsCommand{
+			CommandUUID:  cmdUUID,
+			RawCommand:   []byte("<Exec></Exec>"),
+			TargetLocURI: "./test/uri",
+		}))
+		winUUIDs = append(winUUIDs, cmdUUID)
+		allUUIDs = append(allUUIDs, cmdUUID)
+	}
+
+	// Mark one Windows command as responded so the results-backed branch of the
+	// internal Windows UNION ALL is exercised. The dedupe NOT EXISTS clause
+	// must still keep the command from appearing twice across the pagination.
+	respondedWinUUID := winUUIDs[0]
+	_, err = ds.MDMWindowsSaveResponse(ctx, winEnrollment, fleet.EnrichedSyncML{
+		SyncML: &fleet.SyncML{Raw: []byte("<xml></xml>")},
+		CmdRefUUIDToStatus: map[string]fleet.SyncMLCmd{
+			respondedWinUUID: {Data: ptr.String("200")},
+		},
+		CmdRefUUIDs: []string{respondedWinUUID},
+	}, []string{})
+	require.NoError(t, err)
+
+	sort.Strings(allUUIDs)
+	totalCount := len(allUUIDs)
+
+	t.Run("page-based across branches", func(t *testing.T) {
+		// PerPage=2 across 6 commands => 3 pages of 2 each.
+		const perPage = 2
+		seen := make(map[string]bool)
+		for page := uint(0); page*perPage < uint(totalCount); page++ { //nolint:gosec
+			cmds, _, meta, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{
+						OrderKey:        "command_uuid",
+						OrderDirection:  fleet.OrderAscending,
+						Page:            page,
+						PerPage:         perPage,
+						IncludeMetadata: true,
+					},
+				},
+			)
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(cmds), perPage)
+
+			start := int(page * perPage)
+			end := min(start+perPage, totalCount)
+			expected := allUUIDs[start:end]
+			got := make([]string, 0, len(cmds))
+			for _, c := range cmds {
+				require.False(t, seen[c.CommandUUID], "duplicate command UUID across pages: %s", c.CommandUUID)
+				seen[c.CommandUUID] = true
+				got = append(got, c.CommandUUID)
+			}
+			require.Equal(t, expected, got, "page %d", page)
+
+			require.Equal(t, page > 0, meta.HasPreviousResults, "page %d HasPreviousResults", page)
+			require.Equal(t, end < totalCount, meta.HasNextResults, "page %d HasNextResults", page)
+		}
+		require.Len(t, seen, totalCount)
+	})
+
+	t.Run("cursor walks all rows without overlap", func(t *testing.T) {
+		const perPage = 2
+		seen := make(map[string]bool)
+		var after string
+		for {
+			cmds, _, _, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{
+						OrderKey:        "command_uuid",
+						OrderDirection:  fleet.OrderAscending,
+						PerPage:         perPage,
+						After:           after,
+						IncludeMetadata: true,
+					},
+				},
+			)
+			require.NoError(t, err)
+			if len(cmds) == 0 {
+				break
+			}
+			for _, c := range cmds {
+				require.False(t, seen[c.CommandUUID], "duplicate command UUID across cursor pages: %s", c.CommandUUID)
+				seen[c.CommandUUID] = true
+			}
+			after = cmds[len(cmds)-1].CommandUUID
+			if len(cmds) < perPage {
+				break
+			}
+		}
+		require.Len(t, seen, totalCount)
+	})
+
+	t.Run("outer clears Page when After is set", func(t *testing.T) {
+		// Without the outer-wrap clearing of Page, Page=99 with PerPage=2 would
+		// add OFFSET 198 on top of the cursor filter and return zero rows even
+		// though plenty of rows follow allUUIDs[0]. With the clearing, the call
+		// must return the page-sized slice immediately after the cursor.
+		cmds, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{
+					OrderKey:        "command_uuid",
+					OrderDirection:  fleet.OrderAscending,
+					PerPage:         2,
+					Page:            99,
+					After:           allUUIDs[0],
+					IncludeMetadata: true,
+				},
+			},
+		)
+		require.NoError(t, err)
+		require.Equal(t, allUUIDs[1:3], extractCommandUUIDs(cmds))
+	})
+}
+
+func extractCommandUUIDs(cmds []*fleet.MDMCommand) []string {
+	out := make([]string, 0, len(cmds))
+	for _, c := range cmds {
+		out = append(out, c.CommandUUID)
+	}
+	return out
+}
+
+func testListMDMCommandsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ord-host",
+		OsqueryHostID:  ptr.String("ord-osq"),
+		NodeKey:        ptr.String("ord-nk"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "ORDABC",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	for range 3 {
+		err = commander.EnqueueCommand(ctx, []string{macH.UUID}, createRawAppleCmd("ProfileList", uuid.NewString()))
+		require.NoError(t, err)
+	}
+
+	for _, key := range []string{"command_uuid", "request_type", "status", "updated_at", "hostname", "host_uuid", "name"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			cmds, _, _, err := ds.ListMDMCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 5},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 3)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column", PerPage: 5},
+			},
+		)
+		require.Error(t, err)
+		var invalidKeyErr common_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidKeyErr)
+	})
+
+	// the host-identifier branch uses a separate query; confirm it shares the allowlist
+	t.Run("rejects_unknown_key_host_identifier", func(t *testing.T) {
+		_, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column", PerPage: 5},
+				Filters:     fleet.MDMCommandFilters{HostIdentifier: macH.UUID},
+			},
+		)
+		require.Error(t, err)
+		var invalidKeyErr common_mysql.InvalidOrderKeyError
+		require.ErrorAs(t, err, &invalidKeyErr)
+	})
+
+	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
+		cmds, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, IncludeMetadata: true},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		afterCursor := cmds[0].CommandUUID
+		next, _, _, err := ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, next, 1)
+		require.NotEqual(t, afterCursor, next[0].CommandUUID)
+	})
+}
+
+func testListMDMAppleCommandsOrderKeys(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	macH, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "ord-apple-host",
+		OsqueryHostID:  ptr.String("ord-apple-osq"),
+		NodeKey:        ptr.String("ord-apple-nk"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "ORDA1",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, macH, false)
+
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	for range 2 {
+		err = commander.EnqueueCommand(ctx, []string{macH.UUID}, createRawAppleCmd("ProfileList", uuid.NewString()))
+		require.NoError(t, err)
+	}
+
+	for _, key := range []string{"command_uuid", "request_type", "status", "updated_at", "hostname", "device_id"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			cmds, err := ds.ListMDMAppleCommands(
+				ctx,
+				fleet.TeamFilter{User: test.UserAdmin},
+				&fleet.MDMCommandListOptions{
+					ListOptions: fleet.ListOptions{OrderKey: key, PerPage: 5},
+				},
+			)
+			require.NoError(t, err)
+			require.Len(t, cmds, 2)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "not_a_real_column"},
+			},
+		)
+		require.Error(t, err)
+	})
+
+	t.Run("after_pagination_with_allowed_key", func(t *testing.T) {
+		cmds, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		afterCursor := cmds[0].CommandUUID
+		next, err := ds.ListMDMAppleCommands(
+			ctx,
+			fleet.TeamFilter{User: test.UserAdmin},
+			&fleet.MDMCommandListOptions{
+				ListOptions: fleet.ListOptions{OrderKey: "command_uuid", PerPage: 1, After: afterCursor},
+			},
+		)
+		require.NoError(t, err)
+		require.Len(t, next, 1)
+		require.NotEqual(t, afterCursor, next[0].CommandUUID)
+	})
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
@@ -1307,6 +1855,11 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			require.Equal(t, c.wantMeta, gotMeta)
 		})
 	}
+
+	t.Run("rejects_unknown_order_key", func(t *testing.T) {
+		_, _, err := ds.ListMDMConfigProfiles(ctx, nil, fleet.ListOptions{OrderKey: "h.node_key"})
+		require.Error(t, err)
+	})
 }
 
 func testBulkSetPendingMDMHostProfilesBatch2(t *testing.T, ds *Datastore) {
@@ -1486,6 +2039,12 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	// This test asserts on host_mdm_windows_profiles row state and on
+	// updates.WindowsConfigProfile immediately after BulkSetPendingMDMHostProfiles.
+	// In production, those side effects are deferred to the
+	// mdm_windows_profile_manager cron, so the test must opt into the
+	// eager-reconciliation hook to keep its Apple-parity assertions valid.
+	ds.EnableTestWindowsEagerHook(t)
 	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
 	// to understand what the expected assertion 500 lines in is supposed to be. Please avoid
 	// adding to it.
@@ -7127,6 +7686,163 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			expectLabels(t, uuid, platform, nil)
 		})
+
+		t.Run("broken label association is cleared on upsert "+platform, func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/42637.
+			startingLabel := &fleet.Label{
+				Name:  "broken-label-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			startingLabel, err := ds.NewLabel(ctx, startingLabel)
+			require.NoError(t, err)
+
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: startingLabel.Name, LabelID: startingLabel.ID, Exclude: true},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Simulate the label being deleted: NULL the label_id directly. This is
+			// what FK ON DELETE SET NULL does when the underlying label row is gone.
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx,
+					fmt.Sprintf(`UPDATE mdm_configuration_profile_labels SET label_id = NULL WHERE %s_profile_uuid = ? AND label_name = ?`, p),
+					uuid, startingLabel.Name)
+				return err
+			})
+
+			// Sanity: broken row exists.
+			var brokenCount int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenCount,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 1, brokenCount, "expected broken row to exist before re-upsert")
+
+			// Re-apply with a different label, mimicking gitops switching from
+			// labels_exclude_any: [startingLabel] to labels_include_any: [switchTarget].
+			switchTarget := &fleet.Label{
+				Name:  "switch-target-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			switchTarget, err = ds.NewLabel(ctx, switchTarget)
+			require.NoError(t, err)
+
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: switchTarget.Name, LabelID: switchTarget.ID, Exclude: false},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+
+			// The broken row must be gone
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenCount,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 0, brokenCount, "broken (NULL label_id) row should have been cleared")
+
+			// Only switchTarget should remain.
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Other profiles must remain untouched.
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+		})
+
+		t.Run("same label name recreated after deletion "+platform, func(t *testing.T) {
+			// Regression test for https://github.com/fleetdm/fleet/issues/44950.
+			// Reproduces: global label referenced by a profile is deleted (label_id
+			// becomes NULL via ON DELETE SET NULL), then a fleet-level label with
+			// the SAME name is created and re-applied. The SELECT in
+			// batchSetProfileLabelAssociationsDB used to fail with
+			// "converting NULL to uint is unsupported" because it selected the
+			// broken row's NULL label_id into a uint field.
+			origLabel := &fleet.Label{
+				Name:  "gitops-label-" + platform,
+				Query: "select 1 from osquery_info;",
+			}
+			origLabel, err := ds.NewLabel(ctx, origLabel)
+			require.NoError(t, err)
+
+			// Associate profile with original label
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: origLabel.Name, LabelID: origLabel.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err)
+
+			// Delete the label — the FK ON DELETE SET NULL sets label_id to NULL
+			// in the mdm_configuration_profile_labels row.
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				_, err := tx.ExecContext(ctx, `DELETE FROM labels WHERE id = ?`, origLabel.ID)
+				return err
+			})
+
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+
+			// Sanity check: the broken (NULL) row exists.
+			var brokenBefore int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenBefore,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 1, brokenBefore, "expected broken row after label deletion")
+
+			// Create a new label with the SAME name (simulates moving from global to fleet scope)
+			newLabel := &fleet.Label{
+				Name:  origLabel.Name,
+				Query: "select 1 from osquery_info;",
+			}
+			newLabel, err = ds.NewLabel(ctx, newLabel)
+			require.NoError(t, err)
+
+			// Re-apply with the new label ID but same name — this is the
+			// call that used to fail with "converting NULL to uint".
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				_, err := batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, nil, platform)
+				return err
+			})
+			require.NoError(t, err, "batchSetProfileLabelAssociationsDB should not fail when a broken row exists with the same label name")
+
+			// Verify only the new label association exists (no broken row)
+			var brokenAfter int
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				return sqlx.GetContext(ctx, tx, &brokenAfter,
+					fmt.Sprintf(`SELECT COUNT(*) FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ? AND label_id IS NULL`, p),
+					uuid)
+			})
+			require.Equal(t, 0, brokenAfter, "broken (NULL label_id) row should have been cleaned up")
+
+			// Verify the correct label association exists with the new label ID.
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// Other profiles must remain untouched.
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
+		})
 	}
 
 	t.Run("unsupported platform", func(t *testing.T) {
@@ -8146,6 +8862,10 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 }
 
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
+	// Opt into the eager Windows reconciliation hook: this test asserts
+	// on host_mdm_windows_profiles state immediately after BulkSet, which
+	// production defers to the cron.
+	ds.EnableTestWindowsEagerHook(t)
 	test.AddBuiltinLabels(t, ds)
 	ctx := context.Background()
 
@@ -8562,8 +9282,201 @@ func testBulkSetPendingMDMWindowsHostProfilesLotsOfHosts(t *testing.T, ds *Datas
 		hostUUIDs = append(hostUUIDs, uuid.NewString())
 	}
 
-	_, err := ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, ds.writer(ctx), hostUUIDs, nil)
+	_, err := ds.bulkSetPendingMDMWindowsHostProfilesForTests(ctx, hostUUIDs, nil)
 	require.NoError(t, err)
+}
+
+// testBulkSetPendingDefersWindowsReconciliation verifies the production
+// behavior of BulkSetPendingMDMHostProfiles: it does not synchronously
+// write host_mdm_windows_profiles (the mdm_windows_profile_manager cron
+// handles that on its next 30s tick), and updates.WindowsConfigProfile
+// stays false here. The accurate "Windows profile changed" signal comes
+// from batchSetMDMWindowsProfilesDB inside BatchSetMDMProfiles, which is
+// the only consumer.
+func testBulkSetPendingDefersWindowsReconciliation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "defer-windows-recon-test"})
+	require.NoError(t, err)
+
+	windowsProfs := []*fleet.MDMWindowsConfigProfile{
+		windowsConfigProfileForTest(t, "DW1", "DW1"),
+	}
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, windowsProfs, nil, nil, nil)
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "dw-host", "dw1", "dw1key", "dw-host-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(team.ID))
+	windowsEnroll(t, ds, host)
+
+	// Sanity: host_mdm_windows_profiles starts empty for this host.
+	before, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Empty(t, before)
+
+	updates, err := ds.BulkSetPendingMDMHostProfiles(ctx, []uint{host.ID}, nil, nil, nil)
+	require.NoError(t, err)
+	// Production path leaves WindowsConfigProfile false: the lone consumer
+	// of this field (service/mdm.go's BatchSetMDMProfiles flow) ORs it with
+	// profUpdates.WindowsConfigProfile from BatchSetMDMProfiles, which is
+	// the accurate transactional signal. With the eager hook disabled here
+	// to match production, this method does not compute the activity
+	// signal itself.
+	assert.False(t, updates.WindowsConfigProfile,
+		"production path leaves WindowsConfigProfile false; activity is logged by BatchSetMDMProfiles")
+
+	// host_mdm_windows_profiles must not have been written synchronously.
+	// In production the cron will write it on the next tick; in this test
+	// nothing else runs and we go straight to the assertion.
+	after, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	assert.Empty(t, after,
+		"BulkSetPendingMDMHostProfiles must not write host_mdm_windows_profiles synchronously")
+
+	// Round-trip: the cron's listing must observe this host as pending so
+	// the deferred reconciliation can run on the next tick. Without this,
+	// the empty post-state above would also be consistent with a
+	// regression that silently drops the pending signal.
+	pending, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 10)
+	require.NoError(t, err)
+	require.Contains(t, pending, host.UUID,
+		"host must appear in cron listing so deferred reconciliation can run")
+}
+
+// testListNextPendingMDMWindowsHostUUIDsCursor exercises the host-window
+// query that drives the cron's batched reconciliation. With multiple
+// Windows hosts that all need a team profile installed, repeated calls
+// with the previous batch's last UUID as the cursor must return the
+// remaining hosts in lexicographic order, then return empty.
+func testListNextPendingMDMWindowsHostUUIDsCursor(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// This test verifies the production async path. The eager hook is
+	// off by default, so no opt-in is needed here.
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-test"})
+	require.NoError(t, err)
+	InsertWindowsProfileForTest(t, ds, team.ID)
+
+	// Windows hosts that should be listed. Zero-pad the UUID suffix so
+	// lexicographic ordering matches numeric ordering for any N (without
+	// padding, "host-uuid-10" sorts before "host-uuid-2").
+	type hostFixture struct {
+		host *fleet.Host
+		uuid string
+	}
+	const numHosts = 5
+	fixtures := make([]hostFixture, numHosts)
+	for i := range numHosts {
+		uuid := fmt.Sprintf("host-uuid-%02d", i)
+		h := test.NewHost(t, ds,
+			fmt.Sprintf("recon-cursor-host-%d", i),
+			fmt.Sprintf("1.1.1.%d", i),
+			fmt.Sprintf("recon-cursor-key-%d", i),
+			uuid,
+			time.Now(),
+			test.WithPlatform("windows"), test.WithTeamID(team.ID),
+		)
+		windowsEnroll(t, ds, h)
+		fixtures[i] = hostFixture{host: h, uuid: uuid}
+	}
+
+	// Filter-probe hosts that must NEVER appear in the listing. Without
+	// these, the assertions below would pass for an implementation that
+	// returns every enrolled host instead of filtering by desired state.
+	//
+	//   * cross-team Windows host: a team with no profile means no
+	//     desired state, so this host has nothing to install.
+	//   * same-team darwin host: the desired-state JOIN requires
+	//     hosts.platform='windows'.
+	//
+	// UUIDs are chosen so they would sort *before* and *after* the
+	// fixture UUIDs ("c..." < "host..." < "s...") if filtering broke.
+	otherTeam, err := ds.NewTeam(ctx, &fleet.Team{Name: "recon-cursor-other-team"})
+	require.NoError(t, err)
+	crossTeamHost := test.NewHost(t, ds,
+		"recon-cursor-cross-team", "2.2.2.1", "recon-cursor-cross-team-key",
+		"cross-team-windows-uuid", time.Now(),
+		test.WithPlatform("windows"), test.WithTeamID(otherTeam.ID),
+	)
+	windowsEnroll(t, ds, crossTeamHost)
+	sameTeamDarwinHost := test.NewHost(t, ds,
+		"recon-cursor-darwin", "3.3.3.1", "recon-cursor-darwin-key",
+		"same-team-darwin-uuid", time.Now(),
+		test.WithPlatform("darwin"), test.WithTeamID(team.ID),
+	)
+	excluded := []string{crossTeamHost.UUID, sameTeamDarwinHost.UUID}
+
+	// Trigger the listing's "needs work" predicate by running BulkSet so
+	// the team-profile -> host pairs become candidates. Include the
+	// probe hosts so the same code path runs over them; the listing must
+	// still exclude them.
+	hostIDs := make([]uint, 0, numHosts+len(excluded))
+	for _, f := range fixtures {
+		hostIDs = append(hostIDs, f.host.ID)
+	}
+	hostIDs = append(hostIDs, crossTeamHost.ID, sameTeamDarwinHost.ID)
+	_, err = ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil)
+	require.NoError(t, err)
+
+	// First batch: 3 of 5 hosts, sorted ascending.
+	batch1, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 3)
+	require.NoError(t, err)
+	require.Len(t, batch1, 3)
+	for i := 1; i < len(batch1); i++ {
+		require.Less(t, batch1[i-1], batch1[i], "result must be sorted ascending")
+	}
+
+	// Second batch: starts after the previous batch's last UUID, returns
+	// the remaining 2 hosts.
+	batch2, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch1[len(batch1)-1], 3)
+	require.NoError(t, err)
+	require.Len(t, batch2, 2)
+	for i := 1; i < len(batch2); i++ {
+		require.Less(t, batch2[i-1], batch2[i], "result must be sorted ascending")
+	}
+	// Inter-batch ordering: the cursor's strict-greater-than semantics
+	// require that every UUID in batch2 is strictly greater than batch1's
+	// last UUID. Without this, a regression that partitions the universe
+	// in the wrong order could still pass the set-coverage check below.
+	require.Less(t, batch1[len(batch1)-1], batch2[0],
+		"batch2 must start strictly after batch1's last UUID")
+
+	// The two batches together cover every host exactly once. Compare
+	// against the fixture UUIDs so the test fails on over-broad or
+	// mis-scoped results, not just on the count.
+	covered := make(map[string]bool, numHosts)
+	for _, u := range batch1 {
+		covered[u] = true
+	}
+	for _, u := range batch2 {
+		require.False(t, covered[u], "host %s appeared in both batches", u)
+		covered[u] = true
+	}
+	expected := make(map[string]bool, numHosts)
+	for _, f := range fixtures {
+		expected[f.uuid] = true
+	}
+	require.Equal(t, expected, covered)
+
+	// Filter-probe hosts must not have leaked into any batch.
+	for _, u := range excluded {
+		require.NotContains(t, covered, u, "host %s should be filtered out", u)
+	}
+
+	// Third call past the last host: empty (cursor has reached the end).
+	batch3, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, batch2[len(batch2)-1], 3)
+	require.NoError(t, err)
+	require.Empty(t, batch3, "no more hosts after the end of the universe")
+
+	// batchSize <= 0 must short-circuit to an empty result without error,
+	// matching the explicit guard in ListNextPendingMDMWindowsHostUUIDs.
+	zero, err := ds.ListNextPendingMDMWindowsHostUUIDs(ctx, "", 0)
+	require.NoError(t, err)
+	require.Empty(t, zero, "batchSize=0 must short-circuit to empty")
 }
 
 func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
@@ -9205,7 +10118,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{
 		User:            test.UserAdmin,
 		IncludeObserver: true,
-	}, &fleet.MDMCommandListOptions{Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
+	}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}, Filters: fleet.MDMCommandFilters{HostIdentifier: host1.UUID}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 0)
 
@@ -9263,16 +10176,18 @@ func testDeleteTeamCancelsWindowsProfileInstalls(t *testing.T, ds *Datastore) {
 	// Create Windows hosts enrolled in MDM and assigned to the team.
 	host1 := test.NewHost(t, ds, "tw-host1", "tw1", "tw1key", "tw-host1-uuid", time.Now())
 	host1.Platform = "windows"
-	host1.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host1)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID})))
+	host1.TeamID = &team.ID
 	windowsEnroll(t, ds, host1)
 
 	host2 := test.NewHost(t, ds, "tw-host2", "tw2", "tw2key", "tw-host2-uuid", time.Now())
 	host2.Platform = "windows"
-	host2.TeamID = &team.ID
 	err = ds.UpdateHost(ctx, host2)
 	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID})))
+	host2.TeamID = &team.ID
 	windowsEnroll(t, ds, host2)
 
 	// Simulate profiles delivered to both hosts (install + verified).
@@ -9469,7 +10384,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 	require.Equal(t, "Test Profile Name", storedName.String)
 
 	// Also verify via ListMDMCommands
-	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err := ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.NotNil(t, cmds[0].Name)
@@ -9490,7 +10405,7 @@ func testEnqueueCommandWithName(t *testing.T, ds *Datastore) {
 
 	// Verify name is null in the API
 	// Verify ListMDMCommands also exposes nil Name for unnamed commands
-	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
+	cmds, _, _, err = ds.ListMDMCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{ListOptions: fleet.ListOptions{PerPage: 100}})
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
 

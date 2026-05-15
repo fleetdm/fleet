@@ -38,6 +38,8 @@ env:
   R2_ACCESS_KEY_SECRET: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} # Production: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }} | Testing: ${{ secrets.R2_DOWNLOAD_TESTING_ACCESS_KEY_SECRET }}
   R2_BUCKET: download # Production: download | Testing: download-testing
   BASE_URL: https://download.fleetdm.com # Production: https://download.fleetdm.com | Testing: https://download-testing.fleetdm.com
+  # Supply-chain guard: refuse npm packages younger than 12 hours. See .npmrc.
+  NPM_CONFIG_MIN_RELEASE_AGE: 0.5
 
 jobs:
   check-for-fleetd-component-updates:

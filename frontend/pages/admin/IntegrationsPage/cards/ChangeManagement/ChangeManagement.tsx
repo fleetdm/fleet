@@ -75,6 +75,7 @@ const ChangeManagement = () => {
     Error,
     IConfig
   >(["integrations"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
     onSuccess: (data) => {
       const {
         gitops: {
@@ -227,7 +228,7 @@ const ChangeManagement = () => {
               Exceptions
             </TooltipWrapper>
           </div>
-          <div>
+          <div className="form-field">
             <Checkbox
               onChange={onInputChange}
               name="exceptLabels"

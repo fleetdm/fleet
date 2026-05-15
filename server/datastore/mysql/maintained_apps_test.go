@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -50,7 +50,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 		return apps
 	}
 
-	expectedApps := maintained_apps.SyncApps(t, ds)
+	expectedApps := maintainedappstest.SyncApps(t, ds)
 	var expectedAppsBaseInfo []fleet.MaintainedApp
 	for _, app := range expectedApps {
 		expectedAppsBaseInfo = append(expectedAppsBaseInfo, fleet.MaintainedApp{
@@ -63,7 +63,7 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
 
 	// ingesting again results in no changes
-	maintained_apps.SyncApps(t, ds)
+	maintainedappstest.SyncApps(t, ds)
 	require.Equal(t, expectedAppsBaseInfo, listSavedApps())
 
 	// upsert the figma app, changing the version
@@ -86,9 +86,9 @@ func testUpsertMaintainedApps(t *testing.T, ds *Datastore) {
 }
 
 func testSync(t *testing.T, ds *Datastore) {
-	maintained_apps.SyncApps(t, ds)
+	maintainedappstest.SyncApps(t, ds)
 
-	expectedSlugs := maintained_apps.ExpectedAppSlugs(t)
+	expectedSlugs := maintainedappstest.ExpectedAppSlugs(t)
 	var actualSlugs []string
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		return sqlx.SelectContext(context.Background(), q, &actualSlugs, "SELECT slug FROM fleet_maintained_apps ORDER BY slug")
@@ -452,10 +452,23 @@ func testListAndGetAvailableApps(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	maintained3.TitleID = nil
 	require.Equal(t, maintained3, gotApp)
+
+	for _, key := range []string{"id", "name", "platform", "slug"} {
+		t.Run("order_"+key, func(t *testing.T) {
+			result, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: key, PerPage: 10, IncludeMetadata: true})
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+		})
+	}
+
+	t.Run("rejects_unknown_key", func(t *testing.T) {
+		_, _, err := ds.ListAvailableFleetMaintainedApps(ctx, &team1.ID, fleet.ListOptions{OrderKey: "h.node_key", IncludeMetadata: true})
+		require.Error(t, err)
+	})
 }
 
 func testSyncAndRemoveApps(t *testing.T, ds *Datastore) {
-	maintained_apps.SyncAndRemoveApps(t, ds)
+	maintainedappstest.SyncAndRemoveApps(t, ds)
 }
 
 func testGetMaintainedAppBySlug(t *testing.T, ds *Datastore) {

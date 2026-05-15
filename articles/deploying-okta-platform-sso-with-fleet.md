@@ -1,16 +1,11 @@
 # Deploying Platform SSO with Okta and Fleet
 
-Apple's Platform Single Sign-on (Platform SSO), [introduced at WWDC22](https://developer.apple.com/videos/play/wwdc2022/10045) alongside macOS Ventura, iOS 17, and iPadOS 17, enables users to sign in to their identity provider credentials once and automatically access apps and websites that require authentication through an IdP.
+Apple's [Platform Single Sign-on (Platform SSO)](https://support.apple.com/guide/deployment/platform-sso-for-macos-dep7bbb05313/web), enables the following features for macOS hosts:
+- Initial local account creation based on identity provider (IdP) credentials during macOS automatic (ADE) enrollment (aka [Simplified Platform SSO](#simplified-platform-sso-macos-26))
+- Sync local account password with IdP
+- End users sign in to their Mac once and automatically access apps and websites that require authentication through an IdP
 
-This guide details how to deploy Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts.
-
-If your Identity Provider (IdP) supports Platform Single Sign-on, deploying it in your environment offers a great and secure sign-in experience for your users.
-
-Rather than your users having to enter credentials each time they sign in to an app protected by Okta, the Platform SSO extension will automatically perform the authentication and sync their local macOS password with their Okta password.
-
-This speeds up the authentication process for your employees and enables them to use their Okta credentials to unlock their Mac.
-
-**Important:** This feature requires the **Okta Device Access SKU** to enable Desktop Password Sync and Platform SSO functionality. Contact your Okta account representative if you need to purchase this license for your organization.
+This guide details how to enable these features by deploying Okta's macOS Platform SSO extension (Desktop Password Sync) to your Fleet macOS hosts.
 
 ## Prerequisites
 
@@ -47,7 +42,9 @@ Next, download Okta Verify for macOS from the Admin Console (**Settings** → **
 
 **Note:** If you have devices running macOS 14 Sonoma or later, you must configure Device Access SCEP certificates before proceeding with Platform SSO deployment.
 
-Okta supports two SCEP challenge types: **dynamic** and **static**. Both require you to redeploy the certificate profile before it expires — Okta doesn't support automatic certificate renewal for either option. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
+Okta supports two SCEP challenge types: **dynamic** and **static**. When using the dynamic option with Fleet as a SCEP proxy, Fleet automatically renews certificates 30 days before expiration (or at half the validity period if ≤30 days) when `$FLEET_VAR_SCEP_RENEWAL_ID` is included in the OU field of your certificate profile. 
+
+Static challenges require manual redeployment before expiry. See [Okta's Device Access certificates documentation](https://help.okta.com/oie/en-us/content/topics/oda/oda-as-scep.htm) for a full overview.
 
 The recommended approach is to use Fleet as a SCEP proxy with Okta's dynamic challenge. Fleet fetches a unique, short-lived challenge from Okta for each host at enrollment, so no static secret is shared across devices or embedded in your profile. See [Okta's guide to configuring Okta as a CA with a dynamic SCEP challenge](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/okta-ca-dynamic-scep-macos-jamf.htm) for more details on how dynamic challenges work.
 
@@ -105,7 +102,7 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 - **Key Usage:** Signing
 - **Key is Extractable:** Unchecked
 - **Allow All Apps Access:** Checked
-- **Certificate Expiration Notification:** Set to 14 days before expiration
+- **Certificate Expiration Notification:** Set to 30 days before expiration
 
 **Important:** The Subject must include both the CN and an OU field with `$FLEET_VAR_SCEP_RENEWAL_ID`. In raw XML, the Subject array should look like this:
 
@@ -127,17 +124,17 @@ Open [iMazing Profile Editor](https://imazing.com/profile-editor), create a new 
 
 Fleet replaces `$FLEET_VAR_NDES_SCEP_PROXY_URL`, `$FLEET_VAR_NDES_SCEP_CHALLENGE`, and `$FLEET_VAR_SCEP_RENEWAL_ID` with the appropriate values each time the profile is delivered to a host. Each host receives a unique, short-lived challenge rather than a shared static secret.
 
-**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it. Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+> **Important:** Fleet automatically renews this certificate when `$FLEET_VAR_SCEP_RENEWAL_ID` is in the OU field (already included above). Use the osquery policy below to monitor certificate expiry across your fleet.
 
 ```sql
--- Returns 1 if all Okta certs are valid for >14 days (PASSING)
--- Returns 0 if any Okta certs expire within 14 days (FAILING)
+-- Returns 1 if all Okta certs are valid for >30 days (PASSING)
+-- Returns 0 if any Okta certs expire within 30 days (FAILING)
 SELECT 1
 WHERE NOT EXISTS (
   SELECT 1
   FROM certificates
   WHERE issuer LIKE '%/DC=com/DC=okta%'
-    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
+    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 30
     AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
 );
 ```
@@ -183,8 +180,9 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 - **Allow All Apps Access:** Checked
 - **Certificate Expiration Notification:** Set to 14 days before expiration
 
+> **Important:** Static SCEP challenges require manual redeployment — Fleet's automatic renewal via `$FLEET_VAR_SCEP_RENEWAL_ID` only works when Fleet is acting as a SCEP proxy (dynamic option). Use the osquery policy below to identify hosts with certificates expiring within 14 days.
+
 ```sql
-**Important:** Okta doesn't support automatic certificate renewal. You must redeploy the profile before the certificate expires to replace it.
 SELECT 1
 FROM certificates
 WHERE issuer LIKE '%/DC=com/DC=okta%'
@@ -314,7 +312,7 @@ Save as `okta-security-restrictions.mobileconfig`.
 Now deploy all the configuration profiles to your Fleet hosts:
 
 1. On your Fleet server, select the fleet you want to deploy Platform SSO to
-2. Navigate to **Controls** → **OS Settings** → **Custom settings**
+2. Navigate to **Controls > OS Settings > Configuration profiles**
 3. Upload each profile in this order:
    - `okta-device-access-scep.mobileconfig` (macOS 14+ only)
    - `okta-associated-domains.mobileconfig`
@@ -344,6 +342,105 @@ Once registration is complete, the user's local macOS password will sync with th
 - Experience seamless authentication to Okta-protected apps in web browsers
 - No longer need to enter passwords or complete MFA challenges for Okta-protected resources
 
+## Simplified Platform SSO (macOS 26+)
+
+Apple introduced Simplified Platform SSO in macOS 26. It streamlines the Platform SSO setup by presenting a **Single Sign-On for Mac** page during Setup Assistant, allowing users to authenticate with their IdP right out of the box with no post-enrollment registration step required.
+
+### Prerequisites (Simplified Platform SSO)
+
+In addition to the [standard prerequisites](#prerequisites) above, Simplified Platform SSO requires:
+
+- Hosts running **macOS 26** or later
+- Hosts enrolled via **Apple Business (AB)**
+- Fleet's **Setup experience** configured for the target fleet
+- The latest **Okta Verify** installer downloaded from your Okta tenant or via Fleet-maintained apps (not the App Store version)
+
+### Step 1: Configure profiles
+
+Simplified Platform SSO uses the same Extensible SSO / Platform SSO profile and Okta Device Access SCEP profile described in the sections above. Follow the existing instructions to create:
+
+- An **Extensible Single Sign-On** profile with Simplified Platform SSO settings.
+
+For users to be created during setup and immediately registered with Platform SSO the profile must include **EnableRegistrationDuringSetup** and must list https://yourdomain.okta.com/v1/auth/device-sign within **URLs**
+
+Example configuration for macOS 26:
+
+```xml
+<key>PayloadType</key>
+<string>com.apple.extensiblesso</string>
+<key>PlatformSSO</key>
+<dict>
+    <key>AccountDisplayName</key>
+    <string>Okta Verify</string>
+    <key>AuthenticationMethod</key>
+    <string>Password</string>
+    <key>UseSharedDeviceKeys</key>
+    <true/>
+    <key>EnableRegistrationDuringSetup</key>
+    <true/>
+</dict>
+<key>ExtensionIdentifier</key>
+<string>com.okta.mobile.auth-service-extension</string>
+<key>TeamIdentifier</key>
+<string>B7F62B65BN</string>
+<key>Type</key>
+<string>Redirect</string>
+<key>URLs</key>
+<array>
+    <string>https://yourdomain.okta.com/device-access/api/v1/nonce</string>
+    <string>https://yourdomain.okta.com/oauth2/v1/token</string>
+    <string>https://yourdomain.okta.com/v1/auth/device-sign</string>
+</array>
+```
+  - View example **[Extensible Single Sign-On profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-sso-extension-simplified-setup-example.mobileconfig)**
+- An **Associated domains** profile.
+  - View example **[Associated domains profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-associated-domains-example.mobileconfig)**
+- An **Okta App configuration** profile. This profile includes IdP variables, if you don't have IdP authentication enabled for enrollment you can delete the key and value for `OktaVerify.UserPrincipalName`.
+  - View example **[Okta App configuration profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-app-config-example.mobileconfig)**
+- An **Okta Device Access SCEP** certificate profile.
+  - View example **[dynamic Okta Device Access SCEP profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-dynamic-example.mobileconfig)**
+  - View example **[static Okta Device Access SCEP profile](https://github.com/fleetdm/fleet/blob/main/docs/solutions/macos/configuration-profiles/okta-device-access-scep-example.mobileconfig)**
+ 
+> Extensible Single Sign-On, Associated domains, and Okta App configuration profiles can be combined into a single profile for simplicity. 
+  
+Upload all profiles to the target fleet in Fleet under **Controls > OS Settings > Configuration profiles**.
+For best results, don't use labels to scope Platform SSO profiles to ensure they're immediately applicable to hosts during setup.
+
+### Step 2: Add Okta Verify as a setup experience app
+
+Download the latest `OktaVerify-Installer.pkg` from your Fleet-maintined apps or Okta Admin Console (**Settings > Downloads**). Don't use the App Store version as it lacks the required MDM integration features.
+
+If downloading from Okta Admin Console, in Fleet navigate to the target fleet and go to **Controls > Setup experience > Install software**. Upload the Okta Verify installer so that it is installed on the host during setup experience.
+
+### Step 3: Enroll via AB
+
+Enroll the host through Apple Business. After setup experience completes (profiles are delivered and Okta Verify is installed), the user is presented with a new **Single Sign-On for Mac** page containing an Okta login prompt.
+
+### End user experience (Simplified Platform SSO)
+
+1. **Single Sign-On for Mac screen:** After setup experience, the user sees an Okta login page. They enter their Okta credentials to authenticate.
+2. **Create account screen:** After authenticating, the standard macOS create-account screen appears, but all fields are locked (the user can only edit the **password hint**). The local account password is automatically set to match their Okta password.
+3. **Okta Verify setup:** Later in Setup Assistant, the user logs into Okta a second time to finalize the Okta Verify registration on the device.
+
+### Password syncing behavior
+
+With Simplified Platform SSO, the user's local macOS password is tied to their Okta password:
+
+- Users **cannot** set a local password that differs from their Okta password.
+- If the Okta password is changed via the Okta web UI, the user may not immediately receive a notification to sync. Locking the screen and unlocking with the **new** Okta password triggers the sync and the old password stops working at that point.
+
+### Multiple credential prompts
+
+When Fleet's **IdP authentication** is also enabled, the user enters IdP credentials **three times** during enrollment:
+
+1. MDM enrollment IdP authentication
+2. Platform SSO authentication (Single Sign-On for Mac screen)
+3. Okta Verify setup
+
+### Managing mixed macOS versions
+
+If your fleet includes hosts running macOS versions older than macOS 26, carefully review Apple's Platform SSO documentation to understand which features are supported on each version. Consider assigning hosts on older macOS versions to a **separate fleet** in Fleet so they receive the standard Platform SSO profiles (described earlier in this guide) rather than the Simplified Platform SSO configuration.
+
 ## Troubleshooting
 
 ### Platform SSO 2.0 Considerations
@@ -358,9 +455,21 @@ To verify SCEP certificates were deployed correctly on macOS:
 3. Confirm the client certificate and private key exist
 4. Verify the certificate has a custom extension with OID `1.3.6.1.4.1.51150.13.1`
 
+### Simplified Platform SSO: Okta Verify factor on a wiped device
+
+If a user's only Okta Verify factor is registered on the host being set up, and that host is wiped and re-enrolled, the final Okta Verify setup step will fail. Okta's logs do not surface a clear error for this scenario.
+
+**Fix:** Before re-enrolling a wiped device, revoke both the host and the user's Okta Verify registrations in the Okta Admin Console.
+
+### Simplified Platform SSO: SCEP or Okta Verify install failure
+
+If the Okta SCEP certificate enrollment fails or the Okta Verify installation fails during setup experience, the user gets stuck at the Single Sign-On for Mac screen with no clean way to proceed. Verify that the SCEP profile is correctly configured and that the Okta Verify package uploaded to Fleet is the latest version from your Okta tenant. Admins can wipe hosts from Fleet to retry the setup.
+
 ## Additional Resources
 
 For more detailed information about configuring Okta Desktop Password Sync, see the [official Okta documentation](https://help.okta.com/oie/en-us/content/topics/oda/macos-pw-sync/configure-macos-password-sync.htm).
+
+To see a full list of properites for the Extensible Single Sign-On configuration profile, see the [Apple documentation](https://developer.apple.com/documentation/devicemanagement/extensiblesinglesignon).
 
 To create and customize configuration profiles, download [iMazing Profile Editor](https://imazing.com/profile-editor).
 
@@ -374,4 +483,3 @@ For Device Access SCEP certificate configuration details, see [Use Okta as a CA 
 <meta name="publishedOn" value="2026-03-08">
 <meta name="articleTitle" value="Deploying Platform SSO with Okta Device Access">
 <meta name="description" value="Learn how to use Fleet to deploy the Okta Platform SSO Extension">
-

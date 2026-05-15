@@ -11,53 +11,55 @@
 #     Add markdown content to this field.
 ################################################
 #
-- jobTitle: 🚀 Sr. Customer Support Engineer
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: "$75,000 - $130,000"
-  responsibilities: |
-    - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo.
-    - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works.
-    - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
-    - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
-    - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
-    - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
-    - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
-  experience: |
-    - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery.
-    - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
-    - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
-    - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
-    - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
+# - jobTitle: 🚀 Sr. Customer Support Engineer
+#   department: Customers
+#   hiringManagerName: Zay Hanlon
+#   hiringManagerGithubUsername: zayhanlon
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#   onTargetEarnings: "$75,000 - $130,000"
+#   responsibilities: |
+#     - 🏋🏻 Train under our customer support and engineering team to learn the ins and outs of Fleet, frequently asked customer questions, develop an understanding of our troubleshooting guide, and learn how to search through documentation and Fleet repo.
+#     - 🚀 Deploy Fleet on your own to better understand the customer experience and how the product works.
+#     - ⏫ Work hand-in-hand with the customer success team by participating in calls with customers to discuss any support issues they may have.
+#     - 🥇 Be the first line of defense in customer Slack channels for any reported problems, how-to questions, feature request intake, and bug report filling.
+#     - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
+#     - 💡 Excellent communication and collaboration skills, with the ability to work closely with customer success, engineering, and product teams.
+#     - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience.
+#   experience: |
+#     - 🦉 Experience: 2-3 years of work experience supporting Windows, Linux, or MacOS devices and MDM solutions like Jamf, Kandji, InTune, WS1, etc. Experience with AWS, SQL, Redis, Terraform, and osquery.
+#     - 🛠️ Communication: You are outgoing, customer-facing, and enjoy problem-solving while assisting external stakeholders.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - 💭 Required: IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
+#     - 💖 An excellent understanding of macOS, Windows, Linux core services like Autopilot, ABM/ASM, MDM, ADE, APNs, syslog, etc.
+#     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
+#     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Channel Account Manager
-  department: Sales
-  hiringManagerName: Chaz MacLaughlin
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/chazmaclaughlin/
-  hiringManagerGithubUsername: chazmac6
-  onTargetEarnings: "$200,000 - $280,000"
+- jobTitle: 💸 Controller
+  department: Finance 
+  hiringManagerName: Tina Ong
+  hiringManagerLinkedInUrl: https://www.linkedin.com/in/ongtina/ 
+  hiringManagerGithubUsername: rfoo2015 
+  onTargetEarnings: "$150,000 - $190,000"
   responsibilities: |
-    - 🤝 Develop and nurture strong, productive relationships with channel partners, executives, and sales teams, acting as the primary liaison for Fleet.
-    - 📈 Execute Fleet's channel strategy, supporting partner acquisition and achieving revenue targets through partner organizations.
-    - ✈️ Spend ~50% of time traveling to deepen partner relationships, accelerate deals, and expand Fleet’s presence in key markets.
-    - 🎯 Facilitate and manage joint selling initiatives between channel partners and Fleet's direct sales team, ensuring seamless coordination and minimizing conflict.
-    - 🚀 Support the development and launch of new partner offerings and go-to-market strategies, identifying opportunities for incremental joint revenue and ensuring partner compliance with programs and agreements.
-    - 🌐 Collaborate extensively with internal teams such as Marketing, Product Design, Customer Success, and Engineering, as well as external stakeholders, to enhance product offerings, provide partner feedback, and capture market opportunities.
-    - 🧠 Understand the market dynamics, industry-specific trends, and landscapes to bring new insights and solutions that foster sustainable business growth through the channel.
-    - 🦢 Work with the Product Design, Customer Success, and Engineering teams to facilitate feature development based on channel and prospect asks.
-    - 🤝 Collaborate with Marketing to help execute and track campaigns, to achieve quarterly pipeline and revenue targets.
+    - 📊 Own the full accounting cycle, including month-end and year-end close, ensuring accurate and timely financial reporting across Fleet.
+    - 🤝 Partner closely with leadership, operations, and department heads to provide financial insights that drive strategic decision-making.
+    - 📈 Build and maintain scalable accounting processes, internal controls, and policies that support Fleet's growth as a fast-moving, remote-first company.
+    - 🎯 Oversee accounts payable, accounts receivable, payroll, and general ledger functions, ensuring accuracy and compliance at every step.
+    - 🚀 Manage relationships with external tax advisors for accurate, timely filings and compliance across sales and payroll tax obligations.
+    - 🔍 Own audit-readiness and manage financial statement audits end-to-end, in collaboration with external auditors.
+    - 🌐 Collaborate extensively with internal teams such as People, Sales, and Marketing to support budgeting, forecasting, and vendor management.
+    - 🧠 Identify opportunities to improve financial systems and tooling, implementing best practices that reduce manual work and increase visibility.
+    - 💡 Provide ad hoc financial analysis and modeling to help the business evaluate new opportunities, partnerships, and investments.
   experience: |
-    - 🦉 Proven experience in channel sales or partner management, ideally within B2B SaaS or enterprise technology, with a track record of driving revenue through partnerships.
-    - 🗣️ Exceptional communication, negotiation, and relationship-building skills, with the ability to influence key decision-makers and stakeholders at all levels.
-    - ⚙️ System-oriented thinker with a hands-on approach, capable of supporting process improvements and operational efficiency within a channel ecosystem.
-    - ⚡ Agile and adaptable, thriving in a fast-paced, results-driven, remote-first environment while managing multiple priorities and complex projects.
-    - 🧑‍💻 Love technology and can explain how things work in detail, with experience marketing to or working with IT engineers, security engineers, or DevOps teams.
-    - 🧪 Experience with Slack, Salesforce, Google Suite, GitHub, and other tools in an all-remote setting.
-    - ➕ Bonus: Direct experience with Fleet, MDM, osquery or SQL query writing, and working with Client Platform Engineering, SRE, or Security Engineering teams.
+    - 🦉 5+ years of progressive accounting experience, ideally in a high-growth B2B SaaS or technology company, with at least 2 years in a controller role.
+    - 📜 Active CPA license, and managed audit process from start to finish. 
+    - 🗣️ Strong communicator who can translate complex financial data into clear, actionable insights for both technical and non-technical stakeholders.
+    - ⚙️ Systems-oriented and detail-driven, with a track record of building and improving accounting processes, controls, and workflows from the ground up.
+    - ⚡ Agile and adaptable, comfortable operating in a fast-paced, remote-first environment where priorities shift and ownership is encouraged.
+    - 🧑‍💻 Comfortable working with modern tooling and excited to leverage technology to automate and streamline financial operations.
+    - 🧪 Experience with tools like QuickBooks, Salesforce, Bill.com, Brex, Google Suite, and Slack in an all-remote setting.
+    - ➕ Bonus: Experience with AI-native tools (e.g. Rillet, Campfire, Tabs, Aleph) and building AI-assisted workflows for financial reporting and reconciliation; familiarity with open-source or device management concepts.
+
 
 #- jobTitle: 🐋 Enterprise Customer Success Manager
 # department: Customers
@@ -226,33 +228,33 @@
     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using the terminal to execute commands or run scripts is a bonus.
     - 🧑‍🔬 Experience working with enterprise customers to help resolve complex technical issues.
 
-- jobTitle: 🐋 Customer Success Manager
-  department: Customers
-  hiringManagerName: Zay Hanlon
-  hiringManagerGithubUsername: zayhanlon
-  hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
-  onTargetEarnings: "$120,000 - $160,000"
-  responsibilities: |
-    - ⏫ Own post-sales relationships with a portfolio of customers and be responsible for advocating for their desired outcomes.
-    - 📣 Manage multiple customer deployments and escalations simultaneously.
-    - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
-    - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
-    - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
-    - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
-    - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
-    - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives are top of mind.
-    - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
-  experience: |
-    - 💭 Customer success management background supporting IT/MDM solutions like Fleet, Intune, Workspace One, etc.
-    - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
-    - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
-    - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
-    - 🧑‍🔬 Experience working with customers to coordinate resolution of complex technical issues and project manage deployment initiatives.
-    - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
-    - 🦉 3+ years of work experience managing relationships with customers in the device management space. Experience with executing and tracking results tied to customer escalations, renewals, and expansion opportunities.
-    - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
-    - 🟣 Openness: You are flexible and open to new ideas and ways of working.
-    - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
+# - jobTitle: 🐋 Customer Success Manager
+#   department: Customers
+#   hiringManagerName: Zay Hanlon
+#   hiringManagerGithubUsername: zayhanlon
+#   hiringManagerLinkedInUrl: https://www.linkedin.com/in/zayhanlon/
+#   onTargetEarnings: "$120,000 - $160,000"
+#   responsibilities: |
+#     - ⏫ Own post-sales relationships with a portfolio of customers and be responsible for advocating for their desired outcomes.
+#     - 📣 Manage multiple customer deployments and escalations simultaneously.
+#     - 🌡️ Work as a project manager alongside the customer and internal teams to establish an onboarding plan and define success criteria for new customers.
+#     - 🪴 Promote product adoption, referencability, and customer advocacy with key customer stakeholders.
+#     - 🕴️ Utilize systems and tools to analyze pipeline and opportunity data for renewals and expansions, and keep all information up to date for leadership reporting.
+#     - 🚀 Work collaboratively with product and engineering teams to facilitate feature development based on customer asks.
+#     - 📈 Proactively engage with customers to identify potential health risk indicators and remove blockers to success and retention.
+#     - 💡 Excellent time management, communication and collaboration skills, with the ability to partner with various stakeholders to ensure customer key objectives are top of mind.
+#     - 🧪 Extensive experience with Slack, Salesforce, Google Suite, and GitHub.
+#   experience: |
+#     - 💭 Customer success management background supporting IT/MDM solutions like Fleet, Intune, Workspace One, etc.
+#     - 💖 You know how to manage your time and priorities between customer escalations, customer renewals and expansions, and other day-to-day responsibilities.
+#     - ✍🏽 You have the ability to effectively influence key stakeholders, from senior executives to day-to-day engineering contacts, and drive Fleet's value with them.
+#     - 🧬 You care about delivering an outstanding customer experience and advocating for the customer's needs within Fleet.
+#     - 🧑‍🔬 Experience working with customers to coordinate resolution of complex technical issues and project manage deployment initiatives.
+#     - 🤝 Collaboration: You work best in a team-based environment. You are decisive with the ability to shift gears between thinking and doing.
+#     - 🦉 3+ years of work experience managing relationships with customers in the device management space. Experience with executing and tracking results tied to customer escalations, renewals, and expansion opportunities.
+#     - 🛠️ You are outgoing, enjoy being customer facing, and have a passion for problem solving while assisting external stakeholders.
+#     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
+#     - ➕ Bonus: Familiarity with osquery, SQLite, GitOps workflows, Terraform, Tines and open source projects. Experience working with IT, SRE, CPE, or SecOps teams.
 
 - jobTitle: 🦢 Product Designer
   department: Product Design
@@ -425,7 +427,7 @@
 # onTargetEarnings: '$80,000 - $130,000'
 # responsibilities: |
 #    - 🖥️ Provide technical support to Fleet team members, troubleshooting hardware, software, and account access issues in a timely and professional manner.
-#    - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops, YubiKeys, and other IT assets.
+#    - 📦 Manage hardware procurement, inventory, and distribution for company-issued equipment including laptops and other IT assets.
 #    - 🔐 Provision and manage user accounts across various SaaS platforms (Google Workspace, Slack, Zoom, etc.) for new hires and role changes.
 #    - 🛠️ Maintain and optimize IT infrastructure, tools, and systems to ensure smooth operations for a fully remote team.
 #    - 📋 Process incoming and outgoing equipment, ensuring devices are properly configured, enrolled in device management, and securely shipped to team members.
@@ -439,7 +441,7 @@
 # experience: |
 #    - 💼 3-5 years of experience in IT administration, help desk support, or similar technical support role.
 #    - 🖥️ Strong technical skills with macOS, Windows, and Linux operating systems.
-#    - 🍎 Experience with Apple Business Manager (ABM) and Apple Device Enrollment (ADE) for device procurement and management.
+#    - 🍎 Experience with Apple Business (AB) and Apple Device Enrollment (ADE) for device procurement and management.
 #    - 🔐 Experience with identity and access management, including provisioning accounts in Google Workspace, Slack, and other SaaS platforms.
 #    - 📦 Familiarity with hardware procurement, inventory management, and asset tracking systems.
 #    - 💬 Excellent communication and customer service skills, with the ability to explain technical concepts to non-technical users.

@@ -45,6 +45,8 @@ Software installer uploads will fail if Fleet can't extract this metadata and ve
 
 .tar.gz archives are uploaded as-is without attempting to pull metadata, and will be added successfully as long as they are valid archives, and as long as install and uninstall scripts are supplied.
 
+> Fleet regularly enhances its metadata extraction logic, which can change how packages are matched to software inventory. When this happens, you may see this error: "The selected package is for different software." To fix it, delete and re-add the package.
+
 ### Script-only packages
 
 Script-only packages (`.sh` and `.ps1` files) are packages that only contain a script that runs directly on hosts without installing traditional software. The script file's contents become the install script.  The `.sh` files are supported for Linux hosts, and`.ps1` files for Windows hosts.
@@ -105,8 +107,8 @@ Once the package is installed, Fleet will automatically refetch the host's vital
 
 ## Edit the package
 
-* Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
-  * Use a dropdown above the table to filter software **Available for install** or software available in **Self-service**.
+* Navigate to the **Software** page, choose a fleet, and select the **Library** tab.
+* Select the software you want to edit.
 * On the **Software details** page select **Actions > Edit software** to edit the software's [self-service](https://fleetdm.com/guides/software-self-service) status, change its target to different sets of hosts, or edit advanced options like pre-install query, install script, post-install script, and uninstall script.
 * Select **Actions > Edit appearance** to edit the software's icon and display name. The icon and display name can be edited for software that is available for install. The new icon and display name will appear on the software list and details pages for the fleet where the package is uploaded, as well as on **My device > Self-service**. If the display name is not set, then the default name (ingested by osquery) will be used.
 
@@ -125,8 +127,8 @@ After a software package is installed on a host, it can be uninstalled on the ho
 
 ## Delete the package
 
-* Navigate to the **Software** page, choose a fleet, and select the software you want to edit.
-  * Use the dropdown above the table to filter software **Available for install** or software available in **Self-service**.
+* Navigate to the **Software** page, choose a fleet, and select the **Library** tab.
+* Select the software you want to delete.
 * On the **Software details** page, select the **Delete** icon next to the uploaded package file.
 
 > Deleting a software package from a fleet will cancel pending installs for hosts that are not in the middle of installing the software, but will not uninstall the software from hosts where it is already installed.

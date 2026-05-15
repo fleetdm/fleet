@@ -2,11 +2,10 @@ package worker
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -16,11 +15,11 @@ import (
 )
 
 func TestSoftwareWorker(t *testing.T) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysqltest.CreateMySQLDS(t)
 	// call TruncateTables immediately as some DB migrations may create jobs
-	mysql.TruncateTables(t, ds)
+	mysqltest.TruncateTables(t, ds)
 
-	mysql.SetTestABMAssets(t, ds, "fleet")
+	mysqltest.SetTestABMAssets(t, ds, "fleet")
 
 }
 
@@ -74,8 +73,8 @@ func TestBulkSetAndroidAppsAvailableForHostsPreservesFleetAgent(t *testing.T) {
 	ds.GetAndroidAppsInScopeForHostFunc = func(ctx context.Context, hostID uint) ([]string, error) {
 		return []string{"com.example.teamapp"}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
-		return map[string]json.RawMessage{}, nil
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+		return map[string][]byte{}, nil
 	}
 
 	var capturedAppPolicies []*androidmanagement.ApplicationPolicy
@@ -128,8 +127,8 @@ func TestBulkMakeAndroidAppsAvailableForHostPreservesFleetAgent(t *testing.T) {
 			},
 		}, nil
 	}
-	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string]json.RawMessage, error) {
-		return map[string]json.RawMessage{}, nil
+	ds.BulkGetAndroidAppConfigurationsFunc = func(ctx context.Context, appIDs []string, globalOrTeamID uint) (map[string][]byte, error) {
+		return map[string][]byte{}, nil
 	}
 
 	var capturedAppPolicies []*androidmanagement.ApplicationPolicy

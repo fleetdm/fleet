@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CIS 6.3.3</string>
+      <key>PayloadType</key>
+      <string>com.apple.Safari</string>
+      <key>PayloadIdentifier</key>
+      <string>com.fleetdm.cis-6.3.3.check</string>
+      <key>PayloadUUID</key>
+      <string>DD0EC285-7A2B-4746-93F9-1BDA9E0C6B3C</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>WarnAboutFraudulentWebsites</key>
+      <true/>
+    </dict>
+  </array>
+  <key>PayloadDescription</key>
+  <string>CIS 6.3.3 - Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled</string>
+  <key>PayloadDisplayName</key>
+  <string>Ensure Warn When Visiting A Fraudulent Website in Safari Is Enabled</string>
+  <key>PayloadIdentifier</key>
+  <string>com.fleetdm.cis-6.3.3</string>
+  <key>PayloadRemovalDisallowed</key>
+  <false/>
+  <key>PayloadScope</key>
+  <string>System</string>
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadUUID</key>
+  <string>992AB133-C6BA-472E-9375-FA179DCE513B</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+</dict>
+</plist>

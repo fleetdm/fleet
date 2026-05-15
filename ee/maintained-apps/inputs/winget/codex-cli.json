@@ -1,0 +1,13 @@
+{
+  "name": "Codex CLI",
+  "slug": "codex-cli/windows",
+  "package_identifier": "OpenAI.Codex",
+  "unique_identifier": "Codex CLI",
+  "install_script_path": "ee/maintained-apps/inputs/winget/scripts/codex-cli_install.ps1",
+  "uninstall_script_path": "ee/maintained-apps/inputs/winget/scripts/codex-cli_uninstall.ps1",
+  "exists_query": "SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe';",
+  "installer_arch": "x64",
+  "installer_type": "zip",
+  "installer_scope": "user",
+  "default_categories": ["Developer tools"]
+}

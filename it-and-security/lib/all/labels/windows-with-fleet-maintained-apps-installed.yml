@@ -3,6 +3,11 @@
   query: SELECT 1 FROM programs WHERE name = 'Slack' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows
+- name: x86 Windows hosts with 1Password installed
+  description: x86 Windows hosts with 1Password installed
+  query: SELECT 1 FROM programs WHERE name = '1Password' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
 - name: x86 Windows hosts with Claude installed
   description: x86 Windows hosts with Claude installed
   query: SELECT 1 FROM programs WHERE name = 'Claude' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
@@ -26,5 +31,10 @@
 - name: x86 Windows hosts with Visual Studio Code installed
   description: x86 Windows hosts with Visual Studio Code installed
   query: SELECT 1 FROM programs WHERE name LIKE 'Microsoft Visual Studio Code%' AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
+  label_membership_type: dynamic
+  platform: windows
+- name: x86 Windows hosts with Adobe Acrobat Reader installed
+  description: x86 Windows hosts with Adobe Acrobat Reader installed (excludes Adobe Acrobat Pro, which shares the 'Adobe Acrobat (64-bit)' program name on Windows; differentiated by the Reader install_location).
+  query: SELECT 1 FROM programs WHERE ((name = 'Adobe Acrobat (64-bit)' AND publisher LIKE 'Adobe%' AND install_location LIKE '%\Reader\%') OR (name LIKE 'Adobe Acrobat Reader%' AND publisher LIKE 'Adobe%')) AND EXISTS (SELECT 1 FROM os_version WHERE arch NOT LIKE 'ARM%');
   label_membership_type: dynamic
   platform: windows

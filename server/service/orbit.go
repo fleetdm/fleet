@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
 	"github.com/fleetdm/fleet/v4/server"
@@ -266,26 +267,12 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		}
 	}
 
-	var stickyEnrollment *string
-	if svc.keyValueStore != nil {
-		// Check for sticky MDM enrollment flag. When set (e.g., after a host transfer),
-		// this prevents enrollment-based team changes for a time window to avoid race conditions
-		// with MDM profile delivery.
-		stickyEnrollment, err = svc.keyValueStore.Get(ctx, fleet.StickyMDMEnrollmentKeyPrefix+hostInfo.HardwareUUID)
-		if err != nil {
-			// Log error but continue enrollment (fail-open approach). If Redis is unavailable,
-			// enrollment proceeds without sticky behavior rather than blocking.
-			svc.logger.ErrorContext(ctx, "failed to get sticky enrollment", "err", err, "host_uuid", hostInfo.HardwareUUID)
-		}
-	}
-
 	host, err := svc.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(appConfig.MDM.EnabledAndConfigured),
 		fleet.WithEnrollOrbitHostInfo(hostInfo),
 		fleet.WithEnrollOrbitNodeKey(orbitNodeKey),
 		fleet.WithEnrollOrbitTeamID(secret.TeamID),
 		fleet.WithEnrollOrbitIdentityCert(identityCert),
-		fleet.WithEnrollOrbitIgnoreTeamUpdate(stickyEnrollment != nil),
 	)
 	if err != nil {
 		return "", fleet.OrbitError{Message: "failed to enroll " + err.Error()}
@@ -341,7 +328,67 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 		svc.logger.ErrorContext(ctx, "record fleet enroll activity", "err", err)
 	}
 
+	// Non-fatal: enrollment must succeed even if the debug stamp fails.
+	if err := svc.maybeStampOrbitDebugFromAgentOptions(ctx, host, appConfig); err != nil {
+		svc.logger.ErrorContext(ctx, "failed to stamp orbit debug from agent options on enroll", "err", err)
+	}
+
 	return orbitNodeKey, nil
+}
+
+// maybeStampOrbitDebugFromAgentOptions stamps orbit_debug_until = now()+duration
+// when the host's effective agent options set debug_logging_on_enroll_duration.
+func (svc *Service) maybeStampOrbitDebugFromAgentOptions(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) error {
+	rawOpts, err := svc.loadAgentOptionsForHost(ctx, host, appConfig)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load agent options for enroll debug stamp")
+	}
+	if len(rawOpts) == 0 {
+		return nil
+	}
+
+	var opts fleet.AgentOptions
+	if err := json.Unmarshal(rawOpts, &opts); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshal agent options for enroll debug stamp")
+	}
+	if opts.Orbit == nil || opts.Orbit.DebugLoggingOnEnrollDuration <= 0 {
+		return nil
+	}
+
+	// Defense in depth: validator already caps on write.
+	seconds := min(opts.Orbit.DebugLoggingOnEnrollDuration, fleet.MaxOrbitDebugLoggingOnEnrollDurationSeconds)
+	duration := time.Duration(seconds) * time.Second
+
+	until := svc.clock.Now().Add(duration).UTC().Truncate(time.Second)
+	if err := svc.ds.ExtendHostOrbitDebugUntil(ctx, host.ID, until); err != nil {
+		return ctxerr.Wrap(ctx, err, "set orbit_debug_until on enroll")
+	}
+	svc.logger.InfoContext(ctx, "stamped orbit debug logging on enroll",
+		"host_id", host.ID,
+		"team_id", host.TeamID,
+		"orbit_debug_until", until,
+		"duration", duration.String(),
+	)
+	return nil
+}
+
+// loadAgentOptionsForHost returns the team's agent_options if the host is in
+// a team, otherwise the global options from AppConfig.
+func (svc *Service) loadAgentOptionsForHost(ctx context.Context, host *fleet.Host, appConfig *fleet.AppConfig) (json.RawMessage, error) {
+	if host.TeamID != nil {
+		opts, err := svc.ds.TeamAgentOptions(ctx, *host.TeamID)
+		if err != nil {
+			return nil, err
+		}
+		if opts == nil {
+			return nil, nil
+		}
+		return *opts, nil
+	}
+	if appConfig.AgentOptions == nil {
+		return nil, nil
+	}
+	return *appConfig.AgentOptions, nil
 }
 
 func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -350,6 +397,33 @@ func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.
 		return fleet.OrbitGetConfigResponse{Err: err}, nil
 	}
 	return fleet.OrbitGetConfigResponse{OrbitConfig: cfg}, nil
+}
+
+// resolveOrbitDebugLogging returns the merged command_line_flags and the
+// *bool to set on OrbitConfig.DebugLogging. When the host's orbit_debug_until
+// is unset or expired, returns (flags unchanged, nil). When active, merges
+// verbose=true into the flags map without clobbering admin-specified values.
+func resolveOrbitDebugLogging(ctx context.Context, host *fleet.Host, flags json.RawMessage) (json.RawMessage, *bool, error) {
+	if host == nil || host.OrbitDebugUntil == nil || !host.OrbitDebugUntil.After(time.Now()) {
+		return flags, nil, nil
+	}
+
+	adminFlags := map[string]any{}
+	if len(flags) > 0 {
+		if err := json.Unmarshal(flags, &adminFlags); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: parse command_line_flags")
+		}
+	}
+	if _, ok := adminFlags["verbose"]; !ok {
+		adminFlags["verbose"] = true
+	}
+
+	merged, err := json.Marshal(adminFlags)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "orbit debug logging: marshal merged flags")
+	}
+	debug := true
+	return merged, &debug, nil
 }
 
 func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, error) {
@@ -455,6 +529,25 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		}
 	}
 
+	// Check if Windows host is in Autopilot setup experience. When awaiting_configuration is Pending or Active,
+	// orbit should run the setup experience to install software during the ESP.
+	//
+	// We also gate on WindowsEnabledAndConfigured: if Windows MDM is being turned off, the unenrollment branch
+	// above sets NeedsProgrammaticWindowsMDMUnenrollment, and we must not also set RunSetupExperience for the
+	// same orbit response.
+	if appConfig.MDM.WindowsEnabledAndConfigured &&
+		host.Platform == "windows" &&
+		isConnectedToFleetMDM {
+		awaiting, err := svc.ds.GetMDMWindowsAwaitingConfigurationByHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "checking Windows awaiting configuration")
+		}
+		if awaiting == fleet.WindowsMDMAwaitingConfigurationPending ||
+			awaiting == fleet.WindowsMDMAwaitingConfigurationActive {
+			notifs.RunSetupExperience = true
+		}
+	}
+
 	// load the (active, ready to execute) pending script executions for that host
 	pending, err := svc.ds.ListReadyToExecuteScriptsForHost(ctx, host.ID, appConfig.ServerSettings.ScriptsDisabled)
 	if err != nil {
@@ -494,6 +587,17 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			if err := json.Unmarshal(*teamAgentOptions, &opts); err != nil {
 				return fleet.OrbitConfig{}, err
 			}
+		}
+
+		// Fall back to the global app config's script execution timeout when the
+		// team has no explicit override. Other agent-options fields are intentionally
+		// not inherited from the global config.
+		if opts.ScriptExecutionTimeout == 0 && appConfig.AgentOptions != nil {
+			var globalOpts fleet.AgentOptions
+			if err := json.Unmarshal(*appConfig.AgentOptions, &globalOpts); err != nil {
+				return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "unmarshal global agent options for script timeout fallback")
+			}
+			opts.ScriptExecutionTimeout = globalOpts.ScriptExecutionTimeout
 		}
 
 		extensionsFiltered, err := svc.filterExtensionsForHost(ctx, opts.Extensions, host)
@@ -560,13 +664,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 			_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 		}
 
+		mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
+		if err != nil {
+			return fleet.OrbitConfig{}, err
+		}
+
 		return fleet.OrbitConfig{
 			ScriptExeTimeout: opts.ScriptExecutionTimeout,
-			Flags:            opts.CommandLineStartUpFlags,
+			Flags:            mergedFlags,
 			Extensions:       extensionsFiltered,
 			Notifications:    notifs,
 			NudgeConfig:      nudgeConfig,
 			UpdateChannels:   updateChannels,
+			DebugLogging:     debugLogging,
 		}, nil
 	}
 
@@ -635,13 +745,19 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		_ = svc.ds.ClearPendingEscrow(ctx, host.ID)
 	}
 
+	mergedFlags, debugLogging, err := resolveOrbitDebugLogging(ctx, host, opts.CommandLineStartUpFlags)
+	if err != nil {
+		return fleet.OrbitConfig{}, err
+	}
+
 	return fleet.OrbitConfig{
 		ScriptExeTimeout: opts.ScriptExecutionTimeout,
-		Flags:            opts.CommandLineStartUpFlags,
+		Flags:            mergedFlags,
 		Extensions:       extensionsFiltered,
 		Notifications:    notifs,
 		NudgeConfig:      nudgeConfig,
 		UpdateChannels:   updateChannels,
+		DebugLogging:     debugLogging,
 	}, nil
 }
 
@@ -676,6 +792,8 @@ func (svc *Service) processReleaseDeviceForOldFleetd(ctx context.Context, host *
 			User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
 		}
 		acctCmds, _, _, err := svc.ds.ListMDMCommands(ctx, adminTeamFilter, &fleet.MDMCommandListOptions{
+			// PerPage 1: only acctCmds[0] is read below.
+			ListOptions: fleet.ListOptions{PerPage: 1},
 			Filters: fleet.MDMCommandFilters{
 				HostIdentifier: host.UUID,
 				RequestType:    "AccountConfiguration",
@@ -1022,42 +1140,41 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 					return ctxerr.Wrap(ctx, err, "queue host vitals refetch")
 				}
 			}
+		case "wipe_ref":
+			// a successful wipe means the host has been erased, so any other
+			// upcoming activities queued behind the wipe will never run -
+			// cancel them silently before falling through to record the
+			// "ran script" activity for the wipe itself.
+			if hsr.ExitCode != nil && *hsr.ExitCode == 0 {
+				if _, err := svc.ds.BatchCancelAllHostUpcomingActivities(ctx, host.ID); err != nil {
+					return ctxerr.Wrap(ctx, err, "cancel upcoming activities after wipe")
+				}
+			}
+			fallthrough
 		default:
-			// TODO(sarah): We may need to special case lock/unlock script results here?
 			var policyName *string
-			shouldCreateActivity := true
 			if hsr.PolicyID != nil {
 				if policy, err := svc.ds.PolicyLite(ctx, *hsr.PolicyID); err == nil {
 					policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
 				}
-
-				// Suppress activity for policy automation retires
-				if hsr.AttemptNumber != nil {
-					scriptFailed := hsr.ExitCode == nil || *hsr.ExitCode != 0
-					if scriptFailed && *hsr.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
-					}
-				}
 			}
 
-			if shouldCreateActivity {
-				if err := svc.NewActivity(
-					ctx,
-					user,
-					fleet.ActivityTypeRanScript{
-						HostID:              host.ID,
-						HostDisplayName:     host.DisplayName(),
-						ScriptExecutionID:   hsr.ExecutionID,
-						BatchExecutionID:    hsr.BatchExecutionID,
-						ScriptName:          scriptName,
-						Async:               !hsr.SyncRequest,
-						PolicyID:            hsr.PolicyID,
-						PolicyName:          policyName,
-						FromSetupExperience: fromSetupExperience,
-					},
-				); err != nil {
-					return ctxerr.Wrap(ctx, err, "create activity for script execution request")
-				}
+			if err := svc.NewActivity(
+				ctx,
+				user,
+				fleet.ActivityTypeRanScript{
+					HostID:              host.ID,
+					HostDisplayName:     host.DisplayName(),
+					ScriptExecutionID:   hsr.ExecutionID,
+					BatchExecutionID:    hsr.BatchExecutionID,
+					ScriptName:          scriptName,
+					Async:               !hsr.SyncRequest,
+					PolicyID:            hsr.PolicyID,
+					PolicyName:          policyName,
+					FromSetupExperience: fromSetupExperience,
+				},
+			); err != nil {
+				return ctxerr.Wrap(ctx, err, "create activity for script execution request")
 			}
 		}
 	}
@@ -1457,7 +1574,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}
 
 		var policyName *string
-		shouldCreateActivity := true
 		if hsi.PolicyID != nil {
 			if policy, err := svc.ds.PolicyLite(ctx, *hsi.PolicyID); err == nil && policy != nil {
 				policyName = &policy.Name // fall back to blank policy name if we can't retrieve the policy
@@ -1480,13 +1596,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 							"policy_id", *hsi.PolicyID,
 							"err", err,
 						)
-					}
-				}
-
-				// Only create activity on final
-				if hsi.AttemptNumber != nil {
-					if *hsi.AttemptNumber < fleet.MaxPolicyAutomationRetries {
-						shouldCreateActivity = false
 					}
 				}
 			}
@@ -1519,26 +1628,24 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 			}
 		}
 
-		if shouldCreateActivity {
-			if err := svc.NewActivity(
-				ctx,
-				user,
-				fleet.ActivityTypeInstalledSoftware{
-					HostID:              host.ID,
-					HostDisplayName:     host.DisplayName(),
-					SoftwareTitle:       hsi.SoftwareTitle,
-					SoftwarePackage:     hsi.SoftwarePackage,
-					InstallUUID:         result.InstallUUID,
-					Status:              string(status),
-					Source:              hsi.Source,
-					SelfService:         hsi.SelfService,
-					PolicyID:            hsi.PolicyID,
-					PolicyName:          policyName,
-					FromSetupExperience: fromSetupExperience,
-				},
-			); err != nil {
-				return ctxerr.Wrap(ctx, err, "create activity for software installation")
-			}
+		if err := svc.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeInstalledSoftware{
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         result.InstallUUID,
+				Status:              string(status),
+				Source:              hsi.Source,
+				SelfService:         hsi.SelfService,
+				PolicyID:            hsi.PolicyID,
+				PolicyName:          policyName,
+				FromSetupExperience: fromSetupExperience,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for software installation")
 		}
 
 		// lastly, queue a vitals refetch so we get a proper view of inventory from osquery

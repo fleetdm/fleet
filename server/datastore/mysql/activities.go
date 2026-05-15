@@ -11,11 +11,17 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	common_mysql "github.com/fleetdm/fleet/v4/server/platform/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
 var deleteIDsBatchSize = 1000
+
+// hostUpcomingActivitiesAllowedOrderKeys is empty: the query supplies its own
+// ORDER BY and the service layer forces opt.OrderKey to "".
+var hostUpcomingActivitiesAllowedOrderKeys = common_mysql.OrderKeyAllowlist{}
 
 // ListHostUpcomingActivities returns the list of activities pending execution
 // or processing for the specific host. It is the "unified queue" of work to be
@@ -279,7 +285,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	// the ListOptions supported for this query are limited, only the pagination
 	// OFFSET and LIMIT can be added, so it's fine to have the ORDER BY already
 	// in the query before calling this (enforced at the server layer).
-	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+	stmt, args, err := appendListOptionsWithCursorToSQLSecure(listStmt, args, &opt, hostUpcomingActivitiesAllowedOrderKeys)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "list upcoming activities")
+	}
 
 	var activities []*fleet.UpcomingActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
@@ -389,7 +398,7 @@ func (ds *Datastore) CleanupExpiredLiveQueries(ctx context.Context, expiredWindo
 func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint, executionID string) (fleet.ActivityDetails, error) {
 	var details fleet.ActivityDetails
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID)
+		activityDetails, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, executionID, true)
 		details = activityDetails
 		return err
 	}); err != nil {
@@ -397,6 +406,50 @@ func (ds *Datastore) CancelHostUpcomingActivity(ctx context.Context, hostID uint
 	}
 
 	return details, nil
+}
+
+// BatchCancelAllHostUpcomingActivities cancels every upcoming activity (both queued
+// and already-activated) for the given host in a single transaction. Unlike the public
+// single-cancel API, this bypasses the lock/wipe service-layer guard intentionally -
+// this is called after a Wipe so there's no need for this check. Returns the canceled
+// activities.
+func (ds *Datastore) BatchCancelAllHostUpcomingActivities(ctx context.Context, hostID uint) ([]fleet.ActivityDetails, error) {
+	var canceled []fleet.ActivityDetails
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		canceled, err = ds.batchCancelAllHostUpcomingActivities(ctx, tx, hostID)
+		return err
+	}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch cancel upcoming activities transaction")
+	}
+
+	return canceled, nil
+}
+
+// batchCancelAllHostUpcomingActivities is the tx-aware variant of
+// BatchCancelAllHostUpcomingActivities. Call this from within a surrounding
+// withTx/withRetryTxx callback to keep cancellations atomic with the caller's other writes.
+func (ds *Datastore) batchCancelAllHostUpcomingActivities(ctx context.Context, tx sqlx.ExtContext, hostID uint) ([]fleet.ActivityDetails, error) {
+	const loadStmt = `SELECT execution_id FROM upcoming_activities WHERE host_id = ? ORDER BY id FOR UPDATE`
+	var execIDs []string
+	if err := sqlx.SelectContext(ctx, tx, &execIDs, loadStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load upcoming activity execution ids")
+	}
+
+	canceled := make([]fleet.ActivityDetails, 0, len(execIDs))
+	for i, execID := range execIDs {
+		// only the last cancellation triggers activation of the next activity; the others
+		// would activate something that is about to be canceled in the next iteration.
+		// Technically we could always pass "false" as there shouldn't be any activity
+		// at the end, but there's no harm in doing it just in case a race could happen.
+		activateNext := i == len(execIDs)-1
+		details, err := ds.cancelHostUpcomingActivity(ctx, tx, hostID, execID, activateNext)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "cancel upcoming activity")
+		}
+		canceled = append(canceled, details)
+	}
+	return canceled, nil
 }
 
 type activityToCancel struct {
@@ -408,7 +461,7 @@ type activityToCancel struct {
 	Activated       bool   `db:"activated"`
 }
 
-func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string) (fleet.ActivityDetails, error) {
+func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, executionID string, activateNext bool) (fleet.ActivityDetails, error) {
 	const (
 		loadScriptActivityStmt = `
 	SELECT
@@ -617,12 +670,14 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		panic(fmt.Sprintf("unexpected activity type %q", act.ActivityType))
 	}
 
-	// must activate the next activity, if any (this should be required only if
-	// the canceled activity was already "activated", but there's no harm in
-	// doing it if it wasn't, and it makes sure there's always progress even in
-	// unsuspected scenarios)
-	if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+	if activateNext {
+		// must activate the next activity, if any (this should be required only if
+		// the canceled activity was already "activated", but there's no harm in
+		// doing it if it wasn't, and it makes sure there's always progress even in
+		// unsuspected scenarios)
+		if _, err := ds.activateNextUpcomingActivity(ctx, tx, hostID, ""); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "activate next upcoming activity")
+		}
 	}
 
 	// creating the canceled activity must be done via svc.NewActivity, so we
@@ -1280,6 +1335,15 @@ ORDER BY
 	return ds.nanoEnqueueVPPInstall(ctx, tx, hostID, execIDs)
 }
 
+// activateNextInHouseAppInstallActivity is the single fan-in point for every
+// InstallApplication command Fleet sends for an in-house (.ipa) app. All of:
+//
+//   - manual install from host details > software > library (including admin reinstall)
+//   - self-service install
+//
+// land here. Configuration is fetched and per-host $FLEET_VAR_* substitution
+// is performed inside this function so every send path inherits the latest
+// stored config.
 func (ds *Datastore) activateNextInHouseAppInstallActivity(ctx context.Context, tx sqlx.ExtContext, hostID uint, execIDs []string) error {
 	const insStmt = `
 INSERT INTO
@@ -1305,65 +1369,19 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
+	const getHostStmt = `
 SELECT
-	uuid, team_id, platform
+	h.uuid,
+	h.team_id,
+	h.platform,
+	h.hardware_serial,
+	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 FROM
-	hosts
+	hosts h
+	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
-	id = ?
+	h.id = ?
 `
-
-	const insCmdStmt = `
-INSERT INTO
-	nano_commands
-(command_uuid, request_type, command, subtype)
-SELECT
-	ua.execution_id,
-	'InstallApplication',
-	CONCAT(:raw_cmd_part1, :manifest_url, :raw_cmd_part2, ua.execution_id, :raw_cmd_part3),
-	:subtype
-FROM
-	upcoming_activities ua
-	INNER JOIN in_house_app_upcoming_activities ihua
-		ON ihua.upcoming_activity_id = ua.id
-WHERE
-	ua.host_id = :host_id AND
-	ua.execution_id IN (:execution_ids)
-`
-
-	rawCmdPart1 := `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Command</key>
-    <dict>
-		<key>InstallAsManaged</key>
-		<true/>
-        <key>ManagementFlags</key>
-        <integer>%d</integer>
-        <key>ChangeManagementState</key>
-        <string>Managed</string>
-        <key>InstallAsManaged</key>
-        <true />
-        <key>Options</key>
-        <dict>
-            <key>PurchaseMethod</key>
-            <integer>1</integer>
-        </dict>
-        <key>RequestType</key>
-        <string>InstallApplication</string>
-        <key>ManifestURL</key>
-        <string>`
-
-	const rawCmdPart2 = `</string>
-    </dict>
-    <key>CommandUUID</key>
-    <string>`
-
-	const rawCmdPart3 = `</string>
-</dict>
-</plist>`
 
 	const insNanoQueueStmt = `
 INSERT INTO
@@ -1387,23 +1405,15 @@ ORDER BY
 		return nil
 	}
 
-	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID     string `db:"uuid"`
-		TeamID   *uint  `db:"team_id"`
-		Platform string `db:"platform"`
+		UUID                 string `db:"uuid"`
+		TeamID               *uint  `db:"team_id"`
+		Platform             string `db:"platform"`
+		HardwareSerial       string `db:"hardware_serial"`
+		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
-	}
-
-	// Set management flags based on platform
-	if fleet.IsAppleMobilePlatform(hostData.Platform) {
-		// Remove app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 1) // Mobile devices use management flag 1
-	} else {
-		// Keep app upon MDM removal
-		rawCmdPart1 = fmt.Sprintf(rawCmdPart1, 0) // macOS devices use management flag 0
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
 	}
 
 	// insert the host in-house app row
@@ -1425,50 +1435,86 @@ ORDER BY
 		tid = *hostData.TeamID
 	}
 
-	// Get the title ID for the in-house app being installed
-	var titleID uint
-	getTitleIDStmt := `
+	// Pull the (execution_id, in_house_app_id, software_title_id) tuples for
+	// each pending activation so we can build a per-app InstallApplication
+	// command in Go and inject the managed-app-configuration dict.
+	const pendingStmt = `
 SELECT
-		ihua.software_title_id
+	ua.execution_id,
+	ihua.in_house_app_id,
+	ihua.software_title_id
 FROM
-		upcoming_activities ua
-		INNER JOIN in_house_app_upcoming_activities ihua
-			ON ihua.upcoming_activity_id = ua.id
+	upcoming_activities ua
+	INNER JOIN in_house_app_upcoming_activities ihua
+		ON ihua.upcoming_activity_id = ua.id
 WHERE
-		ua.host_id = ? AND
-		ua.execution_id IN (?)
+	ua.host_id = ? AND ua.execution_id IN (?)
 `
-
-	stmt, args, err = sqlx.In(getTitleIDStmt, hostID, execIDs)
+	type ihPending struct {
+		ExecutionID   string `db:"execution_id"`
+		InHouseAppID  uint   `db:"in_house_app_id"`
+		SoftwareTitle uint   `db:"software_title_id"`
+	}
+	stmt, args, err = sqlx.In(pendingStmt, hostID, execIDs)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare get in-house app title id")
+		return ctxerr.Wrap(ctx, err, "prepare pending in-house install lookup")
+	}
+	var pending []ihPending
+	if err := sqlx.SelectContext(ctx, tx, &pending, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "list pending in-house installs")
+	}
+	if len(pending) == 0 {
+		return nil
 	}
 
-	if err := sqlx.GetContext(ctx, tx, &titleID, stmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "get in-house app title id")
+	// Bulk-fetch managed configurations for the in-house apps being installed.
+	// In-house Configuration is iOS/iPadOS-only; the builder drops it for
+	// macOS hosts anyway, but in_house_apps are always Apple-mobile so we just
+	// fetch unconditionally.
+	ids := make([]uint, 0, len(pending))
+	for _, p := range pending {
+		ids = append(ids, p.InHouseAppID)
 	}
-
-	manifestURL := fmt.Sprintf("%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d", appConfig.ServerSettings.ServerURL, titleID, tid)
-
-	// insert the nano command
-	namedArgs := map[string]any{
-		"manifest_url":  manifestURL,
-		"raw_cmd_part1": rawCmdPart1,
-		"raw_cmd_part2": rawCmdPart2,
-		"raw_cmd_part3": rawCmdPart3,
-		"subtype":       mdm.CommandSubtypeNone,
-		"host_id":       hostID,
-		"execution_ids": execIDs,
-	}
-	stmt, args, err = sqlx.Named(insCmdStmt, namedArgs)
+	configsByAppID, err := ds.BulkGetInHouseAppConfigurationsTx(ctx, tx, ids)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "prepare insert nano commands")
+		return ctxerr.Wrap(ctx, err, "bulk get in-house app configurations")
 	}
-	stmt, args, err = sqlx.In(stmt, args...)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "expand IN arguments to insert nano commands")
+
+	// Build the InstallApplication plist for each pending activation, then do
+	// one batch INSERT into nano_commands. Per-host, per-app build also drives
+	// $FLEET_VAR_* substitution against host context.
+	subHost := apple_mdm.AppConfigSubstitutionHost{
+		UUID:           hostData.UUID,
+		HardwareSerial: hostData.HardwareSerial,
+		Platform:       hostData.Platform,
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+	insValues := make([]string, 0, len(pending))
+	insArgs := make([]any, 0, len(pending)*4)
+	for _, p := range pending {
+		manifestURL := fmt.Sprintf(
+			"%s/api/latest/fleet/software/titles/%d/in_house_app/manifest?fleet_id=%d",
+			appConfig.ServerSettings.ServerURL, p.SoftwareTitle, tid)
+		cfg := configsByAppID[p.InHouseAppID]
+		if len(cfg) > 0 {
+			substituted, err := apple_mdm.SubstituteFleetVarsInAppConfig(ctx, ds, cfg, subHost)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "substitute fleet variables in in-house app configuration")
+			}
+			cfg = substituted
+		}
+		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
+			CommandUUID:      p.ExecutionID,
+			HostPlatform:     hostData.Platform,
+			ManifestURL:      manifestURL,
+			Configuration:    cfg,
+			IsUserEnrollment: hostData.IsPersonalEnrollment,
+		})
+		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
+		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)
+	}
+	insCmdStmt := `INSERT INTO nano_commands (command_uuid, request_type, command, subtype) VALUES ` +
+		strings.Join(insValues, ", ")
+	if _, err := tx.ExecContext(ctx, insCmdStmt, insArgs...); err != nil {
 		return ctxerr.Wrap(ctx, err, "insert nano commands")
 	}
 

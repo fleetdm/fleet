@@ -7,9 +7,14 @@ import { matchLoosePrefixToKey } from "utilities/strings/stringUtils";
 
 import Backblaze from "./Backblaze";
 import BetterDisplay from "./BetterDisplay";
+import Cavalry from "./Cavalry";
 import Charles from "./Charles";
+import CodexCli from "./CodexCli";
 import ConnectFonts from "./ConnectFonts";
 import CrashPlan from "./CrashPlan";
+import DruvaInSync from "./DruvaInSync";
+import FleetDesktop from "./FleetDesktop";
+import Gemini from "./Gemini";
 import GoogleCredentialProviderForWindows from "./GoogleCredentialProviderForWindows";
 import Iina from "./Iina";
 import Kitty from "./Kitty";
@@ -20,6 +25,7 @@ import Nextcloud from "./Nextcloud";
 import Notepad from "./Notepad++";
 import OktaVerify from "./OktaVerify";
 import Ollama from "./Ollama";
+import OpenvpnConnect from "./OpenvpnConnect";
 import Proxifier from "./Proxifier";
 import Proxyman from "./Proxyman";
 import Putty from "./Putty";
@@ -242,12 +248,15 @@ import Windsurf from "./Windsurf";
 import Wireshark from "./Wireshark";
 import Word from "./Word";
 import WrikeForMac from "./WrikeForMac";
+import XCreds from "./XCreds";
 import YubicoAuthenticator from "./YubicoAuthenticator";
 import YubikeyManager from "./YubikeyManager";
 import Zed from "./Zed";
+import Zen from "./Zen";
 import Zeplin from "./Zeplin";
 import ZeroOneZeroEditor from "./010Editor";
 import Zoom from "./Zoom";
+import ZoomRooms from "./ZoomRooms";
 import Zotero from "./Zotero";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
@@ -297,6 +306,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   calibre: Calibre,
   camtasia: Camtasia,
   canva: Canva,
+  cavalry: Cavalry,
   charles: Charles,
   "chatgpt atlas": ChatGptAtlas,
   chatgpt: ChatGpt,
@@ -311,11 +321,15 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "clockify desktop": ClockifyDesktop,
   cloudflare: Cloudflare,
   code: VisualStudioCode,
+  "codex cli": CodexCli,
   "company portal": IntuneCompanyPortal,
   "connect fonts": ConnectFonts,
   crashplan: CrashPlan,
+  "fleet desktop": FleetDesktop,
+  gemini: Gemini,
   "google credential provider for windows": GoogleCredentialProviderForWindows,
   iina: Iina,
+  insyncclient: DruvaInSync,
   kitty: Kitty,
   krita: Krita,
   lastpass: LastPass,
@@ -420,6 +434,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   omnigraffle: OmniGraffle,
   "omnissa horizon client": OmnissaHorizonClient,
   onedrive: OneDrive,
+  "openvpn connect": OpenvpnConnect,
   opera: Opera,
   orbstack: OrbStack,
   package: Package,
@@ -505,10 +520,13 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   wireshark: Wireshark,
   "wrike for mac": WrikeForMac,
   wrike: WrikeForMac,
+  xcreds: XCreds,
   "yubico authenticator": YubicoAuthenticator,
   "yubikey manager": YubikeyManager,
   zed: Zed,
+  zen: Zen,
   zeplin: Zeplin,
+  "zoom rooms": ZoomRooms,
   zotero: Zotero,
 } as const;
 

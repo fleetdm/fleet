@@ -27,6 +27,7 @@ const VersionCell = <T extends { version: string }>({
       position="top"
       showArrow
       underline={false}
+      fixedPositionStrategy
     >
       <TextCell value={`${versions.length} versions`} italic />
     </TooltipWrapper>

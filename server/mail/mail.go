@@ -19,6 +19,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
+// ErrSTARTTLSWithoutSSLTLS is returned when a STARTTLS handshake fails while
+// the user has SSL/TLS disabled and SSL cert verification enabled.
+var ErrSTARTTLSWithoutSSLTLS = errors.New("STARTTLS must be disabled if not using SSL/TLS to connect.")
+
 func NewService(config config.FleetConfig) (fleet.MailService, error) {
 	switch strings.ToLower(config.Email.EmailBackend) {
 	case "ses":
@@ -215,6 +219,11 @@ func (m mailService) sendMail(ctx context.Context, e fleet.Email, msg []byte) er
 	if e.SMTPSettings.SMTPEnableStartTLS {
 		if ok, _ := client.Extension("STARTTLS"); ok {
 			if err = client.StartTLS(tlsConfig); err != nil {
+				// Surface a prescriptive error only when the user has SSL/TLS
+				// off and SSL cert verification on.
+				if !e.SMTPSettings.SMTPEnableTLS && e.SMTPSettings.SMTPVerifySSLCerts {
+					return ErrSTARTTLSWithoutSSLTLS
+				}
 				return fmt.Errorf("startTLS error: %w", err)
 			}
 		}

@@ -58,7 +58,6 @@ module.exports.policies = {
   'deliver-deal-registration-submission': true,
   'get-est-device-certificate': true,
   'view-customers': true,
-  'view-meetups': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
   'account/update-start-cta-visibility': true,
@@ -78,4 +77,5 @@ module.exports.policies = {
   'deliver-partner-registration-submission': true,
   'view-partners': true,
   'deliver-webinar-access-request': true,
+  'view-download': true,
 };

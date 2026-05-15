@@ -113,9 +113,9 @@ func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, 
 	}
 
 	if downloadRequested {
-		return downloadFileResponse{
-			content:  content,
-			filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
+		return fleet.DownloadFileResponse{
+			Content:  content,
+			Filename: fmt.Sprintf("%s %s", time.Now().Format(time.DateOnly), script.Name),
 		}, nil
 	}
 
@@ -281,6 +281,29 @@ func maybeCancelPendingSetupExperienceSteps(ctx context.Context, ds fleet.Datast
 	}
 	if !requireAllSoftware {
 		return nil
+	}
+
+	// Windows BYOD enrollments do not participate in the setup-experience cancel flow.
+	// The primary lookup matches on mdm_windows_enrollments.host_uuid (populated by osquery's
+	// directIngestMDMDeviceIDWindows). Fast-failing installs can race that ingest, so when the primary
+	// lookup misses we fall back to the most-recent enrollment with an empty host_uuid whose device_name
+	// matches host.ComputerName. Without the fallback a BYOD host that fails an install in the seconds
+	// before osquery links the enrollment would still trigger cancellation, contradicting the gate.
+	// Follow-up bug: https://github.com/fleetdm/fleet/issues/45380
+	if host.Platform == "windows" {
+		device, err := ds.MDMWindowsGetEnrolledDeviceWithHostUUID(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "load windows enrollment for byod check")
+		}
+		if device == nil && host.ComputerName != "" {
+			device, err = ds.MDMWindowsGetUnlinkedEnrolledDeviceWithDeviceName(ctx, host.ComputerName)
+			if err != nil && !fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, err, "load windows enrollment by device name for byod check")
+			}
+		}
+		if device != nil && device.MDMNotInOOBE {
+			return nil
+		}
 	}
 	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 	if err != nil {

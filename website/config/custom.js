@@ -127,7 +127,7 @@ module.exports.custom = {
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/reference/api-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
-    'schema': 'noahtalerman',                               // Data tables (osquery/fleetd schema) documentation
+    'schema': 'rachaelshaw',                               // Data tables (osquery/fleetd schema) documentation
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
     'docs/get-started/faq': 'zayhanlon',
     'docs/Contributing/rituals': 'lukeheath',
@@ -368,7 +368,7 @@ module.exports.custom = {
   //
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.22.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.23.0',
 
 
   //  ███╗   ███╗██╗███████╗ ██████╗
@@ -414,11 +414,13 @@ module.exports.custom = {
     'yahoo.co.uk',     'yahoo.com',    'yahoo.com.ar',     'yahoo.com.au',
     'yahoo.com.br',    'yahoo.com.mx', 'yahoo.com.sg',     'yahoo.de',
     'yahoo.es',        'yahoo.fr',     'yahoo.in',         'yahoo.it',
-    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
+    'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl',
+    'email.tst',
   ],
 
   // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
+    'email.tst',
     'example.com',
     'gmail.com',
     'hotmail.ca',
@@ -439,13 +441,14 @@ module.exports.custom = {
     'yahoo.com',
     'yahoo.co.uk',
     'yandex.ru',
-    'ymail.com'
+    'ymail.com',
   ],
 
   // For contact form submissions.
   // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
   bannedEmailDomainsForContactFormSubmissions: [
-    'example.com'
+    'email.tst',
+    'example.com',
   ],
 
   /***************************************************************************
