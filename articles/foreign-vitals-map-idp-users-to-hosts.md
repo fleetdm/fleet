@@ -43,7 +43,6 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 5. For the **Authentication Mode**, select **HTTP Header**.
 6. [Create a Fleet API-only user](https://fleetdm.com/guides/fleetctl#create-api-only-user) with maintainer permissions and copy API token for that user. Paste your API token in Okta's **Authorization** field.
 
-> You can also create the user from the command line: `fleetctl user create --name 'SCIM User' --api-only --global-role maintainer`
 
 7. Select the **Test Connector Configuration** button. You should see a success message pop up in Okta. You can close this message.
 8. In Fleet, head to **Settings > Integrations > Identity provider (IdP)** and verify that Fleet successfully received the request from Okta.
