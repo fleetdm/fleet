@@ -230,3 +230,107 @@ func TestConcurrentAccess(t *testing.T) {
 		<-done
 	}
 }
+
+// TestTickerIntegration simulates the real Desktop polling loop pattern:
+// a ticker-based loop that adjusts its interval based on backoff state.
+// Uses short durations (milliseconds) to keep the test fast.
+func TestTickerIntegration(t *testing.T) {
+	base := 10 * time.Millisecond
+	maxB := 200 * time.Millisecond
+	tracker := New(base, maxB)
+
+	ticker := time.NewTicker(base)
+	defer ticker.Stop()
+
+	// Phase 1: 4 consecutive failures, measure that intervals grow
+	var intervals []time.Duration
+	prev := time.Now()
+	for range 4 {
+		<-ticker.C
+		now := time.Now()
+		intervals = append(intervals, now.Sub(prev))
+		prev = now
+
+		// Simulate server error
+		tracker.RecordFailure()
+		ticker.Reset(tracker.Interval())
+	}
+
+	// Verify intervals are roughly increasing (with tolerance for scheduling jitter).
+	// Skip the first interval since it's the initial base tick.
+	for i := 2; i < len(intervals); i++ {
+		assert.Greater(t, intervals[i], intervals[i-1]/2,
+			"interval %d (%v) should be greater than half of interval %d (%v)",
+			i, intervals[i], i-1, intervals[i-1])
+	}
+
+	// Phase 2: success resets to base interval
+	tracker.RecordSuccess()
+	ticker.Reset(tracker.Interval())
+
+	prev = time.Now()
+	<-ticker.C
+	resetInterval := time.Since(prev)
+
+	// The reset interval should be close to base (10ms), with tolerance
+	assert.Less(t, resetInterval, 3*base,
+		"after success, interval should reset near base, got %v", resetInterval)
+}
+
+// TestTickerIntegrationMaxCap verifies the ticker caps at maxBackoff
+// using real timing.
+func TestTickerIntegrationMaxCap(t *testing.T) {
+	base := 5 * time.Millisecond
+	maxB := 50 * time.Millisecond
+	tracker := New(base, maxB)
+
+	// Push past the cap: 5ms * 2^4 = 80ms > 50ms cap
+	for range 10 {
+		tracker.RecordFailure()
+	}
+
+	ticker := time.NewTicker(tracker.Interval())
+	defer ticker.Stop()
+
+	start := time.Now()
+	<-ticker.C
+	elapsed := time.Since(start)
+
+	// Should be around maxB (50ms), not unbounded
+	assert.LessOrEqual(t, elapsed, maxB+20*time.Millisecond,
+		"capped interval should not exceed maxBackoff + tolerance, got %v", elapsed)
+}
+
+// TestMultipleTrackersWithTickers simulates per-path isolation with real
+// tickers: two paths where one fails and the other succeeds.
+func TestMultipleTrackersWithTickers(t *testing.T) {
+	pingTracker := New(10*time.Millisecond, 200*time.Millisecond)
+	tokenTracker := New(10*time.Millisecond, 200*time.Millisecond)
+
+	pingTicker := time.NewTicker(10 * time.Millisecond)
+	tokenTicker := time.NewTicker(10 * time.Millisecond)
+	defer pingTicker.Stop()
+	defer tokenTicker.Stop()
+
+	// Ping path: 3 failures
+	for range 3 {
+		<-pingTicker.C
+		pingTracker.RecordFailure()
+		pingTicker.Reset(pingTracker.Interval())
+	}
+
+	// Token path: stays healthy, 3 successes
+	for range 3 {
+		<-tokenTicker.C
+		tokenTracker.RecordSuccess()
+		tokenTicker.Reset(tokenTracker.Interval())
+	}
+
+	// Ping should be in backoff with elevated interval
+	assert.True(t, pingTracker.InBackoff())
+	assert.Greater(t, pingTracker.Interval(), 10*time.Millisecond)
+
+	// Token should be at base interval, unaffected
+	assert.False(t, tokenTracker.InBackoff())
+	assert.Equal(t, 10*time.Millisecond, tokenTracker.Interval())
+}
