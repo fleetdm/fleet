@@ -10,6 +10,8 @@ If you have questions or feedback, contact [Head of Design](https://fleetdm.com/
 
 ### Primary logo
 
+![Fleet primary logo](https://github.com/fleetdm/fleet/blob/fc2f031815278c2ae2c15ad9f5ec54f23b38b884/website/assets/images/brand-primary-logo-720x445%402x.png)
+
 Use the primary logo whenever possible.
 
 - Use the dark-text logo on light backgrounds
@@ -20,11 +22,23 @@ Use the primary logo whenever possible.
 
 ### Fleet dots
 
+![Fleet dots](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-fleet-dots-720x445%402x.png)
+
 Use Fleet dots for profile avatars on social media and similar platforms. Avoid repeating the full logo and dots together.
 
 [Download primary logo](https://fleetdm.com/logos)
 
 > Be mindful of brand recognition. Only use Fleet dots when it is clear they represent Fleet.
+
+#### Clear space
+
+Leave clear space around the logo equal to the height of the Fleet dots on all sides. This helps maintain clarity when placing the logo near other elements.
+
+> Less clear space may be used in certain placements, like the navigation bar on fleetdm.com and the Fleet product.
+
+![Logo clear space](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-clear-space-720x445%402x.png)
+
+![Logo dots clear space](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-dots-clear-space-720x445%402x.png)
 
 ### Logo placement
 
@@ -32,11 +46,9 @@ Anchor the logo to the top-left or bottom-left of the canvas.
 
 > You can make exceptions when needed. For example, center or right-align the logo on slides, videos, or swag. Default to left alignment whenever possible.
 
-#### Clear space
+![Top-left logo placement](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-placement-top-left-720x445%402x.png)
 
-Leave clear space around the logo equal to the height of the Fleet dots on all sides. This helps maintain clarity when placing the logo near other elements.
-
-> Less clear space may be used in certain placements, like the navigation bar on fleetdm.com and the Fleet product.
+![Bottom-left logo placement](https://github.com/fleetdm/fleet/blob/handbook-brand-guidelines/website/assets/images/brand-logo-placement-bottom-left-720x445%402x.png)
 
 #### Placing over imagery
 
