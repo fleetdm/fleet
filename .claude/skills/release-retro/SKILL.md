@@ -15,7 +15,7 @@ Process a working group's release retro notes into (1) one Slack draft summarizi
 Invoked without arguments. Prompt the user for each input in sequence:
 
 1. **Working group's Slack channel** (e.g. `g-first-impressions`, `g-power-to-pc`). Accept with or without a leading `#`; normalize internally.
-2. **Release version** covered (e.g. `4.86.0`). Use whatever the user answers verbatim, even if the notes reference a different version. Do not ask about mismatches or suggest swapping it.
+2. **Release version** covered (e.g. `4.86.0`). Always use the user's answer verbatim, even if the notes reference a different version. If you notice a mismatch, call it out as a brief FYI in your review summary (e.g. "FYI the notes reference 4.86.0 but I'm using `1` per your input"), but do NOT ask the user to swap it or block on the discrepancy.
 3. **Retro notes**: ask the user to paste the raw notes. If the notes are long, accept them across multiple messages and confirm when they're done.
 
 Retro notes typically have two parts. Both may appear in any format the user pastes:
