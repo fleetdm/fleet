@@ -32,6 +32,10 @@ Storage backend: [`server/mdm/nanodep/storage/mysql`](https://github.com/fleetdm
 A reset does **not** re-enroll devices, change ABM assignments, or re-push
 DEP profiles — it only re-baselines Fleet's assignment list.
 
+## Notes
+
+- We've seen cases of where devices hit the threshold for moving into a cooldown/throttled state, Apple stops returning them on the sync cursor requests.
+
 ## Reference
 
 - Apple ADE / DEP API:
