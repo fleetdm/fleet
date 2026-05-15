@@ -97,6 +97,112 @@ describe("getErrorMessage", () => {
       "Couldn't update configuration. Please try again."
     );
   });
+
+  it("returns 'doesn't exist' for an unknown $FLEET_VAR_ variable", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason: "unsupported variable $FLEET_VAR_BLA_BLA",
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't edit. Variable "$FLEET_VAR_BLA_BLA" doesn't exist.`
+    );
+  });
+
+  it.each([
+    ["NDES_SCEP_CHALLENGE"],
+    ["NDES_SCEP_PROXY_URL"],
+    ["DIGICERT_DATA_myCA"],
+    ["DIGICERT_PASSWORD_myCA"],
+    ["SCEP_WINDOWS_CERTIFICATE_ID"],
+    ["SMALLSTEP_SCEP_CHALLENGE_myCA"],
+    ["SMALLSTEP_SCEP_PROXY_URL_myCA"],
+    ["CUSTOM_SCEP_CHALLENGE_myCA"],
+    ["CUSTOM_SCEP_PROXY_URL_myCA"],
+    ["SCEP_RENEWAL_ID"],
+  ])(
+    "returns 'isn't supported in managed configuration' for %s",
+    (varSuffix) => {
+      const err = {
+        response: {
+          data: {
+            errors: [
+              {
+                name: "configuration",
+                reason: `unsupported variable $FLEET_VAR_${varSuffix}`,
+              },
+            ],
+          },
+        },
+      };
+      expect(getErrorMessage(err, true)).toBe(
+        `Couldn't edit. Variable "$FLEET_VAR_${varSuffix}" isn't supported in managed configuration. It can only be used in configuration profiles.`
+      );
+    }
+  );
+
+  it("returns 'doesn't exist' for a typo like $FLEET_VAR_NDES_SCEP_FOO (not a real profile variable)", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason: "unsupported variable $FLEET_VAR_NDES_SCEP_FOO",
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't edit. Variable "$FLEET_VAR_NDES_SCEP_FOO" doesn't exist.`
+    );
+  });
+
+  it("returns 'doesn't exist' for a missing $FLEET_SECRET_ variable", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason:
+                'Couldn\'t add. Secret variable "$FLEET_SECRET_BLA_BLA" missing from database',
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't edit. Variable "$FLEET_SECRET_BLA_BLA" doesn't exist.`
+    );
+  });
+
+  it("returns 'doesn't exist' listing all variables for multiple missing $FLEET_SECRET_ variables", () => {
+    const err = {
+      response: {
+        data: {
+          errors: [
+            {
+              name: "configuration",
+              reason:
+                'Couldn\'t add. Secret variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" missing from database',
+            },
+          ],
+        },
+      },
+    };
+    expect(getErrorMessage(err, true)).toBe(
+      `Couldn't edit. Variables "$FLEET_SECRET_A", "$FLEET_SECRET_B" don't exist.`
+    );
+  });
 });
 
 describe("validateJson", () => {

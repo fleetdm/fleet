@@ -62,6 +62,10 @@ export const getInstallErrorMessage = (e: unknown) => {
     return createOnlyInstallableOnMacOSMessage(reason);
   } else if (reason.includes("VPP token expired")) {
     return createVPPTokenExpiredMessage();
+  } else if (
+    reason.includes("unresolvable Fleet variable in managed app configuration")
+  ) {
+    return `${INSTALL_SOFTWARE_ERROR_PREFIX} Couldn't resolve a Fleet variable in the managed app configuration for this host.`;
   } else if (showAPIMessage(reason)) {
     return reason;
   }
