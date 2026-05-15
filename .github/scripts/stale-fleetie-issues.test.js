@@ -190,6 +190,30 @@ test('closes stale-labeled issue idle >14d with no activity after labeling', asy
   assert.strictEqual(result.unstaled.length, 0);
 });
 
+test('does not close a freshly-staled issue (idle < 14 days, no activity)', async () => {
+  // Bot staled 5 days ago, no further activity. Issue is stale-labeled and idle 5 days. Should
+  // remain open with the stale label (close phase requires >= 14 days idle).
+  const labeledAt = Date.now() - 5 * DAY_MS;
+  const issue = makeIssue({
+    number: 50,
+    user: { login: 'getvictor' },
+    labels: [{ name: 'stale' }],
+    updated_at: new Date(labeledAt).toISOString(),
+  });
+  const { github, result } = await runWith({
+    issues: [issue],
+    eventsByIssue: {
+      50: [{ event: 'labeled', label: { name: 'stale' }, created_at: new Date(labeledAt).toISOString() }],
+    },
+  });
+  assert.strictEqual(github._captured.createCommentCalls.length, 0);
+  assert.strictEqual(github._captured.updateCalls.length, 0);
+  assert.strictEqual(github._captured.removeLabelCalls.length, 0);
+  assert.strictEqual(result.closed.length, 0);
+  assert.strictEqual(result.unstaled.length, 0);
+  assert.strictEqual(result.skippedNotReadyToClose, 1);
+});
+
 test('un-stales (removes label, no close) when activity is detected after stale labeling', async () => {
   // Bot staled 20 days ago; user commented 5 days ago, bumping updated_at.
   const issue = makeIssue({

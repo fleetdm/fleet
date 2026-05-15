@@ -26,7 +26,8 @@ const STALE_MSG =
   'no activity for 2 years. Please update the issue if it is still relevant; otherwise it ' +
   'will be closed in 14 days.';
 const CLOSE_MSG =
-  'This issue was closed because it has been inactive for 14 days since being marked as stale.';
+  'This issue was closed because it received no further activity for 14 days after being marked stale. ' +
+  'Any comment would have removed the stale label and prevented closure.';
 // Tolerance for our own label+comment landing milliseconds apart. Distinguishes the bot's own
 // activity bump from genuine user activity after labeling.
 const SELF_ACTIVITY_EPSILON_MS = 60 * 1000;
@@ -92,6 +93,7 @@ module.exports = async function run({ github, context, core }) {
   let skippedNonFleetie = 0;
   let skippedExempt = 0;
   let skippedNotStaleYet = 0;
+  let skippedNotReadyToClose = 0;
   let writes = 0;
   let hitCap = false;
 
@@ -185,7 +187,14 @@ module.exports = async function run({ github, context, core }) {
         continue;
       }
 
-      // Close phase: stale label present, no activity since labeling, >= CLOSE_DAYS idle.
+      // Close phase: stale label present, no activity since labeling, AND >= CLOSE_DAYS idle.
+      // The idle gate matters because candidate collection accepts stale-labeled issues regardless
+      // of idle time (so the un-stale path runs promptly on activity); without this check, a
+      // freshly-staled issue with no activity would be closed on the very next run.
+      if (idleDays < CLOSE_DAYS) {
+        skippedNotReadyToClose++;
+        continue;
+      }
       const entry = { number: issue.number, url: issue.html_url, author, idleDays };
       core.info(`close: #${issue.number} by @${author}, idle ${idleDays.toFixed(1)}d`);
       if (dryRun) {
@@ -263,6 +272,7 @@ module.exports = async function run({ github, context, core }) {
       `Skipped (non-Fleetie author): ${skippedNonFleetie}`,
       `Skipped (exempt label: bug, :product, customer-*): ${skippedExempt}`,
       `Skipped (Fleetie-authored but younger than ${STALE_DAYS} days): ${skippedNotStaleYet}`,
+      `Skipped (stale-labeled but not yet ${CLOSE_DAYS}d idle): ${skippedNotReadyToClose}`,
       `Marked stale this run: ${staled.length}`,
       `Closed this run: ${closed.length}`,
       `Un-staled this run (activity after label): ${unstaled.length}`,
@@ -291,6 +301,7 @@ module.exports = async function run({ github, context, core }) {
     skippedNonFleetie,
     skippedExempt,
     skippedNotStaleYet,
+    skippedNotReadyToClose,
     writes,
     hitCap,
   };
