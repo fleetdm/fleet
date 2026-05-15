@@ -7319,7 +7319,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
 		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
 		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
@@ -7334,7 +7334,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
 		yml := writeGitOpsYamlWithGitops(t, "")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
 		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
@@ -7348,7 +7348,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
 		yml := writeGitOpsYamlWithGitops(t, "")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
 		assert.True(t, saved.GitOpsConfig.Exceptions.Labels)
@@ -7363,7 +7363,7 @@ func TestGitOpsModeYamlAppliesAndPreserves(t *testing.T) {
 		savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
 		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		saved := *savedAppConfigPtr
 		assert.True(t, saved.GitOpsConfig.GitopsModeEnabled)
@@ -7393,7 +7393,7 @@ func TestGitOpsModeYamlActivityEmission(t *testing.T) {
 		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, fleet.GitOpsConfig{})
 		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		enabled, disabled := countActivities(*activitiesPtr)
 		assert.Equal(t, 1, enabled)
@@ -7408,7 +7408,7 @@ func TestGitOpsModeYamlActivityEmission(t *testing.T) {
 		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
 		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: false\n")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		enabled, disabled := countActivities(*activitiesPtr)
 		assert.Equal(t, 0, enabled)
@@ -7423,7 +7423,7 @@ func TestGitOpsModeYamlActivityEmission(t *testing.T) {
 		_, activitiesPtr := gitopsModeYamlSetup(t, fleet.TierPremium, seed)
 		yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
 
-		_ = RunAppForTest(t, []string{"gitops", "-f", yml})
+		_ = runAppForTest(t, []string{"gitops", "-f", yml})
 
 		enabled, disabled := countActivities(*activitiesPtr)
 		assert.Equal(t, 0, enabled)
@@ -7437,7 +7437,7 @@ func TestGitOpsModeYamlFreeTierRejected(t *testing.T) {
 	savedAppConfigPtr, _ := gitopsModeYamlSetup(t, fleet.TierFree, fleet.GitOpsConfig{})
 	yml := writeGitOpsYamlWithGitops(t, "    gitops_mode_enabled: true\n    repository_url: https://github.com/example/fleet-config\n")
 
-	_, err := RunAppNoChecks([]string{"gitops", "-f", yml})
+	_, err := runAppNoChecks([]string{"gitops", "-f", yml})
 	require.Error(t, err)
 	// The server-side validation in ModifyAppConfig is what flags this on free tier.
 	require.ErrorContains(t, err, "missing or invalid license")
