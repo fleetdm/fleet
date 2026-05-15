@@ -143,7 +143,12 @@ func ReconcileAppleProfilesBatched(
 	labelIDSet := make(map[uint]struct{})
 	for _, p := range allProfiles {
 		profilesByTeam[p.TeamID] = append(profilesByTeam[p.TeamID], p)
-		for _, lr := range p.Labels {
+		for _, lr := range p.IncludeLabels {
+			if lr.LabelID != nil {
+				labelIDSet[*lr.LabelID] = struct{}{}
+			}
+		}
+		for _, lr := range p.ExcludeLabels {
 			if lr.LabelID != nil {
 				labelIDSet[*lr.LabelID] = struct{}{}
 			}
@@ -312,59 +317,67 @@ func computeAppleReconcileDeltas(
 	return toInstall, toRemove
 }
 
-// appleProfileAppliesToHost is the top-level handler dispatcher. It applies
-// the team and platform gates, then routes to the per-label-mode handler.
+// appleProfileAppliesToHost is the top-level dispatcher. It applies the
+// team and platform gates, then composes whichever include + exclude
+// label handlers the profile carries. A profile may carry both an
+// include set (in one consistent mode) and an exclude set; both gates
+// must pass for the profile to apply.
 func appleProfileAppliesToHost(
 	p *fleet.AppleProfileForReconcile,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
 ) bool {
 	// Team gate (already filtered upstream by profilesByTeam, but
-	// double-check for safety so handlers stay composable).
+	// double-check so handlers stay composable in isolation).
 	if p.TeamID != host.EffectiveTeamID() {
 		return false
 	}
 
-	// Platform gate. Profiles targeting macOS-only platforms are filtered
-	// later in FilterMacOSOnlyProfilesFromIOSIPadOS so we don't reproduce
-	// that here.
+	// Platform gate. macOS-only profiles on iOS/iPadOS hosts are filtered
+	// later by FilterMacOSOnlyProfilesFromIOSIPadOS.
 	if !isAppleProfileEligiblePlatform(host.Platform) {
 		return false
 	}
 
-	switch p.LabelMode {
-	case fleet.AppleProfileLabelModeNone:
-		return appleProfileHandlerNoLabels(p)
-	case fleet.AppleProfileLabelModeIncludeAll:
-		return appleProfileHandlerIncludeAll(p, hostLabels)
-	case fleet.AppleProfileLabelModeIncludeAny:
-		return appleProfileHandlerIncludeAny(p, hostLabels)
-	case fleet.AppleProfileLabelModeExcludeAny:
-		return appleProfileHandlerExcludeAny(p, host, hostLabels)
-	default:
-		return false
+	// Include gate: only run if the profile has include labels.
+	if p.IncludeMode != fleet.AppleProfileIncludeNone {
+		var ok bool
+		switch p.IncludeMode {
+		case fleet.AppleProfileIncludeAll:
+			ok = appleProfileHandlerIncludeAll(p.IncludeLabels, hostLabels)
+		case fleet.AppleProfileIncludeAny:
+			ok = appleProfileHandlerIncludeAny(p.IncludeLabels, hostLabels)
+		default:
+			return false
+		}
+		if !ok {
+			return false
+		}
 	}
+
+	// Exclude gate: only run if the profile has exclude labels.
+	if len(p.ExcludeLabels) > 0 {
+		if !appleProfileHandlerExcludeAny(p.ExcludeLabels, host, hostLabels) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func isAppleProfileEligiblePlatform(platform string) bool {
 	return platform == "darwin" || platform == "ios" || platform == "ipados"
 }
 
-// appleProfileHandlerNoLabels: no labels → always applies (subject to
-// outer team/platform gates).
-func appleProfileHandlerNoLabels(_ *fleet.AppleProfileForReconcile) bool {
-	return true
-}
-
 // appleProfileHandlerIncludeAll: host must be a member of every (non-
-// broken) referenced label. If any label is broken, the profile does
-// not apply (mirrors the legacy SQL where include-* with a broken label
-// produces no desired-state row).
-func appleProfileHandlerIncludeAll(p *fleet.AppleProfileForReconcile, hostLabels map[uint]struct{}) bool {
-	if len(p.Labels) == 0 {
+// broken) include label. A broken label disqualifies the profile, mirroring
+// the legacy SQL where include-* with a broken label produces no desired-
+// state row.
+func appleProfileHandlerIncludeAll(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
+	if len(labels) == 0 {
 		return false
 	}
-	for _, l := range p.Labels {
+	for _, l := range labels {
 		if l.LabelID == nil {
 			return false
 		}
@@ -376,10 +389,10 @@ func appleProfileHandlerIncludeAll(p *fleet.AppleProfileForReconcile, hostLabels
 }
 
 // appleProfileHandlerIncludeAny: host must be a member of at least one
-// referenced label. Broken labels can't match (host can't be a member of a
-// deleted label).
-func appleProfileHandlerIncludeAny(p *fleet.AppleProfileForReconcile, hostLabels map[uint]struct{}) bool {
-	for _, l := range p.Labels {
+// include label. Broken labels can't match (host can't be a member of a
+// deleted label) so they're silently skipped.
+func appleProfileHandlerIncludeAny(labels []fleet.AppleProfileLabelRef, hostLabels map[uint]struct{}) bool {
+	for _, l := range labels {
 		if l.LabelID == nil {
 			continue
 		}
@@ -390,28 +403,27 @@ func appleProfileHandlerIncludeAny(p *fleet.AppleProfileForReconcile, hostLabels
 	return false
 }
 
-// appleProfileHandlerExcludeAny: profile applies when the host is NOT a
-// member of any referenced label, with two extra rules from the legacy
-// SQL:
+// appleProfileHandlerExcludeAny: profile passes the exclude gate when the
+// host is NOT a member of any referenced label, with two safety rules:
 //
-//   - Broken labels disqualify the profile entirely (never apply).
-//   - For dynamic labels, we require host.label_updated_at >= label.created_at
-//     so we don't treat "label results not yet reported" as "not a member".
-//     Manual labels (membership_type=1) skip this check.
+//   - Any broken exclude label disqualifies the profile entirely (we can't
+//     prove the exclusion).
+//   - Dynamic labels created after the host's last label scan are treated
+//     as "results not yet reported" — also disqualify, so we don't
+//     install a profile that the not-yet-scanned label would exclude.
+//     Manual labels (membership_type=1) skip this timing check.
+//
+// Returns true when called with an empty slice — the dispatcher won't do
+// that, but the handler's contract should still be "no exclusions = pass".
 func appleProfileHandlerExcludeAny(
-	p *fleet.AppleProfileForReconcile,
+	labels []fleet.AppleProfileLabelRef,
 	host *fleet.AppleHostReconcileInfo,
 	hostLabels map[uint]struct{},
 ) bool {
-	if len(p.Labels) == 0 {
-		return false
-	}
-	for _, l := range p.Labels {
+	for _, l := range labels {
 		if l.LabelID == nil {
 			return false
 		}
-		// If the host's label scan hasn't caught up with the label's
-		// creation, we can't trust "not a member" — skip the profile.
 		if l.LabelMembershipType != 1 && !l.CreatedAt.IsZero() && host.LabelUpdatedAt.Before(l.CreatedAt) {
 			return false
 		}

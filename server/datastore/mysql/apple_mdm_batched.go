@@ -133,43 +133,23 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 		return nil, ctxerr.Wrap(ctx, err, "list apple profile labels for reconcile")
 	}
 
-	// Per-profile label mode discovery. A profile's mode is set by the first
-	// label row seen; if later rows disagree we mark it mixed and treat the
-	// profile as no-label (defensive — upsert enforces consistency).
-	type modeMarker struct {
+	// Per-profile include-mode discovery. Include labels for a single
+	// profile must share a single require_all value; the first include
+	// row sets the mode and later disagreements mark it mixed. Exclude
+	// rows always go to ExcludeLabels and have a single "exclude any"
+	// semantic (their require_all column is ignored). A profile may
+	// carry both an include set and an exclude set.
+	type includeAccum struct {
 		set   bool
-		mode  fleet.AppleProfileLabelMode
+		mode  fleet.AppleProfileIncludeMode
 		mixed bool
 	}
-	modes := make(map[string]*modeMarker, len(byUUID))
+	includeModes := make(map[string]*includeAccum, len(byUUID))
 
 	for _, lr := range labelRows {
 		p, ok := byUUID[lr.ProfileUUID]
 		if !ok {
 			continue
-		}
-
-		mm := modes[lr.ProfileUUID]
-		if mm == nil {
-			mm = &modeMarker{}
-			modes[lr.ProfileUUID] = mm
-		}
-
-		var rowMode fleet.AppleProfileLabelMode
-		switch {
-		case lr.Exclude:
-			rowMode = fleet.AppleProfileLabelModeExcludeAny
-		case lr.RequireAll:
-			rowMode = fleet.AppleProfileLabelModeIncludeAll
-		default:
-			rowMode = fleet.AppleProfileLabelModeIncludeAny
-		}
-
-		if !mm.set {
-			mm.mode = rowMode
-			mm.set = true
-		} else if mm.mode != rowMode {
-			mm.mixed = true
 		}
 
 		ref := fleet.AppleProfileLabelRef{
@@ -182,17 +162,47 @@ func (ds *Datastore) ListAppleProfilesForReconcile(ctx context.Context) ([]*flee
 		if lr.LabelCreatedAt.Valid {
 			ref.CreatedAt = lr.LabelCreatedAt.Time
 		}
-		p.Labels = append(p.Labels, ref)
-	}
 
-	for uuid, mm := range modes {
-		p := byUUID[uuid]
-		if mm.mixed {
-			p.LabelMode = fleet.AppleProfileLabelModeNone
-			p.Labels = nil
+		if lr.Exclude {
+			p.ExcludeLabels = append(p.ExcludeLabels, ref)
 			continue
 		}
-		p.LabelMode = mm.mode
+
+		// Include row.
+		p.IncludeLabels = append(p.IncludeLabels, ref)
+
+		var rowMode fleet.AppleProfileIncludeMode
+		if lr.RequireAll {
+			rowMode = fleet.AppleProfileIncludeAll
+		} else {
+			rowMode = fleet.AppleProfileIncludeAny
+		}
+
+		ia := includeModes[lr.ProfileUUID]
+		if ia == nil {
+			ia = &includeAccum{}
+			includeModes[lr.ProfileUUID] = ia
+		}
+		if !ia.set {
+			ia.mode = rowMode
+			ia.set = true
+		} else if ia.mode != rowMode {
+			ia.mixed = true
+		}
+	}
+
+	for uuid, ia := range includeModes {
+		p := byUUID[uuid]
+		if ia.mixed {
+			// Defensive: include rows disagreed on require_all (should
+			// be impossible in production — the upsert path enforces a
+			// single mode). Drop the include set so we don't guess at
+			// intent; exclude labels (if any) are preserved.
+			p.IncludeLabels = nil
+			p.IncludeMode = fleet.AppleProfileIncludeNone
+			continue
+		}
+		p.IncludeMode = ia.mode
 	}
 
 	return out, nil
