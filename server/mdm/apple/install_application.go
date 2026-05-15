@@ -134,6 +134,11 @@ type InstallApplicationParams struct {
 	// bytes. Caller is responsible for any per-host substitution before
 	// passing it in.
 	Configuration []byte
+
+	// IsUserEnrollment indicates this command targets an Account-Driven User
+	// Enrolled (BYOD) host. When true, ChangeManagementState is omitted because
+	// Apple rejects it on the User Enrollment channel.
+	IsUserEnrollment bool
 }
 
 // BuildInstallApplicationCommand returns the XML plist for the given host's
@@ -167,9 +172,15 @@ func BuildInstallApplicationCommand(params InstallApplicationParams) []byte {
         <integer>`)
 	fmt.Fprintf(&b, "%d", managementFlags)
 	b.WriteString(`</integer>
-        <key>ChangeManagementState</key>
+`)
+	// Apple rejects ChangeManagementState on the Account-Driven User Enrollment
+	// channel. Omit it for User Enrollment; include it everywhere else.
+	if !params.IsUserEnrollment {
+		b.WriteString(`        <key>ChangeManagementState</key>
         <string>Managed</string>
-        <key>Options</key>
+`)
+	}
+	b.WriteString(`        <key>Options</key>
         <dict>
             <key>PurchaseMethod</key>
             <integer>1</integer>

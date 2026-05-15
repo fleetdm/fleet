@@ -18,7 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/mysqltest"
 	"github.com/fleetdm/fleet/v4/server/dev_mode"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/maintainedapps/maintainedappstest"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/jmoiron/sqlx"
@@ -1043,7 +1043,7 @@ func (s *integrationMDMTestSuite) TestGitopsInstallableSoftwareRetries() {
 	defer installerServer.Close()
 
 	// Insert the list of maintained apps
-	maintained_apps.SyncApps(t, s.ds)
+	maintainedappstest.SyncApps(t, s.ds)
 
 	// Mock manifest server — routes by slug path and returns current per-FMA state.
 	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

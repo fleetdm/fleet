@@ -1,1 +1,0 @@
-* Fixed the host details activity feed showing the previously opened host's activities by including the host ID in the activity query cache keys.
