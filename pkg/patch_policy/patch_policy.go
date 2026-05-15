@@ -35,6 +35,14 @@ func GenerateQueryForManifest(p PolicyData) (string, error) {
 		return "", ErrNoExistsQuery
 	}
 	before, _ := strings.CutSuffix(p.ExistsQuery, ";")
+	// Wrap the WHERE clause body in parens so the appended `AND version_compare(...)`
+	// binds across the whole condition — protects against precedence bugs when
+	// the existing conditions contain OR.
+	const whereSep = " WHERE "
+	if idx := strings.Index(before, whereSep); idx >= 0 {
+		split := idx + len(whereSep)
+		before = before[:split] + "(" + before[split:] + ")"
+	}
 	// Escape any literal '%' in the exists query (e.g. SQL LIKE patterns)
 	// so fmt.Sprintf doesn't interpret them as format verbs.
 	before = strings.ReplaceAll(before, "%", "%%")

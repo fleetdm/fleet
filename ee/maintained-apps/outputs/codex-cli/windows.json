@@ -4,7 +4,7 @@
       "version": "0.130.0",
       "queries": {
         "exists": "SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe';",
-        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe' AND version_compare(version, '0.130.0') < 0);"
+        "patched": "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe') AND version_compare(version, '0.130.0') < 0);"
       },
       "installer_url": "https://github.com/openai/codex/releases/download/rust-v0.130.0/codex-x86_64-pc-windows-msvc.exe.zip",
       "install_script_ref": "8bb4b68b",

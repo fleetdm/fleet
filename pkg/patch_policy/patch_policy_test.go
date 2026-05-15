@@ -20,7 +20,7 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				Version:     "1.0",
 				ExistsQuery: "SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo';",
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = 'com.foo' AND version_compare(bundle_short_version, '1.0') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM apps WHERE (bundle_identifier = 'com.foo') AND version_compare(bundle_short_version, '1.0') < 0);",
 		},
 		{
 			name: "windows from exists query",
@@ -29,7 +29,7 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				Version:     "1.0",
 				ExistsQuery: "SELECT 1 FROM programs WHERE name = 'Foo x64' AND publisher = 'Bar, Inc.';",
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name = 'Foo x64' AND publisher = 'Bar, Inc.' AND version_compare(version, '1.0') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE (name = 'Foo x64' AND publisher = 'Bar, Inc.') AND version_compare(version, '1.0') < 0);",
 		},
 		{
 			name: "windows from exists query with LIKE percent wildcard",
@@ -38,7 +38,7 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				Version:     "12.5.6",
 				ExistsQuery: "SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman';",
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Postman x64 %' AND publisher = 'Postman' AND version_compare(version, '12.5.6') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE (name LIKE 'Postman x64 %' AND publisher = 'Postman') AND version_compare(version, '12.5.6') < 0);",
 		},
 		{
 			name: "windows from exists query with multiple LIKE percent wildcards",
@@ -47,7 +47,16 @@ func TestGenerateQueryForManifest(t *testing.T) {
 				Version:     "139.0.0",
 				ExistsQuery: "SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla';",
 			},
-			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla' AND version_compare(version, '139.0.0') < 0);",
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM programs WHERE (name LIKE 'Mozilla Firefox % ESR %' AND publisher = 'Mozilla') AND version_compare(version, '139.0.0') < 0);",
+		},
+		{
+			name: "windows from exists query with OR conditions",
+			p: patch_policy.PolicyData{
+				Platform:    "windows",
+				Version:     "0.130.0",
+				ExistsQuery: "SELECT 1 FROM file WHERE path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe';",
+			},
+			want: "SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM file WHERE (path = 'C:\\Program Files\\Codex CLI\\codex.exe' OR path LIKE '%\\AppData\\Local\\Programs\\Codex CLI\\codex.exe') AND version_compare(version, '0.130.0') < 0);",
 		},
 	}
 	for _, tt := range tests {
