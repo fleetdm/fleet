@@ -7370,16 +7370,76 @@ func TestApplePayloadValidatorsAreOptional(t *testing.T) {
 </dict>
 </plist>`
 
+	// Marker in CN, literal OU — confirms upload acceptance is independent
+	// of marker placement.
+	const acmeProfileCNMarker = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key><string>com.apple.security.acme</string>
+			<key>PayloadIdentifier</key><string>com.test.acme.cn</string>
+			<key>PayloadUUID</key><string>33333333-4444-5555-6666-777777777777</string>
+			<key>DirectoryURL</key><string>https://acme.example.com/directory</string>
+			<key>Subject</key>
+			<array>
+				<array><array><string>CN</string><string>%s</string></array></array>
+				<array><array><string>OU</string><string>static-ou-value</string></array></array>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadIdentifier</key><string>com.test.profile.acme.cn</string>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadUUID</key><string>cccccccc-dddd-eeee-ffff-aaaaaaaaaaaa</string>
+	<key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`
+
+	const rawSCEPProfileCNMarker = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key><string>com.apple.security.scep</string>
+			<key>PayloadIdentifier</key><string>com.test.scep.cn</string>
+			<key>PayloadUUID</key><string>44444444-5555-6666-7777-888888888888</string>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Challenge</key><string>static-challenge-value</string>
+				<key>URL</key><string>https://scep.example.com/scep</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>CN</string><string>%s</string></array></array>
+					<array><array><string>OU</string><string>static-ou-value</string></array></array>
+				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>PayloadIdentifier</key><string>com.test.profile.rawscep.cn</string>
+	<key>PayloadType</key><string>Configuration</string>
+	<key>PayloadUUID</key><string>dddddddd-eeee-ffff-aaaa-bbbbbbbbbbbb</string>
+	<key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>`
+
 	cases := []struct {
 		name    string
 		profile string
 	}{
-		{"ACME with preferred marker", fmt.Sprintf(acmeProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
-		{"ACME with legacy marker", fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
+		{"ACME with preferred marker in OU", fmt.Sprintf(acmeProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"ACME with legacy marker in OU", fmt.Sprintf(acmeProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
 		{"ACME with no marker", fmt.Sprintf(acmeProfile, "static-ou-value")},
-		{"raw SCEP with preferred marker", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
-		{"raw SCEP with legacy marker", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
+		{"ACME with preferred marker in CN", fmt.Sprintf(acmeProfileCNMarker, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"ACME with legacy marker in CN", fmt.Sprintf(acmeProfileCNMarker, "$FLEET_VAR_SCEP_RENEWAL_ID")},
+		{"raw SCEP with preferred marker in OU", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"raw SCEP with legacy marker in OU", fmt.Sprintf(rawSCEPProfile, "$FLEET_VAR_SCEP_RENEWAL_ID")},
 		{"raw SCEP with no marker", fmt.Sprintf(rawSCEPProfile, "static-ou-value")},
+		{"raw SCEP with preferred marker in CN", fmt.Sprintf(rawSCEPProfileCNMarker, "$FLEET_VAR_CERTIFICATE_RENEWAL_ID")},
+		{"raw SCEP with legacy marker in CN", fmt.Sprintf(rawSCEPProfileCNMarker, "$FLEET_VAR_SCEP_RENEWAL_ID")},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
