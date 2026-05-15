@@ -406,6 +406,13 @@ type Datastore interface {
 	GetHostMunkiIssues(ctx context.Context, hostID uint) ([]*HostMunkiIssue, error)
 	GetHostMDM(ctx context.Context, hostID uint) (*HostMDM, error)
 	GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*HostMDMCheckinInfo, error)
+	// GetHostManagedAppleID returns the Managed Apple ID stored on host_mdm
+	// for the given host, or empty string if none is set.
+	GetHostManagedAppleID(ctx context.Context, hostID uint) (string, error)
+	// SetHostManagedAppleID sets the Managed Apple ID on host_mdm for the
+	// given host. The host must already have a host_mdm row; if not, the
+	// call is a no-op.
+	SetHostManagedAppleID(ctx context.Context, hostID uint, managedAppleID string) error
 	// GetHostMDMIdentifiers searches for hosts with identifiers matching the provided identifier.
 	// It is intended as an optimization over existing host-by-identifier methods (e.g.,
 	// HostLiteByIdentifier) that are prone to full-table scans. See the implementation for more details.
@@ -1959,6 +1966,19 @@ type Datastore interface {
 	// callers may treat this as a re-anchor signal.
 	GetVPPTokenOwningAppInCountry(ctx context.Context, adamID string, platform InstallableDevicePlatform, country string) (*VPPTokenDB, error)
 	DeleteVPPToken(ctx context.Context, tokenID uint) error
+
+	// GetVPPClientUser returns the vpp_client_users row for the given
+	// (vpp_token_id, managed_apple_id) pair, or a NotFound error if absent.
+	GetVPPClientUser(ctx context.Context, tokenID uint, managedAppleID string) (*VPPClientUser, error)
+	// InsertVPPClientUser upserts a vpp_client_users row keyed by
+	// (vpp_token_id, managed_apple_id). On a key conflict it updates the
+	// client_user_id, apple_user_id, and status from the input row, so callers
+	// can re-call after a partial-failure response from Apple without having
+	// to read first.
+	InsertVPPClientUser(ctx context.Context, row *VPPClientUser) error
+	// ListVPPClientUsersForToken returns all rows for the given vpp_token_id,
+	// ordered by id. Useful for diagnostics.
+	ListVPPClientUsersForToken(ctx context.Context, tokenID uint) ([]*VPPClientUser, error)
 
 	// SetABMTokenTermsExpiredForOrgName is a specialized method to set only the
 	// terms_expired flag of the ABM token identified by the organization name.

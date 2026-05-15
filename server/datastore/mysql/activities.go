@@ -1369,13 +1369,18 @@ ORDER BY
 	ua.priority DESC, ua.created_at ASC
 `
 
-	const getHostUUIDStmt = `
+	const getHostStmt = `
 SELECT
-	uuid, team_id, platform, hardware_serial
+	h.uuid,
+	h.team_id,
+	h.platform,
+	h.hardware_serial,
+	COALESCE(hm.is_personal_enrollment, 0) AS is_personal_enrollment
 FROM
-	hosts
+	hosts h
+	LEFT JOIN host_mdm hm ON hm.host_id = h.id
 WHERE
-	id = ?
+	h.id = ?
 `
 
 	const insNanoQueueStmt = `
@@ -1400,15 +1405,15 @@ ORDER BY
 		return nil
 	}
 
-	// get the host uuid, required for the nano tables
 	var hostData struct {
-		UUID           string `db:"uuid"`
-		TeamID         *uint  `db:"team_id"`
-		Platform       string `db:"platform"`
-		HardwareSerial string `db:"hardware_serial"`
+		UUID                 string `db:"uuid"`
+		TeamID               *uint  `db:"team_id"`
+		Platform             string `db:"platform"`
+		HardwareSerial       string `db:"hardware_serial"`
+		IsPersonalEnrollment bool   `db:"is_personal_enrollment"`
 	}
-	if err := sqlx.GetContext(ctx, tx, &hostData, getHostUUIDStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "get host uuid")
+	if err := sqlx.GetContext(ctx, tx, &hostData, getHostStmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "get host info for in-house install")
 	}
 
 	// insert the host in-house app row
@@ -1498,10 +1503,11 @@ WHERE
 			cfg = substituted
 		}
 		cmdBytes := apple_mdm.BuildInstallApplicationCommand(apple_mdm.InstallApplicationParams{
-			CommandUUID:   p.ExecutionID,
-			HostPlatform:  hostData.Platform,
-			ManifestURL:   manifestURL,
-			Configuration: cfg,
+			CommandUUID:      p.ExecutionID,
+			HostPlatform:     hostData.Platform,
+			ManifestURL:      manifestURL,
+			Configuration:    cfg,
+			IsUserEnrollment: hostData.IsPersonalEnrollment,
 		})
 		insValues = append(insValues, "(?, 'InstallApplication', ?, ?)")
 		insArgs = append(insArgs, p.ExecutionID, string(cmdBytes), mdm.CommandSubtypeNone)

@@ -48,6 +48,33 @@ func (e *ErrorResponse) Error() string {
 	return fmt.Sprintf("Apple VPP endpoint returned error: %s (error number: %d)", e.ErrorMessage, e.ErrorNumber)
 }
 
+// IsMaxDevicesPerUserError reports whether err is an Apple VPP error indicating
+// that a Managed Apple ID has reached the per-user device cap (Apple allows
+// up to 5 devices per user license).
+//
+// Apple's numeric code for this case has not been stable across iOS releases,
+// so the helper matches by message substring as well. Confirm against Apple's
+// sandbox before locking in the canonical code.
+func IsMaxDevicesPerUserError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var resp *ErrorResponse
+	if !errors.As(err, &resp) || resp == nil {
+		return false
+	}
+	// Known candidate code — refine against sandbox results.
+	if resp.ErrorNumber == 9622 {
+		return true
+	}
+	msg := strings.ToLower(resp.ErrorMessage)
+	if strings.Contains(msg, "maximum number of devices") ||
+		strings.Contains(msg, "device limit") {
+		return true
+	}
+	return false
+}
+
 // ResponseErrorInfo represents the request-specific information regarding the
 // failure.
 //
@@ -129,19 +156,44 @@ func GetConfig(ctx context.Context, token string) (ClientConfig, error) {
 }
 
 // AssociateAssetsRequest is the request for asset management.
+//
+// Apple accepts EITHER SerialNumbers OR ClientUserIds, never both — see Validate.
 type AssociateAssetsRequest struct {
 	// Assets are the assets to assign.
 	Assets []Asset `json:"assets"`
 	// SerialNumbers is the set of identifiers for devices to assign the
-	// assets to.
-	SerialNumbers []string `json:"serialNumbers"`
+	// assets to. Used for device-scoped licensing on manually-enrolled and
+	// DEP-enrolled hosts.
+	SerialNumbers []string `json:"serialNumbers,omitempty"`
+	// ClientUserIds is the set of Fleet-generated identifiers for VPP users
+	// (registered via CreateUsers) to assign the assets to. Used for
+	// user-scoped licensing on Account-Driven User Enrolled (BYOD) hosts.
+	ClientUserIds []string `json:"clientUserIds,omitempty"`
 }
 
-// AssociateAssets associates assets to serial numbers according the the
-// request parameters provided.
+// Validate enforces Apple's contract that exactly one of SerialNumbers or
+// ClientUserIds is set on an associate-assets request.
+func (r *AssociateAssetsRequest) Validate() error {
+	hasSerials := len(r.SerialNumbers) > 0
+	hasUsers := len(r.ClientUserIds) > 0
+	switch {
+	case hasSerials && hasUsers:
+		return errors.New("AssociateAssetsRequest: SerialNumbers and ClientUserIds are mutually exclusive")
+	case !hasSerials && !hasUsers:
+		return errors.New("AssociateAssetsRequest: one of SerialNumbers or ClientUserIds is required")
+	}
+	return nil
+}
+
+// AssociateAssets associates assets to serial numbers or client user IDs
+// according the the request parameters provided.
 //
 // https://developer.apple.com/documentation/devicemanagement/associate_assets
 func AssociateAssets(token string, params *AssociateAssetsRequest) (string, error) {
+	if err := params.Validate(); err != nil {
+		return "", err
+	}
+
 	var reqBody bytes.Buffer
 	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
 		return "", fmt.Errorf("encoding params as JSON: %w", err)
@@ -163,6 +215,87 @@ func AssociateAssets(token string, params *AssociateAssetsRequest) (string, erro
 	}
 
 	return respBody.EventID, nil
+}
+
+// CreateUsersRequest is the body for Apple's create-users endpoint.
+//
+// https://developer.apple.com/documentation/devicemanagement/create-users
+type CreateUsersRequest struct {
+	Users []CreateUsersUser `json:"users"`
+}
+
+// CreateUsersUser identifies a single VPP user to register against an Apple VPP
+// location. ClientUserId is a stable, Fleet-generated UUID; ManagedAppleId is
+// the user's Managed Apple ID surfaced from the host's TokenUpdate.
+type CreateUsersUser struct {
+	ClientUserId   string `json:"clientUserId"`
+	ManagedAppleId string `json:"managedAppleId"`
+}
+
+// CreateUsersResponse is the body returned by Apple's create-users endpoint.
+//
+// On success, EventID is populated and Users echoes back the registrations,
+// each carrying Apple's assigned UserId. Apple may return per-user errors
+// (e.g., for one of several requested users); callers must inspect each
+// CreateUsersResult.ErrorMessage / ErrorNumber to distinguish partial
+// failures from a fully successful batch.
+type CreateUsersResponse struct {
+	EventID string              `json:"eventId"`
+	Users   []CreateUsersResult `json:"users"`
+}
+
+// CreateUsersResult mirrors the per-user fields Apple may return.
+//
+// Modeled defensively: only ClientUserId is guaranteed in the response. UserId
+// is Apple's assigned identifier on success; the optional Error* fields carry
+// per-user partial-failure information.
+type CreateUsersResult struct {
+	UserId         string `json:"userId,omitempty"`
+	ClientUserId   string `json:"clientUserId"`
+	ManagedAppleId string `json:"managedAppleId,omitempty"`
+	Status         string `json:"status,omitempty"`
+	InviteCode     string `json:"inviteCode,omitempty"`
+	InviteURL      string `json:"inviteUrl,omitempty"`
+	// ErrorMessage and ErrorNumber are populated when Apple rejects this
+	// individual user even though the overall request succeeded with 200.
+	ErrorMessage string `json:"errorMessage,omitempty"`
+	ErrorNumber  int32  `json:"errorNumber,omitempty"`
+}
+
+// HasError returns true if Apple flagged this individual user as failed.
+func (r *CreateUsersResult) HasError() bool {
+	return r.ErrorNumber != 0 || r.ErrorMessage != ""
+}
+
+// CreateUsers registers VPP users at Apple's create-users endpoint and returns
+// Apple's response. A nil error indicates the request itself succeeded; per-user
+// partial failures are surfaced on each CreateUsersResult — callers must check
+// HasError() on each entry rather than relying solely on the function's error.
+//
+// https://developer.apple.com/documentation/devicemanagement/create-users
+func CreateUsers(token string, params *CreateUsersRequest) (*CreateUsersResponse, error) {
+	if params == nil || len(params.Users) == 0 {
+		return nil, errors.New("CreateUsersRequest: at least one user is required")
+	}
+
+	var reqBody bytes.Buffer
+	if err := json.NewEncoder(&reqBody).Encode(params); err != nil {
+		return nil, fmt.Errorf("encoding params as JSON: %w", err)
+	}
+
+	req, err := http.NewRequest(http.MethodPost, getBaseURL()+"/users/create", &reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("creating request to Apple VPP endpoint: %w", err)
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	var respBody CreateUsersResponse
+	if err := do(req, token, &respBody); err != nil {
+		return nil, fmt.Errorf("making request to Apple VPP endpoint: %w", err)
+	}
+
+	return &respBody, nil
 }
 
 // AssetFilter represents the filters for querying assets.
