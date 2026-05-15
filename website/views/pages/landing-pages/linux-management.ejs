@@ -5,10 +5,10 @@
         <div purpose="page-hero-content">
           <div purpose="page-hero-headings">
             <h4>Linux MDM</h4>
-            <h1>Open source Linux MDM and device management</h1>
+            <h1>Your engineers use Linux. <span purpose="hero-headline-accent">Manage it like you mean it.</span></h1>
           </div>
           <div purpose="page-hero-text">
-            <p>Support developers’ choice of Linux without losing visibility or control. <br>Manage Linux, macOS, and Windows in one place.</p>
+            <p>Your most powerful engineers use Linux. Your current MDM doesn’t support it. That means your most privileged users are completely unmanaged. No remote lock, no visibility, no recovery if a laptop is lost.</p>
           </div>
           <div purpose="button-row" class="d-flex justify-content-center align-items-center">
             <a purpose="cta-button" class="btn btn-primary" href="/whitepapers/it-leaders-guide-to-linux-device-management">Read the whitepaper</a>
@@ -22,8 +22,38 @@
         </div>
       </div>
       <div purpose="landing-page-section">
+        <div purpose="problem-section">
+          <div purpose="accent-heading">
+            <h4>The problem</h4>
+            <h2>Your most powerful users have the least oversight</h2>
+            <p>Almost every company has engineers using desktop Linux. None of the established device management platforms properly support it. Your most senior engineers, with the most powerful passwords and access, go to work every day with zero security management on their laptops.</p>
+          </div>
+          <div purpose="problem-card">
+            <div purpose="problem-card-text">
+              <p purpose="card-kicker">The Linux blind spot</p>
+              <h3>A senior engineer’s Ubuntu laptop gets lost at a conference. You can’t remotely lock it. You can’t wipe it. You don’t even know what was on it.</h3>
+              <p>This isn’t hypothetical. It happens. Linux users are typically your most technical employees, with the most elevated access, the most sensitive data, and the most creative security workarounds. When Jamf and Intune don’t support Linux, those devices become completely invisible to your security team. No inventory, no vulnerability visibility, no remote lock or wipe, no policy enforcement. Fleet manages Linux the same way it manages macOS and Windows, with full visibility, full control, and zero compromise.</p>
+            </div>
+            <div purpose="problem-stats">
+              <div purpose="stat-card">
+                <p purpose="stat-number">~15%</p>
+                <p purpose="stat-label">of enterprise engineers use desktop Linux</p>
+              </div>
+              <div purpose="stat-card">
+                <p purpose="stat-number">0</p>
+                <p purpose="stat-label">major legacy MDMs with real Linux support</p>
+              </div>
+              <div purpose="stat-card">
+                <p purpose="stat-number">100%</p>
+                <p purpose="stat-label">of Fleet features available on Linux</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div purpose="landing-page-section">
         <div purpose="section-heading">
-          <h3>Linux devices create blind spots for IT</h3>
+          <h2>Linux devices create blind spots for IT</h2>
           <p>Linux is popular with developers and engineers. Most device management tools weren’t built for it. That gap creates risk.</p>
         </div>
         <div purpose="four-column-feature-row">
@@ -46,39 +76,40 @@
         </div>
       </div>
 
-
       <div purpose="landing-page-section">
-        <div purpose="feature-with-image">
-          <div purpose="feature-image">
-            <img alt="A screenshot of Fleet showing scripts that can be run on a Linux device." src="/images/linux-management-feature-image-scripts-504x378@2x.png">
-          </div>
-          <div purpose="feature-text">
-            <h3>Manage Linux with the same visibility and control as other devices</h3>
-            <p>Use Fleet to manage Linux devices at scale. Apply the same workflows you use for macOS and Windows.</p>
-            <div purpose="checklist">
-              <p>Run scripts remotely to automate installs, updates, and configuration</p>
-              <p>Manage software across Debian-based and RPM-based distributions</p>
-              <p>Monitor hardware, software, and compliance in real time</p>
-              <p>Enforce security policies and track vulnerabilities across your fleet</p>
-            </div>
-          </div>
+        <div purpose="accent-heading">
+          <h4>What you get</h4>
+          <h2>Linux management that actually works.</h2>
+          <p>Fleet treats Linux as a first-class citizen, not an afterthought. Every feature available on macOS and Windows is available on Linux, through the same API and the same UI.</p>
         </div>
-      </div>
-      <div purpose="landing-page-section">
-        <div purpose="section-quote">
-          <div purpose="quote-image">
-            <img alt="Nutanix logo" src="/images/logo-nutanix-140x32@2x.png">
+        <div purpose="feature-grid">
+          <div purpose="feature-card">
+            <div purpose="feature-icon">
+              <img alt="Visibility" src="/images/icon-visibility-36x36@2x.png">
+            </div>
+            <h5>Full device visibility</h5>
+            <p>See every Linux device in your fleet: hardware specs, installed software, running processes, network connections, user accounts, and security posture, all in real time via osquery.</p>
           </div>
-          <p purpose="quote-text">"We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure."</p>
-          <div purpose="quote-author-info">
-            <div purpose="quote-author-image">
-              <img alt="Roger Cantrell" src="/images/testimonial-author-roger-cantrell-100x100@2x.png">
+          <div purpose="feature-card">
+            <div purpose="feature-icon">
+              <img alt="Vulnerability management" src="/images/icon-attack-surface-management-48x48@2x.png">
             </div>
-            <div purpose="name-and-title">
-              <p purpose="author-name">Roger Cantrell</p>
-              <p purpose="author-title">IT Operations Engineer</p>
-              <p purpose="author-title">Nutanix</p>
+            <h5>Vulnerability management</h5>
+            <p>Fleet continuously maps installed packages against CVE databases across all Linux distros. When a vulnerability is disclosed, you know exactly which Linux devices are exposed, before your CISO asks.</p>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="feature-icon">
+              <img alt="Script execution" src="/images/icon-automatic-remediation-48x48@2x.png">
             </div>
+            <h5>Script execution</h5>
+            <p>Deploy and run bash scripts on any Linux device from Fleet’s UI or API. No SSH access required. Automate remediation, collect diagnostics, or enforce configurations, all from a central place.</p>
+          </div>
+          <div purpose="feature-card">
+            <div purpose="feature-icon">
+              <img alt="Remote lock and wipe" src="/images/icon-lock-36x36@2x.png">
+            </div>
+            <h5>Remote lock and wipe</h5>
+            <p>Lost a Linux laptop? Lock it or wipe it remotely from Fleet. No more “we can’t do anything because it’s Linux.” Fleet gives your security team the same controls on Linux that they have on Mac and Windows.</p>
           </div>
         </div>
       </div>
@@ -116,9 +147,10 @@
       </div>
 
       <div purpose="landing-page-section">
-        <div purpose="section-heading">
-          <h2>Linux distributions Fleet manages</h2>
-          <p>Manage Debian-based and RPM-based distributions side by side. Monitor any Linux device running osquery.</p>
+        <div purpose="accent-heading">
+          <h4>Real Linux support</h4>
+          <h2>Every distro. Full visibility.<br>Same API as macOS and Windows.</h2>
+          <p>Fleet manages Linux devices with the same depth as macOS and Windows. Not a stripped-down “Linux mode” that only does inventory. Real management, real security, real control.</p>
         </div>
         <div purpose="distro-groups">
           <div purpose="distro-group">
@@ -158,6 +190,81 @@
               <li>Flatcar (rolling)</li>
               <li>CoreOS (rolling)</li>
             </ul>
+          </div>
+        </div>
+        <div purpose="how-it-works">
+          <div purpose="step-card">
+            <div purpose="step-badge">1</div>
+            <h5>Install Fleet agent</h5>
+            <p>Deploy fleetd to Linux devices via your existing tools: Chef, Ansible, Puppet, Terraform, or manually. Engineers don’t need to change how they work. The agent runs silently in the background.</p>
+          </div>
+          <div purpose="step-card">
+            <div purpose="step-badge">2</div>
+            <h5>Full visibility immediately</h5>
+            <p>The moment fleetd is installed, you can see hardware inventory, installed software, running processes, open ports, user accounts, and vulnerability exposure, all in the same Fleet UI you use for Mac and Windows.</p>
+          </div>
+          <div purpose="step-card">
+            <div purpose="step-badge">3</div>
+            <h5>Enforce policy and respond</h5>
+            <p>Run live queries, enforce CIS benchmarks, deploy scripts, lock or wipe devices remotely. A lost Linux laptop is no longer a security incident waiting to happen. It’s a 30-second remote wipe.</p>
+          </div>
+        </div>
+      </div>
+
+      <div purpose="landing-page-section">
+        <div purpose="section-heading">
+          <h4>From teams managing Linux</h4>
+          <h2>Teams that finally closed the Linux gap</h2>
+        </div>
+        <div purpose="section-quote">
+          <div purpose="quote-image">
+            <img alt="Nutanix logo" src="/images/logo-nutanix-140x32@2x.png">
+          </div>
+          <p purpose="quote-text">“We chose Fleet because they take Linux desktop management seriously. It was smooth as butter to set up and start deploying. Fleet gives me the peace of mind knowing that our Linux Fleet is properly managed, monitored, and secure.”</p>
+          <div purpose="quote-author-info">
+            <div purpose="quote-author-image">
+              <img alt="Roger Cantrell" src="/images/testimonial-author-roger-cantrell-100x100@2x.png">
+            </div>
+            <div purpose="name-and-title">
+              <p purpose="author-name">Roger Cantrell</p>
+              <p purpose="author-title">IT Operations Engineer</p>
+              <p purpose="author-title">Nutanix</p>
+            </div>
+          </div>
+        </div>
+        <div purpose="testimonial-cards">
+          <div purpose="testimonial-card">
+            <div purpose="quote-mark">“</div>
+            <p purpose="testimonial-quote">We had 200 Linux laptops that were completely invisible to IT. Fleet brought them into the same management plane as our Macs in one afternoon. Our security team’s first reaction was “wait, we can just see everything now?”</p>
+            <div purpose="testimonial-attribution">
+              <div purpose="testimonial-avatar">I</div>
+              <div purpose="testimonial-role">
+                <p purpose="role-name">IT Security Team</p>
+                <p purpose="role-team">Device Management</p>
+              </div>
+            </div>
+          </div>
+          <div purpose="testimonial-card">
+            <div purpose="quote-mark">“</div>
+            <p purpose="testimonial-quote">Our most senior engineers refused to give up Linux. With Fleet, we stopped fighting them. They keep Linux, we get visibility and control. Everyone wins. Our CISO stopped asking about those devices.</p>
+            <div purpose="testimonial-attribution">
+              <div purpose="testimonial-avatar">P</div>
+              <div purpose="testimonial-role">
+                <p purpose="role-name">Platform Engineering</p>
+                <p purpose="role-team">IT Infrastructure</p>
+              </div>
+            </div>
+          </div>
+          <div purpose="testimonial-card">
+            <div purpose="quote-mark">“</div>
+            <p purpose="testimonial-quote">Fleet’s Linux vulnerability coverage is what sold us. We can see CVE exposure across Ubuntu, RHEL, and Debian in the same query. That’s something no other MDM vendor has shipped.</p>
+            <div purpose="testimonial-attribution">
+              <div purpose="testimonial-avatar">S</div>
+              <div purpose="testimonial-role">
+                <p purpose="role-name">Security Operations</p>
+                <p purpose="role-team">Endpoint Security</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -254,9 +361,9 @@
 
     <div purpose="page-container" class="container">
       <div purpose="bottom-cta" class="text-center">
-        <h4>Linux Device Management</h4>
-        <h2>Support Linux without adding complexity</h2>
-        <div purpose="button-row" style="margin-top: 32px;" class="d-flex justify-content-center align-items-center mx-auto">
+        <h4>Linux device management</h4>
+        <h2>Ready to manage every device, including Linux?</h2>
+        <div purpose="button-row" class="d-flex justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" class="btn btn-primary" href="/whitepapers/it-leaders-guide-to-linux-device-management">Read the whitepaper</a>
         </div>
       </div>
