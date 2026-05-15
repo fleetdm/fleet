@@ -133,11 +133,11 @@ type ServerConfig struct {
 	// WriteTimeout is the HTTP server write timeout. Defaults to 40 s.
 	// Long-running endpoints (e.g. /app_store_apps/batch with 200+ apps)
 	// may need a higher value. Set via FLEET_SERVER_WRITE_TIMEOUT.
-	WriteTimeout                     time.Duration `yaml:"write_timeout"`
-	MaxInstallerSizeBytes            int64         `yaml:"max_installer_size"`
-	TrustedProxies                   string        `yaml:"trusted_proxies"`
-	GzipResponses                    bool          `yaml:"gzip_responses"`
-	DefaultMaxRequestBodySize        int64         `yaml:"default_max_request_body_size"`
+	WriteTimeout              time.Duration `yaml:"write_timeout"`
+	MaxInstallerSizeBytes     int64         `yaml:"max_installer_size"`
+	TrustedProxies            string        `yaml:"trusted_proxies"`
+	GzipResponses             bool          `yaml:"gzip_responses"`
+	DefaultMaxRequestBodySize int64         `yaml:"default_max_request_body_size"`
 }
 
 func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handler) *http.Server {
